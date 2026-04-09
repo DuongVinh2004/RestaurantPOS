@@ -16,7 +16,9 @@ if [[ ! -d vendor ]]; then
 fi
 
 if [[ "${BOOKING_CI_BOOTSTRAP_DATABASE:-true}" == "true" ]]; then
-  bash tools/mysql/bootstrap_release.sh
+  # GitHub Actions pre-creates the CI database for the app user, so bootstrap
+  # must skip CREATE DATABASE and only import the SQL-first release contract.
+  php tools/mysql/bootstrap_release.php --skip-create-db
 fi
 
 php artisan db:seed --class=ReferenceDataSeeder --force

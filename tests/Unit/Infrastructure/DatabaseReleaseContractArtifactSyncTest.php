@@ -21,6 +21,18 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
         }
     }
 
+    public function test_ci_bootstrap_uses_release_wrapper_without_creating_database(): void
+    {
+        $ciBootstrapPath = base_path('scripts/ci/booking-ci-bootstrap.sh');
+
+        $this->assertTrue(File::exists($ciBootstrapPath), sprintf('CI bootstrap script is missing: %s', $ciBootstrapPath));
+
+        $script = (string) File::get($ciBootstrapPath);
+
+        $this->assertStringContainsString('php tools/mysql/bootstrap_release.php --skip-create-db', $script);
+        $this->assertStringNotContainsString('bash tools/mysql/bootstrap_release.sh', $script);
+    }
+
     public function test_release_contract_verification_and_docs_cover_april_five_foundations(): void
     {
         $verifySqlPath = base_path('tools/mysql/verify_release_contract.sql');
