@@ -16,11 +16,15 @@
 /.codex/config.toml
 /auth.json
 /app.zip
+/README.txt
 /build/booking-ci
 /build/booking-release
+/dynamic-cutoff-phase1-prompt.txt
+/init-staff-web.bat
 /node_modules
 /staff-web/node_modules
 /staff-web/dist
+/lenh_chay_project.md
 /public/build
 /public/hot
 /public/storage
