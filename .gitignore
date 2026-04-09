@@ -1,4 +1,5 @@
 *.log
+*.pyc
 .DS_Store
 .env
 .env.testing
@@ -34,6 +35,7 @@
 /storage/*.key
 /storage/pail
 /test-logs
+__pycache__/
 /vendor
 Homestead.json
 Homestead.yaml
