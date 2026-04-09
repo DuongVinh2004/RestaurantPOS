@@ -33,6 +33,22 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
         $this->assertStringNotContainsString('bash tools/mysql/bootstrap_release.sh', $script);
     }
 
+    public function test_ci_workflows_enable_mysql_routine_creation_before_bootstrap(): void
+    {
+        foreach ([
+            base_path('.github/workflows/booking-ci.yml'),
+            base_path('.github/workflows/booking-release-gate.yml'),
+        ] as $path) {
+            $this->assertTrue(File::exists($path), sprintf('Workflow file is missing: %s', $path));
+
+            $workflow = (string) File::get($path);
+
+            $this->assertStringContainsString('Allow CI routine creators', $workflow);
+            $this->assertStringContainsString('SET GLOBAL log_bin_trust_function_creators = 1;', $workflow);
+            $this->assertStringContainsString('SHOW VARIABLES LIKE \'log_bin_trust_function_creators\';', $workflow);
+        }
+    }
+
     public function test_release_contract_verification_and_docs_cover_april_five_foundations(): void
     {
         $verifySqlPath = base_path('tools/mysql/verify_release_contract.sql');
