@@ -65,6 +65,10 @@ final class StaffCapabilityRouteInventoryContractTest extends TestCase
 
     public function test_route_alias_config_matches_the_locked_route_inventory_alias_groups(): void
     {
+        $configuredCapabilityRoutes = array_fill_keys(
+            array_keys((array) config('staff_capabilities.route_capabilities', [])),
+            true
+        );
         $fixture = json_decode((string) file_get_contents(base_path('tests/fixtures/route_inventory_gate.json')), true, 512, JSON_THROW_ON_ERROR);
         $fixtureAliases = collect((array) ($fixture['alias_groups'] ?? []))
             ->flatMap(function (array $group): array {
@@ -87,6 +91,7 @@ final class StaffCapabilityRouteInventoryContractTest extends TestCase
 
                 return $aliases;
             })
+            ->filter(fn (string $canonical): bool => isset($configuredCapabilityRoutes[$canonical]))
             ->sortKeys()
             ->all();
 

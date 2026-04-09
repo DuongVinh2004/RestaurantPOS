@@ -12,16 +12,22 @@ class ApiArtifactsConfigContractTest extends TestCase
     {
         self::assertSame('build/api-consumer', config('api_artifacts.output_root'));
 
-        $groups = collect((array) config('api_artifacts.postman.groups', []))
+        $groups = collect((array) config('api_artifacts.postman.groups', []));
+        $groupNames = $groups
             ->pluck('name')
             ->all();
+        $groupsByName = $groups->keyBy('name');
+        $mutationGroupsByName = collect((array) config('api_artifacts.mutation_contract.groups', []))
+            ->keyBy('name');
 
         self::assertSame([
             'Auth',
             'Availability + Reservation',
             'Deposit Self-Pay',
             'Dine-In + Checkout',
+            'Kitchen / KDS',
             'Staff Lookup',
+            'Operations Read Models',
             'Refunds',
             'Waiting List',
             'Benefits',
@@ -29,7 +35,7 @@ class ApiArtifactsConfigContractTest extends TestCase
             'Conversation Inbox',
             'Payment Webhooks',
             'Health',
-        ], $groups);
+        ], $groupNames);
 
         self::assertTrue((bool) config('api_artifacts.postman.include_full_contract_reference'));
         self::assertSame('Reference', config('api_artifacts.postman.reference_folder_name'));
@@ -44,24 +50,24 @@ class ApiArtifactsConfigContractTest extends TestCase
         self::assertSame('enum-state-map.json', config('api_artifacts.enums.json'));
         self::assertSame('sdk/typescript/restaurantpos-enums.ts', config('api_artifacts.enums.typescript'));
         self::assertSame('mutation-contracts.md', config('api_artifacts.mutation_contract.readme'));
-        self::assertContains('GET api/v1/menu/items', config('api_artifacts.postman.groups.1.signatures'));
-        self::assertContains('GET api/v1/reservations/{id}/preorder', config('api_artifacts.postman.groups.1.signatures'));
-        self::assertContains('PUT api/v1/reservations/{id}/preorder', config('api_artifacts.postman.groups.1.signatures'));
-        self::assertContains('DELETE api/v1/reservations/{id}/preorder', config('api_artifacts.postman.groups.1.signatures'));
-        self::assertContains('POST api/v1/reservations/{id}/cancel', config('api_artifacts.mutation_contract.groups.0.signatures'));
-        self::assertContains('POST api/v1/reservations/{reservation_id}/bill/payment-sessions', config('api_artifacts.mutation_contract.groups.0.signatures'));
-        self::assertContains('POST api/v1/waiting-list/{id}/cancel', config('api_artifacts.mutation_contract.groups.1.signatures'));
-        self::assertContains('POST api/v1/staff/orders/{order_id}/items', config('api_artifacts.mutation_contract.groups.3.signatures'));
-        self::assertContains('PATCH api/v1/admin/settings/branches/{id}', config('api_artifacts.mutation_contract.groups.4.signatures'));
-        self::assertContains('GET api/v1/staff/tables/board', config('api_artifacts.postman.groups.3.signatures'));
-        self::assertContains('GET api/v1/staff/tables/board/changes', config('api_artifacts.postman.groups.3.signatures'));
-        self::assertContains('GET api/v1/staff/cashier/shifts/current', config('api_artifacts.postman.groups.3.signatures'));
-        self::assertContains('GET api/v1/staff/reservations', config('api_artifacts.postman.groups.4.signatures'));
-        self::assertContains('GET api/v1/staff/reservations/{reservation_id}/orders', config('api_artifacts.postman.groups.4.signatures'));
-        self::assertContains('GET api/v1/staff/cashier/shifts', config('api_artifacts.postman.groups.4.signatures'));
-        self::assertContains('GET api/v1/staff/waiting-list', config('api_artifacts.postman.groups.6.signatures'));
-        self::assertContains('GET api/v1/staff/waiting-list/changes', config('api_artifacts.postman.groups.6.signatures'));
-        self::assertContains('GET api/v1/me/loyalty', config('api_artifacts.postman.groups.7.signatures'));
+        self::assertContains('GET api/v1/menu/items', $groupsByName['Availability + Reservation']['signatures']);
+        self::assertContains('GET api/v1/reservations/{id}/preorder', $groupsByName['Availability + Reservation']['signatures']);
+        self::assertContains('PUT api/v1/reservations/{id}/preorder', $groupsByName['Availability + Reservation']['signatures']);
+        self::assertContains('DELETE api/v1/reservations/{id}/preorder', $groupsByName['Availability + Reservation']['signatures']);
+        self::assertContains('POST api/v1/reservations/{id}/cancel', $mutationGroupsByName['Customer reservation + preorder + deposit + bill payment']['signatures']);
+        self::assertContains('POST api/v1/reservations/{reservation_id}/bill/payment-sessions', $mutationGroupsByName['Customer reservation + preorder + deposit + bill payment']['signatures']);
+        self::assertContains('POST api/v1/waiting-list/{id}/cancel', $mutationGroupsByName['Customer waiting list']['signatures']);
+        self::assertContains('POST api/v1/staff/orders/{order_id}/items', $mutationGroupsByName['Staff order + checkout + cashier core']['signatures']);
+        self::assertContains('PATCH api/v1/admin/settings/branches/{id}', $mutationGroupsByName['Admin branch update']['signatures']);
+        self::assertContains('GET api/v1/staff/tables/board', $groupsByName['Dine-In + Checkout']['signatures']);
+        self::assertContains('GET api/v1/staff/tables/board/changes', $groupsByName['Dine-In + Checkout']['signatures']);
+        self::assertContains('GET api/v1/staff/cashier/shifts/current', $groupsByName['Dine-In + Checkout']['signatures']);
+        self::assertContains('GET api/v1/staff/reservations', $groupsByName['Staff Lookup']['signatures']);
+        self::assertContains('GET api/v1/staff/reservations/{reservation_id}/orders', $groupsByName['Staff Lookup']['signatures']);
+        self::assertContains('GET api/v1/staff/cashier/shifts', $groupsByName['Staff Lookup']['signatures']);
+        self::assertContains('GET api/v1/staff/waiting-list', $groupsByName['Waiting List']['signatures']);
+        self::assertContains('GET api/v1/staff/waiting-list/changes', $groupsByName['Waiting List']['signatures']);
+        self::assertContains('GET api/v1/me/loyalty', $groupsByName['Benefits']['signatures']);
         self::assertSame('boardZone', config('api_artifacts.postman.parameter_aliases.GET api/v1/staff/tables/board.query.zone'));
         self::assertSame('boardAfterVersion', config('api_artifacts.postman.parameter_aliases.GET api/v1/staff/tables/board/changes.query.after_version'));
         self::assertSame('waitingListStatus', config('api_artifacts.postman.parameter_aliases.GET api/v1/staff/waiting-list.query.status'));

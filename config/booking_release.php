@@ -224,6 +224,7 @@ return [
         '2026_04_05_000047_branch_scheduling_policy_foundation.sql',
         '2026_04_05_000047_data_lifecycle_foundation.sql',
         '2026_04_05_000048_feature_flags_foundation.sql',
+        '2026_04_08_000041_drop_runtime_incompatible_payment_refund_triggers.sql',
     ],
     'release_manifest' => [
         'definition_path' => 'config/booking_release.php',

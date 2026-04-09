@@ -26,6 +26,9 @@ php artisan config:clear
 php artisan cache:clear || true
 php artisan route:clear || true
 php artisan view:clear || true
+# CI lanes verify scheduler freshness without running `schedule:work`, so
+# prime the heartbeat after bootstrap completes.
+php artisan booking:ops-heartbeat:touch scheduler --json >/dev/null
 
 if [[ "${BOOKING_CI_BOOTSTRAP_SITE:-false}" == "true" ]]; then
   php artisan booking:bootstrap-site --json

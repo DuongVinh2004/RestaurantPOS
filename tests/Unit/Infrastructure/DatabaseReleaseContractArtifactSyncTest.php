@@ -30,7 +30,20 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
         $script = (string) File::get($ciBootstrapPath);
 
         $this->assertStringContainsString('php tools/mysql/bootstrap_release.php --skip-create-db', $script);
+        $this->assertStringContainsString('php artisan booking:ops-heartbeat:touch scheduler --json >/dev/null', $script);
         $this->assertStringNotContainsString('bash tools/mysql/bootstrap_release.sh', $script);
+    }
+
+    public function test_smoke_gate_refreshes_scheduler_heartbeat_after_cache_clear(): void
+    {
+        $smokeGatePath = base_path('scripts/ci/booking-smoke-gate.sh');
+
+        $this->assertTrue(File::exists($smokeGatePath), sprintf('Smoke gate script is missing: %s', $smokeGatePath));
+
+        $script = (string) File::get($smokeGatePath);
+
+        $this->assertStringContainsString('php artisan cache:clear || true', $script);
+        $this->assertStringContainsString('php artisan booking:ops-heartbeat:touch scheduler --json >/dev/null', $script);
     }
 
     public function test_ci_workflows_enable_mysql_routine_creation_before_bootstrap(): void
@@ -44,6 +57,8 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
             $workflow = (string) File::get($path);
 
             $this->assertStringContainsString('Allow CI routine creators', $workflow);
+            $this->assertStringContainsString('REQUIRE_REDIS_FOR_BOOKING_API: true', $workflow);
+            $this->assertStringContainsString('BOOKING_CI_BOOTSTRAP_SITE: true', $workflow);
             $this->assertStringContainsString('SET GLOBAL log_bin_trust_function_creators = 1;', $workflow);
             $this->assertStringContainsString('SHOW VARIABLES LIKE \'log_bin_trust_function_creators\';', $workflow);
         }
