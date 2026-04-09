@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Shared File Discipline"
+  short_description: "Minimize collisions on shared integration seams"
+  default_prompt: "Use $restaurantpos-shared-file-discipline when a RestaurantPOS task may touch shared files like routes, booking config, staff capabilities, or mysql schema."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Inventory & Purchasing"
+  short_description: "Harden inventory, recipe, and purchasing flow"
+  default_prompt: "Use $restaurantpos-inventory-purchasing to harden ingredient, recipe, stock movement, purchase order, and receiving flows."

@@ -1,0 +1,37 @@
+{
+  "status": "ok",
+  "generated_at_utc": "2026-04-05T09:00:00Z",
+  "backup_root": "tests/fixtures/disaster_recovery",
+  "backup_directory": "tests/fixtures/disaster_recovery/backup_bundle",
+  "database": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "name": "restaurant_pos"
+  },
+  "options": {
+    "compress": false,
+    "retention_days": 14,
+    "included_artifacts": [
+      "schema",
+      "full"
+    ]
+  },
+  "artifacts": {
+    "schema": {
+      "exists": true,
+      "path": "schema.sql",
+      "bytes": 285,
+      "sha256": "faa5a8430fd57758ec59f59b1ec9883060bfa2c2787bfbf1f27aeaa566831bfd",
+      "line_count": 12
+    },
+    "full": {
+      "exists": true,
+      "path": "full.sql",
+      "bytes": 415,
+      "sha256": "6f124053f005abd15ee5983435554a8931bd207662b870fc0c004a8532f0f879",
+      "line_count": 13
+    }
+  },
+  "pruned_directories": [],
+  "issues": []
+}

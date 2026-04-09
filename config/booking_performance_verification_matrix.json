@@ -1,0 +1,596 @@
+{
+  "artifact_root": "storage/app/booking_release/performance_verification",
+  "warning_threshold_ratio": 0.9,
+  "groups": {
+    "booking_core_flows": "Booking core flows",
+    "checkout_financial_flows": "Checkout / financial flows",
+    "payment_webhooks": "Payment webhook ingestion",
+    "soak_verification": "Soak verification",
+    "failure_injection": "Failure injection"
+  },
+  "profiles": {
+    "local": {
+      "label": "developer-local",
+      "evidence_level": "sanity_only",
+      "description": "Short developer sanity profile. Useful for local regressions, not rollout evidence.",
+      "warn_on_missing_operator_assisted": false
+    },
+    "staging": {
+      "label": "serious-staging",
+      "evidence_level": "release_candidate",
+      "description": "Serious staging profile used for rollout evidence and baseline capture.",
+      "warn_on_missing_operator_assisted": true
+    }
+  },
+  "scenarios": [
+    {
+      "key": "availability_read_load",
+      "group": "booking_core_flows",
+      "label": "Availability concurrent read load",
+      "type": "load",
+      "automation": "automated",
+      "severity": "blocking",
+      "runner_key": "availability_read_load",
+      "staging_only": false,
+      "source_of_truth": [
+        "docs/performance-hot-paths.md",
+        "routes/api.php#tables/available",
+        "scripts/uat/Invoke-UatScenario.ps1#availability-hold-reservation"
+      ],
+      "endpoints": [
+        "GET /api/v1/tables/available"
+      ],
+      "pass_criteria": "Concurrent availability reads stay within latency and error thresholds for the selected profile.",
+      "failure_meaning": "Availability lookups are too slow or unstable under concurrent traffic, so table discovery is not rollout-safe.",
+      "remediation_hint": "Profile branch/table conflict reads and runtime caching before promoting the build.",
+      "profile_settings": {
+        "local": {
+          "duration_seconds": 15,
+          "concurrency": 4,
+          "thresholds": {
+            "latency_p95_ms_max": 650,
+            "latency_p99_ms_max": 900,
+            "unexpected_error_rate_max": 0.02,
+            "throughput_rps_min": 2.0
+          }
+        },
+        "staging": {
+          "duration_seconds": 45,
+          "concurrency": 12,
+          "thresholds": {
+            "latency_p95_ms_max": 350,
+            "latency_p99_ms_max": 500,
+            "unexpected_error_rate_max": 0.01,
+            "throughput_rps_min": 8.0
+          }
+        }
+      }
+    },
+    {
+      "key": "reservation_show_load",
+      "group": "booking_core_flows",
+      "label": "Reservation show read load",
+      "type": "load",
+      "automation": "automated",
+      "severity": "blocking",
+      "runner_key": "reservation_show_load",
+      "staging_only": false,
+      "source_of_truth": [
+        "routes/api.php#reservations/{id}",
+        "scripts/uat/Invoke-UatScenario.ps1#availability-hold-reservation"
+      ],
+      "endpoints": [
+        "GET /api/v1/reservations/{id}"
+      ],
+      "pass_criteria": "Owner reservation reads stay within profile latency and error thresholds.",
+      "failure_meaning": "Canonical reservation detail reads degrade under load, increasing customer-facing latency and stale reload risk.",
+      "remediation_hint": "Inspect reservation eager-loading and deposit/payment summaries before rollout.",
+      "profile_settings": {
+        "local": {
+          "duration_seconds": 15,
+          "concurrency": 3,
+          "thresholds": {
+            "latency_p95_ms_max": 700,
+            "latency_p99_ms_max": 950,
+            "unexpected_error_rate_max": 0.02,
+            "throughput_rps_min": 1.5
+          }
+        },
+        "staging": {
+          "duration_seconds": 40,
+          "concurrency": 8,
+          "thresholds": {
+            "latency_p95_ms_max": 400,
+            "latency_p99_ms_max": 600,
+            "unexpected_error_rate_max": 0.01,
+            "throughput_rps_min": 6.0
+          }
+        }
+      }
+    },
+    {
+      "key": "waiting_list_queue_load",
+      "group": "booking_core_flows",
+      "label": "Waiting-list queue read load",
+      "type": "load",
+      "automation": "automated",
+      "severity": "blocking",
+      "runner_key": "waiting_list_queue_load",
+      "staging_only": false,
+      "source_of_truth": [
+        "docs/performance-hot-paths.md#deferred-work",
+        "routes/api.php#staff/waiting-list",
+        "routes/api.php#staff/waiting-list/changes"
+      ],
+      "endpoints": [
+        "GET /api/v1/staff/waiting-list",
+        "GET /api/v1/staff/waiting-list/changes"
+      ],
+      "pass_criteria": "Staff queue reads and changes feed stay within profile latency and error thresholds.",
+      "failure_meaning": "Floor staff queue visibility is not stable enough for staging or limited rollout load.",
+      "remediation_hint": "Profile waiting-list sorting, summary hydration, and realtime feed polling under realistic queue size.",
+      "profile_settings": {
+        "local": {
+          "duration_seconds": 15,
+          "concurrency": 3,
+          "thresholds": {
+            "latency_p95_ms_max": 800,
+            "latency_p99_ms_max": 1100,
+            "unexpected_error_rate_max": 0.02,
+            "throughput_rps_min": 1.5
+          }
+        },
+        "staging": {
+          "duration_seconds": 40,
+          "concurrency": 8,
+          "thresholds": {
+            "latency_p95_ms_max": 450,
+            "latency_p99_ms_max": 650,
+            "unexpected_error_rate_max": 0.01,
+            "throughput_rps_min": 5.0
+          }
+        }
+      }
+    },
+    {
+      "key": "staff_board_timeline_load",
+      "group": "booking_core_flows",
+      "label": "Staff board and timeline read load",
+      "type": "load",
+      "automation": "automated",
+      "severity": "blocking",
+      "runner_key": "staff_board_timeline_load",
+      "staging_only": false,
+      "source_of_truth": [
+        "docs/performance-hot-paths.md",
+        "tests/Feature/Performance/HotPathPerformanceBudgetTest.php",
+        "routes/api.php#staff/tables/board",
+        "routes/api.php#staff/reservations/timeline"
+      ],
+      "endpoints": [
+        "GET /api/v1/staff/tables/board",
+        "GET /api/v1/staff/reservations/timeline"
+      ],
+      "pass_criteria": "Board and timeline reads meet latency/error thresholds on the selected profile.",
+      "failure_meaning": "The hottest staff operational read models still degrade under concurrency, so floor operations are not rollout-ready.",
+      "remediation_hint": "Investigate candidate-table hydration, runtime setting lookups, and branch compatibility reads before rollout.",
+      "profile_settings": {
+        "local": {
+          "duration_seconds": 20,
+          "concurrency": 3,
+          "thresholds": {
+            "latency_p95_ms_max": 1000,
+            "latency_p99_ms_max": 1400,
+            "unexpected_error_rate_max": 0.02,
+            "throughput_rps_min": 1.0
+          }
+        },
+        "staging": {
+          "duration_seconds": 45,
+          "concurrency": 6,
+          "thresholds": {
+            "latency_p95_ms_max": 650,
+            "latency_p99_ms_max": 900,
+            "unexpected_error_rate_max": 0.01,
+            "throughput_rps_min": 3.0
+          }
+        }
+      }
+    },
+    {
+      "key": "checkout_preview_load",
+      "group": "checkout_financial_flows",
+      "label": "Checkout, settlement, and refund preview load",
+      "type": "load",
+      "automation": "automated",
+      "severity": "blocking",
+      "runner_key": "checkout_preview_load",
+      "staging_only": false,
+      "source_of_truth": [
+        "docs/performance-hot-paths.md#deferred-work",
+        "routes/api.php#staff/orders/{order_id}/settlement-preview",
+        "routes/api.php#staff/reservations/{reservation_id}/refund-preview",
+        "routes/api.php#reservations/{reservation_id}/active-order",
+        "routes/api.php#reservations/{reservation_id}/bill-preview",
+        "scripts/uat/Invoke-UatScenario.ps1#dine-in-checkout",
+        "scripts/uat/Invoke-UatScenario.ps1#refund-partial"
+      ],
+      "endpoints": [
+        "GET /api/v1/reservations/{reservation_id}/active-order",
+        "GET /api/v1/reservations/{reservation_id}/bill-preview",
+        "GET /api/v1/staff/orders/{order_id}/settlement-preview",
+        "GET /api/v1/staff/reservations/{reservation_id}/refund-preview"
+      ],
+      "pass_criteria": "Checkout read-heavy surfaces remain stable across active-order, bill-preview, settlement-preview, and refund-preview reads.",
+      "failure_meaning": "Financial read models are too slow or unstable for realistic cashier and customer traffic.",
+      "remediation_hint": "Inspect settlement calculations, bill hydration, and refund preview joins before rollout.",
+      "profile_settings": {
+        "local": {
+          "duration_seconds": 20,
+          "concurrency": 3,
+          "thresholds": {
+            "latency_p95_ms_max": 1100,
+            "latency_p99_ms_max": 1500,
+            "unexpected_error_rate_max": 0.02,
+            "throughput_rps_min": 1.0
+          }
+        },
+        "staging": {
+          "duration_seconds": 45,
+          "concurrency": 6,
+          "thresholds": {
+            "latency_p95_ms_max": 700,
+            "latency_p99_ms_max": 950,
+            "unexpected_error_rate_max": 0.01,
+            "throughput_rps_min": 4.0
+          }
+        }
+      }
+    },
+    {
+      "key": "reservation_create_race",
+      "group": "booking_core_flows",
+      "label": "Reservation create race burst",
+      "type": "burst",
+      "automation": "automated",
+      "severity": "blocking",
+      "runner_key": "reservation_create_race",
+      "staging_only": false,
+      "source_of_truth": [
+        "routes/api.php#table-holds",
+        "routes/api.php#reservations",
+        "routes/api.php#reservations/{id}/status",
+        "scripts/uat/Invoke-UatScenario.ps1#availability-hold-reservation",
+        "tests/Feature/Reservation/ReservationStatusHttpFlowTest.php"
+      ],
+      "endpoints": [
+        "POST /api/v1/table-holds",
+        "POST /api/v1/reservations",
+        "PATCH /api/v1/reservations/{id}/status"
+      ],
+      "pass_criteria": "Exactly one reservation creation succeeds for the contended slot, controlled conflicts are surfaced cleanly, and unexpected errors stay at zero.",
+      "failure_meaning": "Race handling around holds and reservations is leaking duplicate success or unexpected failures under burst contention.",
+      "remediation_hint": "Audit hold uniqueness, reservation conflict checks, and lock ordering before rollout.",
+      "profile_settings": {
+        "local": {
+          "concurrency": 8,
+          "thresholds": {
+            "latency_p95_ms_max": 1600,
+            "latency_p99_ms_max": 2200,
+            "unexpected_error_rate_max": 0.0,
+            "success_count_min": 1,
+            "success_count_max": 1,
+            "cleanup_error_count_max": 0
+          }
+        },
+        "staging": {
+          "concurrency": 20,
+          "thresholds": {
+            "latency_p95_ms_max": 900,
+            "latency_p99_ms_max": 1300,
+            "unexpected_error_rate_max": 0.0,
+            "success_count_min": 1,
+            "success_count_max": 1,
+            "cleanup_error_count_max": 0
+          }
+        }
+      }
+    },
+    {
+      "key": "payment_webhook_burst",
+      "group": "payment_webhooks",
+      "label": "Payment webhook burst ingestion",
+      "type": "burst",
+      "automation": "automated",
+      "severity": "blocking",
+      "runner_key": "payment_webhook_burst",
+      "staging_only": false,
+      "source_of_truth": [
+        "routes/api.php#payments/providers/{provider_code}/webhooks",
+        "scripts/api/Invoke-SimulatedPaymentWebhook.ps1",
+        "tests/Feature/Payments/PaymentProviderWebhookFlowTest.php"
+      ],
+      "endpoints": [
+        "POST /api/v1/payments/providers/{provider_code}/webhooks"
+      ],
+      "pass_criteria": "Webhook ingress accepts the burst cleanly with no unexpected transport errors and controlled delivery statuses.",
+      "failure_meaning": "Payment webhook ingestion does not remain stable under burst delivery from the provider side.",
+      "remediation_hint": "Inspect webhook receipt persistence, reservation locks, and provider session lookup under concurrent delivery.",
+      "profile_settings": {
+        "local": {
+          "concurrency": 8,
+          "thresholds": {
+            "latency_p95_ms_max": 1200,
+            "latency_p99_ms_max": 1600,
+            "unexpected_error_rate_max": 0.02,
+            "accepted_response_rate_min": 0.98
+          }
+        },
+        "staging": {
+          "concurrency": 20,
+          "thresholds": {
+            "latency_p95_ms_max": 700,
+            "latency_p99_ms_max": 950,
+            "unexpected_error_rate_max": 0.01,
+            "accepted_response_rate_min": 0.99
+          }
+        }
+      }
+    },
+    {
+      "key": "mixed_service_day_soak",
+      "group": "soak_verification",
+      "label": "Mixed service-day soak",
+      "type": "soak",
+      "automation": "automated",
+      "severity": "blocking",
+      "runner_key": "mixed_service_day_soak",
+      "staging_only": false,
+      "source_of_truth": [
+        "docs/performance-hot-paths.md",
+        "scripts/uat/Invoke-UatScenario.ps1",
+        "routes/api.php"
+      ],
+      "endpoints": [
+        "GET /api/v1/tables/available",
+        "GET /api/v1/reservations/{id}",
+        "GET /api/v1/staff/waiting-list",
+        "GET /api/v1/staff/tables/board",
+        "GET /api/v1/staff/reservations/timeline",
+        "GET /api/v1/reservations/{reservation_id}/bill-preview",
+        "GET /api/v1/staff/orders/{order_id}/settlement-preview",
+        "POST /api/v1/payments/providers/{provider_code}/webhooks"
+      ],
+      "pass_criteria": "A mixed workload can sustain the configured soak window without cumulative latency blow-up or rising error rates.",
+      "failure_meaning": "The service degrades over time under mixed production-like traffic, so short bursts are hiding resource retention or queue buildup issues.",
+      "remediation_hint": "Inspect connection reuse, queue lag, cache churn, and cumulative lock contention before rollout.",
+      "profile_settings": {
+        "local": {
+          "duration_seconds": 30,
+          "concurrency": 3,
+          "thresholds": {
+            "latency_p95_ms_max": 1200,
+            "latency_p99_ms_max": 1700,
+            "unexpected_error_rate_max": 0.02,
+            "throughput_rps_min": 1.0
+          }
+        },
+        "staging": {
+          "duration_seconds": 180,
+          "concurrency": 6,
+          "thresholds": {
+            "latency_p95_ms_max": 800,
+            "latency_p99_ms_max": 1100,
+            "unexpected_error_rate_max": 0.01,
+            "throughput_rps_min": 2.5
+          }
+        }
+      }
+    },
+    {
+      "key": "webhook_duplicate_storm",
+      "group": "failure_injection",
+      "label": "Webhook duplicate storm fault",
+      "type": "fault",
+      "automation": "automated",
+      "severity": "blocking",
+      "runner_key": "webhook_duplicate_storm",
+      "staging_only": false,
+      "source_of_truth": [
+        "routes/api.php#payments/providers/{provider_code}/webhooks",
+        "tests/Feature/Payments/PaymentProviderWebhookFlowTest.php#duplicate_delivery_is_idempotent"
+      ],
+      "endpoints": [
+        "POST /api/v1/payments/providers/{provider_code}/webhooks"
+      ],
+      "pass_criteria": "Duplicate deliveries stay accepted, duplicate detection dominates the storm, and unexpected transport or validation failures stay at zero.",
+      "failure_meaning": "Webhook idempotency is not stable under provider retry storms, so financial reconciliation risk remains high.",
+      "remediation_hint": "Inspect unique receipt constraints, duplicate payload validation, and idempotent settlement application.",
+      "profile_settings": {
+        "local": {
+          "concurrency": 8,
+          "thresholds": {
+            "latency_p95_ms_max": 1200,
+            "latency_p99_ms_max": 1600,
+            "unexpected_error_rate_max": 0.0,
+            "accepted_response_rate_min": 1.0,
+            "duplicate_rate_min": 0.8
+          }
+        },
+        "staging": {
+          "concurrency": 20,
+          "thresholds": {
+            "latency_p95_ms_max": 700,
+            "latency_p99_ms_max": 950,
+            "unexpected_error_rate_max": 0.0,
+            "accepted_response_rate_min": 1.0,
+            "duplicate_rate_min": 0.9
+          }
+        }
+      }
+    },
+    {
+      "key": "waiting_list_advance_operator_drill",
+      "group": "booking_core_flows",
+      "label": "Waiting-list advance operator drill",
+      "type": "workflow",
+      "automation": "operator_assisted",
+      "severity": "major",
+      "staging_only": true,
+      "required_profiles": [
+        "staging"
+      ],
+      "source_of_truth": [
+        "routes/api.php#staff/waiting-list/{id}/advance",
+        "scripts/uat/Invoke-UatScenario.ps1#waiting-list-lifecycle",
+        "app/Services/WaitingList/WaitingListOperationalOrchestrationService.php"
+      ],
+      "endpoints": [
+        "POST /api/v1/staff/waiting-list/{id}/advance"
+      ],
+      "pass_criteria": "During a real decline or invite-expiry drill, queue advancement notifies the next candidate without unexpected failures.",
+      "failure_meaning": "Advance-queue orchestration has not been exercised under real staging state transitions yet.",
+      "remediation_hint": "Run the canonical waiting-list lifecycle on staging, create a declined or expired source entry, and capture the advance result.",
+      "profile_settings": {
+        "staging": {
+          "thresholds": {
+            "unexpected_error_rate_max": 0.0,
+            "latency_p95_ms_max": 900
+          }
+        }
+      }
+    },
+    {
+      "key": "redis_degradation_fault_probe",
+      "group": "failure_injection",
+      "label": "Redis degraded fault probe",
+      "type": "fault",
+      "automation": "operator_assisted",
+      "severity": "major",
+      "staging_only": true,
+      "required_profiles": [
+        "staging"
+      ],
+      "source_of_truth": [
+        "booking:doctor",
+        "routes/api.php#tables/available",
+        "routes/api.php#staff/tables/board",
+        "routes/api.php#staff/waiting-list"
+      ],
+      "endpoints": [
+        "GET /api/v1/tables/available",
+        "GET /api/v1/staff/tables/board",
+        "GET /api/v1/staff/waiting-list",
+        "php artisan booking:doctor --json"
+      ],
+      "pass_criteria": "Under an operator-induced Redis degradation window, core reads remain bounded and the system fails gracefully without uncontrolled error spikes.",
+      "failure_meaning": "Redis degradation behavior is unverified on staging, so cache/lock failure handling is still a rollout risk.",
+      "remediation_hint": "Inject Redis delay or unavailability in staging, rerun the selected read probes, and capture the resulting report artifact.",
+      "profile_settings": {
+        "staging": {
+          "thresholds": {
+            "latency_p95_ms_max": 1200,
+            "unexpected_error_rate_max": 0.05
+          }
+        }
+      }
+    },
+    {
+      "key": "mysql_lock_contention_fault_probe",
+      "group": "failure_injection",
+      "label": "MySQL lock contention fault probe",
+      "type": "fault",
+      "automation": "operator_assisted",
+      "severity": "major",
+      "staging_only": true,
+      "required_profiles": [
+        "staging"
+      ],
+      "source_of_truth": [
+        "routes/api.php#table-holds",
+        "routes/api.php#reservations",
+        "routes/api.php#staff/orders/{order_id}/settlement-preview"
+      ],
+      "endpoints": [
+        "POST /api/v1/table-holds",
+        "POST /api/v1/reservations",
+        "GET /api/v1/staff/orders/{order_id}/settlement-preview"
+      ],
+      "pass_criteria": "Injected DB slowness or lock contention surfaces as bounded latency and controlled business conflicts, not uncontrolled failures.",
+      "failure_meaning": "Database contention behavior is still unverified under realistic staging locks and slow-query conditions.",
+      "remediation_hint": "Run the reservation create race and checkout preview probes while staging DB contention is injected, then store the evidence.",
+      "profile_settings": {
+        "staging": {
+          "thresholds": {
+            "latency_p95_ms_max": 1800,
+            "unexpected_error_rate_max": 0.05
+          }
+        }
+      }
+    },
+    {
+      "key": "notification_dispatch_lag_fault_probe",
+      "group": "failure_injection",
+      "label": "Notification dispatch lag fault probe",
+      "type": "fault",
+      "automation": "operator_assisted",
+      "severity": "major",
+      "staging_only": true,
+      "required_profiles": [
+        "staging"
+      ],
+      "source_of_truth": [
+        "booking:doctor",
+        "notifications:outbox-health",
+        "booking:alert-check"
+      ],
+      "endpoints": [
+        "php artisan notifications:outbox-health --json",
+        "php artisan booking:doctor --json",
+        "php artisan booking:alert-check --json"
+      ],
+      "pass_criteria": "Injected notification lag stays visible in health evidence and clears after worker recovery without corrupting booking/payment flows.",
+      "failure_meaning": "Notification lag and outbox degradation handling are still unverified for staging rollout.",
+      "remediation_hint": "Pause or slow notification workers on staging, capture health snapshots during the fault window, then verify backlog recovery.",
+      "profile_settings": {
+        "staging": {
+          "thresholds": {
+            "unexpected_error_rate_max": 0.0
+          }
+        }
+      }
+    },
+    {
+      "key": "queue_backlog_fault_probe",
+      "group": "failure_injection",
+      "label": "Queue backlog fault probe",
+      "type": "fault",
+      "automation": "operator_assisted",
+      "severity": "major",
+      "staging_only": true,
+      "required_profiles": [
+        "staging"
+      ],
+      "source_of_truth": [
+        "booking:doctor",
+        "notifications:outbox-health",
+        "booking:alert-check"
+      ],
+      "endpoints": [
+        "php artisan notifications:outbox-health --json",
+        "php artisan booking:doctor --json",
+        "php artisan booking:alert-check --json"
+      ],
+      "pass_criteria": "Queue backlog is detected quickly, core reads remain available, and backlog drains cleanly after workers resume.",
+      "failure_meaning": "Queue backlog behavior remains unverified under staging conditions, so alerting and graceful degradation are still a rollout risk.",
+      "remediation_hint": "Pause or throttle workers, let backlog accumulate under soak traffic, then capture the recovery artifact after workers resume.",
+      "profile_settings": {
+        "staging": {
+          "thresholds": {
+            "unexpected_error_rate_max": 0.0
+          }
+        }
+      }
+    }
+  ]
+}

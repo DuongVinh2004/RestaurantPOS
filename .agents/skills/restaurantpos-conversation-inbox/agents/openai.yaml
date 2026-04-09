@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Conversation Inbox"
+  short_description: "Harden staff conversation inbox workflows"
+  default_prompt: "Use $restaurantpos-conversation-inbox to work on RestaurantPOS staff conversation inbox, linking, assignment, and workflow behavior."

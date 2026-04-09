@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Runbook Sync"
+  short_description: "Keep docs and runbooks aligned with code"
+  default_prompt: "Use $restaurantpos-runbook-sync to update RestaurantPOS runbooks and docs when code changes alter operational or API behavior."

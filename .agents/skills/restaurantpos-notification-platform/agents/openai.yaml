@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Notification Platform"
+  short_description: "Harden notification outbox and channel behavior"
+  default_prompt: "Use $restaurantpos-notification-platform to work on RestaurantPOS notification outbox, delivery attempts, preferences, and channel drivers."

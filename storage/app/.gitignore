@@ -1,0 +1,13 @@
+*
+!private/
+!public/
+!booking_release/
+booking_release/*
+!booking_release/openapi-v1.json
+!booking_release/core_ops_gate_snapshot.json
+!booking_release/round5_gate_snapshot.json
+!booking_release/release_manifest_snapshot.json
+!uat/
+uat/*
+!uat/scenario-pack.json
+!.gitignore

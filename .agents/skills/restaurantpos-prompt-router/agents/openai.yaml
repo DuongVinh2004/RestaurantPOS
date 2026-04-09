@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Prompt Router"
+  short_description: "Route natural-language tasks to skills and files"
+  default_prompt: "Use $restaurantpos-prompt-router to map a RestaurantPOS task description to the right skills, first files, and verification scope."

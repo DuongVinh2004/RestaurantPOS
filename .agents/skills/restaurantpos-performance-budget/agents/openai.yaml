@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Performance Budget"
+  short_description: "Protect hot paths and performance budgets"
+  default_prompt: "Use $restaurantpos-performance-budget when RestaurantPOS changes may affect latency, query count, smoke gates, or performance verification."

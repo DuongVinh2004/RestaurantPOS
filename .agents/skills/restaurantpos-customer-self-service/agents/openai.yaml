@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Customer Self-Service"
+  short_description: "Harden customer token and self-service flows"
+  default_prompt: "Use $restaurantpos-customer-self-service to work on customer access sessions, reservation self-service, waiting list, and self-pay flows."

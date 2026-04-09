@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Targeted Verification"
+  short_description: "Pick the smallest high-signal test set"
+  default_prompt: "Use $restaurantpos-targeted-verification to choose targeted RestaurantPOS tests and runtime checks from the changed files."

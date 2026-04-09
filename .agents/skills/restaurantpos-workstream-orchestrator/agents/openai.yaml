@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Workstream Orchestrator"
+  short_description: "Split hardening work into safe parallel batches"
+  default_prompt: "Use $restaurantpos-workstream-orchestrator to split RestaurantPOS hardening into reviewable workstreams with minimal shared-file conflicts."

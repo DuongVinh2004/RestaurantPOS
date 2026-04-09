@@ -1,0 +1,24 @@
+digraph G {
+  graph [rankdir=LR, bgcolor="white", pad=0.25, nodesep=0.55, ranksep=0.8];
+  node [shape=box, style="rounded,filled", fontname="Arial", fillcolor="#F8FAFC", color="#96AAC0"];
+  edge [fontname="Arial", color="#4B5563"];
+
+  Client [label="Client Apps\nCustomer / Staff / Admin"];
+  Routes [label="API Routes\n/api/v1 groups"];
+  Controllers [label="Controllers\nthin HTTP layer"];
+  Requests [label="Requests / Resources\nvalidation + response"];
+  Services [label="Service Layer\nreservation, order, payment,\nreporting, inventory, ops"];
+  Support [label="Support & Guards\nauth, capability,\nidempotency, row_version,\naudit, feature flags"];
+  Models [label="Models / Read Models"];
+  DB [label="MySQL Schema\nSQL-first contract"];
+  Redis [label="Redis"];
+  External [label="Payment / Mail /\nWebhook Provider"];
+  Artifacts [label="Release Artifacts\nOpenAPI, route inventory,\nmanifest, reports"];
+
+  Client -> Routes -> Controllers -> Requests -> Services -> Models -> DB;
+  Services -> Support;
+  Support -> DB;
+  Services -> Redis;
+  Services -> External;
+  Services -> Artifacts;
+}

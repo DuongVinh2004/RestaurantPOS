@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Auth & RBAC"
+  short_description: "Harden auth, scope, and capability checks"
+  default_prompt: "Use $restaurantpos-auth-rbac to harden RestaurantPOS authorization, scope, and route capability coverage."

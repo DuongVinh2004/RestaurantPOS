@@ -1,0 +1,100 @@
+CREATE TABLE IF NOT EXISTS `suppliers` (
+  `supplier_id` int unsigned NOT NULL AUTO_INCREMENT,
+  `code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `contact_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint unsigned NOT NULL DEFAULT '1',
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`supplier_id`),
+  UNIQUE KEY `uq_suppliers__code` (`code`),
+  KEY `idx_suppliers__is_active__name` (`is_active`,`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `purchase_orders` (
+  `purchase_order_id` int unsigned NOT NULL AUTO_INCREMENT,
+  `supplier_id` int unsigned NOT NULL,
+  `order_code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `purchase_order_status` enum('Draft','Ordered','PartiallyReceived','Received','Cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Draft',
+  `ordered_at` datetime(6) DEFAULT NULL,
+  `expected_at` datetime(6) DEFAULT NULL,
+  `received_at` datetime(6) DEFAULT NULL,
+  `supplier_reference` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_by` int unsigned DEFAULT NULL,
+  `updated_by` int unsigned DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`purchase_order_id`),
+  UNIQUE KEY `uq_purchase_orders__order_code` (`order_code`),
+  KEY `idx_purchase_orders__supplier_id__status__created_at` (`supplier_id`,`purchase_order_status`,`created_at`),
+  KEY `idx_purchase_orders__created_by` (`created_by`),
+  KEY `idx_purchase_orders__updated_by` (`updated_by`),
+  CONSTRAINT `fk_purchase_orders__supplier_id__suppliers` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`supplier_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `fk_purchase_orders__created_by__users` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT,
+  CONSTRAINT `fk_purchase_orders__updated_by__users` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `purchase_order_lines` (
+  `po_line_id` int unsigned NOT NULL AUTO_INCREMENT,
+  `purchase_order_id` int unsigned NOT NULL,
+  `ingredient_id` int unsigned NOT NULL,
+  `ordered_quantity` decimal(14,3) NOT NULL,
+  `received_quantity` decimal(14,3) NOT NULL DEFAULT '0.000',
+  `unit_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `unit_cost` decimal(14,3) DEFAULT NULL,
+  `notes` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `sort_order` int NOT NULL DEFAULT '0',
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`po_line_id`),
+  UNIQUE KEY `uq_purchase_order_lines__purchase_order_id__ingredient_id` (`purchase_order_id`,`ingredient_id`),
+  KEY `idx_purchase_order_lines__ingredient_id__purchase_order_id` (`ingredient_id`,`purchase_order_id`),
+  CONSTRAINT `fk_purchase_order_lines__purchase_order_id__purchase_orders` FOREIGN KEY (`purchase_order_id`) REFERENCES `purchase_orders` (`purchase_order_id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `fk_purchase_order_lines__ingredient_id__ingredients` FOREIGN KEY (`ingredient_id`) REFERENCES `ingredients` (`ingredient_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `chk_purchase_order_lines__ordered_quantity_positive` CHECK ((`ordered_quantity` > 0)),
+  CONSTRAINT `chk_purchase_order_lines__received_quantity_range` CHECK (((`received_quantity` >= 0) and (`received_quantity` <= `ordered_quantity`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `purchase_receipts` (
+  `receipt_id` int unsigned NOT NULL AUTO_INCREMENT,
+  `purchase_order_id` int unsigned NOT NULL,
+  `receipt_code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `receipt_status` enum('Posted','Voided') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Posted',
+  `received_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `supplier_document_no` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_by` int unsigned DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`receipt_id`),
+  UNIQUE KEY `uq_purchase_receipts__receipt_code` (`receipt_code`),
+  KEY `idx_purchase_receipts__purchase_order_id__received_at` (`purchase_order_id`,`received_at`),
+  KEY `idx_purchase_receipts__created_by` (`created_by`),
+  CONSTRAINT `fk_purchase_receipts__purchase_order_id__purchase_orders` FOREIGN KEY (`purchase_order_id`) REFERENCES `purchase_orders` (`purchase_order_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `fk_purchase_receipts__created_by__users` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `purchase_receipt_lines` (
+  `receipt_line_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `receipt_id` int unsigned NOT NULL,
+  `purchase_order_line_id` int unsigned NOT NULL,
+  `ingredient_id` int unsigned NOT NULL,
+  `received_quantity` decimal(14,3) NOT NULL,
+  `unit_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `unit_cost` decimal(14,3) DEFAULT NULL,
+  `stock_movement_id` bigint unsigned DEFAULT NULL,
+  `notes` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`receipt_line_id`),
+  UNIQUE KEY `uq_purchase_receipt_lines__stock_movement_id` (`stock_movement_id`),
+  KEY `idx_purchase_receipt_lines__purchase_order_line_id` (`purchase_order_line_id`),
+  KEY `idx_purchase_receipt_lines__ingredient_id__receipt_id` (`ingredient_id`,`receipt_id`),
+  CONSTRAINT `fk_purchase_receipt_lines__receipt_id__purchase_receipts` FOREIGN KEY (`receipt_id`) REFERENCES `purchase_receipts` (`receipt_id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `fk_purchase_receipt_lines__purchase_order_line_id__purc_8b776a16` FOREIGN KEY (`purchase_order_line_id`) REFERENCES `purchase_order_lines` (`po_line_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `fk_purchase_receipt_lines__ingredient_id__ingredients` FOREIGN KEY (`ingredient_id`) REFERENCES `ingredients` (`ingredient_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `fk_purchase_receipt_lines__stock_movement_id__ingredien_999b3bca` FOREIGN KEY (`stock_movement_id`) REFERENCES `ingredient_stock_movements` (`movement_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `chk_purchase_receipt_lines__received_quantity_positive` CHECK ((`received_quantity` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

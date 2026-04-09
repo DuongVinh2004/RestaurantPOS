@@ -1,0 +1,445 @@
+{
+    "source": {
+        "php_enum_root": "app/Enums",
+        "contract_policy": "Generated from PHP backed enums so FE consumers do not infer state values from incidental response strings."
+    },
+    "enums": {
+        "ConversationChannel": {
+            "php_class": "App\\Enums\\ConversationChannel",
+            "backing_type": "string",
+            "values": [
+                "WebChat",
+                "Facebook",
+                "Zalo",
+                "Whatsapp",
+                "Instagram",
+                "Line",
+                "Other"
+            ],
+            "cases": {
+                "WebChat": "WebChat",
+                "Facebook": "Facebook",
+                "Zalo": "Zalo",
+                "Whatsapp": "Whatsapp",
+                "Instagram": "Instagram",
+                "Line": "Line",
+                "Other": "Other"
+            }
+        },
+        "ConversationStatus": {
+            "php_class": "App\\Enums\\ConversationStatus",
+            "backing_type": "string",
+            "values": [
+                "Open",
+                "Pending",
+                "Closed",
+                "Spam"
+            ],
+            "cases": {
+                "Open": "Open",
+                "Pending": "Pending",
+                "Closed": "Closed",
+                "Spam": "Spam"
+            }
+        },
+        "DepositStatus": {
+            "php_class": "App\\Enums\\DepositStatus",
+            "backing_type": "string",
+            "values": [
+                "NotRequired",
+                "Pending",
+                "Paid",
+                "Refunded",
+                "PartiallyRefunded",
+                "Forfeited"
+            ],
+            "cases": {
+                "NotRequired": "NotRequired",
+                "Pending": "Pending",
+                "Paid": "Paid",
+                "Refunded": "Refunded",
+                "PartiallyRefunded": "PartiallyRefunded",
+                "Forfeited": "Forfeited"
+            }
+        },
+        "KitchenStationOutputMode": {
+            "php_class": "App\\Enums\\KitchenStationOutputMode",
+            "backing_type": "string",
+            "values": [
+                "KDS",
+                "Printer",
+                "Both"
+            ],
+            "cases": {
+                "KDS": "KDS",
+                "Printer": "Printer",
+                "Both": "Both"
+            }
+        },
+        "KitchenTicketStatus": {
+            "php_class": "App\\Enums\\KitchenTicketStatus",
+            "backing_type": "string",
+            "values": [
+                "Queued",
+                "Fired",
+                "Ready",
+                "Completed",
+                "Cancelled"
+            ],
+            "cases": {
+                "Queued": "Queued",
+                "Fired": "Fired",
+                "Ready": "Ready",
+                "Completed": "Completed",
+                "Cancelled": "Cancelled"
+            }
+        },
+        "MessageSender": {
+            "php_class": "App\\Enums\\MessageSender",
+            "backing_type": "string",
+            "values": [
+                "user",
+                "agent",
+                "system"
+            ],
+            "cases": {
+                "User": "user",
+                "Agent": "agent",
+                "System": "system"
+            }
+        },
+        "MessageType": {
+            "php_class": "App\\Enums\\MessageType",
+            "backing_type": "string",
+            "values": [
+                "text",
+                "image",
+                "file",
+                "location",
+                "unknown"
+            ],
+            "cases": {
+                "Text": "text",
+                "Image": "image",
+                "File": "file",
+                "Location": "location",
+                "Unknown": "unknown"
+            }
+        },
+        "PaymentProviderWebhookReceiptStatus": {
+            "php_class": "App\\Enums\\PaymentProviderWebhookReceiptStatus",
+            "backing_type": "string",
+            "values": [
+                "Received",
+                "Applied",
+                "Ignored",
+                "Failed"
+            ],
+            "cases": {
+                "Received": "Received",
+                "Applied": "Applied",
+                "Ignored": "Ignored",
+                "Failed": "Failed"
+            }
+        },
+        "PaymentSessionScope": {
+            "php_class": "App\\Enums\\PaymentSessionScope",
+            "backing_type": "string",
+            "values": [
+                "deposit",
+                "bill"
+            ],
+            "cases": {
+                "Deposit": "deposit",
+                "Bill": "bill"
+            }
+        },
+        "PaymentStatus": {
+            "php_class": "App\\Enums\\PaymentStatus",
+            "backing_type": "string",
+            "values": [
+                "Pending",
+                "Partial",
+                "Success",
+                "Failed",
+                "Refunded"
+            ],
+            "cases": {
+                "Pending": "Pending",
+                "Partial": "Partial",
+                "Success": "Success",
+                "Failed": "Failed",
+                "Refunded": "Refunded"
+            }
+        },
+        "PurchaseOrderStatus": {
+            "php_class": "App\\Enums\\PurchaseOrderStatus",
+            "backing_type": "string",
+            "values": [
+                "Draft",
+                "Ordered",
+                "PartiallyReceived",
+                "Received",
+                "Cancelled"
+            ],
+            "cases": {
+                "Draft": "Draft",
+                "Ordered": "Ordered",
+                "PartiallyReceived": "PartiallyReceived",
+                "Received": "Received",
+                "Cancelled": "Cancelled"
+            }
+        },
+        "PurchaseReceiptStatus": {
+            "php_class": "App\\Enums\\PurchaseReceiptStatus",
+            "backing_type": "string",
+            "values": [
+                "Posted",
+                "Voided"
+            ],
+            "cases": {
+                "Posted": "Posted",
+                "Voided": "Voided"
+            }
+        },
+        "ReservationBillPaymentSessionStatus": {
+            "php_class": "App\\Enums\\ReservationBillPaymentSessionStatus",
+            "backing_type": "string",
+            "values": [
+                "Created",
+                "Pending",
+                "Succeeded",
+                "Failed",
+                "Cancelled",
+                "Expired"
+            ],
+            "cases": {
+                "Created": "Created",
+                "Pending": "Pending",
+                "Succeeded": "Succeeded",
+                "Failed": "Failed",
+                "Cancelled": "Cancelled",
+                "Expired": "Expired"
+            }
+        },
+        "ReservationBillPaymentSettlementStatus": {
+            "php_class": "App\\Enums\\ReservationBillPaymentSettlementStatus",
+            "backing_type": "string",
+            "values": [
+                "NotApplied",
+                "Applied",
+                "Skipped"
+            ],
+            "cases": {
+                "NotApplied": "NotApplied",
+                "Applied": "Applied",
+                "Skipped": "Skipped"
+            }
+        },
+        "ReservationDepositIntentStatus": {
+            "php_class": "App\\Enums\\ReservationDepositIntentStatus",
+            "backing_type": "string",
+            "values": [
+                "None",
+                "Submitted",
+                "Revoked"
+            ],
+            "cases": {
+                "None": "None",
+                "Submitted": "Submitted",
+                "Revoked": "Revoked"
+            }
+        },
+        "ReservationDepositPaymentSessionStatus": {
+            "php_class": "App\\Enums\\ReservationDepositPaymentSessionStatus",
+            "backing_type": "string",
+            "values": [
+                "Created",
+                "Pending",
+                "Succeeded",
+                "Failed",
+                "Cancelled",
+                "Expired"
+            ],
+            "cases": {
+                "Created": "Created",
+                "Pending": "Pending",
+                "Succeeded": "Succeeded",
+                "Failed": "Failed",
+                "Cancelled": "Cancelled",
+                "Expired": "Expired"
+            }
+        },
+        "ReservationDepositPaymentSettlementStatus": {
+            "php_class": "App\\Enums\\ReservationDepositPaymentSettlementStatus",
+            "backing_type": "string",
+            "values": [
+                "NotApplied",
+                "Applied",
+                "Skipped"
+            ],
+            "cases": {
+                "NotApplied": "NotApplied",
+                "Applied": "Applied",
+                "Skipped": "Skipped"
+            }
+        },
+        "ReservationOrderItemStatus": {
+            "php_class": "App\\Enums\\ReservationOrderItemStatus",
+            "backing_type": "string",
+            "values": [
+                "Ordered",
+                "InProgress",
+                "Served",
+                "Cancelled"
+            ],
+            "cases": {
+                "Ordered": "Ordered",
+                "InProgress": "InProgress",
+                "Served": "Served",
+                "Cancelled": "Cancelled"
+            }
+        },
+        "ReservationOrderStatus": {
+            "php_class": "App\\Enums\\ReservationOrderStatus",
+            "backing_type": "string",
+            "values": [
+                "Active",
+                "Cancelled",
+                "Completed"
+            ],
+            "cases": {
+                "Active": "Active",
+                "Cancelled": "Cancelled",
+                "Completed": "Completed"
+            }
+        },
+        "ReservationOrderType": {
+            "php_class": "App\\Enums\\ReservationOrderType",
+            "backing_type": "string",
+            "values": [
+                "PreOrder",
+                "OnSpot"
+            ],
+            "cases": {
+                "PreOrder": "PreOrder",
+                "OnSpot": "OnSpot"
+            }
+        },
+        "ReservationStatus": {
+            "php_class": "App\\Enums\\ReservationStatus",
+            "backing_type": "string",
+            "values": [
+                "Confirmed",
+                "Reserved",
+                "Cancelled",
+                "Expired",
+                "Completed",
+                "NoShow"
+            ],
+            "cases": {
+                "Confirmed": "Confirmed",
+                "Reserved": "Reserved",
+                "Cancelled": "Cancelled",
+                "Expired": "Expired",
+                "Completed": "Completed",
+                "NoShow": "NoShow"
+            },
+            "semantic_aliases": {
+                "checked_in": "Reserved"
+            },
+            "state_hints": {
+                "checked_in_db_value": "Reserved",
+                "active_db_values": [
+                    "Confirmed",
+                    "Reserved"
+                ],
+                "cancellable_db_values": [
+                    "Confirmed",
+                    "Reserved"
+                ]
+            },
+            "notes": [
+                "Historical DB/API value `Reserved` means the guest is already checked in and occupying table(s)."
+            ]
+        },
+        "RestaurantTableStatus": {
+            "php_class": "App\\Enums\\RestaurantTableStatus",
+            "backing_type": "string",
+            "values": [
+                "Available",
+                "Reserved",
+                "Occupied",
+                "Blocked",
+                "Maintenance"
+            ],
+            "cases": {
+                "Available": "Available",
+                "Reserved": "Reserved",
+                "Occupied": "Occupied",
+                "Blocked": "Blocked",
+                "Maintenance": "Maintenance"
+            }
+        },
+        "TableHoldStatus": {
+            "php_class": "App\\Enums\\TableHoldStatus",
+            "backing_type": "string",
+            "values": [
+                "Holding",
+                "Pending",
+                "Confirmed",
+                "Expired",
+                "Cancelled"
+            ],
+            "cases": {
+                "Holding": "Holding",
+                "Pending": "Pending",
+                "Confirmed": "Confirmed",
+                "Expired": "Expired",
+                "Cancelled": "Cancelled"
+            }
+        },
+        "VoucherDiscountType": {
+            "php_class": "App\\Enums\\VoucherDiscountType",
+            "backing_type": "string",
+            "values": [
+                "Fixed",
+                "Percent",
+                "FreeItem"
+            ],
+            "cases": {
+                "Fixed": "Fixed",
+                "Percent": "Percent",
+                "FreeItem": "FreeItem"
+            }
+        },
+        "WaitingListCustomerResponseStatus": {
+            "php_class": "App\\Enums\\WaitingListCustomerResponseStatus",
+            "backing_type": "string",
+            "values": [
+                "Accepted",
+                "Declined"
+            ],
+            "cases": {
+                "Accepted": "Accepted",
+                "Declined": "Declined"
+            }
+        },
+        "WaitingListStatus": {
+            "php_class": "App\\Enums\\WaitingListStatus",
+            "backing_type": "string",
+            "values": [
+                "Waiting",
+                "Notified",
+                "Seated",
+                "Cancelled"
+            ],
+            "cases": {
+                "Waiting": "Waiting",
+                "Notified": "Notified",
+                "Seated": "Seated",
+                "Cancelled": "Cancelled"
+            }
+        }
+    }
+}

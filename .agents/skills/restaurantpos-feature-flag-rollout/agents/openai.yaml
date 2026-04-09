@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Feature Flag Rollout"
+  short_description: "Change flags safely with rollout discipline"
+  default_prompt: "Use $restaurantpos-feature-flag-rollout when a RestaurantPOS task adds, changes, or relies on feature flags and rollout behavior."

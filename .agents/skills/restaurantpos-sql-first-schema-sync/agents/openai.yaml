@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS SQL-First Schema Sync"
+  short_description: "Keep schema, patches, and dumps in sync"
+  default_prompt: "Use $restaurantpos-sql-first-schema-sync when a RestaurantPOS change affects schema, patches, db dumps, or release bootstrap."

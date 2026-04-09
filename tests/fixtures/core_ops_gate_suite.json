@@ -1,0 +1,51 @@
+{
+  "suite": "core_ops",
+  "description": "Canonical core operations gate for table availability, table holds, reservation lifecycle, staff floor mutations, and waiting-list regressions.",
+  "tests": [
+    {
+      "key": "table_availability_feature",
+      "path": "tests/Feature/Table/TableAvailabilityFeatureTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "table_hold_http_flow",
+      "path": "tests/Feature/Table/TableHoldHttpFlowTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "reservation_http_flow",
+      "path": "tests/Feature/Reservation/ReservationHttpFlowTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "reservation_status_http_flow",
+      "path": "tests/Feature/Reservation/ReservationStatusHttpFlowTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "staff_check_in_flow",
+      "path": "tests/Feature/Staff/StaffCheckInFlowTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "staff_reschedule_flow",
+      "path": "tests/Feature/Staff/StaffReservationRescheduleFlowTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "staff_move_table_flow",
+      "path": "tests/Feature/Staff/StaffMoveTableFlowTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "staff_table_release_http_flow",
+      "path": "tests/Feature/Staff/StaffTableReleaseHttpFlowTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "staff_waiting_list_lifecycle",
+      "path": "tests/Feature/Staff/StaffWaitingListLifecycleTest.php",
+      "category": "feature"
+    }
+  ]
+}

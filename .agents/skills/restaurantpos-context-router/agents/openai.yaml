@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Context Router"
+  short_description: "Route tasks to the smallest correct context"
+  default_prompt: "Use $restaurantpos-context-router to choose the right RestaurantPOS skill, files, and verification scope before editing."

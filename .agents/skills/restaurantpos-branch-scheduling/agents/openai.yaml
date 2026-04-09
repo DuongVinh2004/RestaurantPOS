@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Branch Scheduling"
+  short_description: "Harden branch scope and scheduling policy logic"
+  default_prompt: "Use $restaurantpos-branch-scheduling to work on RestaurantPOS branch context, scheduling policy, and branch-scoped behavior."

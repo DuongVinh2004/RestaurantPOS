@@ -1,0 +1,2 @@
+code,description,discount_type,discount_value,free_item_code,free_item_qty,max_usage,max_usage_per_user,min_spend,start_date,expiry_date,is_active
+SPRING-FREE-TEA,Free tea for seasonal set,FreeItem,0.00,FREE-ICE-TEA,1,100,1,0.00,2026-04-01T00:00:00Z,2026-04-30T23:59:59Z,1

@@ -1,0 +1,53 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\Services;
+
+use App\Services\ReleasePackageService;
+use Tests\TestCase;
+
+class ReleasePackageDefinitionContractTest extends TestCase
+{
+    public function test_release_package_definition_includes_required_release_roots(): void
+    {
+        $definition = app(ReleasePackageService::class)->definition();
+        $includePaths = collect((array) ($definition['include_paths'] ?? []));
+
+        $requiredPaths = $includePaths
+            ->filter(static fn (array $item): bool => (bool) ($item['required'] ?? false))
+            ->pluck('path')
+            ->values()
+            ->all();
+
+        $this->assertSame('build/booking-release', (string) ($definition['output_root'] ?? ''));
+        $this->assertSame('restaurantpos-backend-release', (string) ($definition['package_prefix'] ?? ''));
+        $this->assertContains('artisan', $requiredPaths);
+        $this->assertContains('composer.json', $requiredPaths);
+        $this->assertContains('app', $requiredPaths);
+        $this->assertContains('bootstrap', $requiredPaths);
+        $this->assertContains('build/api-consumer', $requiredPaths);
+        $this->assertContains('config', $requiredPaths);
+        $this->assertContains('database', $requiredPaths);
+        $this->assertContains('routes', $requiredPaths);
+        $this->assertContains('storage/app/booking_release', $requiredPaths);
+        $this->assertContains('tests', $requiredPaths);
+        $this->assertContains('tools/mysql', $requiredPaths);
+        $this->assertContains('db_all.sql', $requiredPaths);
+    }
+
+    public function test_release_package_definition_keeps_optional_release_roots_explicit(): void
+    {
+        $definition = app(ReleasePackageService::class)->definition();
+        $optionalPaths = collect((array) ($definition['include_paths'] ?? []))
+            ->reject(static fn (array $item): bool => (bool) ($item['required'] ?? false))
+            ->pluck('path')
+            ->values()
+            ->all();
+
+        $this->assertContains('docs/runbooks', $optionalPaths);
+        $this->assertContains('scripts/ci', $optionalPaths);
+        $this->assertContains('scripts/release', $optionalPaths);
+        $this->assertNotContains('tools/mysql', $optionalPaths);
+    }
+}

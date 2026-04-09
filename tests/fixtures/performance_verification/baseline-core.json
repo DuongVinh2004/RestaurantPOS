@@ -1,0 +1,58 @@
+{
+  "profile": "staging",
+  "captured_at_utc": "2026-04-05T10:00:00Z",
+  "source_report": "storage/app/booking_release/performance_verification/reports/performance-verification-staging-20260405t100000z.json",
+  "scenario_metrics": {
+    "availability_read_load": {
+      "latency_p50_ms": 190,
+      "latency_p95_ms": 300,
+      "latency_p99_ms": 380,
+      "latency_mean_ms": 200,
+      "latency_max_ms": 430,
+      "throughput_rps": 10.0,
+      "operation_count": 420,
+      "success_count": 420,
+      "unexpected_error_rate": 0.0,
+      "accepted_response_rate": 0.0,
+      "controlled_conflict_rate": 0.0,
+      "duplicate_rate": 0.0,
+      "failed_delivery_rate": 0.0,
+      "cleanup_error_count": 0,
+      "request_count": 420
+    },
+    "reservation_create_race": {
+      "latency_p50_ms": 430,
+      "latency_p95_ms": 700,
+      "latency_p99_ms": 860,
+      "latency_mean_ms": 450,
+      "latency_max_ms": 910,
+      "throughput_rps": 11.4,
+      "operation_count": 20,
+      "success_count": 1,
+      "unexpected_error_rate": 0.0,
+      "accepted_response_rate": 0.0,
+      "controlled_conflict_rate": 0.95,
+      "duplicate_rate": 0.0,
+      "failed_delivery_rate": 0.0,
+      "cleanup_error_count": 0,
+      "request_count": 40
+    },
+    "webhook_duplicate_storm": {
+      "latency_p50_ms": 260,
+      "latency_p95_ms": 450,
+      "latency_p99_ms": 610,
+      "latency_mean_ms": 280,
+      "latency_max_ms": 640,
+      "throughput_rps": 17.0,
+      "operation_count": 20,
+      "success_count": 20,
+      "unexpected_error_rate": 0.0,
+      "accepted_response_rate": 1.0,
+      "controlled_conflict_rate": 0.0,
+      "duplicate_rate": 0.95,
+      "failed_delivery_rate": 0.0,
+      "cleanup_error_count": 0,
+      "request_count": 20
+    }
+  }
+}

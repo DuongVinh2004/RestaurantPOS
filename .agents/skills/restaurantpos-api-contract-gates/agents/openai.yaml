@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS API Contract Gates"
+  short_description: "Protect API surface, artifacts, and gates"
+  default_prompt: "Use $restaurantpos-api-contract-gates to update route surface, OpenAPI artifacts, API contracts, and release gates safely."

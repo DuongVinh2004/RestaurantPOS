@@ -1,0 +1,47 @@
+{
+  "scenario_key": "webhook_duplicate_storm",
+  "scenario_label": "Webhook duplicate storm fault",
+  "type": "fault",
+  "profile": "staging",
+  "status": "completed",
+  "requests": {
+    "count": 20,
+    "status_counts": {
+      "202": 20
+    },
+    "tag_counts": {
+      "webhook_duplicate_storm": 20
+    }
+  },
+  "operations": {
+    "count": 20,
+    "success_count": 20,
+    "controlled_conflict_count": 0,
+    "unexpected_error_count": 0,
+    "cleanup_error_count": 0,
+    "latency_ms": {
+      "p50": 250,
+      "p95": 420,
+      "p99": 600,
+      "mean": 270,
+      "max": 620
+    },
+    "throughput_rps": 18.2
+  },
+  "business_counters": {
+    "accepted_response_count": 20,
+    "duplicate_count": 19,
+    "applied_count": 1,
+    "ignored_count": 19,
+    "failed_delivery_count": 0
+  },
+  "rates": {
+    "unexpected_error_rate": 0.0,
+    "accepted_response_rate": 1.0,
+    "controlled_conflict_rate": 0.0,
+    "duplicate_rate": 0.95,
+    "failed_delivery_rate": 0.0
+  },
+  "notes": [],
+  "samples": []
+}

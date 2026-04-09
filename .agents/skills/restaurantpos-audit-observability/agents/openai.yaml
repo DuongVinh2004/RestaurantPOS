@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Audit & Observability"
+  short_description: "Protect audit trails and operational visibility"
+  default_prompt: "Use $restaurantpos-audit-observability when RestaurantPOS changes affect audit logging, metrics, outbox health, alerts, or realtime observability."

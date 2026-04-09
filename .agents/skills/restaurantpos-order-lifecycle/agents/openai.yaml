@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Order Lifecycle"
+  short_description: "Harden dine-in ordering and item lifecycle"
+  default_prompt: "Use $restaurantpos-order-lifecycle to tighten dine-in order, item status, and service-session behavior."

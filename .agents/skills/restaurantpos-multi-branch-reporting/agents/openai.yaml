@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Multi-Branch Reporting"
+  short_description: "Harden reporting and multi-branch read models"
+  default_prompt: "Use $restaurantpos-multi-branch-reporting to work on RestaurantPOS reporting read models, analytics, and multi-branch reporting behavior."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Kitchen & KDS"
+  short_description: "Harden kitchen routing and KDS state flow"
+  default_prompt: "Use $restaurantpos-kitchen-kds to tighten kitchen routing, dispatch, fire, bump, recall, and KDS state handling."

@@ -1,0 +1,47 @@
+{
+  "scenario_key": "availability_read_load",
+  "scenario_label": "Availability concurrent read load",
+  "type": "load",
+  "profile": "staging",
+  "status": "completed",
+  "requests": {
+    "count": 420,
+    "status_counts": {
+      "200": 420
+    },
+    "tag_counts": {
+      "availability_read": 420
+    }
+  },
+  "operations": {
+    "count": 420,
+    "success_count": 420,
+    "controlled_conflict_count": 0,
+    "unexpected_error_count": 0,
+    "cleanup_error_count": 0,
+    "latency_ms": {
+      "p50": 180,
+      "p95": 280,
+      "p99": 360,
+      "mean": 190,
+      "max": 420
+    },
+    "throughput_rps": 10.4
+  },
+  "business_counters": {
+    "accepted_response_count": 0,
+    "duplicate_count": 0,
+    "applied_count": 0,
+    "ignored_count": 0,
+    "failed_delivery_count": 0
+  },
+  "rates": {
+    "unexpected_error_rate": 0.0,
+    "accepted_response_rate": 0.0,
+    "controlled_conflict_rate": 0.0,
+    "duplicate_rate": 0.0,
+    "failed_delivery_rate": 0.0
+  },
+  "notes": [],
+  "samples": []
+}

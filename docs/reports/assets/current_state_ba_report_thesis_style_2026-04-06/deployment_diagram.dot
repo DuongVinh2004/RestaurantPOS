@@ -1,0 +1,34 @@
+digraph G {
+  graph [rankdir=LR, bgcolor="white", pad=0.3, nodesep=0.55, ranksep=0.9];
+  node [shape=box, style="rounded,filled", fontname="Arial", fillcolor="#F8FAFC", color="#96AAC0"];
+  edge [fontname="Arial", color="#4B5563"];
+
+  Customer [label="Customer Client\nWeb / Mobile"];
+  Staff [label="Staff / Admin Client"];
+  Provider [label="Payment Provider\nWebhook Source"];
+
+  subgraph cluster_app {
+    label="Application Runtime";
+    color="#B8C7D9";
+    style="rounded";
+    bgcolor="#F9FBFD";
+    API [label="Laravel API App"];
+    Scheduler [label="Scheduler / Console Commands"];
+  }
+
+  MySQL [label="MySQL Database"];
+  Redis [label="Redis"];
+  Storage [label="Artifact / Storage\nOpenAPI, manifest, reports"];
+  Mail [label="Mailer / Notification Channel"];
+
+  Customer -> API;
+  Staff -> API;
+  Provider -> API [label="webhook"];
+  API -> MySQL;
+  API -> Redis;
+  API -> Mail;
+  Scheduler -> API;
+  Scheduler -> MySQL;
+  Scheduler -> Storage;
+  API -> Storage;
+}

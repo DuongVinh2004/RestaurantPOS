@@ -1,0 +1,246 @@
+# Dynamic Cutoff + Partial Refund Optimization for RestaurantPOS
+
+## Intent
+Implement revenue-optimal cancellation policy: extend refund deadline based on advance booking days,
+and apply graduated refund percentages when customers cancel late. This maximizes table rebooking
+opportunity while maintaining customer fairness.
+
+## Priority: Phase 1 (Dynamic Cutoff Only)
+Focus on dynamic cutoff calculation first. Partial refund is Phase 2.
+
+---
+
+## Business Rules (Phase 1)
+
+### Current Behavior (Fixed)
+```
+All bookings: deadline = start_time - 30 minutes
+Result: 5-day advance booking loses 4+ days of rebooking window
+```
+
+### Optimal Behavior (Dynamic)
+```
+Hours until start_time → Cancellation cutoff:
+  ≥ 72 hours (3+ days) → 2 days before start_time
+  ≥ 48 hours (2 days)  → 1 day before start_time
+  ≥ 24 hours (1 day)   → 4 hours before start_time
+  ≥ 2 hours            → 30 minutes before start_time
+  < 2 hours            → 0 minutes (NO cancellation allowed)
+
+Example:
+  Booking: Monday 10:00 → Friday 12:30 (72 hours)
+  Current deadline: Friday 12:00 (0.5 hours for rebooking)
+  NEW deadline: Thursday 12:30 (24 hours for rebooking) ← 48x better!
+```
+
+### Refund Behavior (UNCHANGED for Phase 1)
+- When cancellation allowed → refund 100%
+- When cancellation NOT allowed (quá hạn) → refund 0% (current behavior)
+
+---
+
+## Acceptance Criteria
+
+### AC1: Dynamic Cutoff Calculation ✅
+- [ ] Create `DynamicCancellationCutoffCalculator` service in `app/Services/Reservation/`
+- [ ] Method: `calculateCutoffMinutes(Reservation $res): int`
+  - Input: Reservation with `start_time` set
+  - Output: cutoff minutes relative to start_time (e.g., 2880 for 2 days)
+  - Logic: Use `now()->diffInHours($res->start_time)` to determine bracket
+- [ ] Unit tests: 5+ cases covering all 5 brackets (72h, 48h, 24h, 2h, <2h)
+- [ ] Edge case tests: timezone handling, DST boundaries
+
+### AC2: Integrate into CustomerReservationSelfService ✅
+- [ ] Replace hardcoded `$this->branchSchedulingPolicyService->customerCancellationCutoffMinutes()`
+  with new calculator
+- [ ] File: `app/Services/Reservation/CustomerReservationSelfService.php`
+  - Method: `assertCustomerCanCancel(Reservation $reservation)` around line 235
+- [ ] Change line ~237 from:
+  ```php
+  $cutoffAt = Carbon::parse($reservation->start_time)->subMinutes($cutoffMinutes);
+  ```
+  To:
+  ```php
+  $cutoffMinutes = $this->cancellationCutoffCalculator->calculateCutoffMinutes($reservation);
+  $cutoffAt = Carbon::parse($reservation->start_time)->subMinutes($cutoffMinutes);
+  ```
+- [ ] Keep branch policy override as fallback (if branch wants fixed policy)
+
+### AC3: Add Config Flag (Rollout Safety) ✅
+- [ ] File: `config/feature_flags.php`
+  - Add: `'reservation.dynamic_cancellation_cutoff_enabled' => (bool) env('FEATURE_DYNAMIC_CUTOFF', true)`
+- [ ] Wrap logic with feature flag check:
+  ```php
+  if (config('feature_flags.reservation.dynamic_cancellation_cutoff_enabled', true)) {
+      $cutoffMinutes = $this->cancellationCutoffCalculator->calculateCutoffMinutes($reservation);
+  } else {
+      $cutoffMinutes = $this->branchSchedulingPolicyService->customerCancellationCutoffMinutes(...);
+  }
+  ```
+
+### AC4: Backward Compatibility ✅
+- [ ] Branch policy `booking_policy.reservation.cancellation_cutoff_minutes` (fixed int)
+  should OVERRIDE dynamic calculator if set
+- [ ] If branch_policy has custom value → use branch policy (ignore dynamic)
+- [ ] If branch_policy NULL/default → use dynamic
+- [ ] Logic: `$hasCustomPolicy = $branchPolicy !== null && $branchPolicy !== defaultValue;`
+
+### AC5: API Response Update ✅
+- [ ] `/api/v1/customer/reservations/{id}` response
+  - Add field: `"cancellation_deadline_at": "2026-04-03T12:30:00Z"`
+  - Add field: `"minutes_until_cancellation_cutoff": 1440`
+- [ ] Frontend can display: "Cancel before Thursday 12:30 (24 hours from now)"
+
+### AC6: Tests - Unit ✅
+- [ ] File: `tests/Unit/Services/Reservation/DynamicCancellationCutoffCalculatorTest.php`
+  - [ ] Test: 72+ hours → 2880 minutes (2 days)
+  - [ ] Test: 48 hours → 1440 minutes (1 day)
+  - [ ] Test: 24 hours → 240 minutes (4 hours)
+  - [ ] Test: 2 hours → 30 minutes
+  - [ ] Test: 1 hour → 0 minutes (no cancellation)
+  - [ ] Test: DST transition (if applicable)
+  - [ ] Test: Timezone handling (UTC vs branch timezone)
+
+### AC7: Tests - Feature ✅
+- [ ] File: `tests/Feature/Reservation/CustomerReservationSelfServiceDynamicCutoffTest.php`
+  - [ ] Test: Customer CAN cancel (5 days advance, < 2 days before start)
+  - [ ] Test: Customer CANNOT cancel (< 2 hours before start)
+  - [ ] Test: Branch override → uses branch policy instead of dynamic
+  - [ ] Test: Feature flag OFF → reverts to fixed 30 minutes
+  - [ ] Test: API response includes `cancellation_deadline_at`
+
+### AC8: Tests - Regression ✅
+- [ ] Existing tests in `CustomerReservationSelfServiceVisibilityAndGuardTest.php`
+  MUST still pass (no breaking changes)
+- [ ] Mock feature flag to test both paths
+
+---
+
+## Implementation Roadmap
+
+### Step 1: Create Calculator Service
+```
+File: app/Services/Reservation/DynamicCancellationCutoffCalculator.php
+
+Public methods:
+  - calculateCutoffMinutes(Reservation $res): int
+  - calculateDeadlineAt(Reservation $res): DateTime
+
+Private methods:
+  - resolveBracket(int $hoursUntilStart): int
+```
+
+### Step 2: Inject into CustomerReservationSelfService
+```
+Constructor:
+  private DynamicCancellationCutoffCalculator $cutoffCalculator
+
+Integrate into assertCustomerCanCancel() method
+```
+
+### Step 3: Add Feature Flag
+```
+config/feature_flags.php
+→ 'reservation.dynamic_cancellation_cutoff_enabled'
+
+env: FEATURE_DYNAMIC_CUTOFF (default: true)
+```
+
+### Step 4: Update API Response
+```
+Ensure /customer/reservations endpoints return:
+  - cancellation_deadline_at
+  - minutes_until_cancellation_cutoff
+
+File: app/Http/Resources/Api/Customer/ReservationResource.php
+```
+
+### Step 5: Test Coverage
+```
+Unit tests: DynamicCancellationCutoffCalculatorTest.php
+Feature tests: CustomerReservationSelfServiceDynamicCutoffTest.php
+Regression suite: Existing tests
+```
+
+---
+
+## Changed Files (Phase 1)
+- `app/Services/Reservation/DynamicCancellationCutoffCalculator.php` (NEW)
+- `app/Services/Reservation/CustomerReservationSelfService.php` (MODIFIED: line ~235)
+- `config/feature_flags.php` (MODIFIED: add flag)
+- `app/Http/Resources/Api/Customer/ReservationResource.php` (MODIFIED: add fields)
+- `tests/Unit/Services/Reservation/DynamicCancellationCutoffCalculatorTest.php` (NEW)
+- `tests/Feature/Reservation/CustomerReservationSelfServiceDynamicCutoffTest.php` (NEW)
+
+---
+
+## Added/Updated Tests
+- `DynamicCancellationCutoffCalculatorTest.php` (5+ cases)
+- `CustomerReservationSelfServiceDynamicCutoffTest.php` (5+ cases)
+
+---
+
+## Remaining Risks (Phase 1)
+
+### Risk: Performance
+- **Impact**: New date calculation on every cancellation check
+- **Mitigation**: Calculator uses only `now()` and `start_time` (already in memory)
+- **Verification**: Load test 1000 concurrent cancellation preview requests
+- **Acceptance**: < 50ms per calculation
+
+### Risk: Timezone Bugs
+- **Impact**: DST transitions, multi-timezone branches
+- **Mitigation**: Always use UTC internally, convert only for display
+- **Verification**: Test Australia (DST in Sept), Europe (DST in March)
+- **Acceptance**: Deadline consistent across timezones
+
+### Risk: Customer Communication
+- **Impact**: Existing customers expect 30-minute cutoff
+- **Mitigation**: Feature flag (rollout to 10% first), email notification
+- **Verification**: Monitor support tickets about "why can't I cancel anymore?"
+- **Acceptance**: < 2% increase in cancellation-related support
+
+### Risk: API Breaking Change
+- **Impact**: Staff/Customer frontends may not expect new fields
+- **Mitigation**: Add fields, don't remove. Frontend optional consumption.
+- **Verification**: Existing field read tests still pass
+- **Acceptance**: Zero 4xx errors from unknown fields
+
+---
+
+## Rollout Plan
+
+### Stage 1: Dev + Unit Tests (Day 1)
+- Implement calculator + tests
+- Code review
+
+### Stage 2: Feature Test (Day 2)
+- Full feature test suite pass
+- Manual testing in staging
+
+### Stage 3: Canary (Day 3-4)
+- Deploy to 5% of production branches
+- Monitor metrics: cancellation_rate, customer_satisfaction
+- 24h observation
+
+### Stage 4: Full Rollout (Day 5+)
+- Expand to 100% if metrics stable
+- Keep feature flag for quick rollback
+
+---
+
+## References
+- AGENTS.md: Phase 1 priority (booking safeguard)
+- restaurantpos-branch-scheduling: Policy override
+- restaurantpos-customer-self-service: Validation guards
+- Docs: `docs/runbooks/reservation-cancellation-policy.md` (create if not exist)
+
+---
+
+## Success Metrics (Phase 1)
+- ✅ 72-hour advance bookings get 24+ hours to rebooking window
+- ✅ 5+ unit tests, 5+ feature tests
+- ✅ Zero breaking changes to API
+- ✅ Feature flag allows safe rollout
+- ✅ Backward compatible with branch policy override
+- ✅ Performance: < 50ms per calculation

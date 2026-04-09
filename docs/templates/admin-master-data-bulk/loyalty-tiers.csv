@@ -1,0 +1,2 @@
+tier_code,tier_name,min_points,benefits_json,is_active
+PLATINUM,Platinum,2500,"{""priority_booking"":true,""discount_percent"":10}",1

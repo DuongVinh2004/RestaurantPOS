@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Checkout & Finance"
+  short_description: "Harden settlement, refund, and finance flows"
+  default_prompt: "Use $restaurantpos-checkout-finance to harden settlement, refund, cashier, invoice, reconciliation, and payment integration flows."

@@ -1,0 +1,142 @@
+name: booking-release-gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_label:
+        description: Optional artifact label suffix for this release evidence run
+        required: false
+        default: manual
+      package_id:
+        description: Optional immutable release package id override
+        required: false
+        default: ''
+      preview_url:
+        description: Optional preview deployment URL to archive in release evidence
+        required: false
+        default: ''
+      preview_label:
+        description: Optional preview deployment label
+        required: false
+        default: preview
+
+concurrency:
+  group: booking-release-gate-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  APP_ENV: testing
+  APP_DEBUG: true
+  APP_NAME: RestaurantPOS
+  APP_KEY: base64:TGSYwo/ySw5TozAQw5bBUJCv4L3WNC7KSokVxs+fBDQ=
+  APP_URL: http://127.0.0.1
+  LOG_CHANNEL: stack
+  LOG_LEVEL: debug
+  DB_CONNECTION: mysql
+  DB_HOST: 127.0.0.1
+  DB_PORT: 3306
+  DB_DATABASE: restaurantpos_release_gate
+  DB_USERNAME: restaurantpos
+  DB_PASSWORD: restaurantpos
+  CACHE_STORE: redis
+  QUEUE_CONNECTION: database
+  SESSION_DRIVER: database
+  MAIL_MAILER: log
+  REDIS_CLIENT: phpredis
+  REDIS_HOST: 127.0.0.1
+  REDIS_PORT: 6379
+  REDIS_DB: 0
+  REDIS_CACHE_DB: 1
+  BOOKING_CI_BOOTSTRAP_DATABASE: true
+  BOOKING_CI_BOOTSTRAP_STAFF_WEB: true
+  BOOKING_RELEASE_PACKAGE_OVERWRITE: true
+  BOOKING_RELEASE_LOOP_BOOTSTRAP_UAT: true
+  BOOKING_RELEASE_PACKAGE_ID: ${{ github.event.inputs.package_id != '' && github.event.inputs.package_id || format('{0}-{1}', github.run_number, github.sha) }}
+  BOOKING_RELEASE_PREVIEW_URL: ${{ github.event.inputs.preview_url }}
+  BOOKING_RELEASE_PREVIEW_LABEL: ${{ github.event.inputs.preview_label }}
+
+jobs:
+  release-evidence:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: restaurantpos_release_gate
+          MYSQL_USER: restaurantpos
+          MYSQL_PASSWORD: restaurantpos
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, dom, pdo_mysql, redis, phar
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: staff-web/package-lock.json
+
+      - name: Install MySQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            mysqladmin ping -h 127.0.0.1 -P 3306 -uroot -proot --silent && exit 0
+            sleep 2
+          done
+          echo "MySQL service did not become healthy in time." >&2
+          exit 1
+
+      - name: Validate repository prerequisites
+        run: bash scripts/ci/booking-repo-prereq-check.sh
+
+      - name: Bootstrap CI environment
+        run: bash scripts/ci/booking-ci-bootstrap.sh
+
+      - name: Run release gate and immutable package build
+        run: bash scripts/ci/booking-release-gate.sh
+
+      - name: Upload release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: booking-release-evidence-${{ github.event.inputs.artifact_label || 'manual' }}
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            build/booking-ci/**
+            build/booking-release/**
+            storage/app/booking_release/**
+            storage/logs/**

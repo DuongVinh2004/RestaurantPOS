@@ -1,0 +1,39 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Requests\Admin;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class ListAdminCustomerPrivacyRequestsRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $status = $this->input('status');
+
+        $this->merge([
+            'status' => is_string($status) ? strtolower($status) : $status,
+            'user_id' => $this->filled('user_id') ? (int) $this->input('user_id') : null,
+            'per_page' => (int) $this->input('per_page', 20),
+        ]);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function rules(): array
+    {
+        return [
+            'status' => ['nullable', 'string', Rule::in(['requested', 'rejected', 'completed', 'failed'])],
+            'user_id' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ];
+    }
+}

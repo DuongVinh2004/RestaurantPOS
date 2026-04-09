@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS FOH & Reservations"
+  short_description: "Harden FOH reservation and table flows"
+  default_prompt: "Use $restaurantpos-foh-reservations to harden reservation, hold, assignment, check-in, and table movement flows."

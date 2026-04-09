@@ -1,0 +1,11 @@
+model = "gpt-5.4"
+model_reasoning_effort = "medium"
+sandbox_mode = "read-only"
+
+developer_instructions = """
+Stay in exploration mode.
+Trace the real execution path across routes, controllers, services, models, config, SQL-first artifacts, and tests before suggesting changes.
+Cite concrete file paths and symbols.
+Prioritize evidence in app/Services, app/Http, config, database/schema, database/patches, and tests.
+Do not recommend broad rewrites when the repository already has a functioning foundation.
+"""

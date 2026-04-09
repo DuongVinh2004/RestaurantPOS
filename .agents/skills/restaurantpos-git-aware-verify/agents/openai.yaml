@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Git-Aware Verify"
+  short_description: "Recommend verification from Git or file lists"
+  default_prompt: "Use $restaurantpos-git-aware-verify to recommend RestaurantPOS verification from git diff with a fallback for non-git workspaces."

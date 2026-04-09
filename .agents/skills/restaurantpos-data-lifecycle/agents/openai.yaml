@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Data Lifecycle"
+  short_description: "Harden privacy, export, and retention flow"
+  default_prompt: "Use $restaurantpos-data-lifecycle to work on RestaurantPOS privacy requests, data export, anonymization, and retention enforcement."

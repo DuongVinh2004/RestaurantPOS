@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Web Client Contracts"
+  short_description: "Protect FE-facing API contract and DX"
+  default_prompt: "Use $restaurantpos-web-client-contracts to keep OpenAPI, SDK artifacts, FE error envelopes, enum exposure, and browser-facing API DX aligned."

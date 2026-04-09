@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Runtime Smoke"
+  short_description: "Run runtime-ready checks, not just tests"
+  default_prompt: "Use $restaurantpos-runtime-smoke to verify RestaurantPOS MySQL, Redis, scheduler, and operational health after risky changes."

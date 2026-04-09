@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Web Auth Session Contract"
+  short_description: "Protect split-web auth headers and sessions"
+  default_prompt: "Use $restaurantpos-web-auth-session-contract to keep customer-web and staff-web auth headers, access sessions, CORS, and login lifecycle contracts safe."

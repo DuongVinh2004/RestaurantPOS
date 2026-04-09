@@ -1,0 +1,81 @@
+{
+  "suite": "round5",
+  "description": "Canonical Round 5 financial integration gate for checkout, loyalty, voucher, refund, payment provider/webhook, deposit payment sessions, bill self-payment, idempotency, and reservation regressions.",
+  "tests": [
+    {
+      "key": "staff_checkout_financial_matrix",
+      "path": "tests/Feature/Staff/StaffCheckoutFinancialIntegrationMatrixTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "staff_checkout_financial_outbox_and_coverage",
+      "path": "tests/Feature/Staff/StaffCheckoutFinancialOutboxAndCoverageTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "staff_checkout_idempotency_replay",
+      "path": "tests/Feature/Staff/StaffCheckoutIdempotencyReplayServiceTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "staff_checkout_concurrency_guard",
+      "path": "tests/Feature/Staff/StaffCheckoutConcurrencyGuardFlowTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "staff_checkout_refund_and_cancel",
+      "path": "tests/Feature/Staff/StaffCheckoutRefundAndCancelServiceTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "staff_checkout_refund_lifecycle",
+      "path": "tests/Feature/Staff/StaffCheckoutRefundLifecycleTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "payment_provider_webhook_flow",
+      "path": "tests/Feature/Payments/PaymentProviderWebhookFlowTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "customer_deposit_payment_session",
+      "path": "tests/Feature/Reservation/CustomerReservationDepositPaymentSessionFlowTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "customer_bill_self_payment",
+      "path": "tests/Feature/Reservation/CustomerReservationOrderBillSelfPaymentFlowTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "loyalty_sync_services",
+      "path": "tests/Unit/Services/Loyalty/LoyaltySyncServicesTest.php",
+      "category": "unit"
+    },
+    {
+      "key": "payment_capture_service",
+      "path": "tests/Unit/Services/Staff/PaymentCaptureServiceTest.php",
+      "category": "unit"
+    },
+    {
+      "key": "refund_execution_service",
+      "path": "tests/Unit/Services/Staff/RefundExecutionServiceTest.php",
+      "category": "unit"
+    },
+    {
+      "key": "generic_http_hmac_payment_provider_adapter",
+      "path": "tests/Unit/Services/PaymentIntegration/GenericHttpHmacPaymentProviderAdapterTest.php",
+      "category": "unit"
+    },
+    {
+      "key": "reservation_http_flow",
+      "path": "tests/Feature/Reservation/ReservationHttpFlowTest.php",
+      "category": "feature"
+    },
+    {
+      "key": "reservation_status_http_flow",
+      "path": "tests/Feature/Reservation/ReservationStatusHttpFlowTest.php",
+      "category": "feature"
+    }
+  ]
+}

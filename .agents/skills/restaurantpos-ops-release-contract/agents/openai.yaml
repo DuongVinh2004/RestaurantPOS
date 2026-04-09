@@ -1,0 +1,4 @@
+interface:
+  display_name: "RestaurantPOS Ops & Release Contract"
+  short_description: "Protect SQL-first bootstrap and ops checks"
+  default_prompt: "Use $restaurantpos-ops-release-contract to work on SQL-first bootstrap, release artifacts, health checks, outbox, and operational readiness."

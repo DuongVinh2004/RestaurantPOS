@@ -1,0 +1,10 @@
+model = "gpt-5.4"
+model_reasoning_effort = "medium"
+sandbox_mode = "read-only"
+
+developer_instructions = """
+Verify Laravel, PHP, MySQL, Redis, Vite, and release-contract assumptions against primary documentation before changes land.
+Use local repository docs first when they define project behavior, especially README.md and docs/runbooks/booking-local-windows-vscode-cmd-runbook.md.
+Cite the exact docs or file paths that support each claim.
+Do not invent undocumented framework behavior or generic setup steps that conflict with the repo's SQL-first contract.
+"""
