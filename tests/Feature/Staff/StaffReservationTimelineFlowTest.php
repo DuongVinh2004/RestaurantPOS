@@ -20,7 +20,8 @@ class StaffReservationTimelineFlowTest extends TestCase
     {
         parent::setUp();
         $this->requireBookingSchema();
-        config()->set('app.timezone', 'Asia/Bangkok');
+        config()->set('app.timezone', 'UTC');
+        config()->set('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh');
     }
 
     public function test_staff_can_view_timeline_grouped_by_slots_with_operational_flags(): void
@@ -163,46 +164,46 @@ class StaffReservationTimelineFlowTest extends TestCase
         self::assertSame('zone:Patio', data_get($items[$patioReservationId], 'calendar.primary_zone_lane_key'));
     }
 
-public function test_staff_can_request_table_lane_grouping_with_unassigned_candidate_preview(): void
-{
-    Carbon::setTestNow(Carbon::parse('2026-03-21 10:00:00', 'UTC'));
+    public function test_staff_can_request_table_lane_grouping_with_unassigned_candidate_preview(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-03-21 10:00:00', 'UTC'));
 
-    [$staffId, $mainTableId] = $this->seedTimelineScenario();
-    $customerId = $this->createUser(['role_name' => 'Customer', 'full_name' => 'Unassigned Timeline Guest']);
+        [$staffId, $mainTableId] = $this->seedTimelineScenario();
+        $customerId = $this->createUser(['role_name' => 'Customer', 'full_name' => 'Unassigned Timeline Guest']);
 
-    $unassignedReservationId = $this->createReservation([
-        'user_id' => $customerId,
-        'reservation_code' => 'TL-UNASSIGNED',
-        'status' => 'Confirmed',
-        'start_time' => Carbon::parse('2026-03-21 10:15:00', 'UTC'),
-        'end_time' => Carbon::parse('2026-03-21 11:15:00', 'UTC'),
-        'guest_count' => 2,
-        'bill_currency' => 'VND',
-    ]);
+        $unassignedReservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'reservation_code' => 'TL-UNASSIGNED',
+            'status' => 'Confirmed',
+            'start_time' => Carbon::parse('2026-03-21 10:15:00', 'UTC'),
+            'end_time' => Carbon::parse('2026-03-21 11:15:00', 'UTC'),
+            'guest_count' => 2,
+            'bill_currency' => 'VND',
+        ]);
 
-    $response = $this->withHeaders($this->staffHeaders($staffId, 'staff-timeline-lanes-table'))
-        ->getJson('/api/v1/staff/reservations/timeline?date=2026-03-21&lane_by=table&include_candidate_tables=1');
+        $response = $this->withHeaders($this->staffHeaders($staffId, 'staff-timeline-lanes-table'))
+            ->getJson('/api/v1/staff/reservations/timeline?date=2026-03-21&lane_by=table&include_candidate_tables=1');
 
-    $response
-        ->assertOk()
-        ->assertJsonPath('data.summary.total_reservations', 5)
-        ->assertJsonPath('data.summary.flag_counts.needs_assignment', 1)
-        ->assertJsonPath('data.calendar.lane_mode', 'table')
-        ->assertJsonPath('data.calendar.has_lane_grouping', true)
-        ->assertJsonPath('meta.filters.include_candidate_tables', true);
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.summary.total_reservations', 5)
+            ->assertJsonPath('data.summary.flag_counts.needs_assignment', 1)
+            ->assertJsonPath('data.calendar.lane_mode', 'table')
+            ->assertJsonPath('data.calendar.has_lane_grouping', true)
+            ->assertJsonPath('meta.filters.include_candidate_tables', true);
 
-    $items = collect($response->json('data.items'))->keyBy(fn (array $item): int => (int) $item['reservation']['reservation_id']);
-    self::assertSame('unassigned', data_get($items[$unassignedReservationId], 'calendar.primary_table_lane_key'));
-    self::assertTrue((bool) data_get($items[$unassignedReservationId], 'orchestration.needs_assignment'));
-    self::assertTrue((bool) data_get($items[$unassignedReservationId], 'orchestration.ready_for_assignment'));
-    self::assertTrue((bool) data_get($items[$unassignedReservationId], 'orchestration.candidate_table_preview_loaded'));
-    self::assertGreaterThan(0, (int) data_get($items[$unassignedReservationId], 'orchestration.candidate_table_count'));
-    self::assertSame('TL-PATIO-01', (string) data_get($items[$unassignedReservationId], 'orchestration.best_fit_table.table_code'));
+        $items = collect($response->json('data.items'))->keyBy(fn (array $item): int => (int) $item['reservation']['reservation_id']);
+        self::assertSame('unassigned', data_get($items[$unassignedReservationId], 'calendar.primary_table_lane_key'));
+        self::assertTrue((bool) data_get($items[$unassignedReservationId], 'orchestration.needs_assignment'));
+        self::assertTrue((bool) data_get($items[$unassignedReservationId], 'orchestration.ready_for_assignment'));
+        self::assertTrue((bool) data_get($items[$unassignedReservationId], 'orchestration.candidate_table_preview_loaded'));
+        self::assertGreaterThan(0, (int) data_get($items[$unassignedReservationId], 'orchestration.candidate_table_count'));
+        self::assertSame('TL-PATIO-01', (string) data_get($items[$unassignedReservationId], 'orchestration.best_fit_table.table_code'));
 
-    $lanes = collect($response->json('data.calendar.lanes'))->keyBy('lane_key');
-    self::assertSame(4, (int) data_get($lanes['table:' . $mainTableId], 'reservation_count'));
-    self::assertSame(1, (int) data_get($lanes['unassigned'], 'reservation_count'));
-}
+        $lanes = collect($response->json('data.calendar.lanes'))->keyBy('lane_key');
+        self::assertSame(4, (int) data_get($lanes['table:'.$mainTableId], 'reservation_count'));
+        self::assertSame(1, (int) data_get($lanes['unassigned'], 'reservation_count'));
+    }
 
     public function test_staff_can_filter_table_lane_timeline_by_zone_without_losing_unassigned_candidates(): void
     {

@@ -41,7 +41,7 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertTrue((bool) ($payload['ok'] ?? false));
         self::assertSame($this->root, $payload['output_root'] ?? null);
         self::assertTrue((bool) ($payload['summary']['uat_environment_generated'] ?? false));
-        self::assertSame(5, $payload['summary']['mutation_contract_group_count'] ?? null);
+        self::assertSame(6, $payload['summary']['mutation_contract_group_count'] ?? null);
 
         $collectionPath = base_path((string) ($payload['artifacts']['collection'] ?? ''));
         $localEnvPath = base_path((string) ($payload['artifacts']['local_environment'] ?? ''));

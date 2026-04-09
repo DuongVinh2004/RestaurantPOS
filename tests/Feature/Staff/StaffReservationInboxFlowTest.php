@@ -190,15 +190,16 @@ class StaffReservationInboxFlowTest extends TestCase
             ->assertJsonPath('data.0.reservation_id', $cancelledFutureReservationId);
     }
 
-    public function test_staff_today_bucket_uses_application_timezone_day_window(): void
+    public function test_staff_today_bucket_uses_branch_operational_timezone_day_window(): void
     {
-        config()->set('app.timezone', 'Asia/Bangkok');
+        config()->set('app.timezone', 'UTC');
+        config()->set('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh');
 
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $headers = $this->staffAuthHeaders($staffId);
         $tableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'TZ-01']);
 
-        $localStart = now('Asia/Bangkok')->startOfDay()->addMinutes(30);
+        $localStart = now('Asia/Ho_Chi_Minh')->startOfDay()->addMinutes(30);
         $localEnd = $localStart->copy()->addHour();
 
         $reservationId = $this->createReservation([

@@ -162,8 +162,8 @@ class TableAvailabilityFeatureTest extends TestCase
     public function test_available_endpoint_reports_branch_policy_rejection_for_closure_window(): void
     {
         $branchId = $this->createBranch([
-            'branch_code' => 'BKK01',
-            'timezone' => 'Asia/Bangkok',
+            'branch_code' => 'HCM01',
+            'timezone' => 'Asia/Ho_Chi_Minh',
             'business_hours' => collect(range(0, 6))
                 ->map(static fn (int $day): array => [
                     'day_of_week' => $day,
@@ -178,13 +178,13 @@ class TableAvailabilityFeatureTest extends TestCase
                     'start_local' => '2026-09-10 18:00:00',
                     'end_local' => '2026-09-10 20:00:00',
                     'type' => 'blackout',
-                    'reason' => 'Private event',
+                    'reason' => 'Su kien rieng',
                 ],
             ],
         ]);
         $this->createRestaurantTableWithSeats(4, ['branch_id' => $branchId, 'zone' => 'VIP']);
 
-        $start = now('Asia/Bangkok')->setDate(2026, 9, 10)->setTime(18, 30)->utc();
+        $start = now('Asia/Ho_Chi_Minh')->setDate(2026, 9, 10)->setTime(18, 30)->utc();
         $end = $start->copy()->addHour();
 
         $response = $this->getJson(sprintf(
@@ -196,7 +196,7 @@ class TableAvailabilityFeatureTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('meta.branch_id', $branchId)
-            ->assertJsonPath('meta.branch_timezone', 'Asia/Bangkok')
+            ->assertJsonPath('meta.branch_timezone', 'Asia/Ho_Chi_Minh')
             ->assertJsonPath('meta.availability_policy.allowed', false)
             ->assertJsonPath('meta.availability_policy.reason', 'closure_window');
 

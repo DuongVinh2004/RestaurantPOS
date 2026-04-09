@@ -22,8 +22,8 @@ export function buildStaffSession(overrides: Partial<StaffSession> = {}): StaffS
     default_branch: {
       branch_id: 1,
       branch_code: 'MAIN',
-      branch_name: 'Main Branch',
-      timezone: 'Asia/Bangkok',
+      branch_name: 'Chi nhanh chinh',
+      timezone: 'Asia/Ho_Chi_Minh',
       currency: 'VND',
       is_default: true,
       is_active: true,
@@ -34,8 +34,8 @@ export function buildStaffSession(overrides: Partial<StaffSession> = {}): StaffS
       branch: {
         branch_id: 1,
         branch_code: 'MAIN',
-        branch_name: 'Main Branch',
-        timezone: 'Asia/Bangkok',
+        branch_name: 'Chi nhanh chinh',
+        timezone: 'Asia/Ho_Chi_Minh',
         currency: 'VND',
         is_default: true,
         is_active: true,

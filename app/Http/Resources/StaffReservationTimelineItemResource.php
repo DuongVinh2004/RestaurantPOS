@@ -23,7 +23,7 @@ class StaffReservationTimelineItemResource extends JsonResource
     {
         /** @var Reservation $reservation */
         $reservation = $this->resource;
-        $timezone = (string) ($request->attributes->get('staff_reservation_timeline_timezone') ?? config('app.timezone', 'UTC'));
+        $timezone = (string) ($request->attributes->get('staff_reservation_timeline_timezone') ?? config('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh'));
         $nowUtc = $this->asCarbon($request->attributes->get('staff_reservation_timeline_now_utc')) ?? Carbon::now('UTC');
         $dueSoonCutoffUtc = $this->asCarbon($request->attributes->get('staff_reservation_timeline_due_soon_cutoff_utc')) ?? $nowUtc->copy();
         $overdueCutoffUtc = $this->asCarbon($request->attributes->get('staff_reservation_timeline_overdue_cutoff_utc')) ?? $nowUtc->copy();
@@ -124,9 +124,9 @@ class StaffReservationTimelineItemResource extends JsonResource
             ],
             'calendar' => [
                 'primary_zone' => $primaryZone,
-                'primary_zone_lane_key' => $primaryZone !== null ? 'zone:' . $primaryZone : 'unassigned',
+                'primary_zone_lane_key' => $primaryZone !== null ? 'zone:'.$primaryZone : 'unassigned',
                 'primary_table' => $primaryTable,
-                'primary_table_lane_key' => $primaryTable !== null ? 'table:' . (int) ($primaryTable['table_id'] ?? 0) : 'unassigned',
+                'primary_table_lane_key' => $primaryTable !== null ? 'table:'.(int) ($primaryTable['table_id'] ?? 0) : 'unassigned',
                 'lane_anchor_policy' => $primaryTable !== null ? 'first_assigned_table_anchor' : 'unassigned_lane',
             ],
             'orchestration' => [
@@ -220,7 +220,7 @@ class StaffReservationTimelineItemResource extends JsonResource
     }
 
     /**
-     * @param list<array<string,mixed>> $tables
+     * @param  list<array<string,mixed>>  $tables
      * @return array<string,mixed>|null
      */
     private function resolvePrimaryTable(array $tables): ?array

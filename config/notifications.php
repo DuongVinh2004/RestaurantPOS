@@ -49,7 +49,7 @@ return [
     ],
     'preferences' => [
         'enabled' => env('NOTIFICATIONS_PREFERENCES_ENABLED', true),
-        'timezone' => env('NOTIFICATIONS_PREFERENCES_TIMEZONE', env('APP_TIMEZONE', 'UTC')),
+        'timezone' => env('NOTIFICATIONS_PREFERENCES_TIMEZONE', env('BOOKING_DEFAULT_BRANCH_TIMEZONE', 'Asia/Ho_Chi_Minh')),
         'default_opt_in_channels' => array_values(array_filter(array_map(
             'trim',
             explode(',', (string) env('NOTIFICATIONS_DEFAULT_OPT_IN_CHANNELS', 'Email'))

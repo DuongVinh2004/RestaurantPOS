@@ -8,6 +8,8 @@ use App\Enums\ReservationStatus;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\NotificationOutbox;
 use App\Models\Reservation;
+use App\Models\RestaurantTable;
+use App\Models\WaitingList;
 use App\Services\Notifications\NotificationChannelManager;
 use App\Services\Notifications\NotificationDeliveryException;
 use App\Services\Notifications\NotificationPreferenceService;
@@ -16,6 +18,7 @@ use App\Support\PaymentSummary;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -37,25 +40,25 @@ class NotificationOutboxService
      * @param  array<int,int|string>  $refundPaymentIds
      */
     private function buildRefundIdempotencyKey(
-    int $reservationId,
-    array $refundPaymentIds,
-    float $refundAmount,
-    string $refundScope
-): string {
-    $paymentIds = array_values(array_map('intval', $refundPaymentIds));
-    sort($paymentIds);
+        int $reservationId,
+        array $refundPaymentIds,
+        float $refundAmount,
+        string $refundScope
+    ): string {
+        $paymentIds = array_values(array_map('intval', $refundPaymentIds));
+        sort($paymentIds);
 
-    $payload = json_encode([
-        'payment_ids' => $paymentIds,
-        'refund_amount' => round($refundAmount, 2),
-        'refund_scope' => $refundScope,
-    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]';
+        $payload = json_encode([
+            'payment_ids' => $paymentIds,
+            'refund_amount' => round($refundAmount, 2),
+            'refund_scope' => $refundScope,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]';
 
-    // 40 ký tự hex là đủ ổn định và giữ tổng độ dài < 64
-    $fingerprint = hash('sha1', $payload);
+        // 40 ký tự hex là đủ ổn định và giữ tổng độ dài < 64
+        $fingerprint = hash('sha1', $payload);
 
-    return sprintf('reservation:%d:rf:%s', $reservationId, $fingerprint);
-}
+        return sprintf('reservation:%d:rf:%s', $reservationId, $fingerprint);
+    }
 
     /**
      * @param  array<string,mixed>  $attributes
@@ -133,7 +136,7 @@ class NotificationOutboxService
             }
         }
 
-        $message = new NotificationOutbox();
+        $message = new NotificationOutbox;
         $message->channel = $channel;
         $message->recipient = $recipient;
         $message->recipient_user_id = $recipientUserId;
@@ -309,7 +312,7 @@ class NotificationOutboxService
         ]);
     }
 
-    public function enqueueWaitingListNotified(\App\Models\WaitingList $entry, \App\Models\RestaurantTable $table, Carbon $expiresAt): ?NotificationOutbox
+    public function enqueueWaitingListNotified(WaitingList $entry, RestaurantTable $table, Carbon $expiresAt): ?NotificationOutbox
     {
         $entry->loadMissing('user');
 
@@ -320,8 +323,12 @@ class NotificationOutboxService
             'guest_name' => (string) ($entry->guest_name ?? ''),
             'phone' => (string) ($entry->phone ?? ''),
             'guest_count' => (int) $entry->guest_count,
-            'table_label' => (string) ($table->table_code ?? ('#' . $table->table_id)),
+            'table_label' => (string) ($table->table_code ?? ('#'.$table->table_id)),
             'notify_expires_at_utc' => $this->formatUtcDateTime($expiresAt),
+            'notify_expires_at_local' => $this->formatLocalDateTime(
+                $expiresAt,
+                $this->resolveOperationalTimezone((int) ($table->branch_id ?? $entry->branch_id ?? 0))
+            ),
             'restaurant_name' => (string) config('app.name', 'RestaurantPOS'),
         ];
 
@@ -399,6 +406,7 @@ class NotificationOutboxService
         ?string $dedupeKey = null,
     ): ?NotificationOutbox {
         $reservation->loadMissing('user', 'tables', 'payments');
+
         return $this->enqueueMessage([
             'channel' => 'Email',
             'recipient' => (string) ($reservation->user?->email ?? ''),
@@ -410,7 +418,10 @@ class NotificationOutboxService
             'payload' => array_merge(
                 $this->buildReservationPayload($reservation),
                 [
-                    'change_set' => $this->buildReservationChangePayload($changeSet),
+                    'change_set' => $this->buildReservationChangePayload(
+                        $changeSet,
+                        $this->resolveOperationalTimezone($reservation->branch_id !== null ? (int) $reservation->branch_id : null)
+                    ),
                 ],
             ),
             'related_reservation_id' => (int) $reservation->reservation_id,
@@ -443,9 +454,9 @@ class NotificationOutboxService
         string $templateKey,
         string $idempotencyKey,
         ?string $dedupeKey = null,
-    ): ?NotificationOutbox
-    {
+    ): ?NotificationOutbox {
         $reservation->loadMissing('user', 'tables', 'payments');
+
         return $this->enqueueMessage([
             'channel' => 'Email',
             'recipient' => (string) ($reservation->user?->email ?? ''),
@@ -752,6 +763,7 @@ class NotificationOutboxService
         $summary = PaymentSummary::fromPayments($reservation->payments);
         $paidAmount = round((float) ($summary['net_paid_amount'] ?? 0.0), 2);
         $refundedAmount = round((float) ($summary['refunded_amount'] ?? 0.0), 2);
+        $timezone = $this->resolveOperationalTimezone($reservation->branch_id !== null ? (int) $reservation->branch_id : null);
 
         return [
             'reservation_id' => (int) $reservation->reservation_id,
@@ -759,12 +771,17 @@ class NotificationOutboxService
             'customer_name' => (string) ($reservation->user?->full_name ?? 'Quý khách'),
             'guest_count' => (int) $reservation->guest_count,
             'status' => (string) ($reservation->status?->value ?? $reservation->status),
+            'reservation_timezone' => $timezone,
             'start_time_utc' => $this->formatUtcDateTime($reservation->start_time),
             'end_time_utc' => $this->formatUtcDateTime($reservation->end_time),
             'checked_in_at_utc' => $this->formatUtcDateTime($reservation->checked_in_at),
             'checked_out_at_utc' => $this->formatUtcDateTime($reservation->checked_out_at),
+            'start_time_local' => $this->formatLocalDateTime($reservation->start_time, $timezone),
+            'end_time_local' => $this->formatLocalDateTime($reservation->end_time, $timezone),
+            'checked_in_at_local' => $this->formatLocalDateTime($reservation->checked_in_at, $timezone),
+            'checked_out_at_local' => $this->formatLocalDateTime($reservation->checked_out_at, $timezone),
             'table_labels' => $reservation->tables
-                ->map(fn ($table) => (string) ($table->table_code ?? ('#' . $table->table_id)))
+                ->map(fn ($table) => (string) ($table->table_code ?? ('#'.$table->table_id)))
                 ->values()
                 ->all(),
             'notes' => $reservation->notes,
@@ -776,7 +793,7 @@ class NotificationOutboxService
         ];
     }
 
-    private function buildReservationChangePayload(array $changeSet): array
+    private function buildReservationChangePayload(array $changeSet, string $timezone): array
     {
         return [
             'previous_start_time_utc' => $this->normalizeMaybeUtcString($changeSet['previous_start_time_utc'] ?? null),
@@ -789,11 +806,14 @@ class NotificationOutboxService
             'new_guest_count' => isset($changeSet['new_guest_count']) ? (int) $changeSet['new_guest_count'] : null,
             'new_notes' => isset($changeSet['new_notes']) ? (string) $changeSet['new_notes'] : null,
             'new_table_labels' => array_values(array_map('strval', (array) ($changeSet['new_table_labels'] ?? []))),
+            'previous_start_time_local' => $this->formatLocalDateTime($changeSet['previous_start_time_utc'] ?? null, $timezone),
+            'previous_end_time_local' => $this->formatLocalDateTime($changeSet['previous_end_time_utc'] ?? null, $timezone),
+            'new_start_time_local' => $this->formatLocalDateTime($changeSet['new_start_time_utc'] ?? null, $timezone),
+            'new_end_time_local' => $this->formatLocalDateTime($changeSet['new_end_time_utc'] ?? null, $timezone),
             'change_reason' => isset($changeSet['reason']) ? (string) $changeSet['reason'] : null,
             'changed_fields' => array_values(array_map('strval', (array) ($changeSet['changed_fields'] ?? []))),
         ];
     }
-
 
     private function maskRecipientForAudit(?string $recipient): ?string
     {
@@ -808,7 +828,7 @@ class NotificationOutboxService
                 return str_repeat('*', mb_strlen($recipient));
             }
 
-            return mb_substr($recipient, 0, 2) . str_repeat('*', max(1, mb_strlen($recipient) - 4)) . mb_substr($recipient, -2);
+            return mb_substr($recipient, 0, 2).str_repeat('*', max(1, mb_strlen($recipient) - 4)).mb_substr($recipient, -2);
         }
 
         $local = mb_substr($recipient, 0, $at);
@@ -816,11 +836,11 @@ class NotificationOutboxService
         $localMasked = match (mb_strlen($local)) {
             0 => '',
             1 => '*',
-            2 => mb_substr($local, 0, 1) . '*',
-            default => mb_substr($local, 0, 1) . str_repeat('*', max(1, mb_strlen($local) - 2)) . mb_substr($local, -1),
+            2 => mb_substr($local, 0, 1).'*',
+            default => mb_substr($local, 0, 1).str_repeat('*', max(1, mb_strlen($local) - 2)).mb_substr($local, -1),
         };
 
-        return $localMasked . '@' . $domain;
+        return $localMasked.'@'.$domain;
     }
 
     private function normalizeMaybeUtcString(mixed $dateTime): ?string
@@ -829,7 +849,7 @@ class NotificationOutboxService
             return null;
         }
 
-        return Carbon::parse((string) $dateTime)->utc()->format('Y-m-d H:i:s') . ' UTC';
+        return Carbon::parse((string) $dateTime)->utc()->format('Y-m-d H:i:s').' UTC';
     }
 
     private function formatUtcDateTime(mixed $dateTime): ?string
@@ -838,7 +858,33 @@ class NotificationOutboxService
             return null;
         }
 
-        return Carbon::parse((string) $dateTime)->utc()->format('Y-m-d H:i:s') . ' UTC';
+        return Carbon::parse((string) $dateTime)->utc()->format('Y-m-d H:i:s').' UTC';
+    }
+
+    private function formatLocalDateTime(mixed $dateTime, ?string $timezone = null): ?string
+    {
+        if ($dateTime === null || $dateTime === '') {
+            return null;
+        }
+
+        $timezone ??= $this->resolveOperationalTimezone(null);
+
+        return Carbon::parse((string) $dateTime)->setTimezone($timezone)->format('H:i d/m/Y');
+    }
+
+    private function resolveOperationalTimezone(?int $branchId): string
+    {
+        if ($branchId !== null && $branchId > 0 && Schema::hasTable('branches')) {
+            $timezone = DB::table('branches')
+                ->where('branch_id', $branchId)
+                ->value('timezone');
+
+            if (is_string($timezone) && trim($timezone) !== '') {
+                return trim($timezone);
+            }
+        }
+
+        return (string) config('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh');
     }
 
     private function resolveSubject(string $templateKey, array $payload): string
@@ -866,105 +912,105 @@ class NotificationOutboxService
             $customerName = (string) ($payload['customer_name'] ?? 'Customer');
             $reservationCode = (string) ($payload['reservation_code'] ?? '');
 
-            return trim("Hello {$customerName},\n\n" .
-                "Our staff sent a follow-up message regarding your recent conversation.\n" .
-                ($reservationCode !== '' ? "Reservation: {$reservationCode}\n" : '') .
-                "Message:\n" . (string) ($payload['message_text'] ?? '') . "\n\n" .
-                "Conversation ID: " . (string) ($payload['conversation_id'] ?? '') . "\n" .
-                "Branch: " . (string) ($payload['branch_name'] ?? ($payload['restaurant_name'] ?? 'RestaurantPOS')));
+            return trim("Hello {$customerName},\n\n".
+                "Our staff sent a follow-up message regarding your recent conversation.\n".
+                ($reservationCode !== '' ? "Reservation: {$reservationCode}\n" : '').
+                "Message:\n".(string) ($payload['message_text'] ?? '')."\n\n".
+                'Conversation ID: '.(string) ($payload['conversation_id'] ?? '')."\n".
+                'Branch: '.(string) ($payload['branch_name'] ?? ($payload['restaurant_name'] ?? 'RestaurantPOS')));
         }
         $customerName = (string) ($payload['customer_name'] ?? 'Quý khách');
         $reservationCode = (string) ($payload['reservation_code'] ?? '');
         $guestCount = (int) ($payload['guest_count'] ?? 0);
-        $startTime = (string) ($payload['start_time_utc'] ?? '');
-        $endTime = (string) ($payload['end_time_utc'] ?? '');
-        $checkedInAt = (string) ($payload['checked_in_at_utc'] ?? '');
+        $startTime = (string) ($payload['start_time_local'] ?? $payload['start_time_utc'] ?? '');
+        $endTime = (string) ($payload['end_time_local'] ?? $payload['end_time_utc'] ?? '');
+        $checkedInAt = (string) ($payload['checked_in_at_local'] ?? $payload['checked_in_at_utc'] ?? '');
         $tables = implode(', ', array_filter(array_map('strval', (array) ($payload['table_labels'] ?? []))));
         $previousTables = implode(', ', array_filter(array_map('strval', (array) ($payload['previous_table_labels'] ?? []))));
         $newTables = implode(', ', array_filter(array_map('strval', (array) ($payload['new_table_labels'] ?? []))));
-        $previousStart = (string) ($payload['previous_start_time_utc'] ?? '');
-        $previousEnd = (string) ($payload['previous_end_time_utc'] ?? '');
-        $newStart = (string) ($payload['new_start_time_utc'] ?? '');
-        $newEnd = (string) ($payload['new_end_time_utc'] ?? '');
+        $previousStart = (string) ($payload['previous_start_time_local'] ?? $payload['previous_start_time_utc'] ?? '');
+        $previousEnd = (string) ($payload['previous_end_time_local'] ?? $payload['previous_end_time_utc'] ?? '');
+        $newStart = (string) ($payload['new_start_time_local'] ?? $payload['new_start_time_utc'] ?? '');
+        $newEnd = (string) ($payload['new_end_time_local'] ?? $payload['new_end_time_utc'] ?? '');
         $previousGuestCount = isset($payload['previous_guest_count']) ? (int) $payload['previous_guest_count'] : null;
         $newGuestCount = isset($payload['new_guest_count']) ? (int) $payload['new_guest_count'] : null;
         $changedFields = array_values(array_filter(array_map('strval', (array) ($payload['changed_fields'] ?? []))));
         $changeReason = trim((string) ($payload['change_reason'] ?? ''));
         $notes = trim((string) ($payload['notes'] ?? ''));
         $cancelReason = trim((string) ($payload['cancel_reason'] ?? ''));
-        $checkedOutAt = (string) ($payload['checked_out_at_utc'] ?? '');
+        $checkedOutAt = (string) ($payload['checked_out_at_local'] ?? $payload['checked_out_at_utc'] ?? '');
         $paidAmount = number_format((float) ($payload['paid_amount'] ?? 0), 2, '.', ',');
         $refundedAmount = number_format((float) ($payload['refunded_amount'] ?? 0), 2, '.', ',');
         $refundAmount = number_format((float) ($payload['refund_amount'] ?? 0), 2, '.', ',');
         $currency = (string) ($payload['bill_currency'] ?? 'VND');
         $refundCurrency = (string) ($payload['refund_currency'] ?? $currency);
         $refundScope = (string) ($payload['refund_scope'] ?? 'all');
-        $notifyExpiresAt = (string) ($payload['notify_expires_at_utc'] ?? '');
+        $notifyExpiresAt = (string) ($payload['notify_expires_at_local'] ?? $payload['notify_expires_at_utc'] ?? '');
         $tableLabel = (string) ($payload['table_label'] ?? '');
 
         return match ($templateKey) {
-            'reservation.created' => trim("Xin chào {$customerName},\n\n" .
-                "Đặt bàn của bạn đã được xác nhận thành công.\n" .
-                "Mã đặt bàn: {$reservationCode}\n" .
-                "Thời gian: {$startTime} đến {$endTime}\n" .
-                "Số khách: {$guestCount}\n" .
-                ($tables !== '' ? "Bàn: {$tables}\n" : '') .
-                ($notes !== '' ? "Ghi chú: {$notes}\n" : '') .
+            'reservation.created' => trim("Xin chào {$customerName},\n\n".
+                "Đặt bàn của bạn đã được xác nhận thành công.\n".
+                "Mã đặt bàn: {$reservationCode}\n".
+                "Thời gian: {$startTime} đến {$endTime}\n".
+                "Số khách: {$guestCount}\n".
+                ($tables !== '' ? "Bàn: {$tables}\n" : '').
+                ($notes !== '' ? "Ghi chú: {$notes}\n" : '').
                 "\nVui lòng đến đúng giờ hoặc liên hệ nhà hàng nếu cần thay đổi thông tin."),
-            'reservation.cancelled' => trim("Xin chào {$customerName},\n\n" .
-                "Đặt bàn {$reservationCode} của bạn đã được hủy.\n" .
-                "Thời gian dự kiến: {$startTime} đến {$endTime}\n" .
-                ($cancelReason !== '' ? "Lý do hủy: {$cancelReason}\n" : '') .
-                ((float) ($payload['refunded_amount'] ?? 0) > 0.0001 ? "Tổng hoàn tiền đã ghi nhận: {$refundedAmount} {$currency}\n" : '') .
+            'reservation.cancelled' => trim("Xin chào {$customerName},\n\n".
+                "Đặt bàn {$reservationCode} của bạn đã được hủy.\n".
+                "Thời gian dự kiến: {$startTime} đến {$endTime}\n".
+                ($cancelReason !== '' ? "Lý do hủy: {$cancelReason}\n" : '').
+                ((float) ($payload['refunded_amount'] ?? 0) > 0.0001 ? "Tổng hoàn tiền đã ghi nhận: {$refundedAmount} {$currency}\n" : '').
                 "\nNếu đây là nhầm lẫn, vui lòng liên hệ nhà hàng để được hỗ trợ."),
-            'reservation.updated' => trim("Xin chào {$customerName},\n\n" .
-                "Thông tin đặt bàn {$reservationCode} của bạn đã được cập nhật.\n" .
-                ($previousGuestCount !== null && $newGuestCount !== null && $previousGuestCount !== $newGuestCount ? "Số khách: {$previousGuestCount} -> {$newGuestCount}\n" : "Số khách hiện tại: {$guestCount}\n") .
-                ($previousTables !== '' && $newTables !== '' && $previousTables !== $newTables ? "Bàn: {$previousTables} -> {$newTables}\n" : ($tables !== '' ? "Bàn hiện tại: {$tables}\n" : '')) .
-                ($changeReason !== '' ? "Lý do cập nhật: {$changeReason}\n" : '') .
-                (! empty($changedFields) ? "Các mục thay đổi: " . implode(', ', $changedFields) . "\n" : '') .
+            'reservation.updated' => trim("Xin chào {$customerName},\n\n".
+                "Thông tin đặt bàn {$reservationCode} của bạn đã được cập nhật.\n".
+                ($previousGuestCount !== null && $newGuestCount !== null && $previousGuestCount !== $newGuestCount ? "Số khách: {$previousGuestCount} -> {$newGuestCount}\n" : "Số khách hiện tại: {$guestCount}\n").
+                ($previousTables !== '' && $newTables !== '' && $previousTables !== $newTables ? "Bàn: {$previousTables} -> {$newTables}\n" : ($tables !== '' ? "Bàn hiện tại: {$tables}\n" : '')).
+                ($changeReason !== '' ? "Lý do cập nhật: {$changeReason}\n" : '').
+                (! empty($changedFields) ? 'Các mục thay đổi: '.implode(', ', $changedFields)."\n" : '').
                 "\nNếu bạn cần thay đổi thêm, vui lòng liên hệ nhà hàng để được hỗ trợ."),
-            'reservation.rescheduled' => trim("Xin chào {$customerName},\n\n" .
-                "Đặt bàn {$reservationCode} của bạn đã được dời lịch.\n" .
-                (($previousStart !== '' || $previousEnd !== '') ? "Khung giờ cũ: {$previousStart} đến {$previousEnd}\n" : '') .
-                (($newStart !== '' || $newEnd !== '') ? "Khung giờ mới: {$newStart} đến {$newEnd}\n" : "Khung giờ hiện tại: {$startTime} đến {$endTime}\n") .
-                ($previousGuestCount !== null && $newGuestCount !== null && $previousGuestCount !== $newGuestCount ? "Số khách: {$previousGuestCount} -> {$newGuestCount}\n" : "Số khách: {$guestCount}\n") .
-                ($previousTables !== '' && $newTables !== '' && $previousTables !== $newTables ? "Bàn: {$previousTables} -> {$newTables}\n" : ($tables !== '' ? "Bàn hiện tại: {$tables}\n" : '')) .
-                ($changeReason !== '' ? "Lý do thay đổi: {$changeReason}\n" : '') .
+            'reservation.rescheduled' => trim("Xin chào {$customerName},\n\n".
+                "Đặt bàn {$reservationCode} của bạn đã được dời lịch.\n".
+                (($previousStart !== '' || $previousEnd !== '') ? "Khung giờ cũ: {$previousStart} đến {$previousEnd}\n" : '').
+                (($newStart !== '' || $newEnd !== '') ? "Khung giờ mới: {$newStart} đến {$newEnd}\n" : "Khung giờ hiện tại: {$startTime} đến {$endTime}\n").
+                ($previousGuestCount !== null && $newGuestCount !== null && $previousGuestCount !== $newGuestCount ? "Số khách: {$previousGuestCount} -> {$newGuestCount}\n" : "Số khách: {$guestCount}\n").
+                ($previousTables !== '' && $newTables !== '' && $previousTables !== $newTables ? "Bàn: {$previousTables} -> {$newTables}\n" : ($tables !== '' ? "Bàn hiện tại: {$tables}\n" : '')).
+                ($changeReason !== '' ? "Lý do thay đổi: {$changeReason}\n" : '').
                 "\nVui lòng kiểm tra lại lịch và liên hệ nhà hàng nếu bạn cần hỗ trợ thêm."),
-            'reservation.reminder' => trim("Xin chào {$customerName},\n\n" .
-                "Đây là email nhắc lịch cho đặt bàn {$reservationCode}.\n" .
-                "Thời gian: {$startTime} đến {$endTime}\n" .
-                "Số khách: {$guestCount}\n" .
-                ($tables !== '' ? "Bàn dự kiến: {$tables}\n" : '') .
+            'reservation.reminder' => trim("Xin chào {$customerName},\n\n".
+                "Đây là email nhắc lịch cho đặt bàn {$reservationCode}.\n".
+                "Thời gian: {$startTime} đến {$endTime}\n".
+                "Số khách: {$guestCount}\n".
+                ($tables !== '' ? "Bàn dự kiến: {$tables}\n" : '').
                 "\nNhà hàng đang chờ đón bạn. Vui lòng đến sớm vài phút để check-in thuận tiện."),
-            'reservation.checked_in' => trim("Xin chào {$customerName},\n\n" .
-                "Bạn đã check-in thành công cho đặt bàn {$reservationCode}.\n" .
-                ($checkedInAt !== '' ? "Thời điểm check-in: {$checkedInAt}\n" : '') .
-                ($tables !== '' ? "Bàn đang phục vụ: {$tables}\n" : '') .
+            'reservation.checked_in' => trim("Xin chào {$customerName},\n\n".
+                "Bạn đã check-in thành công cho đặt bàn {$reservationCode}.\n".
+                ($checkedInAt !== '' ? "Thời điểm check-in: {$checkedInAt}\n" : '').
+                ($tables !== '' ? "Bàn đang phục vụ: {$tables}\n" : '').
                 "\nChúc bạn có trải nghiệm tốt tại nhà hàng."),
-            'reservation.expired' => trim("Xin chào {$customerName},\n\n" .
-                "Đặt bàn {$reservationCode} đã hết hiệu lực vì đã quá thời gian phục vụ.\n" .
-                "Khung giờ dự kiến: {$startTime} đến {$endTime}\n" .
+            'reservation.expired' => trim("Xin chào {$customerName},\n\n".
+                "Đặt bàn {$reservationCode} đã hết hiệu lực vì đã quá thời gian phục vụ.\n".
+                "Khung giờ dự kiến: {$startTime} đến {$endTime}\n".
                 "\nNếu bạn vẫn có nhu cầu, vui lòng tạo đặt bàn mới hoặc liên hệ nhà hàng."),
-            'reservation.no_show' => trim("Xin chào {$customerName},\n\n" .
-                "Đặt bàn {$reservationCode} đã được ghi nhận là no-show.\n" .
-                "Khung giờ dự kiến: {$startTime} đến {$endTime}\n" .
+            'reservation.no_show' => trim("Xin chào {$customerName},\n\n".
+                "Đặt bàn {$reservationCode} đã được ghi nhận là no-show.\n".
+                "Khung giờ dự kiến: {$startTime} đến {$endTime}\n".
                 "\nNếu đây là nhầm lẫn, vui lòng liên hệ nhà hàng để được hỗ trợ."),
-            'checkout.completed' => trim("Xin chào {$customerName},\n\n" .
-                "Thanh toán cho đặt bàn {$reservationCode} đã hoàn tất thành công.\n" .
-                "Tổng đã ghi nhận: {$paidAmount} {$currency}\n" .
-                ($checkedOutAt !== '' ? "Thời điểm checkout: {$checkedOutAt}\n" : '') .
+            'checkout.completed' => trim("Xin chào {$customerName},\n\n".
+                "Thanh toán cho đặt bàn {$reservationCode} đã hoàn tất thành công.\n".
+                "Tổng đã ghi nhận: {$paidAmount} {$currency}\n".
+                ($checkedOutAt !== '' ? "Thời điểm checkout: {$checkedOutAt}\n" : '').
                 "\nCảm ơn bạn đã sử dụng dịch vụ của nhà hàng."),
-            'payment.refunded' => trim("Xin chào {$customerName},\n\n" .
-                "Nhà hàng đã ghi nhận hoàn tiền cho đặt bàn {$reservationCode}.\n" .
-                "Số tiền hoàn: {$refundAmount} {$refundCurrency}\n" .
-                ($refundScope !== '' ? "Phạm vi hoàn: {$refundScope}\n" : '') .
+            'payment.refunded' => trim("Xin chào {$customerName},\n\n".
+                "Nhà hàng đã ghi nhận hoàn tiền cho đặt bàn {$reservationCode}.\n".
+                "Số tiền hoàn: {$refundAmount} {$refundCurrency}\n".
+                ($refundScope !== '' ? "Phạm vi hoàn: {$refundScope}\n" : '').
                 "\nNếu bạn cần đối soát thêm, vui lòng liên hệ nhà hàng để được hỗ trợ."),
-            'waiting_list.notified' => trim("Xin chào {$customerName},\n\n" .
-                "Bàn của bạn đã sẵn sàng phục vụ.\n" .
-                ($tableLabel !== '' ? "Bàn dự kiến: {$tableLabel}\n" : '') .
-                ($notifyExpiresAt !== '' ? "Vui lòng có mặt trước: {$notifyExpiresAt}\n" : '') .
+            'waiting_list.notified' => trim("Xin chào {$customerName},\n\n".
+                "Bàn của bạn đã sẵn sàng phục vụ.\n".
+                ($tableLabel !== '' ? "Bàn dự kiến: {$tableLabel}\n" : '').
+                ($notifyExpiresAt !== '' ? "Vui lòng có mặt trước: {$notifyExpiresAt}\n" : '').
                 "\nNếu bạn chưa thể đến ngay, vui lòng liên hệ nhà hàng để được hỗ trợ."),
             default => 'Thông báo từ hệ thống nhà hàng.',
         };

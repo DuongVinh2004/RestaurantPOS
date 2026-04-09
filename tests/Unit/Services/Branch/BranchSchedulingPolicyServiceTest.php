@@ -158,30 +158,30 @@ final class BranchSchedulingPolicyServiceTest extends TestCase
 
         $openWindowBranchId = $this->createBranch([
             'branch_code' => 'DAY',
-            'timezone' => 'Asia/Bangkok',
+            'timezone' => 'Asia/Ho_Chi_Minh',
             'business_hours' => $this->dailyBusinessHours('10:00', '20:00'),
             'closure_windows' => [
                 [
                     'start_local' => '2026-08-01 15:00:00',
                     'end_local' => '2026-08-01 16:00:00',
                     'type' => 'blackout',
-                    'reason' => 'Private event',
+                    'reason' => 'Su kien rieng',
                 ],
             ],
         ]);
 
         try {
-            $service->assertWaitingListEligible($openWindowBranchId, Carbon::parse('2026-08-01 09:30:00', 'Asia/Bangkok')->utc(), 'branch_id', false);
+            $service->assertWaitingListEligible($openWindowBranchId, Carbon::parse('2026-08-01 09:30:00', 'Asia/Ho_Chi_Minh')->utc(), 'branch_id', false);
             self::fail('Expected closed business-hour window to reject.');
         } catch (ValidationException $e) {
             self::assertSame('Waiting list is only available while the branch is open.', $e->errors()['branch_id'][0] ?? null);
         }
 
         try {
-            $service->assertWaitingListEligible($openWindowBranchId, Carbon::parse('2026-08-01 15:15:00', 'Asia/Bangkok')->utc(), 'branch_id', false);
+            $service->assertWaitingListEligible($openWindowBranchId, Carbon::parse('2026-08-01 15:15:00', 'Asia/Ho_Chi_Minh')->utc(), 'branch_id', false);
             self::fail('Expected closure window to reject.');
         } catch (ValidationException $e) {
-            self::assertSame('Waiting list is unavailable because the branch is closed: Private event.', $e->errors()['branch_id'][0] ?? null);
+            self::assertSame('Waiting list is unavailable because the branch is closed: Su kien rieng.', $e->errors()['branch_id'][0] ?? null);
         }
     }
 

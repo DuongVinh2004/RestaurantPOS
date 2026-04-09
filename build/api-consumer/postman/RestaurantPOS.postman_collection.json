@@ -1,7 +1,7 @@
 {
     "info": {
         "name": "RestaurantPOS API Consumer Collection",
-        "_postman_id": "113b56a0-c818-4722-b6fc-1f50b53ebac9",
+        "_postman_id": "0db16554-15a2-487d-94bc-f37eb709d972",
         "description": "Generated from the frozen OpenAPI artifact. Use the TypeScript SDK for curated priority routes, use the Reference folder or frozen OpenAPI for other full-contract routes, and do not treat controllers/resources as the consumer contract. Regenerate with composer api:artifacts or use php artisan booking:release-build for the full release chain.",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
@@ -3418,7 +3418,7 @@
                                 "description": "Create a branch record for multi-branch operations.\n\nSignature: `POST api/v1/admin/settings/branches`\nAuth mode: `staff_api_key`\nContract grade: `full`",
                                 "body": {
                                     "mode": "raw",
-                                    "raw": "{\n    \"branch_code\": \"A1\",\n    \"branch_name\": \"Branch A\",\n    \"timezone\": \"Asia/Bangkok\",\n    \"currency\": \"VND\",\n    \"is_active\": true,\n    \"is_default\": false\n}",
+                                    "raw": "{\n    \"branch_code\": \"HCM01\",\n    \"branch_name\": \"Ho Chi Minh 01\",\n    \"timezone\": \"Asia/Ho_Chi_Minh\",\n    \"currency\": \"VND\",\n    \"is_active\": true,\n    \"is_default\": false\n}",
                                     "options": {
                                         "raw": {
                                             "language": "json"
@@ -3479,7 +3479,7 @@
                                 "description": "Update one branch master-data record.\n\nSignature: `PATCH api/v1/admin/settings/branches/{id}`\nAuth mode: `staff_api_key`\nContract grade: `full`",
                                 "body": {
                                     "mode": "raw",
-                                    "raw": "{\n    \"branch_name\": \"Branch A - Updated\",\n    \"is_active\": true\n}",
+                                    "raw": "{\n    \"branch_name\": \"Ho Chi Minh 01 - Updated\",\n    \"is_active\": true\n}",
                                     "options": {
                                         "raw": {
                                             "language": "json"

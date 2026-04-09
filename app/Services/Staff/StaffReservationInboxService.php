@@ -32,14 +32,14 @@ class StaffReservationInboxService
         return $query->paginate($perPage, ['*'], 'page', $page);
     }
 
-
     public function newQuery(bool $includeFinancials = false): Builder
     {
         return Reservation::query()->select('reservations.*')->distinct()->with($this->relations($includeFinancials));
     }
+
     /**
-     * @param Builder<Reservation> $query
-     * @param array<string, mixed> $filters
+     * @param  Builder<Reservation>  $query
+     * @param  array<string, mixed>  $filters
      */
     public function applyCommonFilters(Builder $query, array $filters): void
     {
@@ -121,12 +121,12 @@ class StaffReservationInboxService
     }
 
     /**
-     * @param Builder<Reservation> $query
+     * @param  Builder<Reservation>  $query
      */
     private function applyBucket(Builder $query, string $bucket): void
     {
         $nowUtc = Carbon::now('UTC');
-        $timezone = (string) config('app.timezone', 'UTC');
+        $timezone = (string) config('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh');
         $businessNow = Carbon::now($timezone);
         $from = $businessNow->copy()->startOfDay()->utc();
         $to = $businessNow->copy()->endOfDay()->utc();
@@ -169,7 +169,7 @@ class StaffReservationInboxService
     }
 
     /**
-     * @param Builder<Reservation> $query
+     * @param  Builder<Reservation>  $query
      */
     private function applyOrdering(Builder $query, string $sortBy, string $sortDir): void
     {

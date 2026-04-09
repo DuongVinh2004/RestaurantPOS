@@ -20,8 +20,8 @@ class SiteBootstrapCommandTest extends TestCase
         config()->set('database.default', 'sqlite');
         config()->set('database.connections.sqlite.database', ':memory:');
         config()->set('booking.multi_branch.default_branch_code', 'MAIN');
-        config()->set('booking.multi_branch.default_branch_name', 'Main Branch');
-        config()->set('booking.multi_branch.default_branch_timezone', 'Asia/Bangkok');
+        config()->set('booking.multi_branch.default_branch_name', 'Chi nhanh chinh');
+        config()->set('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh');
         config()->set('booking.multi_branch.default_branch_currency', 'VND');
         config()->set('booking.finance_tax_invoice_profile', [
             'tax_code' => 'VAT10',

@@ -100,7 +100,7 @@ function arrangeReportingFixtures() {
         branch: {
           branch_id: 1,
           branch_code: 'MAIN',
-          branch_name: 'Main Branch',
+          branch_name: 'Chi nhanh chinh',
           is_default: true,
         },
         billed: {
@@ -144,7 +144,7 @@ function arrangeReportingFixtures() {
         branch: {
           branch_id: 1,
           branch_code: 'MAIN',
-          branch_name: 'Main Branch',
+          branch_name: 'Chi nhanh chinh',
           is_default: true,
         },
         reservations: {
@@ -186,7 +186,7 @@ function arrangeReportingFixtures() {
         branch: {
           branch_id: 1,
           branch_code: 'MAIN',
-          branch_name: 'Main Branch',
+          branch_name: 'Chi nhanh chinh',
           is_default: true,
         },
         ingredient_id: 501,

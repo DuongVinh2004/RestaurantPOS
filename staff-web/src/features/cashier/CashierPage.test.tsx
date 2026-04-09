@@ -134,7 +134,7 @@ function arrangeCashierFixtures() {
         branch: {
           branch_id: 5,
           branch_code: 'BR-01',
-          branch_name: 'Main Branch',
+          branch_name: 'Chi nhanh chinh',
           is_default: true,
         },
         terminal_code: 'POS-00',
@@ -160,7 +160,7 @@ function arrangeCashierFixtures() {
       branch: {
         branch_id: 5,
         branch_code: 'BR-01',
-        branch_name: 'Main Branch',
+        branch_name: 'Chi nhanh chinh',
         is_default: true,
       },
       terminal_code: 'POS-01',
@@ -180,7 +180,7 @@ function arrangeCashierFixtures() {
       branch: {
         branch_id: 5,
         branch_code: 'BR-01',
-        branch_name: 'Main Branch',
+        branch_name: 'Chi nhanh chinh',
         is_default: true,
       },
       terminal_code: 'POS-01',
@@ -200,7 +200,7 @@ function arrangeCashierFixtures() {
       branch: {
         branch_id: 5,
         branch_code: 'BR-01',
-        branch_name: 'Main Branch',
+        branch_name: 'Chi nhanh chinh',
         is_default: true,
       },
       terminal_code: 'POS-01',
@@ -220,7 +220,7 @@ function arrangeCashierFixtures() {
       branch: {
         branch_id: 5,
         branch_code: 'BR-01',
-        branch_name: 'Main Branch',
+        branch_name: 'Chi nhanh chinh',
         is_default: true,
       },
       terminal_code: 'POS-01',

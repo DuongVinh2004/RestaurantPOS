@@ -39,7 +39,7 @@ class ReservationTimelineRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $today = Carbon::now((string) config('app.timezone', 'UTC'))->toDateString();
+        $today = Carbon::now((string) config('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh'))->toDateString();
         $date = $this->normalizeListingString('date');
         $startDate = $this->normalizeListingString('start_date');
         $endDate = $this->normalizeListingString('end_date');
@@ -89,12 +89,12 @@ class ReservationTimelineRequest extends FormRequest
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'from_time' => ['nullable', 'date_format:H:i'],
             'to_time' => ['nullable', 'date_format:H:i', 'after:from_time'],
-            'status' => ['nullable', 'string', 'in:' . implode(',', $statuses)],
+            'status' => ['nullable', 'string', 'in:'.implode(',', $statuses)],
             'table_id' => ['nullable', 'integer', 'min:1', 'exists:restaurant_tables,table_id'],
             'zone' => ['nullable', 'string', 'max:50'],
             'q' => ['nullable', 'string', 'max:120'],
             'deposit_acknowledged' => ['nullable', 'boolean'],
-            'deposit_intent_status' => ['nullable', 'string', 'in:' . implode(',', $depositIntentStatuses)],
+            'deposit_intent_status' => ['nullable', 'string', 'in:'.implode(',', $depositIntentStatuses)],
             'slot_minutes' => ['nullable', 'integer', 'in:15,30,60'],
             'lane_by' => ['nullable', 'string', 'in:slot,zone,table'],
             'include_candidate_tables' => ['nullable', 'boolean'],

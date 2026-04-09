@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS `branches` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `branches` (`branch_id`, `branch_code`, `branch_name`, `description`, `timezone`, `currency`, `is_active`, `is_default`, `row_version`, `created_at`, `updated_at`)
-SELECT 1, 'MAIN', 'Main Branch', 'Single-site compatibility default branch.', 'UTC', 'VND', 1, 1, 1, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6)
+SELECT 1, 'MAIN', 'Chi nhanh chinh', 'Single-site compatibility default branch.', 'Asia/Ho_Chi_Minh', 'VND', 1, 1, 1, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6)
 WHERE NOT EXISTS (
   SELECT 1 FROM `branches` WHERE `branch_code` = 'MAIN'
 );

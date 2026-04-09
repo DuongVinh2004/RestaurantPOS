@@ -46,10 +46,12 @@ describe('SettingsPage', () => {
 
     expect(screen.getByText('Selected HCM01')).toBeInTheDocument();
     expect(screen.getByText('Asia/Ho_Chi_Minh')).toBeInTheDocument();
+    expect(screen.getByText('Thu hai')).toBeInTheDocument();
     expect(screen.getByText('09:00 - 21:00')).toBeInTheDocument();
-    expect(screen.getByText('New Year private event')).toBeInTheDocument();
+    expect(screen.getByText('18:00 31/12/2026 -> 23:00 31/12/2026')).toBeInTheDocument();
+    expect(screen.getByText('15:30 08/04/2026')).toBeInTheDocument();
     expect(screen.getByText('90 phut')).toBeInTheDocument();
-    expect(screen.getByText('Disabled')).toBeInTheDocument();
+    expect(screen.getByText('Tat')).toBeInTheDocument();
   });
 });
 
@@ -59,9 +61,9 @@ function arrangeBranchFixtures() {
       {
         branch_id: 1,
         branch_code: 'MAIN',
-        branch_name: 'Main Branch',
+        branch_name: 'Chi nhanh chinh',
         description: 'Primary branch',
-        timezone: 'Asia/Bangkok',
+        timezone: 'Asia/Ho_Chi_Minh',
         currency: 'VND',
         business_hours: [
           {
@@ -113,7 +115,7 @@ function arrangeBranchFixtures() {
             start_local: '2026-12-31 18:00:00',
             end_local: '2026-12-31 23:00:00',
             type: 'holiday',
-            reason: 'New Year private event',
+            reason: 'Su kien cuoi nam',
           },
         ],
         booking_policy: {

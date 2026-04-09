@@ -1503,9 +1503,9 @@ class ApiContractMetadataRegistry
                     422 => ['schema' => 'ValidationError'],
                 ],
                 'request_example' => [
-                    'branch_code' => 'A1',
-                    'branch_name' => 'Branch A',
-                    'timezone' => 'Asia/Bangkok',
+                    'branch_code' => 'HCM01',
+                    'branch_name' => 'Ho Chi Minh 01',
+                    'timezone' => 'Asia/Ho_Chi_Minh',
                     'currency' => 'VND',
                     'is_active' => true,
                     'is_default' => false,
@@ -1535,7 +1535,7 @@ class ApiContractMetadataRegistry
                     422 => ['schema' => 'ValidationError'],
                 ],
                 'request_example' => [
-                    'branch_name' => 'Branch A - Updated',
+                    'branch_name' => 'Ho Chi Minh 01 - Updated',
                     'is_active' => true,
                 ],
                 'contract_grade' => 'full',

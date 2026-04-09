@@ -58,7 +58,7 @@ class AdminMultiBranchFoundationHttpFlowTest extends TestCase
         $rowVersion = (int) $create->json('data.row_version');
 
         $update = $this->withHeaders($headers)
-            ->patchJson('/api/v1/admin/settings/branches/' . $branchId, [
+            ->patchJson('/api/v1/admin/settings/branches/'.$branchId, [
                 'row_version' => $rowVersion,
                 'is_default' => true,
                 'description' => 'Promoted to default branch',
@@ -71,7 +71,7 @@ class AdminMultiBranchFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('data.description', 'Promoted to default branch');
 
         $show = $this->withHeaders($headers)
-            ->getJson('/api/v1/admin/settings/branches/' . $branchId);
+            ->getJson('/api/v1/admin/settings/branches/'.$branchId);
 
         $show->assertOk()
             ->assertJsonPath('data.branch_id', $branchId)
@@ -104,10 +104,10 @@ class AdminMultiBranchFoundationHttpFlowTest extends TestCase
         [, $headers] = $this->adminHeaders('admin-branches-policy-key');
 
         $payload = [
-            'branch_code' => 'BKK02',
-            'branch_name' => 'Bangkok 02',
-            'timezone' => 'Asia/Bangkok',
-            'currency' => 'THB',
+            'branch_code' => 'DNG02',
+            'branch_name' => 'Da Nang 02',
+            'timezone' => 'Asia/Ho_Chi_Minh',
+            'currency' => 'VND',
             'business_hours' => collect(range(0, 6))
                 ->map(static fn (int $day): array => [
                     'day_of_week' => $day,
@@ -121,7 +121,7 @@ class AdminMultiBranchFoundationHttpFlowTest extends TestCase
                 'start_local' => '2026-12-31 18:00:00',
                 'end_local' => '2026-12-31 23:00:00',
                 'type' => 'holiday',
-                'reason' => 'New Year private event',
+                'reason' => 'Su kien cuoi nam',
             ]],
             'booking_policy' => [
                 'reservation' => [
@@ -138,9 +138,9 @@ class AdminMultiBranchFoundationHttpFlowTest extends TestCase
             ->postJson('/api/v1/admin/settings/branches', $payload);
 
         $create->assertCreated()
-            ->assertJsonPath('data.timezone', 'Asia/Bangkok')
+            ->assertJsonPath('data.timezone', 'Asia/Ho_Chi_Minh')
             ->assertJsonPath('data.business_hours.0.periods.0.start_time', '09:00')
-            ->assertJsonPath('data.closure_windows.0.reason', 'New Year private event')
+            ->assertJsonPath('data.closure_windows.0.reason', 'Su kien cuoi nam')
             ->assertJsonPath('data.booking_policy.reservation.min_lead_time_minutes', 90)
             ->assertJsonPath('data.booking_policy.waiting_list.enabled', false);
     }

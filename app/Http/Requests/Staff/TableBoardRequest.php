@@ -28,24 +28,25 @@ class TableBoardRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $timezone = (string) config('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh');
         $date = $this->listingFilterInput('date');
         $from = $this->listingFilterInput('from');
         $to = $this->listingFilterInput('to');
 
         if (($from === null || $from === '') && is_string($date) && trim($date) !== '') {
-            $from = Carbon::parse($date, (string) config('app.timezone', 'UTC'))->startOfDay()->utc()->toDateTimeString();
+            $from = Carbon::parse($date, $timezone)->startOfDay()->utc()->toDateTimeString();
         }
 
         if (($to === null || $to === '') && is_string($date) && trim($date) !== '') {
-            $to = Carbon::parse($date, (string) config('app.timezone', 'UTC'))->endOfDay()->utc()->toDateTimeString();
+            $to = Carbon::parse($date, $timezone)->endOfDay()->utc()->toDateTimeString();
         }
 
         if ($from === null || $from === '') {
-            $from = Carbon::now((string) config('app.timezone', 'UTC'))->startOfDay()->utc()->toDateTimeString();
+            $from = Carbon::now($timezone)->startOfDay()->utc()->toDateTimeString();
         }
 
         if ($to === null || $to === '') {
-            $to = Carbon::now((string) config('app.timezone', 'UTC'))->endOfDay()->utc()->toDateTimeString();
+            $to = Carbon::now($timezone)->endOfDay()->utc()->toDateTimeString();
         }
 
         $this->merge([

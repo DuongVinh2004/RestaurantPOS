@@ -3,7 +3,7 @@ import { CalendarX2, Clock3, MapPin, RefreshCcw, Settings2 } from 'lucide-react'
 import { isUnauthorized, loadAdminBranches } from '../../api/client';
 import { useStaffSession } from '../../app/session-context';
 import { formatApiError } from '../../lib/api-errors';
-import { asRecord, readBoolean, readNumber, readString } from '../../lib/format';
+import { asRecord, formatDateTime, readBoolean, readNumber, readString } from '../../lib/format';
 import type { BranchCollectionEnvelope } from '../../api/sdk';
 import { ActionButton, Banner, EmptyState, MetricCard, PageHeader, Panel, StatusPill } from '../../components/ui';
 
@@ -158,11 +158,11 @@ export function SettingsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold text-slate-900">{branch.branch_name}</p>
-                      <p className="mt-1 text-xs text-slate-500">{branch.branch_code} | {branch.timezone ?? 'No timezone'}</p>
+                      <p className="mt-1 text-xs text-slate-500">{branch.branch_code} | {branch.timezone ?? 'Chua cai dat mui gio'}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {branch.is_default ? <StatusPill value="Default" tone="info" /> : null}
-                      <StatusPill value={branch.is_active ? 'Active' : 'Inactive'} tone={branch.is_active ? 'success' : 'danger'} />
+                      {branch.is_default ? <StatusPill value="Mac dinh" tone="info" /> : null}
+                      <StatusPill value={branch.is_active ? 'Dang hoat dong' : 'Tam dung'} tone={branch.is_active ? 'success' : 'danger'} />
                     </div>
                   </div>
                 </button>
@@ -193,18 +193,18 @@ export function SettingsPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold text-slate-900">{selectedBranch.branch_name}</p>
-                    <p className="mt-1 text-sm text-slate-600">{selectedBranch.branch_code} | {selectedBranch.description ?? 'No branch description'}</p>
+                    <p className="mt-1 text-sm text-slate-600">{selectedBranch.branch_code} | {selectedBranch.description ?? 'Chua co mo ta branch'}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {selectedBranch.is_default ? <StatusPill value="Default branch" tone="info" /> : null}
-                    <StatusPill value={selectedBranch.is_active ? 'Active' : 'Inactive'} tone={selectedBranch.is_active ? 'success' : 'danger'} />
+                    {selectedBranch.is_default ? <StatusPill value="Branch mac dinh" tone="info" /> : null}
+                    <StatusPill value={selectedBranch.is_active ? 'Dang hoat dong' : 'Tam dung'} tone={selectedBranch.is_active ? 'success' : 'danger'} />
                   </div>
                 </div>
                 <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <MetricCard label="Timezone" value={selectedBranch.timezone ?? 'N/A'} />
                   <MetricCard label="Currency" value={selectedBranch.currency ?? 'N/A'} />
                   <MetricCard label="Row version" value={String(selectedBranch.row_version ?? 'N/A')} />
-                  <MetricCard label="Updated" value={selectedBranch.updated_at ?? selectedBranch.created_at ?? 'N/A'} />
+                  <MetricCard label="Updated" value={formatDateTime(selectedBranch.updated_at ?? selectedBranch.created_at ?? null, selectedBranch.timezone ?? undefined)} />
                 </div>
               </div>
 
@@ -256,7 +256,9 @@ export function SettingsPage() {
                       {selectedBranch.closure_windows.map((closureWindow, index) => (
                         <div key={`${closureWindow.start_local}-${index}`} className="rounded-[20px] border border-slate-200 bg-white px-4 py-3">
                           <p className="font-semibold text-slate-900">{closureWindow.reason}</p>
-                          <p className="mt-1 text-sm text-slate-600">{closureWindow.start_local} {'->'} {closureWindow.end_local}</p>
+                          <p className="mt-1 text-sm text-slate-600">
+                            {formatDateTime(closureWindow.start_local, selectedBranch.timezone ?? undefined)} {'->'} {formatDateTime(closureWindow.end_local, selectedBranch.timezone ?? undefined)}
+                          </p>
                           <p className="mt-1 text-xs text-slate-500">{closureWindow.type}</p>
                         </div>
                       ))}
@@ -305,13 +307,13 @@ function pickBranchId(
 }
 
 function dayLabel(dayOfWeek: number): string {
-  const labels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  return labels[dayOfWeek] ?? `Day ${dayOfWeek}`;
+  const labels = ['Chu nhat', 'Thu hai', 'Thu ba', 'Thu tu', 'Thu nam', 'Thu sau', 'Thu bay'];
+  return labels[dayOfWeek] ?? `Ngay ${dayOfWeek}`;
 }
 
 function formatPeriods(periods: Array<{ start_time: string; end_time: string }>): string {
   if (periods.length === 0) {
-    return 'Closed';
+    return 'Dong cua';
   }
 
   return periods.map((period) => `${period.start_time} - ${period.end_time}`).join(', ');
@@ -334,5 +336,5 @@ function waitingListLabel(branch: BranchEntry): string {
     return 'N/A';
   }
 
-  return enabled ? 'Enabled' : 'Disabled';
+  return enabled ? 'Bat' : 'Tat';
 }

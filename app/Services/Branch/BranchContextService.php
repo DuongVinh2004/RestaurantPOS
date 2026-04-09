@@ -31,7 +31,7 @@ class BranchContextService
             return $active;
         }
 
-        throw (new ModelNotFoundException())->setModel(Branch::class);
+        throw (new ModelNotFoundException)->setModel(Branch::class);
     }
 
     public function resolveBranchId(mixed $branchId = null, bool $activeOnly = true): int
@@ -55,7 +55,7 @@ class BranchContextService
     }
 
     /**
-     * @param iterable<mixed> $branchIds
+     * @param  iterable<mixed>  $branchIds
      */
     public function assertSingleBranch(
         iterable $branchIds,
@@ -123,7 +123,7 @@ class BranchContextService
 
         Branch::query()->create([
             'branch_code' => (string) config('booking.multi_branch.default_branch_code', 'MAIN'),
-            'branch_name' => (string) config('booking.multi_branch.default_branch_name', 'Main Branch'),
+            'branch_name' => (string) config('booking.multi_branch.default_branch_name', 'Chi nhanh chinh'),
             'description' => 'Single-site compatibility default branch.',
             'timezone' => (string) config('booking.multi_branch.default_branch_timezone', config('app.timezone', 'UTC')),
             'currency' => (string) config('booking.multi_branch.default_branch_currency', 'VND'),

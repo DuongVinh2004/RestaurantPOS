@@ -26,12 +26,12 @@ class StaffReservationTimelineService
     private readonly RuntimeSettingService $runtimeSettings;
 
     /**
-     * @param array<string,mixed> $filters
+     * @param  array<string,mixed>  $filters
      * @return array<string,mixed>
      */
     public function buildTimeline(array $filters): array
     {
-        $timezone = (string) config('app.timezone', 'UTC');
+        $timezone = (string) config('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh');
         $window = $this->resolveWindow($filters, $timezone);
         $slotMinutes = (int) ($filters['slot_minutes'] ?? 30);
         $laneBy = $this->resolveLaneMode((string) ($filters['lane_by'] ?? 'slot'));
@@ -174,7 +174,7 @@ class StaffReservationTimelineService
     }
 
     /**
-     * @param array<string,mixed> $filters
+     * @param  array<string,mixed>  $filters
      * @return array{range_start_local:Carbon,range_end_local:Carbon,range_start_utc:Carbon,range_end_utc:Carbon}
      */
     private function resolveWindow(array $filters, string $timezone): array
@@ -185,8 +185,8 @@ class StaffReservationTimelineService
         $fromTime = trim((string) ($filters['from_time'] ?? '00:00'));
         $toTime = trim((string) ($filters['to_time'] ?? '23:59'));
 
-        $rangeStartLocal = Carbon::parse($startDate . ' ' . ($fromTime !== '' ? $fromTime : '00:00'), $timezone);
-        $rangeEndLocal = Carbon::parse($endDate . ' ' . ($toTime !== '' ? $toTime : '23:59'), $timezone)->addMinute();
+        $rangeStartLocal = Carbon::parse($startDate.' '.($fromTime !== '' ? $fromTime : '00:00'), $timezone);
+        $rangeEndLocal = Carbon::parse($endDate.' '.($toTime !== '' ? $toTime : '23:59'), $timezone)->addMinute();
 
         return [
             'range_start_local' => $rangeStartLocal,
@@ -211,8 +211,8 @@ class StaffReservationTimelineService
     }
 
     /**
-     * @param Collection<int,Reservation> $reservations
-     * @param array<string,mixed> $filters
+     * @param  Collection<int,Reservation>  $reservations
+     * @param  array<string,mixed>  $filters
      * @return array<int,list<array<string,mixed>>>
      */
     private function buildCandidateTablePreviewMap(
@@ -272,7 +272,7 @@ class StaffReservationTimelineService
     }
 
     /**
-     * @param list<array<string,mixed>> $candidates
+     * @param  list<array<string,mixed>>  $candidates
      * @return list<array<string,mixed>>
      */
     private function sortCandidateTables(array $candidates): array
@@ -321,7 +321,7 @@ class StaffReservationTimelineService
     }
 
     /**
-     * @param array<string,mixed> $candidate
+     * @param  array<string,mixed>  $candidate
      */
     private function candidateSeatDelta(array $candidate): int
     {
@@ -336,7 +336,7 @@ class StaffReservationTimelineService
     }
 
     /**
-     * @param Collection<int,Reservation> $reservations
+     * @param  Collection<int,Reservation>  $reservations
      * @return array<int,array<string,mixed>>
      */
     private function buildCheckInReadinessMap(Collection $reservations, Carbon $nowUtc): array
@@ -416,8 +416,8 @@ class StaffReservationTimelineService
     }
 
     /**
-     * @param Collection<int,Reservation> $assignedReservations
-     * @param array<int,int> $assignedTableIds
+     * @param  Collection<int,Reservation>  $assignedReservations
+     * @param  array<int,int>  $assignedTableIds
      * @return array<int,list<TableHold>>
      */
     private function loadActiveHoldsByTable(Collection $assignedReservations, array $assignedTableIds): array
