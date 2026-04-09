@@ -1530,9 +1530,9 @@ trait BuildsBookingScenario
             });
         }
 
-        $this->ensureIndexIfMissing('notification_delivery_attempts', 'idx_notification_delivery_attempts__status__attempted_at', ['status', 'attempted_at']);
-        $this->ensureIndexIfMissing('notification_delivery_attempts', 'idx_notification_delivery_attempts__channel__status__attempted_at', ['channel', 'status', 'attempted_at']);
-        $this->ensureIndexIfMissing('notification_delivery_attempts', 'idx_notification_delivery_attempts__provider_key__attempted_at', ['provider_key', 'attempted_at']);
+        $this->ensureIndexIfMissing('notification_delivery_attempts', 'idx_notif_delivery_attempts__status__attempted_at', ['status', 'attempted_at']);
+        $this->ensureIndexIfMissing('notification_delivery_attempts', 'idx_notif_delivery_attempts__channel__status__attempted_at', ['channel', 'status', 'attempted_at']);
+        $this->ensureIndexIfMissing('notification_delivery_attempts', 'idx_notif_delivery_attempts__provider_key__attempted_at', ['provider_key', 'attempted_at']);
 
         if (! Schema::hasTable('notification_preferences')) {
             Schema::create('notification_preferences', function (Blueprint $table): void {
@@ -1660,7 +1660,7 @@ trait BuildsBookingScenario
      */
     protected function ensureIndexIfMissing(string $table, string $indexName, array $columns, bool $unique = false): void
     {
-        if (! Schema::hasTable($table) || $this->sqliteIndexExists($table, $indexName)) {
+        if (! Schema::hasTable($table) || Schema::hasIndex($table, $indexName)) {
             return;
         }
 

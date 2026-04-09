@@ -9,6 +9,11 @@ use Throwable;
 
 class ReleaseArtifactManifestService
 {
+    private function normalizeArtifactFingerprintContents(string $contents): string
+    {
+        return str_replace(["\r\n", "\r"], "\n", $contents);
+    }
+
     private function artifactContainsRequiredFragment(string $contents, string $fragment): bool
     {
         if ($fragment === '') {
@@ -229,6 +234,7 @@ class ReleaseArtifactManifestService
             }
 
             $contents = File::get($absolutePath);
+            $fingerprintContents = $this->normalizeArtifactFingerprintContents($contents);
             $missingFragments = [];
             foreach ($requiredFragments as $fragment) {
                 if (! $this->artifactContainsRequiredFragment($contents, $fragment)) {
@@ -236,9 +242,9 @@ class ReleaseArtifactManifestService
                 }
             }
 
-            $artifact['sha256'] = hash('sha256', $contents);
-            $artifact['bytes'] = strlen($contents);
-            $artifact['line_count'] = substr_count($contents, "\n") + 1;
+            $artifact['sha256'] = hash('sha256', $fingerprintContents);
+            $artifact['bytes'] = strlen($fingerprintContents);
+            $artifact['line_count'] = substr_count($fingerprintContents, "\n") + 1;
             $artifact['required_fragment_count'] = count($requiredFragments);
             $artifact['missing_fragments'] = $missingFragments;
 

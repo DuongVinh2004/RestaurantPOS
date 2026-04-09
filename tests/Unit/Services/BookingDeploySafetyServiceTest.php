@@ -121,7 +121,7 @@ class BookingDeploySafetyServiceTest extends TestCase
         $this->assertStringContainsString('Data guard inspection failed: mysql runtime unavailable', $report['checks']['data.runtime']['message']);
     }
 
-    #[Group('booking-smoke')]
+    #[Group('booking-ops')]
     public function test_preflight_fails_when_fail_fast_data_is_dirty(): void
     {
         DB::table('reservations')->insert([
@@ -203,7 +203,7 @@ class BookingDeploySafetyServiceTest extends TestCase
         $this->assertFalse($report['checks']['ops.table_state_audit']['ok']);
     }
 
-    #[Group('booking-smoke')]
+    #[Group('booking-ops')]
     public function test_preflight_fails_when_refunds_exceed_source_payment_amount(): void
     {
         DB::table('payments')->insert([
@@ -238,7 +238,7 @@ class BookingDeploySafetyServiceTest extends TestCase
 
 
 
-    #[Group('booking-smoke')]
+    #[Group('booking-ops')]
     public function test_preflight_fails_when_refund_lineage_crosses_reservation_or_currency_scope(): void
     {
         DB::table('payments')->insert([

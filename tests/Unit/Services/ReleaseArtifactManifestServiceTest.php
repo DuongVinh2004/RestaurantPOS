@@ -174,6 +174,32 @@ JSON . PHP_EOL);
         $this->assertSame([], $snapshot['artifacts']['route_inventory_gate_definition']['missing_fragments']);
     }
 
+    public function test_snapshot_normalizes_text_artifact_line_endings_before_hashing(): void
+    {
+        $definitionPath = base_path($this->root . '/route_inventory_gate.json');
+        File::ensureDirectoryExists(dirname($definitionPath));
+        File::put($definitionPath, "{\r\n  \"suite\": \"route_inventory\"\r\n}\r\n");
+
+        config()->set('booking_release.artifacts', [
+            'route_inventory_gate_definition' => [
+                'path' => $this->root . '/route_inventory_gate.json',
+                'optional' => false,
+                'required_fragments' => [
+                    '"suite": "route_inventory"',
+                ],
+            ],
+        ]);
+        config()->set('booking_release.required_sql_patches', []);
+
+        $snapshot = app(ReleaseArtifactManifestService::class)->snapshot();
+        $normalized = "{\n  \"suite\": \"route_inventory\"\n}\n";
+
+        $this->assertTrue($snapshot['ok']);
+        $this->assertSame(hash('sha256', $normalized), $snapshot['artifacts']['route_inventory_gate_definition']['sha256']);
+        $this->assertSame(strlen($normalized), $snapshot['artifacts']['route_inventory_gate_definition']['bytes']);
+        $this->assertSame(substr_count($normalized, "\n") + 1, $snapshot['artifacts']['route_inventory_gate_definition']['line_count']);
+    }
+
     public function test_inspect_frozen_snapshot_ignores_self_referential_release_manifest_metadata(): void
     {
         $schemaPath = base_path($this->root . '/schema.sql');
