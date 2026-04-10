@@ -6,6 +6,7 @@ import {
   buildSmokeEvidence,
   canExecuteRefund,
   createSmokeConfig,
+  describeHealthFailurePayload,
   describeConversationAiAssist,
   describeMutationGate,
   describeStartupBlockers,
@@ -197,6 +198,27 @@ describe('live smoke config', () => {
     expect(shouldRecordBootstrapFailure([
       { status: 'FAIL', step: 'backend health', detail: 'network failure' },
     ])).toBe(false);
+  });
+
+  it('summarizes public health failures from the additive checks payload', () => {
+    expect(describeHealthFailurePayload({
+      status: 'fail',
+      checks: {
+        db: { ok: true, reason: null },
+        redis: {
+          ok: false,
+          reason: 'redis_unavailable',
+          error: 'MISCONF Redis is configured to save RDB snapshots',
+        },
+        scheduler: {
+          ok: false,
+          reason: 'scheduler_heartbeat_missing',
+          age_seconds: null,
+          stale_threshold_seconds: 180,
+        },
+        disk: { ok: true, reason: null },
+      },
+    })).toBe('health=fail redis=redis_unavailable (MISCONF Redis is configured to save RDB snapshots); scheduler=scheduler_heartbeat_missing ttl=180s');
   });
 
   it('builds preview-aware smoke evidence with decision summary', () => {

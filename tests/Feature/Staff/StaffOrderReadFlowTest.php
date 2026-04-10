@@ -42,6 +42,8 @@ class StaffOrderReadFlowTest extends TestCase
             ->assertJsonPath('data.order.reservation_id', $reservationId)
             ->assertJsonPath('data.table.table_id', $tableId)
             ->assertJsonPath('data.customer.user_id', $customerId)
+            ->assertJsonPath('data.order.items.0.row_version', 1)
+            ->assertJsonPath('data.items.0.row_version', 1)
             ->assertJsonPath('data.item_summary.line_count', 2)
             ->assertJsonPath('data.item_summary.status_counts.Ordered', 1)
             ->assertJsonPath('data.item_summary.status_counts.Cancelled', 1)

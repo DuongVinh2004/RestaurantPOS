@@ -2,20 +2,19 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CashierPage } from './CashierPage';
 import { renderWithSession } from '../../test/render';
-import { buildApiError, buildStaffSession } from '../../test/fixtures';
+import { buildStaffSession } from '../../test/fixtures';
+import { RestaurantPosApiError } from '../../core/api/sdk';
 import type { StaffSessionContextValue } from '../../app/session-context';
 
 const apiMocks = vi.hoisted(() => ({
-  loadCashierShifts: vi.fn(),
-  loadCurrentCashierShift: vi.fn(),
-  loadCashierShift: vi.fn(),
+  listCashierShifts: vi.fn(),
+  getCurrentCashierShift: vi.fn(),
+  getCashierShift: vi.fn(),
   openCashierShift: vi.fn(),
   closeCashierShift: vi.fn(),
-  isMissingResource: vi.fn(() => false),
-  isUnauthorized: vi.fn(() => false),
 }));
 
-vi.mock('../../api/client', () => apiMocks);
+vi.mock('../../core/api/staff-api', () => apiMocks);
 
 describe('CashierPage', () => {
   beforeEach(() => {
@@ -30,6 +29,12 @@ describe('CashierPage', () => {
     await waitFor(() => expect(screen.getByDisplayValue('5')).toBeInTheDocument());
     expect(screen.getByDisplayValue('POS-01')).toBeInTheDocument();
     expect(screen.getByText('BR-01')).toBeInTheDocument();
+    expect(apiMocks.listCashierShifts).toHaveBeenCalledWith({
+      q: undefined,
+      status: undefined,
+      per_page: 8,
+      sort: '-opened_at',
+    });
   });
 
   it('opens and closes cashier shifts through canonical wrappers', async () => {
@@ -73,12 +78,12 @@ describe('CashierPage', () => {
     fireEvent.change(screen.getByLabelText('Shift ID'), { target: { value: '301' } });
     fireEvent.click(screen.getByRole('button', { name: 'Show shift' }));
 
-    await waitFor(() => expect(apiMocks.loadCashierShift).toHaveBeenCalledWith(301));
+    await waitFor(() => expect(apiMocks.getCashierShift).toHaveBeenCalledWith(301));
   });
 
   it('keeps manual cashier fallback visible when history lookup returns validation errors', async () => {
     arrangeCashierFixtures();
-    apiMocks.loadCashierShifts.mockRejectedValueOnce(buildApiError(422, {
+    apiMocks.listCashierShifts.mockRejectedValueOnce(buildCoreApiError(422, {
       error_code: 'validation_error',
       errors: {
         status: ['Status filter khong hop le.'],
@@ -97,14 +102,14 @@ describe('CashierPage', () => {
 
     renderWithSession(<CashierPage />, createSessionContext());
 
-    await waitFor(() => expect(apiMocks.loadCurrentCashierShift).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(apiMocks.loadCashierShifts).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.getCurrentCashierShift).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.listCashierShifts).toHaveBeenCalledTimes(1));
 
     fireEvent.change(screen.getByLabelText('Shift search'), { target: { value: 'SHIFT' } });
     fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'Closed' } });
 
-    expect(apiMocks.loadCurrentCashierShift).toHaveBeenCalledTimes(1);
-    expect(apiMocks.loadCashierShifts).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getCurrentCashierShift).toHaveBeenCalledTimes(1);
+    expect(apiMocks.listCashierShifts).toHaveBeenCalledTimes(1);
   });
 
   it('shows close-preview variance before the shift is closed', async () => {
@@ -120,10 +125,39 @@ describe('CashierPage', () => {
     expect(screen.getByText('Thua quy')).toBeInTheDocument();
     expect(screen.getByText(/10\.000/)).toBeInTheDocument();
   });
+
+  it('keeps empty-state manual lookup available when current shift returns 404', async () => {
+    arrangeCashierFixtures();
+    apiMocks.getCurrentCashierShift.mockRejectedValueOnce(buildCoreApiError(404, {
+      error_code: 'not_found',
+      message: 'No current shift.',
+    }));
+
+    renderWithSession(<CashierPage />, createSessionContext());
+
+    expect(await screen.findByText(/chua co open cashier shift/i)).toBeInTheDocument();
+    expect(screen.getByText(/chua co shift duoc nap/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('Shift ID')).toBeInTheDocument();
+  });
+
+  it('expires the staff session when cashier bootstrap returns 401', async () => {
+    arrangeCashierFixtures();
+    const session = createSessionContext();
+    apiMocks.getCurrentCashierShift.mockRejectedValueOnce(buildCoreApiError(401, {
+      error_code: 'unauthorized',
+      message: 'Unauthorized.',
+    }));
+
+    renderWithSession(<CashierPage />, session);
+
+    await waitFor(() =>
+      expect(session.expire).toHaveBeenCalledWith('Phien staff da het han. Dang nhap lai de tiep tuc.'),
+    );
+  });
 });
 
 function arrangeCashierFixtures() {
-  apiMocks.loadCashierShifts.mockResolvedValue({
+  apiMocks.listCashierShifts.mockResolvedValue({
     data: [
       {
         cashier_shift_id: 300,
@@ -150,7 +184,7 @@ function arrangeCashierFixtures() {
       total: 1,
     },
   });
-  apiMocks.loadCurrentCashierShift.mockResolvedValue({
+  apiMocks.getCurrentCashierShift.mockResolvedValue({
     data: {
       cashier_shift_id: 301,
       shift_code: 'SHIFT-301',
@@ -210,7 +244,7 @@ function arrangeCashierFixtures() {
       summary: buildShiftSummary('140000'),
     },
   });
-  apiMocks.loadCashierShift.mockResolvedValue({
+  apiMocks.getCashierShift.mockResolvedValue({
     data: {
       cashier_shift_id: 301,
       shift_code: 'SHIFT-301',
@@ -256,6 +290,10 @@ function buildShiftSummary(expectedCashAmount: string) {
       },
     ],
   };
+}
+
+function buildCoreApiError<T>(status: number, payload: T, message = 'API request failed') {
+  return new RestaurantPosApiError(message, status, payload);
 }
 
 function createSessionContext(): StaffSessionContextValue {

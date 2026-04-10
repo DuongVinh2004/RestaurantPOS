@@ -2,13 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Lock, Search, WalletCards } from 'lucide-react';
 import {
   closeCashierShift,
-  isMissingResource,
-  isUnauthorized,
-  loadCashierShifts,
-  loadCashierShift,
-  loadCurrentCashierShift,
+  getCashierShift as loadCashierShift,
+  getCurrentCashierShift as loadCurrentCashierShift,
+  listCashierShifts as loadCashierShifts,
   openCashierShift,
-} from '../../api/client';
+} from '../../core/api/staff-api';
+import { isApiStatus } from '../../core/api/errors';
 import { useStaffSession } from '../../app/session-context';
 import { isRowVersionConflict, rowVersionConflictMessage } from '../../lib/conflicts';
 import { formatFinanceOperatorError } from '../../lib/financeErrors';
@@ -37,7 +36,7 @@ export function CashierPage() {
 
   const handleError = useCallback(
     (cause: unknown, fallback: string) => {
-      if (isUnauthorized(cause)) {
+      if (isApiStatus(cause, 401)) {
         expire('Phien staff da het han. Dang nhap lai de tiep tuc.');
         return;
       }
@@ -60,7 +59,7 @@ export function CashierPage() {
       setTerminalCode((current) => nextCurrent.data.terminal_code ?? current);
       setActualCashAmount(String(nextCurrent.data.expected_cash_amount ?? nextCurrent.data.opening_float_amount ?? '0'));
     } catch (cause) {
-      if (isMissingResource(cause)) {
+      if (isApiStatus(cause, 404)) {
         setCurrentShift(null);
         setSelectedShift(null);
         setNotice('Staff nay hien chua co open cashier shift.');

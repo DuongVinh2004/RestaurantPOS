@@ -127,6 +127,42 @@ class StaffReservationTimelineFlowTest extends TestCase
             ->assertJsonPath('data.items.0.reservation.tables.0.zone', 'Patio');
     }
 
+    public function test_staff_can_filter_timeline_by_branch(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-03-21 10:00:00', 'UTC'));
+
+        [$staffId] = $this->seedTimelineScenario();
+        $annexBranchId = $this->createBranch([
+            'branch_code' => 'TLANNEX',
+            'branch_name' => 'Timeline Annex',
+        ]);
+        $annexTableId = $this->createRestaurantTableWithSeats(4, [
+            'table_code' => 'TL-ANNEX-01',
+            'zone' => 'Annex',
+            'branch_id' => $annexBranchId,
+        ]);
+        $customerId = $this->createUser(['role_name' => 'Customer', 'full_name' => 'Annex Timeline Guest']);
+        $annexReservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'branch_id' => $annexBranchId,
+            'reservation_code' => 'TL-ANNEX-ACTIVE',
+            'status' => 'Confirmed',
+            'start_time' => Carbon::parse('2026-03-21 10:20:00', 'UTC'),
+            'end_time' => Carbon::parse('2026-03-21 11:20:00', 'UTC'),
+            'bill_currency' => 'VND',
+        ]);
+        $this->attachReservationTable($annexReservationId, $annexTableId);
+
+        $response = $this->withHeaders($this->staffHeaders($staffId, 'staff-timeline-branch'))
+            ->getJson('/api/v1/staff/reservations/timeline?date=2026-03-21&branch_id='.$annexBranchId);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('meta.filters.branch_id', $annexBranchId)
+            ->assertJsonPath('data.summary.total_reservations', 1)
+            ->assertJsonPath('data.items.0.reservation.reservation_id', $annexReservationId);
+    }
+
     public function test_staff_can_request_zone_lane_grouping_without_breaking_legacy_timeline_payload(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-03-21 10:00:00', 'UTC'));

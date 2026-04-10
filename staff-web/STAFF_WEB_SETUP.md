@@ -17,6 +17,7 @@ VITE_API_URL=http://localhost:8000/api/v1
 ```
 
 `VITE_API_URL` should point at the backend API prefix. The client normalizes this to the host root expected by the SDK generator.
+The default Vite dev and preview hosts are `localhost` so they line up with the backend default API origin and local CORS contract. If you intentionally open the UI from `http://127.0.0.1:5173`, the backend `CORS_ALLOWED_ORIGINS` must also include that exact origin.
 
 ## Install + Run
 
@@ -196,7 +197,7 @@ Harness behavior:
 
 - prefers `STAFF_WEB_SMOKE_*` env when provided, otherwise falls back to the canonical UAT manifest when present
 - fails early on startup blockers such as missing credentials/manifest parse errors
-- fails clearly on network/runtime issues and points back to `php artisan booking:doctor --json`
+- fails clearly on network/runtime issues, including the public `/api/v1/health` base checks for `db`, `redis`, `scheduler`, and `disk`, and points back to `php artisan booking:doctor --json`
 - auto-derives reservation, order, board, waiting, menu, and conversation sources from backend responses or the UAT manifest where possible
 - when the canonical dine-in reservation is still `Confirmed`, auto-runs `POST /api/v1/staff/reservations/{id}/check-in` from board action metadata or the manifest table fallback before `order create`
 - reports `PASS`, `SKIP`, or `FAIL` per step

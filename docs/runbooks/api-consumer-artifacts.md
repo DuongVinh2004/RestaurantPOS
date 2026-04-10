@@ -26,6 +26,8 @@ composer api:artifacts
 
 `composer api:artifacts` now follows the same explicit order. OpenAPI is written first, consumer artifacts are generated from that frozen spec, then the frozen release manifest snapshot is refreshed.
 
+Generated Postman collection and environment templates are content-deterministic. Re-running the generator with unchanged OpenAPI/config inputs must not change their hashes or thaw the frozen release manifest snapshot.
+
 Outputs are written under:
 
 - `build/api-consumer/postman/RestaurantPOS.postman_collection.json`
@@ -127,6 +129,7 @@ Current scope:
 - generated from the frozen OpenAPI artifact
 - typed request/response aliases for the curated route set
 - auth-aware request helper for customer token, staff API key, and customer session id
+- session-aware customer routes keep `X-Customer-Token` and `X-Session-Id` together when both are configured, so browser clients do not silently lose session correlation after login
 - staff auth session typing now includes the Batch 1 startup surface on `login`, `auth/staff/me`, and `auth/staff/refresh`:
   - `data.startup.default_branch`
   - `data.startup.active_cashier_shift`
@@ -226,8 +229,8 @@ The backend ships an explicit CORS policy at `config/cors.php` for the split fro
 
 | Frontend | Stack | Typical dev origin |
 |---|---|---|
-| `customer-web` | Next.js + TypeScript | `http://localhost:3000` |
-| `staff-web` | React + TypeScript + Vite | `http://localhost:5173` |
+| `customer-web` | Next.js + TypeScript | `http://localhost:3000` or `http://127.0.0.1:3000` |
+| `staff-web` | React + TypeScript + Vite | `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:4173`, or `http://127.0.0.1:4173` |
 
 ### Backend env setup
 
@@ -235,7 +238,7 @@ Set `CORS_ALLOWED_ORIGINS` as a comma-separated list of allowed origins:
 
 ```env
 # Local development
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173
 
 # Staging
 CORS_ALLOWED_ORIGINS=https://customer.staging.example.com,https://staff.staging.example.com
@@ -243,6 +246,8 @@ CORS_ALLOWED_ORIGINS=https://customer.staging.example.com,https://staff.staging.
 # Production
 CORS_ALLOWED_ORIGINS=https://customer.example.com,https://staff.example.com
 ```
+
+Use the exact browser origin. `localhost` and `127.0.0.1` are different origins for CORS and must both be listed if local dev uses both forms.
 
 **Leave empty or omit to deny all cross-origin requests** (safe production default).
 

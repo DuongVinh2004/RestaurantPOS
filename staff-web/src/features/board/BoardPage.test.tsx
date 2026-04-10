@@ -7,18 +7,17 @@ import { buildStaffSession } from '../../test/fixtures';
 import type { StaffSessionContextValue } from '../../app/session-context';
 
 const apiMocks = vi.hoisted(() => ({
-  boardWindow: vi.fn(() => ({ from: '2026-04-07T09:00:00Z', to: '2026-04-07T13:00:00Z' })),
+  buildBoardWindow: vi.fn(() => ({ from: '2026-04-07T09:00:00Z', to: '2026-04-07T13:00:00Z' })),
   checkInReservation: vi.fn(),
-  loadTableBoard: vi.fn(),
-  loadTableBoardChanges: vi.fn(),
-  loadWaitingList: vi.fn(),
-  loadWaitingListChanges: vi.fn(),
+  getTableBoard: vi.fn(),
+  getTableBoardChanges: vi.fn(),
+  listWaitingList: vi.fn(),
+  getWaitingListChanges: vi.fn(),
   notifyWaitingListEntry: vi.fn(),
   seatWaitingListEntry: vi.fn(),
-  isUnauthorized: vi.fn(() => false),
 }));
 
-vi.mock('../../api/client', () => apiMocks);
+vi.mock('../../core/api/staff-api', () => apiMocks);
 
 let visibilityState: DocumentVisibilityState = 'visible';
 
@@ -50,10 +49,10 @@ describe('BoardPage background polling', () => {
       get: () => visibilityState,
     });
 
-    apiMocks.loadTableBoard.mockResolvedValue(createBoardEnvelope());
-    apiMocks.loadWaitingList.mockResolvedValue(createWaitingEnvelope());
-    apiMocks.loadTableBoardChanges.mockResolvedValue(createRealtimeEnvelope());
-    apiMocks.loadWaitingListChanges.mockResolvedValue(createRealtimeEnvelope());
+    apiMocks.getTableBoard.mockResolvedValue(createBoardEnvelope());
+    apiMocks.listWaitingList.mockResolvedValue(createWaitingEnvelope());
+    apiMocks.getTableBoardChanges.mockResolvedValue(createRealtimeEnvelope());
+    apiMocks.getWaitingListChanges.mockResolvedValue(createRealtimeEnvelope());
     apiMocks.seatWaitingListEntry.mockResolvedValue(createSeatEnvelope());
   });
 
@@ -66,8 +65,19 @@ describe('BoardPage background polling', () => {
     renderWithSession(<BoardPage />, createSessionContext());
 
     await flushAsyncWork();
-    expect(apiMocks.loadTableBoard).toHaveBeenCalledTimes(1);
-    expect(apiMocks.loadWaitingList).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getTableBoard).toHaveBeenCalledTimes(1);
+    expect(apiMocks.listWaitingList).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getTableBoard).toHaveBeenCalledWith({
+      from: '2026-04-07T09:00:00Z',
+      to: '2026-04-07T13:00:00Z',
+      include_holds: true,
+      group_by: 'zone',
+    });
+    expect(apiMocks.listWaitingList).toHaveBeenCalledWith({
+      active_only: true,
+      per_page: 12,
+      sort: '-priority',
+    });
 
     act(() => {
       visibilityState = 'hidden';
@@ -78,55 +88,55 @@ describe('BoardPage background polling', () => {
       await vi.advanceTimersByTimeAsync(59000);
     });
 
-    expect(apiMocks.loadTableBoardChanges).not.toHaveBeenCalled();
-    expect(apiMocks.loadWaitingListChanges).not.toHaveBeenCalled();
+    expect(apiMocks.getTableBoardChanges).not.toHaveBeenCalled();
+    expect(apiMocks.getWaitingListChanges).not.toHaveBeenCalled();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1000);
     });
 
-    expect(apiMocks.loadTableBoardChanges).toHaveBeenCalledTimes(1);
-    expect(apiMocks.loadWaitingListChanges).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getTableBoardChanges).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getWaitingListChanges).toHaveBeenCalledTimes(1);
   });
 
   it('refetches full slices only when change cursors report changes or stale cursors', async () => {
-    apiMocks.loadTableBoardChanges
+    apiMocks.getTableBoardChanges
       .mockResolvedValueOnce(createRealtimeEnvelope({ hasChanges: false }))
       .mockResolvedValueOnce(createRealtimeEnvelope({ hasChanges: true }));
-    apiMocks.loadWaitingListChanges
+    apiMocks.getWaitingListChanges
       .mockResolvedValueOnce(createRealtimeEnvelope({ hasChanges: false, staleCursor: false }))
       .mockResolvedValueOnce(createRealtimeEnvelope({ staleCursor: true }));
 
     renderWithSession(<BoardPage />, createSessionContext());
 
     await flushAsyncWork();
-    expect(apiMocks.loadTableBoard).toHaveBeenCalledTimes(1);
-    expect(apiMocks.loadWaitingList).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getTableBoard).toHaveBeenCalledTimes(1);
+    expect(apiMocks.listWaitingList).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(30000);
     });
 
-    expect(apiMocks.loadTableBoardChanges).toHaveBeenCalledTimes(1);
-    expect(apiMocks.loadWaitingListChanges).toHaveBeenCalledTimes(1);
-    expect(apiMocks.loadTableBoard).toHaveBeenCalledTimes(1);
-    expect(apiMocks.loadWaitingList).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getTableBoardChanges).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getWaitingListChanges).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getTableBoard).toHaveBeenCalledTimes(1);
+    expect(apiMocks.listWaitingList).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(30000);
     });
 
-    expect(apiMocks.loadTableBoardChanges).toHaveBeenCalledTimes(2);
-    expect(apiMocks.loadWaitingListChanges).toHaveBeenCalledTimes(2);
-    expect(apiMocks.loadTableBoard).toHaveBeenCalledTimes(2);
-    expect(apiMocks.loadWaitingList).toHaveBeenCalledTimes(2);
+    expect(apiMocks.getTableBoardChanges).toHaveBeenCalledTimes(2);
+    expect(apiMocks.getWaitingListChanges).toHaveBeenCalledTimes(2);
+    expect(apiMocks.getTableBoard).toHaveBeenCalledTimes(2);
+    expect(apiMocks.listWaitingList).toHaveBeenCalledTimes(2);
   });
 
   it('cleans up the polling interval on unmount', async () => {
     const { unmount } = renderWithSession(<BoardPage />, createSessionContext());
 
     await flushAsyncWork();
-    expect(apiMocks.loadTableBoard).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getTableBoard).toHaveBeenCalledTimes(1);
 
     unmount();
 
@@ -134,8 +144,8 @@ describe('BoardPage background polling', () => {
       await vi.advanceTimersByTimeAsync(60000);
     });
 
-    expect(apiMocks.loadTableBoardChanges).not.toHaveBeenCalled();
-    expect(apiMocks.loadWaitingListChanges).not.toHaveBeenCalled();
+    expect(apiMocks.getTableBoardChanges).not.toHaveBeenCalled();
+    expect(apiMocks.getWaitingListChanges).not.toHaveBeenCalled();
   });
 
   it('exposes explicit orders and settlement handoff links for the selected table', async () => {
@@ -149,8 +159,8 @@ describe('BoardPage background polling', () => {
 
     await flushAsyncWork();
 
-    const ordersLink = screen.getByRole('link', { name: 'Mo Orders voi context nay' });
-    const settlementLink = screen.getByRole('link', { name: 'Mo Settlement cho order nay' });
+    const ordersLink = screen.getAllByRole('link', { name: 'Mở đơn cho bàn này' })[0];
+    const settlementLink = screen.getByRole('link', { name: 'Mở thanh toán' });
 
     expect(ordersLink.getAttribute('href')).toContain('/orders?');
     expect(ordersLink.getAttribute('href')).toContain('source=board');
@@ -164,7 +174,7 @@ describe('BoardPage background polling', () => {
   });
 
   it('shows a refreshed orders handoff after check-in so the operator can continue without manual reconstruction', async () => {
-    apiMocks.loadTableBoard
+    apiMocks.getTableBoard
       .mockResolvedValueOnce(createBoardEnvelope({ reservationRowVersion: 9 }))
       .mockResolvedValueOnce(createBoardEnvelope({ reservationRowVersion: 10, activeOrderId: null }));
 
@@ -177,13 +187,13 @@ describe('BoardPage background polling', () => {
     );
 
     await flushAsyncWork();
-    fireEvent.click(screen.getByRole('button', { name: 'Check-in' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Nhận khách' }));
 
     await flushAsyncWork();
     await flushAsyncWork();
 
     expect(apiMocks.checkInReservation).toHaveBeenCalledWith(77, { row_version: 1 });
-    const ordersLink = screen.getByRole('link', { name: 'Tiep tuc sang Orders' });
+    const ordersLink = screen.getAllByRole('link', { name: 'Mở đơn cho bàn này' })[0];
     expect(ordersLink.getAttribute('href')).toContain('/orders?');
     expect(ordersLink.getAttribute('href')).toContain('table_id=10');
     expect(ordersLink.getAttribute('href')).toContain('reservation_id=77');
@@ -191,7 +201,7 @@ describe('BoardPage background polling', () => {
   });
 
   it('shows an orders handoff after seating a waiting guest using the reservation returned by the backend', async () => {
-    apiMocks.loadTableBoard.mockResolvedValue(createBoardEnvelope({ activeOrderId: null }));
+    apiMocks.getTableBoard.mockResolvedValue(createBoardEnvelope({ activeOrderId: null }));
 
     renderWithSession(
       <BoardPage />,
@@ -202,7 +212,7 @@ describe('BoardPage background polling', () => {
     );
 
     await flushAsyncWork();
-    fireEvent.click(screen.getByRole('button', { name: 'Seat ngay' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xếp bàn ngay' }));
 
     await flushAsyncWork();
     await flushAsyncWork();
@@ -213,7 +223,7 @@ describe('BoardPage background polling', () => {
       user_id: 5,
     });
 
-    const ordersLink = screen.getByRole('link', { name: 'Mo Orders cho reservation nay' });
+    const ordersLink = screen.getByRole('link', { name: 'Mở đơn cho khách này' });
     expect(ordersLink.getAttribute('href')).toContain('/orders?');
     expect(ordersLink.getAttribute('href')).toContain('table_id=10');
     expect(ordersLink.getAttribute('href')).toContain('reservation_id=91');

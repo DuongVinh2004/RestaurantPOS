@@ -285,6 +285,12 @@
             "action": "App\\Http\\Controllers\\Api\\Auth\\StaffAuthController@me"
         },
         {
+            "key": "get_v1_staff_branches",
+            "method": "GET",
+            "uri": "api/v1/staff/branches",
+            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffBranchContextController@index"
+        },
+        {
             "key": "health",
             "method": "GET",
             "uri": "api/v1/health",
@@ -450,6 +456,12 @@
             "action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@show"
         },
         {
+            "key": "get_v1_staff_menu_items",
+            "method": "GET",
+            "uri": "api/v1/staff/menu/items",
+            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffMenuCatalogController@index"
+        },
+        {
             "key": "get_v1_staff_tables_table_id_active_service_session",
             "method": "GET",
             "uri": "api/v1/staff/tables/{table_id}/active-service-session",
@@ -538,6 +550,12 @@
             "method": "GET",
             "uri": "api/v1/staff/reservations",
             "action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationInboxController@index"
+        },
+        {
+            "key": "get_v1_staff_reservations_reservation_id",
+            "method": "GET",
+            "uri": "api/v1/staff/reservations/{reservation_id}",
+            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationInboxController@show"
         },
         {
             "key": "get_v1_staff_reservations_timeline",

@@ -1,19 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Ban, RotateCcw, Search } from 'lucide-react';
 import {
-  boardWindow,
-  isUnauthorized,
-  loadRefundPreview,
-  loadStaffReservations,
-  loadTableBoard,
+  buildBoardWindow as boardWindow,
+  getRefundPreview as loadRefundPreview,
+  listReservations as loadStaffReservations,
+  getTableBoard as loadTableBoard,
   refundAndCancelReservation,
   refundReservation,
-  type StaffBoardWindow,
-} from '../../api/client';
+} from '../../core/api/staff-api';
+import { isApiStatus, normalizeApiError } from '../../core/api/errors';
 import { useStaffSession } from '../../app/session-context';
 import { hasCapability } from '../../lib/capabilities';
 import { isRowVersionConflict, rowVersionConflictMessage } from '../../lib/conflicts';
-import { normalizeApiError } from '../../lib/api-errors';
 import { formatFinanceOperatorError } from '../../lib/financeErrors';
 import { formatMoney, humanizeCode, readNumber, readString } from '../../lib/format';
 import type { StaffRefundPreviewEnvelope, StaffReservationLookupCollectionEnvelope, StaffTableBoardEnvelope } from '../../api/sdk';
@@ -21,6 +19,7 @@ import { ActionButton, Banner, EmptyState, MetricCard, Panel, StatusPill } from 
 
 const refundScopes = ['deposit', 'final', 'all'] as const;
 const paymentOptions = ['Cash', 'Card', 'BankTransfer', 'Other'] as const;
+type StaffBoardWindow = ReturnType<typeof boardWindow>;
 type RefundPreviewFormState = {
   reservationId: string;
   refundScope: (typeof refundScopes)[number];
@@ -117,7 +116,7 @@ export function RefundsPage() {
 
   const handleError = useCallback(
     (cause: unknown, fallback: string) => {
-      if (isUnauthorized(cause)) {
+      if (isApiStatus(cause, 401)) {
         expire('Phien staff da het han. Dang nhap lai de tiep tuc.');
         return;
       }
@@ -136,7 +135,11 @@ export function RefundsPage() {
     setBusyKey('refresh-board');
 
     try {
-      const nextBoard = await loadTableBoard(window);
+      const nextBoard = await loadTableBoard({
+        ...window,
+        include_holds: true,
+        group_by: 'zone',
+      });
       const firstReservationId = nextBoard.data.find((row) => row.reservation)?.reservation?.reservation_id;
 
       setBoard(nextBoard);

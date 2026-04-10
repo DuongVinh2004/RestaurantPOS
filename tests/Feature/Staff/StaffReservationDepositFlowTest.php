@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
+use App\Models\Payment;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -197,6 +198,30 @@ class StaffReservationDepositFlowTest extends TestCase
             '50000.00',
             number_format((float) $this->table('reservations')->where('reservation_id', $reservationId)->value('deposit_paid_amount'), 2, '.', '')
         );
+    }
+
+    public function test_staff_deposit_pay_rejects_idempotency_key_longer_than_payment_storage_limit(): void
+    {
+        [$staffId, $reservationId] = $this->seedDepositReservation();
+
+        $response = $this->withHeaders(
+            $this->idempotentStaffHeaders(
+                $staffId,
+                'deposit-too-long-staff-key',
+                str_repeat('d', Payment::IDEMPOTENCY_KEY_MAX_LENGTH + 1),
+            ),
+        )->postJson("/api/v1/staff/reservations/{$reservationId}/deposit/pay", [
+            'payment_method' => 'Cash',
+            'payment_provider' => 'Cash',
+            'amount' => 50000,
+            'currency' => 'VND',
+            'transaction_code' => 'DEP-IDEM-LONG-1',
+            'row_version' => 1,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['idempotency_key']);
+        $this->assertSame(0, (int) $this->table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Deposit')->count());
     }
 
     public function test_refund_preview_sees_newly_captured_deposit_payment(): void

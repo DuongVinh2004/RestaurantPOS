@@ -7,15 +7,18 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "test": "vitest run",
+    "test": "vitest run src scripts/live-smoke.test.mjs",
     "smoke:live": "node scripts/live-smoke.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.97.0",
+    "antd": "^6.3.5",
     "lucide-react": "^0.368.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.22.3"
+    "react-router-dom": "^6.22.3",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

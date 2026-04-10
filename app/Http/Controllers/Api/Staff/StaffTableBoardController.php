@@ -43,6 +43,7 @@ class StaffTableBoardController extends Controller
         $snapshot = $this->boardService->buildBoardSnapshot(
             from: $request->date('from'),
             to: $request->date('to'),
+            branchId: $request->input('branch_id'),
             zone: $request->input('zone'),
             includeHolds: $request->boolean('include_holds', true),
         );
@@ -52,6 +53,7 @@ class StaffTableBoardController extends Controller
                 [
                     'from' => $request->date('from')?->toIso8601String(),
                     'to' => $request->date('to')?->toIso8601String(),
+                    'branch_id' => $request->integer('branch_id') ?: null,
                     'zone' => $request->input('zone'),
                     'include_holds' => $request->boolean('include_holds', true),
                     'group_by' => $request->input('group_by'),
@@ -63,7 +65,7 @@ class StaffTableBoardController extends Controller
                     'dir' => null,
                 ],
                 ListingMetaFactory::contract(
-                    ['date', 'from', 'to', 'zone', 'include_holds', 'group_by'],
+                    ['date', 'from', 'to', 'branch_id', 'zone', 'include_holds', 'group_by'],
                     [],
                     null,
                     false,
@@ -72,6 +74,7 @@ class StaffTableBoardController extends Controller
                         'date' => 'filter[date]',
                         'from' => 'filter[from]',
                         'to' => 'filter[to]',
+                        'branch_id' => 'filter[branch_id]',
                         'zone' => 'filter[zone]',
                         'include_holds' => 'filter[include_holds]',
                         'group_by' => 'filter[group_by]',

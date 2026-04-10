@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Services\Uat\UatScenarioPackService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
@@ -105,6 +107,34 @@ class UatScenarioPackConsoleCommandTest extends TestCase
             'uat.customer.primary',
             'uat.customer.secondary',
         ])->count());
+    }
+
+    #[Group('booking-ops')]
+    public function test_bootstrap_command_returns_structured_validation_errors_when_bootstrap_validation_fails(): void
+    {
+        $this->app->instance(UatScenarioPackService::class, new class extends UatScenarioPackService
+        {
+            public function __construct() {}
+
+            public function bootstrap(?string $baseUrl = null, ?string $manifestPath = null): array
+            {
+                throw ValidationException::withMessages([
+                    'base_url' => ['The base_url must use https.'],
+                ]);
+            }
+        });
+
+        $exitCode = Artisan::call('booking:uat-pack:bootstrap', [
+            '--base-url' => 'http://127.0.0.1:8000',
+            '--json' => true,
+        ]);
+
+        self::assertSame(1, $exitCode);
+
+        $payload = $this->decodeArtisanOutput();
+
+        self::assertSame('validation_error', $payload['error'] ?? null);
+        self::assertSame(['The base_url must use https.'], $payload['errors']['base_url'] ?? null);
     }
 
     /**

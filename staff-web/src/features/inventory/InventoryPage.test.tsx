@@ -2,17 +2,17 @@ import { screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { InventoryPage } from './InventoryPage';
 import { renderWithSession } from '../../test/render';
-import { buildApiError, buildStaffSession } from '../../test/fixtures';
+import { buildStaffSession } from '../../test/fixtures';
+import { RestaurantPosApiError } from '../../core/api/sdk';
 import type { StaffSessionContextValue } from '../../app/session-context';
 
 const apiMocks = vi.hoisted(() => ({
-  loadAdminIngredients: vi.fn(),
-  loadAdminSuppliers: vi.fn(),
-  loadAdminPurchaseOrders: vi.fn(),
-  isUnauthorized: vi.fn(() => false),
+  listAdminIngredients: vi.fn(),
+  listAdminSuppliers: vi.fn(),
+  listAdminPurchaseOrders: vi.fn(),
 }));
 
-vi.mock('../../api/client', () => apiMocks);
+vi.mock('../../core/api/staff-api', () => apiMocks);
 
 describe('InventoryPage', () => {
   beforeEach(() => {
@@ -25,20 +25,20 @@ describe('InventoryPage', () => {
     renderWithSession(<InventoryPage />, createSessionContext());
 
     await waitFor(() =>
-      expect(apiMocks.loadAdminIngredients).toHaveBeenCalledWith({
+      expect(apiMocks.listAdminIngredients).toHaveBeenCalledWith({
         q: undefined,
         is_active: true,
         per_page: 8,
         sort: 'name',
       }),
     );
-    expect(apiMocks.loadAdminSuppliers).toHaveBeenCalledWith({
+    expect(apiMocks.listAdminSuppliers).toHaveBeenCalledWith({
       q: undefined,
       is_active: true,
       per_page: 8,
       sort: 'name',
     });
-    expect(apiMocks.loadAdminPurchaseOrders).toHaveBeenCalledWith({
+    expect(apiMocks.listAdminPurchaseOrders).toHaveBeenCalledWith({
       q: undefined,
       branch_id: 1,
       purchase_order_status: undefined,
@@ -54,7 +54,7 @@ describe('InventoryPage', () => {
 
   it('surfaces a branch rollout block when inventory uplift is disabled', async () => {
     arrangeInventoryFixtures();
-    apiMocks.loadAdminPurchaseOrders.mockRejectedValueOnce(buildApiError(422, {
+    apiMocks.listAdminPurchaseOrders.mockRejectedValueOnce(buildCoreApiError(422, {
       error_code: 'feature_disabled',
       message: 'Validation error.',
       errors: {
@@ -64,13 +64,28 @@ describe('InventoryPage', () => {
 
     renderWithSession(<InventoryPage />, createSessionContext());
 
-    await waitFor(() => expect(apiMocks.loadAdminPurchaseOrders).toHaveBeenCalled());
+    await waitFor(() => expect(apiMocks.listAdminPurchaseOrders).toHaveBeenCalled());
     expect(await screen.findByText(/Inventory uplift dang bi khoa cho branch hoac session nay/i)).toBeInTheDocument();
+  });
+
+  it('expires the staff session when inventory bootstrap returns 401', async () => {
+    arrangeInventoryFixtures();
+    const session = createSessionContext();
+    apiMocks.listAdminIngredients.mockRejectedValueOnce(buildCoreApiError(401, {
+      error_code: 'unauthorized',
+      message: 'Unauthorized.',
+    }));
+
+    renderWithSession(<InventoryPage />, session);
+
+    await waitFor(() =>
+      expect(session.expire).toHaveBeenCalledWith('Phien staff da het han. Dang nhap lai de tiep tuc.'),
+    );
   });
 });
 
 function arrangeInventoryFixtures() {
-  apiMocks.loadAdminIngredients.mockResolvedValue({
+  apiMocks.listAdminIngredients.mockResolvedValue({
     data: [
       {
         ingredient_id: 501,
@@ -104,7 +119,7 @@ function arrangeInventoryFixtures() {
       },
     ],
   });
-  apiMocks.loadAdminSuppliers.mockResolvedValue({
+  apiMocks.listAdminSuppliers.mockResolvedValue({
     data: [
       {
         supplier_id: 41,
@@ -120,7 +135,7 @@ function arrangeInventoryFixtures() {
       },
     ],
   });
-  apiMocks.loadAdminPurchaseOrders.mockResolvedValue({
+  apiMocks.listAdminPurchaseOrders.mockResolvedValue({
     data: [
       {
         purchase_order_id: 71,
@@ -159,6 +174,10 @@ function arrangeInventoryFixtures() {
       },
     ],
   });
+}
+
+function buildCoreApiError<T>(status: number, payload: T, message = 'API request failed') {
+  return new RestaurantPosApiError(message, status, payload);
 }
 
 function createSessionContext(overrides: Partial<StaffSessionContextValue['session']> = {}): StaffSessionContextValue {

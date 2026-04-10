@@ -2,22 +2,22 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettlementPage } from './SettlementPage';
 import { renderWithSession } from '../../test/render';
-import { buildApiError, buildStaffSession } from '../../test/fixtures';
+import { buildStaffSession } from '../../test/fixtures';
+import { RestaurantPosApiError } from '../../core/api/sdk';
 import type { StaffSessionContextValue } from '../../app/session-context';
 
 const apiMocks = vi.hoisted(() => ({
-  boardWindow: vi.fn(() => ({ from: '2026-04-07T09:00:00Z', to: '2026-04-07T13:00:00Z' })),
-  loadTableBoard: vi.fn(),
-  loadStaffReservations: vi.fn(),
-  loadReservationOrders: vi.fn(),
-  loadOrderDetail: vi.fn(),
-  loadSettlementPreview: vi.fn(),
+  buildBoardWindow: vi.fn(() => ({ from: '2026-04-07T09:00:00Z', to: '2026-04-07T13:00:00Z' })),
+  getTableBoard: vi.fn(),
+  listReservations: vi.fn(),
+  listReservationOrders: vi.fn(),
+  getOrderDetail: vi.fn(),
+  getSettlementPreview: vi.fn(),
   createBillSnapshot: vi.fn(),
   finalizeSettlement: vi.fn(),
-  isUnauthorized: vi.fn(() => false),
 }));
 
-vi.mock('../../api/client', () => apiMocks);
+vi.mock('../../core/api/staff-api', () => apiMocks);
 
 describe('SettlementPage', () => {
   beforeEach(() => {
@@ -30,14 +30,26 @@ describe('SettlementPage', () => {
     renderWithSession(<SettlementPage />, createSessionContext());
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Tai order' })).toBeInTheDocument());
+    expect(apiMocks.getTableBoard).toHaveBeenCalledWith({
+      from: '2026-04-07T09:00:00Z',
+      to: '2026-04-07T13:00:00Z',
+      include_holds: true,
+      group_by: 'zone',
+    });
+    expect(apiMocks.listReservations).toHaveBeenCalledWith({
+      bucket: 'all',
+      q: undefined,
+      per_page: 8,
+      sort: '-start_time',
+    });
     fireEvent.change(screen.getByLabelText('Order ID'), { target: { value: '9001' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tai order' }));
 
-    await waitFor(() => expect(apiMocks.loadOrderDetail).toHaveBeenCalledWith(9001));
+    await waitFor(() => expect(apiMocks.getOrderDetail).toHaveBeenCalledWith(9001));
 
     fireEvent.click(screen.getByRole('button', { name: 'Settlement preview' }));
 
-    await waitFor(() => expect(apiMocks.loadSettlementPreview).toHaveBeenCalledWith(9001, expect.any(Object)));
+    await waitFor(() => expect(apiMocks.getSettlementPreview).toHaveBeenCalledWith(9001, expect.any(Object)));
 
     fireEvent.click(screen.getByRole('button', { name: 'Finalize settlement' }));
 
@@ -63,7 +75,7 @@ describe('SettlementPage', () => {
       },
     );
 
-    await waitFor(() => expect(apiMocks.loadOrderDetail).toHaveBeenCalledWith(9001));
+    await waitFor(() => expect(apiMocks.getOrderDetail).toHaveBeenCalledWith(9001));
     expect(screen.getByDisplayValue('9001')).toBeInTheDocument();
     expect(screen.getByText('Order #9001')).toBeInTheDocument();
   });
@@ -76,14 +88,14 @@ describe('SettlementPage', () => {
     const lookupCard = (await screen.findAllByText('RES-88'))[0];
     fireEvent.click(lookupCard.closest('button') as HTMLButtonElement);
 
-    await waitFor(() => expect(apiMocks.loadReservationOrders).toHaveBeenCalledWith(88));
-    await waitFor(() => expect(apiMocks.loadOrderDetail).toHaveBeenCalledWith(9102));
+    await waitFor(() => expect(apiMocks.listReservationOrders).toHaveBeenCalledWith(88));
+    await waitFor(() => expect(apiMocks.getOrderDetail).toHaveBeenCalledWith(9102));
     expect(screen.getByDisplayValue('9102')).toBeInTheDocument();
   });
 
   it('keeps manual order fallback visible when reservation lookup is forbidden', async () => {
     arrangeSettlementFixtures();
-    apiMocks.loadStaffReservations.mockRejectedValueOnce(buildApiError(403, {
+    apiMocks.listReservations.mockRejectedValueOnce(buildCoreApiError(403, {
       error_code: 'forbidden',
       required_capability: 'reservation.manage',
       message: 'Forbidden.',
@@ -91,7 +103,7 @@ describe('SettlementPage', () => {
 
     renderWithSession(<SettlementPage />, createSessionContext());
 
-    await waitFor(() => expect(apiMocks.loadStaffReservations).toHaveBeenCalled());
+    await waitFor(() => expect(apiMocks.listReservations).toHaveBeenCalled());
     expect(screen.getByLabelText('Order ID')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Settlement preview' })).toBeInTheDocument();
   });
@@ -113,7 +125,7 @@ describe('SettlementPage', () => {
 
   it('degrades reservation-order lookup failures into a manual fallback path', async () => {
     arrangeSettlementFixtures();
-    apiMocks.loadReservationOrders.mockRejectedValueOnce(buildApiError(403, {
+    apiMocks.listReservationOrders.mockRejectedValueOnce(buildCoreApiError(403, {
       error_code: 'forbidden',
       required_capability: 'reservation.manage',
       message: 'Forbidden.',
@@ -124,7 +136,7 @@ describe('SettlementPage', () => {
     const lookupCard = (await screen.findAllByText('RES-88'))[0];
     fireEvent.click(lookupCard.closest('button') as HTMLButtonElement);
 
-    await waitFor(() => expect(apiMocks.loadReservationOrders).toHaveBeenCalledWith(88));
+    await waitFor(() => expect(apiMocks.listReservationOrders).toHaveBeenCalledWith(88));
     expect(screen.getByLabelText('Order ID')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Order #9102/i })).not.toBeInTheDocument();
   });
@@ -140,21 +152,21 @@ describe('SettlementPage', () => {
     const lookupCard = (await screen.findAllByText('RES-88'))[0];
     fireEvent.click(lookupCard.closest('button') as HTMLButtonElement);
 
-    await waitFor(() => expect(apiMocks.loadOrderDetail).toHaveBeenCalledWith(9102));
-    apiMocks.loadStaffReservations.mockClear();
-    apiMocks.loadReservationOrders.mockClear();
+    await waitFor(() => expect(apiMocks.getOrderDetail).toHaveBeenCalledWith(9102));
+    apiMocks.listReservations.mockClear();
+    apiMocks.listReservationOrders.mockClear();
 
     fireEvent.click(screen.getByRole('button', { name: 'Settlement preview' }));
 
-    await waitFor(() => expect(apiMocks.loadSettlementPreview).toHaveBeenCalledWith(9102, expect.any(Object)));
+    await waitFor(() => expect(apiMocks.getSettlementPreview).toHaveBeenCalledWith(9102, expect.any(Object)));
 
     fireEvent.click(screen.getByRole('button', { name: 'Finalize settlement' }));
 
     await waitFor(() => expect(apiMocks.finalizeSettlement).toHaveBeenCalledWith(9102, expect.objectContaining({
       row_version: 7,
     })));
-    await waitFor(() => expect(apiMocks.loadStaffReservations).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(apiMocks.loadReservationOrders).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.listReservations).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.listReservationOrders).toHaveBeenCalledTimes(1));
   });
 
   it('does not rerun bootstrap fetches when reservation selection or search input changes', async () => {
@@ -165,20 +177,20 @@ describe('SettlementPage', () => {
 
     renderWithSession(<SettlementPage />, createSessionContext());
 
-    await waitFor(() => expect(apiMocks.loadTableBoard).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(apiMocks.loadStaffReservations).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.getTableBoard).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.listReservations).toHaveBeenCalledTimes(1));
 
     const lookupCard = (await screen.findAllByText('RES-88'))[0];
     fireEvent.click(lookupCard.closest('button') as HTMLButtonElement);
 
-    await waitFor(() => expect(apiMocks.loadReservationOrders).toHaveBeenCalledWith(88));
-    expect(apiMocks.loadTableBoard).toHaveBeenCalledTimes(1);
-    expect(apiMocks.loadStaffReservations).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(apiMocks.listReservationOrders).toHaveBeenCalledWith(88));
+    expect(apiMocks.getTableBoard).toHaveBeenCalledTimes(1);
+    expect(apiMocks.listReservations).toHaveBeenCalledTimes(1);
 
     fireEvent.change(screen.getByLabelText('Reservation search'), { target: { value: 'RES-8' } });
 
-    expect(apiMocks.loadTableBoard).toHaveBeenCalledTimes(1);
-    expect(apiMocks.loadStaffReservations).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getTableBoard).toHaveBeenCalledTimes(1);
+    expect(apiMocks.listReservations).toHaveBeenCalledTimes(1);
   });
 
   it('requires a fresh preview when settlement currency changes after preview', async () => {
@@ -190,11 +202,11 @@ describe('SettlementPage', () => {
     fireEvent.change(screen.getByLabelText('Order ID'), { target: { value: '9001' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tai order' }));
 
-    await waitFor(() => expect(apiMocks.loadOrderDetail).toHaveBeenCalledWith(9001));
+    await waitFor(() => expect(apiMocks.getOrderDetail).toHaveBeenCalledWith(9001));
 
     fireEvent.click(screen.getByRole('button', { name: 'Settlement preview' }));
 
-    await waitFor(() => expect(apiMocks.loadSettlementPreview).toHaveBeenCalledWith(9001, expect.any(Object)));
+    await waitFor(() => expect(apiMocks.getSettlementPreview).toHaveBeenCalledWith(9001, expect.any(Object)));
 
     fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'USD' } });
 
@@ -210,7 +222,7 @@ function arrangeSettlementFixtures({
   boardOrderId?: number | null;
   reservationOrderId?: number;
 } = {}) {
-  apiMocks.loadTableBoard.mockResolvedValue({
+  apiMocks.getTableBoard.mockResolvedValue({
     data: [
       {
         table_id: 10,
@@ -223,7 +235,7 @@ function arrangeSettlementFixtures({
       },
     ],
   });
-  apiMocks.loadStaffReservations.mockResolvedValue({
+  apiMocks.listReservations.mockResolvedValue({
     data: [
       {
         reservation_id: 88,
@@ -273,7 +285,7 @@ function arrangeSettlementFixtures({
       },
     ],
   });
-  apiMocks.loadReservationOrders.mockResolvedValue({
+  apiMocks.listReservationOrders.mockResolvedValue({
     data: [
       {
         order_id: reservationOrderId,
@@ -284,7 +296,7 @@ function arrangeSettlementFixtures({
       },
     ],
   });
-  apiMocks.loadOrderDetail.mockImplementation(async (orderId: number) => ({
+  apiMocks.getOrderDetail.mockImplementation(async (orderId: number) => ({
     data: {
       order: {
         order_id: orderId,
@@ -300,7 +312,7 @@ function arrangeSettlementFixtures({
       },
     },
   }));
-  apiMocks.loadSettlementPreview.mockImplementation(async (orderId: number) => ({
+  apiMocks.getSettlementPreview.mockImplementation(async (orderId: number) => ({
     data: {
       order_id: orderId,
       reservation_id: orderId === reservationOrderId ? 88 : 77,
@@ -333,6 +345,10 @@ function arrangeSettlementFixtures({
       reservation_status: 'Completed',
     },
   }));
+}
+
+function buildCoreApiError<T>(status: number, payload: T, message = 'API request failed') {
+  return new RestaurantPosApiError(message, status, payload);
 }
 
 function createSessionContext(overrides: Partial<StaffSessionContextValue['session']> = {}): StaffSessionContextValue {

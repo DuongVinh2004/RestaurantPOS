@@ -14,85 +14,102 @@ export function AccessPage() {
   const moneyPathsBlocked = readiness.requires_cashier_shift && readiness.cashier_shift === 'action_required';
   const blockers = [
     readiness.access !== 'ready'
-      ? 'Session nay khong co granted capability de vao staff-web operator shell.'
+      ? 'Tài khoản này chưa được cấp quyền để vào màn hình làm việc.'
       : null,
     readiness.branch !== 'ready'
-      ? 'Backend chua resolve duoc default branch cho startup contract.'
+      ? 'Chưa xác định được chi nhánh mặc định.'
       : null,
     moneyPathsBlocked
-      ? 'Mo cashier shift hien hanh de mo settlement, refund, va cashier flows.'
+      ? 'Hãy mở ca thu ngân để dùng thanh toán, hoàn tiền và màn hình thu ngân.'
       : null,
   ].filter((value): value is string => value !== null);
   const title = readiness.access !== 'ready'
-    ? 'Session nay chua du granted capability cho staff-web'
+    ? 'Tài khoản chưa đủ quyền'
     : moneyPathsBlocked
-      ? 'Session startup da san sang cho shell nhung finance flows dang khoa'
-    : readiness.operator_ready
-      ? 'Session startup da san sang cho operator shell'
-      : 'Session da xac thuc nhung chua du context van hanh';
+      ? 'Đã vào ca, nhưng chưa mở ca thu ngân'
+      : readiness.operator_ready
+        ? 'Mọi thứ đã sẵn sàng'
+        : 'Thiếu thông tin để bắt đầu ca';
   const description = readiness.access !== 'ready'
-    ? 'Route tree va shell chi mo khi backend cap capability thuc te cho staff-web. `known_capabilities` chi con la metadata tham chieu contract.'
+    ? 'Hãy dùng tài khoản đã được phân quyền cho màn hình nhân viên.'
     : moneyPathsBlocked
-      ? 'Board, orders, va inbox van mo theo capability neu co. Settlement, refund, va cashier se chi mo khi startup contract resolve duoc active cashier shift.'
-    : 'Staff-web doc startup contract tu login/me/refresh de biet branch mac dinh, cashier shift hien hanh, va readiness can duoc giai quyet truoc khi vao shell.';
+      ? 'Bạn vẫn có thể xem các mục khác nếu đã được cấp quyền, nhưng các thao tác thu tiền sẽ chỉ mở khi ca thu ngân đang hoạt động.'
+      : 'Hệ thống cần đủ thông tin về chi nhánh và ca làm trước khi vào màn hình vận hành.';
 
   return (
     <div className="space-y-6">
       <Panel>
-        <p className="eyebrow">Access boundary</p>
+        <p className="eyebrow">Trạng thái truy cập</p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{title}</h2>
         <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">{description}</p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <StatusPill value={`Granted ${readiness.granted_capability_count}`} tone={readiness.access === 'ready' ? 'success' : 'warning'} />
-          <StatusPill value={`Known ${readiness.known_capability_count}`} />
-          <StatusPill value={`Access ${readiness.access}`} tone={readiness.access === 'ready' ? 'success' : 'warning'} />
-          <StatusPill value={`Branch ${readiness.branch}`} tone={readiness.branch === 'ready' ? 'success' : 'warning'} />
+          <StatusPill value={`Quyền ${translateReadiness(readiness.access)}`} tone={readiness.access === 'ready' ? 'success' : 'warning'} />
+          <StatusPill value={`Chi nhánh ${translateReadiness(readiness.branch)}`} tone={readiness.branch === 'ready' ? 'success' : 'warning'} />
           <StatusPill
-            value={`Shift ${readiness.cashier_shift}`}
+            value={`Ca ${translateReadiness(readiness.cashier_shift)}`}
             tone={readiness.cashier_shift === 'ready' ? 'success' : readiness.cashier_shift === 'action_required' ? 'warning' : 'neutral'}
           />
-          <StatusPill value={readiness.operator_ready ? 'Operator ready' : 'Setup required'} tone={readiness.operator_ready ? 'success' : 'warning'} />
+          <StatusPill value={readiness.operator_ready ? 'Sẵn sàng làm việc' : 'Cần chuẩn bị thêm'} tone={readiness.operator_ready ? 'success' : 'warning'} />
         </div>
       </Panel>
 
       <Panel>
-        <p className="eyebrow">Resolved context</p>
+        <p className="eyebrow">Thông tin đã nhận</p>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Default branch</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Chi nhánh mặc định</p>
             <p className="mt-3 text-base font-semibold text-slate-950">
-              {defaultBranch ? `${defaultBranch.branch_name} (${defaultBranch.branch_code})` : 'Chua co branch mac dinh'}
+              {defaultBranch ? `${defaultBranch.branch_name} (${defaultBranch.branch_code})` : 'Chưa có chi nhánh mặc định'}
             </p>
             <p className="mt-2 text-sm text-slate-600">
               {defaultBranch
-                ? `Timezone ${defaultBranch.timezone ?? 'n/a'} · Currency ${defaultBranch.currency ?? 'n/a'}`
-                : 'Can bootstrap branch context tu backend de shell co diem vao van hanh ro rang.'}
+                ? `Múi giờ ${defaultBranch.timezone ?? 'không rõ'} · Tiền tệ ${defaultBranch.currency ?? 'không rõ'}`
+                : 'Cần xác định chi nhánh mặc định để vào màn hình làm việc đúng bối cảnh.'}
             </p>
           </div>
           <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Cashier shift</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Ca thu ngân</p>
             <p className="mt-3 text-base font-semibold text-slate-950">
-              {activeShift ? `${activeShift.shift_code} (${activeShift.status})` : 'Chua co active cashier shift'}
+              {activeShift ? `${activeShift.shift_code} (${translateReadiness(activeShift.status)})` : 'Chưa có ca đang mở'}
             </p>
             <p className="mt-2 text-sm text-slate-600">
               {activeShift
-                ? `Terminal ${activeShift.terminal_code ?? 'n/a'} · Branch ${activeShift.branch?.branch_code ?? activeShift.branch_id}`
+                ? `Thiết bị ${activeShift.terminal_code ?? 'không rõ'} · Chi nhánh ${activeShift.branch?.branch_code ?? activeShift.branch_id}`
                 : readiness.cashier_shift === 'not_applicable'
-                  ? 'Session nay khong bat buoc active cashier shift cho startup.'
-                  : 'Backend dang bao action_required cho cashier shift o startup.'}
+                  ? 'Phiên này không bắt buộc phải có ca thu ngân.'
+                  : 'Cần mở ca thu ngân trước khi dùng các thao tác thu tiền.'}
             </p>
           </div>
         </div>
       </Panel>
 
       <EmptyState
-        title={blockers.length > 0 ? 'Startup blockers can giai quyet truoc khi vao shell' : 'Access page dang hoat dong nhu route fallback'}
+        title={blockers.length > 0 ? 'Việc cần xử lý trước khi vào ca' : 'Trang dự phòng đang hoạt động'}
         description={
           blockers.length > 0
             ? blockers.join(' ')
-            : 'Session nay da co du startup readiness. Neu van dang o access page, refresh session hoac mo lai route staff mong muon.'
+            : 'Phiên đã sẵn sàng. Hãy làm mới phiên hoặc mở lại mục bạn muốn dùng.'
         }
       />
     </div>
   );
+}
+
+function translateReadiness(value: string) {
+  switch (value) {
+    case 'ready':
+      return 'sẵn sàng';
+    case 'action_required':
+      return 'cần xử lý';
+    case 'not_applicable':
+      return 'không áp dụng';
+    case 'missing':
+      return 'còn thiếu';
+    case 'capability_missing':
+      return 'thiếu quyền';
+    case 'open':
+      return 'đang mở';
+    default:
+      return value;
+  }
 }

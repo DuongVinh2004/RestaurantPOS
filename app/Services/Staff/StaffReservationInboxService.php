@@ -37,12 +37,34 @@ class StaffReservationInboxService
         return Reservation::query()->select('reservations.*')->distinct()->with($this->relations($includeFinancials));
     }
 
+    public function findForStaffOrFail(int $reservationId): Reservation
+    {
+        /** @var Reservation $reservation */
+        $reservation = Reservation::query()
+            ->with([
+                'user.points',
+                'user.currentTier',
+                'tables',
+                'orders.items.item',
+                'payments',
+                'depositPaymentSessions',
+                'appliedUserVoucher.voucher',
+            ])
+            ->findOrFail($reservationId);
+
+        return $reservation;
+    }
+
     /**
      * @param  Builder<Reservation>  $query
      * @param  array<string, mixed>  $filters
      */
     public function applyCommonFilters(Builder $query, array $filters): void
     {
+        if (! empty($filters['branch_id'])) {
+            $query->where('branch_id', (int) $filters['branch_id']);
+        }
+
         if (! empty($filters['status'])) {
             $query->where('status', (string) $filters['status']);
         }

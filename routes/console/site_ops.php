@@ -43,6 +43,35 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
+$consoleValidationPayload = static function (ValidationException $exception): array {
+    return [
+        'error' => 'validation_error',
+        'errors' => $exception->errors(),
+    ];
+};
+
+$staffApiKeyConsolePayload = static function (StaffApiKey $record): array {
+    $user = $record->relationLoaded('user') ? $record->user : null;
+    $role = $user?->relationLoaded('role') ? $user->role : null;
+    $expiresAt = $record->expires_at?->utc();
+    $revokedAt = $record->revoked_at?->utc();
+
+    return [
+        'staff_api_key_id' => (int) $record->getKey(),
+        'user_id' => (int) ($record->user_id ?? 0),
+        'username' => $user?->username,
+        'full_name' => $user?->full_name,
+        'role_id' => $user?->role_id !== null ? (int) $user->role_id : null,
+        'role_name' => $role?->role_name,
+        'label' => $record->label,
+        'expires_at_utc' => $expiresAt?->toIso8601String(),
+        'last_used_at_utc' => $record->last_used_at?->utc()->toIso8601String(),
+        'revoked_at_utc' => $revokedAt?->toIso8601String(),
+        'created_at_utc' => $record->created_at?->utc()->toIso8601String(),
+        'is_active' => $revokedAt === null && ($expiresAt === null || $expiresAt->isFuture()),
+    ];
+};
+
 Artisan::command('booking:bootstrap-site
     {--branch-code= : Branch code to ensure}
     {--branch-name= : Branch name to ensure}

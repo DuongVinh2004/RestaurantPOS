@@ -2,20 +2,20 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RefundsPage } from './RefundsPage';
 import { renderWithSession } from '../../test/render';
-import { buildApiError, buildStaffSession } from '../../test/fixtures';
+import { buildStaffSession } from '../../test/fixtures';
+import { RestaurantPosApiError } from '../../core/api/sdk';
 import type { StaffSessionContextValue } from '../../app/session-context';
 
 const apiMocks = vi.hoisted(() => ({
-  boardWindow: vi.fn(() => ({ from: '2026-04-07T09:00:00Z', to: '2026-04-07T13:00:00Z' })),
-  loadTableBoard: vi.fn(),
-  loadStaffReservations: vi.fn(),
-  loadRefundPreview: vi.fn(),
+  buildBoardWindow: vi.fn(() => ({ from: '2026-04-07T09:00:00Z', to: '2026-04-07T13:00:00Z' })),
+  getTableBoard: vi.fn(),
+  listReservations: vi.fn(),
+  getRefundPreview: vi.fn(),
   refundReservation: vi.fn(),
   refundAndCancelReservation: vi.fn(),
-  isUnauthorized: vi.fn(() => false),
 }));
 
-vi.mock('../../api/client', () => apiMocks);
+vi.mock('../../core/api/staff-api', () => apiMocks);
 
 describe('RefundsPage', () => {
   beforeEach(() => {
@@ -27,10 +27,24 @@ describe('RefundsPage', () => {
 
     renderWithSession(<RefundsPage />, createSessionContext());
 
+    await waitFor(() => expect(apiMocks.getTableBoard).toHaveBeenCalledWith({
+      from: '2026-04-07T09:00:00Z',
+      to: '2026-04-07T13:00:00Z',
+      include_holds: true,
+      group_by: 'zone',
+    }));
+    expect(apiMocks.listReservations).toHaveBeenCalledWith({
+      bucket: 'all',
+      q: undefined,
+      per_page: 8,
+      sort: '-start_time',
+      include_financials: false,
+    });
+
     const suggestion = (await screen.findAllByText('RES-77'))[0];
     fireEvent.click(suggestion.closest('button') as HTMLButtonElement);
 
-    await waitFor(() => expect(apiMocks.loadRefundPreview).toHaveBeenCalledWith(77, expect.any(Object)));
+    await waitFor(() => expect(apiMocks.getRefundPreview).toHaveBeenCalledWith(77, expect.any(Object)));
   });
 
   it('executes refund-only with the row_version from refund preview', async () => {
@@ -42,7 +56,7 @@ describe('RefundsPage', () => {
     fireEvent.change(screen.getByLabelText('Reservation ID'), { target: { value: '77' } });
     fireEvent.click(screen.getByRole('button', { name: 'Refund preview' }));
 
-    await waitFor(() => expect(apiMocks.loadRefundPreview).toHaveBeenCalledWith(77, expect.any(Object)));
+    await waitFor(() => expect(apiMocks.getRefundPreview).toHaveBeenCalledWith(77, expect.any(Object)));
 
     fireEvent.click(screen.getByRole('button', { name: 'Refund only' }));
 
@@ -58,7 +72,7 @@ describe('RefundsPage', () => {
 
   it('keeps manual refund path visible when reservation lookup is forbidden', async () => {
     arrangeRefundFixtures();
-    apiMocks.loadStaffReservations.mockRejectedValueOnce(buildApiError(403, {
+    apiMocks.listReservations.mockRejectedValueOnce(buildCoreApiError(403, {
       error_code: 'forbidden',
       required_capability: 'reservation.manage',
       message: 'Forbidden.',
@@ -76,13 +90,13 @@ describe('RefundsPage', () => {
 
     renderWithSession(<RefundsPage />, createSessionContext());
 
-    await waitFor(() => expect(apiMocks.loadTableBoard).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(apiMocks.loadStaffReservations).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.getTableBoard).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.listReservations).toHaveBeenCalledTimes(1));
 
     fireEvent.change(screen.getByLabelText('Reservation search'), { target: { value: 'RES-7' } });
 
-    expect(apiMocks.loadTableBoard).toHaveBeenCalledTimes(1);
-    expect(apiMocks.loadStaffReservations).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getTableBoard).toHaveBeenCalledTimes(1);
+    expect(apiMocks.listReservations).toHaveBeenCalledTimes(1);
   });
 
   it('requires preview refresh when refund inputs drift after preview', async () => {
@@ -94,7 +108,7 @@ describe('RefundsPage', () => {
     fireEvent.change(screen.getByLabelText('Reservation ID'), { target: { value: '77' } });
     fireEvent.click(screen.getByRole('button', { name: 'Refund preview' }));
 
-    await waitFor(() => expect(apiMocks.loadRefundPreview).toHaveBeenCalledWith(77, expect.any(Object)));
+    await waitFor(() => expect(apiMocks.getRefundPreview).toHaveBeenCalledWith(77, expect.any(Object)));
 
     fireEvent.change(screen.getByLabelText('Refund scope'), { target: { value: 'deposit' } });
 
@@ -104,8 +118,8 @@ describe('RefundsPage', () => {
 });
 
 function arrangeRefundFixtures(overrides: { board?: Record<string, unknown> } = {}) {
-  apiMocks.loadTableBoard.mockResolvedValue(overrides.board ?? { data: [] });
-  apiMocks.loadStaffReservations.mockResolvedValue({
+  apiMocks.getTableBoard.mockResolvedValue(overrides.board ?? { data: [] });
+  apiMocks.listReservations.mockResolvedValue({
     data: [
       {
         reservation_id: 77,
@@ -155,7 +169,7 @@ function arrangeRefundFixtures(overrides: { board?: Record<string, unknown> } = 
       },
     ],
   });
-  apiMocks.loadRefundPreview.mockResolvedValue({
+  apiMocks.getRefundPreview.mockResolvedValue({
     data: {
       reservation: {
         reservation_id: 77,
@@ -180,6 +194,10 @@ function arrangeRefundFixtures(overrides: { board?: Record<string, unknown> } = 
   });
   apiMocks.refundReservation.mockResolvedValue({ data: { reservation_id: 77 } });
   apiMocks.refundAndCancelReservation.mockResolvedValue({ data: { reservation_id: 77 } });
+}
+
+function buildCoreApiError<T>(status: number, payload: T, message = 'API request failed') {
+  return new RestaurantPosApiError(message, status, payload);
 }
 
 function createSessionContext(): StaffSessionContextValue {

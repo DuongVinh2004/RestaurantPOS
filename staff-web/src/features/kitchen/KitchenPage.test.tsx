@@ -2,21 +2,21 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { KitchenPage } from './KitchenPage';
 import { renderWithSession } from '../../test/render';
-import { buildApiError, buildStaffSession } from '../../test/fixtures';
+import { buildStaffSession } from '../../test/fixtures';
+import { RestaurantPosApiError } from '../../core/api/sdk';
 import type { StaffSessionContextValue } from '../../app/session-context';
 
 const apiMocks = vi.hoisted(() => ({
-  loadKitchenStations: vi.fn(),
-  loadKitchenStationTickets: vi.fn(),
-  loadKitchenChanges: vi.fn(),
+  listKitchenStations: vi.fn(),
+  getKitchenStationTickets: vi.fn(),
+  getKitchenChanges: vi.fn(),
   dispatchKitchenOrder: vi.fn(),
   fireKitchenTicket: vi.fn(),
   bumpKitchenTicket: vi.fn(),
   recallKitchenTicket: vi.fn(),
-  isUnauthorized: vi.fn(() => false),
 }));
 
-vi.mock('../../api/client', () => apiMocks);
+vi.mock('../../core/api/staff-api', () => apiMocks);
 
 describe('KitchenPage', () => {
   beforeEach(() => {
@@ -34,9 +34,9 @@ describe('KitchenPage', () => {
       },
     );
 
-    await waitFor(() => expect(apiMocks.loadKitchenStations).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.listKitchenStations).toHaveBeenCalledTimes(1));
     await waitFor(() =>
-      expect(apiMocks.loadKitchenStationTickets).toHaveBeenCalledWith(31, {
+      expect(apiMocks.getKitchenStationTickets).toHaveBeenCalledWith(31, {
         status: undefined,
         include_terminal: false,
       }),
@@ -59,7 +59,7 @@ describe('KitchenPage', () => {
       },
     );
 
-    await waitFor(() => expect(apiMocks.loadKitchenStationTickets).toHaveBeenCalled());
+    await waitFor(() => expect(apiMocks.getKitchenStationTickets).toHaveBeenCalled());
     fireEvent.click(screen.getByRole('button', { name: 'Dispatch order' }));
 
     await waitFor(() =>
@@ -67,7 +67,7 @@ describe('KitchenPage', () => {
         row_version: 14,
       }),
     );
-    await waitFor(() => expect(apiMocks.loadKitchenStations.mock.calls.length).toBeGreaterThanOrEqual(2));
+    await waitFor(() => expect(apiMocks.listKitchenStations.mock.calls.length).toBeGreaterThanOrEqual(2));
     expect(screen.getByText(/Da dispatch order #9001 vao kitchen/i)).toBeInTheDocument();
   });
 
@@ -86,7 +86,7 @@ describe('KitchenPage', () => {
 
   it('surfaces feature-flag blocks and reloads stale ticket state after transition drift', async () => {
     arrangeKitchenFixtures();
-    apiMocks.fireKitchenTicket.mockRejectedValueOnce(buildApiError(422, {
+    apiMocks.fireKitchenTicket.mockRejectedValueOnce(buildCoreApiError(422, {
       message: 'Validation error.',
       errors: {
         ticket_id: ['Only queued kitchen tickets can be fired.'],
@@ -98,10 +98,10 @@ describe('KitchenPage', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Fire ticket' })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'Fire ticket' }));
 
-    await waitFor(() => expect(apiMocks.loadKitchenStationTickets).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(apiMocks.getKitchenStationTickets).toHaveBeenCalledTimes(2));
     expect(screen.getByText(/Kitchen state da doi tren backend/i)).toBeInTheDocument();
 
-    apiMocks.dispatchKitchenOrder.mockRejectedValueOnce(buildApiError(422, {
+    apiMocks.dispatchKitchenOrder.mockRejectedValueOnce(buildCoreApiError(422, {
       message: 'Validation error.',
       errors: {
         feature_flag: ['staff.kitchen_dispatch is disabled for this branch.'],
@@ -117,9 +117,9 @@ describe('KitchenPage', () => {
 });
 
 function arrangeKitchenFixtures() {
-  apiMocks.loadKitchenStations.mockResolvedValue(createStationCollection());
-  apiMocks.loadKitchenStationTickets.mockResolvedValue(createTicketCollection());
-  apiMocks.loadKitchenChanges.mockResolvedValue({
+  apiMocks.listKitchenStations.mockResolvedValue(createStationCollection());
+  apiMocks.getKitchenStationTickets.mockResolvedValue(createTicketCollection());
+  apiMocks.getKitchenChanges.mockResolvedValue({
     data: {
       enabled: true,
       topic: 'kitchen',
@@ -137,6 +137,10 @@ function arrangeKitchenFixtures() {
   apiMocks.fireKitchenTicket.mockResolvedValue({ data: createTicket({ ticket_status: 'Fired' }), meta: { action: 'kitchen_ticket_fired' } });
   apiMocks.bumpKitchenTicket.mockResolvedValue({ data: createTicket({ ticket_status: 'Ready' }), meta: { action: 'kitchen_ticket_bumped' } });
   apiMocks.recallKitchenTicket.mockResolvedValue({ data: createTicket({ ticket_status: 'Fired', recall_count: 1 }), meta: { action: 'kitchen_ticket_recalled' } });
+}
+
+function buildCoreApiError<T>(status: number, payload: T, message = 'API request failed') {
+  return new RestaurantPosApiError(message, status, payload);
 }
 
 function createStationCollection() {

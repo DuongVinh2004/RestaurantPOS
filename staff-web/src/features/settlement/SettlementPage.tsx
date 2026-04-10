@@ -2,21 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { CreditCard, FileSpreadsheet, ReceiptText, Search } from 'lucide-react';
 import {
-  boardWindow,
+  buildBoardWindow as boardWindow,
   createBillSnapshot,
   finalizeSettlement,
-  isUnauthorized,
-  loadOrderDetail,
-  loadReservationOrders,
-  loadSettlementPreview,
-  loadStaffReservations,
-  loadTableBoard,
-  type StaffBoardWindow,
-} from '../../api/client';
+  getOrderDetail as loadOrderDetail,
+  listReservationOrders as loadReservationOrders,
+  getSettlementPreview as loadSettlementPreview,
+  listReservations as loadStaffReservations,
+  getTableBoard as loadTableBoard,
+} from '../../core/api/staff-api';
+import { isApiStatus, normalizeApiError } from '../../core/api/errors';
 import { useStaffSession } from '../../app/session-context';
 import { hasCapability } from '../../lib/capabilities';
 import { isRowVersionConflict, rowVersionConflictMessage } from '../../lib/conflicts';
-import { normalizeApiError } from '../../lib/api-errors';
 import { formatFinanceOperatorError } from '../../lib/financeErrors';
 import { formatDateTime, formatMoney, humanizeCode } from '../../lib/format';
 import { readOperatorJourneyContext } from '../../lib/operatorJourney';
@@ -31,6 +29,7 @@ import type {
 import { ActionButton, Banner, EmptyState, MetricCard, Panel, StatusPill } from '../../components/ui';
 
 const paymentOptions = ['Cash', 'Card', 'BankTransfer', 'Other'] as const;
+type StaffBoardWindow = ReturnType<typeof boardWindow>;
 
 export function SettlementPage() {
   const [searchParams] = useSearchParams();
@@ -103,7 +102,7 @@ export function SettlementPage() {
 
   const handleError = useCallback(
     (cause: unknown, fallback: string) => {
-      if (isUnauthorized(cause)) {
+      if (isApiStatus(cause, 401)) {
         expire('Phien staff da het han. Dang nhap lai de tiep tuc.');
         return;
       }
@@ -130,7 +129,11 @@ export function SettlementPage() {
     setBusyKey('refresh-board');
 
     try {
-      const nextBoard = await loadTableBoard(window);
+      const nextBoard = await loadTableBoard({
+        ...window,
+        include_holds: true,
+        group_by: 'zone',
+      });
 
       setBoard(nextBoard);
       setSelectedTableId((currentSelectedTableId) => {

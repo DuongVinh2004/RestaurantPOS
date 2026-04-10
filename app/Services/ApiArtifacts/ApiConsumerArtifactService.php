@@ -274,7 +274,7 @@ class ApiConsumerArtifactService
         return [
             'info' => [
                 'name' => 'RestaurantPOS API Consumer Collection',
-                '_postman_id' => (string) Str::uuid(),
+                '_postman_id' => $this->deterministicPostmanUuid('collection:restaurantpos-api-consumer'),
                 'description' => 'Generated from the frozen OpenAPI artifact. Use the TypeScript SDK for curated priority routes, use the Reference folder or frozen OpenAPI for other full-contract routes, and do not treat controllers/resources as the consumer contract. Regenerate with composer api:artifacts or use php artisan booking:release-build for the full release chain.',
                 'schema' => 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
             ],
@@ -355,6 +355,7 @@ class ApiConsumerArtifactService
         $operation = (array) ($entry['operation'] ?? []);
         $path = (string) ($entry['path'] ?? '');
         $authMode = (string) ($operation['x-auth-mode'] ?? 'public');
+        $supportsCustomerSession = $this->operationUsesCustomerSession($operation);
 
         if ($this->operationHasJsonBody($operation)) {
             $headers[] = [
@@ -366,14 +367,21 @@ class ApiConsumerArtifactService
 
         if ($authMode === 'customer_access_token') {
             $headers[] = $this->enabledHeader('X-Customer-Token', '{{customerToken}}');
+            if ($supportsCustomerSession) {
+                $headers[] = $this->enabledHeader('X-Session-Id', '{{customerSessionId}}');
+            }
         } elseif ($authMode === 'customer_or_session') {
             $headers[] = $this->enabledHeader('X-Customer-Token', '{{customerToken}}');
-            $headers[] = $this->disabledHeader('X-Session-Id', '{{customerSessionId}}');
+            $headers[] = $supportsCustomerSession
+                ? $this->enabledHeader('X-Session-Id', '{{customerSessionId}}')
+                : $this->disabledHeader('X-Session-Id', '{{customerSessionId}}');
         } elseif ($authMode === 'staff_api_key') {
             $headers[] = $this->enabledHeader('X-Staff-Key', str_starts_with($path, '/api/v1/admin/') ? '{{adminApiKey}}' : '{{staffApiKey}}');
         } elseif ($authMode === 'customer_or_staff') {
             $headers[] = $this->enabledHeader('X-Customer-Token', '{{customerToken}}');
-            $headers[] = $this->disabledHeader('X-Session-Id', '{{customerSessionId}}');
+            $headers[] = $supportsCustomerSession
+                ? $this->enabledHeader('X-Session-Id', '{{customerSessionId}}')
+                : $this->disabledHeader('X-Session-Id', '{{customerSessionId}}');
             $headers[] = $this->disabledHeader('X-Staff-Key', '{{staffApiKey}}');
         }
 
@@ -802,7 +810,7 @@ class ApiConsumerArtifactService
             : Str::headline($environmentName);
 
         return [
-            'id' => (string) Str::uuid(),
+            'id' => $this->deterministicPostmanUuid('environment:'.$environmentName),
             'name' => sprintf('RestaurantPOS %s', $displayName),
             'values' => collect($variables)
                 ->map(fn (mixed $value, string $key): array => [
@@ -814,9 +822,24 @@ class ApiConsumerArtifactService
                 ->values()
                 ->all(),
             '_postman_variable_scope' => 'environment',
-            '_postman_exported_at' => now('UTC')->toIso8601String(),
             '_postman_exported_using' => sprintf('RestaurantPOS API artifact generator (%s)', $specRelativePath),
         ];
+    }
+
+    private function deterministicPostmanUuid(string $seed): string
+    {
+        $hex = substr(hash('sha256', $seed), 0, 32);
+        $timeHigh = str_pad(dechex((hexdec(substr($hex, 12, 4)) & 0x0FFF) | 0x5000), 4, '0', STR_PAD_LEFT);
+        $clockSeq = str_pad(dechex((hexdec(substr($hex, 16, 4)) & 0x3FFF) | 0x8000), 4, '0', STR_PAD_LEFT);
+
+        return sprintf(
+            '%s-%s-%s-%s-%s',
+            substr($hex, 0, 8),
+            substr($hex, 8, 4),
+            $timeHigh,
+            $clockSeq,
+            substr($hex, 20, 12),
+        );
     }
 
     /**
@@ -1012,6 +1035,7 @@ class ApiConsumerArtifactService
                 'method' => $method,
                 'path' => $path,
                 'auth_mode' => (string) ($operation['x-auth-mode'] ?? 'public'),
+                'supports_customer_session' => $this->operationUsesCustomerSession($operation),
                 'requires_idempotency' => $this->operationRequiresIdempotency($operation),
                 'path_type' => $pathTypeName,
                 'query_type' => $queryTypeName,
@@ -1072,7 +1096,19 @@ export class RestaurantPosClient {
   private readonly fetchImpl: typeof fetch;
 
   constructor(private readonly options: RestaurantPosClientOptions) {
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    if (typeof options.fetchImpl === 'function') {
+      const providedFetch = options.fetchImpl;
+      this.fetchImpl = providedFetch === globalThis.fetch
+        ? globalThis.fetch.bind(globalThis)
+        : ((input, init) => providedFetch(input, init)) as typeof fetch;
+      return;
+    }
+
+    if (typeof globalThis.fetch !== 'function') {
+      throw new Error('RestaurantPosClient requires a fetch implementation.');
+    }
+
+    this.fetchImpl = globalThis.fetch.bind(globalThis);
   }
 
 {$methodSection}
@@ -1081,6 +1117,7 @@ export class RestaurantPosClient {
     method: string,
     path: string,
     authMode: AuthMode,
+    routeSupportsCustomerSession: boolean,
     requiresIdempotency: boolean,
     query?: Record<string, unknown>,
     body?: unknown,
@@ -1105,7 +1142,7 @@ export class RestaurantPosClient {
       headers.set('Content-Type', 'application/json');
     }
 
-    this.applyAuthHeaders(headers, authMode, options.authMode ?? 'auto');
+    this.applyAuthHeaders(headers, authMode, options.authMode ?? 'auto', routeSupportsCustomerSession);
 
     if (requiresIdempotency && options.idempotencyKey) {
       headers.set('Idempotency-Key', options.idempotencyKey);
@@ -1142,7 +1179,12 @@ export class RestaurantPosClient {
     return template.replace(/\{([^}]+)\}/g, (_, key) => encodeURIComponent(String(values[key])));
   }
 
-  private applyAuthHeaders(headers: Headers, routeAuthMode: AuthMode, requestedAuthMode: AuthMode): void {
+  private applyAuthHeaders(
+    headers: Headers,
+    routeAuthMode: AuthMode,
+    requestedAuthMode: AuthMode,
+    routeSupportsCustomerSession: boolean,
+  ): void {
     if (routeAuthMode === 'none' || requestedAuthMode === 'none') {
       return;
     }
@@ -1155,18 +1197,18 @@ export class RestaurantPosClient {
 
     if (selectedMode === 'customerOrSession') {
       if (customerToken) {
-        headers.set('X-Customer-Token', customerToken);
+        this.applyCustomerHeaders(headers, customerToken, customerSessionId, routeSupportsCustomerSession);
         return;
       }
 
-      if (customerSessionId) {
+      if (routeSupportsCustomerSession && customerSessionId) {
         headers.set('X-Session-Id', customerSessionId);
       }
       return;
     }
 
     if (selectedMode === 'customer' && customerToken) {
-      headers.set('X-Customer-Token', customerToken);
+      this.applyCustomerHeaders(headers, customerToken, customerSessionId, routeSupportsCustomerSession);
       return;
     }
 
@@ -1175,23 +1217,36 @@ export class RestaurantPosClient {
       return;
     }
 
-    if (selectedMode === 'session' && customerSessionId) {
+    if (selectedMode === 'session' && routeSupportsCustomerSession && customerSessionId) {
       headers.set('X-Session-Id', customerSessionId);
       return;
     }
 
     if (selectedMode === 'auto') {
       if (customerToken) {
-        headers.set('X-Customer-Token', customerToken);
+        this.applyCustomerHeaders(headers, customerToken, customerSessionId, routeSupportsCustomerSession);
         return;
       }
-      if (customerSessionId) {
+      if (routeSupportsCustomerSession && customerSessionId) {
         headers.set('X-Session-Id', customerSessionId);
         return;
       }
       if (staffApiKey) {
         headers.set('X-Staff-Key', staffApiKey);
       }
+    }
+  }
+
+  private applyCustomerHeaders(
+    headers: Headers,
+    customerToken: string,
+    customerSessionId: string | undefined,
+    routeSupportsCustomerSession: boolean,
+  ): void {
+    headers.set('X-Customer-Token', customerToken);
+
+    if (routeSupportsCustomerSession && customerSessionId) {
+      headers.set('X-Session-Id', customerSessionId);
     }
   }
 
@@ -1460,7 +1515,7 @@ TS;
         $bodyExpression = is_string($definition['body_type']) ? 'body' : 'undefined';
 
         return sprintf(
-            "  async %s(%s): Promise<%s> {\n    return this.request<%s>(\n      '%s',\n      %s,\n      '%s',\n      %s,\n      %s,\n      %s,\n      options,\n    );\n  }",
+            "  async %s(%s): Promise<%s> {\n    return this.request<%s>(\n      '%s',\n      %s,\n      '%s',\n      %s,\n      %s,\n      %s,\n      %s,\n      options,\n    );\n  }",
             $definition['method_name'],
             implode(', ', $args),
             $definition['response_type'],
@@ -1468,6 +1523,7 @@ TS;
             $definition['method'],
             $pathInterpolation,
             $this->sdkAuthMode((string) $definition['auth_mode']),
+            ($definition['supports_customer_session'] ?? false) ? 'true' : 'false',
             $definition['requires_idempotency'] ? 'true' : 'false',
             $queryExpression,
             $bodyExpression,
@@ -1497,6 +1553,15 @@ TS;
         }
 
         return false;
+    }
+
+    /**
+     * @param  array<string,mixed>  $operation
+     */
+    private function operationUsesCustomerSession(array $operation): bool
+    {
+        return $this->operationSupportsSessionHeader($operation)
+            || $this->collectNamedFields($operation, static fn (string $name): bool => $name === 'session_id') !== [];
     }
 
     /**
@@ -1910,6 +1975,7 @@ import { RestaurantPosClient } from './restaurantpos-sdk';
 const client = new RestaurantPosClient({
   baseUrl: 'http://127.0.0.1:8000',
   customerToken: () => localStorage.getItem('customerToken') ?? undefined,
+  customerSessionId: () => sessionStorage.getItem('customerSessionId') ?? undefined,
   staffApiKey: () => localStorage.getItem('staffApiKey') ?? undefined,
 });
 
@@ -1922,6 +1988,7 @@ const login = await client.postV1AuthCustomerLogin({
 
 Limitations:
 
+- On curated customer routes whose mutation contract requires session propagation, the generated client keeps `X-Customer-Token` and `X-Session-Id` together when both are configured.
 - The SDK is intentionally scoped to the curated priority batch, not every full-contract or fallback endpoint.
 - Enum/state exports are generated separately in `restaurantpos-enums.ts` and `enum-state-map.json` so FE can consume stable state values without inferring them from incidental payload strings.
 - Response typing follows the frozen OpenAPI artifact. Routes still below contract-grade remain outside the official SDK batch and can stay coarse in the spec.

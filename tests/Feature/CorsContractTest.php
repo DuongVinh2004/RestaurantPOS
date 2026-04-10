@@ -14,7 +14,11 @@ class CorsContractTest extends TestCase
 {
     private const CUSTOMER_ALLOWED_ORIGIN = 'http://localhost:3000';
 
+    private const CUSTOMER_LOOPBACK_ALLOWED_ORIGIN = 'http://127.0.0.1:3000';
+
     private const STAFF_ALLOWED_ORIGIN = 'http://localhost:5173';
+
+    private const STAFF_LOOPBACK_ALLOWED_ORIGIN = 'http://127.0.0.1:5173';
 
     protected function setUp(): void
     {
@@ -23,7 +27,9 @@ class CorsContractTest extends TestCase
         // Mirror the split frontend architecture the repo supports officially.
         config(['cors.allowed_origins' => [
             self::CUSTOMER_ALLOWED_ORIGIN,
+            self::CUSTOMER_LOOPBACK_ALLOWED_ORIGIN,
             self::STAFF_ALLOWED_ORIGIN,
+            self::STAFF_LOOPBACK_ALLOWED_ORIGIN,
         ]]);
     }
 
@@ -37,6 +43,17 @@ class CorsContractTest extends TestCase
         ]);
 
         $response->assertHeader('Access-Control-Allow-Origin', self::CUSTOMER_ALLOWED_ORIGIN);
+    }
+
+    public function test_preflight_returns_allowed_origin_for_loopback_staff_dev_server(): void
+    {
+        $response = $this->options('/api/v1/auth/staff/login', [], [
+            'HTTP_ORIGIN' => self::STAFF_LOOPBACK_ALLOWED_ORIGIN,
+            'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'POST',
+            'HTTP_ACCESS_CONTROL_REQUEST_HEADERS' => 'Content-Type',
+        ]);
+
+        $response->assertHeader('Access-Control-Allow-Origin', self::STAFF_LOOPBACK_ALLOWED_ORIGIN);
     }
 
     public function test_preflight_allows_custom_headers(): void

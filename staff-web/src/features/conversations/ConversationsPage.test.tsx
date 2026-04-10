@@ -6,15 +6,14 @@ import { StaffSessionContext, type StaffSessionContextValue } from '../../app/se
 import { buildApiError, buildStaffSession } from '../../test/fixtures';
 
 const apiMocks = vi.hoisted(() => ({
-  loadConversations: vi.fn(),
-  loadConversationDetail: vi.fn(),
+  listConversations: vi.fn(),
+  getConversationDetail: vi.fn(),
   takeOverConversation: vi.fn(),
   addConversationInternalNote: vi.fn(),
   sendConversationOutboundReply: vi.fn(),
-  isUnauthorized: vi.fn(() => false),
 }));
 
-vi.mock('../../api/client', () => apiMocks);
+vi.mock('../../core/api/staff-api', () => apiMocks);
 
 describe('ConversationsPage', () => {
   beforeEach(() => {
@@ -40,7 +39,11 @@ describe('ConversationsPage', () => {
 
     renderWithConversationSession(createSessionContext());
 
-    await waitFor(() => expect(apiMocks.loadConversationDetail).toHaveBeenCalledWith('conv-1'));
+    await waitFor(() => expect(apiMocks.getConversationDetail).toHaveBeenCalledWith('conv-1', {
+      message_limit: 20,
+      event_limit: 12,
+      include_closed_assignments: false,
+    }));
     expect(screen.getByText('Reply locked')).toBeInTheDocument();
     expect(screen.getByText(/Assigned To Other Staff/i)).toBeInTheDocument();
     expect(screen.getByText(/AI disabled/i)).toBeInTheDocument();
@@ -65,7 +68,7 @@ describe('ConversationsPage', () => {
 
     renderWithConversationSession(createSessionContext());
 
-    await waitFor(() => expect(apiMocks.loadConversations).toHaveBeenCalledWith({ per_page: 16 }));
+    await waitFor(() => expect(apiMocks.listConversations).toHaveBeenCalledWith({ per_page: 16 }));
 
     fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'Pending' } });
     fireEvent.change(screen.getByLabelText('Assignment'), { target: { value: 'mine' } });
@@ -73,7 +76,7 @@ describe('ConversationsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
 
     await waitFor(() =>
-      expect(apiMocks.loadConversations).toHaveBeenLastCalledWith({
+      expect(apiMocks.listConversations).toHaveBeenLastCalledWith({
         per_page: 16,
         status: 'Pending',
         assignment_state: 'mine',
@@ -90,9 +93,11 @@ describe('ConversationsPage', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Take over' })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'Take over' }));
 
-    await waitFor(() => expect(apiMocks.takeOverConversation).toHaveBeenCalledWith('conv-1'));
-    expect(apiMocks.loadConversations).toHaveBeenCalledTimes(2);
-    expect(apiMocks.loadConversationDetail).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(apiMocks.takeOverConversation).toHaveBeenCalledWith('conv-1', {
+      notes: 'Taken over from staff-web.',
+    }));
+    expect(apiMocks.listConversations).toHaveBeenCalledTimes(2);
+    expect(apiMocks.getConversationDetail).toHaveBeenCalledTimes(2);
   });
 
   it('surfaces idempotency-required note failures with the request id', async () => {
@@ -111,7 +116,7 @@ describe('ConversationsPage', () => {
     fireEvent.change(screen.getByLabelText('Internal note draft'), { target: { value: 'Need callback' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add note' }));
 
-    expect(await screen.findByText(/Idempotency-Key is required/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Thiếu khóa chống gửi lặp/i)).toBeInTheDocument();
     expect(screen.getByText(/req-note/i)).toBeInTheDocument();
   });
 
@@ -130,7 +135,7 @@ describe('ConversationsPage', () => {
         related_reservation_id: 77,
       }),
     );
-    expect(apiMocks.loadConversationDetail).toHaveBeenCalledTimes(2);
+    expect(apiMocks.getConversationDetail).toHaveBeenCalledTimes(2);
   });
 
   it('surfaces forbidden reply errors with capability and request context', async () => {
@@ -150,7 +155,7 @@ describe('ConversationsPage', () => {
     fireEvent.change(screen.getByLabelText('Outbound reply draft'), { target: { value: 'Reply from queue' } });
     fireEvent.click(screen.getByRole('button', { name: 'Queue reply' }));
 
-    expect(await screen.findByText(/Capability required: conversation.manage/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Quyền cần có: conversation.manage/i)).toBeInTheDocument();
     expect(screen.getByText(/req-conv-403/i)).toBeInTheDocument();
   });
 
@@ -168,15 +173,32 @@ describe('ConversationsPage', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Take over' })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'Take over' }));
 
-    await waitFor(() => expect(apiMocks.takeOverConversation).toHaveBeenCalledWith('conv-1'));
-    expect(apiMocks.loadConversations).toHaveBeenCalledTimes(2);
-    expect(apiMocks.loadConversationDetail).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(apiMocks.takeOverConversation).toHaveBeenCalledWith('conv-1', {
+      notes: 'Taken over from staff-web.',
+    }));
+    expect(apiMocks.listConversations).toHaveBeenCalledTimes(2);
+    expect(apiMocks.getConversationDetail).toHaveBeenCalledTimes(2);
+  });
+
+  it('expires the staff session when inbox bootstrap returns 401', async () => {
+    arrangeConversationFixtures();
+    const session = createSessionContext();
+    apiMocks.listConversations.mockRejectedValueOnce(buildApiError(401, {
+      error_code: 'unauthorized',
+      message: 'Unauthorized.',
+    }));
+
+    renderWithConversationSession(session);
+
+    await waitFor(() =>
+      expect(session.expire).toHaveBeenCalledWith('Phien staff da het han. Dang nhap lai de tiep tuc.'),
+    );
   });
 });
 
 function renderWithConversationSession(context: StaffSessionContextValue) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <StaffSessionContext.Provider value={context}>
         <ConversationsPage />
       </StaffSessionContext.Provider>
@@ -185,8 +207,8 @@ function renderWithConversationSession(context: StaffSessionContextValue) {
 }
 
 function arrangeConversationFixtures(overrides: { detail?: ReturnType<typeof buildConversationDetail> } = {}) {
-  apiMocks.loadConversations.mockResolvedValue(buildConversationList());
-  apiMocks.loadConversationDetail.mockResolvedValue(overrides.detail ?? buildConversationDetail());
+  apiMocks.listConversations.mockResolvedValue(buildConversationList());
+  apiMocks.getConversationDetail.mockResolvedValue(overrides.detail ?? buildConversationDetail());
   apiMocks.takeOverConversation.mockResolvedValue(undefined);
   apiMocks.addConversationInternalNote.mockResolvedValue(undefined);
   apiMocks.sendConversationOutboundReply.mockResolvedValue(undefined);

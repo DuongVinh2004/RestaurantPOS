@@ -79,7 +79,7 @@ class LegacyPathCleanupEvidenceTest extends TestCase
         $this->assertMethodRequestType('cancel', RespondOwnerWaitingListRequest::class);
     }
 
-    public function test_legacy_customer_waiting_list_request_residue_has_been_removed(): void
+    public function test_legacy_waiting_list_and_staff_order_read_residue_has_been_removed(): void
     {
         $paths = [
             'app/Http/Requests/WaitingList/AcceptCustomerWaitingListInviteRequest.php',
@@ -90,10 +90,13 @@ class LegacyPathCleanupEvidenceTest extends TestCase
             'app/Http/Requests/WaitingList/MutateCustomerWaitingListInviteRequest.php',
             'app/Http/Requests/WaitingList/StoreCustomerWaitingListRequest.php',
             'app/Http/Requests/WaitingList/Concerns/AuthorizesCustomerWaitingListSelfService.php',
+            'app/Services/WaitingList/CustomerWaitingListSelfService.php',
+            'app/Services/StaffOrderReadController.php',
+            'app/Services/Staff/StaffOrderReadController.php',
         ];
 
         foreach ($paths as $path) {
-            self::assertFileDoesNotExist(base_path($path), sprintf('Legacy waiting-list residue should be removed: %s', $path));
+            self::assertFileDoesNotExist(base_path($path), sprintf('Legacy runtime residue should be removed: %s', $path));
         }
     }
 

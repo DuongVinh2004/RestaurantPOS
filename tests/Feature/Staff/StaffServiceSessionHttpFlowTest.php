@@ -256,6 +256,44 @@ class StaffServiceSessionHttpFlowTest extends TestCase
             ->assertJsonValidationErrors(['guest_name', 'table_ids', 'guest_count']);
     }
 
+    public function test_walk_in_create_rejects_existing_non_customer_user_binding(): void
+    {
+        $actorStaffId = $this->createUser(['role_name' => 'Staff']);
+        $targetStaffId = $this->createUser([
+            'role_name' => 'Staff',
+            'full_name' => 'Not A Customer',
+            'email' => 'walkin.staff.target@example.test',
+        ]);
+        $branchId = $this->createBranch([
+            'branch_code' => 'WALKIN-H',
+            'branch_name' => 'Identity Guard Branch',
+        ]);
+        $tableId = $this->createRestaurantTableWithSeats(4, [
+            'branch_id' => $branchId,
+            'status' => 'Available',
+        ]);
+
+        $response = $this->withHeaders($this->withIdempotencyKey(
+            $this->staffAuthHeaders($actorStaffId, 'staff-service-session-customer-guard'),
+            'staff-service-session-customer-guard-1'
+        ))->postJson('/api/v1/staff/service-sessions/walk-in', [
+            'branch_id' => $branchId,
+            'user_id' => $targetStaffId,
+            'table_ids' => [$tableId],
+            'guest_count' => 2,
+            'started_at' => $this->nowUtc()->copy()->addMinutes(30)->toIso8601String(),
+            'service_minutes' => 60,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonValidationErrors(['user_id']);
+
+        self::assertSame(0, (int) DB::table('reservations')->where('source', 'WalkIn')->count());
+        self::assertSame('Available', (string) DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
+        self::assertSame(0, (int) DB::table('notification_outbox')->count());
+    }
+
     public function test_walk_in_create_replays_idempotently_without_duplicate_reservations(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);

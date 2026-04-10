@@ -49,6 +49,7 @@ use App\Http\Controllers\Api\Admin\AdminRestaurantTableController;
 use App\Http\Controllers\Api\Admin\AdminRestaurantZoneController;
 use App\Http\Controllers\Api\Admin\AdminVoucherController;
 use App\Http\Controllers\Api\Staff\StaffCashierShiftController;
+use App\Http\Controllers\Api\Staff\StaffBranchContextController;
 use App\Http\Controllers\Api\Staff\StaffConversationInboxController;
 use App\Http\Controllers\Api\Staff\StaffAuditTrailController;
 use App\Http\Controllers\Api\Staff\StaffFinanceInvoiceController;
@@ -63,6 +64,7 @@ use App\Http\Controllers\Api\Staff\StaffReservationDepositController;
 use App\Http\Controllers\Api\Staff\StaffReservationInboxController;
 use App\Http\Controllers\Api\Staff\StaffReservationTimelineController;
 use App\Http\Controllers\Api\Staff\StaffReservationTimelineWorkbenchController;
+use App\Http\Controllers\Api\Staff\StaffMenuCatalogController;
 use App\Http\Middleware\MetricsRequestMiddleware;
 use App\Http\Middleware\CustomerOrStaffMiddleware;
 use App\Http\Middleware\ResolveCustomerAuthMiddleware;
@@ -92,6 +94,9 @@ use App\Http\Middleware\StaffApiKeyMiddleware;
                             config('booking.throttle_staff_window', 60) . ',either',
                     ])
                     ->group(function () {
+                        Route::get('branches', [StaffBranchContextController::class, 'index']);
+                        Route::get('menu/items', [StaffMenuCatalogController::class, 'index'])
+                            ->middleware('staff.capability:order.manage');
                         Route::get('tables/board', [StaffTableBoardController::class, 'index'])->middleware('staff.capability:table.board.view');
                         Route::get('table-board', [StaffTableBoardController::class, 'legacyIndex'])->middleware('staff.capability:table.board.view');
                         Route::get('tables/{table_id}/active-service-session', [StaffServiceSessionController::class, 'showActiveByTable'])
@@ -251,6 +256,9 @@ use App\Http\Middleware\StaffApiKeyMiddleware;
 
                         Route::get('reservations', [StaffReservationInboxController::class, 'index'])
                             ->middleware('staff.capability:reservation.manage');
+                        Route::get('reservations/{reservation_id}', [StaffReservationInboxController::class, 'show'])
+                            ->whereNumber('reservation_id')
+                            ->middleware('staff.capability:reservation.manage');
                         Route::get('reservations/{reservation_id}/orders', [StaffTableOrderController::class, 'indexByReservation'])
                             ->whereNumber('reservation_id')
                             ->middleware('staff.capability:order.manage');
@@ -292,17 +300,17 @@ use App\Http\Middleware\StaffApiKeyMiddleware;
                             ->middleware(['staff.capability:settlement.manage', 'idempotency:staff.reservation-deposit-pay']);
 
                         Route::get('cashier/shifts', [StaffCashierShiftController::class, 'index'])
-                            ->middleware('staff.capability:settlement.manage');
+                            ->middleware('staff.capability:cashier.shift.manage');
                         Route::get('cashier/shifts/current', [StaffCashierShiftController::class, 'current'])
-                            ->middleware('staff.capability:settlement.manage');
+                            ->middleware('staff.capability:cashier.shift.manage');
                         Route::post('cashier/shifts/open', [StaffCashierShiftController::class, 'open'])
-                            ->middleware(['staff.capability:settlement.manage', 'idempotency:staff.cashier-shift.open']);
+                            ->middleware(['staff.capability:cashier.shift.manage', 'idempotency:staff.cashier-shift.open']);
                         Route::get('cashier/shifts/{shift_id}', [StaffCashierShiftController::class, 'show'])
                             ->whereNumber('shift_id')
-                            ->middleware('staff.capability:settlement.manage');
+                            ->middleware('staff.capability:cashier.shift.manage');
                         Route::post('cashier/shifts/{shift_id}/close', [StaffCashierShiftController::class, 'close'])
                             ->whereNumber('shift_id')
-                            ->middleware(['staff.capability:settlement.manage', 'idempotency:staff.cashier-shift.close']);
+                            ->middleware(['staff.capability:cashier.shift.manage', 'idempotency:staff.cashier-shift.close']);
 
                         Route::get('finance/invoices/{reservation_id}', [StaffFinanceInvoiceController::class, 'show'])
                             ->whereNumber('reservation_id')
@@ -322,31 +330,31 @@ use App\Http\Middleware\StaffApiKeyMiddleware;
                         Route::get('audit-trail', [StaffAuditTrailController::class, 'index'])
                             ->middleware('staff.capability:audit.view');
                         Route::get('reporting/daily-sales', [StaffReportingController::class, 'dailySales'])
-                            ->middleware('staff.capability:settlement.manage');
+                            ->middleware('staff.capability:reporting.view');
                         Route::get('reporting/daily-operations', [StaffReportingController::class, 'dailyOperations'])
-                            ->middleware('staff.capability:settlement.manage');
+                            ->middleware('staff.capability:reporting.view');
                         Route::get('reporting/daily-inventory', [StaffReportingController::class, 'dailyInventory'])
-                            ->middleware('staff.capability:settlement.manage');
+                            ->middleware('staff.capability:reporting.view');
 
                         Route::get('kitchen/stations', [StaffKitchenController::class, 'stations'])
-                            ->middleware('staff.capability:order.manage');
+                            ->middleware('staff.capability:kitchen.manage');
                         Route::get('kitchen/stations/{station_id}/tickets', [StaffKitchenController::class, 'stationTickets'])
                             ->whereNumber('station_id')
-                            ->middleware('staff.capability:order.manage');
+                            ->middleware('staff.capability:kitchen.manage');
                         Route::post('orders/{order_id}/kitchen/dispatch', [StaffKitchenController::class, 'dispatchOrder'])
                             ->whereNumber('order_id')
                             ->middleware(['staff.capability:order.manage', 'idempotency:staff.kitchen.dispatch']);
                         Route::post('kitchen/tickets/{ticket_id}/fire', [StaffKitchenController::class, 'fire'])
                             ->whereNumber('ticket_id')
-                            ->middleware(['staff.capability:order.manage', 'idempotency:staff.kitchen.fire']);
+                            ->middleware(['staff.capability:kitchen.manage', 'idempotency:staff.kitchen.fire']);
                         Route::post('kitchen/tickets/{ticket_id}/bump', [StaffKitchenController::class, 'bump'])
                             ->whereNumber('ticket_id')
-                            ->middleware(['staff.capability:order.manage', 'idempotency:staff.kitchen.bump']);
+                            ->middleware(['staff.capability:kitchen.manage', 'idempotency:staff.kitchen.bump']);
                         Route::post('kitchen/tickets/{ticket_id}/recall', [StaffKitchenController::class, 'recall'])
                             ->whereNumber('ticket_id')
-                            ->middleware(['staff.capability:order.manage', 'idempotency:staff.kitchen.recall']);
+                            ->middleware(['staff.capability:kitchen.manage', 'idempotency:staff.kitchen.recall']);
                         Route::get('kitchen/changes', [StaffKitchenController::class, 'changes'])
-                            ->middleware('staff.capability:order.manage');
+                            ->middleware('staff.capability:kitchen.manage');
                         Route::patch('orders/{order_id}/items/{order_item_id}', [StaffOrderItemLifecycleController::class, 'update'])
                             ->whereNumber('order_id')
                             ->whereNumber('order_item_id')

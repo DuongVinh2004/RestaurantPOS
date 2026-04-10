@@ -3,14 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsPage } from './SettingsPage';
 import { renderWithSession } from '../../test/render';
 import { buildStaffSession } from '../../test/fixtures';
+import { RestaurantPosApiError } from '../../core/api/sdk';
 import type { StaffSessionContextValue } from '../../app/session-context';
 
 const apiMocks = vi.hoisted(() => ({
-  loadAdminBranches: vi.fn(),
-  isUnauthorized: vi.fn(() => false),
+  listAdminBranches: vi.fn(),
 }));
 
-vi.mock('../../api/client', () => apiMocks);
+vi.mock('../../core/api/staff-api', () => apiMocks);
 
 describe('SettingsPage', () => {
   beforeEach(() => {
@@ -38,7 +38,7 @@ describe('SettingsPage', () => {
     );
 
     await waitFor(() =>
-      expect(apiMocks.loadAdminBranches).toHaveBeenCalledWith({
+      expect(apiMocks.listAdminBranches).toHaveBeenCalledWith({
         q: undefined,
         is_active: true,
       }),
@@ -53,10 +53,25 @@ describe('SettingsPage', () => {
     expect(screen.getByText('90 phut')).toBeInTheDocument();
     expect(screen.getByText('Tat')).toBeInTheDocument();
   });
+
+  it('expires the staff session when branch settings bootstrap returns 401', async () => {
+    arrangeBranchFixtures();
+    const session = createSessionContext();
+    apiMocks.listAdminBranches.mockRejectedValueOnce(buildCoreApiError(401, {
+      error_code: 'unauthorized',
+      message: 'Unauthorized.',
+    }));
+
+    renderWithSession(<SettingsPage />, session);
+
+    await waitFor(() =>
+      expect(session.expire).toHaveBeenCalledWith('Phien staff da het han. Dang nhap lai de tiep tuc.'),
+    );
+  });
 });
 
 function arrangeBranchFixtures() {
-  apiMocks.loadAdminBranches.mockResolvedValue({
+  apiMocks.listAdminBranches.mockResolvedValue({
     data: [
       {
         branch_id: 1,
@@ -139,6 +154,10 @@ function arrangeBranchFixtures() {
       count: 2,
     },
   });
+}
+
+function buildCoreApiError<T>(status: number, payload: T, message = 'API request failed') {
+  return new RestaurantPosApiError(message, status, payload);
 }
 
 function createSessionContext(overrides: Partial<StaffSessionContextValue['session']> = {}): StaffSessionContextValue {

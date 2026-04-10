@@ -778,6 +778,10 @@ function asArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function asObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : null;
+}
+
 function readNumber(source, key) {
   const value = source?.[key];
 
@@ -842,11 +846,63 @@ function formatErrorDetails(error) {
 
   if (details?.status) {
     const requestId = readString(details.data, 'request_id');
+    const healthSummary = describeHealthFailurePayload(details.data);
+    if (healthSummary) {
+      return `${details.status}${requestId ? ` req=${requestId}` : ''} ${healthSummary}`;
+    }
+
     const message = readString(details.data, 'message') ?? JSON.stringify(details.data);
     return `${details.status}${requestId ? ` req=${requestId}` : ''} ${message}`;
   }
 
   return error instanceof Error ? error.message : String(error);
+}
+
+export function describeHealthFailurePayload(payload) {
+  const envelope = asObject(payload);
+  const checks = asObject(envelope?.checks);
+
+  if (!checks) {
+    return null;
+  }
+
+  const failingChecks = [];
+
+  const db = asObject(checks.db);
+  if (db?.ok === false) {
+    failingChecks.push(`db=${readString(db, 'reason') ?? 'db_unavailable'}`);
+  }
+
+  const redis = asObject(checks.redis);
+  if (redis?.ok === false) {
+    const reason = readString(redis, 'reason') ?? 'redis_unavailable';
+    const error = readString(redis, 'error');
+    failingChecks.push(`redis=${reason}${error ? ` (${error})` : ''}`);
+  } else if (redis?.ok !== true) {
+    const reason = readString(redis, 'reason');
+    if (reason) {
+      failingChecks.push(`redis=${reason}`);
+    }
+  }
+
+  const scheduler = asObject(checks.scheduler);
+  if (scheduler?.ok === false) {
+    const reason = readString(scheduler, 'reason') ?? 'scheduler_unavailable';
+    const age = readNumber(scheduler, 'age_seconds');
+    const staleThreshold = readNumber(scheduler, 'stale_threshold_seconds');
+    failingChecks.push(`scheduler=${reason}${age !== null ? ` age=${age}s` : ''}${staleThreshold !== null ? ` ttl=${staleThreshold}s` : ''}`);
+  }
+
+  const disk = asObject(checks.disk);
+  if (disk?.ok === false) {
+    failingChecks.push(`disk=${readString(disk, 'reason') ?? 'disk_probe_failed'}`);
+  }
+
+  if (failingChecks.length === 0) {
+    return null;
+  }
+
+  return `health=${readString(envelope, 'status') ?? 'fail'} ${failingChecks.join('; ')}`;
 }
 
 export function buildSmokeEvidence(activeConfig, smokeResults = results) {

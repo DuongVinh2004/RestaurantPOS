@@ -58,6 +58,10 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
         self::assertSame(3, (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('quantity'));
         self::assertSame('extra spicy', (string) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('notes'));
         self::assertSame($staffId, (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('updated_by'));
+        self::assertSame(
+            (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('row_version'),
+            (int) $response->json('data.items.0.row_version')
+        );
     }
 
     public function test_staff_can_move_item_from_ordered_to_in_progress_to_served(): void
@@ -77,6 +81,11 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             ->assertJsonPath('meta.status', 'InProgress')
             ->assertJsonPath('data.items.0.status', 'InProgress');
 
+        self::assertSame(
+            (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('row_version'),
+            (int) $first->json('data.items.0.row_version')
+        );
+
         $orderRowVersion = (int) $this->table('reservation_orders')->where('order_id', $orderId)->value('row_version');
         $itemRowVersion = (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('row_version');
 
@@ -93,6 +102,10 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             ->assertJsonPath('data.items.0.status', 'Served');
 
         self::assertSame('Served', (string) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('status'));
+        self::assertSame(
+            (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('row_version'),
+            (int) $second->json('data.items.0.row_version')
+        );
     }
 
     public function test_serving_item_consumes_inventory_once_from_recipe_lines(): void

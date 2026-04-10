@@ -133,9 +133,12 @@ final class ApiOpenApiContractCoverageTest extends TestCase
 
         $expectations = [
             'GET api/v1/auth/staff/me' => ['status' => '200', 'schema' => '#/components/schemas/StaffAuthSessionEnvelope'],
+            'GET api/v1/staff/branches' => ['status' => '200', 'schema' => '#/components/schemas/BranchCollectionEnvelope'],
+            'GET api/v1/staff/menu/items' => ['status' => '200', 'schema' => '#/components/schemas/CustomerMenuItemsCollectionEnvelope'],
             'GET api/v1/staff/tables/board' => ['status' => '200', 'schema' => '#/components/schemas/StaffTableBoardEnvelope'],
             'GET api/v1/staff/tables/board/changes' => ['status' => '200', 'schema' => '#/components/schemas/StaffOperationalRealtimeEnvelope'],
             'GET api/v1/staff/reservations' => ['status' => '200', 'schema' => '#/components/schemas/StaffReservationLookupCollectionEnvelope'],
+            'GET api/v1/staff/reservations/{reservation_id}' => ['status' => '200', 'schema' => '#/components/schemas/ReservationEnvelope'],
             'POST api/v1/staff/reservations/{id}/check-in' => ['status' => '200', 'schema' => '#/components/schemas/ReservationEnvelope'],
             'POST api/v1/staff/tables/{table_id}/orders' => ['status' => '201', 'schema' => '#/components/schemas/StaffReservationOrderEnvelope'],
             'POST api/v1/staff/orders/{order_id}/items' => ['status' => '200', 'schema' => '#/components/schemas/StaffReservationOrderEnvelope'],
@@ -269,6 +272,20 @@ final class ApiOpenApiContractCoverageTest extends TestCase
             '#/components/schemas/StaffOrderReadItemMenuItem',
             data_get($spec, 'components.schemas.StaffOrderReadPayload.properties.items.items.properties.item.$ref')
                 ?? data_get($spec, 'components.schemas.StaffOrderReadPayload.properties.items.items.properties.item.anyOf.0.$ref')
+        );
+        $this->assertSame(
+            'integer',
+            data_get($spec, 'components.schemas.StaffOrderReadPayload.properties.items.items.properties.row_version.type')
+        );
+        $this->assertTrue(
+            (bool) data_get($spec, 'components.schemas.StaffOrderReadPayload.properties.items.items.properties.row_version.nullable')
+        );
+        $this->assertSame(
+            'integer',
+            data_get($spec, 'components.schemas.ReservationOrder.properties.items.items.properties.row_version.type')
+        );
+        $this->assertTrue(
+            (bool) data_get($spec, 'components.schemas.ReservationOrder.properties.items.items.properties.row_version.nullable')
         );
         $this->assertSame(
             '#/components/schemas/StaffWaitingListCollectionMeta',

@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, MessageSquareText, RefreshCcw, SendHorizontal, ShieldCheck, Sparkles } from 'lucide-react';
 import {
   addConversationInternalNote,
-  isUnauthorized,
-  loadConversationDetail,
-  loadConversations,
+  getConversationDetail as loadConversationDetail,
+  listConversations as loadConversations,
   sendConversationOutboundReply,
   takeOverConversation,
-} from '../../api/client';
+} from '../../core/api/staff-api';
+import { isApiStatus } from '../../core/api/errors';
 import { useStaffSession } from '../../app/session-context';
 import { formatApiError, normalizeApiError } from '../../lib/api-errors';
 import { asRecord, formatDateTime, humanizeCode, readBoolean, readNumber, readString } from '../../lib/format';
@@ -20,6 +20,11 @@ import { ActionButton, Banner, EmptyState, MetricCard, Panel, StatusPill } from 
 
 const conversationStatusOptions = ['all', 'Open', 'Pending', 'Closed', 'Spam'] as const;
 const assignmentStateOptions = ['all', 'assigned', 'unassigned', 'mine'] as const;
+const detailQuery = {
+  message_limit: 20,
+  event_limit: 12,
+  include_closed_assignments: false,
+} satisfies Parameters<typeof loadConversationDetail>[1];
 
 export function ConversationsPage() {
   const { expire } = useStaffSession();
@@ -61,7 +66,7 @@ export function ConversationsPage() {
 
   const handleError = useCallback(
     (cause: unknown, fallback: string) => {
-      if (isUnauthorized(cause)) {
+      if (isApiStatus(cause, 401)) {
         expire('Phien staff da het han. Dang nhap lai de tiep tuc.');
         return;
       }
@@ -95,7 +100,7 @@ export function ConversationsPage() {
     setError(null);
 
     try {
-      const nextDetail = await loadConversationDetail(conversationId);
+      const nextDetail = await loadConversationDetail(conversationId, detailQuery);
       setDetail(nextDetail);
       setNoteDraft('');
       setReplyDraft('');
@@ -442,7 +447,7 @@ export function ConversationsPage() {
     setError(null);
 
     try {
-      await takeOverConversation(selectedConversationId);
+      await takeOverConversation(selectedConversationId, { notes: 'Taken over from staff-web.' });
       setNotice(`Da take over ${selectedConversationId}.`);
       await refreshList();
       await refreshDetail(selectedConversationId);

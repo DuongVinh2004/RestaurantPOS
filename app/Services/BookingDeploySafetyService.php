@@ -6,6 +6,7 @@ use App\Enums\DepositStatus;
 use App\Enums\ReservationStatus;
 use Illuminate\Database\Migrations\DatabaseMigrationRepository;
 use Illuminate\Database\Migrations\Migrator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
@@ -285,7 +286,7 @@ class BookingDeploySafetyService
      */
     protected function inspectOperationalGuards(): array
     {
-        $opsSnapshot = $this->operationalInsightsService->snapshot(now('UTC'));
+        $opsSnapshot = $this->operationalInsightsService->snapshot(Carbon::now('UTC'));
         $staffKeys = (array) ($opsSnapshot['staff_api_keys'] ?? []);
         $tableAudit = (array) ($opsSnapshot['table_state_audit'] ?? []);
         $rowVersionContract = (array) ($opsSnapshot['row_version_contract'] ?? []);

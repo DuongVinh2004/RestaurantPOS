@@ -71,6 +71,18 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertStringContainsString('/api/v1/auth/customer/login', json_encode($collection, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         self::assertStringContainsString('/api/v1/payments/providers/{{providerCode}}/webhooks', json_encode($collection, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
+        $preorderRequest = $this->findCollectionRequestByUrl((array) ($collection['item'] ?? []), '{{baseUrl}}/api/v1/reservations/{{reservationIdPreorder}}/preorder');
+        self::assertNotNull($preorderRequest);
+        self::assertFalse($this->headerDisabledState($preorderRequest, 'X-Session-Id'));
+
+        $reservationShowRequest = $this->findCollectionRequestByUrl((array) ($collection['item'] ?? []), '{{baseUrl}}/api/v1/reservations/{{reservationId}}');
+        self::assertNotNull($reservationShowRequest);
+        self::assertFalse($this->headerDisabledState($reservationShowRequest, 'X-Session-Id'));
+
+        $loyaltyRequest = $this->findCollectionRequestByUrl((array) ($collection['item'] ?? []), '{{baseUrl}}/api/v1/me/loyalty');
+        self::assertNotNull($loyaltyRequest);
+        self::assertNull($this->headerDisabledState($loyaltyRequest, 'X-Session-Id'));
+
         /** @var array<string,mixed> $localEnv */
         $localEnv = json_decode((string) File::get($localEnvPath), true, 512, JSON_THROW_ON_ERROR);
         self::assertSame('RestaurantPOS Local', $localEnv['name'] ?? null);
@@ -87,6 +99,12 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
 
         $sdk = (string) File::get($sdkPath);
         self::assertStringContainsString('export class RestaurantPosClient', $sdk);
+        self::assertStringContainsString('this.fetchImpl = globalThis.fetch.bind(globalThis);', $sdk);
+        self::assertStringContainsString('this.fetchImpl = providedFetch === globalThis.fetch', $sdk);
+        self::assertStringContainsString('routeSupportsCustomerSession: boolean,', $sdk);
+        self::assertStringContainsString('this.applyAuthHeaders(headers, authMode, options.authMode ?? \'auto\', routeSupportsCustomerSession);', $sdk);
+        self::assertStringContainsString('this.applyCustomerHeaders(headers, customerToken, customerSessionId, routeSupportsCustomerSession);', $sdk);
+        self::assertStringContainsString('if (routeSupportsCustomerSession && customerSessionId)', $sdk);
         self::assertStringContainsString('postV1AuthCustomerLogin', $sdk);
         self::assertStringContainsString('getV1MenuItems', $sdk);
         self::assertStringContainsString('getV1MeLoyalty', $sdk);
@@ -162,6 +180,8 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertStringContainsString('The frozen OpenAPI artifact remains the only official schema source', $sdkReadme);
         self::assertStringContainsString('Do not treat controllers, resources, or ad-hoc route inspection as contract sources.', $sdkReadme);
         self::assertStringContainsString('build/api-consumer/mutation-contracts.md', $sdkReadme);
+        self::assertStringContainsString('customerSessionId: () => sessionStorage.getItem(\'customerSessionId\') ?? undefined,', $sdkReadme);
+        self::assertStringContainsString('keeps `X-Customer-Token` and `X-Session-Id` together when both are configured', $sdkReadme);
         self::assertStringContainsString('## Curated priority batch', $sdkReadme);
         self::assertStringContainsString('- POST api/v1/auth/customer/login', $sdkReadme);
         self::assertStringContainsString('- GET api/v1/menu/items', $sdkReadme);
@@ -226,6 +246,43 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertContains('Success', (array) data_get($enumState, 'enums.PaymentStatus.values', []));
     }
 
+    public function test_api_consumer_artifact_command_keeps_postman_artifacts_deterministic_for_same_inputs(): void
+    {
+        File::ensureDirectoryExists(dirname(base_path($this->manifestPath)));
+        File::put(
+            base_path($this->manifestPath),
+            json_encode($this->sampleManifest(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+        );
+
+        $firstExitCode = Artisan::call('booking:api-artifacts:generate', [
+            '--json' => true,
+            '--output-root' => $this->root,
+            '--uat-manifest' => $this->manifestPath,
+        ]);
+        self::assertSame(0, $firstExitCode);
+
+        /** @var array<string,mixed> $firstPayload */
+        $firstPayload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+
+        $firstCollectionHash = hash_file('sha256', base_path((string) ($firstPayload['artifacts']['collection'] ?? '')));
+        $firstLocalEnvironmentHash = hash_file('sha256', base_path((string) ($firstPayload['artifacts']['local_environment'] ?? '')));
+        $firstStagingEnvironmentHash = hash_file('sha256', base_path((string) ($firstPayload['artifacts']['staging_environment'] ?? '')));
+
+        $secondExitCode = Artisan::call('booking:api-artifacts:generate', [
+            '--json' => true,
+            '--output-root' => $this->root,
+            '--uat-manifest' => $this->manifestPath,
+        ]);
+        self::assertSame(0, $secondExitCode);
+
+        /** @var array<string,mixed> $secondPayload */
+        $secondPayload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame($firstCollectionHash, hash_file('sha256', base_path((string) ($secondPayload['artifacts']['collection'] ?? ''))));
+        self::assertSame($firstLocalEnvironmentHash, hash_file('sha256', base_path((string) ($secondPayload['artifacts']['local_environment'] ?? ''))));
+        self::assertSame($firstStagingEnvironmentHash, hash_file('sha256', base_path((string) ($secondPayload['artifacts']['staging_environment'] ?? ''))));
+    }
+
     /**
      * @param  array<string,mixed>  $environment
      */
@@ -235,6 +292,49 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
             ->first(fn (array $entry): bool => (string) ($entry['key'] ?? '') === $key);
 
         return (string) ($match['value'] ?? '');
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $items
+     * @return array<string,mixed>|null
+     */
+    private function findCollectionRequestByUrl(array $items, string $url): ?array
+    {
+        foreach ($items as $item) {
+            $request = (array) ($item['request'] ?? []);
+            $requestUrl = (string) ($request['url'] ?? '');
+            if ($requestUrl === $url || str_starts_with($requestUrl, $url.'?')) {
+                return $request;
+            }
+
+            $nested = (array) ($item['item'] ?? []);
+            if ($nested === []) {
+                continue;
+            }
+
+            $match = $this->findCollectionRequestByUrl($nested, $url);
+            if ($match !== null) {
+                return $match;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string,mixed>  $request
+     */
+    private function headerDisabledState(array $request, string $headerKey): ?bool
+    {
+        foreach ((array) ($request['header'] ?? []) as $header) {
+            if ((string) ($header['key'] ?? '') !== $headerKey) {
+                continue;
+            }
+
+            return (bool) ($header['disabled'] ?? false);
+        }
+
+        return null;
     }
 
     /**

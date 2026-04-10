@@ -10,6 +10,7 @@ use App\Services\DisasterRecovery\DisasterRecoveryDrillService;
 use App\Services\LaunchReadinessService;
 use App\Services\OperationalAlertService;
 use App\Services\OperationalInsightsService;
+use App\Services\OpsGateArtifactService;
 use App\Services\OpsHeartbeatService;
 use App\Services\Performance\PerformanceVerificationService;
 use App\Services\ReleaseArtifactManifestService;
@@ -21,8 +22,37 @@ use App\Services\RoundFiveGateService;
 use App\Services\RouteContractReconcilerService;
 use App\Services\RouteInventoryGateService;
 use Illuminate\Console\Command as ConsoleCommand;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Str;
+
+$writeOpsGateArtifactReport = static function (
+    string $artifactRoot,
+    string $reportPrefix,
+    string $scopeKey,
+    array $payload,
+    string $title,
+    array $summaryRows,
+    string $artifactKey = 'artifacts'
+): array {
+    $evaluatedAt = now('UTC');
+    $markdown = "# {$title}\n\n";
+    $markdown .= '**Generated:** '.$evaluatedAt->toIso8601String()."\n\n";
+    $markdown .= "## Summary\n\n";
+    foreach ($summaryRows as $key => $value) {
+        $markdown .= '- **'.str_replace('_', ' ', ucfirst($key)).":** {$value}\n";
+    }
+
+    return app(OpsGateArtifactService::class)->writeReport(
+        artifactRoot: $artifactRoot,
+        reportPrefix: $reportPrefix,
+        scopeKey: $scopeKey,
+        payload: $payload,
+        markdown: $markdown,
+        evaluatedAt: $evaluatedAt,
+        artifactKey: $artifactKey,
+    );
+};
 
 Artisan::command('data-lifecycle:enforce-retention {--dry-run : Preview retention actions without mutating data}', function () {
     /** @var ConsoleCommand $command */
@@ -63,6 +93,7 @@ Artisan::command('booking:doctor {--json : Output machine-readable JSON} {--stri
             'runtime_check_count' => count($runtime),
             'ok' => ($payload['ok'] ?? false) ? 'yes' : 'no',
         ],
+        artifactKey: 'artifacts',
     );
 
     if ($command->option('json')) {
@@ -562,6 +593,7 @@ Artisan::command('booking:deploy-check {--mode=preflight : preflight|postflight}
             'artifact_warning_count' => (string) (($report['summary'] ?? [])['artifact_warning_count'] ?? 0),
             'ok' => ($payload['ok'] ?? false) ? 'yes' : 'no',
         ],
+        artifactKey: 'artifacts',
     );
 
     if ($command->option('json')) {
@@ -635,10 +667,11 @@ Artisan::command('booking:ops-snapshot {--json : Output machine-readable JSON} {
     $command = $this;
 
     $paymentLimit = max(1, min(50, (int) $command->option('payment-limit')));
+    $capturedAt = Carbon::now('UTC');
 
     /** @var OperationalInsightsService $service */
     $service = app(OperationalInsightsService::class);
-    $snapshot = $service->snapshot(now('UTC'), $paymentLimit);
+    $snapshot = $service->snapshot($capturedAt, $paymentLimit);
 
     if ($command->option('json')) {
         $command->line(json_encode($snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
@@ -941,9 +974,10 @@ Artisan::command('booking:alert-check {--json : Output machine-readable JSON} {-
     /** @var OperationalAlertService $service */
     $service = app(OperationalAlertService::class);
     $sampleLimit = max(1, (int) $command->option('payment-sample-limit'));
-    $snapshot = $service->snapshot(now('UTC'), $sampleLimit);
-    $alerts = $service->buildAlerts($snapshot, now('UTC'));
-    $dispatch = $service->dispatchAlerts($alerts, (bool) $command->option('dry-run'), now('UTC'));
+    $capturedAt = Carbon::now('UTC');
+    $snapshot = $service->snapshot($capturedAt, $sampleLimit);
+    $alerts = $service->buildAlerts($snapshot, $capturedAt);
+    $dispatch = $service->dispatchAlerts($alerts, (bool) $command->option('dry-run'), $capturedAt);
 
     $payload = [
         'snapshot' => $snapshot,

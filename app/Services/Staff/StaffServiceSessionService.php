@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Staff;
 
-use App\Enums\RestaurantTableStatus;
 use App\Enums\ReservationStatus;
+use App\Enums\RestaurantTableStatus;
 use App\Models\Reservation;
 use App\Models\RestaurantTable;
 use App\Models\Role;
@@ -35,8 +35,7 @@ class StaffServiceSessionService
         private readonly ReservationCodeGenerator $reservationCodeGenerator,
         private readonly RestaurantTableStateService $tableStateService,
         private readonly NotificationOutboxService $notificationOutboxService,
-    ) {
-    }
+    ) {}
 
     public function createWalkInSession(array $payload, ?int $staffUserId = null): Reservation
     {
@@ -87,7 +86,7 @@ class StaffServiceSessionService
                 [$customer, $customerCreated] = $this->resolveWalkInCustomer($payload);
                 $branch = $this->branchSchedulingPolicyService->resolveBranch($tableBranchId, true);
 
-                $reservation = new Reservation();
+                $reservation = new Reservation;
                 $reservation->branch_id = $tableBranchId;
                 $reservation->user_id = (int) $customer->user_id;
                 $reservation->reservation_code = $this->reservationCodeGenerator->generate($startedAt->copy());
@@ -266,19 +265,7 @@ class StaffServiceSessionService
     {
         $userId = isset($payload['user_id']) ? (int) $payload['user_id'] : 0;
         if ($userId > 0) {
-            /** @var User|null $customer */
-            $customer = User::query()
-                ->where('user_id', $userId)
-                ->where('is_deleted', false)
-                ->first();
-
-            if (! $customer instanceof User) {
-                throw ValidationException::withMessages([
-                    'user_id' => ['Selected user is invalid or deleted.'],
-                ]);
-            }
-
-            return [$customer, false];
+            return [$this->resolveExistingWalkInCustomer($userId), false];
         }
 
         $guestName = trim((string) ($payload['guest_name'] ?? ''));
@@ -288,7 +275,7 @@ class StaffServiceSessionService
             ]);
         }
 
-        $customer = new User();
+        $customer = new User;
         $customer->username = $this->generateWalkInUsername();
         $customer->password_hash = null;
         $customer->full_name = $guestName;
@@ -300,6 +287,44 @@ class StaffServiceSessionService
         $customer->save();
 
         return [$customer->refresh(), true];
+    }
+
+    private function resolveExistingWalkInCustomer(int $userId): User
+    {
+        /** @var User|null $customer */
+        $customer = User::query()
+            ->with('role')
+            ->where('user_id', $userId)
+            ->where('is_deleted', false)
+            ->first();
+
+        if (! $customer instanceof User) {
+            throw ValidationException::withMessages([
+                'user_id' => ['Selected user is invalid or deleted.'],
+            ]);
+        }
+
+        if (! $this->isAllowedWalkInCustomer($customer)) {
+            throw ValidationException::withMessages([
+                'user_id' => ['Selected user must belong to a configured customer role.'],
+            ]);
+        }
+
+        return $customer;
+    }
+
+    private function isAllowedWalkInCustomer(User $customer): bool
+    {
+        $allowedRoleIds = array_values(array_filter(array_map(
+            static fn (mixed $value): int => (int) $value,
+            (array) config('customer_auth.allowed_role_ids', [3])
+        ), static fn (int $value): bool => $value > 0));
+
+        if ($allowedRoleIds !== []) {
+            return in_array((int) ($customer->role_id ?? 0), $allowedRoleIds, true);
+        }
+
+        return mb_strtolower(trim((string) ($customer->role?->role_name ?? ''))) === 'customer';
     }
 
     private function ensureCustomerRoleId(): int
@@ -314,7 +339,7 @@ class StaffServiceSessionService
     private function generateWalkInUsername(): string
     {
         for ($attempt = 0; $attempt < 8; $attempt++) {
-            $candidate = 'walkin_' . Str::lower(Str::random(12));
+            $candidate = 'walkin_'.Str::lower(Str::random(12));
 
             if (! User::query()->where('username', $candidate)->exists()) {
                 return $candidate;
@@ -327,7 +352,7 @@ class StaffServiceSessionService
     }
 
     /**
-     * @param array<int,mixed> $tableIds
+     * @param  array<int,mixed>  $tableIds
      * @return array<int,int>
      */
     private function normalizeTableIds(array $tableIds): array

@@ -1,7 +1,7 @@
 {
     "info": {
         "name": "RestaurantPOS API Consumer Collection",
-        "_postman_id": "0db16554-15a2-487d-94bc-f37eb709d972",
+        "_postman_id": "638bf9e3-96c2-541a-85d9-9a11e6de2557",
         "description": "Generated from the frozen OpenAPI artifact. Use the TypeScript SDK for curated priority routes, use the Reference folder or frozen OpenAPI for other full-contract routes, and do not treat controllers/resources as the consumer contract. Regenerate with composer api:artifacts or use php artisan booking:release-build for the full release chain.",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
@@ -275,6 +275,11 @@
                                 "key": "X-Customer-Token",
                                 "value": "{{customerToken}}",
                                 "type": "text"
+                            },
+                            {
+                                "key": "X-Session-Id",
+                                "value": "{{customerSessionId}}",
+                                "type": "text"
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/tables/available?from={{availabilityFromUtc}}&to={{availabilityToUtc}}&branch_id={{branchId}}&zone={{zone}}&template_id={{templateId}}&min_seats={{minSeats}}&guest_count={{guestCount}}&session_id={{customerSessionId}}&suggest={{suggestAvailability}}&max_suggestions={{maxSuggestions}}",
@@ -300,6 +305,11 @@
                             {
                                 "key": "X-Customer-Token",
                                 "value": "{{customerToken}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Session-Id",
+                                "value": "{{customerSessionId}}",
                                 "type": "text"
                             },
                             {
@@ -391,6 +401,11 @@
                                 "type": "text"
                             },
                             {
+                                "key": "X-Session-Id",
+                                "value": "{{customerSessionId}}",
+                                "type": "text"
+                            },
+                            {
                                 "key": "Idempotency-Key",
                                 "value": "restaurantpos-{{$guid}}",
                                 "type": "text"
@@ -423,6 +438,11 @@
                             {
                                 "key": "X-Customer-Token",
                                 "value": "{{customerToken}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Session-Id",
+                                "value": "{{customerSessionId}}",
                                 "type": "text"
                             },
                             {
@@ -475,8 +495,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -549,8 +568,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -582,8 +600,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/reservations/{{reservationIdPreorder}}/preorder",
@@ -641,8 +658,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "Idempotency-Key",
@@ -709,8 +725,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "Idempotency-Key",
@@ -773,8 +788,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -811,8 +825,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -863,8 +876,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -915,8 +927,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -967,8 +978,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -1041,8 +1051,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -1079,8 +1088,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -1131,8 +1139,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -1181,7 +1188,7 @@
                                 "type": "text"
                             }
                         ],
-                        "url": "{{baseUrl}}/api/v1/staff/tables/board?filter={{filter}}&filters={{filters}}&date={{date}}&from={{availabilityFromUtc}}&to={{availabilityToUtc}}&zone={{boardZone}}&include_holds={{includeHolds}}&group_by={{boardGroupBy}}",
+                        "url": "{{baseUrl}}/api/v1/staff/tables/board?filter={{filter}}&filters={{filters}}&date={{date}}&from={{availabilityFromUtc}}&to={{availabilityToUtc}}&branch_id={{branchId}}&zone={{boardZone}}&include_holds={{includeHolds}}&group_by={{boardGroupBy}}",
                         "description": "Return the operational floor board snapshot with table state, holds, reservations, orchestration hints, and realtime metadata.\n\nSignature: `GET api/v1/staff/tables/board`\nAuth mode: `staff_api_key`\nContract grade: `full`"
                     },
                     "response": []
@@ -1372,8 +1379,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -1445,8 +1451,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -1478,8 +1483,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -2628,8 +2632,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -2680,8 +2683,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -2732,8 +2734,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -2784,8 +2785,7 @@
                             {
                                 "key": "X-Session-Id",
                                 "value": "{{customerSessionId}}",
-                                "type": "text",
-                                "disabled": true
+                                "type": "text"
                             },
                             {
                                 "key": "X-Staff-Key",
@@ -3360,7 +3360,7 @@
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/health",
-                        "description": "Operational health endpoint. Detailed checks are included when a valid staff actor is resolved.\n\nSignature: `GET api/v1/health`\nAuth mode: `public`\nContract grade: `full`"
+                        "description": "Operational health endpoint. Base db, redis, scheduler, and disk checks are always included; detailed operational sections are added when a valid staff actor is resolved.\n\nSignature: `GET api/v1/health`\nAuth mode: `public`\nContract grade: `full`"
                     },
                     "response": []
                 },
@@ -3429,6 +3429,27 @@
                             "response": []
                         },
                         {
+                            "name": "List accessible staff branches",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "key": "X-Staff-Key",
+                                        "value": "{{staffApiKey}}",
+                                        "type": "text"
+                                    }
+                                ],
+                                "url": "{{baseUrl}}/api/v1/staff/branches",
+                                "description": "Return the active branch context list exposed to staff-web for branch switching and branch-aware filters.\n\nSignature: `GET api/v1/staff/branches`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                            },
+                            "response": []
+                        },
+                        {
                             "name": "Show branch",
                             "request": {
                                 "method": "GET",
@@ -3492,6 +3513,32 @@
                     ]
                 },
                 {
+                    "name": "Menu Catalog",
+                    "item": [
+                        {
+                            "name": "List staff menu items",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "key": "X-Staff-Key",
+                                        "value": "{{staffApiKey}}",
+                                        "type": "text"
+                                    }
+                                ],
+                                "url": "{{baseUrl}}/api/v1/staff/menu/items?service_time={{serviceTime}}&category_id={{categoryId}}&preorder_only={{preorderOnly}}&q={{q}}&page={{page}}&per_page={{perPage}}",
+                                "description": "Return the staff ordering menu catalog slice for active dine-in order composition using the same price-effective visibility rules as customer menu reads.\n\nSignature: `GET api/v1/staff/menu/items`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                            },
+                            "response": []
+                        }
+                    ]
+                },
+                {
                     "name": "Reservation Billing",
                     "item": [
                         {
@@ -3517,8 +3564,7 @@
                                     {
                                         "key": "X-Session-Id",
                                         "value": "{{customerSessionId}}",
-                                        "type": "text",
-                                        "disabled": true
+                                        "type": "text"
                                     },
                                     {
                                         "key": "X-Staff-Key",
@@ -3569,8 +3615,7 @@
                                     {
                                         "key": "X-Session-Id",
                                         "value": "{{customerSessionId}}",
-                                        "type": "text",
-                                        "disabled": true
+                                        "type": "text"
                                     },
                                     {
                                         "key": "X-Staff-Key",
@@ -3621,8 +3666,7 @@
                                     {
                                         "key": "X-Session-Id",
                                         "value": "{{customerSessionId}}",
-                                        "type": "text",
-                                        "disabled": true
+                                        "type": "text"
                                     },
                                     {
                                         "key": "X-Staff-Key",
@@ -3668,8 +3712,7 @@
                                     {
                                         "key": "X-Session-Id",
                                         "value": "{{customerSessionId}}",
-                                        "type": "text",
-                                        "disabled": true
+                                        "type": "text"
                                     },
                                     {
                                         "key": "X-Staff-Key",
@@ -3711,8 +3754,7 @@
                                     {
                                         "key": "X-Session-Id",
                                         "value": "{{customerSessionId}}",
-                                        "type": "text",
-                                        "disabled": true
+                                        "type": "text"
                                     },
                                     {
                                         "key": "X-Staff-Key",
@@ -3758,8 +3800,7 @@
                                     {
                                         "key": "X-Session-Id",
                                         "value": "{{customerSessionId}}",
-                                        "type": "text",
-                                        "disabled": true
+                                        "type": "text"
                                     },
                                     {
                                         "key": "X-Staff-Key",
@@ -3796,8 +3837,7 @@
                                     {
                                         "key": "X-Session-Id",
                                         "value": "{{customerSessionId}}",
-                                        "type": "text",
-                                        "disabled": true
+                                        "type": "text"
                                     },
                                     {
                                         "key": "X-Staff-Key",
@@ -4025,6 +4065,27 @@
                                 ],
                                 "url": "{{baseUrl}}/api/v1/staff/tables/{{tableId}}/active-service-session",
                                 "description": "Return the active checked-in reservation-backed service session currently occupying the requested table.\n\nSignature: `GET api/v1/staff/tables/{table_id}/active-service-session`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                            },
+                            "response": []
+                        },
+                        {
+                            "name": "Show staff reservation detail",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "key": "X-Staff-Key",
+                                        "value": "{{staffApiKey}}",
+                                        "type": "text"
+                                    }
+                                ],
+                                "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}",
+                                "description": "Return the staff-scoped reservation detail read model with tables, user context, order lines, and financial snapshots needed for operational drawers and linked order workflows.\n\nSignature: `GET api/v1/staff/reservations/{reservation_id}`\nAuth mode: `staff_api_key`\nContract grade: `full`"
                             },
                             "response": []
                         },

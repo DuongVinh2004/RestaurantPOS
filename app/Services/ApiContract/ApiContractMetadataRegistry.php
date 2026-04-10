@@ -114,6 +114,18 @@ class ApiContractMetadataRegistry
                 'security' => [],
                 'contract_grade' => 'full',
             ],
+            'GET api/v1/staff/menu/items' => [
+                'summary' => 'List staff menu items',
+                'description' => 'Return the staff ordering menu catalog slice for active dine-in order composition using the same price-effective visibility rules as customer menu reads.',
+                'tags' => ['Menu Catalog'],
+                'responses' => [
+                    200 => ['schema' => 'CustomerMenuItemsCollectionEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'contract_grade' => 'full',
+            ],
             'POST api/v1/reservations' => [
                 'summary' => 'Create reservation',
                 'description' => 'Create a reservation from a customer-owned/session-owned hold or by staff on behalf of a customer.',
@@ -624,7 +636,7 @@ class ApiContractMetadataRegistry
             ],
             'GET api/v1/health' => [
                 'summary' => 'Health check',
-                'description' => 'Operational health endpoint. Detailed checks are included when a valid staff actor is resolved.',
+                'description' => 'Operational health endpoint. Base db, redis, scheduler, and disk checks are always included; detailed operational sections are added when a valid staff actor is resolved.',
                 'tags' => ['Health'],
                 'responses' => [
                     200 => ['schema' => 'HealthStatusEnvelope'],
@@ -710,6 +722,18 @@ class ApiContractMetadataRegistry
                     401 => ['schema' => 'UnauthorizedError'],
                     403 => ['schema' => 'ForbiddenError'],
                     422 => ['schema' => 'ValidationError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/staff/reservations/{reservation_id}' => [
+                'summary' => 'Show staff reservation detail',
+                'description' => 'Return the staff-scoped reservation detail read model with tables, user context, order lines, and financial snapshots needed for operational drawers and linked order workflows.',
+                'tags' => ['Staff Tables'],
+                'responses' => [
+                    200 => ['schema' => 'ReservationEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
                 ],
                 'contract_grade' => 'full',
             ],
@@ -804,6 +828,16 @@ class ApiContractMetadataRegistry
                     401 => ['schema' => 'UnauthorizedError'],
                     403 => ['schema' => 'ForbiddenError'],
                     422 => ['schema' => 'ValidationError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/staff/branches' => [
+                'summary' => 'List accessible staff branches',
+                'description' => 'Return the active branch context list exposed to staff-web for branch switching and branch-aware filters.',
+                'tags' => ['Admin Settings'],
+                'responses' => [
+                    200 => ['schema' => 'BranchCollectionEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
                 ],
                 'contract_grade' => 'full',
             ],
@@ -2863,12 +2897,13 @@ class ApiContractMetadataRegistry
                     'nullable' => true,
                     'items' => [
                         'type' => 'object',
-                        'required' => ['order_item_id', 'item_id', 'quantity', 'status', 'item_name_snapshot', 'unit_price', 'currency', 'line_total', 'notes', 'item'],
+                        'required' => ['order_item_id', 'item_id', 'quantity', 'status', 'row_version', 'item_name_snapshot', 'unit_price', 'currency', 'line_total', 'notes', 'item'],
                         'properties' => [
                             'order_item_id' => ['type' => 'integer'],
                             'item_id' => ['type' => 'integer'],
                             'quantity' => ['type' => 'integer'],
                             'status' => ['type' => 'string'],
+                            'row_version' => ['type' => 'integer', 'nullable' => true],
                             'item_name_snapshot' => ['type' => 'string', 'nullable' => true],
                             'unit_price' => ['type' => 'string'],
                             'currency' => ['type' => 'string'],
@@ -4305,12 +4340,13 @@ class ApiContractMetadataRegistry
                     'type' => 'array',
                     'items' => [
                         'type' => 'object',
-                        'required' => ['order_item_id', 'item_id', 'quantity', 'status', 'item_name_snapshot', 'unit_price', 'currency', 'line_total', 'notes', 'item'],
+                        'required' => ['order_item_id', 'item_id', 'quantity', 'status', 'row_version', 'item_name_snapshot', 'unit_price', 'currency', 'line_total', 'notes', 'item'],
                         'properties' => [
                             'order_item_id' => ['type' => 'integer'],
                             'item_id' => ['type' => 'integer'],
                             'quantity' => ['type' => 'integer'],
                             'status' => ['type' => 'string'],
+                            'row_version' => ['type' => 'integer', 'nullable' => true],
                             'item_name_snapshot' => ['type' => 'string', 'nullable' => true],
                             'unit_price' => ['type' => 'string'],
                             'currency' => ['type' => 'string'],

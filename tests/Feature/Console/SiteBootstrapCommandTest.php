@@ -99,6 +99,23 @@ class SiteBootstrapCommandTest extends TestCase
         $this->assertSame('SITE01', (string) DB::table('branches')->value('branch_code'));
     }
 
+    #[Group('booking-ops')]
+    public function test_bootstrap_site_command_returns_structured_validation_errors_for_invalid_input(): void
+    {
+        $exitCode = Artisan::call('booking:bootstrap-site', [
+            '--staff-username' => '',
+            '--json' => true,
+        ]);
+
+        $this->assertSame(1, $exitCode);
+
+        $payload = $this->decodeArtisanOutput();
+
+        $this->assertSame('validation_error', $payload['error'] ?? null);
+        $this->assertIsArray($payload['errors']['username'] ?? null);
+        $this->assertNotEmpty($payload['errors']['username'] ?? []);
+    }
+
     private function createBootstrapTables(): void
     {
         Schema::dropIfExists('staff_api_keys');

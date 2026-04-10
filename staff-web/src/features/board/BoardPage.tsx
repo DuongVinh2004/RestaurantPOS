@@ -1,23 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BellRing, RefreshCcw, ShieldCheck, UsersRound, Waves } from 'lucide-react';
+import { BellRing, Clock3, RefreshCcw, ShieldCheck, UsersRound, Waves } from 'lucide-react';
 import {
-  boardWindow,
+  buildBoardWindow as boardWindow,
   checkInReservation,
-  isUnauthorized,
-  loadTableBoard,
-  loadTableBoardChanges,
-  loadWaitingList,
-  loadWaitingListChanges,
+  getTableBoard as loadTableBoard,
+  getTableBoardChanges as loadTableBoardChanges,
+  listWaitingList as loadWaitingList,
+  getWaitingListChanges as loadWaitingListChanges,
   notifyWaitingListEntry,
   seatWaitingListEntry,
-  type StaffBoardWindow,
-} from '../../api/client';
+} from '../../core/api/staff-api';
+import { formatApiError, isApiStatus } from '../../core/api/errors';
 import { useStaffSession } from '../../app/session-context';
 import { hasCapability } from '../../lib/capabilities';
 import { isRowVersionConflict, rowVersionConflictMessage } from '../../lib/conflicts';
 import { formatDateTime, formatMoney, humanizeCode, readString } from '../../lib/format';
-import { formatApiError } from '../../lib/api-errors';
 import { buildOperatorJourneySearch } from '../../lib/operatorJourney';
 import type { StaffOperationalRealtimeEnvelope, StaffTableBoardEnvelope, StaffWaitingListCollectionEnvelope } from '../../api/sdk';
 import { ActionButton, Banner, EmptyState, MetricCard, Panel, StatusPill } from '../../components/ui';
@@ -29,6 +27,10 @@ type NextStepJourney = {
   search: string;
   title: string;
 };
+
+type StaffBoardWindow = ReturnType<typeof boardWindow>;
+type BoardRow = StaffTableBoardEnvelope['data'][number];
+type WaitingRow = StaffWaitingListCollectionEnvelope['data'][number];
 
 export function BoardPage({ enableBackgroundPolling = true }: { enableBackgroundPolling?: boolean }) {
   const { session, expire } = useStaffSession();
@@ -68,6 +70,14 @@ export function BoardPage({ enableBackgroundPolling = true }: { enableBackground
     () => board?.data.filter((row) => row.availability.accepts_new_assignment) ?? [],
     [board],
   );
+  const occupiedTableCount = useMemo(
+    () => board?.data.filter((row) => row.active_order || row.reservation).length ?? 0,
+    [board],
+  );
+  const actionTableCount = useMemo(
+    () => board?.data.filter((row) => row.operational_hints.preferred_action && row.operational_hints.preferred_action !== 'none').length ?? 0,
+    [board],
+  );
   const ordersJourneySearch = useMemo(() => {
     if (!selectedTable) {
       return '';
@@ -97,8 +107,8 @@ export function BoardPage({ enableBackgroundPolling = true }: { enableBackground
 
   const handlePageError = useCallback(
     (cause: unknown, fallback: string) => {
-      if (isUnauthorized(cause)) {
-        expire('Phien staff da het han. Dang nhap lai de tiep tuc.');
+      if (isApiStatus(cause, 401)) {
+        expire('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
         return;
       }
 
@@ -127,8 +137,20 @@ export function BoardPage({ enableBackgroundPolling = true }: { enableBackground
     try {
       const nextWindow = refreshBoardSlice ? boardWindow() : null;
       const [nextBoard, nextWaiting] = await Promise.all([
-        refreshBoardSlice && canViewBoard && nextWindow ? loadTableBoard(nextWindow) : Promise.resolve(null),
-        refreshWaitingSlice && canManageWaiting ? loadWaitingList() : Promise.resolve(null),
+        refreshBoardSlice && canViewBoard && nextWindow
+          ? loadTableBoard({
+              ...nextWindow,
+              include_holds: true,
+              group_by: 'zone',
+            })
+          : Promise.resolve(null),
+        refreshWaitingSlice && canManageWaiting
+          ? loadWaitingList({
+              active_only: true,
+              per_page: 12,
+              sort: '-priority',
+            })
+          : Promise.resolve(null),
       ]);
 
       if (refreshBoardSlice && nextWindow) {
@@ -154,7 +176,7 @@ export function BoardPage({ enableBackgroundPolling = true }: { enableBackground
         waiting: nextWaiting,
       };
     } catch (cause) {
-      handlePageError(cause, 'Khong tai duoc board/waiting list.');
+      handlePageError(cause, 'Không thể tải sơ đồ bàn và khách chờ.');
       return {
         board: null,
         waiting: null,
@@ -201,13 +223,13 @@ export function BoardPage({ enableBackgroundPolling = true }: { enableBackground
       if (!background) {
         setNotice(
           shouldRefreshBoard || shouldRefreshWaiting
-            ? 'Da doi soat realtime cursors va lam moi du lieu co thay doi.'
-            : 'Da doi soat realtime cursors cho board va waiting list.',
+            ? 'Đã cập nhật dữ liệu mới.'
+            : 'Hiện chưa có thay đổi mới.',
         );
       }
     } catch (cause) {
       if (!background) {
-        handlePageError(cause, 'Khong doi soat duoc realtime changes.');
+        handlePageError(cause, 'Không thể kiểm tra thay đổi.');
       }
     } finally {
       if (!background) {
@@ -268,323 +290,376 @@ export function BoardPage({ enableBackgroundPolling = true }: { enableBackground
 
   return (
     <div className="space-y-6">
-      <Panel>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="eyebrow">Board + Waiting</p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Realtime floor state cho host va FOH</h2>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-              Route nay dung canonical board contract, waiting list collection, waiting notify/seat va check-in action metadata. Tat
-              ca mutation deu di kem row_version va Idempotency-Key. Change cursors nay duoc poll nen chi lam moi full board/waiting khi backend
-              bao co thay doi.
+      <Panel className="px-6 py-6">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div className="max-w-3xl">
+            <p className="eyebrow">Sơ đồ bàn</p>
+            <h2 className="workspace-title mt-2 text-3xl font-semibold text-slate-950">Bàn ăn và khách chờ</h2>
+            <p className="mt-3 text-sm leading-7 text-slate-600">
+              Nhìn nhanh bàn nào đang phục vụ, khách nào sẵn sàng vào bàn và việc nào cần làm tiếp.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <ActionButton onClick={checkRealtimeChanges} busy={busyKey === 'changes'} icon={<Waves className="h-4 w-4" />}>
-              Check changes
+            <ActionButton onClick={checkRealtimeChanges} busy={busyKey === 'changes'} icon={<Waves className="h-4 w-4" />} variant="secondary">
+              Kiểm tra thay đổi
             </ActionButton>
             <ActionButton onClick={() => { void refreshPage(); }} busy={loading || busyKey === 'refresh'} icon={<RefreshCcw className="h-4 w-4" />}>
-              Lam moi
+              Làm mới
             </ActionButton>
           </div>
         </div>
 
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard label="Bàn đang phục vụ" value={String(occupiedTableCount)} />
+          <MetricCard label="Đơn đang mở" value={String(board?.summary.active_order_count ?? 0)} />
+          <MetricCard label="Khách chờ sẵn sàng" value={String(waiting?.meta?.summary.ready_to_seat_count ?? 0)} />
+          <MetricCard label="Tần suất cập nhật" value={`${Math.round(pollDelayMs / 1000)} giây`} />
+        </div>
+
         <div className="mt-4 flex flex-wrap gap-2">
-          <StatusPill value={`Board from ${formatDateTime(window.from)}`} />
-          <StatusPill value={`Board to ${formatDateTime(window.to)}`} />
-          {board?.meta.realtime ? (
-            <StatusPill value={`Board v${board.meta.realtime.current_version}`} tone="info" />
-          ) : null}
-          {waiting?.meta?.realtime ? (
-            <StatusPill value={`Waiting v${waiting.meta.realtime.current_version}`} tone="info" />
-          ) : null}
+          <StatusPill value={`Từ ${formatDateTime(window.from)}`} />
+          <StatusPill value={`Đến ${formatDateTime(window.to)}`} />
+          <StatusPill value={`Cần chú ý ${actionTableCount}`} tone={actionTableCount > 0 ? 'warning' : 'success'} />
+          <StatusPill value={`Khách chờ ${waiting?.meta?.summary.ready_to_seat_count ?? 0}`} tone="info" />
         </div>
       </Panel>
 
       {notice ? <Banner tone="success">{notice}</Banner> : null}
       {error ? <Banner tone="error">{error}</Banner> : null}
-      {nextStepJourney ? (
-        <Panel>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="eyebrow">Next step</p>
-              <h3 className="text-xl font-semibold text-slate-950">{nextStepJourney.title}</h3>
-              <p className="mt-2 text-sm leading-7 text-slate-600">{nextStepJourney.description}</p>
+      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.25fr)_400px]">
+        <div className="space-y-6">
+          <Panel className="px-5 py-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="eyebrow">Khu bàn</p>
+                <h3 className="workspace-title mt-2 text-2xl font-semibold text-slate-950">Tình trạng bàn</h3>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+                  Ưu tiên những bàn đang phục vụ, bàn có khách cần nhận vào và bàn đang cần xử lý tiếp.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-right">
+                <MetricCard label="Đơn đang mở" value={String(board?.summary.active_order_count ?? 0)} />
+                <MetricCard label="Khách chưa xếp bàn" value={String(board?.summary.unassigned_reservation_count ?? 0)} />
+              </div>
             </div>
-            {canManageOrders ? (
-              <Link
-                to={`/orders?${nextStepJourney.search}`}
-                className="inline-flex items-center justify-center rounded-[22px] bg-slate-950 px-4 py-3 text-sm font-semibold text-white"
-              >
-                {nextStepJourney.actionLabel}
-              </Link>
+
+            {!canViewBoard ? (
+              <div className="mt-5">
+                <EmptyState
+                  title="Bạn chưa có quyền xem sơ đồ bàn"
+                  description="Tài khoản hiện tại vẫn có thể xử lý khách chờ nếu được cấp quyền phù hợp."
+                />
+              </div>
+            ) : null}
+
+            {canViewBoard ? (
+              <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {(board?.data ?? []).map((row) => {
+                  const styles = boardCardStyles(row, selectedTableId === row.table_id);
+
+                  return (
+                    <button
+                      key={row.table_id}
+                      type="button"
+                      onClick={() => {
+                        setNextStepJourney(null);
+                        setSelectedTableId(row.table_id);
+                      }}
+                      className={`rounded-[28px] border px-4 py-4 text-left transition ${styles.cardClass}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <span className={`mt-1.5 h-3 w-3 rounded-full ${styles.dotClass}`} />
+                          <div>
+                            <p className="eyebrow">{row.zone ?? 'Chưa phân khu'}</p>
+                            <p className="workspace-title mt-2 text-2xl font-semibold text-slate-950">{row.table_code}</p>
+                          </div>
+                        </div>
+                        <StatusPill value={translateBoardState(row.board_state)} tone={styles.pillTone} />
+                      </div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <MetricCard label="Đặt bàn" value={row.reservation?.reservation_code ?? 'Trống'} />
+                        <MetricCard label="Đơn hàng" value={row.active_order ? `#${row.active_order.order_id}` : 'Chưa mở'} />
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium text-slate-500">
+                        <span>{row.capacity.seats ? `${row.capacity.seats} chỗ` : 'Chưa có sức chứa'}</span>
+                        <span>Tình trạng {translateBoardState(row.realtime_status)}</span>
+                        <span>Việc tiếp theo {translateNextAction(row.operational_hints.preferred_action || 'none')}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+          </Panel>
+        </div>
+
+        <div className="space-y-6">
+          {nextStepJourney ? (
+            <Panel className="px-5 py-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="eyebrow">Gợi ý tiếp theo</p>
+                  <h3 className="workspace-title mt-2 text-xl font-semibold text-slate-950">{nextStepJourney.title}</h3>
+                  <p className="mt-2 text-sm leading-7 text-slate-600">{nextStepJourney.description}</p>
+                </div>
+                {canManageOrders ? (
+                  <Link
+                    to={`/orders?${nextStepJourney.search}`}
+                    className="inline-flex items-center justify-center rounded-[22px] bg-[#c46b2d] px-4 py-3 text-sm font-semibold text-white shadow-[0_20px_40px_-28px_rgba(196,107,45,0.95)]"
+                  >
+                    {nextStepJourney.actionLabel}
+                  </Link>
+                ) : (
+                  <StatusPill value="Chưa mở mục đơn hàng" tone="warning" />
+                )}
+              </div>
+            </Panel>
+          ) : null}
+
+          <Panel className="px-5 py-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="eyebrow">Bàn đang xem</p>
+                <h3 className="workspace-title mt-2 text-2xl font-semibold text-slate-950">
+                  {selectedTable ? selectedTable.table_code : 'Chưa chọn bàn'}
+                </h3>
+                <p className="mt-2 text-sm leading-7 text-slate-600">
+                  Chọn một bàn để xem khách, đơn hàng và thao tác nhanh.
+                </p>
+              </div>
+              {selectedTable?.actions.check_in?.available && selectedTable.reservation ? (
+                <ActionButton
+                  onClick={() => handleCheckIn(selectedTable.table_id)}
+                  busy={busyKey === `check-in-${selectedTable.table_id}`}
+                  icon={<ShieldCheck className="h-4 w-4" />}
+                >
+                  Nhận khách
+                </ActionButton>
+              ) : null}
+            </div>
+
+            {!selectedTable ? (
+              <div className="mt-5">
+                <EmptyState
+                  title="Chưa chọn bàn"
+                  description="Chọn một bàn ở bên trái để xem thông tin chi tiết."
+                />
+              </div>
             ) : (
-              <StatusPill value="Orders locked" tone="warning" />
+              <>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <MetricCard label="Tình trạng" value={translateBoardState(selectedTable.realtime_status)} />
+                  <MetricCard label="Sức chứa" value={selectedTable.capacity.seats ? `${selectedTable.capacity.seats} chỗ` : 'Không rõ'} />
+                  <MetricCard
+                    label="Mã đặt bàn"
+                    value={selectedTable.reservation?.reservation_code ?? 'Không có đặt bàn trong khung giờ này'}
+                  />
+                  <MetricCard
+                    label="Khách"
+                    value={
+                      readString(selectedTable.reservation?.user, 'full_name') ??
+                      readString(selectedTable.reservation?.user, 'phone') ??
+                      'Không rõ'
+                    }
+                  />
+                  <MetricCard
+                    label="Cọc còn lại"
+                    value={formatMoney(
+                      selectedTable.reservation?.deposit.outstanding_amount,
+                      selectedTable.reservation?.deposit.currency,
+                    )}
+                  />
+                  <MetricCard
+                    label="Việc nên làm"
+                    value={translateNextAction(selectedTable.operational_hints.preferred_action || 'none')}
+                  />
+                </div>
+
+                {ordersJourneySearch && (canManageOrders || canManageSettlement) ? (
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    {canManageOrders ? (
+                      <Link
+                        to={`/orders?${ordersJourneySearch}`}
+                        className="inline-flex items-center justify-center rounded-[22px] bg-slate-950 px-4 py-3 text-sm font-semibold text-white"
+                      >
+                        Mở đơn cho bàn này
+                      </Link>
+                    ) : null}
+                    {settlementJourneySearch && canManageSettlement ? (
+                      <Link
+                        to={`/settlement?${settlementJourneySearch}`}
+                        className="inline-flex items-center justify-center rounded-[22px] border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700"
+                      >
+                        Mở thanh toán
+                      </Link>
+                    ) : null}
+                  </div>
+                ) : null}
+              </>
             )}
-          </div>
-        </Panel>
-      ) : null}
+          </Panel>
 
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <Panel>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="eyebrow">Table board</p>
-              <h3 className="text-xl font-semibold text-slate-950">Operational floor map</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-right">
-              <MetricCard label="Active orders" value={String(board?.summary.active_order_count ?? 0)} />
-              <MetricCard label="Unassigned" value={String(board?.summary.unassigned_reservation_count ?? 0)} />
-            </div>
-          </div>
-
-          {!canViewBoard ? (
-            <div className="mt-5">
-              <EmptyState
-                title="Khong du capability table.board.view"
-                description="Session hien tai van co the vao route nay de xu ly waiting list, nhung khong du capability de doc board."
-              />
-            </div>
-          ) : null}
-
-          {canViewBoard ? (
-            <>
-              <div className="mt-5 grid gap-3 md:grid-cols-2">
-                {(board?.data ?? []).map((row) => (
-                  <button
-                    key={row.table_id}
-                    type="button"
-                    onClick={() => {
-                      setNextStepJourney(null);
-                      setSelectedTableId(row.table_id);
-                    }}
-                    className={`rounded-[24px] border p-4 text-left transition ${
-                      selectedTableId === row.table_id ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-white hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="eyebrow">{row.zone ?? 'No zone'}</p>
-                        <p className="mt-2 text-xl font-semibold text-slate-950">{row.table_code}</p>
-                      </div>
-                      <StatusPill value={humanizeCode(row.board_state)} tone={row.active_order ? 'warning' : 'success'} />
-                    </div>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <MetricCard label="Reservation" value={row.reservation?.reservation_code ?? 'Trong'} />
-                      <MetricCard label="Order" value={row.active_order ? `#${row.active_order.order_id}` : 'Chua mo'} />
-                    </div>
-                  </button>
-                ))}
+          <Panel className="px-5 py-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="eyebrow">Khách chờ</p>
+                <h3 className="workspace-title mt-2 text-2xl font-semibold text-slate-950">Danh sách chờ</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-600">
+                  Theo dõi khách sẵn sàng vào bàn và gọi khách ngay khi có chỗ.
+                </p>
               </div>
+              <div className="grid grid-cols-2 gap-2 text-right">
+                <MetricCard label="Sẵn sàng" value={String(waiting?.meta?.summary.ready_to_seat_count ?? 0)} />
+                <MetricCard label="Cần gọi lại" value={String(waiting?.meta?.summary.awaiting_customer_follow_up_count ?? 0)} />
+              </div>
+            </div>
 
-              {selectedTable ? (
-                <div className="mt-5 rounded-[24px] border border-slate-200 bg-slate-50 p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="eyebrow">Selected table</p>
-                      <h4 className="text-xl font-semibold text-slate-950">{selectedTable.table_code}</h4>
-                    </div>
-                    {selectedTable.actions.check_in?.available && selectedTable.reservation ? (
-                      <ActionButton
-                        onClick={() => handleCheckIn(selectedTable.table_id)}
-                        busy={busyKey === `check-in-${selectedTable.table_id}`}
-                        icon={<ShieldCheck className="h-4 w-4" />}
+            {!canManageWaiting ? (
+              <div className="mt-5">
+                <EmptyState
+                  title="Bạn chưa có quyền xử lý khách chờ"
+                  description="Bạn vẫn có thể xem sơ đồ bàn, nhưng chưa thể gọi khách hoặc xếp bàn."
+                />
+              </div>
+            ) : null}
+
+            {canManageWaiting ? (
+              <>
+                <div className="mt-5 space-y-3">
+                  {(waiting?.data ?? []).map((entry) => {
+                    const styles = waitingCardStyles(entry, selectedWaitingId === entry.waiting_id);
+
+                    return (
+                      <button
+                        key={entry.waiting_id}
+                        type="button"
+                        onClick={() => {
+                          setNextStepJourney(null);
+                          setSelectedWaitingId(entry.waiting_id);
+                        }}
+                        className={`w-full rounded-[26px] border px-4 py-4 text-left transition ${styles.cardClass}`}
                       >
-                        Check-in
-                      </ActionButton>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <MetricCard label="Realtime" value={humanizeCode(selectedTable.realtime_status)} />
-                    <MetricCard label="Capacity" value={selectedTable.capacity.seats ? `${selectedTable.capacity.seats} seats` : 'N/A'} />
-                    <MetricCard
-                      label="Reservation"
-                      value={selectedTable.reservation?.reservation_code ?? 'Khong co reservation trong cua so nay'}
-                    />
-                    <MetricCard
-                      label="Guest"
-                      value={
-                        readString(selectedTable.reservation?.user, 'full_name') ??
-                        readString(selectedTable.reservation?.user, 'phone') ??
-                        'N/A'
-                      }
-                    />
-                    <MetricCard
-                      label="Deposit outstanding"
-                      value={formatMoney(
-                        selectedTable.reservation?.deposit.outstanding_amount,
-                        selectedTable.reservation?.deposit.currency,
-                      )}
-                    />
-                    <MetricCard
-                      label="Preferred action"
-                      value={humanizeCode(selectedTable.operational_hints.preferred_action || 'none')}
-                    />
-                  </div>
-                  {ordersJourneySearch && (canManageOrders || canManageSettlement) ? (
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      {canManageOrders ? (
-                        <Link
-                          to={`/orders?${ordersJourneySearch}`}
-                          className="inline-flex items-center justify-center rounded-[22px] bg-slate-950 px-4 py-3 text-sm font-semibold text-white"
-                        >
-                          Mo Orders voi context nay
-                        </Link>
-                      ) : null}
-                      {settlementJourneySearch && canManageSettlement ? (
-                        <Link
-                          to={`/settlement?${settlementJourneySearch}`}
-                          className="inline-flex items-center justify-center rounded-[22px] border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700"
-                        >
-                          Mo Settlement cho order nay
-                        </Link>
-                      ) : null}
-                    </div>
-                  ) : null}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <span className={`mt-1.5 h-3 w-3 rounded-full ${styles.dotClass}`} />
+                          <div>
+                            <p className="font-semibold text-slate-900">
+                              {entry.guest_name ?? entry.phone ?? `Khách chờ #${entry.waiting_id}`}
+                            </p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {entry.guest_count} khách · {translateWaitingStatus(entry.status)} · {translateWaitingResponse(entry.current_response_state)}
+                              </p>
+                            </div>
+                          </div>
+                          <StatusPill
+                            value={translateSeatReadiness(entry.invite_lifecycle.seat_readiness)}
+                            tone={entry.invite_lifecycle.can_staff_seat_now ? 'success' : 'warning'}
+                          />
+                        </div>
+                        <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                          <Clock3 className="h-3.5 w-3.5" />
+                          <span>Đăng ký lúc {formatDateTime(entry.requested_at)}</span>
+                        </div>
+                        <p className="mt-2 text-sm text-slate-600">
+                          Trạng thái vào bàn: {translateSeatReadiness(entry.invite_lifecycle.seat_readiness)}.
+                        </p>
+                      </button>
+                    );
+                  })}
                 </div>
-              ) : null}
-            </>
-          ) : null}
-        </Panel>
 
-        <Panel>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="eyebrow">Waiting list</p>
-              <h3 className="text-xl font-semibold text-slate-950">Notify + seat theo queue state</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-right">
-              <MetricCard label="Ready" value={String(waiting?.meta?.summary.ready_to_seat_count ?? 0)} />
-              <MetricCard label="Follow-up" value={String(waiting?.meta?.summary.awaiting_customer_follow_up_count ?? 0)} />
-            </div>
-          </div>
-
-          {!canManageWaiting ? (
-            <div className="mt-5">
-              <EmptyState
-                title="Khong du capability waiting_list.manage"
-                description="Board van doc duoc, nhung notify/seat waiting list bi khoa boi capability boundary."
-              />
-            </div>
-          ) : null}
-
-          {canManageWaiting ? (
-            <>
-              <div className="mt-5 space-y-3">
-                {(waiting?.data ?? []).map((entry) => (
-                  <button
-                    key={entry.waiting_id}
-                    type="button"
-                    onClick={() => {
-                      setNextStepJourney(null);
-                      setSelectedWaitingId(entry.waiting_id);
-                    }}
-                    className={`w-full rounded-[24px] border p-4 text-left transition ${
-                      selectedWaitingId === entry.waiting_id ? 'border-sky-300 bg-sky-50' : 'border-slate-200 bg-white hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
+                {selectedWaiting ? (
+                  <div className="mt-5 rounded-[28px] border border-slate-200/80 bg-white/80 p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <p className="font-semibold text-slate-900">
-                          {entry.guest_name ?? entry.phone ?? `Waiting #${entry.waiting_id}`}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {entry.guest_count} khach | {humanizeCode(entry.status)} | {humanizeCode(entry.current_response_state)}
-                        </p>
+                        <p className="eyebrow">Khách đang xem</p>
+                        <h4 className="workspace-title mt-2 text-xl font-semibold text-slate-950">
+                          {selectedWaiting.guest_name ?? selectedWaiting.phone ?? `Khách chờ #${selectedWaiting.waiting_id}`}
+                        </h4>
                       </div>
-                      <StatusPill value={`rv ${entry.row_version}`} tone="info" />
-                    </div>
-                    <p className="mt-2 text-sm text-slate-600">
-                      Requested {formatDateTime(entry.requested_at)}. Seat readiness: {humanizeCode(entry.invite_lifecycle.seat_readiness)}.
-                    </p>
-                  </button>
-                ))}
-              </div>
-
-              {selectedWaiting ? (
-                <div className="mt-5 rounded-[24px] border border-slate-200 bg-slate-50 p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="eyebrow">Selected guest</p>
-                      <h4 className="text-xl font-semibold text-slate-950">
-                        {selectedWaiting.guest_name ?? selectedWaiting.phone ?? `Waiting #${selectedWaiting.waiting_id}`}
-                      </h4>
-                    </div>
-                    {selectedWaiting.invite_lifecycle.can_staff_seat_now ? (
-                      <ActionButton
-                        onClick={() => handleSeat(selectedWaiting.waiting_id)}
-                        busy={busyKey === `seat-${selectedWaiting.waiting_id}`}
-                        icon={<UsersRound className="h-4 w-4" />}
-                      >
-                        Seat ngay
-                      </ActionButton>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <MetricCard label="Invite active" value={selectedWaiting.invite_window.is_active ? 'Yes' : 'No'} />
-                    <MetricCard label="Seconds left" value={String(selectedWaiting.invite_window.seconds_remaining)} />
-                    <MetricCard label="Next step" value={humanizeCode(selectedWaiting.invite_lifecycle.staff_next_step)} />
-                    <MetricCard label="Notes" value={selectedWaiting.notes ?? 'N/A'} />
-                  </div>
-
-                  <div className="mt-5 rounded-[22px] bg-white p-4">
-                    <p className="text-sm font-semibold text-slate-900">Notify vao table</p>
-                    <div className="mt-3 grid gap-3 md:grid-cols-[1fr_140px_auto]">
-                      <label className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Table</span>
-                        <select
-                          value={notifyTableId ?? ''}
-                          onChange={(event) => setNotifyTableId(event.target.value ? Number(event.target.value) : null)}
-                          className="mt-3 w-full bg-transparent text-sm outline-none"
-                        >
-                          <option value="">Chon table available</option>
-                          {notifyTables.map((row) => (
-                            <option key={row.table_id} value={row.table_id}>
-                              {row.table_code} - {row.zone ?? 'No zone'}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Hold mins</span>
-                        <input
-                          value={holdMinutes}
-                          onChange={(event) => setHoldMinutes(event.target.value)}
-                          className="mt-3 w-full bg-transparent text-sm outline-none"
-                          inputMode="numeric"
-                        />
-                      </label>
-                      <div className="flex items-end">
+                      {selectedWaiting.invite_lifecycle.can_staff_seat_now ? (
                         <ActionButton
-                          onClick={() => handleNotify(selectedWaiting.waiting_id)}
-                          busy={busyKey === `notify-${selectedWaiting.waiting_id}`}
-                          disabled={notifyTableId === null}
-                          icon={<BellRing className="h-4 w-4" />}
-                          className="w-full justify-center"
+                          onClick={() => handleSeat(selectedWaiting.waiting_id)}
+                          busy={busyKey === `seat-${selectedWaiting.waiting_id}`}
+                          icon={<UsersRound className="h-4 w-4" />}
                         >
-                          Notify
+                          Xếp bàn ngay
                         </ActionButton>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <MetricCard label="Đang giữ chỗ" value={selectedWaiting.invite_window.is_active ? 'Có' : 'Không'} />
+                      <MetricCard label="Thời gian còn lại" value={`${selectedWaiting.invite_window.seconds_remaining} giây`} />
+                      <MetricCard label="Việc tiếp theo" value={translateNextAction(selectedWaiting.invite_lifecycle.staff_next_step)} />
+                      <MetricCard label="Ghi chú" value={selectedWaiting.notes ?? 'Không có'} />
+                    </div>
+
+                    <div className="mt-5 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
+                      <p className="text-sm font-semibold text-slate-900">Mời vào bàn</p>
+                      <div className="mt-3 grid gap-3 md:grid-cols-[1fr_140px_auto]">
+                        <label className="rounded-[22px] border border-slate-200 bg-white px-4 py-3">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Bàn</span>
+                          <select
+                            value={notifyTableId ?? ''}
+                            onChange={(event) => setNotifyTableId(event.target.value ? Number(event.target.value) : null)}
+                            className="mt-3 w-full bg-transparent text-sm outline-none"
+                          >
+                            <option value="">Chọn bàn còn trống</option>
+                            {notifyTables.map((row) => (
+                              <option key={row.table_id} value={row.table_id}>
+                                {row.table_code} - {row.zone ?? 'Chưa phân khu'}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="rounded-[22px] border border-slate-200 bg-white px-4 py-3">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Giữ bàn (phút)</span>
+                          <input
+                            value={holdMinutes}
+                            onChange={(event) => setHoldMinutes(event.target.value)}
+                            className="mt-3 w-full bg-transparent text-sm outline-none"
+                            inputMode="numeric"
+                          />
+                        </label>
+                        <div className="flex items-end">
+                          <ActionButton
+                            onClick={() => handleNotify(selectedWaiting.waiting_id)}
+                            busy={busyKey === `notify-${selectedWaiting.waiting_id}`}
+                            disabled={notifyTableId === null}
+                            icon={<BellRing className="h-4 w-4" />}
+                            className="w-full justify-center"
+                          >
+                            Gọi khách
+                          </ActionButton>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ) : null}
-            </>
-          ) : null}
-        </Panel>
-      </div>
+                ) : (
+                  <div className="mt-5">
+                    <EmptyState
+                      title="Chưa chọn khách"
+                      description="Chọn một khách trong danh sách chờ để gọi khách hoặc xếp bàn."
+                    />
+                  </div>
+                )}
+              </>
+            ) : null}
+          </Panel>
 
-      {(boardChanges || waitingChanges) && !error ? (
-        <Panel>
-          <p className="eyebrow">Change cursors</p>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <ChangeSummary title="Board changes" payload={boardChanges} />
-            <ChangeSummary title="Waiting changes" payload={waitingChanges} />
-          </div>
-        </Panel>
-      ) : null}
+          {(boardChanges || waitingChanges) && !error ? (
+            <Panel className="px-5 py-5">
+              <p className="eyebrow">Đồng bộ dữ liệu</p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <ChangeSummary title="Sơ đồ bàn" payload={boardChanges} />
+                <ChangeSummary title="Khách chờ" payload={waitingChanges} />
+              </div>
+            </Panel>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 
@@ -609,8 +684,8 @@ export function BoardPage({ enableBackgroundPolling = true }: { enableBackground
 
       if (refreshedTable && refreshedReservation) {
         setNextStepJourney({
-          actionLabel: 'Tiep tuc sang Orders',
-          description: `${refreshedReservation.reservation_code} tai ${refreshedTable.table_code} da duoc refresh context. Operator co the mo Orders ngay ma khong can reconstruct lai \`table_id\`, \`reservation_id\`, hay \`reservation_row_version\`.`,
+          actionLabel: 'Mở đơn cho bàn này',
+          description: `${refreshedReservation.reservation_code} tại ${refreshedTable.table_code} đã sẵn sàng. Bạn có thể mở đơn ngay.`,
           search: buildOperatorJourneySearch({
             source: 'board',
             tableId: refreshedTable.table_id,
@@ -618,16 +693,16 @@ export function BoardPage({ enableBackgroundPolling = true }: { enableBackground
             reservationRowVersion: refreshedReservation.row_version,
             orderId: refreshedTable.active_order?.order_id,
           }),
-          title: 'Check-in da xong, co the tiep tuc order flow',
+          title: 'Có thể tiếp tục mở đơn',
         });
       }
 
-      setNotice(`Da check-in ${reservation.reservation_code}.`);
+      setNotice(`Đã nhận khách ${reservation.reservation_code}.`);
     } catch (cause) {
       if (isRowVersionConflict(cause)) {
-        setError(rowVersionConflictMessage(`Reservation ${reservation.reservation_code}`));
+        setError(rowVersionConflictMessage(`Đặt bàn ${reservation.reservation_code}`));
       } else {
-        handlePageError(cause, 'Khong the check-in reservation.');
+        handlePageError(cause, 'Không thể nhận khách vào bàn.');
       }
     } finally {
       setBusyKey(null);
@@ -636,6 +711,7 @@ export function BoardPage({ enableBackgroundPolling = true }: { enableBackground
 
   async function handleNotify(waitingId: number) {
     const entry = waiting?.data.find((item) => item.waiting_id === waitingId);
+    const notifyTable = notifyTables.find((table) => table.table_id === notifyTableId);
 
     if (!entry || notifyTableId === null) {
       return;
@@ -650,13 +726,13 @@ export function BoardPage({ enableBackgroundPolling = true }: { enableBackground
         hold_minutes: Number(holdMinutes) || 10,
         row_version: entry.row_version,
       });
-      setNotice(`Da notify waiting #${waitingId} vao table #${notifyTableId}.`);
+      setNotice(`Đã gọi khách vào ${notifyTable?.table_code ?? `bàn #${notifyTableId}`}.`);
       await refreshPage();
     } catch (cause) {
       if (isRowVersionConflict(cause)) {
-        setError(rowVersionConflictMessage(`Waiting entry #${waitingId}`));
+        setError(rowVersionConflictMessage(`Khách chờ #${waitingId}`));
       } else {
-        handlePageError(cause, 'Khong the notify waiting list.');
+        handlePageError(cause, 'Không thể gọi khách vào bàn.');
       }
     } finally {
       setBusyKey(null);
@@ -692,8 +768,8 @@ export function BoardPage({ enableBackgroundPolling = true }: { enableBackground
       }
 
       setNextStepJourney({
-        actionLabel: 'Mo Orders cho reservation nay',
-        description: `${seatedReservation.reservation_code} vua duoc seat${refreshedTable ? ` vao ${refreshedTable.table_code}` : ''}. Operator co the mo Orders bang reservation context moi ma khong can nhap tay ID.`,
+        actionLabel: 'Mở đơn cho khách này',
+        description: `${seatedReservation.reservation_code} vừa được xếp bàn${refreshedTable ? ` tại ${refreshedTable.table_code}` : ''}. Bạn có thể mở đơn ngay.`,
         search: buildOperatorJourneySearch({
           source: 'board',
           tableId: seatedTableId,
@@ -701,21 +777,134 @@ export function BoardPage({ enableBackgroundPolling = true }: { enableBackground
           reservationRowVersion: seatedReservation.row_version,
           orderId: refreshedTable?.active_order?.order_id,
         }),
-        title: 'Seat da xong, co the mo order ngay',
+        title: 'Khách đã vào bàn',
       });
 
-      setNotice(`Da seat waiting #${waitingId}.`);
+      setNotice(`Đã xếp bàn cho khách chờ #${waitingId}.`);
     } catch (cause) {
       if (isRowVersionConflict(cause)) {
-        setError(rowVersionConflictMessage(`Waiting entry #${waitingId}`));
+        setError(rowVersionConflictMessage(`Khách chờ #${waitingId}`));
       } else {
-        handlePageError(cause, 'Khong the seat waiting list.');
+        handlePageError(cause, 'Không thể xếp bàn cho khách.');
       }
     } finally {
       setBusyKey(null);
     }
   }
 
+}
+
+function boardCardStyles(row: BoardRow, selected: boolean) {
+  if (selected) {
+    return {
+      cardClass: 'border-[#c46b2d] bg-[rgba(196,107,45,0.12)] shadow-[0_22px_54px_-36px_rgba(196,107,45,0.95)]',
+      dotClass: 'bg-[#c46b2d]',
+      pillTone: 'warning' as const,
+    };
+  }
+
+  if (row.active_order) {
+    return {
+      cardClass: 'border-amber-200 bg-amber-50/75 hover:bg-amber-50',
+      dotClass: 'bg-amber-500',
+      pillTone: 'warning' as const,
+    };
+  }
+
+  if (row.reservation) {
+    return {
+      cardClass: 'border-sky-200 bg-sky-50/70 hover:bg-sky-50',
+      dotClass: 'bg-sky-500',
+      pillTone: 'info' as const,
+    };
+  }
+
+  return {
+    cardClass: 'border-slate-200 bg-white/80 hover:bg-white',
+    dotClass: 'bg-emerald-500',
+    pillTone: 'success' as const,
+  };
+}
+
+function waitingCardStyles(entry: WaitingRow, selected: boolean) {
+  if (selected) {
+    return {
+      cardClass: 'border-sky-300 bg-sky-50 shadow-[0_20px_48px_-36px_rgba(14,165,233,0.85)]',
+      dotClass: 'bg-sky-500',
+    };
+  }
+
+  if (entry.invite_lifecycle.can_staff_seat_now) {
+    return {
+      cardClass: 'border-emerald-200 bg-emerald-50/80 hover:bg-emerald-50',
+      dotClass: 'bg-emerald-500',
+    };
+  }
+
+  return {
+    cardClass: 'border-slate-200 bg-white/80 hover:bg-white',
+    dotClass: 'bg-amber-500',
+  };
+}
+
+function translateBoardState(value: string | null | undefined) {
+  return translateCode(value, {
+    occupied: 'đang phục vụ',
+    available: 'còn trống',
+    reserved: 'đã giữ bàn',
+    pending: 'đang chờ',
+    open: 'đang mở',
+    checked_in: 'đã nhận khách',
+  });
+}
+
+function translateNextAction(value: string | null | undefined) {
+  return translateCode(value, {
+    none: 'chưa có',
+    check_in: 'nhận khách',
+    seat: 'xếp bàn',
+    notify: 'gọi khách',
+    order: 'mở đơn',
+    settlement: 'thanh toán',
+    payment: 'thanh toán',
+    follow_up: 'liên hệ lại',
+  });
+}
+
+function translateWaitingStatus(value: string | null | undefined) {
+  return translateCode(value, {
+    waiting: 'đang chờ',
+    ready: 'sẵn sàng',
+    seated: 'đã vào bàn',
+    cancelled: 'đã hủy',
+  });
+}
+
+function translateWaitingResponse(value: string | null | undefined) {
+  return translateCode(value, {
+    pending: 'chờ phản hồi',
+    accepted: 'đã nhận lời',
+    declined: 'đã từ chối',
+    expired: 'đã quá hạn',
+  });
+}
+
+function translateSeatReadiness(value: string | null | undefined) {
+  return translateCode(value, {
+    ready: 'sẵn sàng vào bàn',
+    waiting: 'đang chờ',
+    invite_active: 'đang giữ chỗ',
+    follow_up: 'cần gọi lại',
+  });
+}
+
+function translateCode(value: string | null | undefined, labels: Record<string, string>) {
+  if (!value) {
+    return 'không rõ';
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return labels[normalized] ?? humanizeCode(value).toLowerCase();
 }
 
 function ChangeSummary({
@@ -728,20 +917,20 @@ function ChangeSummary({
   if (!payload) {
     return (
       <EmptyState
-        title={`${title} chua duoc truy van`}
-        description="Dung nut Check changes de doi soat current_version voi backend realtime feed."
+        title={`${title} chưa được kiểm tra`}
+        description="Bấm Kiểm tra thay đổi để xem có dữ liệu mới hay không."
       />
     );
   }
 
   return (
-    <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
+    <div className="rounded-[24px] border border-slate-200 bg-white/80 p-5">
       <p className="text-sm font-semibold text-slate-900">{title}</p>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
-        <MetricCard label="Current version" value={String(payload.data.current_version)} />
-        <MetricCard label="Has changes" value={payload.data.has_changes ? 'Yes' : 'No'} />
-        <MetricCard label="Stale cursor" value={payload.data.stale_cursor ? 'Yes' : 'No'} />
-        <MetricCard label="Events" value={String(payload.data.events.length)} />
+        <MetricCard label="Phiên bản hiện tại" value={String(payload.data.current_version)} />
+        <MetricCard label="Có thay đổi" value={payload.data.has_changes ? 'Có' : 'Không'} />
+        <MetricCard label="Cần tải lại" value={payload.data.stale_cursor ? 'Có' : 'Không'} />
+        <MetricCard label="Số tín hiệu" value={String(payload.data.events.length)} />
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { RestaurantPosApiError } from '../api/sdk';
+import { StaffApiError } from '../core/api/http';
 
 export type ApiErrorKind =
   | 'auth'
@@ -23,8 +24,8 @@ export type NormalizedApiError = {
   payload: unknown;
 };
 
-export function isRestaurantPosApiError(error: unknown): error is RestaurantPosApiError<unknown> {
-  return error instanceof RestaurantPosApiError;
+export function isRestaurantPosApiError(error: unknown): error is RestaurantPosApiError<unknown> | StaffApiError<unknown> {
+  return error instanceof RestaurantPosApiError || error instanceof StaffApiError;
 }
 
 export function normalizeApiError(error: unknown, fallback: string): NormalizedApiError {
@@ -203,18 +204,18 @@ function firstValidationMessage(validation: ApiValidationErrors): string | null 
 }
 
 function operatorMessage(error: NormalizedApiError): string {
-  const parts = [error.message.trim() !== '' ? error.message.trim() : 'Request failed.'];
+  const parts = [error.message.trim() !== '' ? error.message.trim() : 'Yêu cầu không thành công.'];
 
   if (error.code === 'idempotency_key_required' && !parts[0].toLowerCase().includes('idempotency')) {
-    parts.push('Idempotency-Key is required.');
+    parts.push('Thiếu khóa chống gửi lặp.');
   }
 
   if (error.requiredCapability && !parts.join(' ').includes(error.requiredCapability)) {
-    parts.push(`Capability required: ${error.requiredCapability}.`);
+    parts.push(`Quyền cần có: ${error.requiredCapability}.`);
   }
 
   if (error.requestId && !parts.join(' ').includes(error.requestId)) {
-    parts.push(`Request ID: ${error.requestId}.`);
+    parts.push(`Mã yêu cầu: ${error.requestId}.`);
   }
 
   return parts.join(' ').trim();

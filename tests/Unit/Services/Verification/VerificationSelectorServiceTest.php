@@ -97,4 +97,22 @@ class VerificationSelectorServiceTest extends TestCase
         $this->assertContains('php artisan booking:harness:fe-contract --json', $commands);
         $this->assertContains('php artisan booking:harness:web-auth --json', $commands);
     }
+
+    public function test_build_report_falls_back_to_static_analysis_when_no_domain_matches_cleanly(): void
+    {
+        $service = new VerificationSelectorService;
+
+        $report = $service->buildReport([
+            'infra/fallback-proof.txt',
+        ]);
+
+        $commands = array_map(static fn (array $command): string => (string) $command['command'], $report['commands']);
+
+        $this->assertSame([], $report['domains']);
+        $this->assertContains('vendor/bin/phpstan analyse', $commands);
+        $this->assertContains(
+            'no domain-specific rule matched cleanly; selector escalated to static analysis instead of defaulting to the full suite',
+            $report['notes']
+        );
+    }
 }

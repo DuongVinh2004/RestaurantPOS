@@ -66,6 +66,7 @@ class StaffReservationDepositService
         $normalizedCurrency = trim($currency) !== '' ? trim($currency) : 'VND';
         $trimmedNotes = trim($notes);
         $idempotencyKey = trim($idempotencyKey);
+        $this->assertPaymentIdempotencyKeyFitsStorage($idempotencyKey);
         $requestFingerprint = $idempotencyKey !== ''
             ? $this->buildDepositPaymentRequestFingerprint(
                 paymentMethod: $paymentMethod,
@@ -499,6 +500,24 @@ class StaffReservationDepositService
     private function isDuplicatePaymentIdempotencyConstraint(QueryException $e): bool
     {
         return DatabaseWriteConflictMapper::isPaymentIdempotencyConflict($e);
+    }
+
+    private function assertPaymentIdempotencyKeyFitsStorage(string $idempotencyKey): void
+    {
+        if ($idempotencyKey === '') {
+            return;
+        }
+
+        if (mb_strlen($idempotencyKey) > Payment::IDEMPOTENCY_KEY_MAX_LENGTH) {
+            throw ValidationException::withMessages([
+                'idempotency_key' => [
+                    sprintf(
+                        'Idempotency-Key may not exceed %d characters for payment capture.',
+                        Payment::IDEMPOTENCY_KEY_MAX_LENGTH,
+                    ),
+                ],
+            ]);
+        }
     }
 
     private function throwIfDuplicatePaymentConstraint(QueryException $e): void

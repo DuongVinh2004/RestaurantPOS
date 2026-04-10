@@ -1,10 +1,21 @@
-import { defineConfig } from 'vite';
+import { configDefaults, defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  test: {
+    include: [
+      'src/**/*.test.ts',
+      'src/**/*.test.tsx',
+      'src/**/*.spec.ts',
+      'src/**/*.spec.tsx',
+      'scripts/**/*.test.mjs',
+      'scripts/**/*.spec.mjs',
+    ],
+    exclude: [...configDefaults.exclude, 'tmp-smoke/**'],
+  },
   server: {
-    host: '127.0.0.1',
+    host: 'localhost',
     port: 5173,
     strictPort: true,
     fs: {
@@ -12,7 +23,7 @@ export default defineConfig({
     },
   },
   preview: {
-    host: '127.0.0.1',
+    host: 'localhost',
     port: 4173,
   },
 });

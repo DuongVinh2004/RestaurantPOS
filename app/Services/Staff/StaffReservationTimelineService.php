@@ -8,6 +8,7 @@ use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationStatus;
 use App\Models\Reservation;
 use App\Models\TableHold;
+use App\Services\Branch\BranchContextService;
 use App\Services\RuntimeSettingService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -18,6 +19,7 @@ class StaffReservationTimelineService
         private readonly StaffReservationInboxService $inboxService,
         private readonly StaffTableBoardService $tableBoardService,
         private readonly StaffCheckInReadinessService $checkInReadinessService,
+        private readonly BranchContextService $branchContextService,
         ?RuntimeSettingService $runtimeSettings = null,
     ) {
         $this->runtimeSettings = $runtimeSettings ?? app(RuntimeSettingService::class);
@@ -37,6 +39,7 @@ class StaffReservationTimelineService
         $laneBy = $this->resolveLaneMode((string) ($filters['lane_by'] ?? 'slot'));
         $includeCandidateTables = (bool) ($filters['include_candidate_tables'] ?? false);
         $includeUnassignedReservations = $laneBy === 'table' && $includeCandidateTables;
+        $resolvedBranchId = $this->resolveBranchId($filters['branch_id'] ?? null);
         $zoneFilter = ! empty($filters['zone']) ? trim((string) $filters['zone']) : null;
         $nowUtc = Carbon::now('UTC');
         $checkInGrace = $this->resolveCheckInGraceMinutes();
@@ -52,6 +55,7 @@ class StaffReservationTimelineService
             ]);
 
         $this->inboxService->applyCommonFilters($query, [
+            'branch_id' => $resolvedBranchId,
             'status' => $filters['status'] ?? null,
             'table_id' => $filters['table_id'] ?? null,
             'q' => $filters['q'] ?? null,
@@ -90,6 +94,7 @@ class StaffReservationTimelineService
             ? $this->buildCandidateTablePreviewMap(
                 $reservations,
                 $filters,
+                $resolvedBranchId,
                 $window['range_start_utc'],
                 $window['range_end_utc'],
                 $nowUtc,
@@ -159,6 +164,7 @@ class StaffReservationTimelineService
                 'end_date' => $filters['end_date'] ?? null,
                 'from_time' => $filters['from_time'] ?? null,
                 'to_time' => $filters['to_time'] ?? null,
+                'branch_id' => $resolvedBranchId,
                 'status' => $filters['status'] ?? null,
                 'table_id' => isset($filters['table_id']) ? (int) $filters['table_id'] : null,
                 'zone' => $filters['zone'] ?? null,
@@ -218,6 +224,7 @@ class StaffReservationTimelineService
     private function buildCandidateTablePreviewMap(
         Collection $reservations,
         array $filters,
+        ?int $branchId,
         Carbon $boardFromUtc,
         Carbon $boardToUtc,
         Carbon $nowUtc,
@@ -250,6 +257,7 @@ class StaffReservationTimelineService
         $preview = [];
         $candidateMap = $this->tableBoardService->getCandidateTablesForReservations(
             reservations: $candidateReservations,
+            branchId: $branchId,
             zone: $zone,
             includeSlotOnly: false,
             boardFrom: $boardFromUtc,
@@ -470,5 +478,14 @@ class StaffReservationTimelineService
             'no_show.grace_minutes',
             $this->runtimeSettings->int('booking.no_show_grace_minutes', (int) config('booking.no_show_grace_minutes', 15))
         ));
+    }
+
+    private function resolveBranchId(mixed $branchId): ?int
+    {
+        if ($branchId === null || $branchId === '') {
+            return null;
+        }
+
+        return $this->branchContextService->resolveBranchId($branchId);
     }
 }

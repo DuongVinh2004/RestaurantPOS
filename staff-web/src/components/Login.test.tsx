@@ -13,9 +13,9 @@ describe('Login', () => {
   it('shows validation feedback before calling the API', () => {
     render(<Login onSuccess={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dang nhap staff' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập' }));
 
-    expect(screen.getByText('Can nhap tai khoan va mat khau staff.')).toBeInTheDocument();
+    expect(screen.getByText('Hãy nhập tài khoản và mật khẩu.')).toBeInTheDocument();
   });
 
   it('submits credentials through the provided auth callback', async () => {
@@ -24,10 +24,10 @@ describe('Login', () => {
 
     render(<Login onSubmit={onSubmit} onSuccess={onSuccess} />);
 
-    fireEvent.change(screen.getByPlaceholderText('vd: staff-auth-http'), { target: { value: 'cashier-a' } });
-    fireEvent.change(screen.getByPlaceholderText('Nhap mat khau staff'), { target: { value: 'secret-123' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Dang nhap staff' }));
+    fireEvent.change(screen.getByPlaceholderText('Ví dụ: uat.staff'), { target: { value: 'cashier-a' } });
+    fireEvent.change(screen.getByPlaceholderText('Nhập mật khẩu'), { target: { value: 'secret-123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập' }));
 
-    expect(onSubmit).toHaveBeenCalledWith('cashier-a', 'secret-123', 'staff-web');
+    expect(onSubmit).toHaveBeenCalledWith('cashier-a', 'secret-123', 'Máy phục vụ');
   });
 });

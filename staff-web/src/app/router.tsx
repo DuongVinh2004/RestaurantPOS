@@ -6,6 +6,7 @@ import { canAccessStaffSection, defaultStaffPath, staffSections, type StaffSecti
 import { StaffShell } from '../components/shell/StaffShell';
 import { StaffSessionProvider } from './session';
 import { useStaffSession } from './session-context';
+import { useAuthStore } from './store/auth-store';
 import { BoardPage } from '../features/board/BoardPage';
 import { OrdersPage } from '../features/orders/OrdersPage';
 import { SettlementPage } from '../features/settlement/SettlementPage';
@@ -32,7 +33,7 @@ const conversationsSection = requireSection('/conversations');
 export function AppRouter() {
   return (
     <StaffSessionProvider>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <RouterContent />
       </BrowserRouter>
     </StaffSessionProvider>
@@ -153,15 +154,16 @@ function RouterContent() {
 }
 
 function LoginRoute() {
-  const { notice, noticeTone, setAuthenticatedSession, clearNotice } = useStaffSession();
+  const { notice, noticeTone, clearNotice } = useStaffSession();
+  const login = useAuthStore((state) => state.login);
 
   return (
     <Login
       notice={notice}
       noticeTone={noticeTone}
-      onSuccess={(session) => {
+      onSubmit={(identifier, password, deviceName) => login({ identifier, password, deviceName })}
+      onSuccess={() => {
         clearNotice();
-        setAuthenticatedSession(session);
       }}
     />
   );

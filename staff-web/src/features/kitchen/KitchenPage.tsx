@@ -5,14 +5,13 @@ import {
   bumpKitchenTicket,
   dispatchKitchenOrder,
   fireKitchenTicket,
-  isUnauthorized,
-  loadKitchenChanges,
-  loadKitchenStations,
-  loadKitchenStationTickets,
+  getKitchenChanges as loadKitchenChanges,
+  listKitchenStations as loadKitchenStations,
+  getKitchenStationTickets as loadKitchenStationTickets,
   recallKitchenTicket,
-} from '../../api/client';
+} from '../../core/api/staff-api';
 import { useStaffSession } from '../../app/session-context';
-import { formatApiError, normalizeApiError } from '../../lib/api-errors';
+import { formatApiError, isApiStatus, normalizeApiError } from '../../core/api/errors';
 import { isRowVersionConflict, rowVersionConflictMessage } from '../../lib/conflicts';
 import { formatDateTime, humanizeCode } from '../../lib/format';
 import { readOperatorJourneyContext } from '../../lib/operatorJourney';
@@ -63,7 +62,7 @@ export function KitchenPage() {
     : 'Dispatch nam trong staff-web nay. `row_version` la optional, nhung nen gui khi operator vua load order de tranh stale write.';
 
   const handlePageError = useCallback((cause: unknown, fallback: string) => {
-    if (isUnauthorized(cause)) {
+    if (isApiStatus(cause, 401)) {
       expire('Phien staff da het han. Dang nhap lai de tiep tuc.');
       return;
     }
@@ -167,10 +166,7 @@ export function KitchenPage() {
     setError(null);
 
     try {
-      const nextChanges = await loadKitchenChanges({
-        after_version: changes?.data.current_version ?? stationRealtimeVersion,
-        limit: 20,
-      });
+      const nextChanges = await loadKitchenChanges(changes?.data.current_version ?? stationRealtimeVersion);
 
       setChanges(nextChanges);
 
@@ -613,7 +609,7 @@ export function KitchenPage() {
     }
 
     if (!shouldReloadKitchenState(cause)) {
-      if (isUnauthorized(cause)) {
+      if (isApiStatus(cause, 401)) {
         expire('Phien staff da het han. Dang nhap lai de tiep tuc.');
       }
       return;

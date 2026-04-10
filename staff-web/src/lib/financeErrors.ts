@@ -1,4 +1,12 @@
-import { formatApiError, normalizeApiError } from './api-errors';
+import {
+  formatApiError as formatCoreApiError,
+  normalizeApiError as normalizeCoreApiError,
+  type NormalizedApiError,
+} from '../core/api/errors';
+import {
+  formatApiError as formatLegacyApiError,
+  normalizeApiError as normalizeLegacyApiError,
+} from './api-errors';
 import { humanizeCode } from './format';
 
 const financeInvariantFields = [
@@ -15,7 +23,7 @@ const financeInvariantFields = [
 ] as const;
 
 export function formatFinanceOperatorError(error: unknown, fallback: string): string {
-  const normalized = normalizeApiError(error, fallback);
+  const normalized = normalizeFinanceApiError(error, fallback);
 
   if (normalized.status === 403) {
     return appendContext(
@@ -47,7 +55,7 @@ export function formatFinanceOperatorError(error: unknown, fallback: string): st
     return appendContext(`Backend finance gap: ${normalized.message}`, normalized.requestId);
   }
 
-  return formatApiError(error, fallback);
+  return formatFinanceFallback(error, fallback);
 }
 
 function appendContext(message: string, requestId: string | null): string {
@@ -56,4 +64,34 @@ function appendContext(message: string, requestId: string | null): string {
   }
 
   return `${message} Request ID: ${requestId}.`;
+}
+
+function normalizeFinanceApiError(error: unknown, fallback: string): NormalizedApiError {
+  const normalized = normalizeCoreApiError(error, fallback);
+
+  if (hasStructuredApiSignal(normalized)) {
+    return normalized;
+  }
+
+  return normalizeLegacyApiError(error, fallback);
+}
+
+function formatFinanceFallback(error: unknown, fallback: string): string {
+  const normalized = normalizeCoreApiError(error, fallback);
+
+  if (hasStructuredApiSignal(normalized)) {
+    return formatCoreApiError(error, fallback);
+  }
+
+  return formatLegacyApiError(error, fallback);
+}
+
+function hasStructuredApiSignal(error: NormalizedApiError): boolean {
+  return (
+    error.status !== null
+    || error.code !== null
+    || error.requiredCapability !== null
+    || error.requestId !== null
+    || Object.keys(error.validation).length > 0
+  );
 }

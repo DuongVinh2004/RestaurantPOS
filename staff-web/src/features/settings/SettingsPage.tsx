@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarX2, Clock3, MapPin, RefreshCcw, Settings2 } from 'lucide-react';
-import { isUnauthorized, loadAdminBranches } from '../../api/client';
+import { listAdminBranches as loadAdminBranches } from '../../core/api/staff-api';
+import { formatApiError, isApiStatus } from '../../core/api/errors';
 import { useStaffSession } from '../../app/session-context';
-import { formatApiError } from '../../lib/api-errors';
 import { asRecord, formatDateTime, readBoolean, readNumber, readString } from '../../lib/format';
 import type { BranchCollectionEnvelope } from '../../api/sdk';
 import { ActionButton, Banner, EmptyState, MetricCard, PageHeader, Panel, StatusPill } from '../../components/ui';
@@ -18,6 +18,10 @@ export function SettingsPage() {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const bootstrapFiltersRef = useRef({
+    query: searchQuery,
+    activeOnly: activeMode === 'active',
+  });
 
   const selectedBranch = useMemo(
     () => branches?.data.find((branch) => branch.branch_id === selectedBranchId) ?? null,
@@ -42,7 +46,7 @@ export function SettingsPage() {
       ));
       setNotice(nextNotice);
     } catch (cause) {
-      if (isUnauthorized(cause)) {
+      if (isApiStatus(cause, 401)) {
         expire('Phien staff da het han. Dang nhap lai de tiep tuc.');
         return;
       }
@@ -54,7 +58,14 @@ export function SettingsPage() {
   }, [expire, session?.startup.default_branch?.branch_id]);
 
   useEffect(() => {
-    void refreshBranches(searchQuery, activeMode === 'active', null);
+    bootstrapFiltersRef.current = {
+      query: searchQuery,
+      activeOnly: activeMode === 'active',
+    };
+  }, [searchQuery, activeMode]);
+
+  useEffect(() => {
+    void refreshBranches(bootstrapFiltersRef.current.query, bootstrapFiltersRef.current.activeOnly, null);
   }, [refreshBranches, session?.staff_api_key_id]);
 
   return (

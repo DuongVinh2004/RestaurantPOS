@@ -1,5 +1,5 @@
 import { RestaurantPosApiError } from '../api/sdk';
-import type { StaffSession } from '../api/client';
+import type { StaffSession } from '../core/auth/storage';
 
 export function buildStaffSession(overrides: Partial<StaffSession> = {}): StaffSession {
   const capabilities = overrides.capabilities ?? [

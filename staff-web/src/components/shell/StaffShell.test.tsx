@@ -9,9 +9,9 @@ describe('StaffShell', () => {
   it('shows startup context resolved from the staff auth session envelope', () => {
     renderWithShell(createSessionContext());
 
-    expect(screen.getByText('Operator ready')).toBeInTheDocument();
-    expect(screen.getByText('Branch MAIN')).toBeInTheDocument();
-    expect(screen.getByText('Shift SHIFT-STAFF-WEB')).toBeInTheDocument();
+    expect(screen.getByText('Sẵn sàng làm việc')).toBeInTheDocument();
+    expect(screen.getByText('Chi nhánh MAIN')).toBeInTheDocument();
+    expect(screen.getByText('Ca SHIFT-STAFF-WEB')).toBeInTheDocument();
   });
 
   it('keeps the active session when refresh fails with a non-auth error', async () => {
@@ -21,7 +21,7 @@ describe('StaffShell', () => {
 
     renderWithShell(context);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh token' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Làm mới phiên' }));
 
     await waitFor(() => expect(context.refresh).toHaveBeenCalled());
     expect(context.expire).not.toHaveBeenCalled();
@@ -36,7 +36,7 @@ describe('StaffShell', () => {
 
     renderWithShell(context);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh token' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Làm mới phiên' }));
 
     await waitFor(() => expect(context.expire).toHaveBeenCalled());
     expect(context.setNotice).not.toHaveBeenCalledWith(expect.any(String), 'error');
@@ -47,7 +47,7 @@ describe('StaffShell', () => {
 function renderWithShell(context: StaffSessionContextValue) {
   return render(
     <StaffSessionContext.Provider value={context}>
-      <MemoryRouter initialEntries={['/board']}>
+      <MemoryRouter initialEntries={['/board']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route element={<StaffShell />}>
             <Route path="/board" element={<div>Board outlet</div>} />

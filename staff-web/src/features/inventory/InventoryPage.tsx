@@ -1,13 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Boxes, PackageCheck, RefreshCcw, Truck } from 'lucide-react';
 import {
-  isUnauthorized,
-  loadAdminIngredients,
-  loadAdminPurchaseOrders,
-  loadAdminSuppliers,
-} from '../../api/client';
+  listAdminIngredients as loadAdminIngredients,
+  listAdminPurchaseOrders as loadAdminPurchaseOrders,
+  listAdminSuppliers as loadAdminSuppliers,
+} from '../../core/api/staff-api';
+import { formatApiError, isApiStatus, normalizeApiError } from '../../core/api/errors';
 import { useStaffSession } from '../../app/session-context';
-import { formatApiError, normalizeApiError } from '../../lib/api-errors';
 import { formatDateTime, humanizeCode } from '../../lib/format';
 import type {
   AdminIngredientCollectionEnvelope,
@@ -57,6 +56,17 @@ export function InventoryPage() {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const bootstrapFiltersRef = useRef(
+    buildInventoryFilters(
+      ingredientQuery,
+      ingredientActiveMode,
+      supplierQuery,
+      supplierActiveMode,
+      purchaseOrderQuery,
+      purchaseOrderBranchIdInput,
+      purchaseOrderStatus,
+    ),
+  );
 
   const ingredientSummary = useMemo(() => summarizeIngredients(ingredients?.data ?? []), [ingredients]);
   const purchaseOrderSummary = useMemo(() => summarizePurchaseOrders(purchaseOrders?.data ?? []), [purchaseOrders]);
@@ -96,7 +106,7 @@ export function InventoryPage() {
       setPurchaseOrders(nextPurchaseOrders);
       setNotice(nextNotice);
     } catch (cause) {
-      if (isUnauthorized(cause)) {
+      if (isApiStatus(cause, 401)) {
         expire('Phien staff da het han. Dang nhap lai de tiep tuc.');
         return;
       }
@@ -114,18 +124,27 @@ export function InventoryPage() {
   }, [expire]);
 
   useEffect(() => {
-    void refreshInventory(
-      buildInventoryFilters(
-        ingredientQuery,
-        ingredientActiveMode,
-        supplierQuery,
-        supplierActiveMode,
-        purchaseOrderQuery,
-        purchaseOrderBranchIdInput,
-        purchaseOrderStatus,
-      ),
-      null,
+    bootstrapFiltersRef.current = buildInventoryFilters(
+      ingredientQuery,
+      ingredientActiveMode,
+      supplierQuery,
+      supplierActiveMode,
+      purchaseOrderQuery,
+      purchaseOrderBranchIdInput,
+      purchaseOrderStatus,
     );
+  }, [
+    ingredientQuery,
+    ingredientActiveMode,
+    supplierQuery,
+    supplierActiveMode,
+    purchaseOrderQuery,
+    purchaseOrderBranchIdInput,
+    purchaseOrderStatus,
+  ]);
+
+  useEffect(() => {
+    void refreshInventory(bootstrapFiltersRef.current, null);
   }, [refreshInventory, session?.staff_api_key_id]);
 
   return (

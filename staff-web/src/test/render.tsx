@@ -13,7 +13,7 @@ export function renderWithSession(
   const { initialEntries, ...renderOptions } = options ?? {};
 
   return render(
-    <MemoryRouter initialEntries={initialEntries}>
+    <MemoryRouter initialEntries={initialEntries} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <StaffSessionContext.Provider value={sessionContext}>{ui}</StaffSessionContext.Provider>
     </MemoryRouter>,
     renderOptions,

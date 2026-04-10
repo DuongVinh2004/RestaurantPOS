@@ -8242,7 +8242,7 @@
             "get": {
                 "operationId": "health",
                 "summary": "Health check",
-                "description": "Operational health endpoint. Detailed checks are included when a valid staff actor is resolved.",
+                "description": "Operational health endpoint. Base db, redis, scheduler, and disk checks are always included; detailed operational sections are added when a valid staff actor is resolved.",
                 "tags": [
                     "Health"
                 ],
@@ -13305,6 +13305,59 @@
                 ]
             }
         },
+        "/api/v1/staff/branches": {
+            "get": {
+                "operationId": "get_v1_staff_branches",
+                "summary": "List accessible staff branches",
+                "description": "Return the active branch context list exposed to staff-web for branch switching and branch-aware filters.",
+                "tags": [
+                    "Admin Settings"
+                ],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BranchCollectionEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "get_v1_staff_branches",
+                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffBranchContextController@index",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "full",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,300,60,either"
+                ]
+            }
+        },
         "/api/v1/staff/cashier/shifts": {
             "get": {
                 "operationId": "get_v1_staff_cashier_shifts",
@@ -13585,7 +13638,7 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,300,60,either",
-                    "staff.capability:settlement.manage"
+                    "staff.capability:cashier.shift.manage"
                 ]
             }
         },
@@ -13659,7 +13712,7 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,300,60,either",
-                    "staff.capability:settlement.manage"
+                    "staff.capability:cashier.shift.manage"
                 ]
             }
         },
@@ -13765,7 +13818,7 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,300,60,either",
-                    "staff.capability:settlement.manage",
+                    "staff.capability:cashier.shift.manage",
                     "idempotency:staff.cashier-shift.open"
                 ],
                 "requestBody": {
@@ -13865,7 +13918,7 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,300,60,either",
-                    "staff.capability:settlement.manage"
+                    "staff.capability:cashier.shift.manage"
                 ]
             }
         },
@@ -13989,7 +14042,7 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,300,60,either",
-                    "staff.capability:settlement.manage",
+                    "staff.capability:cashier.shift.manage",
                     "idempotency:staff.cashier-shift.close"
                 ],
                 "requestBody": {
@@ -16962,7 +17015,7 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,300,60,either",
-                    "staff.capability:order.manage"
+                    "staff.capability:kitchen.manage"
                 ]
             }
         },
@@ -17026,7 +17079,7 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,300,60,either",
-                    "staff.capability:order.manage"
+                    "staff.capability:kitchen.manage"
                 ]
             }
         },
@@ -17155,7 +17208,7 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,300,60,either",
-                    "staff.capability:order.manage"
+                    "staff.capability:kitchen.manage"
                 ]
             }
         },
@@ -17279,7 +17332,7 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,300,60,either",
-                    "staff.capability:order.manage",
+                    "staff.capability:kitchen.manage",
                     "idempotency:staff.kitchen.bump"
                 ]
             }
@@ -17404,7 +17457,7 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,300,60,either",
-                    "staff.capability:order.manage",
+                    "staff.capability:kitchen.manage",
                     "idempotency:staff.kitchen.fire"
                 ]
             }
@@ -17529,8 +17582,178 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,300,60,either",
-                    "staff.capability:order.manage",
+                    "staff.capability:kitchen.manage",
                     "idempotency:staff.kitchen.recall"
+                ]
+            }
+        },
+        "/api/v1/staff/menu/items": {
+            "get": {
+                "operationId": "get_v1_staff_menu_items",
+                "summary": "List staff menu items",
+                "description": "Return the staff ordering menu catalog slice for active dine-in order composition using the same price-effective visibility rules as customer menu reads.",
+                "tags": [
+                    "Menu Catalog"
+                ],
+                "parameters": [
+                    {
+                        "name": "service_time",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                        },
+                        "description": "nullable, date",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "date"
+                        ]
+                    },
+                    {
+                        "name": "category_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 1
+                        },
+                        "description": "nullable, integer, min:1",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1"
+                        ]
+                    },
+                    {
+                        "name": "preorder_only",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "nullable": true
+                        },
+                        "description": "nullable, boolean",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "boolean"
+                        ]
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "nullable": true,
+                            "maxLength": 100
+                        },
+                        "description": "nullable, string, max:100",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "string",
+                            "max:100"
+                        ]
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 1
+                        },
+                        "description": "nullable, integer, min:1",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1"
+                        ]
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 1,
+                            "maximum": 100
+                        },
+                        "description": "nullable, integer, min:1, max:100",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1",
+                            "max:100"
+                        ]
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomerMenuItemsCollectionEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "get_v1_staff_menu_items",
+                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffMenuCatalogController@index",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "full",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,300,60,either",
+                    "staff.capability:order.manage"
                 ]
             }
         },
@@ -19123,7 +19346,7 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,300,60,either",
-                    "staff.capability:settlement.manage"
+                    "staff.capability:reporting.view"
                 ]
             }
         },
@@ -19377,7 +19600,7 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,300,60,either",
-                    "staff.capability:settlement.manage"
+                    "staff.capability:reporting.view"
                 ]
             }
         },
@@ -19647,7 +19870,7 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,300,60,either",
-                    "staff.capability:settlement.manage"
+                    "staff.capability:reporting.view"
                 ]
             }
         },
@@ -20094,10 +20317,10 @@
                         "schema": {
                             "type": "array"
                         },
-                        "description": "sometimes, array:date,start_date,end_date,from_time,to_time,status,table_id,zone,q,deposit_acknowledged,deposit_intent_status,slot_minutes,lane_by,include_candidate_tables",
+                        "description": "sometimes, array:date,start_date,end_date,from_time,to_time,branch_id,status,table_id,zone,q,deposit_acknowledged,deposit_intent_status,slot_minutes,lane_by,include_candidate_tables",
                         "x-laravel-rules": [
                             "sometimes",
-                            "array:date,start_date,end_date,from_time,to_time,status,table_id,zone,q,deposit_acknowledged,deposit_intent_status,slot_minutes,lane_by,include_candidate_tables"
+                            "array:date,start_date,end_date,from_time,to_time,branch_id,status,table_id,zone,q,deposit_acknowledged,deposit_intent_status,slot_minutes,lane_by,include_candidate_tables"
                         ]
                     },
                     {
@@ -20107,10 +20330,10 @@
                         "schema": {
                             "type": "array"
                         },
-                        "description": "sometimes, array:date,start_date,end_date,from_time,to_time,status,table_id,zone,q,deposit_acknowledged,deposit_intent_status,slot_minutes,lane_by,include_candidate_tables",
+                        "description": "sometimes, array:date,start_date,end_date,from_time,to_time,branch_id,status,table_id,zone,q,deposit_acknowledged,deposit_intent_status,slot_minutes,lane_by,include_candidate_tables",
                         "x-laravel-rules": [
                             "sometimes",
-                            "array:date,start_date,end_date,from_time,to_time,status,table_id,zone,q,deposit_acknowledged,deposit_intent_status,slot_minutes,lane_by,include_candidate_tables"
+                            "array:date,start_date,end_date,from_time,to_time,branch_id,status,table_id,zone,q,deposit_acknowledged,deposit_intent_status,slot_minutes,lane_by,include_candidate_tables"
                         ]
                     },
                     {
@@ -20184,6 +20407,23 @@
                             "nullable",
                             "date_format:H:i",
                             "after:from_time"
+                        ]
+                    },
+                    {
+                        "name": "branch_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 1
+                        },
+                        "description": "nullable, integer, min:1, exists:branches,branch_id",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1",
+                            "exists:branches,branch_id"
                         ]
                     },
                     {
@@ -21170,6 +21410,89 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/staff/reservations/{reservation_id}": {
+            "get": {
+                "operationId": "get_v1_staff_reservations_reservation_id",
+                "summary": "Show staff reservation detail",
+                "description": "Return the staff-scoped reservation detail read model with tables, user context, order lines, and financial snapshots needed for operational drawers and linked order workflows.",
+                "tags": [
+                    "Staff Tables"
+                ],
+                "parameters": [
+                    {
+                        "name": "reservation_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReservationEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "get_v1_staff_reservations_reservation_id",
+                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationInboxController@show",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "full",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,300,60,either",
+                    "staff.capability:reservation.manage"
+                ]
             }
         },
         "/api/v1/staff/reservations/{reservation_id}/active-order": {
@@ -22681,10 +23004,10 @@
                         "schema": {
                             "type": "array"
                         },
-                        "description": "sometimes, array:date,from,to,zone,include_holds,group_by",
+                        "description": "sometimes, array:date,from,to,branch_id,zone,include_holds,group_by",
                         "x-laravel-rules": [
                             "sometimes",
-                            "array:date,from,to,zone,include_holds,group_by"
+                            "array:date,from,to,branch_id,zone,include_holds,group_by"
                         ]
                     },
                     {
@@ -22694,10 +23017,10 @@
                         "schema": {
                             "type": "array"
                         },
-                        "description": "sometimes, array:date,from,to,zone,include_holds,group_by",
+                        "description": "sometimes, array:date,from,to,branch_id,zone,include_holds,group_by",
                         "x-laravel-rules": [
                             "sometimes",
-                            "array:date,from,to,zone,include_holds,group_by"
+                            "array:date,from,to,branch_id,zone,include_holds,group_by"
                         ]
                     },
                     {
@@ -22742,6 +23065,23 @@
                             "required",
                             "date",
                             "after:from"
+                        ]
+                    },
+                    {
+                        "name": "branch_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 1
+                        },
+                        "description": "nullable, integer, min:1, exists:branches,branch_id",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1",
+                            "exists:branches,branch_id"
                         ]
                     },
                     {
@@ -22848,10 +23188,10 @@
                         "schema": {
                             "type": "array"
                         },
-                        "description": "sometimes, array:date,from,to,zone,include_holds,group_by",
+                        "description": "sometimes, array:date,from,to,branch_id,zone,include_holds,group_by",
                         "x-laravel-rules": [
                             "sometimes",
-                            "array:date,from,to,zone,include_holds,group_by"
+                            "array:date,from,to,branch_id,zone,include_holds,group_by"
                         ]
                     },
                     {
@@ -22861,10 +23201,10 @@
                         "schema": {
                             "type": "array"
                         },
-                        "description": "sometimes, array:date,from,to,zone,include_holds,group_by",
+                        "description": "sometimes, array:date,from,to,branch_id,zone,include_holds,group_by",
                         "x-laravel-rules": [
                             "sometimes",
-                            "array:date,from,to,zone,include_holds,group_by"
+                            "array:date,from,to,branch_id,zone,include_holds,group_by"
                         ]
                     },
                     {
@@ -22909,6 +23249,23 @@
                             "required",
                             "date",
                             "after:from"
+                        ]
+                    },
+                    {
+                        "name": "branch_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 1
+                        },
+                        "description": "nullable, integer, min:1, exists:branches,branch_id",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1",
+                            "exists:branches,branch_id"
                         ]
                     },
                     {
@@ -43222,6 +43579,7 @@
                                 "item_id",
                                 "quantity",
                                 "status",
+                                "row_version",
                                 "item_name_snapshot",
                                 "unit_price",
                                 "currency",
@@ -43241,6 +43599,10 @@
                                 },
                                 "status": {
                                     "type": "string"
+                                },
+                                "row_version": {
+                                    "type": "integer",
+                                    "nullable": true
                                 },
                                 "item_name_snapshot": {
                                     "type": "string",
@@ -43692,14 +44054,14 @@
                         "type": "array",
                         "x-laravel-rules": [
                             "sometimes",
-                            "array:date,start_date,end_date,from_time,to_time,status,table_id,zone,q,deposit_acknowledged,deposit_intent_status,slot_minutes,lane_by,include_candidate_tables"
+                            "array:date,start_date,end_date,from_time,to_time,branch_id,status,table_id,zone,q,deposit_acknowledged,deposit_intent_status,slot_minutes,lane_by,include_candidate_tables"
                         ]
                     },
                     "filters": {
                         "type": "array",
                         "x-laravel-rules": [
                             "sometimes",
-                            "array:date,start_date,end_date,from_time,to_time,status,table_id,zone,q,deposit_acknowledged,deposit_intent_status,slot_minutes,lane_by,include_candidate_tables"
+                            "array:date,start_date,end_date,from_time,to_time,branch_id,status,table_id,zone,q,deposit_acknowledged,deposit_intent_status,slot_minutes,lane_by,include_candidate_tables"
                         ]
                     },
                     "date": {
@@ -43744,6 +44106,17 @@
                             "date_format:H:i",
                             "after:from_time"
                         ]
+                    },
+                    "branch_id": {
+                        "type": "integer",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1",
+                            "exists:branches,branch_id"
+                        ],
+                        "minimum": 1
                     },
                     "status": {
                         "type": "string",
@@ -43860,11 +44233,11 @@
                 "x-laravel-rules": {
                     "filter": [
                         "sometimes",
-                        "array:date,start_date,end_date,from_time,to_time,status,table_id,zone,q,deposit_acknowledged,deposit_intent_status,slot_minutes,lane_by,include_candidate_tables"
+                        "array:date,start_date,end_date,from_time,to_time,branch_id,status,table_id,zone,q,deposit_acknowledged,deposit_intent_status,slot_minutes,lane_by,include_candidate_tables"
                     ],
                     "filters": [
                         "sometimes",
-                        "array:date,start_date,end_date,from_time,to_time,status,table_id,zone,q,deposit_acknowledged,deposit_intent_status,slot_minutes,lane_by,include_candidate_tables"
+                        "array:date,start_date,end_date,from_time,to_time,branch_id,status,table_id,zone,q,deposit_acknowledged,deposit_intent_status,slot_minutes,lane_by,include_candidate_tables"
                     ],
                     "date": [
                         "nullable",
@@ -43887,6 +44260,12 @@
                         "nullable",
                         "date_format:H:i",
                         "after:from_time"
+                    ],
+                    "branch_id": [
+                        "nullable",
+                        "integer",
+                        "min:1",
+                        "exists:branches,branch_id"
                     ],
                     "status": [
                         "nullable",
@@ -45992,6 +46371,7 @@
                                 "item_id",
                                 "quantity",
                                 "status",
+                                "row_version",
                                 "item_name_snapshot",
                                 "unit_price",
                                 "currency",
@@ -46011,6 +46391,10 @@
                                 },
                                 "status": {
                                     "type": "string"
+                                },
+                                "row_version": {
+                                    "type": "integer",
+                                    "nullable": true
                                 },
                                 "item_name_snapshot": {
                                     "type": "string",
@@ -47138,6 +47522,7 @@
                                         "item_id",
                                         "quantity",
                                         "status",
+                                        "row_version",
                                         "item_name_snapshot",
                                         "unit_price",
                                         "currency",
@@ -47157,6 +47542,10 @@
                                         },
                                         "status": {
                                             "type": "string"
+                                        },
+                                        "row_version": {
+                                            "type": "integer",
+                                            "nullable": true
                                         },
                                         "item_name_snapshot": {
                                             "type": "string",
@@ -50771,14 +51160,14 @@
                         "type": "array",
                         "x-laravel-rules": [
                             "sometimes",
-                            "array:date,from,to,zone,include_holds,group_by"
+                            "array:date,from,to,branch_id,zone,include_holds,group_by"
                         ]
                     },
                     "filters": {
                         "type": "array",
                         "x-laravel-rules": [
                             "sometimes",
-                            "array:date,from,to,zone,include_holds,group_by"
+                            "array:date,from,to,branch_id,zone,include_holds,group_by"
                         ]
                     },
                     "date": {
@@ -50806,6 +51195,17 @@
                             "after:from"
                         ],
                         "format": "date-time"
+                    },
+                    "branch_id": {
+                        "type": "integer",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1",
+                            "exists:branches,branch_id"
+                        ],
+                        "minimum": 1
                     },
                     "zone": {
                         "type": "string",
@@ -50849,11 +51249,11 @@
                 "x-laravel-rules": {
                     "filter": [
                         "sometimes",
-                        "array:date,from,to,zone,include_holds,group_by"
+                        "array:date,from,to,branch_id,zone,include_holds,group_by"
                     ],
                     "filters": [
                         "sometimes",
-                        "array:date,from,to,zone,include_holds,group_by"
+                        "array:date,from,to,branch_id,zone,include_holds,group_by"
                     ],
                     "date": [
                         "nullable",
@@ -50867,6 +51267,12 @@
                         "required",
                         "date",
                         "after:from"
+                    ],
+                    "branch_id": [
+                        "nullable",
+                        "integer",
+                        "min:1",
+                        "exists:branches,branch_id"
                     ],
                     "zone": [
                         "nullable",

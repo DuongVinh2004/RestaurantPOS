@@ -43,6 +43,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
+$consoleValidationPayload = static function (ValidationException $exception): array {
+    return [
+        'error' => 'validation_error',
+        'errors' => $exception->errors(),
+    ];
+};
+
 Artisan::command('booking:uat-pack:bootstrap
     {--base-url= : Base API URL written into the generated manifest}
     {--manifest-path= : Absolute or repo-relative output path for the generated manifest}

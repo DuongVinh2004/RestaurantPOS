@@ -3,16 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReportingPage } from './ReportingPage';
 import { renderWithSession } from '../../test/render';
 import { buildStaffSession } from '../../test/fixtures';
+import { RestaurantPosApiError } from '../../core/api/sdk';
 import type { StaffSessionContextValue } from '../../app/session-context';
 
 const apiMocks = vi.hoisted(() => ({
-  loadDailySalesReporting: vi.fn(),
-  loadDailyOperationsReporting: vi.fn(),
-  loadDailyInventoryReporting: vi.fn(),
-  isUnauthorized: vi.fn(() => false),
+  listDailySalesReporting: vi.fn(),
+  listDailyOperationsReporting: vi.fn(),
+  listDailyInventoryReporting: vi.fn(),
 }));
 
-vi.mock('../../api/client', () => apiMocks);
+vi.mock('../../core/api/staff-api', () => apiMocks);
 
 describe('ReportingPage', () => {
   beforeEach(() => {
@@ -26,7 +26,7 @@ describe('ReportingPage', () => {
     const { startDate, endDate } = expectedReportWindow();
 
     await waitFor(() =>
-      expect(apiMocks.loadDailySalesReporting).toHaveBeenCalledWith({
+      expect(apiMocks.listDailySalesReporting).toHaveBeenCalledWith({
         branch_id: 1,
         start_date: startDate,
         end_date: endDate,
@@ -34,14 +34,14 @@ describe('ReportingPage', () => {
         sort: '-business_date',
       }),
     );
-    expect(apiMocks.loadDailyOperationsReporting).toHaveBeenCalledWith({
+    expect(apiMocks.listDailyOperationsReporting).toHaveBeenCalledWith({
       branch_id: 1,
       start_date: startDate,
       end_date: endDate,
       per_page: 7,
       sort: '-business_date',
     });
-    expect(apiMocks.loadDailyInventoryReporting).toHaveBeenCalledWith({
+    expect(apiMocks.listDailyInventoryReporting).toHaveBeenCalledWith({
       branch_id: 1,
       ingredient_id: undefined,
       start_date: startDate,
@@ -58,7 +58,7 @@ describe('ReportingPage', () => {
   it('reloads all reporting slices with the edited filters and ingredient scope', async () => {
     renderWithSession(<ReportingPage />, createSessionContext());
 
-    await waitFor(() => expect(apiMocks.loadDailySalesReporting).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.listDailySalesReporting).toHaveBeenCalledTimes(1));
 
     fireEvent.change(screen.getByLabelText('Branch ID'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-04-01' } });
@@ -67,7 +67,7 @@ describe('ReportingPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
 
     await waitFor(() =>
-      expect(apiMocks.loadDailyInventoryReporting).toHaveBeenLastCalledWith({
+      expect(apiMocks.listDailyInventoryReporting).toHaveBeenLastCalledWith({
         branch_id: 2,
         ingredient_id: 501,
         start_date: '2026-04-01',
@@ -76,7 +76,7 @@ describe('ReportingPage', () => {
         sort: '-business_date',
       }),
     );
-    expect(apiMocks.loadDailySalesReporting).toHaveBeenLastCalledWith({
+    expect(apiMocks.listDailySalesReporting).toHaveBeenLastCalledWith({
       branch_id: 2,
       start_date: '2026-04-01',
       end_date: '2026-04-03',
@@ -85,12 +85,27 @@ describe('ReportingPage', () => {
     });
     expect(screen.getByText(/Da ap dung reporting filters moi/i)).toBeInTheDocument();
   });
+
+  it('expires the staff session when reporting bootstrap returns 401', async () => {
+    arrangeReportingFixtures();
+    const session = createSessionContext();
+    apiMocks.listDailySalesReporting.mockRejectedValueOnce(buildCoreApiError(401, {
+      error_code: 'unauthorized',
+      message: 'Unauthorized.',
+    }));
+
+    renderWithSession(<ReportingPage />, session);
+
+    await waitFor(() =>
+      expect(session.expire).toHaveBeenCalledWith('Phien staff da het han. Dang nhap lai de tiep tuc.'),
+    );
+  });
 });
 
 function arrangeReportingFixtures() {
   const { endDate } = expectedReportWindow();
 
-  apiMocks.loadDailySalesReporting.mockResolvedValue({
+  apiMocks.listDailySalesReporting.mockResolvedValue({
     data: [
       {
         snapshot_id: 1,
@@ -135,7 +150,7 @@ function arrangeReportingFixtures() {
     ],
     meta: createSnapshotMeta('sales'),
   });
-  apiMocks.loadDailyOperationsReporting.mockResolvedValue({
+  apiMocks.listDailyOperationsReporting.mockResolvedValue({
     data: [
       {
         snapshot_id: 2,
@@ -177,7 +192,7 @@ function arrangeReportingFixtures() {
     ],
     meta: createSnapshotMeta('operations'),
   });
-  apiMocks.loadDailyInventoryReporting.mockResolvedValue({
+  apiMocks.listDailyInventoryReporting.mockResolvedValue({
     data: [
       {
         snapshot_id: 3,
@@ -277,6 +292,10 @@ function expectedReportWindow() {
     startDate: start.toISOString().slice(0, 10),
     endDate: end.toISOString().slice(0, 10),
   };
+}
+
+function buildCoreApiError<T>(status: number, payload: T, message = 'API request failed') {
+  return new RestaurantPosApiError(message, status, payload);
 }
 
 function createSessionContext(overrides: Partial<StaffSessionContextValue['session']> = {}): StaffSessionContextValue {

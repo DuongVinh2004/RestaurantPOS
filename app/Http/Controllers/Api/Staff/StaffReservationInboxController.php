@@ -6,10 +6,15 @@ namespace App\Http\Controllers\Api\Staff;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Staff\ListStaffReservationsRequest;
+use App\Http\Resources\ReservationResource;
 use App\Http\Resources\StaffReservationInboxResource;
 use App\Services\Staff\StaffReservationInboxService;
+use App\Support\ApiErrorResponse;
 use App\Support\Listing\ListingMetaFactory;
+use App\Support\ReservationAccessScope;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class StaffReservationInboxController extends Controller
 {
@@ -47,7 +52,7 @@ class StaffReservationInboxController extends Controller
                     'by' => (string) ($validated['sort_by'] ?? 'start_time'),
                     'dir' => (string) ($validated['sort_dir'] ?? 'asc'),
                 ],
-                    ListingMetaFactory::contract(
+                ListingMetaFactory::contract(
                     [
                         'bucket',
                         'status',
@@ -86,6 +91,26 @@ class StaffReservationInboxController extends Controller
                     ],
                 ),
             ),
+        ]);
+    }
+
+    public function show(int $reservation_id, Request $request): JsonResponse
+    {
+        try {
+            $reservation = $this->inboxService->findForStaffOrFail($reservation_id);
+        } catch (ModelNotFoundException) {
+            return ApiErrorResponse::json(
+                $request,
+                404,
+                'not_found',
+                'Reservation not found.',
+            );
+        }
+
+        $request->attributes->set('reservation_access_scope', ReservationAccessScope::STAFF);
+
+        return response()->json([
+            'data' => (new ReservationResource($reservation))->toArray($request),
         ]);
     }
 }

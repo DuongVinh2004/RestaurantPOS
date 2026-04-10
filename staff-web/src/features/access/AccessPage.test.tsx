@@ -26,9 +26,9 @@ describe('AccessPage', () => {
       </StaffSessionContext.Provider>,
     );
 
-    expect(screen.getByText('Session da xac thuc nhung chua du context van hanh')).toBeInTheDocument();
-    expect(screen.getByText('Branch missing')).toBeInTheDocument();
-    expect(screen.getByText('Backend chua resolve duoc default branch cho startup contract.')).toBeInTheDocument();
+    expect(screen.getByText('Thiếu thông tin để bắt đầu ca')).toBeInTheDocument();
+    expect(screen.getByText('Chi nhánh còn thiếu')).toBeInTheDocument();
+    expect(screen.getByText('Chưa xác định được chi nhánh mặc định.')).toBeInTheDocument();
   });
 
   it('explains that finance flows stay locked until the startup shift is ready', () => {
@@ -53,9 +53,9 @@ describe('AccessPage', () => {
       </StaffSessionContext.Provider>,
     );
 
-    expect(screen.getByText('Session startup da san sang cho shell nhung finance flows dang khoa')).toBeInTheDocument();
-    expect(screen.getByText(/Board, orders, va inbox/i)).toBeInTheDocument();
-    expect(screen.getByText(/Mo cashier shift hien hanh de mo settlement, refund, va cashier flows/i)).toBeInTheDocument();
+    expect(screen.getByText('Đã vào ca, nhưng chưa mở ca thu ngân')).toBeInTheDocument();
+    expect(screen.getByText(/Bạn vẫn có thể xem các mục khác/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hãy mở ca thu ngân để dùng thanh toán, hoàn tiền và màn hình thu ngân/i)).toBeInTheDocument();
   });
 });
 

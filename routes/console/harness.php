@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Services\Harness\HarnessSuiteService;
 use Illuminate\Console\Command as ConsoleCommand;
+use Illuminate\Support\Facades\Artisan;
 
 Artisan::command('booking:harness:web-auth {--json : Output machine-readable JSON}', function () {
     /** @var ConsoleCommand $command */

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
+use App\Models\Payment;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -185,5 +186,42 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
             ->assertJsonPath('error', 'idempotency_conflict');
 
         $this->assertSame(1, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('idempotency_key', 'idem-http-finalize-1')->count());
+    }
+
+    public function test_finalize_endpoint_rejects_idempotency_key_longer_than_payment_storage_limit(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->withIdempotencyKey(
+            $this->staffAuthHeaders($staffId, 'staff-http-finalize-too-long'),
+            str_repeat('f', Payment::IDEMPOTENCY_KEY_MAX_LENGTH + 1),
+        );
+        $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
+        $reservationId = $this->createReservation(['status' => 'Reserved']);
+        $this->attachReservationTable($reservationId, $tableId);
+        $orderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'order_type' => 'OnSpot',
+            'status' => 'Active',
+        ]);
+        $this->createOrderItem([
+            'order_id' => $orderId,
+            'quantity' => 2,
+            'unit_price' => '50000.00',
+            'currency' => 'VND',
+            'line_total' => '100000.00',
+        ]);
+
+        $response = $this->postJson('/api/v1/staff/orders/' . $orderId . '/settlement/finalize', [
+            'payment_method' => 'Cash',
+            'payment_provider' => 'Cash',
+            'paid_amount' => 100000,
+            'currency' => 'VND',
+            'transaction_code' => 'HTTP-FINALIZE-LONG-IDEM-1',
+            'row_version' => 1,
+        ], $headers);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['idempotency_key']);
+        $this->assertSame(0, (int) DB::table('payments')->where('reservation_id', $reservationId)->count());
     }
 }

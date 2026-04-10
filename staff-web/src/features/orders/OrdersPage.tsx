@@ -3,21 +3,19 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { ChefHat, CreditCard, Plus, ReceiptText, Search } from 'lucide-react';
 import {
   addOrderItems,
-  boardWindow,
+  buildBoardWindow as boardWindow,
   createTableOrder,
-  isUnauthorized,
-  loadMenuItems,
-  loadOrderDetail,
-  loadReservationOrders,
-  loadStaffReservations,
-  loadTableBoard,
-  type StaffBoardWindow,
-} from '../../api/client';
+  getOrderDetail as loadOrderDetail,
+  listMenuItems as loadMenuItems,
+  listReservationOrders as loadReservationOrders,
+  listReservations as loadStaffReservations,
+  getTableBoard as loadTableBoard,
+} from '../../core/api/staff-api';
 import { canAccessStaffSection, staffSections } from '../../app/sections';
 import { useStaffSession } from '../../app/session-context';
+import { formatApiError, isApiStatus, normalizeApiError } from '../../core/api/errors';
 import { hasCapability } from '../../lib/capabilities';
 import { isRowVersionConflict, rowVersionConflictMessage } from '../../lib/conflicts';
-import { formatApiError, normalizeApiError } from '../../lib/api-errors';
 import { formatDateTime, formatMoney, humanizeCode } from '../../lib/format';
 import { buildOperatorJourneySearch, readOperatorJourneyContext } from '../../lib/operatorJourney';
 import type {
@@ -32,6 +30,7 @@ import { ActionButton, Banner, EmptyState, MetricCard, Panel, StatusPill } from 
 
 const settlementSection = staffSections.find((section) => section.path === '/settlement') ?? null;
 const kitchenSection = staffSections.find((section) => section.path === '/kitchen') ?? null;
+type StaffBoardWindow = ReturnType<typeof boardWindow>;
 
 export function OrdersPage() {
   const [searchParams] = useSearchParams();
@@ -142,7 +141,7 @@ export function OrdersPage() {
 
   const handleError = useCallback(
     (cause: unknown, fallback: string) => {
-      if (isUnauthorized(cause)) {
+      if (isApiStatus(cause, 401)) {
         expire('Phien staff da het han. Dang nhap lai de tiep tuc.');
         return;
       }
@@ -172,7 +171,11 @@ export function OrdersPage() {
     setBusyKey('refresh-board');
 
     try {
-      const nextBoard = await loadTableBoard(window);
+      const nextBoard = await loadTableBoard({
+        ...window,
+        include_holds: true,
+        group_by: 'zone',
+      });
 
       setBoard(nextBoard);
       setSelectedTableId((currentSelectedTableId) => {
