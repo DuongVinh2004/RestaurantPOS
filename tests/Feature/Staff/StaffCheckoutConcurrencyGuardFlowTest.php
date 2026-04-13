@@ -46,7 +46,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         $firstHeaders = $this->withIdempotencyKey('idem-pay-duplicate-a', $this->staffAuthHeaders($staffId, 'staff-pay-dup-1'));
         $secondHeaders = $this->withIdempotencyKey('idem-pay-duplicate-b', $this->staffAuthHeaders($staffId, 'staff-pay-dup-2'));
 
-        $this->postJson('/api/v1/staff/orders/' . $orderId . '/pay', [
+        $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'paid_amount' => 40000,
@@ -55,7 +55,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
             'row_version' => 1,
         ], $firstHeaders)->assertOk();
 
-        $duplicate = $this->postJson('/api/v1/staff/orders/' . $orderId . '/pay', [
+        $duplicate = $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'paid_amount' => 30000,
@@ -81,7 +81,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         $cashHeaders = $this->withIdempotencyKey('idem-pay-provider-cash', $this->staffAuthHeaders($staffId, 'staff-pay-provider-1'));
         $cardHeaders = $this->withIdempotencyKey('idem-pay-provider-card', $this->staffAuthHeaders($staffId, 'staff-pay-provider-2'));
 
-        $this->postJson('/api/v1/staff/orders/' . $orderId . '/pay', [
+        $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'paid_amount' => 40000,
@@ -90,7 +90,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
             'row_version' => 1,
         ], $cashHeaders)->assertOk();
 
-        $second = $this->postJson('/api/v1/staff/orders/' . $orderId . '/pay', [
+        $second = $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', [
             'payment_method' => 'Card',
             'payment_provider' => 'Card',
             'paid_amount' => 30000,
@@ -114,7 +114,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         $firstHeaders = $this->withIdempotencyKey('idem-finalize-first', $this->staffAuthHeaders($staffId, 'staff-finalize-1'));
         $secondHeaders = $this->withIdempotencyKey('idem-finalize-second', $this->staffAuthHeaders($staffId, 'staff-finalize-2'));
 
-        $this->postJson('/api/v1/staff/orders/' . $orderId . '/settlement/finalize', [
+        $this->postJson('/api/v1/staff/orders/'.$orderId.'/settlement/finalize', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'paid_amount' => 100000,
@@ -123,7 +123,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
             'row_version' => 1,
         ], $firstHeaders)->assertOk();
 
-        $second = $this->postJson('/api/v1/staff/orders/' . $orderId . '/settlement/finalize', [
+        $second = $this->postJson('/api/v1/staff/orders/'.$orderId.'/settlement/finalize', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'paid_amount' => 100000,
@@ -133,7 +133,8 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         ], $secondHeaders);
 
         $second->assertStatus(422)
-            ->assertJsonPath('error_code', 'validation_error');
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonPath('details.errors.row_version.0', fn ($value) => is_string($value) && str_contains($value, 'row_version mismatch'));
 
         self::assertSame('Completed', (string) DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
         self::assertSame(1, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Final')->count());
@@ -154,9 +155,12 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario();
 
         $finalizeHeaders = $this->withIdempotencyKey('idem-finalize-stale-race-a', $this->staffAuthHeaders($staffId, 'staff-finalize-stale-a'));
-        $refundCancelHeaders = $this->withIdempotencyKey('idem-refund-cancel-stale-race-a', $this->staffAuthHeaders($staffId, 'staff-refund-cancel-stale-a'));
+        $refundCancelHeaders = array_merge(
+            $this->withIdempotencyKey('idem-refund-cancel-stale-race-a', $this->staffAuthHeaders($staffId, 'staff-refund-cancel-stale-a')),
+            ['X-Request-Id' => 'req-staff-refund-cancel-stale-row-version']
+        );
 
-        $this->postJson('/api/v1/staff/orders/' . $orderId . '/settlement/finalize', [
+        $this->postJson('/api/v1/staff/orders/'.$orderId.'/settlement/finalize', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'paid_amount' => 100000,
@@ -168,7 +172,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         self::assertSame(2, (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version'));
         self::assertSame(2, (int) DB::table('reservation_orders')->where('order_id', $orderId)->value('row_version'));
 
-        $stale = $this->postJson('/api/v1/staff/reservations/' . $reservationId . '/refund-cancel', [
+        $stale = $this->postJson('/api/v1/staff/reservations/'.$reservationId.'/refund-cancel', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'refund_scope' => 'all',
@@ -180,8 +184,10 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         ], $refundCancelHeaders);
 
         $stale->assertStatus(422)
+            ->assertHeader('X-Request-Id', 'req-staff-refund-cancel-stale-row-version')
             ->assertJsonPath('error_code', 'validation_error')
-            ->assertJsonPath('details.errors.row_version.0', 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.');
+            ->assertJsonPath('request_id', 'req-staff-refund-cancel-stale-row-version')
+            ->assertJsonPath('details.errors.row_version.0', fn ($value) => is_string($value) && str_contains($value, 'row_version mismatch'));
 
         self::assertSame('Completed', (string) DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
         self::assertSame(1, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Final')->count());
@@ -195,7 +201,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         $finalizeHeaders = $this->withIdempotencyKey('idem-finalize-stale-race-b', $this->staffAuthHeaders($staffId, 'staff-finalize-stale-b'));
         $refundCancelHeaders = $this->withIdempotencyKey('idem-refund-cancel-stale-race-b', $this->staffAuthHeaders($staffId, 'staff-refund-cancel-stale-b'));
 
-        $this->postJson('/api/v1/staff/orders/' . $orderId . '/settlement/finalize', [
+        $this->postJson('/api/v1/staff/orders/'.$orderId.'/settlement/finalize', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'paid_amount' => 100000,
@@ -207,7 +213,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         $freshReservationVersion = (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version');
         self::assertSame(2, $freshReservationVersion);
 
-        $response = $this->postJson('/api/v1/staff/reservations/' . $reservationId . '/refund-cancel', [
+        $response = $this->postJson('/api/v1/staff/reservations/'.$reservationId.'/refund-cancel', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'refund_scope' => 'all',
@@ -238,7 +244,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         $firstHeaders = $this->withIdempotencyKey('idem-refund-source-contention-a', $this->staffAuthHeaders($staffId, 'staff-refund-source-contention-1'));
         $secondHeaders = $this->withIdempotencyKey('idem-refund-source-contention-b', $this->staffAuthHeaders($staffId, 'staff-refund-source-contention-2'));
 
-        $this->postJson('/api/v1/staff/reservations/' . $reservationId . '/refund', [
+        $this->postJson('/api/v1/staff/reservations/'.$reservationId.'/refund', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'refund_scope' => 'deposit',
@@ -251,7 +257,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         $currentVersion = (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version');
         self::assertGreaterThanOrEqual(1, $currentVersion);
 
-        $overRefund = $this->postJson('/api/v1/staff/reservations/' . $reservationId . '/refund', [
+        $overRefund = $this->postJson('/api/v1/staff/reservations/'.$reservationId.'/refund', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'refund_scope' => 'deposit',
@@ -290,7 +296,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         $secondHeaders = $this->withIdempotencyKey('idem-refund-source-remaining-b', $this->staffAuthHeaders($staffId, 'staff-refund-source-remaining-2'));
         $thirdHeaders = $this->withIdempotencyKey('idem-refund-source-remaining-c', $this->staffAuthHeaders($staffId, 'staff-refund-source-remaining-3'));
 
-        $this->postJson('/api/v1/staff/reservations/' . $reservationId . '/refund', [
+        $this->postJson('/api/v1/staff/reservations/'.$reservationId.'/refund', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'refund_scope' => 'deposit',
@@ -303,7 +309,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         $secondVersion = (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version');
         self::assertGreaterThanOrEqual(1, $secondVersion);
 
-        $this->postJson('/api/v1/staff/reservations/' . $reservationId . '/refund', [
+        $this->postJson('/api/v1/staff/reservations/'.$reservationId.'/refund', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'refund_scope' => 'deposit',
@@ -316,7 +322,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         $thirdVersion = (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version');
         self::assertGreaterThanOrEqual($secondVersion, $thirdVersion);
 
-        $excess = $this->postJson('/api/v1/staff/reservations/' . $reservationId . '/refund', [
+        $excess = $this->postJson('/api/v1/staff/reservations/'.$reservationId.'/refund', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'refund_scope' => 'deposit',
@@ -349,7 +355,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         $firstHeaders = $this->withIdempotencyKey('idem-refund-duplicate-a', $this->staffAuthHeaders($staffId, 'staff-refund-dup-1'));
         $secondHeaders = $this->withIdempotencyKey('idem-refund-duplicate-b', $this->staffAuthHeaders($staffId, 'staff-refund-dup-2'));
 
-        $this->postJson('/api/v1/staff/reservations/' . $reservationId . '/refund', [
+        $this->postJson('/api/v1/staff/reservations/'.$reservationId.'/refund', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'refund_scope' => 'deposit',
@@ -364,7 +370,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
             $currentVersion = 1;
         }
 
-        $duplicate = $this->postJson('/api/v1/staff/reservations/' . $reservationId . '/refund', [
+        $duplicate = $this->postJson('/api/v1/staff/reservations/'.$reservationId.'/refund', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'refund_scope' => 'deposit',
@@ -415,6 +421,12 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
             'currency' => 'VND',
             'line_total' => '100000.00',
         ]);
+        $branchId = (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('branch_id');
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId > 0 ? $branchId : 1,
+            'status' => 'Open',
+        ]);
 
         return [$staffId, $orderId, $reservationId];
     }
@@ -443,6 +455,12 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
             'currency' => 'VND',
             'transaction_code' => 'DEP-CONCURRENCY-1',
             'payment_provider' => 'Cash',
+        ]);
+        $branchId = (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('branch_id');
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId > 0 ? $branchId : 1,
+            'status' => 'Open',
         ]);
 
         return [$staffId, $reservationId, $depositPaymentId];

@@ -26,6 +26,8 @@ composer api:artifacts
 
 `composer api:artifacts` now follows the same explicit order. OpenAPI is written first, consumer artifacts are generated from that frozen spec, then the frozen release manifest snapshot is refreshed.
 
+Generated Postman collection and environment templates are content-deterministic. Re-running the generator with unchanged OpenAPI/config inputs must not change their hashes or thaw the frozen release manifest snapshot.
+
 Outputs are written under:
 
 - `build/api-consumer/postman/RestaurantPOS.postman_collection.json`
@@ -48,6 +50,20 @@ php artisan booking:release-manifest --write
 This adds:
 
 - `build/api-consumer/postman/RestaurantPOS.uat.postman_environment.json`
+
+## Freshness Control
+
+The release package integrity check treats generated API artifacts as stale when they are older than the frozen OpenAPI source they depend on, or when the frozen release manifest snapshot is older than the generated artifacts it records.
+
+If freshness fails, do not hand-edit generated outputs. Re-run the canonical refresh flow:
+
+```bash
+php artisan booking:api-contract --write
+php artisan booking:api-artifacts:generate
+php artisan booking:release-manifest --write
+```
+
+Then re-run the package integrity check and frozen manifest verification before packaging.
 
 ## Official frontend contract story
 
@@ -127,6 +143,7 @@ Current scope:
 - generated from the frozen OpenAPI artifact
 - typed request/response aliases for the curated route set
 - auth-aware request helper for customer token, staff API key, and customer session id
+- session-aware customer routes keep `X-Customer-Token` and `X-Session-Id` together when both are configured, so browser clients do not silently lose session correlation after login
 - staff auth session typing now includes the Batch 1 startup surface on `login`, `auth/staff/me`, and `auth/staff/refresh`:
   - `data.startup.default_branch`
   - `data.startup.active_cashier_shift`
@@ -136,6 +153,17 @@ Current scope:
 Use the generated SDK when the route you need appears in `build/api-consumer/sdk/typescript/README.md`.
 
 Use `build/api-consumer/mutation-contracts.md` when FE needs to know whether a mutation requires `row_version`, `Idempotency-Key`, or session propagation, and whether the current frozen contract formally exposes `401`, `403`, `409`, or `422` handling for that route.
+
+## Canonical error metadata
+
+Frontend and QA consumers should rely on this error contract:
+
+- Always read `error_code`, `message`, and `request_id`.
+- Read `errors` for field-level validation or domain validation details.
+- Treat `409 stale_row_version` as a stale-write retry path, not as ordinary validation.
+- Use `conflict_type`, `replay_state`, `state_reason`, `warnings`, and `next_actions` when present to drive retry, reload, or operator guidance.
+- On capability-denied staff/admin routes, `required_capability` and `staff_role_name` are the canonical machine-readable fields.
+- If an idempotency error still includes top-level `error`, treat it as deprecated compatibility output and prefer `error_code`.
 
 If the route is not in that curated batch but already has a full-contract shape in the frozen OpenAPI artifact, generate your own client from `storage/app/booking_release/openapi-v1.json` instead of reading controllers/resources directly.
 
@@ -226,8 +254,8 @@ The backend ships an explicit CORS policy at `config/cors.php` for the split fro
 
 | Frontend | Stack | Typical dev origin |
 |---|---|---|
-| `customer-web` | Next.js + TypeScript | `http://localhost:3000` |
-| `staff-web` | React + TypeScript + Vite | `http://localhost:5173` |
+| `customer-web` | Next.js + TypeScript | `http://localhost:3000` or `http://127.0.0.1:3000` |
+| `staff-web` | React + TypeScript + Vite | `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:4173`, or `http://127.0.0.1:4173` |
 
 ### Backend env setup
 
@@ -235,7 +263,7 @@ Set `CORS_ALLOWED_ORIGINS` as a comma-separated list of allowed origins:
 
 ```env
 # Local development
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173
 
 # Staging
 CORS_ALLOWED_ORIGINS=https://customer.staging.example.com,https://staff.staging.example.com
@@ -243,6 +271,8 @@ CORS_ALLOWED_ORIGINS=https://customer.staging.example.com,https://staff.staging.
 # Production
 CORS_ALLOWED_ORIGINS=https://customer.example.com,https://staff.example.com
 ```
+
+Use the exact browser origin. `localhost` and `127.0.0.1` are different origins for CORS and must both be listed if local dev uses both forms.
 
 **Leave empty or omit to deny all cross-origin requests** (safe production default).
 
@@ -299,8 +329,8 @@ fetch(`${API_BASE}/tables/available?branch_id=1`, {
   headers: { 'Accept': 'application/json', 'X-Customer-Token': token },
 });
 
-// Incorrect — do not use credentials mode
-fetch(url, { credentials: 'include' }); // ← not needed, would fail
+// Incorrect - do not use credentials mode
+fetch(url, { credentials: 'include' }); // not needed, would fail
 ```
 
 ## Current limitations

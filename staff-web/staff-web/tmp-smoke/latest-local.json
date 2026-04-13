@@ -1,0 +1,57 @@
+{
+  "ok": false,
+  "decision": "block",
+  "target": "local",
+  "mode": "read-only",
+  "api_url": "http://127.0.0.1:8000/api/v1",
+  "credential_source": "manifest",
+  "manifest": {
+    "path": "C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\storage\\app\\uat\\scenario-pack.json",
+    "exists": true,
+    "error": null
+  },
+  "preview": {
+    "label": "preview",
+    "url": "",
+    "status": "not-configured"
+  },
+  "mutation_gates": {
+    "orderCreate": {
+      "enabled": false,
+      "source": "default-off"
+    },
+    "orderAddItem": {
+      "enabled": false,
+      "source": "default-off"
+    },
+    "settlementFinalize": {
+      "enabled": false,
+      "source": "default-off"
+    },
+    "refundExecute": {
+      "enabled": false,
+      "source": "default-off"
+    },
+    "cashierOpen": {
+      "enabled": false,
+      "source": "default-off"
+    },
+    "cashierClose": {
+      "enabled": false,
+      "source": "default-off"
+    }
+  },
+  "summary": {
+    "pass_count": 0,
+    "skip_count": 0,
+    "fail_count": 1
+  },
+  "steps": [
+    {
+      "status": "FAIL",
+      "step": "backend health",
+      "detail": "503 {\"status\":\"fail\",\"meta\":{\"request_id\":\"9c2f0d81-d1fc-4a6e-a5ad-206844cb4bd8\",\"timestamp_utc\":\"2026-04-10T00:36:24+00:00\"}}"
+    }
+  ],
+  "generated_at_utc": "2026-04-10T00:36:24.705Z"
+}

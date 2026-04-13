@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Services\OperationalInsightsService;
 use App\Services\OpsHeartbeatService;
 use App\Support\StaffActorResolver;
+use Illuminate\Cache\Repository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -18,8 +19,7 @@ class HealthController
         private readonly OpsHeartbeatService $heartbeat,
         private readonly StaffActorResolver $staffActorResolver,
         private readonly OperationalInsightsService $operationalInsights,
-    ) {
-    }
+    ) {}
 
     public function health(): JsonResponse
     {
@@ -65,15 +65,15 @@ class HealthController
         }
 
         try {
-            /** @var \Illuminate\Cache\Repository $redis */
+            /** @var Repository $redis */
             $redis = Cache::store('redis');
             $checks['redis']['ok'] = true;
 
-            $key = 'health:redis:' . $requestId;
+            $key = 'health:redis:'.$requestId;
             $redis->put($key, 'pong', 10);
             $checks['redis']['set_get_ok'] = ($redis->get($key) === 'pong');
 
-            $lock = $redis->lock('health:redis-lock:' . $requestId, 3);
+            $lock = $redis->lock('health:redis-lock:'.$requestId, 3);
             $acquired = $lock->get();
             if ($acquired) {
                 $lock->release();
@@ -131,6 +131,7 @@ class HealthController
 
         $response = [
             'status' => $status,
+            'checks' => $this->publicHealthChecks($checks),
             'meta' => [
                 'request_id' => $requestId,
                 'timestamp_utc' => now('UTC')->toIso8601String(),
@@ -170,7 +171,6 @@ class HealthController
                 ];
                 $status = $status === 'fail' ? 'fail' : 'degraded';
             }
-
             $response['checks'] = $checks;
             $response['status'] = $status;
             $response['meta']['app_env'] = (string) config('app.env');
@@ -203,15 +203,15 @@ class HealthController
         ];
 
         try {
-            /** @var \Illuminate\Cache\Repository $redis */
+            /** @var Repository $redis */
             $redis = Cache::store('redis');
             $result['checks']['redis_store']['ok'] = true;
 
-            $key = 'health:redis:' . $requestId;
+            $key = 'health:redis:'.$requestId;
             $redis->put($key, 'pong', 10);
             $result['checks']['redis_store']['set_get_ok'] = ($redis->get($key) === 'pong');
 
-            $lock = $redis->lock('health:redis-lock:' . $requestId, 3);
+            $lock = $redis->lock('health:redis-lock:'.$requestId, 3);
             $acquired = $lock->get();
             if ($acquired) {
                 $lock->release();
@@ -226,6 +226,7 @@ class HealthController
         } catch (Throwable $e) {
             $result['status'] = 'fail';
             $result['checks']['redis_store']['error'] = $e->getMessage();
+
             return response()->json($result, 503);
         }
     }
@@ -252,5 +253,91 @@ class HealthController
         }
 
         return $status;
+    }
+
+    /**
+     * @param  array<string,mixed>  $checks
+     * @return array<string,mixed>
+     */
+    private function publicHealthChecks(array $checks): array
+    {
+        return [
+            'db' => [
+                'ok' => (bool) ($checks['db']['ok'] ?? false),
+                'latency_ms' => $checks['db']['latency_ms'] ?? null,
+                'reason' => $this->dbReason($checks),
+            ],
+            'redis' => [
+                'ok' => (bool) ($checks['redis']['ok'] ?? false),
+                'set_get_ok' => (bool) ($checks['redis']['set_get_ok'] ?? false),
+                'lock_ok' => (bool) ($checks['redis']['lock_ok'] ?? false),
+                'reason' => $this->redisReason($checks),
+            ],
+            'scheduler' => [
+                'ok' => (bool) ($checks['scheduler']['ok'] ?? false),
+                'last_run_at_utc' => $checks['scheduler']['last_run_at_utc'] ?? null,
+                'age_seconds' => $checks['scheduler']['age_seconds'] ?? null,
+                'stale_threshold_seconds' => $checks['scheduler']['stale_threshold_seconds'] ?? null,
+                'reason' => $this->schedulerReason($checks),
+            ],
+            'disk' => [
+                'ok' => (bool) ($checks['disk']['ok'] ?? false),
+                'free_bytes' => $checks['disk']['free_bytes'] ?? null,
+                'total_bytes' => $checks['disk']['total_bytes'] ?? null,
+                'reason' => $this->diskReason($checks),
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string,mixed>  $checks
+     */
+    private function dbReason(array $checks): ?string
+    {
+        return (bool) ($checks['db']['ok'] ?? false) ? null : 'db_unavailable';
+    }
+
+    /**
+     * @param  array<string,mixed>  $checks
+     */
+    private function redisReason(array $checks): ?string
+    {
+        if ((bool) ($checks['redis']['ok'] ?? false)) {
+            if (! (bool) ($checks['redis']['set_get_ok'] ?? false)) {
+                return 'redis_set_get_failed';
+            }
+
+            if (! (bool) ($checks['redis']['lock_ok'] ?? false)) {
+                return 'redis_lock_failed';
+            }
+
+            return null;
+        }
+
+        return 'redis_unavailable';
+    }
+
+    /**
+     * @param  array<string,mixed>  $checks
+     */
+    private function schedulerReason(array $checks): ?string
+    {
+        if ((bool) ($checks['scheduler']['ok'] ?? false)) {
+            return null;
+        }
+
+        if (($checks['scheduler']['last_run_at_utc'] ?? null) === null) {
+            return 'scheduler_heartbeat_missing';
+        }
+
+        return 'scheduler_heartbeat_stale';
+    }
+
+    /**
+     * @param  array<string,mixed>  $checks
+     */
+    private function diskReason(array $checks): ?string
+    {
+        return (bool) ($checks['disk']['ok'] ?? true) ? null : 'disk_probe_failed';
     }
 }

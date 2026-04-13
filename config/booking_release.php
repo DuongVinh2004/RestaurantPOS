@@ -132,6 +132,15 @@ return [
                 'RestaurantPosApiError',
             ],
         ],
+        'api_consumer_sdk_enums_typescript' => [
+            'path' => 'build/api-consumer/sdk/typescript/restaurantpos-enums.ts',
+            'optional' => false,
+            'required_fragments' => [
+                'export const reservationStatusValues',
+                'export type ReservationStatus',
+                'semanticAliases',
+            ],
+        ],
         'api_consumer_sdk_readme' => [
             'path' => 'build/api-consumer/sdk/typescript/README.md',
             'optional' => false,
@@ -139,6 +148,15 @@ return [
                 '# RestaurantPOS TypeScript SDK Foundation',
                 'booking:api-artifacts:generate',
                 'Generated from',
+            ],
+        ],
+        'api_consumer_enum_state_json' => [
+            'path' => 'build/api-consumer/enum-state-map.json',
+            'optional' => false,
+            'required_fragments' => [
+                '"enums"',
+                '"ReservationStatus"',
+                '"semantic_aliases"',
             ],
         ],
         'api_consumer_mutation_contract' => [
@@ -185,6 +203,16 @@ return [
             ],
         ],
     ],
+    'artifact_freshness' => [
+        'api_consumer_collection' => ['openapi_v1_spec'],
+        'api_consumer_local_environment' => ['openapi_v1_spec'],
+        'api_consumer_staging_environment' => ['openapi_v1_spec'],
+        'api_consumer_sdk_typescript' => ['openapi_v1_spec'],
+        'api_consumer_sdk_enums_typescript' => ['openapi_v1_spec'],
+        'api_consumer_sdk_readme' => ['openapi_v1_spec'],
+        'api_consumer_enum_state_json' => ['openapi_v1_spec'],
+        'api_consumer_mutation_contract' => ['openapi_v1_spec'],
+    ],
     'required_sql_patches' => [
         '2026_03_14_000015_access_contract_and_portability_hardening.sql',
         '2026_03_15_000016_financial_invariants_hardening.sql',
@@ -225,6 +253,7 @@ return [
         '2026_04_05_000047_data_lifecycle_foundation.sql',
         '2026_04_05_000048_feature_flags_foundation.sql',
         '2026_04_08_000041_drop_runtime_incompatible_payment_refund_triggers.sql',
+        '2026_04_12_000050_staff_conversation_workflow_hardening.sql',
     ],
     'release_manifest' => [
         'definition_path' => 'config/booking_release.php',
@@ -282,21 +311,33 @@ return [
     'packaging' => [
         'output_root' => 'build/booking-release',
         'package_prefix' => 'restaurantpos-backend-release',
+        'exclude_paths' => [
+            'staff-web/node_modules',
+            'staff-web/dist',
+            'staff-web/.vite',
+        ],
         'include_paths' => [
             ['path' => 'artisan', 'required' => true],
             ['path' => 'composer.json', 'required' => true],
+            ['path' => '.env.example', 'required' => true],
             ['path' => 'app', 'required' => true],
             ['path' => 'bootstrap', 'required' => true],
             ['path' => 'build/api-consumer', 'required' => true],
             ['path' => 'config', 'required' => true],
             ['path' => 'database', 'required' => true],
+            ['path' => 'package.json', 'required' => true],
+            ['path' => 'phpunit.xml', 'required' => true],
+            ['path' => 'public/index.php', 'required' => true],
             ['path' => 'routes', 'required' => true],
+            ['path' => 'scripts', 'required' => true],
+            ['path' => 'staff-web', 'required' => true],
             ['path' => 'storage/app/booking_release', 'required' => true],
             ['path' => 'tests', 'required' => true],
+            ['path' => 'tools/bootstrap_booking.php', 'required' => true],
             ['path' => 'docs/runbooks', 'required' => false],
-            ['path' => 'scripts/ci', 'required' => false],
-            ['path' => 'scripts/release', 'required' => false],
+            ['path' => 'README.md', 'required' => false],
             ['path' => 'tools/mysql', 'required' => true],
+            ['path' => 'vite.config.js', 'required' => true],
             ['path' => 'db_all.sql', 'required' => true],
         ],
         'sidecars' => [

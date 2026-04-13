@@ -196,20 +196,7 @@ class ReportingSnapshotService
         [$startDate, $endDate] = $this->resolveDateRange($filters, 7);
         $staleThresholdSeconds = max(1, (int) config('booking.ops.reporting_snapshot_stale_hours', 48)) * 3600;
 
-        $query = match ($family) {
-            'sales' => ReportingDailySalesSnapshot::query()
-                ->when(isset($filters['branch_id']), static fn ($q) => $q->where('branch_id', (int) $filters['branch_id']))
-                ->when(isset($filters['currency']) && trim((string) $filters['currency']) !== '', static fn ($q) => $q->where('currency', strtoupper(trim((string) $filters['currency']))))
-                ->whereBetween('business_date', [$startDate, $endDate]),
-            'operations' => ReportingDailyOperationSnapshot::query()
-                ->when(isset($filters['branch_id']), static fn ($q) => $q->where('branch_id', (int) $filters['branch_id']))
-                ->whereBetween('business_date', [$startDate, $endDate]),
-            'inventory' => ReportingDailyInventoryMovementSnapshot::query()
-                ->when(isset($filters['branch_id']), static fn ($q) => $q->where('branch_id', (int) $filters['branch_id']))
-                ->when(isset($filters['ingredient_id']), static fn ($q) => $q->where('ingredient_id', (int) $filters['ingredient_id']))
-                ->whereBetween('business_date', [$startDate, $endDate]),
-            default => throw new InvalidArgumentException('Unknown reporting snapshot family.'),
-        };
+        [$query, $scopeColumns] = $this->filteredSnapshotHealthQuery($family, $filters, $startDate, $endDate);
 
         $rowCount = (int) (clone $query)->count();
         $latestBusinessDate = (clone $query)->max('business_date');
@@ -217,14 +204,27 @@ class ReportingSnapshotService
         $latestRefreshAgeSeconds = $latestRefreshedAt !== null
             ? max(0, Carbon::parse((string) $latestRefreshedAt)->utc()->diffInSeconds($now))
             : null;
+        [
+            $scopeCount,
+            $staleScopeCount,
+            $staleScopeExamples,
+            $healthReferenceRefreshedAt,
+            $healthReferenceRefreshAgeSeconds,
+        ] = $this->filteredSnapshotScopeFreshnessSummary(clone $query, $scopeColumns, $now);
         $isEmpty = $rowCount === 0;
-        $isStale = ! $isEmpty && $latestRefreshAgeSeconds !== null && $latestRefreshAgeSeconds >= $staleThresholdSeconds;
+        $isStale = ! $isEmpty && (
+            $staleScopeCount > 0
+            || ($healthReferenceRefreshAgeSeconds !== null && $healthReferenceRefreshAgeSeconds >= $staleThresholdSeconds)
+        );
         $reasons = [];
         if ($isEmpty) {
             $reasons[] = 'reporting_snapshot_empty';
         }
         if ($isStale) {
             $reasons[] = 'reporting_snapshot_stale';
+        }
+        if ($staleScopeCount > 0 && $staleScopeCount < $scopeCount) {
+            $reasons[] = 'reporting_snapshot_scope_partial';
         }
 
         return [
@@ -237,12 +237,151 @@ class ReportingSnapshotService
             'latest_business_date' => $latestBusinessDate !== null ? (string) $latestBusinessDate : null,
             'latest_refreshed_at_utc' => $latestRefreshedAt !== null ? Carbon::parse((string) $latestRefreshedAt)->utc()->toIso8601String() : null,
             'latest_refresh_age_seconds' => $latestRefreshAgeSeconds,
+            'scope_count' => $scopeCount,
+            'healthy_scope_count' => max(0, $scopeCount - $staleScopeCount),
+            'stale_scope_count' => $staleScopeCount,
+            'stale_scope_examples' => $staleScopeExamples,
+            'health_reference_refreshed_at_utc' => $healthReferenceRefreshedAt !== null ? Carbon::parse((string) $healthReferenceRefreshedAt)->utc()->toIso8601String() : null,
+            'health_reference_refresh_age_seconds' => $healthReferenceRefreshAgeSeconds,
             'stale_threshold_seconds' => $staleThresholdSeconds,
             'is_empty' => $isEmpty,
             'is_stale' => $isStale,
             'status' => $reasons === [] ? 'ok' : 'degraded',
             'reasons' => $reasons,
         ];
+    }
+
+    /**
+     * @param  array<string,mixed>  $filters
+     * @return array{0:mixed,1:list<string>}
+     */
+    private function filteredSnapshotHealthQuery(string $family, array $filters, string $startDate, string $endDate): array
+    {
+        return match ($family) {
+            'sales' => [
+                ReportingDailySalesSnapshot::query()
+                    ->when(isset($filters['branch_id']), static fn ($q) => $q->where('branch_id', (int) $filters['branch_id']))
+                    ->when(isset($filters['currency']) && trim((string) $filters['currency']) !== '', static fn ($q) => $q->where('currency', strtoupper(trim((string) $filters['currency']))))
+                    ->whereBetween('business_date', [$startDate, $endDate]),
+                ['branch_id', 'currency'],
+            ],
+            'operations' => [
+                ReportingDailyOperationSnapshot::query()
+                    ->when(isset($filters['branch_id']), static fn ($q) => $q->where('branch_id', (int) $filters['branch_id']))
+                    ->whereBetween('business_date', [$startDate, $endDate]),
+                ['branch_id'],
+            ],
+            'inventory' => [
+                ReportingDailyInventoryMovementSnapshot::query()
+                    ->when(isset($filters['branch_id']), static fn ($q) => $q->where('branch_id', (int) $filters['branch_id']))
+                    ->when(isset($filters['ingredient_id']), static fn ($q) => $q->where('ingredient_id', (int) $filters['ingredient_id']))
+                    ->whereBetween('business_date', [$startDate, $endDate]),
+                ['branch_id', 'ingredient_id'],
+            ],
+            default => throw new InvalidArgumentException('Unknown reporting snapshot family.'),
+        };
+    }
+
+    /**
+     * @param  mixed  $query
+     * @param  list<string>  $scopeColumns
+     * @return array{0:int,1:int,2:list<array<string,mixed>>,3:?string,4:?int}
+     */
+    private function filteredSnapshotScopeFreshnessSummary($query, array $scopeColumns, Carbon $now): array
+    {
+        $staleThreshold = $now->copy()->subHours(max(1, (int) config('booking.ops.reporting_snapshot_stale_hours', 48)));
+
+        $groupedQuery = $query
+            ->select($scopeColumns)
+            ->selectRaw('MAX(refreshed_at) AS latest_refreshed_at')
+            ->groupBy($scopeColumns);
+
+        $groupedSubquery = DB::query()->fromSub($groupedQuery->toBase(), 'reporting_scope_freshness');
+        $scopeCount = (int) (clone $groupedSubquery)->count();
+
+        if ($scopeCount === 0) {
+            return [0, 0, [], null, null];
+        }
+
+        $staleScopesQuery = (clone $groupedSubquery)
+            ->where(function ($builder) use ($staleThreshold): void {
+                $builder
+                    ->whereNull('latest_refreshed_at')
+                    ->orWhere('latest_refreshed_at', '<=', $staleThreshold);
+            });
+
+        $staleScopeCount = (int) (clone $staleScopesQuery)->count();
+        $staleScopes = (clone $staleScopesQuery)
+            ->orderBy('latest_refreshed_at')
+            ->limit(3)
+            ->get();
+
+        $examples = [];
+        $healthReferenceRefreshedAt = null;
+        $healthReferenceRefreshAgeSeconds = null;
+
+        foreach ($staleScopes as $scope) {
+            $example = [];
+
+            foreach ($scopeColumns as $column) {
+                $example[$column] = $scope->{$column} ?? null;
+            }
+
+            $latestRefreshedAt = $scope->latest_refreshed_at ?? null;
+            $example['latest_refreshed_at_utc'] = $latestRefreshedAt !== null
+                ? Carbon::parse((string) $latestRefreshedAt)->utc()->toIso8601String()
+                : null;
+            $example['latest_refresh_age_seconds'] = $this->snapshotRefreshAgeSeconds($latestRefreshedAt, $now);
+
+            if ($example['latest_refresh_age_seconds'] !== null) {
+                $healthReferenceRefreshAgeSeconds = max(
+                    $healthReferenceRefreshAgeSeconds ?? 0,
+                    (int) $example['latest_refresh_age_seconds'],
+                );
+            }
+
+            if ($healthReferenceRefreshedAt === null || ($latestRefreshedAt !== null && (string) $latestRefreshedAt < $healthReferenceRefreshedAt)) {
+                $healthReferenceRefreshedAt = $latestRefreshedAt !== null ? (string) $latestRefreshedAt : $healthReferenceRefreshedAt;
+            }
+
+            $examples[] = $example;
+        }
+
+        if ($staleScopeCount > count($examples)) {
+            $oldestStaleRefresh = (clone $staleScopesQuery)->min('latest_refreshed_at');
+            $oldestStaleAge = $this->snapshotRefreshAgeSeconds($oldestStaleRefresh, $now);
+
+            if ($oldestStaleAge !== null) {
+                $healthReferenceRefreshAgeSeconds = max($healthReferenceRefreshAgeSeconds ?? 0, $oldestStaleAge);
+            }
+            if ($oldestStaleRefresh !== null && $healthReferenceRefreshedAt === null) {
+                $healthReferenceRefreshedAt = (string) $oldestStaleRefresh;
+            }
+        }
+
+        if ($healthReferenceRefreshedAt === null) {
+            $healthReferenceRefreshedAt = (clone $groupedSubquery)->min('latest_refreshed_at');
+        }
+        if ($healthReferenceRefreshAgeSeconds === null) {
+            $healthReferenceRefreshAgeSeconds = $this->snapshotRefreshAgeSeconds($healthReferenceRefreshedAt, $now);
+        }
+
+        return [
+            $scopeCount,
+            $staleScopeCount,
+            $examples,
+            $healthReferenceRefreshedAt !== null ? (string) $healthReferenceRefreshedAt : null,
+            $healthReferenceRefreshAgeSeconds,
+        ];
+    }
+
+    private function snapshotRefreshAgeSeconds(mixed $value, Carbon $now): ?int
+    {
+        if ($value === null || trim((string) $value) === '') {
+            return null;
+        }
+
+        return (int) max(0, Carbon::parse((string) $value)->utc()->diffInSeconds($now));
     }
 
     /**

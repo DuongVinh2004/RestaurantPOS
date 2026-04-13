@@ -111,18 +111,13 @@ class ReservationService
             return DB::transaction(function () use ($payload, $actorUserId, $startUtc, $endUtc, $tableIds, $holdId, $sessionId, $trustedHoldIds, $policyNowUtc) {
                 $this->tableHoldService->expireStaleHolds();
 
-                $userId = isset($payload['user_id']) ? (int) $payload['user_id'] : (int) ($actorUserId ?? 0);
-                if ($userId <= 0) {
-                    throw ValidationException::withMessages([
-                        'user_id' => 'user_id is required.',
-                    ]);
-                }
-
+                $userId = $this->resolveReservationUserId($payload, $actorUserId);
+                $guestSnapshot = $this->resolveGuestSnapshot($payload, $userId);
                 $user = User::query()
                     ->where('user_id', $userId)
                     ->where('is_deleted', 0)
                     ->first();
-                if (! $user) {
+                if ($userId !== null && ! $user) {
                     throw ValidationException::withMessages([
                         'user_id' => ['User không tồn tại hoặc đã bị xoá.'],
                     ]);
@@ -214,6 +209,9 @@ class ReservationService
                 $reservation = new Reservation();
                 $reservation->branch_id = $tableBranchId;
                 $reservation->user_id = $userId;
+                $reservation->guest_name = $guestSnapshot['guest_name'];
+                $reservation->guest_phone = $guestSnapshot['guest_phone'];
+                $reservation->guest_email = $guestSnapshot['guest_email'];
                 $reservation->reservation_code = $this->codeGenerator->generate($startUtc);
                 $now = Carbon::now('UTC');
                 $reservation->reserved_at = $now;
@@ -221,7 +219,11 @@ class ReservationService
                 $reservation->end_time = $endUtc;
                 $reservation->guest_count = $guestCount;
                 $reservation->status = ReservationStatus::Confirmed;
-                $reservation->source = $actorUserId !== null && $actorUserId > 0 && $actorUserId !== $userId ? 'Offline' : 'Online';
+                $reservation->source = $actorUserId !== null
+                    && $actorUserId > 0
+                    && ($userId === null || $actorUserId !== $userId)
+                    ? 'Offline'
+                    : 'Online';
                 $reservation->notes = $payload['notes'] ?? null;
                 $reservation->created_by = $actorUserId;
                 $reservation->updated_by = $actorUserId;
@@ -299,7 +301,10 @@ class ReservationService
                 AuditEvent::info('reservation_created', [
                     'reservation_id' => (int) $reservation->reservation_id,
                     'reservation_code' => (string) $reservation->reservation_code,
-                    'user_id' => (int) $reservation->user_id,
+                    'user_id' => $reservation->user_id !== null ? (int) $reservation->user_id : null,
+                    'guest_name' => $reservation->guest_name,
+                    'guest_phone' => $reservation->guest_phone,
+                    'guest_email' => $reservation->guest_email,
                     'source' => (string) $reservation->source,
                     'actor_user_id' => $actorUserId,
                     'start_time_utc' => $startUtc->toIso8601String(),
@@ -851,6 +856,67 @@ class ReservationService
                 'guest_count' => ["Số khách ($guestCount) vượt quá sức chứa ($totalSeats seats) của các bàn đã chọn."],
             ]);
         }
+    }
+
+    private function resolveReservationUserId(array $payload, ?int $actorUserId): ?int
+    {
+        $userId = isset($payload['user_id']) && $payload['user_id'] !== null
+            ? (int) $payload['user_id']
+            : null;
+
+        if ($userId === null || $userId <= 0) {
+            return null;
+        }
+
+        $user = User::query()
+            ->where('user_id', $userId)
+            ->where('is_deleted', 0)
+            ->first();
+        if (! $user) {
+            throw ValidationException::withMessages([
+                'user_id' => ['User khong ton tai hoac da bi xoa.'],
+            ]);
+        }
+
+        return $userId;
+    }
+
+    /**
+     * @return array{guest_name:?string,guest_phone:?string,guest_email:?string}
+     */
+    private function resolveGuestSnapshot(array $payload, ?int $userId): array
+    {
+        $guestName = $this->normalizeGuestField($payload['guest_name'] ?? null);
+        $guestPhone = $this->normalizeGuestField($payload['guest_phone'] ?? null);
+        $guestEmail = $this->normalizeGuestField($payload['guest_email'] ?? null);
+
+        if ($userId !== null) {
+            return [
+                'guest_name' => null,
+                'guest_phone' => null,
+                'guest_email' => null,
+            ];
+        }
+
+        if ($guestName === null || $guestPhone === null) {
+            throw ValidationException::withMessages([
+                'guest_name' => ['guest_name is required when user_id is omitted.'],
+                'guest_phone' => ['guest_phone is required when user_id is omitted.'],
+            ]);
+        }
+
+        return [
+            'guest_name' => $guestName,
+            'guest_phone' => $guestPhone,
+            'guest_email' => $guestEmail,
+        ];
+    }
+
+    private function normalizeGuestField(mixed $value): ?string
+    {
+        $trimmed = trim((string) ($value ?? ''));
+
+        return $trimmed === '' ? null : $trimmed;
     }
 
 }

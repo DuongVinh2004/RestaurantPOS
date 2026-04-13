@@ -42,7 +42,7 @@ class StaffTableBoardHttpFlowTest extends TestCase
         ]);
         $this->attachReservationTable($reservationId, $tableId);
 
-        $response = $this->withHeaders($headers)->getJson('/api/v1/staff/tables/board?from=' . urlencode($now->copy()->subHour()->toIso8601String()) . '&to=' . urlencode($now->copy()->addHour()->toIso8601String()));
+        $response = $this->withHeaders($headers)->getJson('/api/v1/staff/tables/board?from='.urlencode($now->copy()->subHour()->toIso8601String()).'&to='.urlencode($now->copy()->addHour()->toIso8601String()));
 
         $response->assertOk();
         $response->assertJsonPath('meta.supported_actions.check_in.endpoint_template', '/api/v1/staff/reservations/{reservation_id}/check-in');
@@ -59,9 +59,60 @@ class StaffTableBoardHttpFlowTest extends TestCase
         self::assertFalse((bool) $row['availability']['accepts_new_assignment']);
         self::assertSame('check_in', $row['operational_hints']['preferred_action']);
         self::assertTrue((bool) $row['actions']['check_in']['available']);
-        self::assertSame('/api/v1/staff/reservations/' . $reservationId . '/check-in', $row['actions']['check_in']['endpoint']);
+        self::assertSame('/api/v1/staff/reservations/'.$reservationId.'/check-in', $row['actions']['check_in']['endpoint']);
         self::assertSame(7, (int) $row['actions']['check_in']['preferred_payload']['row_version']);
         self::assertSame([$tableId], $row['actions']['check_in']['preferred_payload']['table_ids']);
+    }
+
+    public function test_staff_table_board_surfaces_guest_snapshot_identity_for_assigned_and_unassigned_reservations(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->staffAuthHeaders($staffId, 'board-guest-snapshot-key');
+
+        $tableId = $this->createRestaurantTable(['zone' => 'Main']);
+        $now = Carbon::now('UTC')->startOfMinute();
+        $assignedReservationId = $this->createReservation([
+            'user_id' => null,
+            'guest_name' => 'Board Guest',
+            'guest_phone' => '0906677889',
+            'guest_email' => 'board.guest@example.test',
+            'status' => 'Confirmed',
+            'start_time' => $now->copy()->subMinutes(5),
+            'end_time' => $now->copy()->addHour(),
+            'guest_count' => 4,
+            'source' => 'Offline',
+        ]);
+        $this->attachReservationTable($assignedReservationId, $tableId);
+
+        $unassignedReservationId = $this->createReservation([
+            'user_id' => null,
+            'guest_name' => 'Unassigned Caller',
+            'guest_phone' => '0908899001',
+            'guest_email' => 'unassigned.caller@example.test',
+            'status' => 'Confirmed',
+            'start_time' => $now->copy()->addMinutes(20),
+            'end_time' => $now->copy()->addMinutes(80),
+            'guest_count' => 2,
+            'source' => 'Offline',
+        ]);
+
+        $response = $this->withHeaders($headers)->getJson(
+            '/api/v1/staff/tables/board?from='.urlencode($now->copy()->subHour()->toIso8601String()).'&to='.urlencode($now->copy()->addHour()->toIso8601String())
+        );
+
+        $response->assertOk();
+
+        $row = collect($response->json('data'))->firstWhere('table_id', $tableId);
+        self::assertIsArray($row);
+        self::assertSame('Board Guest', data_get($row, 'reservation.user.full_name'));
+        self::assertSame('0906677889', data_get($row, 'reservation.user.phone'));
+        self::assertSame('Board Guest', data_get($row, 'reservation.guest.full_name'));
+
+        $unassigned = collect($response->json('unassigned_reservations'))->firstWhere('reservation_id', $unassignedReservationId);
+        self::assertIsArray($unassigned);
+        self::assertSame('Unassigned Caller', data_get($unassigned, 'user.full_name'));
+        self::assertSame('0908899001', data_get($unassigned, 'user.phone'));
+        self::assertSame('Unassigned Caller', data_get($unassigned, 'guest.full_name'));
     }
 
     public function test_staff_table_board_legacy_alias_still_works_and_zone_filter_is_preserved(): void
@@ -85,6 +136,28 @@ class StaffTableBoardHttpFlowTest extends TestCase
         self::assertSame('assignment_candidate', $row['operational_hints']['preferred_action']);
     }
 
+    public function test_staff_table_board_can_filter_rows_by_branch(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->staffAuthHeaders($staffId, 'branch-board-key');
+        $annexBranchId = $this->createBranch([
+            'branch_code' => 'BOARD-BRANCH',
+            'branch_name' => 'Board Branch',
+        ]);
+
+        $mainTableId = $this->createRestaurantTable(['zone' => 'Main', 'branch_id' => 1]);
+        $annexTableId = $this->createRestaurantTable(['zone' => 'Main', 'branch_id' => $annexBranchId]);
+
+        $response = $this->withHeaders($headers)->getJson('/api/v1/staff/tables/board?branch_id='.$annexBranchId);
+
+        $response->assertOk()
+            ->assertJsonPath('meta.filters.branch_id', $annexBranchId)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.table_id', $annexTableId);
+
+        self::assertNotSame($mainTableId, $annexTableId);
+    }
+
     public function test_staff_table_board_surfaces_move_table_action_for_checked_in_table(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
@@ -101,7 +174,7 @@ class StaffTableBoardHttpFlowTest extends TestCase
         ]);
         $this->attachReservationTable($reservationId, $tableId);
 
-        $response = $this->withHeaders($headers)->getJson('/api/v1/staff/tables/board?from=' . urlencode($now->copy()->subHour()->toIso8601String()) . '&to=' . urlencode($now->copy()->addHour()->toIso8601String()));
+        $response = $this->withHeaders($headers)->getJson('/api/v1/staff/tables/board?from='.urlencode($now->copy()->subHour()->toIso8601String()).'&to='.urlencode($now->copy()->addHour()->toIso8601String()));
 
         $response->assertOk();
 
@@ -109,7 +182,7 @@ class StaffTableBoardHttpFlowTest extends TestCase
         self::assertIsArray($row);
         self::assertSame('occupied_now', $row['board_state']);
         self::assertTrue((bool) $row['actions']['move_table']['available']);
-        self::assertSame('/api/v1/staff/reservations/' . $reservationId . '/move-table', $row['actions']['move_table']['endpoint']);
+        self::assertSame('/api/v1/staff/reservations/'.$reservationId.'/move-table', $row['actions']['move_table']['endpoint']);
         self::assertSame($tableId, (int) $row['actions']['move_table']['preferred_payload']['from_table_id']);
         self::assertSame(3, (int) $row['actions']['move_table']['preferred_payload']['row_version']);
         self::assertFalse((bool) $row['actions']['check_in']['available']);
@@ -134,7 +207,7 @@ class StaffTableBoardHttpFlowTest extends TestCase
         $this->attachReservationTable($reservationId, $occupiedTableId);
 
         $response = $this->withHeaders($headers)->getJson(
-            '/api/v1/staff/tables/board?from=' . urlencode($now->copy()->subHour()->toIso8601String()) . '&to=' . urlencode($now->copy()->addHour()->toIso8601String())
+            '/api/v1/staff/tables/board?from='.urlencode($now->copy()->subHour()->toIso8601String()).'&to='.urlencode($now->copy()->addHour()->toIso8601String())
         );
 
         $response->assertOk();
@@ -170,7 +243,7 @@ class StaffTableBoardHttpFlowTest extends TestCase
         ], [$tableId]);
 
         $response = $this->withHeaders($headers)->getJson(
-            '/api/v1/staff/tables/board?from=' . urlencode($now->copy()->subHour()->toIso8601String()) . '&to=' . urlencode($now->copy()->addHour()->toIso8601String())
+            '/api/v1/staff/tables/board?from='.urlencode($now->copy()->subHour()->toIso8601String()).'&to='.urlencode($now->copy()->addHour()->toIso8601String())
         );
 
         $response->assertOk();
@@ -208,7 +281,7 @@ class StaffTableBoardHttpFlowTest extends TestCase
         ], [$tableId]);
 
         $response = $this->withHeaders($headers)->getJson(
-            '/api/v1/staff/tables/board?from=' . urlencode($now->copy()->subHour()->toIso8601String()) . '&to=' . urlencode($now->copy()->addHour()->toIso8601String())
+            '/api/v1/staff/tables/board?from='.urlencode($now->copy()->subHour()->toIso8601String()).'&to='.urlencode($now->copy()->addHour()->toIso8601String())
         );
 
         $response->assertOk();
@@ -249,7 +322,7 @@ class StaffTableBoardHttpFlowTest extends TestCase
         $this->attachReservationTable($reservationId, $tableId);
 
         $response = $this->withHeaders($headers)->getJson(
-            '/api/v1/staff/tables/board?from=' . urlencode($now->copy()->subHour()->toIso8601String()) . '&to=' . urlencode($now->copy()->addHour()->toIso8601String())
+            '/api/v1/staff/tables/board?from='.urlencode($now->copy()->subHour()->toIso8601String()).'&to='.urlencode($now->copy()->addHour()->toIso8601String())
         );
 
         $response->assertOk();
@@ -279,7 +352,7 @@ class StaffTableBoardHttpFlowTest extends TestCase
         $this->attachReservationTable($reservationId, $tableId);
 
         $response = $this->withHeaders($headers)->getJson(
-            '/api/v1/staff/tables/board?from=' . urlencode($now->copy()->subHour()->toIso8601String()) . '&to=' . urlencode($now->copy()->addHour()->toIso8601String())
+            '/api/v1/staff/tables/board?from='.urlencode($now->copy()->subHour()->toIso8601String()).'&to='.urlencode($now->copy()->addHour()->toIso8601String())
         );
 
         $response->assertOk();
@@ -287,7 +360,7 @@ class StaffTableBoardHttpFlowTest extends TestCase
         $row = collect($response->json('data'))->firstWhere('table_id', $tableId);
         self::assertIsArray($row);
         self::assertTrue((bool) data_get($row, 'actions.move_table.available'));
-        self::assertSame('/api/v1/staff/reservations/' . $reservationId . '/move-table', data_get($row, 'actions.move_table.endpoint'));
+        self::assertSame('/api/v1/staff/reservations/'.$reservationId.'/move-table', data_get($row, 'actions.move_table.endpoint'));
         self::assertSame('move_table', data_get($row, 'operational_hints.preferred_action'));
     }
 
@@ -298,7 +371,6 @@ class StaffTableBoardHttpFlowTest extends TestCase
         $response->assertStatus(401);
         $response->assertJsonPath('error_code', 'unauthorized');
     }
-
 
     private function resetBoardFixtures(): void
     {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
@@ -58,7 +59,7 @@ class AdminMultiBranchFoundationHttpFlowTest extends TestCase
         $rowVersion = (int) $create->json('data.row_version');
 
         $update = $this->withHeaders($headers)
-            ->patchJson('/api/v1/admin/settings/branches/' . $branchId, [
+            ->patchJson('/api/v1/admin/settings/branches/'.$branchId, [
                 'row_version' => $rowVersion,
                 'is_default' => true,
                 'description' => 'Promoted to default branch',
@@ -71,7 +72,7 @@ class AdminMultiBranchFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('data.description', 'Promoted to default branch');
 
         $show = $this->withHeaders($headers)
-            ->getJson('/api/v1/admin/settings/branches/' . $branchId);
+            ->getJson('/api/v1/admin/settings/branches/'.$branchId);
 
         $show->assertOk()
             ->assertJsonPath('data.branch_id', $branchId)
@@ -104,10 +105,10 @@ class AdminMultiBranchFoundationHttpFlowTest extends TestCase
         [, $headers] = $this->adminHeaders('admin-branches-policy-key');
 
         $payload = [
-            'branch_code' => 'BKK02',
-            'branch_name' => 'Bangkok 02',
-            'timezone' => 'Asia/Bangkok',
-            'currency' => 'THB',
+            'branch_code' => 'DNG02',
+            'branch_name' => 'Da Nang 02',
+            'timezone' => 'Asia/Ho_Chi_Minh',
+            'currency' => 'VND',
             'business_hours' => collect(range(0, 6))
                 ->map(static fn (int $day): array => [
                     'day_of_week' => $day,
@@ -121,7 +122,7 @@ class AdminMultiBranchFoundationHttpFlowTest extends TestCase
                 'start_local' => '2026-12-31 18:00:00',
                 'end_local' => '2026-12-31 23:00:00',
                 'type' => 'holiday',
-                'reason' => 'New Year private event',
+                'reason' => 'Su kien cuoi nam',
             ]],
             'booking_policy' => [
                 'reservation' => [
@@ -138,11 +139,47 @@ class AdminMultiBranchFoundationHttpFlowTest extends TestCase
             ->postJson('/api/v1/admin/settings/branches', $payload);
 
         $create->assertCreated()
-            ->assertJsonPath('data.timezone', 'Asia/Bangkok')
+            ->assertJsonPath('data.timezone', 'Asia/Ho_Chi_Minh')
             ->assertJsonPath('data.business_hours.0.periods.0.start_time', '09:00')
-            ->assertJsonPath('data.closure_windows.0.reason', 'New Year private event')
+            ->assertJsonPath('data.closure_windows.0.reason', 'Su kien cuoi nam')
             ->assertJsonPath('data.booking_policy.reservation.min_lead_time_minutes', 90)
             ->assertJsonPath('data.booking_policy.waiting_list.enabled', false);
+    }
+
+    public function test_admin_branch_update_rejects_stale_row_version_with_conflict_contract(): void
+    {
+        [, $headers] = $this->adminHeaders('admin-branches-stale-row-version-key');
+
+        $create = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-branch-create-stale'))
+            ->postJson('/api/v1/admin/settings/branches', [
+                'branch_code' => 'STALE01',
+                'branch_name' => 'Stale Branch',
+                'timezone' => 'Asia/Ho_Chi_Minh',
+                'currency' => 'VND',
+                'is_active' => true,
+            ]);
+
+        $create->assertCreated();
+
+        $branchId = (int) $create->json('data.branch_id');
+        $staleRowVersion = (int) $create->json('data.row_version');
+
+        DB::table('branches')
+            ->where('branch_id', $branchId)
+            ->update(['row_version' => $staleRowVersion + 1]);
+
+        $response = $this->withHeaders(array_merge($headers, [
+            'X-Request-Id' => 'req-admin-branch-stale-row-version',
+        ]))->patchJson('/api/v1/admin/settings/branches/'.$branchId, [
+            'row_version' => $staleRowVersion,
+            'description' => 'This update should be rejected as stale.',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertHeader('X-Request-Id', 'req-admin-branch-stale-row-version')
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonPath('request_id', 'req-admin-branch-stale-row-version')
+            ->assertJsonPath('details.errors.row_version.0', 'Branch has been modified by another operation. Please reload and retry.');
     }
 
     /**

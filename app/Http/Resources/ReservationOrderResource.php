@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Enums\PaymentStatus;
+use App\Models\ReservationOrder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Models\ReservationOrder */
+/** @mixin ReservationOrder */
 class ReservationOrderResource extends JsonResource
 {
     public function toArray(Request $request): array
@@ -23,6 +24,7 @@ class ReservationOrderResource extends JsonResource
                     'item_id' => (int) $it->item_id,
                     'quantity' => (int) $it->quantity,
                     'status' => $it->status?->value ?? (string) $it->status,
+                    'row_version' => isset($it->row_version) ? (int) $it->row_version : null,
                     'item_name_snapshot' => $it->item_name_snapshot,
                     'unit_price' => (string) ($it->unit_price ?? '0.00'),
                     'currency' => (string) ($it->currency ?? 'VND'),

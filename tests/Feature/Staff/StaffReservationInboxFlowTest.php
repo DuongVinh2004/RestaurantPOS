@@ -133,6 +133,41 @@ class StaffReservationInboxFlowTest extends TestCase
         self::assertNotSame($targetReservationId, $otherReservationId);
     }
 
+    public function test_staff_inbox_search_matches_guest_snapshot_reservations(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->staffAuthHeaders($staffId);
+        $tableId = $this->createRestaurantTableWithSeats(4);
+
+        $targetReservationId = $this->createReservation([
+            'user_id' => null,
+            'guest_name' => 'Guest Caller',
+            'guest_phone' => '0903344556',
+            'guest_email' => 'guest.caller@example.test',
+            'reservation_code' => 'RSV-GUEST-SEARCH-001',
+            'source' => 'Offline',
+        ]);
+        $this->attachReservationTable($targetReservationId, $tableId);
+
+        $otherReservationId = $this->createReservation([
+            'reservation_code' => 'RSV-GUEST-SEARCH-002',
+        ]);
+        $this->attachReservationTable($otherReservationId, $tableId);
+
+        $response = $this->withHeaders($headers)->getJson('/api/v1/staff/reservations?bucket=all&q=0903344556');
+
+        $response->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.reservation_id', $targetReservationId)
+            ->assertJsonPath('data.0.user.user_id', null)
+            ->assertJsonPath('data.0.user.full_name', 'Guest Caller')
+            ->assertJsonPath('data.0.user.phone', '0903344556')
+            ->assertJsonPath('data.0.user.email', 'guest.caller@example.test')
+            ->assertJsonPath('data.0.guest.full_name', 'Guest Caller');
+
+        self::assertNotSame($targetReservationId, $otherReservationId);
+    }
+
     public function test_staff_can_include_financial_fields_in_inbox_response(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
@@ -190,15 +225,16 @@ class StaffReservationInboxFlowTest extends TestCase
             ->assertJsonPath('data.0.reservation_id', $cancelledFutureReservationId);
     }
 
-    public function test_staff_today_bucket_uses_application_timezone_day_window(): void
+    public function test_staff_today_bucket_uses_branch_operational_timezone_day_window(): void
     {
-        config()->set('app.timezone', 'Asia/Bangkok');
+        config()->set('app.timezone', 'UTC');
+        config()->set('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh');
 
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $headers = $this->staffAuthHeaders($staffId);
         $tableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'TZ-01']);
 
-        $localStart = now('Asia/Bangkok')->startOfDay()->addMinutes(30);
+        $localStart = now('Asia/Ho_Chi_Minh')->startOfDay()->addMinutes(30);
         $localEnd = $localStart->copy()->addHour();
 
         $reservationId = $this->createReservation([

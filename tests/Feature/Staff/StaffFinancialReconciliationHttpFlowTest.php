@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Staff;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
@@ -77,10 +78,14 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
 
         $response = $this->withHeaders($this->staffAuthHeaders($staffId, 'staff-finance-recon-list'))
             ->getJson('/api/v1/staff/finance/reconciliation?reservation_id='.$reservationId);
+        $reservationRowVersion = (int) DB::table('reservations')
+            ->where('reservation_id', $reservationId)
+            ->value('row_version');
 
         $response->assertOk()
             ->assertJsonPath('meta.action', 'financial_reconciliation_index')
             ->assertJsonPath('data.0.reservation.reservation_id', $reservationId)
+            ->assertJsonPath('data.0.reservation.row_version', $reservationRowVersion)
             ->assertJsonPath('data.0.payment_summary.payment_count', 3)
             ->assertJsonPath('data.0.payment_summary.refund_count', 1)
             ->assertJsonPath('data.0.payment_summary.deposit_captured_amount', 50000.0)
@@ -138,9 +143,14 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
 
         $show = $this->withHeaders($this->staffAuthHeaders($staffId, 'staff-finance-recon-show'))
             ->getJson('/api/v1/staff/finance/reconciliation/'.$reservationId);
+        $reservationRowVersion = (int) DB::table('reservations')
+            ->where('reservation_id', $reservationId)
+            ->value('row_version');
 
         $show->assertOk()
             ->assertJsonPath('meta.action', 'financial_reconciliation_show')
+            ->assertJsonPath('data.reservation.row_version', $reservationRowVersion)
+            ->assertJsonPath('data.summary.reservation.row_version', $reservationRowVersion)
             ->assertJsonPath('data.summary.flags.has_discrepancy', true)
             ->assertJsonPath('data.summary.reconciliation.deposit_sync_gap_amount', -10000.0)
             ->assertJsonPath('data.payments.1.refund_target_payment_type', 'Deposit')
@@ -168,6 +178,101 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
         $this->assertStringContainsString('deposit_sync_gap,bill_outstanding', $csv);
     }
 
+    public function test_reconciliation_routes_can_be_scoped_to_branch_context(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $customerId = $this->createUser(['role_name' => 'Customer', 'full_name' => 'Branch Finance']);
+        $branchA = $this->createBranch(['branch_code' => 'FINA', 'branch_name' => 'Finance A']);
+        $branchB = $this->createBranch(['branch_code' => 'FINB', 'branch_name' => 'Finance B']);
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchA,
+            'status' => 'Open',
+        ]);
+
+        $reservationA = $this->createReservation([
+            'branch_id' => $branchA,
+            'user_id' => $customerId,
+            'status' => 'Completed',
+            'deposit_required_amount' => '0.00',
+            'deposit_paid_amount' => '0.00',
+            'deposit_status' => 'NotRequired',
+            'final_bill_amount' => '90000.00',
+            'bill_currency' => 'VND',
+        ]);
+        $reservationB = $this->createReservation([
+            'branch_id' => $branchB,
+            'user_id' => $customerId,
+            'status' => 'Completed',
+            'deposit_required_amount' => '0.00',
+            'deposit_paid_amount' => '0.00',
+            'deposit_status' => 'NotRequired',
+            'final_bill_amount' => '110000.00',
+            'bill_currency' => 'VND',
+        ]);
+
+        $this->createPayment([
+            'branch_id' => $branchA,
+            'reservation_id' => $reservationA,
+            'payment_type' => 'Final',
+            'status' => 'Success',
+            'amount' => '90000.00',
+            'currency' => 'VND',
+            'created_by' => $staffId,
+            'transaction_code' => 'FIN-BRANCH-A',
+        ]);
+        $this->createPayment([
+            'branch_id' => $branchB,
+            'reservation_id' => $reservationB,
+            'payment_type' => 'Final',
+            'status' => 'Success',
+            'amount' => '110000.00',
+            'currency' => 'VND',
+            'created_by' => $staffId,
+            'transaction_code' => 'FIN-BRANCH-B',
+        ]);
+
+        $headers = $this->staffAuthHeaders($staffId, 'staff-finance-recon-branch');
+
+        $defaultScoped = $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/finance/reconciliation');
+
+        $defaultScoped->assertOk();
+        $reservationIds = collect($defaultScoped->json('data', []))
+            ->pluck('reservation.reservation_id')
+            ->map(static fn ($value): int => (int) $value)
+            ->all();
+
+        $this->assertContains($reservationA, $reservationIds);
+        $this->assertNotContains($reservationB, $reservationIds);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/finance/reconciliation?branch_id=' . $branchA)
+            ->assertOk()
+            ->assertJsonPath('meta.filters.branch_id', $branchA)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.reservation.reservation_id', $reservationA);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/finance/reconciliation?branch_id=' . $branchB)
+            ->assertStatus(404)
+            ->assertJsonPath('error_code', 'not_found');
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/finance/reconciliation/' . $reservationA . '?branch_id=' . $branchA)
+            ->assertOk()
+            ->assertJsonPath('meta.branch_id', $branchA)
+            ->assertJsonPath('data.reservation.reservation_id', $reservationA);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/finance/reconciliation/' . $reservationB)
+            ->assertStatus(404);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/finance/reconciliation/' . $reservationB . '?branch_id=' . $branchA)
+            ->assertStatus(404);
+    }
+
     public function test_reconciliation_show_returns_stable_no_data_contract_for_reservation_without_payments(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
@@ -185,9 +290,14 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
 
         $response = $this->withHeaders($this->staffAuthHeaders($staffId, 'staff-finance-recon-no-data'))
             ->getJson('/api/v1/staff/finance/reconciliation/'.$reservationId);
+        $reservationRowVersion = (int) DB::table('reservations')
+            ->where('reservation_id', $reservationId)
+            ->value('row_version');
 
         $response->assertOk()
             ->assertJsonPath('meta.action', 'financial_reconciliation_show')
+            ->assertJsonPath('data.reservation.row_version', $reservationRowVersion)
+            ->assertJsonPath('data.summary.reservation.row_version', $reservationRowVersion)
             ->assertJsonPath('data.summary.payment_summary.payment_count', 0)
             ->assertJsonPath('data.summary.payment_summary.refund_count', 0)
             ->assertJsonPath('data.summary.payment_summary.net_paid_amount', 0.0)

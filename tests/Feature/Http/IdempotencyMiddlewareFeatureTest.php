@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Http;
 
-use PHPUnit\Framework\Attributes\Group;
 use App\Http\Middleware\IdempotencyMiddleware;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class IdempotencyMiddlewareFeatureTest extends TestCase
@@ -37,7 +37,7 @@ class IdempotencyMiddlewareFeatureTest extends TestCase
                     'session_id' => (string) $request->input('session_id', ''),
                     'nonce' => Str::uuid()->toString(),
                 ], 201);
-            })->middleware(IdempotencyMiddleware::class . ':test.idem')->name('testing.idem.echo');
+            })->middleware(IdempotencyMiddleware::class.':test.idem')->name('testing.idem.echo');
         }
 
         config()->set('booking.idempotency_route_aliases', [
@@ -51,7 +51,7 @@ class IdempotencyMiddlewareFeatureTest extends TestCase
                     'amount' => (float) $request->input('amount'),
                     'nonce' => Str::uuid()->toString(),
                 ], 201);
-            })->middleware(IdempotencyMiddleware::class . ':test.idem')->name('testing.idem.alias.canonical');
+            })->middleware(IdempotencyMiddleware::class.':test.idem')->name('testing.idem.alias.canonical');
         }
 
         if (! Route::getRoutes()->getByName('testing.idem.alias.legacy')) {
@@ -61,14 +61,13 @@ class IdempotencyMiddlewareFeatureTest extends TestCase
                     'amount' => (float) $request->input('amount'),
                     'nonce' => Str::uuid()->toString(),
                 ], 201);
-            })->middleware(IdempotencyMiddleware::class . ':test.idem')->name('testing.idem.alias.legacy');
+            })->middleware(IdempotencyMiddleware::class.':test.idem')->name('testing.idem.alias.legacy');
         }
-
 
         if (! Route::getRoutes()->getByName('testing.idem.no-content')) {
             Route::post('/__testing__/idem-no-content/{reservation}', function () {
                 return response()->noContent();
-            })->middleware(IdempotencyMiddleware::class . ':test.idem')->name('testing.idem.no-content');
+            })->middleware(IdempotencyMiddleware::class.':test.idem')->name('testing.idem.no-content');
         }
 
     }
@@ -82,7 +81,12 @@ class IdempotencyMiddlewareFeatureTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-            ->assertJsonPath('error', 'idempotency_key_required');
+            ->assertJsonPath('error', 'idempotency_key_required')
+            ->assertJsonPath('error_code', 'idempotency_key_required')
+            ->assertJsonPath('state_reason', 'missing_idempotency_key')
+            ->assertJsonPath('next_actions.0', 'provide_idempotency_key')
+            ->assertJsonPath('warnings.0', 'legacy_error_alias_deprecated')
+            ->assertJsonPath('deprecated_aliases.0', 'error');
     }
 
     #[Group('booking-smoke')]
@@ -121,7 +125,12 @@ class IdempotencyMiddlewareFeatureTest extends TestCase
             'amount' => 200000,
             'session_id' => 'sess-a',
         ])->assertStatus(409)
-            ->assertJsonPath('error', 'idempotency_conflict');
+            ->assertJsonPath('error', 'idempotency_conflict')
+            ->assertJsonPath('error_code', 'idempotency_conflict')
+            ->assertJsonPath('conflict_type', 'idempotency_payload_mismatch')
+            ->assertJsonPath('replay_state', 'payload_mismatch')
+            ->assertJsonPath('state_reason', 'key_reused_for_different_payload')
+            ->assertJsonPath('next_actions.0', 'retry_with_new_idempotency_key');
     }
 
     #[Group('booking-smoke')]
@@ -143,7 +152,6 @@ class IdempotencyMiddlewareFeatureTest extends TestCase
         $this->assertSame(41, $first->json('reservation_id'));
         $this->assertSame(42, $second->json('reservation_id'));
     }
-
 
     #[Group('booking-smoke')]
     public function test_successful_204_responses_are_cached_and_replayed(): void

@@ -21,17 +21,18 @@ class NotificationChannelManager
     public function resolve(string $channel): NotificationChannelDriver
     {
         $normalized = $this->normalizeChannel($channel);
-        $config = $this->channelConfig($normalized);
+        $description = $this->describe($normalized);
 
-        if (! ($config['enabled'] ?? false)) {
+        if (! ($description['enabled'] ?? false)) {
             throw new NotificationDeliveryException(
                 sprintf('Notification channel [%s] is not enabled.', $normalized),
                 'channel_disabled',
-                ['channel' => $normalized]
+                $description,
+                false,
             );
         }
 
-        $driver = strtolower(trim((string) ($config['driver'] ?? '')));
+        $driver = strtolower(trim((string) ($description['driver'] ?? '')));
 
         return match ($normalized) {
             'Email' => match ($driver) {
@@ -39,7 +40,8 @@ class NotificationChannelManager
                 default => throw new NotificationDeliveryException(
                     sprintf('Unsupported email notification driver [%s].', $driver),
                     'unsupported_driver',
-                    ['channel' => $normalized, 'driver' => $driver]
+                    $description,
+                    false,
                 ),
             },
             'SMS' => match ($driver) {
@@ -47,7 +49,8 @@ class NotificationChannelManager
                 default => throw new NotificationDeliveryException(
                     sprintf('Unsupported SMS notification driver [%s].', $driver),
                     'unsupported_driver',
-                    ['channel' => $normalized, 'driver' => $driver]
+                    $description,
+                    false,
                 ),
             },
             'Zalo' => match ($driver) {
@@ -55,13 +58,15 @@ class NotificationChannelManager
                 default => throw new NotificationDeliveryException(
                     sprintf('Unsupported Zalo notification driver [%s].', $driver),
                     'unsupported_driver',
-                    ['channel' => $normalized, 'driver' => $driver]
+                    $description,
+                    false,
                 ),
             },
             default => throw new NotificationDeliveryException(
                 sprintf('Unsupported notification channel [%s].', $normalized),
                 'unsupported_channel',
-                ['channel' => $normalized]
+                $this->unsupportedDescription($normalized),
+                false,
             ),
         };
     }
@@ -73,13 +78,19 @@ class NotificationChannelManager
     {
         $normalized = $this->normalizeChannel($channel);
         $config = $this->channelConfig($normalized);
+        $driver = strtolower(trim((string) ($config['driver'] ?? '')));
+        $deliveryMode = strtolower(trim((string) ($config['delivery_mode'] ?? 'unknown')));
+        $readiness = $this->normalizeReadiness((string) ($config['readiness'] ?? $this->defaultReadiness($normalized)));
+        $enabled = (bool) ($config['enabled'] ?? false);
 
         return [
             'channel' => $normalized,
-            'enabled' => (bool) ($config['enabled'] ?? false),
-            'driver' => strtolower(trim((string) ($config['driver'] ?? ''))),
+            'enabled' => $enabled,
+            'driver' => $driver,
             'provider_key' => (string) ($config['provider_key'] ?? ''),
-            'delivery_mode' => (string) ($config['delivery_mode'] ?? 'unknown'),
+            'delivery_mode' => $deliveryMode,
+            'readiness' => $readiness,
+            'supports_live_delivery' => $enabled && $deliveryMode === 'real' && $readiness === 'production_lean',
         ];
     }
 
@@ -120,6 +131,43 @@ class NotificationChannelManager
             'SMS' => (array) config('notifications.channels.sms', []),
             'Zalo' => (array) config('notifications.channels.zalo', []),
             default => [],
+        };
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function unsupportedDescription(string $channel): array
+    {
+        return [
+            'channel' => $channel,
+            'enabled' => false,
+            'driver' => '',
+            'provider_key' => '',
+            'delivery_mode' => 'unknown',
+            'readiness' => 'unknown',
+            'supports_live_delivery' => false,
+        ];
+    }
+
+    private function defaultReadiness(string $channel): string
+    {
+        return match ($channel) {
+            'Email' => 'production_lean',
+            'SMS', 'Zalo' => 'provider_ready',
+            default => 'unknown',
+        };
+    }
+
+    private function normalizeReadiness(string $readiness): string
+    {
+        $normalized = strtolower(str_replace('-', '_', trim($readiness)));
+
+        return match ($normalized) {
+            'production_lean' => 'production_lean',
+            'provider_ready' => 'provider_ready',
+            'stub_sandbox_only' => 'stub_sandbox_only',
+            default => $normalized !== '' ? $normalized : 'unknown',
         };
     }
 }

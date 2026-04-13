@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\TableHoldStatus;
-use App\Enums\WaitingListStatus;
 use App\Enums\WaitingListCustomerResponseStatus;
+use App\Enums\WaitingListStatus;
 use App\Models\TableHold;
 use App\Models\WaitingList;
-use App\Support\AuditEvent;
 use App\Services\Branch\BranchContextService;
 use App\Services\Branch\BranchSchedulingPolicyService;
 use App\Services\Staff\StaffOperationalRealtimeService;
+use App\Support\AuditEvent;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,7 @@ use Throwable;
 class CustomerWaitingListService
 {
     private readonly BranchContextService $branchContextService;
+
     private readonly BranchSchedulingPolicyService $branchSchedulingPolicyService;
 
     public function __construct(
@@ -58,14 +60,14 @@ class CustomerWaitingListService
 
                 if ($hasActiveEntry) {
                     throw ValidationException::withMessages([
-                    'waiting_list' => ['Khách hiện đã có waiting entry còn hiệu lực.'],
+                        'waiting_list' => ['Khách hiện đã có waiting entry còn hiệu lực.'],
                     ]);
                 }
 
                 $branchId = $this->branchContextService->resolveBranchId($payload['branch_id'] ?? null);
                 $this->branchSchedulingPolicyService->assertWaitingListEligible($branchId, Carbon::now('UTC'), 'branch_id', false);
 
-                $entry = new WaitingList();
+                $entry = new WaitingList;
                 $entry->branch_id = $branchId;
                 $entry->user_id = $ownerUserId;
                 $entry->guest_name = $payload['guest_name'] ?? null;
@@ -99,7 +101,7 @@ class CustomerWaitingListService
             return $entry;
         }
 
-        $this->throwOwnerEntryNotFound();
+        $this->throwOwnerMutationEntryNotFound();
     }
 
     public function acceptEntry(int $waitingId, int $ownerUserId, ?int $expectedRowVersion = null): WaitingList
@@ -312,13 +314,15 @@ class CustomerWaitingListService
 
     private function withWaitingEntryLock(int $waitingId, callable $callback): mixed
     {
-        $lockKey = 'booking:lock:waiting-list:' . $waitingId;
+        $lockKey = 'booking:lock:waiting-list:'.$waitingId;
+
         return $this->withDistributedLock($lockKey, $callback);
     }
 
     private function withOwnerActiveEntryLock(int $ownerUserId, callable $callback): mixed
     {
-        $lockKey = 'booking:lock:waiting-list-owner:' . $ownerUserId;
+        $lockKey = 'booking:lock:waiting-list-owner:'.$ownerUserId;
+
         return $this->withDistributedLock($lockKey, $callback);
     }
 
@@ -370,20 +374,12 @@ class CustomerWaitingListService
 
     private function buildWaitingSessionId(int $waitingId): string
     {
-        return 'waiting-list:' . $waitingId;
+        return 'waiting-list:'.$waitingId;
     }
-
-    private function throwOwnerEntryNotFound(): never
-    {
-        throw ValidationException::withMessages([
-            'waiting_id' => ['Waiting entry không tồn tại hoặc không thuộc quyền của customer hiện tại.'],
-        ]);
-    }
-
 
     private function throwOwnerMutationEntryNotFound(): never
     {
-        $exception = new \Illuminate\Database\Eloquent\ModelNotFoundException();
+        $exception = new ModelNotFoundException;
         $exception->setModel(WaitingList::class);
 
         throw $exception;

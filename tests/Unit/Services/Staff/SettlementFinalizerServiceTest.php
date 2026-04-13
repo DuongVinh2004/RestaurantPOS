@@ -61,7 +61,16 @@ class SettlementFinalizerServiceTest extends TestCase
         $tableState = Mockery::mock(RestaurantTableStateService::class);
         $tableState->shouldReceive('releaseTablesSafely')
             ->once()
-            ->with([ $tableId ], Mockery::type(Carbon::class));
+            ->with(
+                [$tableId],
+                Mockery::type(Carbon::class),
+                $staffId,
+                Mockery::on(fn (array $context): bool => $context === [
+                    'reservation_id' => $reservationId,
+                    'source' => 'staff_settlement_finalize',
+                    'reason' => 'settlement_finalize',
+                ])
+            );
 
         $service = new SettlementFinalizerService($loyalty, $tableState);
 

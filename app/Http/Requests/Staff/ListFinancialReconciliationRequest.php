@@ -6,13 +6,12 @@ namespace App\Http\Requests\Staff;
 
 use App\Enums\ReservationStatus;
 use App\Http\Requests\Concerns\InteractsWithListingQuery;
-use Illuminate\Foundation\Http\FormRequest;
-
-class ListFinancialReconciliationRequest extends FormRequest
+class ListFinancialReconciliationRequest extends BranchScopeRequest
 {
     use InteractsWithListingQuery;
 
     private const FILTER_KEYS = [
+        'branch_id',
         'reservation_id',
         'reservation_code',
         'user_id',
@@ -35,13 +34,10 @@ class ListFinancialReconciliationRequest extends FormRequest
         'last_payment_activity_at',
     ];
 
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     protected function prepareForValidation(): void
     {
+        parent::prepareForValidation();
+
         $pagination = $this->normalizeListingPagination(25, 100);
         $sort = $this->normalizeListingSort('last_payment_activity_at', self::SORT_FIELDS, 'desc');
         $limitInput = $this->input('limit');
@@ -75,6 +71,7 @@ class ListFinancialReconciliationRequest extends FormRequest
         return [
             'filter' => $this->listingFilterContainerRules(self::FILTER_KEYS),
             'filters' => $this->listingFilterContainerRules(self::FILTER_KEYS),
+            ...parent::rules(),
             'reservation_id' => ['nullable', 'integer', 'min:1', 'exists:reservations,reservation_id'],
             'reservation_code' => ['nullable', 'string', 'max:80'],
             'user_id' => ['nullable', 'integer', 'min:1', 'exists:users,user_id'],

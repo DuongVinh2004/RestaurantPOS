@@ -25,7 +25,8 @@ class StaffReservationTimelineWorkbenchFlowTest extends TestCase
     {
         parent::setUp();
         $this->requireBookingSchema();
-        config()->set('app.timezone', 'Asia/Bangkok');
+        config()->set('app.timezone', 'UTC');
+        config()->set('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh');
         config()->set('booking.check_in_grace_minutes', 15);
 
         $this->app->instance(NotificationOutboxService::class, $this->mockNotificationOutbox());

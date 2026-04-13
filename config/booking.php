@@ -307,8 +307,8 @@ return [
     // Multi-branch defaults for single-site compatibility and bootstrap.
     'multi_branch' => [
         'default_branch_code' => (string) env('BOOKING_DEFAULT_BRANCH_CODE', 'MAIN'),
-        'default_branch_name' => (string) env('BOOKING_DEFAULT_BRANCH_NAME', 'Main Branch'),
-        'default_branch_timezone' => (string) env('BOOKING_DEFAULT_BRANCH_TIMEZONE', env('APP_TIMEZONE', 'UTC')),
+        'default_branch_name' => (string) env('BOOKING_DEFAULT_BRANCH_NAME', 'Chi nhanh chinh'),
+        'default_branch_timezone' => (string) env('BOOKING_DEFAULT_BRANCH_TIMEZONE', 'Asia/Ho_Chi_Minh'),
         'default_branch_currency' => (string) env('BOOKING_DEFAULT_BRANCH_CURRENCY', 'VND'),
     ],
     'branch_policy_defaults' => [
@@ -402,6 +402,14 @@ return [
         'table_state_audit_missing_context_warn_count' => (int) env('OPS_TABLE_STATE_AUDIT_MISSING_CONTEXT_WARN_COUNT', 3),
         'table_state_audit_recent_window_hours' => (int) env('OPS_TABLE_STATE_AUDIT_RECENT_WINDOW_HOURS', 24),
         'row_version_contract_missing_required_fail_count' => (int) env('OPS_ROW_VERSION_CONTRACT_MISSING_REQUIRED_FAIL_COUNT', 1),
+        'kitchen_fired_backlog_warn_seconds' => (int) env('OPS_KITCHEN_FIRED_BACKLOG_WARN_SECONDS', 900),
+        'kitchen_ready_backlog_warn_seconds' => (int) env('OPS_KITCHEN_READY_BACKLOG_WARN_SECONDS', 600),
+        'inventory_purchase_scan_limit' => (int) env('OPS_INVENTORY_PURCHASE_SCAN_LIMIT', 50),
+        'inventory_purchase_overdue_warn_count' => (int) env('OPS_INVENTORY_PURCHASE_OVERDUE_WARN_COUNT', 1),
+        'inventory_purchase_overdue_warn_seconds' => (int) env('OPS_INVENTORY_PURCHASE_OVERDUE_WARN_SECONDS', 86400),
+        'conversation_unassigned_warn_count' => (int) env('OPS_CONVERSATION_UNASSIGNED_WARN_COUNT', 5),
+        'conversation_overdue_warn_count' => (int) env('OPS_CONVERSATION_OVERDUE_WARN_COUNT', 5),
+        'conversation_oldest_overdue_warn_seconds' => (int) env('OPS_CONVERSATION_OLDEST_OVERDUE_WARN_SECONDS', 3600),
         'alerts' => [
             'webhook_url' => trim((string) env('OPS_ALERTS_WEBHOOK_URL', '')),
             'timeout_seconds' => (int) env('OPS_ALERTS_TIMEOUT_SECONDS', 5),

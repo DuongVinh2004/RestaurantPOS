@@ -1164,6 +1164,31 @@ export type GetV1ReservationsReservationIdDepositPaymentSessionsSessionIdPathPar
   session_id: number;
 };
 
+export type GetV1StaffAuditTrailQueryParams = {
+  reservation_id?: (number) | null;
+  order_id?: (number) | null;
+  payment_id?: (number) | null;
+  waiting_id?: (number) | null;
+  table_id?: (number) | null;
+  cashier_shift_id?: (number) | null;
+  actor_user_id?: (number) | null;
+  branch_id?: (number) | null;
+  request_id?: (string) | null;
+  q?: (string) | null;
+  action?: (string) | null;
+  actor_type?: (string) | null;
+  subject_type?: (string) | null;
+  subject_id?: (string) | null;
+  date_from?: (string) | null;
+  date_to?: (string) | null;
+  per_page?: (number) | null;
+  page?: (number) | null;
+};
+
+export type GetV1StaffCashierShiftsCurrentQueryParams = {
+  branch_id?: (number) | null;
+};
+
 export type GetV1StaffCashierShiftsQueryParams = {
   filter?: Array<Record<string, never>>;
   filters?: Array<Record<string, never>>;
@@ -1195,6 +1220,8 @@ export type GetV1StaffConversationsConversationIdQueryParams = {
 
 export type GetV1StaffConversationsQueryParams = {
   status?: ("Open" | "Pending" | "Closed" | "Spam") | null;
+  workflow_state?: ("Open" | "Triaged" | "Assigned" | "PendingCustomer" | "Resolved" | "Closed") | null;
+  inbox_view?: ("all" | "unassigned" | "overdue" | "waiting_on_customer" | "resolved_today") | null;
   channel?: ("WebChat" | "Facebook" | "Zalo" | "Whatsapp" | "Instagram" | "Line" | "Other") | null;
   assigned_agent_user_id?: (number) | null;
   assignment_state?: ("all" | "assigned" | "unassigned" | "mine") | null;
@@ -1216,11 +1243,16 @@ export type GetV1StaffKitchenChangesQueryParams = {
   limit?: (number) | null;
 };
 
+export type GetV1StaffKitchenStationsQueryParams = {
+  branch_id?: (number) | null;
+};
+
 export type GetV1StaffKitchenStationsStationIdTicketsPathParams = {
   station_id: number;
 };
 
 export type GetV1StaffKitchenStationsStationIdTicketsQueryParams = {
+  branch_id?: (number) | null;
   status?: ("Queued" | "Fired" | "Ready" | "Completed" | "Cancelled") | null;
   include_terminal?: (boolean) | null;
 };
@@ -1418,6 +1450,21 @@ export type KitchenOrderItemTicket = {
   category_id: (number) | null;
   category_name: (string) | null;
 }) | null;
+  lifecycle: {
+  status: string;
+  state_reason: string;
+  is_terminal: boolean;
+  allowed_actions: Array<string>;
+};
+  reconciliation: {
+  sync_status: string;
+  routing_status: string;
+  order_item_expected_status: (string) | null;
+  order_item_matches_ticket: (boolean) | null;
+  station_active: (boolean) | null;
+  drift_reasons: Array<string>;
+  next_actions: Array<string>;
+};
   first_dispatched_at: (string) | null;
   fired_at: (string) | null;
   ready_at: (string) | null;
@@ -1828,6 +1875,15 @@ export type ReportingDailySalesSnapshot = {
 };
 };
 
+export type ReservationCustomerSummary = {
+  user_id: (number) | null;
+  full_name: (string) | null;
+  email: (string) | null;
+  phone: (string) | null;
+  current_points: (number) | null;
+  current_tier: (CustomerLoyaltyTier) | null;
+};
+
 export type ReservationEnvelope = {
   data: {
   reservation_id: number;
@@ -1849,12 +1905,20 @@ export type ReservationEnvelope = {
   customer_self_service?: Record<string, unknown>;
   table_ids?: Array<number>;
   table_summary?: Record<string, unknown>;
-  user?: (Record<string, unknown>) | null;
+  user?: (ReservationCustomerSummary) | null;
+  guest?: (ReservationGuestSnapshot) | null;
   payments?: (Array<Record<string, unknown>>) | null;
   payment_summary?: (Record<string, unknown>) | null;
   deposit_summary?: (Record<string, unknown>) | null;
   [key: string]: unknown;
 };
+};
+
+export type ReservationGuestSnapshot = {
+  full_name: (string) | null;
+  phone: (string) | null;
+  email: (string) | null;
+  is_snapshot_only: boolean;
 };
 
 export type ReservationOrder = {
@@ -1878,6 +1942,7 @@ export type ReservationOrder = {
   item_id: number;
   quantity: number;
   status: string;
+  row_version: (number) | null;
   item_name_snapshot: (string) | null;
   unit_price: string;
   currency: string;
@@ -1921,7 +1986,8 @@ export type ReservationSummary = {
   customer_self_service?: Record<string, unknown>;
   table_ids?: Array<number>;
   table_summary?: Record<string, unknown>;
-  user?: (Record<string, unknown>) | null;
+  user?: (ReservationCustomerSummary) | null;
+  guest?: (ReservationGuestSnapshot) | null;
   payments?: (Array<Record<string, unknown>>) | null;
   payment_summary?: (Record<string, unknown>) | null;
   deposit_summary?: (Record<string, unknown>) | null;
@@ -1972,6 +2038,66 @@ export type SendConversationOutboundReplyRequest = {
   message_text: string;
   related_reservation_id?: (number) | null;
   related_order_id?: (number) | null;
+};
+
+export type StaffAuditTrailActor = {
+  user_id: (number) | null;
+  type: (string) | null;
+  key: (string) | null;
+  user: StaffAuditTrailActorUser | null;
+};
+
+export type StaffAuditTrailActorUser = {
+  user_id: number;
+  full_name: string;
+};
+
+export type StaffAuditTrailCollectionMeta = {
+  action: string;
+  page: number;
+  per_page: number;
+  total: number;
+  last_page: number;
+  filters: Record<string, unknown>;
+};
+
+export type StaffAuditTrailEntry = {
+  audit_id: number;
+  action: string;
+  occurred_at: (string) | null;
+  primary_subject: StaffAuditTrailPrimarySubject;
+  subjects: Array<StaffAuditTrailSubject>;
+  actor: StaffAuditTrailActor;
+  request: StaffAuditTrailRequest;
+  before: (Record<string, unknown>) | null;
+  after: (Record<string, unknown>) | null;
+  summary: (Record<string, unknown>) | null;
+  meta: (Record<string, unknown>) | null;
+};
+
+export type StaffAuditTrailEnvelope = {
+  data: Array<StaffAuditTrailEntry>;
+  meta?: StaffAuditTrailCollectionMeta;
+};
+
+export type StaffAuditTrailPrimarySubject = {
+  type: string;
+  id: string;
+};
+
+export type StaffAuditTrailRequest = {
+  request_id: (string) | null;
+  branch_id: (number) | null;
+  ip: (string) | null;
+  user_agent: (string) | null;
+  method: (string) | null;
+  path: (string) | null;
+};
+
+export type StaffAuditTrailSubject = {
+  type: string;
+  id: string;
+  role: (string) | null;
 };
 
 export type StaffAuthSessionEnvelope = {
@@ -2078,6 +2204,16 @@ export type StaffConversationCollectionEnvelope = {
   branch_id: number;
   branch?: (Record<string, unknown>) | null;
   status: string;
+  workflow: {
+  state: string;
+  state_reason: (string) | null;
+  state_changed_at: (string) | null;
+  first_triaged_at: (string) | null;
+  resolved_at: (string) | null;
+  closed_at: (string) | null;
+  is_terminal: boolean;
+  allowed_actions: Array<string>;
+};
   channel: string;
   intent_detected?: (string) | null;
   customer_session_id?: (string) | null;
@@ -2101,6 +2237,11 @@ export type StaffConversationCollectionEnvelope = {
   is_assigned: boolean;
   is_unassigned: boolean;
   is_mine: boolean;
+};
+  operational: {
+  is_overdue: boolean;
+  overdue_after_minutes: number;
+  queue_bucket: string;
 };
 }>;
   meta?: {
@@ -2195,6 +2336,16 @@ export type StaffConversationSummary = {
   branch_id: number;
   branch?: (Record<string, unknown>) | null;
   status: string;
+  workflow: {
+  state: string;
+  state_reason: (string) | null;
+  state_changed_at: (string) | null;
+  first_triaged_at: (string) | null;
+  resolved_at: (string) | null;
+  closed_at: (string) | null;
+  is_terminal: boolean;
+  allowed_actions: Array<string>;
+};
   channel: string;
   intent_detected?: (string) | null;
   customer_session_id?: (string) | null;
@@ -2218,6 +2369,11 @@ export type StaffConversationSummary = {
   is_assigned: boolean;
   is_unassigned: boolean;
   is_mine: boolean;
+};
+  operational: {
+  is_overdue: boolean;
+  overdue_after_minutes: number;
+  queue_bucket: string;
 };
 };
 
@@ -2326,6 +2482,7 @@ export type StaffOrderReadPayload = {
   item_id: number;
   quantity: number;
   status: string;
+  row_version: (number) | null;
   item_name_snapshot: (string) | null;
   unit_price: string;
   currency: string;
@@ -2427,6 +2584,12 @@ export type StaffReportingCollectionMeta = {
   latest_business_date: (string) | null;
   latest_refreshed_at_utc: (string) | null;
   latest_refresh_age_seconds: (number) | null;
+  scope_count: number;
+  healthy_scope_count: number;
+  stale_scope_count: number;
+  stale_scope_examples: Array<Record<string, unknown>>;
+  health_reference_refreshed_at_utc: (string) | null;
+  health_reference_refresh_age_seconds: (number) | null;
   stale_threshold_seconds: number;
   is_empty: boolean;
   is_stale: boolean;
@@ -2515,6 +2678,7 @@ export type StaffReservationLookupEntry = {
   created_at: (string) | null;
   updated_at: (string) | null;
   user: (StaffReservationLookupUser) | null;
+  guest: (ReservationGuestSnapshot) | null;
   table_ids: Array<number>;
   tables: Array<StaffReservationLookupTable>;
   summary: {
@@ -2540,7 +2704,7 @@ export type StaffReservationLookupTable = {
 };
 
 export type StaffReservationLookupUser = {
-  user_id: number;
+  user_id: (number) | null;
   full_name: (string) | null;
   email: (string) | null;
   phone: (string) | null;
@@ -2590,6 +2754,7 @@ export type StaffReservationOrderEnvelope = {
   item_id: number;
   quantity: number;
   status: string;
+  row_version: (number) | null;
   item_name_snapshot: (string) | null;
   unit_price: string;
   currency: string;
@@ -2684,6 +2849,7 @@ export type StaffTableBoardAssignedReservation = {
   guest_count: number;
   checked_in_at: (string) | null;
   user: (StaffTableBoardReservationUser) | null;
+  guest: (ReservationGuestSnapshot) | null;
   deposit: StaffTableBoardReservationDeposit;
   flags: {
   deposit_self_service_follow_up: boolean;
@@ -2863,6 +3029,8 @@ export type StaffTableBoardRow = {
   reservation_code: string;
   row_version: number;
   guest_count: number;
+  user: (StaffTableBoardReservationUser) | null;
+  guest: (ReservationGuestSnapshot) | null;
   flags: {
   due_soon: boolean;
   late: boolean;
@@ -2885,6 +3053,8 @@ export type StaffTableBoardUnassignedReservation = {
   guest_count: number;
   start_time: (string) | null;
   end_time: (string) | null;
+  user: (StaffTableBoardReservationUser) | null;
+  guest: (ReservationGuestSnapshot) | null;
   flags: {
   due_soon: boolean;
   late: boolean;
@@ -2917,6 +3087,7 @@ export type StaffTablesBoardQueryParams = {
   date?: (string) | null;
   from: string;
   to: string;
+  branch_id?: (number) | null;
   zone?: (string) | null;
   include_holds?: (boolean) | null;
   group_by?: ("zone" | "capacity" | "zone_capacity" | "status") | null;
@@ -3133,6 +3304,9 @@ export type StoreOwnerWaitingListRequest = {
 export type StoreReservationRequest = {
   user_id?: (number) | null;
   branch_id?: (number) | null;
+  guest_name?: string;
+  guest_phone?: string;
+  guest_email?: string;
   start_time: string;
   end_time: string;
   guest_count: number;
@@ -3184,7 +3358,19 @@ export class RestaurantPosClient {
   private readonly fetchImpl: typeof fetch;
 
   constructor(private readonly options: RestaurantPosClientOptions) {
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    if (typeof options.fetchImpl === 'function') {
+      const providedFetch = options.fetchImpl;
+      this.fetchImpl = providedFetch === globalThis.fetch
+        ? globalThis.fetch.bind(globalThis)
+        : ((input, init) => providedFetch(input, init)) as typeof fetch;
+      return;
+    }
+
+    if (typeof globalThis.fetch !== 'function') {
+      throw new Error('RestaurantPosClient requires a fetch implementation.');
+    }
+
+    this.fetchImpl = globalThis.fetch.bind(globalThis);
   }
 
   async postV1AuthCustomerLogin(body: LoginCustomerAuthRequest, options: RequestOptions = {}): Promise<CustomerAuthSessionEnvelope> {
@@ -3192,6 +3378,7 @@ export class RestaurantPosClient {
       'POST',
       '/api/v1/auth/customer/login',
       'none',
+      true,
       false,
       undefined,
       body,
@@ -3205,6 +3392,7 @@ export class RestaurantPosClient {
       '/api/v1/auth/customer/me',
       'customer',
       false,
+      false,
       undefined,
       undefined,
       options,
@@ -3216,6 +3404,7 @@ export class RestaurantPosClient {
       'POST',
       '/api/v1/auth/customer/refresh',
       'customer',
+      false,
       false,
       undefined,
       undefined,
@@ -3229,6 +3418,7 @@ export class RestaurantPosClient {
       '/api/v1/auth/customer/logout',
       'customer',
       false,
+      false,
       undefined,
       undefined,
       options,
@@ -3240,6 +3430,7 @@ export class RestaurantPosClient {
       'POST',
       '/api/v1/auth/staff/login',
       'none',
+      false,
       false,
       undefined,
       body,
@@ -3253,6 +3444,7 @@ export class RestaurantPosClient {
       '/api/v1/auth/staff/me',
       'staff',
       false,
+      false,
       undefined,
       undefined,
       options,
@@ -3264,6 +3456,7 @@ export class RestaurantPosClient {
       'POST',
       '/api/v1/auth/staff/refresh',
       'staff',
+      false,
       false,
       undefined,
       undefined,
@@ -3277,6 +3470,7 @@ export class RestaurantPosClient {
       '/api/v1/auth/staff/logout',
       'staff',
       false,
+      false,
       undefined,
       undefined,
       options,
@@ -3288,6 +3482,7 @@ export class RestaurantPosClient {
       'GET',
       '/api/v1/tables/available',
       'customer',
+      true,
       false,
       query,
       undefined,
@@ -3301,6 +3496,7 @@ export class RestaurantPosClient {
       '/api/v1/table-holds',
       'customer',
       true,
+      true,
       undefined,
       body,
       options,
@@ -3312,6 +3508,7 @@ export class RestaurantPosClient {
       'GET',
       this.interpolatePath('/api/v1/table-holds/{hold_id}', pathParams as Record<string, string | number>),
       'customer',
+      false,
       false,
       undefined,
       undefined,
@@ -3325,6 +3522,7 @@ export class RestaurantPosClient {
       this.interpolatePath('/api/v1/table-holds/{hold_id}/refresh', pathParams as Record<string, string | number>),
       'customer',
       true,
+      true,
       undefined,
       body,
       options,
@@ -3336,6 +3534,7 @@ export class RestaurantPosClient {
       'DELETE',
       this.interpolatePath('/api/v1/table-holds/{hold_id}', pathParams as Record<string, string | number>),
       'customer',
+      true,
       true,
       query,
       undefined,
@@ -3349,6 +3548,7 @@ export class RestaurantPosClient {
       '/api/v1/menu/items',
       'none',
       false,
+      false,
       query,
       undefined,
       options,
@@ -3361,6 +3561,7 @@ export class RestaurantPosClient {
       '/api/v1/reservations',
       'auto',
       true,
+      true,
       undefined,
       body,
       options,
@@ -3372,6 +3573,7 @@ export class RestaurantPosClient {
       'GET',
       this.interpolatePath('/api/v1/reservations/{id}', pathParams as Record<string, string | number>),
       'auto',
+      true,
       false,
       undefined,
       undefined,
@@ -3384,6 +3586,7 @@ export class RestaurantPosClient {
       'GET',
       this.interpolatePath('/api/v1/reservations/{id}/preorder', pathParams as Record<string, string | number>),
       'customerOrSession',
+      true,
       false,
       undefined,
       undefined,
@@ -3397,6 +3600,7 @@ export class RestaurantPosClient {
       this.interpolatePath('/api/v1/reservations/{id}/preorder', pathParams as Record<string, string | number>),
       'customerOrSession',
       true,
+      true,
       undefined,
       body,
       options,
@@ -3409,6 +3613,7 @@ export class RestaurantPosClient {
       this.interpolatePath('/api/v1/reservations/{id}/preorder', pathParams as Record<string, string | number>),
       'customerOrSession',
       true,
+      true,
       query,
       undefined,
       options,
@@ -3420,6 +3625,7 @@ export class RestaurantPosClient {
       'GET',
       this.interpolatePath('/api/v1/reservations/{id}/deposit-preview', pathParams as Record<string, string | number>),
       'auto',
+      true,
       false,
       undefined,
       undefined,
@@ -3433,6 +3639,7 @@ export class RestaurantPosClient {
       this.interpolatePath('/api/v1/reservations/{id}/deposit/acknowledge', pathParams as Record<string, string | number>),
       'auto',
       true,
+      true,
       undefined,
       body,
       options,
@@ -3444,6 +3651,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/reservations/{id}/deposit/intent', pathParams as Record<string, string | number>),
       'auto',
+      true,
       true,
       undefined,
       body,
@@ -3457,6 +3665,7 @@ export class RestaurantPosClient {
       this.interpolatePath('/api/v1/reservations/{id}/deposit/intent/revoke', pathParams as Record<string, string | number>),
       'auto',
       true,
+      true,
       undefined,
       body,
       options,
@@ -3469,6 +3678,7 @@ export class RestaurantPosClient {
       this.interpolatePath('/api/v1/reservations/{reservation_id}/deposit/payment-sessions', pathParams as Record<string, string | number>),
       'auto',
       true,
+      true,
       undefined,
       body,
       options,
@@ -3480,6 +3690,7 @@ export class RestaurantPosClient {
       'GET',
       this.interpolatePath('/api/v1/reservations/{reservation_id}/deposit/payment-sessions/{session_id}', pathParams as Record<string, string | number>),
       'auto',
+      true,
       false,
       undefined,
       undefined,
@@ -3493,6 +3704,7 @@ export class RestaurantPosClient {
       this.interpolatePath('/api/v1/reservations/{reservation_id}/deposit/payment-sessions/{session_id}/refresh', pathParams as Record<string, string | number>),
       'auto',
       true,
+      true,
       undefined,
       body,
       options,
@@ -3504,6 +3716,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/reservations/{reservation_id}/deposit/payment-sessions/{session_id}/confirm', pathParams as Record<string, string | number>),
       'auto',
+      true,
       true,
       undefined,
       body,
@@ -3517,6 +3730,7 @@ export class RestaurantPosClient {
       '/api/v1/staff/tables/board',
       'staff',
       false,
+      false,
       query,
       undefined,
       options,
@@ -3529,6 +3743,7 @@ export class RestaurantPosClient {
       '/api/v1/staff/tables/board/changes',
       'staff',
       false,
+      false,
       query,
       undefined,
       options,
@@ -3540,6 +3755,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/reservations/{id}/check-in', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -3552,6 +3768,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/tables/{table_id}/orders', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -3564,6 +3781,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/orders/{order_id}/items', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -3576,6 +3794,7 @@ export class RestaurantPosClient {
       'GET',
       this.interpolatePath('/api/v1/reservations/{reservation_id}/active-order', pathParams as Record<string, string | number>),
       'auto',
+      true,
       false,
       undefined,
       undefined,
@@ -3588,6 +3807,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/orders/{order_id}/bill-snapshot', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -3600,6 +3820,7 @@ export class RestaurantPosClient {
       'GET',
       this.interpolatePath('/api/v1/reservations/{reservation_id}/bill-preview', pathParams as Record<string, string | number>),
       'auto',
+      true,
       false,
       undefined,
       undefined,
@@ -3612,6 +3833,7 @@ export class RestaurantPosClient {
       'GET',
       this.interpolatePath('/api/v1/reservations/{reservation_id}/bill', pathParams as Record<string, string | number>),
       'auto',
+      true,
       false,
       undefined,
       undefined,
@@ -3625,19 +3847,21 @@ export class RestaurantPosClient {
       this.interpolatePath('/api/v1/staff/orders/{order_id}', pathParams as Record<string, string | number>),
       'staff',
       false,
+      false,
       undefined,
       undefined,
       options,
     );
   }
 
-  async getV1StaffCashierShiftsCurrent(options: RequestOptions = {}): Promise<CashierShiftEnvelope> {
+  async getV1StaffCashierShiftsCurrent(query: GetV1StaffCashierShiftsCurrentQueryParams, options: RequestOptions = {}): Promise<CashierShiftEnvelope> {
     return this.request<CashierShiftEnvelope>(
       'GET',
       '/api/v1/staff/cashier/shifts/current',
       'staff',
       false,
-      undefined,
+      false,
+      query,
       undefined,
       options,
     );
@@ -3648,6 +3872,7 @@ export class RestaurantPosClient {
       'POST',
       '/api/v1/staff/cashier/shifts/open',
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -3661,6 +3886,7 @@ export class RestaurantPosClient {
       this.interpolatePath('/api/v1/staff/cashier/shifts/{shift_id}', pathParams as Record<string, string | number>),
       'staff',
       false,
+      false,
       undefined,
       undefined,
       options,
@@ -3672,6 +3898,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/cashier/shifts/{shift_id}/close', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -3685,6 +3912,7 @@ export class RestaurantPosClient {
       this.interpolatePath('/api/v1/staff/orders/{order_id}/settlement-preview', pathParams as Record<string, string | number>),
       'staff',
       false,
+      false,
       query,
       undefined,
       options,
@@ -3696,6 +3924,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/orders/{order_id}/settlement/finalize', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -3709,19 +3938,21 @@ export class RestaurantPosClient {
       '/api/v1/staff/kitchen/changes',
       'staff',
       false,
+      false,
       query,
       undefined,
       options,
     );
   }
 
-  async getV1StaffKitchenStations(options: RequestOptions = {}): Promise<StaffKitchenStationCollectionEnvelope> {
+  async getV1StaffKitchenStations(query: GetV1StaffKitchenStationsQueryParams, options: RequestOptions = {}): Promise<StaffKitchenStationCollectionEnvelope> {
     return this.request<StaffKitchenStationCollectionEnvelope>(
       'GET',
       '/api/v1/staff/kitchen/stations',
       'staff',
       false,
-      undefined,
+      false,
+      query,
       undefined,
       options,
     );
@@ -3732,6 +3963,7 @@ export class RestaurantPosClient {
       'GET',
       this.interpolatePath('/api/v1/staff/kitchen/stations/{station_id}/tickets', pathParams as Record<string, string | number>),
       'staff',
+      false,
       false,
       query,
       undefined,
@@ -3744,6 +3976,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/orders/{order_id}/kitchen/dispatch', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -3756,6 +3989,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/kitchen/tickets/{ticket_id}/fire', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       undefined,
@@ -3768,6 +4002,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/kitchen/tickets/{ticket_id}/bump', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       undefined,
@@ -3780,6 +4015,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/kitchen/tickets/{ticket_id}/recall', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       undefined,
@@ -3793,6 +4029,7 @@ export class RestaurantPosClient {
       '/api/v1/staff/reservations',
       'staff',
       false,
+      false,
       query,
       undefined,
       options,
@@ -3804,6 +4041,7 @@ export class RestaurantPosClient {
       'GET',
       this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/orders', pathParams as Record<string, string | number>),
       'staff',
+      false,
       false,
       undefined,
       undefined,
@@ -3817,6 +4055,20 @@ export class RestaurantPosClient {
       '/api/v1/staff/cashier/shifts',
       'staff',
       false,
+      false,
+      query,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1StaffAuditTrail(query: GetV1StaffAuditTrailQueryParams, options: RequestOptions = {}): Promise<StaffAuditTrailEnvelope> {
+    return this.request<StaffAuditTrailEnvelope>(
+      'GET',
+      '/api/v1/staff/audit-trail',
+      'staff',
+      false,
+      false,
       query,
       undefined,
       options,
@@ -3828,6 +4080,7 @@ export class RestaurantPosClient {
       'GET',
       '/api/v1/staff/reporting/daily-sales',
       'staff',
+      false,
       false,
       query,
       undefined,
@@ -3841,6 +4094,7 @@ export class RestaurantPosClient {
       '/api/v1/staff/reporting/daily-operations',
       'staff',
       false,
+      false,
       query,
       undefined,
       options,
@@ -3852,6 +4106,7 @@ export class RestaurantPosClient {
       'GET',
       '/api/v1/staff/reporting/daily-inventory',
       'staff',
+      false,
       false,
       query,
       undefined,
@@ -3865,6 +4120,7 @@ export class RestaurantPosClient {
       '/api/v1/admin/inventory/ingredients',
       'staff',
       false,
+      false,
       query,
       undefined,
       options,
@@ -3876,6 +4132,7 @@ export class RestaurantPosClient {
       'GET',
       '/api/v1/admin/inventory/suppliers',
       'staff',
+      false,
       false,
       query,
       undefined,
@@ -3889,6 +4146,7 @@ export class RestaurantPosClient {
       '/api/v1/admin/inventory/purchase-orders',
       'staff',
       false,
+      false,
       query,
       undefined,
       options,
@@ -3900,6 +4158,7 @@ export class RestaurantPosClient {
       'GET',
       '/api/v1/admin/settings/branches',
       'staff',
+      false,
       false,
       query,
       undefined,
@@ -3913,6 +4172,7 @@ export class RestaurantPosClient {
       this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/refund-preview', pathParams as Record<string, string | number>),
       'staff',
       false,
+      false,
       query,
       undefined,
       options,
@@ -3924,6 +4184,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/refund', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -3936,6 +4197,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/refund-cancel', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -3948,6 +4210,7 @@ export class RestaurantPosClient {
       'POST',
       '/api/v1/waiting-list',
       'customer',
+      false,
       true,
       undefined,
       body,
@@ -3961,6 +4224,7 @@ export class RestaurantPosClient {
       this.interpolatePath('/api/v1/waiting-list/{id}', pathParams as Record<string, string | number>),
       'customer',
       false,
+      false,
       undefined,
       undefined,
       options,
@@ -3972,6 +4236,7 @@ export class RestaurantPosClient {
       'GET',
       '/api/v1/staff/waiting-list',
       'staff',
+      false,
       false,
       query,
       undefined,
@@ -3985,6 +4250,7 @@ export class RestaurantPosClient {
       '/api/v1/staff/waiting-list/changes',
       'staff',
       false,
+      false,
       query,
       undefined,
       options,
@@ -3996,6 +4262,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/waiting-list/{id}/notify', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -4008,6 +4275,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/waiting-list/{id}/accept', pathParams as Record<string, string | number>),
       'customer',
+      false,
       true,
       undefined,
       body,
@@ -4020,6 +4288,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/waiting-list/{id}/confirm-arrival', pathParams as Record<string, string | number>),
       'customer',
+      false,
       true,
       undefined,
       body,
@@ -4032,6 +4301,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/waiting-list/{id}/seat', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -4045,6 +4315,7 @@ export class RestaurantPosClient {
       '/api/v1/me/loyalty',
       'customer',
       false,
+      false,
       query,
       undefined,
       options,
@@ -4056,6 +4327,7 @@ export class RestaurantPosClient {
       'GET',
       this.interpolatePath('/api/v1/reservations/{id}/benefits-preview', pathParams as Record<string, string | number>),
       'customer',
+      false,
       false,
       undefined,
       undefined,
@@ -4069,6 +4341,7 @@ export class RestaurantPosClient {
       this.interpolatePath('/api/v1/reservations/{id}/voucher/apply', pathParams as Record<string, string | number>),
       'auto',
       true,
+      true,
       undefined,
       body,
       options,
@@ -4080,6 +4353,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/reservations/{id}/voucher/remove', pathParams as Record<string, string | number>),
       'auto',
+      true,
       true,
       undefined,
       body,
@@ -4093,6 +4367,7 @@ export class RestaurantPosClient {
       this.interpolatePath('/api/v1/reservations/{id}/loyalty/redeem', pathParams as Record<string, string | number>),
       'auto',
       true,
+      true,
       undefined,
       body,
       options,
@@ -4104,6 +4379,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/reservations/{id}/loyalty/redeem/release', pathParams as Record<string, string | number>),
       'auto',
+      true,
       true,
       undefined,
       body,
@@ -4117,6 +4393,7 @@ export class RestaurantPosClient {
       '/api/v1/admin/restaurant/table-templates',
       'staff',
       false,
+      false,
       undefined,
       undefined,
       options,
@@ -4128,6 +4405,7 @@ export class RestaurantPosClient {
       'POST',
       '/api/v1/admin/restaurant/tables',
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -4140,6 +4418,7 @@ export class RestaurantPosClient {
       'POST',
       '/api/v1/admin/menu/categories',
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -4152,6 +4431,7 @@ export class RestaurantPosClient {
       'POST',
       '/api/v1/admin/menu/items',
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -4164,6 +4444,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/admin/menu/items/{item_id}/prices', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -4177,6 +4458,7 @@ export class RestaurantPosClient {
       '/api/v1/staff/conversations',
       'staff',
       false,
+      false,
       query,
       undefined,
       options,
@@ -4189,6 +4471,7 @@ export class RestaurantPosClient {
       this.interpolatePath('/api/v1/staff/conversations/{conversation_id}', pathParams as Record<string, string | number>),
       'staff',
       false,
+      false,
       query,
       undefined,
       options,
@@ -4200,6 +4483,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/conversations/{conversation_id}/take-over', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -4212,6 +4496,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/conversations/{conversation_id}/internal-notes', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -4224,6 +4509,7 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/staff/conversations/{conversation_id}/outbound-replies', pathParams as Record<string, string | number>),
       'staff',
+      false,
       true,
       undefined,
       body,
@@ -4237,6 +4523,7 @@ export class RestaurantPosClient {
       this.interpolatePath('/api/v1/payments/providers/{provider_code}/webhooks', pathParams as Record<string, string | number>),
       'none',
       false,
+      false,
       undefined,
       body,
       options,
@@ -4248,6 +4535,7 @@ export class RestaurantPosClient {
       'GET',
       '/api/v1/health',
       'none',
+      false,
       false,
       undefined,
       undefined,
@@ -4261,6 +4549,7 @@ export class RestaurantPosClient {
       '/api/v1/health/redis',
       'none',
       false,
+      false,
       undefined,
       undefined,
       options,
@@ -4271,6 +4560,7 @@ export class RestaurantPosClient {
     method: string,
     path: string,
     authMode: AuthMode,
+    routeSupportsCustomerSession: boolean,
     requiresIdempotency: boolean,
     query?: Record<string, unknown>,
     body?: unknown,
@@ -4295,7 +4585,7 @@ export class RestaurantPosClient {
       headers.set('Content-Type', 'application/json');
     }
 
-    this.applyAuthHeaders(headers, authMode, options.authMode ?? 'auto');
+    this.applyAuthHeaders(headers, authMode, options.authMode ?? 'auto', routeSupportsCustomerSession);
 
     if (requiresIdempotency && options.idempotencyKey) {
       headers.set('Idempotency-Key', options.idempotencyKey);
@@ -4332,7 +4622,12 @@ export class RestaurantPosClient {
     return template.replace(/\{([^}]+)\}/g, (_, key) => encodeURIComponent(String(values[key])));
   }
 
-  private applyAuthHeaders(headers: Headers, routeAuthMode: AuthMode, requestedAuthMode: AuthMode): void {
+  private applyAuthHeaders(
+    headers: Headers,
+    routeAuthMode: AuthMode,
+    requestedAuthMode: AuthMode,
+    routeSupportsCustomerSession: boolean,
+  ): void {
     if (routeAuthMode === 'none' || requestedAuthMode === 'none') {
       return;
     }
@@ -4345,18 +4640,18 @@ export class RestaurantPosClient {
 
     if (selectedMode === 'customerOrSession') {
       if (customerToken) {
-        headers.set('X-Customer-Token', customerToken);
+        this.applyCustomerHeaders(headers, customerToken, customerSessionId, routeSupportsCustomerSession);
         return;
       }
 
-      if (customerSessionId) {
+      if (routeSupportsCustomerSession && customerSessionId) {
         headers.set('X-Session-Id', customerSessionId);
       }
       return;
     }
 
     if (selectedMode === 'customer' && customerToken) {
-      headers.set('X-Customer-Token', customerToken);
+      this.applyCustomerHeaders(headers, customerToken, customerSessionId, routeSupportsCustomerSession);
       return;
     }
 
@@ -4365,23 +4660,36 @@ export class RestaurantPosClient {
       return;
     }
 
-    if (selectedMode === 'session' && customerSessionId) {
+    if (selectedMode === 'session' && routeSupportsCustomerSession && customerSessionId) {
       headers.set('X-Session-Id', customerSessionId);
       return;
     }
 
     if (selectedMode === 'auto') {
       if (customerToken) {
-        headers.set('X-Customer-Token', customerToken);
+        this.applyCustomerHeaders(headers, customerToken, customerSessionId, routeSupportsCustomerSession);
         return;
       }
-      if (customerSessionId) {
+      if (routeSupportsCustomerSession && customerSessionId) {
         headers.set('X-Session-Id', customerSessionId);
         return;
       }
       if (staffApiKey) {
         headers.set('X-Staff-Key', staffApiKey);
       }
+    }
+  }
+
+  private applyCustomerHeaders(
+    headers: Headers,
+    customerToken: string,
+    customerSessionId: string | undefined,
+    routeSupportsCustomerSession: boolean,
+  ): void {
+    headers.set('X-Customer-Token', customerToken);
+
+    if (routeSupportsCustomerSession && customerSessionId) {
+      headers.set('X-Session-Id', customerSessionId);
     }
   }
 

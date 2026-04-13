@@ -171,4 +171,24 @@ PREPARE verify_stmt FROM @stmt;
 EXECUTE verify_stmt;
 DEALLOCATE PREPARE verify_stmt;
 
+SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.triggers
+        WHERE trigger_schema = DATABASE()
+          AND event_object_table = 'payments'
+          AND trigger_name IN (
+              'trg_payments__bi_refund_cap',
+              'trg_payments__bu_refund_cap',
+              'trg_payments__bi_refund_lineage_guard',
+              'trg_payments__bu_refund_lineage_guard'
+          )
+    ),
+    'SELECT * FROM __runtime_incompatible_payment_refund_triggers_present__',
+    'SELECT "payments.refund_trigger_contract:ok"'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
 SELECT 'verify_release_contract:done' AS checkpoint;

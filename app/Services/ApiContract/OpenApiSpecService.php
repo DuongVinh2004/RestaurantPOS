@@ -195,7 +195,7 @@ class OpenApiSpecService
         $description = (string) ($metadata['description'] ?? 'Runtime route mirrored from Laravel route inventory.');
 
         if ($isDeprecated && $canonicalRoute !== null) {
-            $description .= "\n\n> **⚠️ Deprecated Alias**\n>\n> This is a legacy route endpoint preserved for backwards compatibility. Please use the exact canonical route: `/" . $canonicalRoute . "`";
+            $description .= "\n\n> **Deprecated Alias**\n>\n> This is a legacy route endpoint preserved for backwards compatibility. Please use the exact canonical route: `/".$canonicalRoute.'`';
         }
 
         $operation = [
@@ -215,7 +215,7 @@ class OpenApiSpecService
         ];
 
         if ($isDeprecated && $canonicalRoute !== null) {
-            $operation['x-canonical-route'] = '/' . ltrim($canonicalRoute, '/');
+            $operation['x-canonical-route'] = '/'.ltrim($canonicalRoute, '/');
         }
 
         if ($requestClass !== null && ! in_array($method, ['GET', 'DELETE'], true) && ! isset($metadata['request_body'])) {

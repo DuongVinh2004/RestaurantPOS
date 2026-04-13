@@ -8,15 +8,28 @@ use App\Models\NotificationDeliveryAttempt;
 use App\Models\NotificationOutbox;
 use App\Models\NotificationPreference;
 use App\Services\NotificationOutboxService;
+use App\Services\Notifications\Contracts\NotificationChannelDriver;
+use App\Services\Notifications\NotificationChannelManager;
+use App\Services\Notifications\NotificationPreferenceService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Mockery;
+use RuntimeException;
 use Tests\TestCase;
 
 final class NotificationOutboxServiceRetryTest extends TestCase
 {
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        Mockery::close();
+
+        parent::tearDown();
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -154,26 +167,45 @@ final class NotificationOutboxServiceRetryTest extends TestCase
         self::assertNotNull($message->processing_token);
     }
 
-    public function test_it_retries_then_cancels_messages_after_max_attempts(): void
+    public function test_it_retries_then_cancels_messages_after_max_attempts_for_retryable_provider_failures(): void
     {
         NotificationOutbox::query()->create([
-            'channel' => 'SMS',
-            'recipient' => '84999999999',
-            'template_key' => 'unsupported.channel',
+            'channel' => 'Email',
+            'recipient' => 'guest@example.com',
+            'template_key' => 'reservation.created',
             'idempotency_key' => 'outbox:fail:1',
             'payload_json' => ['restaurant_name' => 'RestaurantPOS'],
             'status' => 'Pending',
             'created_at' => Carbon::now('UTC'),
         ]);
 
-        $service = app(NotificationOutboxService::class);
+        $driver = new class implements NotificationChannelDriver
+        {
+            public function providerKey(): string
+            {
+                return 'mail';
+            }
+
+            public function send(NotificationOutbox $message, array $dispatchPayload): \App\Services\Notifications\NotificationDeliveryResult
+            {
+                throw new RuntimeException('provider timeout');
+            }
+        };
+
+        $channelManager = Mockery::mock(NotificationChannelManager::class);
+        $channelManager->shouldReceive('resolve')
+            ->twice()
+            ->with('Email')
+            ->andReturn($driver);
+
+        $service = new NotificationOutboxService($channelManager, app(NotificationPreferenceService::class));
         $service->processDueMessages(10, 'test-worker');
 
         $message = NotificationOutbox::query()->firstOrFail();
         self::assertSame('Failed', $message->status);
         self::assertSame(1, (int) $message->attempt_count);
         self::assertNotNull($message->next_retry_at);
-        self::assertStringContainsString('not enabled', (string) $message->last_error);
+        self::assertStringContainsString('provider timeout', (string) $message->last_error);
 
         $message->next_retry_at = Carbon::now('UTC')->subMinute();
         $message->save();
@@ -186,6 +218,31 @@ final class NotificationOutboxServiceRetryTest extends TestCase
         self::assertNull($message->next_retry_at);
         self::assertSame(2, NotificationDeliveryAttempt::query()->count());
         self::assertSame(2, NotificationDeliveryAttempt::query()->where('status', 'Failed')->count());
+    }
+
+    public function test_it_cancels_non_retryable_channel_failures_without_retrying(): void
+    {
+        NotificationOutbox::query()->create([
+            'channel' => 'SMS',
+            'recipient' => '84999999999',
+            'template_key' => 'reservation.reminder',
+            'idempotency_key' => 'outbox:non-retryable:1',
+            'payload_json' => ['restaurant_name' => 'RestaurantPOS'],
+            'status' => 'Pending',
+            'created_at' => Carbon::now('UTC'),
+        ]);
+
+        $processed = app(NotificationOutboxService::class)->processDueMessages(10, 'test-worker');
+
+        self::assertSame(1, $processed);
+        $message = NotificationOutbox::query()->firstOrFail();
+        self::assertSame('Cancelled', $message->status);
+        self::assertSame(1, (int) $message->attempt_count);
+        self::assertNull($message->next_retry_at);
+
+        $attempt = NotificationDeliveryAttempt::query()->firstOrFail();
+        self::assertSame('Failed', $attempt->status);
+        self::assertSame('channel_disabled', $attempt->error_code);
     }
 
     public function test_it_processes_stub_sms_channel_when_enabled(): void
@@ -282,11 +339,87 @@ final class NotificationOutboxServiceRetryTest extends TestCase
             'template_key' => 'reservation.reminder',
             'idempotency_key' => 'pref:quiet:1',
             'payload' => ['restaurant_name' => 'RestaurantPOS'],
-            'created_at' => Carbon::parse('2026-04-05T02:30:00Z')->utc(),
+            'preferred_timezone' => 'Asia/Bangkok',
+            'created_at' => Carbon::parse('2026-04-04T19:30:00Z')->utc(),
         ]);
 
         self::assertNotNull($message);
         self::assertSame('Pending', $message->status);
-        self::assertSame('2026-04-05T04:00:00+00:00', $message->next_retry_at?->utc()->toIso8601String());
+        self::assertSame('Asia/Bangkok', data_get($message->payload_json, '_notification.preferred_timezone'));
+        self::assertSame('2026-04-04T21:00:00+00:00', $message->next_retry_at?->utc()->toIso8601String());
+    }
+
+    public function test_it_cancels_due_messages_when_recipient_disables_channel_before_delivery(): void
+    {
+        NotificationOutbox::query()->create([
+            'channel' => 'Email',
+            'recipient' => 'guest@example.com',
+            'recipient_user_id' => 15,
+            'template_key' => 'reservation.created',
+            'idempotency_key' => 'outbox:preference-disabled:1',
+            'payload_json' => ['restaurant_name' => 'RestaurantPOS'],
+            'status' => 'Pending',
+            'created_at' => Carbon::now('UTC'),
+        ]);
+
+        NotificationPreference::query()->create([
+            'user_id' => 15,
+            'channel' => 'Email',
+            'is_enabled' => false,
+        ]);
+
+        $processed = app(NotificationOutboxService::class)->processDueMessages(10, 'test-worker');
+
+        self::assertSame(1, $processed);
+        $message = NotificationOutbox::query()->firstOrFail();
+        self::assertSame('Cancelled', $message->status);
+        self::assertSame(0, (int) $message->attempt_count);
+        self::assertNull($message->next_retry_at);
+        self::assertStringContainsString('disabled', (string) $message->last_error);
+
+        $attempt = NotificationDeliveryAttempt::query()->firstOrFail();
+        self::assertSame('Suppressed', $attempt->status);
+        self::assertSame('channel_disabled_by_user', $attempt->error_code);
+    }
+
+    public function test_it_defers_due_messages_when_quiet_hours_become_active_before_delivery(): void
+    {
+        NotificationOutbox::query()->create([
+            'channel' => 'Email',
+            'recipient' => 'guest@example.com',
+            'recipient_user_id' => 16,
+            'template_key' => 'reservation.reminder',
+            'idempotency_key' => 'outbox:quiet-delivery:1',
+            'payload_json' => [
+                'restaurant_name' => 'RestaurantPOS',
+                '_notification' => [
+                    'preferred_timezone' => 'Asia/Bangkok',
+                ],
+            ],
+            'status' => 'Pending',
+            'created_at' => Carbon::parse('2026-04-04T19:00:00Z')->utc(),
+        ]);
+
+        NotificationPreference::query()->create([
+            'user_id' => 16,
+            'channel' => 'Email',
+            'is_enabled' => true,
+            'quiet_hours_start_minute' => 120,
+            'quiet_hours_end_minute' => 240,
+        ]);
+
+        Carbon::setTestNow(Carbon::parse('2026-04-04T19:30:00Z')->utc());
+
+        $processed = app(NotificationOutboxService::class)->processDueMessages(10, 'test-worker');
+
+        self::assertSame(1, $processed);
+        $message = NotificationOutbox::query()->firstOrFail();
+        self::assertSame('Pending', $message->status);
+        self::assertSame(0, (int) $message->attempt_count);
+        self::assertSame('2026-04-04T21:00:00+00:00', $message->next_retry_at?->utc()->toIso8601String());
+
+        $attempt = NotificationDeliveryAttempt::query()->firstOrFail();
+        self::assertSame('Deferred', $attempt->status);
+        self::assertSame('quiet_hours_active', $attempt->error_code);
     }
 }

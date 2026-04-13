@@ -100,6 +100,7 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 
 ### Operations Read Models
 
+- GET api/v1/staff/audit-trail
 - GET api/v1/staff/reporting/daily-sales
 - GET api/v1/staff/reporting/daily-operations
 - GET api/v1/staff/reporting/daily-inventory
@@ -167,6 +168,7 @@ import { RestaurantPosClient } from './restaurantpos-sdk';
 const client = new RestaurantPosClient({
   baseUrl: 'http://127.0.0.1:8000',
   customerToken: () => localStorage.getItem('customerToken') ?? undefined,
+  customerSessionId: () => sessionStorage.getItem('customerSessionId') ?? undefined,
   staffApiKey: () => localStorage.getItem('staffApiKey') ?? undefined,
 });
 
@@ -179,6 +181,7 @@ const login = await client.postV1AuthCustomerLogin({
 
 Limitations:
 
+- On curated customer routes whose mutation contract requires session propagation, the generated client keeps `X-Customer-Token` and `X-Session-Id` together when both are configured.
 - The SDK is intentionally scoped to the curated priority batch, not every full-contract or fallback endpoint.
 - Enum/state exports are generated separately in `restaurantpos-enums.ts` and `enum-state-map.json` so FE can consume stable state values without inferring them from incidental payload strings.
 - Response typing follows the frozen OpenAPI artifact. Routes still below contract-grade remain outside the official SDK batch and can stay coarse in the spec.

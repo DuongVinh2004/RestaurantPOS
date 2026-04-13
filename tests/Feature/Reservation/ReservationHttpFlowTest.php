@@ -257,7 +257,67 @@ class ReservationHttpFlowTest extends TestCase
             ->assertJsonPath('data.table_ids.0', $tableId);
     }
 
-    public function test_staff_create_requires_user_id_for_staff_requests(): void
+    public function test_staff_can_create_guest_snapshot_reservation_without_user_id(): void
+    {
+        $staffUserId = $this->createUser(['role_name' => 'Admin']);
+        $tableId = $this->createRestaurantTableWithSeats(4);
+        $start = $this->nowUtc()->copy()->addHours(4);
+        $end = $start->copy()->addHours(2);
+
+        $headers = $this->withIdempotencyKey('reservation-staff-create-guest', $this->staffAuthHeaders($staffUserId));
+        $create = $this->withHeaders($headers)->postJson('/api/v1/reservations', [
+            'guest_name' => 'Caller Guest',
+            'guest_phone' => '0905566778',
+            'guest_email' => 'caller.guest@example.test',
+            'start_time' => $start->toIso8601String(),
+            'end_time' => $end->toIso8601String(),
+            'guest_count' => 2,
+            'table_ids' => [$tableId],
+            'notes' => 'Phone-in reservation',
+        ]);
+
+        $create->assertCreated()
+            ->assertJsonPath('data.access_scope', 'staff')
+            ->assertJsonPath('data.user_id', null)
+            ->assertJsonPath('data.user.user_id', null)
+            ->assertJsonPath('data.user.full_name', 'Caller Guest')
+            ->assertJsonPath('data.user.phone', '0905566778')
+            ->assertJsonPath('data.user.email', 'caller.guest@example.test')
+            ->assertJsonPath('data.guest.full_name', 'Caller Guest')
+            ->assertJsonPath('data.source', 'Offline')
+            ->assertJsonPath('data.table_ids.0', $tableId);
+
+        $reservationId = (int) $create->json('data.reservation_id');
+
+        $reservationRow = DB::table('reservations')
+            ->where('reservation_id', $reservationId)
+            ->first(['user_id', 'guest_name', 'guest_phone', 'guest_email', 'source']);
+
+        self::assertNotNull($reservationRow);
+        self::assertNull($reservationRow->user_id);
+        self::assertSame('Caller Guest', $reservationRow->guest_name);
+        self::assertSame('0905566778', $reservationRow->guest_phone);
+        self::assertSame('caller.guest@example.test', $reservationRow->guest_email);
+        self::assertSame('Offline', $reservationRow->source);
+
+        $show = $this->getJson('/api/v1/reservations/' . $reservationId, $this->staffAuthHeaders($staffUserId, 'staff-view-guest-key'));
+        $show->assertOk()
+            ->assertJsonPath('data.user.full_name', 'Caller Guest')
+            ->assertJsonPath('data.user.phone', '0905566778')
+            ->assertJsonPath('data.guest.email', 'caller.guest@example.test');
+
+        $outbox = DB::table('notification_outbox')
+            ->where('related_reservation_id', $reservationId)
+            ->where('template_key', 'reservation.created')
+            ->orderByDesc('outbox_id')
+            ->first(['recipient', 'recipient_user_id']);
+
+        self::assertNotNull($outbox);
+        self::assertSame('caller.guest@example.test', $outbox->recipient);
+        self::assertNull($outbox->recipient_user_id);
+    }
+
+    public function test_staff_create_requires_guest_snapshot_when_user_id_is_omitted(): void
     {
         $staffUserId = $this->createUser(['role_name' => 'Admin']);
         $tableId = $this->createRestaurantTableWithSeats(4);
@@ -274,7 +334,8 @@ class ReservationHttpFlowTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error')
-            ->assertJsonValidationErrors(['user_id']);
+            ->assertJsonValidationErrors(['guest_name', 'guest_phone'])
+            ->assertJsonMissingValidationErrors(['user_id']);
     }
 
     public function test_staff_without_reservation_manage_cannot_create_reservation_via_shared_route(): void

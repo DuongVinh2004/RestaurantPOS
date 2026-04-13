@@ -42,6 +42,8 @@ class StaffOrderReadFlowTest extends TestCase
             ->assertJsonPath('data.order.reservation_id', $reservationId)
             ->assertJsonPath('data.table.table_id', $tableId)
             ->assertJsonPath('data.customer.user_id', $customerId)
+            ->assertJsonPath('data.order.items.0.row_version', 1)
+            ->assertJsonPath('data.items.0.row_version', 1)
             ->assertJsonPath('data.item_summary.line_count', 2)
             ->assertJsonPath('data.item_summary.status_counts.Ordered', 1)
             ->assertJsonPath('data.item_summary.status_counts.Cancelled', 1)
@@ -126,6 +128,50 @@ class StaffOrderReadFlowTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['reservation_id']);
+    }
+
+    public function test_staff_order_reads_hide_orders_outside_operational_branch_scope(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $annexBranchId = $this->createBranch([
+            'branch_code' => 'ORDERANNEX',
+            'branch_name' => 'Order Annex',
+        ]);
+        $tableId = $this->createRestaurantTable([
+            'branch_id' => $annexBranchId,
+            'status' => 'Occupied',
+        ]);
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $reservationId = $this->createReservation([
+            'branch_id' => $annexBranchId,
+            'user_id' => $customerId,
+            'status' => 'Reserved',
+            'bill_currency' => 'VND',
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+        $orderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'order_type' => 'OnSpot',
+            'status' => 'Active',
+            'row_version' => 1,
+        ]);
+
+        $headers = $this->staffHeaders($staffId, 'staff-order-read-out-of-branch');
+
+        $this->withHeaders($headers)
+            ->getJson("/api/v1/staff/orders/{$orderId}")
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        $this->withHeaders($headers)
+            ->getJson("/api/v1/staff/tables/{$tableId}/active-order")
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        $this->withHeaders($headers)
+            ->getJson("/api/v1/staff/reservations/{$reservationId}/active-order")
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
     }
 
     public function test_table_without_active_order_returns_not_found(): void

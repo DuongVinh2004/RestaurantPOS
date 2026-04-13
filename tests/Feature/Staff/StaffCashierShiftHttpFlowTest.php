@@ -174,6 +174,57 @@ class StaffCashierShiftHttpFlowTest extends TestCase
             ->assertJsonPath('data.0.cashier_shift_id', $secondShiftId);
     }
 
+    public function test_current_cashier_shift_can_be_scoped_to_the_shell_branch(): void
+    {
+        [$staffId] = $this->seedActiveOrderScenario();
+        $branchA = $this->createBranch(['branch_code' => 'CURRA', 'branch_name' => 'Current A']);
+        $branchB = $this->createBranch(['branch_code' => 'CURRB', 'branch_name' => 'Current B']);
+        $headers = $this->withIdempotencyKey('idem-cashier-shift-current-branch-open', $this->staffAuthHeaders($staffId, 'staff-cashier-shift-current-branch'));
+
+        $open = $this->postJson('/api/v1/staff/cashier/shifts/open', [
+            'branch_id' => $branchA,
+            'opening_float_amount' => 25000,
+            'currency' => 'VND',
+        ], $headers);
+
+        $open->assertCreated()
+            ->assertJsonPath('data.branch_id', $branchA);
+
+        $this->getJson('/api/v1/staff/cashier/shifts/current?branch_id=' . $branchA, $headers)
+            ->assertOk()
+            ->assertJsonPath('data.branch_id', $branchA)
+            ->assertJsonPath('meta.branch_id', $branchA);
+
+        $this->getJson('/api/v1/staff/cashier/shifts/current?branch_id=' . $branchB, $headers)
+            ->assertStatus(404);
+    }
+
+    public function test_staff_cannot_show_or_close_another_cashiers_shift(): void
+    {
+        [$ownerStaffId] = $this->seedActiveOrderScenario();
+        $otherStaffId = $this->createUser(['role_name' => 'Staff']);
+        $ownerHeaders = $this->withIdempotencyKey('idem-cashier-shift-owner-open', $this->staffAuthHeaders($ownerStaffId, 'staff-cashier-owner'));
+        $otherHeaders = $this->withIdempotencyKey('idem-cashier-shift-other-close', $this->staffAuthHeaders($otherStaffId, 'staff-cashier-other'));
+
+        $open = $this->postJson('/api/v1/staff/cashier/shifts/open', [
+            'opening_float_amount' => 25000,
+            'currency' => 'VND',
+        ], $ownerHeaders)->assertCreated();
+
+        $shiftId = (int) $open->json('data.cashier_shift_id');
+        $rowVersion = (int) $open->json('data.row_version');
+
+        $this->getJson('/api/v1/staff/cashier/shifts/' . $shiftId, $otherHeaders)
+            ->assertStatus(404);
+
+        $this->postJson('/api/v1/staff/cashier/shifts/' . $shiftId . '/close', [
+            'actual_cash_amount' => 25000,
+            'row_version' => $rowVersion,
+        ], $otherHeaders)->assertStatus(404);
+
+        self::assertSame('Open', (string) DB::table('cashier_shifts')->where('cashier_shift_id', $shiftId)->value('status'));
+    }
+
     public function test_cashier_shift_lookup_rejects_invalid_listing_filters(): void
     {
         [$staffId] = $this->seedActiveOrderScenario();

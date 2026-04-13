@@ -1,0 +1,70 @@
+{
+  "generated_at_utc": "2026-04-10T01:37:18.855Z",
+  "ok": false,
+  "results": [
+    {
+      "name": "open login",
+      "ok": true
+    },
+    {
+      "name": "login staff",
+      "ok": true
+    },
+    {
+      "name": "tables route",
+      "ok": true
+    },
+    {
+      "name": "reservations route",
+      "ok": false,
+      "error": "TimeoutError: locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Reservation queue', { exact: true }).first() to be visible\u001b[22m\n"
+    },
+    {
+      "name": "orders route",
+      "ok": false,
+      "error": "TimeoutError: locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Active Order Workspace', { exact: true }).first() to be visible\u001b[22m\n"
+    },
+    {
+      "name": "kitchen route",
+      "ok": false,
+      "error": "TimeoutError: locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Kitchen Board', { exact: true }).first() to be visible\u001b[22m\n"
+    },
+    {
+      "name": "checkout route",
+      "ok": false,
+      "error": "TimeoutError: locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Checkout Workspace', { exact: true }).first() to be visible\u001b[22m\n"
+    },
+    {
+      "name": "cashier shift route",
+      "ok": false,
+      "error": "TimeoutError: locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Cashier Shift Center', { exact: true }).first() to be visible\u001b[22m\n"
+    },
+    {
+      "name": "finance review route",
+      "ok": false,
+      "error": "TimeoutError: locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Reconciliation and invoice review', { exact: true }).first() to be visible\u001b[22m\n"
+    },
+    {
+      "name": "conversations route",
+      "ok": false,
+      "error": "TimeoutError: locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Operational conversation queue', { exact: true }).first() to be visible\u001b[22m\n"
+    },
+    {
+      "name": "audit trail route",
+      "ok": false,
+      "error": "TimeoutError: locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Operational audit review', { exact: true }).first() to be visible\u001b[22m\n"
+    },
+    {
+      "name": "reporting route",
+      "ok": false,
+      "error": "TimeoutError: locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Daily operational snapshots', { exact: true }).first() to be visible\u001b[22m\n"
+    }
+  ],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "pageErrors": [],
+  "apiErrors": [],
+  "screenshotPath": "C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\staff-web\\tmp-smoke\\staff-web-browser-smoke-2026-04-10T01-34-13-320Z.png"
+}

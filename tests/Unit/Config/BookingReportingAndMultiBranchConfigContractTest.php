@@ -19,8 +19,8 @@ class BookingReportingAndMultiBranchConfigContractTest extends TestCase
         );
 
         $this->assertSame('MAIN', (string) config('booking.multi_branch.default_branch_code'));
-        $this->assertSame('Main Branch', (string) config('booking.multi_branch.default_branch_name'));
-        $this->assertNotSame('', trim((string) config('booking.multi_branch.default_branch_timezone')));
+        $this->assertSame('Chi nhanh chinh', (string) config('booking.multi_branch.default_branch_name'));
+        $this->assertSame('Asia/Ho_Chi_Minh', (string) config('booking.multi_branch.default_branch_timezone'));
         $this->assertSame('VND', (string) config('booking.multi_branch.default_branch_currency'));
         $this->assertIsArray(config('booking.branch_policy_defaults.business_hours'));
         $this->assertIsArray(config('booking.branch_policy_defaults.closure_windows'));

@@ -10,6 +10,7 @@ use App\Services\Branch\BranchContextService;
 use App\Services\ReservationLockService;
 use App\Services\Staff\StaffTableOrderService;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -183,6 +184,39 @@ final class StaffTableOrderBranchScopeTest extends TestCase
 
         self::assertGreaterThan(0, (int) $order->order_id);
         self::assertSame(2, (int) DB::table('reservations')->where('reservation_id', 101)->value('branch_id'));
+    }
+
+    public function test_create_on_spot_order_rejects_branch_outside_staff_operational_scope(): void
+    {
+        DB::table('restaurant_tables')->insert([
+            'table_id' => 12,
+            'branch_id' => 2,
+            'status' => RestaurantTableStatus::Occupied->value,
+            'is_deleted' => false,
+            'row_version' => 1,
+        ]);
+
+        DB::table('reservations')->insert([
+            'reservation_id' => 102,
+            'branch_id' => 2,
+            'status' => ReservationStatus::Reserved->value,
+            'guest_count' => 2,
+            'row_version' => 1,
+        ]);
+
+        DB::table('reservation_tables')->insert([
+            'reservation_id' => 102,
+            'table_id' => 12,
+        ]);
+
+        $this->expectException(ModelNotFoundException::class);
+
+        $this->makeService()->createOnSpotOrder(
+            tableId: 12,
+            reservationId: 102,
+            items: [],
+            staffUserId: 5001,
+        );
     }
 
     private function makeService(): StaffTableOrderService

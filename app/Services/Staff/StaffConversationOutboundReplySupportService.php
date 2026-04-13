@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Staff;
 
+use App\Enums\StaffConversationWorkflowState;
 use App\Models\AgentAssignment;
 use App\Models\Conversation;
 use App\Models\User;
@@ -47,11 +48,15 @@ class StaffConversationOutboundReplySupportService
             ? $conversation->activeAssignment
             : $conversation->activeAssignment()->with(['agent.role'])->first();
 
+        $workflowState = $conversation->workflowState();
         $status = $conversation->status?->value ?? (string) $conversation->status;
-        if (in_array($status, ['Closed', 'Spam'], true)) {
+        if (
+            in_array($status, ['Spam'], true)
+            || in_array($workflowState, [StaffConversationWorkflowState::Resolved, StaffConversationWorkflowState::Closed], true)
+        ) {
             return $this->unsupported(
                 'conversation_not_open',
-                'Outbound reply is only available while the conversation is open or pending.',
+                'Outbound reply is only available while the conversation remains active in the inbox workflow.',
             );
         }
 
@@ -89,7 +94,8 @@ class StaffConversationOutboundReplySupportService
 
         $emailChannel = $this->channelManager->describe('Email');
         $deliveryMode = $this->normalizeNullableString($emailChannel['delivery_mode'] ?? null);
-        if (($emailChannel['enabled'] ?? false) !== true || $deliveryMode !== 'real') {
+        $supportsLiveDelivery = ($emailChannel['supports_live_delivery'] ?? false) === true;
+        if (($emailChannel['enabled'] ?? false) !== true || ! $supportsLiveDelivery) {
             return $this->unsupported(
                 'email_delivery_unavailable',
                 'Outbound reply is unavailable because the email channel is not configured for real delivery.',
@@ -102,6 +108,7 @@ class StaffConversationOutboundReplySupportService
             $recipientUser?->user_id !== null ? (int) $recipientUser->user_id : null,
             'Email',
             Carbon::now('UTC'),
+            $this->normalizeNullableString($conversation->branch?->timezone ?? null),
         );
 
         if (($preference['enabled'] ?? true) !== true) {

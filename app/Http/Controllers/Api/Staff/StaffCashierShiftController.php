@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\Staff;
 
 use App\Http\Controllers\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Staff\BranchScopeRequest;
 use App\Http\Requests\Staff\CloseCashierShiftRequest;
 use App\Http\Requests\Staff\ListStaffCashierShiftsRequest;
 use App\Http\Requests\Staff\OpenCashierShiftRequest;
@@ -73,10 +74,12 @@ class StaffCashierShiftController extends Controller
         ]);
     }
 
-    public function current(Request $request): JsonResponse
+    public function current(BranchScopeRequest $request): JsonResponse
     {
         $staffUserId = $this->resolveStaffActorUserId($request);
-        $shift = $this->cashierShiftService->currentOpenShift($staffUserId);
+        $validated = $request->validated();
+        $branchId = isset($validated['branch_id']) ? (int) $validated['branch_id'] : null;
+        $shift = $this->cashierShiftService->currentOpenShift($staffUserId, $branchId);
 
         if ($shift === null) {
             return ApiErrorResponse::json(
@@ -91,6 +94,7 @@ class StaffCashierShiftController extends Controller
             'data' => $this->cashierShiftService->toPayload($shift),
             'meta' => [
                 'action' => 'cashier_shift_current',
+                'branch_id' => $branchId,
             ],
         ]);
     }
@@ -117,9 +121,10 @@ class StaffCashierShiftController extends Controller
         ], 201);
     }
 
-    public function show(int $shift_id): JsonResponse
+    public function show(Request $request, int $shift_id): JsonResponse
     {
-        $shift = $this->cashierShiftService->findShiftOrFail($shift_id);
+        $staffUserId = $this->resolveStaffActorUserId($request);
+        $shift = $this->cashierShiftService->findShiftOrFail($shift_id, $staffUserId);
 
         return response()->json([
             'data' => $this->cashierShiftService->toPayload($shift),
@@ -139,6 +144,7 @@ class StaffCashierShiftController extends Controller
             expectedRowVersion: (int) $request->input('row_version'),
             closingNote: (string) ($request->input('notes') ?? ''),
             closedBy: $staffUserId,
+            cashierUserId: $staffUserId,
         );
 
         return response()->json([

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Staff;
 
 use App\Services\Kitchen\KitchenRoutingService;
+use App\Services\Kitchen\KitchenTicketReconciliationService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -108,6 +109,10 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             ->assertJsonPath('meta.pinned_route_count', 0)
             ->assertJsonPath('data.0.order.order_id', $orderId)
             ->assertJsonPath('data.0.ticket_status', 'Queued')
+            ->assertJsonPath('data.0.lifecycle.state_reason', 'awaiting_fire')
+            ->assertJsonPath('data.0.lifecycle.allowed_actions.0', 'fire')
+            ->assertJsonPath('data.0.reconciliation.sync_status', 'in_sync')
+            ->assertJsonPath('data.0.reconciliation.routing_status', 'active_route')
             ->assertJsonPath('data.0.output_mode', 'Both')
             ->assertJsonPath('data.0.printer_target', 'printer://hot-pass');
 
@@ -129,6 +134,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
         $fire->assertOk()
             ->assertJsonPath('meta.action', 'kitchen_ticket_fired')
             ->assertJsonPath('data.ticket_status', 'Fired')
+            ->assertJsonPath('data.lifecycle.state_reason', 'in_preparation')
             ->assertJsonPath('data.order_item.status', 'InProgress');
 
         $orderRowVersion = (int) $this->table('reservation_orders')->where('order_id', $orderId)->value('row_version');
@@ -139,7 +145,8 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
         $bump->assertOk()
             ->assertJsonPath('meta.action', 'kitchen_ticket_bumped')
-            ->assertJsonPath('data.ticket_status', 'Ready');
+            ->assertJsonPath('data.ticket_status', 'Ready')
+            ->assertJsonPath('data.lifecycle.allowed_actions.0', 'recall');
 
         $recall = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-recall-1'))
             ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/recall');
@@ -167,9 +174,56 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             ->assertJsonPath('meta.count', 1)
             ->assertJsonPath('data.0.ticket_id', $ticketId)
             ->assertJsonPath('data.0.ticket_status', 'Completed')
+            ->assertJsonPath('data.0.lifecycle.is_terminal', true)
+            ->assertJsonPath('data.0.reconciliation.sync_status', 'in_sync')
             ->assertJsonPath('data.0.routing.route_present', true)
             ->assertJsonPath('data.0.route.is_active', true)
             ->assertJsonPath('data.0.order_item.status', 'Served');
+    }
+
+    public function test_ticket_must_be_fired_before_it_can_be_bumped(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-bump-guard-key');
+
+        $categoryId = $this->ensureMenuCategory('Kitchen Bump Guard');
+        $itemId = $this->createMenuItem([
+            'category_id' => $categoryId,
+            'code' => 'KDS-BUMP-01',
+            'name' => 'Bump Guard Bowl',
+        ]);
+        $stationId = $this->createKitchenStation([
+            'code' => 'BUMP-GUARD',
+            'name' => 'Bump Guard',
+            'output_mode' => 'KDS',
+        ]);
+        $routeId = $this->createKitchenStationRoute([
+            'station_id' => $stationId,
+            'category_id' => $categoryId,
+            'sort_order' => 10,
+        ]);
+
+        $orderItemId = $this->createOrderItem([
+            'item_id' => $itemId,
+            'status' => 'Ordered',
+            'row_version' => 1,
+        ]);
+        $ticketId = $this->createKitchenOrderTicket([
+            'station_id' => $stationId,
+            'route_id' => $routeId,
+            'order_item_id' => $orderItemId,
+            'item_id' => $itemId,
+            'category_id' => $categoryId,
+            'ticket_status' => 'Queued',
+        ]);
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-bump-before-fire'))
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/bump')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['ticket_id']);
+
+        self::assertSame('Queued', (string) $this->table('kitchen_order_item_tickets')->where('ticket_id', $ticketId)->value('ticket_status'));
+        self::assertSame('Ordered', (string) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('status'));
     }
 
     public function test_dispatch_skips_unrouted_items_without_breaking_order(): void
@@ -294,6 +348,193 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
         self::assertSame('Active', (string) $this->table('reservation_orders')->where('order_id', $orderId)->value('status'));
     }
 
+    public function test_cancelled_order_item_after_dispatch_marks_ticket_cancelled_without_silent_drift(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-cancelled-after-dispatch-key');
+
+        $categoryId = $this->ensureMenuCategory('Kitchen Cancel Sync');
+        $itemId = $this->createMenuItem([
+            'category_id' => $categoryId,
+            'code' => 'KDS-CANCEL-01',
+            'name' => 'Cancel Sync Bowl',
+        ]);
+        $stationId = $this->createKitchenStation([
+            'code' => 'CANCEL-SYNC',
+            'name' => 'Cancel Sync',
+            'output_mode' => 'KDS',
+        ]);
+        $this->createKitchenStationRoute([
+            'station_id' => $stationId,
+            'category_id' => $categoryId,
+            'sort_order' => 10,
+        ]);
+
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Reserved',
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+        $orderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'status' => 'Active',
+            'row_version' => 1,
+        ]);
+        $orderItemId = $this->createOrderItem([
+            'order_id' => $orderId,
+            'item_id' => $itemId,
+            'quantity' => 1,
+            'status' => 'Ordered',
+            'row_version' => 1,
+        ]);
+
+        $dispatch = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-cancel-sync-dispatch'))
+            ->postJson('/api/v1/staff/orders/'.$orderId.'/kitchen/dispatch', [
+                'row_version' => 1,
+            ]);
+
+        $dispatch->assertOk()
+            ->assertJsonPath('data.0.ticket_status', 'Queued');
+
+        $ticketId = (int) $dispatch->json('data.0.ticket_id');
+        $orderRowVersion = (int) $this->table('reservation_orders')->where('order_id', $orderId)->value('row_version');
+        $itemRowVersion = (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('row_version');
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-cancel-sync-status'))
+            ->postJson('/api/v1/staff/orders/'.$orderId.'/items/'.$orderItemId.'/status', [
+                'order_row_version' => $orderRowVersion,
+                'row_version' => $itemRowVersion,
+                'status' => 'Cancelled',
+            ])
+            ->assertOk()
+            ->assertJsonPath('meta.status', 'Cancelled');
+
+        $tickets = $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/kitchen/stations/'.$stationId.'/tickets?include_terminal=1');
+
+        $tickets->assertOk()
+            ->assertJsonPath('data.0.ticket_id', $ticketId)
+            ->assertJsonPath('data.0.ticket_status', 'Cancelled')
+            ->assertJsonPath('data.0.lifecycle.state_reason', 'order_item_cancelled')
+            ->assertJsonPath('data.0.reconciliation.sync_status', 'in_sync')
+            ->assertJsonPath('data.0.reconciliation.order_item_expected_status', 'Cancelled')
+            ->assertJsonPath('data.0.reconciliation.order_item_matches_ticket', true);
+    }
+
+    public function test_kitchen_station_reads_can_be_scoped_to_branch_workload(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-branch-scope-key');
+        $branchA = $this->createBranch(['branch_code' => 'KITCHA', 'branch_name' => 'Kitchen A']);
+        $branchB = $this->createBranch(['branch_code' => 'KITCHB', 'branch_name' => 'Kitchen B']);
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchA,
+            'status' => 'Open',
+        ]);
+
+        $categoryId = $this->ensureMenuCategory('Kitchen Branch Scope');
+        $itemId = $this->createMenuItem([
+            'category_id' => $categoryId,
+            'code' => 'KDS-BRANCH-01',
+            'name' => 'Kitchen Branch Bowl',
+        ]);
+        $stationId = $this->createKitchenStation([
+            'code' => 'BRANCH-PASS',
+            'name' => 'Branch Pass',
+            'output_mode' => 'Both',
+        ]);
+        $routeId = $this->createKitchenStationRoute([
+            'station_id' => $stationId,
+            'category_id' => $categoryId,
+            'sort_order' => 10,
+        ]);
+
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $reservationA = $this->createReservation([
+            'branch_id' => $branchA,
+            'user_id' => $customerId,
+            'status' => 'Reserved',
+        ]);
+        $reservationB = $this->createReservation([
+            'branch_id' => $branchB,
+            'user_id' => $customerId,
+            'status' => 'Reserved',
+        ]);
+        $orderA = $this->createOrder([
+            'reservation_id' => $reservationA,
+            'status' => 'Active',
+        ]);
+        $orderB = $this->createOrder([
+            'reservation_id' => $reservationB,
+            'status' => 'Active',
+        ]);
+        $orderItemA = $this->createOrderItem([
+            'order_id' => $orderA,
+            'item_id' => $itemId,
+            'status' => 'Ordered',
+        ]);
+        $orderItemB = $this->createOrderItem([
+            'order_id' => $orderB,
+            'item_id' => $itemId,
+            'status' => 'Ordered',
+        ]);
+
+        $ticketA = $this->createKitchenOrderTicket([
+            'station_id' => $stationId,
+            'order_id' => $orderA,
+            'reservation_id' => $reservationA,
+            'order_item_id' => $orderItemA,
+            'item_id' => $itemId,
+            'category_id' => $categoryId,
+            'route_id' => $routeId,
+            'ticket_status' => 'Queued',
+            'first_dispatched_at' => $this->nowUtc(),
+        ]);
+        $this->createKitchenOrderTicket([
+            'station_id' => $stationId,
+            'order_id' => $orderB,
+            'reservation_id' => $reservationB,
+            'order_item_id' => $orderItemB,
+            'item_id' => $itemId,
+            'category_id' => $categoryId,
+            'route_id' => $routeId,
+            'ticket_status' => 'Ready',
+            'first_dispatched_at' => $this->nowUtc(),
+            'ready_at' => $this->nowUtc(),
+        ]);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/kitchen/stations?branch_id='.$branchA)
+            ->assertOk()
+            ->assertJsonPath('meta.branch_id', $branchA)
+            ->assertJsonPath('data.0.ticket_counts.queued', 1)
+            ->assertJsonPath('data.0.ticket_counts.ready', 0);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/kitchen/stations/'.$stationId.'/tickets?branch_id='.$branchA.'&include_terminal=1')
+            ->assertOk()
+            ->assertJsonPath('meta.branch_id', $branchA)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.ticket_id', $ticketA);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/kitchen/stations?branch_id='.$branchB)
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonPath('message', 'Branch not found.');
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-branch-scope-deny'))
+            ->postJson('/api/v1/staff/orders/'.$orderB.'/kitchen/dispatch', [
+                'row_version' => 1,
+            ])
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonPath('message', 'Order not found.');
+    }
+
     public function test_branch_flag_can_disable_kitchen_dispatch_mutations(): void
     {
         $branchId = $this->createBranch([
@@ -310,6 +551,11 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-feature-flag-key');
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId,
+            'status' => 'Open',
+        ]);
         $categoryId = $this->ensureMenuCategory('Kitchen Disabled');
         $itemId = $this->createMenuItem([
             'category_id' => $categoryId,
@@ -365,6 +611,11 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-fire-flag-off-key');
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId,
+            'status' => 'Open',
+        ]);
 
         $categoryId = $this->ensureMenuCategory('Kitchen Fire Flagged');
         $itemId = $this->createMenuItem([
@@ -603,6 +854,73 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             ->assertJsonPath('data.0.printer_target', 'printer://guard-old');
     }
 
+    public function test_repeat_dispatch_rejects_active_ticket_with_drifted_route_snapshot(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-drifted-redispatch-key');
+
+        $categoryId = $this->ensureMenuCategory('Kitchen Drifted Route');
+        $itemId = $this->createMenuItem([
+            'category_id' => $categoryId,
+            'code' => 'KDS-DRIFT-01',
+            'name' => 'Drifted Route Bowl',
+        ]);
+        $stationId = $this->createKitchenStation([
+            'code' => 'DRIFT-PASS',
+            'name' => 'Drift Pass',
+            'output_mode' => 'KDS',
+        ]);
+        $routeId = $this->createKitchenStationRoute([
+            'station_id' => $stationId,
+            'category_id' => $categoryId,
+            'sort_order' => 10,
+        ]);
+
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Reserved',
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+        $orderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'status' => 'Active',
+            'row_version' => 1,
+        ]);
+        $this->createOrderItem([
+            'order_id' => $orderId,
+            'item_id' => $itemId,
+            'quantity' => 1,
+            'status' => 'Ordered',
+            'row_version' => 1,
+        ]);
+
+        $dispatch = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-drift-dispatch-a'))
+            ->postJson('/api/v1/staff/orders/'.$orderId.'/kitchen/dispatch', [
+                'row_version' => 1,
+            ]);
+
+        $dispatch->assertOk()
+            ->assertJsonPath('data.0.route.route_id', $routeId);
+
+        DB::table('kitchen_station_category_routes')
+            ->where('route_id', $routeId)
+            ->update([
+                'is_active' => 0,
+                'updated_at' => $this->nowUtc(),
+            ]);
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-drift-dispatch-b'))
+            ->postJson('/api/v1/staff/orders/'.$orderId.'/kitchen/dispatch', [
+                'row_version' => 1,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['ticket_id']);
+
+        self::assertSame(0, (int) $this->table('kitchen_station_category_routes')->where('route_id', $routeId)->value('is_active'));
+    }
+
     public function test_generic_ticket_sync_keeps_ready_state_until_explicit_recall(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
@@ -760,6 +1078,63 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
         self::assertSame('Completed', (string) $this->table('kitchen_order_item_tickets')->where('ticket_id', $ticketId)->value('ticket_status'));
         self::assertSame('Served', (string) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('status'));
+    }
+
+    public function test_reconciliation_scan_reports_status_and_routing_drift_with_actionable_output(): void
+    {
+        $categoryId = $this->ensureMenuCategory('Kitchen Reconcile Drift');
+        $itemId = $this->createMenuItem([
+            'category_id' => $categoryId,
+            'code' => 'KDS-RECON-01',
+            'name' => 'Reconcile Drift Bowl',
+        ]);
+        $stationId = $this->createKitchenStation([
+            'code' => 'RECON-PASS',
+            'name' => 'Recon Pass',
+            'output_mode' => 'KDS',
+        ]);
+        $routeId = $this->createKitchenStationRoute([
+            'station_id' => $stationId,
+            'category_id' => $categoryId,
+            'sort_order' => 10,
+        ]);
+
+        $orderItemId = $this->createOrderItem([
+            'item_id' => $itemId,
+            'status' => 'Ordered',
+            'row_version' => 1,
+        ]);
+        $ticketId = $this->createKitchenOrderTicket([
+            'station_id' => $stationId,
+            'route_id' => $routeId,
+            'order_item_id' => $orderItemId,
+            'item_id' => $itemId,
+            'category_id' => $categoryId,
+            'ticket_status' => 'Fired',
+            'fired_at' => $this->nowUtc(),
+        ]);
+
+        DB::table('kitchen_station_category_routes')
+            ->where('route_id', $routeId)
+            ->update([
+                'is_active' => 0,
+                'updated_at' => $this->nowUtc(),
+            ]);
+
+        $report = app(KitchenTicketReconciliationService::class)->scan([
+            'station_id' => $stationId,
+            'include_terminal' => true,
+        ]);
+
+        self::assertSame(1, (int) $report['checked_count']);
+        self::assertSame(1, (int) $report['drift_count']);
+        self::assertSame(1, (int) $report['status_drift_count']);
+        self::assertSame(1, (int) $report['routing_drift_count']);
+        self::assertSame($ticketId, (int) data_get($report, 'tickets.0.ticket_id'));
+        self::assertSame('drift_detected', data_get($report, 'tickets.0.sync_status'));
+        self::assertSame('route_inactive', data_get($report, 'tickets.0.routing_status'));
+        self::assertContains('order_item_ticket_mismatch', (array) data_get($report, 'tickets.0.drift_reasons', []));
+        self::assertContains('review_station_routes', (array) data_get($report, 'tickets.0.next_actions', []));
     }
 
     public function test_missing_kitchen_resources_return_standardized_not_found_envelope(): void

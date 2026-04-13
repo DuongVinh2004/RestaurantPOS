@@ -213,7 +213,10 @@ class StaffCapabilityHttpGuardTest extends TestCase
             ->assertHeader('X-Request-Id', 'req-staff-capability-status-forbidden')
             ->assertJsonPath('error_code', 'forbidden')
             ->assertJsonPath('request_id', 'req-staff-capability-status-forbidden')
-            ->assertJsonPath('required_capability', 'reservation.manage');
+            ->assertJsonPath('required_capability', 'reservation.manage')
+            ->assertJsonPath('state_reason', 'missing_required_capability')
+            ->assertJsonPath('next_actions.0', 'request_capability_access')
+            ->assertJsonPath('next_actions.1', 'use_authorized_actor');
     }
 
     public function test_customer_auth_context_does_not_authenticate_staff_or_admin_routes(): void
@@ -280,6 +283,50 @@ class StaffCapabilityHttpGuardTest extends TestCase
             ->assertJsonMissingPath('required_capability');
     }
 
+    public function test_legacy_order_manage_still_authorizes_kitchen_station_reads(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        config()->set('staff_auth.api_keys', ['legacy-order-manage-key' => $staffId]);
+        config()->set('staff_capabilities.role_capabilities', [
+            'Admin' => ['*'],
+            'Staff' => ['order.manage'],
+        ]);
+
+        $this->withHeaders($this->staffHeaders('legacy-order-manage-key'))
+            ->getJson('/api/v1/staff/kitchen/stations')
+            ->assertOk()
+            ->assertJsonPath('meta.realtime.topic', 'kitchen');
+    }
+
+    public function test_legacy_settlement_manage_still_authorizes_cashier_shift_reads(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        config()->set('staff_auth.api_keys', ['legacy-settlement-cashier-key' => $staffId]);
+        config()->set('staff_capabilities.role_capabilities', [
+            'Admin' => ['*'],
+            'Staff' => ['settlement.manage'],
+        ]);
+
+        $this->withHeaders($this->staffHeaders('legacy-settlement-cashier-key'))
+            ->getJson('/api/v1/staff/cashier/shifts')
+            ->assertOk();
+    }
+
+    public function test_legacy_settlement_manage_still_authorizes_reporting_reads(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        config()->set('staff_auth.api_keys', ['legacy-settlement-reporting-key' => $staffId]);
+        config()->set('staff_capabilities.role_capabilities', [
+            'Admin' => ['*'],
+            'Staff' => ['settlement.manage'],
+        ]);
+
+        $this->withHeaders($this->staffHeaders('legacy-settlement-reporting-key'))
+            ->getJson('/api/v1/staff/reporting/daily-sales?start_date=2026-03-01&end_date=2026-03-01')
+            ->assertOk()
+            ->assertJsonPath('meta.snapshot_health.family', 'sales');
+    }
+
     public function test_staff_without_representative_capabilities_is_forbidden_from_multiple_high_risk_route_families(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
@@ -292,12 +339,14 @@ class StaffCapabilityHttpGuardTest extends TestCase
         $expectations = [
             ['/api/v1/staff/tables/board', 'table.board.view'],
             ['/api/v1/staff/reservations', 'reservation.manage'],
+            ['/api/v1/staff/reservations/999999', 'reservation.manage'],
             ['/api/v1/staff/reservations/999999/orders', 'order.manage'],
+            ['/api/v1/staff/menu/items', 'order.manage'],
             ['/api/v1/staff/orders/999999', 'order.manage'],
             ['/api/v1/staff/orders/999999/settlement-preview', 'settlement.manage'],
-            ['/api/v1/staff/cashier/shifts', 'settlement.manage'],
-            ['/api/v1/staff/reporting/daily-sales?start_date=2026-03-01&end_date=2026-03-01', 'settlement.manage'],
-            ['/api/v1/staff/kitchen/stations', 'order.manage'],
+            ['/api/v1/staff/cashier/shifts', 'cashier.shift.manage'],
+            ['/api/v1/staff/reporting/daily-sales?start_date=2026-03-01&end_date=2026-03-01', 'reporting.view'],
+            ['/api/v1/staff/kitchen/stations', 'kitchen.manage'],
             ['/api/v1/staff/waiting-list', 'waiting_list.manage'],
             ['/api/v1/staff/conversations', 'conversation.manage'],
             ['/api/v1/admin/kitchen/stations', 'settings.manage'],

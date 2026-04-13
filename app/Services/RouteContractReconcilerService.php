@@ -404,7 +404,7 @@ class RouteContractReconcilerService
             'known_capabilities' => $knownCapabilities,
             'route_capabilities' => $routeCapabilities,
             'route_aliases' => $this->normalizeStringMap($staffCapabilities['route_aliases'] ?? []),
-            'capability_aliases' => $this->normalizeStringMap($staffCapabilities['capability_aliases'] ?? []),
+            'capability_aliases' => $this->normalizeCapabilityAliasMap($staffCapabilities['capability_aliases'] ?? []),
         ];
     }
 
@@ -747,6 +747,39 @@ class RouteContractReconcilerService
     }
 
     /**
+     * @return array<string, list<string>>
+     */
+    private function normalizeCapabilityAliasMap(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $normalized = [];
+
+        foreach ($value as $key => $item) {
+            $normalizedKey = trim((string) $key);
+            if ($normalizedKey === '') {
+                continue;
+            }
+
+            $normalizedValues = is_array($item)
+                ? $this->normalizeStringList($item)
+                : $this->normalizeStringList([$item]);
+
+            if ($normalizedValues === []) {
+                continue;
+            }
+
+            $normalized[$normalizedKey] = $normalizedValues;
+        }
+
+        ksort($normalized);
+
+        return $normalized;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function loadStaffCapabilitiesContract(?string $relativePath = null): array
@@ -767,7 +800,7 @@ class RouteContractReconcilerService
         $loaded['known_capabilities'] = $this->normalizeStringList($loaded['known_capabilities'] ?? []);
         $loaded['route_capabilities'] = $this->normalizeStringMap($loaded['route_capabilities'] ?? []);
         $loaded['route_aliases'] = $this->normalizeStringMap($loaded['route_aliases'] ?? []);
-        $loaded['capability_aliases'] = $this->normalizeStringMap($loaded['capability_aliases'] ?? []);
+        $loaded['capability_aliases'] = $this->normalizeCapabilityAliasMap($loaded['capability_aliases'] ?? []);
 
         return $loaded;
     }
@@ -814,6 +847,7 @@ class RouteContractReconcilerService
         $content = $this->replacePhpArrayBlock($content, 'known_capabilities', (array) ($candidate['known_capabilities'] ?? []));
         $content = $this->replacePhpArrayBlock($content, 'route_capabilities', (array) ($candidate['route_capabilities'] ?? []));
         $content = $this->replacePhpArrayBlock($content, 'route_aliases', (array) ($candidate['route_aliases'] ?? []));
+        $content = $this->replacePhpArrayBlock($content, 'capability_aliases', (array) ($candidate['capability_aliases'] ?? []));
 
         File::put($absolutePath, $content);
 

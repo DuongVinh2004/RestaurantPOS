@@ -130,9 +130,9 @@ class StaffProductAuthHttpFlowTest extends TestCase
         DB::table('branches')->insert([
             'branch_id' => 1,
             'branch_code' => 'MAIN',
-            'branch_name' => 'Main Branch',
+            'branch_name' => 'Chi nhanh chinh',
             'description' => 'Default branch',
-            'timezone' => 'Asia/Bangkok',
+            'timezone' => 'Asia/Ho_Chi_Minh',
             'currency' => 'VND',
             'business_hours' => null,
             'closure_windows' => null,
@@ -230,7 +230,7 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('data.user.user_id', $staffId)
             ->assertJsonPath('data.capability_source', 'role_capabilities')
             ->assertJsonPath('data.capabilities.0', 'audit.view')
-            ->assertJsonPath('data.startup.default_branch.branch_name', 'Main Branch')
+            ->assertJsonPath('data.startup.default_branch.branch_name', 'Chi nhanh chinh')
             ->assertJsonPath('data.startup.active_cashier_shift.cashier_shift_id', 44)
             ->assertJsonPath('data.startup.readiness.granted_capability_count', count($loginCapabilities));
 
@@ -243,7 +243,7 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('data.auth_mode', 'staff_api_key')
             ->assertJsonPath('data.user.user_id', $staffId)
             ->assertJsonPath('data.capability_source', 'role_capabilities')
-            ->assertJsonPath('data.startup.default_branch.timezone', 'Asia/Bangkok')
+            ->assertJsonPath('data.startup.default_branch.timezone', 'Asia/Ho_Chi_Minh')
             ->assertJsonPath('data.startup.active_cashier_shift.branch.branch_code', 'MAIN')
             ->assertJsonPath('data.startup.readiness.access', 'ready');
 

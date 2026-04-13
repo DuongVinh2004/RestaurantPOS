@@ -43,6 +43,6 @@ describe('conflicts', () => {
 
   it('returns a frontend-safe refresh message', () => {
     expect(rowVersionConflictMessage('Order #99')).toContain('Order #99');
-    expect(rowVersionConflictMessage('Order #99')).toContain('row_version');
+    expect(rowVersionConflictMessage('Order #99')).toContain('tải lại dữ liệu');
   });
 });

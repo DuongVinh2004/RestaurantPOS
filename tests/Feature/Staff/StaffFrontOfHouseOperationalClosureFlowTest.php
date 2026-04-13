@@ -27,7 +27,8 @@ class StaffFrontOfHouseOperationalClosureFlowTest extends TestCase
         parent::setUp();
         $this->requireBookingSchema();
 
-        config()->set('app.timezone', 'Asia/Bangkok');
+        config()->set('app.timezone', 'UTC');
+        config()->set('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh');
         config()->set('booking.check_in_grace_minutes', 15);
         config()->set('booking.require_redis_for_booking_api', false);
         config()->set('cache.stores.redis', [
@@ -41,8 +42,8 @@ class StaffFrontOfHouseOperationalClosureFlowTest extends TestCase
         $this->app->instance(NotificationOutboxService::class, $this->mockNotificationOutbox());
         $this->app->instance(ReservationLockService::class, $this->mockReservationLocks());
         $this->app->instance(RuntimeSettingService::class, $this->mockRuntimeSettings());
-        $this->app->instance(RestaurantTableStateService::class, new RestaurantTableStateService());
-        $this->app->instance(TableTimeConflictService::class, new TableTimeConflictService());
+        $this->app->instance(RestaurantTableStateService::class, new RestaurantTableStateService);
+        $this->app->instance(TableTimeConflictService::class, new TableTimeConflictService);
     }
 
     protected function tearDown(): void

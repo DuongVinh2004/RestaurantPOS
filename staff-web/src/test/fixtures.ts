@@ -1,5 +1,5 @@
 import { RestaurantPosApiError } from '../api/sdk';
-import type { StaffSession } from '../api/client';
+import type { StaffSession } from '../core/auth/storage';
 
 export function buildStaffSession(overrides: Partial<StaffSession> = {}): StaffSession {
   const capabilities = overrides.capabilities ?? [
@@ -18,12 +18,15 @@ export function buildStaffSession(overrides: Partial<StaffSession> = {}): StaffS
     'payment.refund',
     'conversation.manage',
   ];
+  const requiresCashierShift = capabilities.includes('*')
+    || capabilities.includes('settlement.manage')
+    || capabilities.includes('cashier.shift.manage');
   const startup = overrides.startup ?? {
     default_branch: {
       branch_id: 1,
       branch_code: 'MAIN',
-      branch_name: 'Main Branch',
-      timezone: 'Asia/Bangkok',
+      branch_name: 'Chi nhanh chinh',
+      timezone: 'Asia/Ho_Chi_Minh',
       currency: 'VND',
       is_default: true,
       is_active: true,
@@ -34,8 +37,8 @@ export function buildStaffSession(overrides: Partial<StaffSession> = {}): StaffS
       branch: {
         branch_id: 1,
         branch_code: 'MAIN',
-        branch_name: 'Main Branch',
-        timezone: 'Asia/Bangkok',
+        branch_name: 'Chi nhanh chinh',
+        timezone: 'Asia/Ho_Chi_Minh',
         currency: 'VND',
         is_default: true,
         is_active: true,
@@ -50,9 +53,9 @@ export function buildStaffSession(overrides: Partial<StaffSession> = {}): StaffS
     readiness: {
       access: capabilities.length > 0 ? 'ready' : 'capability_missing',
       branch: 'ready',
-      cashier_shift: 'ready',
+      cashier_shift: requiresCashierShift ? 'ready' : 'not_applicable',
       operator_ready: capabilities.length > 0,
-      requires_cashier_shift: true,
+      requires_cashier_shift: requiresCashierShift,
       granted_capability_count: capabilities.length,
       known_capability_count: knownCapabilities.length,
     },
@@ -76,7 +79,7 @@ export function buildStaffSession(overrides: Partial<StaffSession> = {}): StaffS
     },
     capabilities,
     known_capabilities: knownCapabilities,
-    capability_source: 'role',
+    capability_source: 'role_capabilities',
     startup,
     ...overrides,
   };

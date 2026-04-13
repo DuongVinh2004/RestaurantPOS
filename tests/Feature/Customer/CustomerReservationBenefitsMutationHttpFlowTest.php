@@ -45,7 +45,7 @@ class CustomerReservationBenefitsMutationHttpFlowTest extends TestCase
             ->assertJsonPath('data.voucher.user_voucher_id', $userVoucherId)
             ->assertJsonPath('data.voucher.is_currently_applied', true);
 
-        $this->assertSame('reservation:' . $reservationId, (string) DB::table('user_vouchers')->where('user_voucher_id', $userVoucherId)->value('lock_token'));
+        $this->assertSame('reservation:'.$reservationId, (string) DB::table('user_vouchers')->where('user_voucher_id', $userVoucherId)->value('lock_token'));
         $this->assertSame($userVoucherId, (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('applied_user_voucher_id'));
 
         $log = $this->assertAuditLogRecorded('reservation.voucher.applied', 'reservation', $reservationId);
@@ -62,7 +62,7 @@ class CustomerReservationBenefitsMutationHttpFlowTest extends TestCase
             'discount_amount' => '50000.00',
         ]);
         DB::table('user_vouchers')->where('user_voucher_id', $userVoucherId)->update([
-            'lock_token' => 'reservation:' . $reservationId,
+            'lock_token' => 'reservation:'.$reservationId,
             'locked_until' => $this->nowUtc()->copy()->addMinutes(5),
         ]);
 
@@ -204,14 +204,20 @@ class CustomerReservationBenefitsMutationHttpFlowTest extends TestCase
         DB::table('reservations')->where('reservation_id', $reservationId)->update(['row_version' => 3]);
 
         $response = $this->actingAs($user)
-            ->withHeaders(['Idempotency-Key' => 'cust-voucher-apply-stale-1'])
+            ->withHeaders([
+                'Idempotency-Key' => 'cust-voucher-apply-stale-1',
+                'X-Request-Id' => 'req-customer-benefits-stale-row-version',
+            ])
             ->postJson("/api/v1/reservations/{$reservationId}/voucher/apply", [
                 'user_voucher_id' => $userVoucherId,
                 'row_version' => 1,
             ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['row_version']);
+            ->assertHeader('X-Request-Id', 'req-customer-benefits-stale-row-version')
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonPath('request_id', 'req-customer-benefits-stale-row-version')
+            ->assertJsonPath('details.errors.row_version.0', 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.');
     }
 
     public function test_customer_cannot_apply_voucher_after_final_payment_has_been_recorded(): void

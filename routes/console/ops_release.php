@@ -10,6 +10,7 @@ use App\Services\DisasterRecovery\DisasterRecoveryDrillService;
 use App\Services\LaunchReadinessService;
 use App\Services\OperationalAlertService;
 use App\Services\OperationalInsightsService;
+use App\Services\OpsGateArtifactService;
 use App\Services\OpsHeartbeatService;
 use App\Services\Performance\PerformanceVerificationService;
 use App\Services\ReleaseArtifactManifestService;
@@ -21,8 +22,37 @@ use App\Services\RoundFiveGateService;
 use App\Services\RouteContractReconcilerService;
 use App\Services\RouteInventoryGateService;
 use Illuminate\Console\Command as ConsoleCommand;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Str;
+
+$writeOpsGateArtifactReport = static function (
+    string $artifactRoot,
+    string $reportPrefix,
+    string $scopeKey,
+    array $payload,
+    string $title,
+    array $summaryRows,
+    string $artifactKey = 'artifacts'
+): array {
+    $evaluatedAt = now('UTC');
+    $markdown = "# {$title}\n\n";
+    $markdown .= '**Generated:** '.$evaluatedAt->toIso8601String()."\n\n";
+    $markdown .= "## Summary\n\n";
+    foreach ($summaryRows as $key => $value) {
+        $markdown .= '- **'.str_replace('_', ' ', ucfirst($key)).":** {$value}\n";
+    }
+
+    return app(OpsGateArtifactService::class)->writeReport(
+        artifactRoot: $artifactRoot,
+        reportPrefix: $reportPrefix,
+        scopeKey: $scopeKey,
+        payload: $payload,
+        markdown: $markdown,
+        evaluatedAt: $evaluatedAt,
+        artifactKey: $artifactKey,
+    );
+};
 
 Artisan::command('data-lifecycle:enforce-retention {--dry-run : Preview retention actions without mutating data}', function () {
     /** @var ConsoleCommand $command */
@@ -63,6 +93,7 @@ Artisan::command('booking:doctor {--json : Output machine-readable JSON} {--stri
             'runtime_check_count' => count($runtime),
             'ok' => ($payload['ok'] ?? false) ? 'yes' : 'no',
         ],
+        artifactKey: 'artifacts',
     );
 
     if ($command->option('json')) {
@@ -562,6 +593,7 @@ Artisan::command('booking:deploy-check {--mode=preflight : preflight|postflight}
             'artifact_warning_count' => (string) (($report['summary'] ?? [])['artifact_warning_count'] ?? 0),
             'ok' => ($payload['ok'] ?? false) ? 'yes' : 'no',
         ],
+        artifactKey: 'artifacts',
     );
 
     if ($command->option('json')) {
@@ -635,10 +667,11 @@ Artisan::command('booking:ops-snapshot {--json : Output machine-readable JSON} {
     $command = $this;
 
     $paymentLimit = max(1, min(50, (int) $command->option('payment-limit')));
+    $capturedAt = Carbon::now('UTC');
 
     /** @var OperationalInsightsService $service */
     $service = app(OperationalInsightsService::class);
-    $snapshot = $service->snapshot(now('UTC'), $paymentLimit);
+    $snapshot = $service->snapshot($capturedAt, $paymentLimit);
 
     if ($command->option('json')) {
         $command->line(json_encode($snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
@@ -665,12 +698,20 @@ Artisan::command('booking:ops-snapshot {--json : Output machine-readable JSON} {
         ['session_unlinked_hold_count', (string) (($snapshot['session_linkage']['active_unlinked_session_hold_count'] ?? 0))],
         ['reporting_snapshot_total_row_count', (string) (($snapshot['reporting_snapshots']['total_row_count'] ?? 0))],
         ['reporting_snapshot_populated_family_count', (string) (($snapshot['reporting_snapshots']['populated_family_count'] ?? 0))],
+        ['kitchen_active_ticket_count', (string) (($snapshot['kitchen_kds']['active_ticket_count'] ?? 0))],
+        ['kitchen_drift_count', (string) (($snapshot['kitchen_kds']['drift_count'] ?? 0))],
+        ['inventory_issue_order_count', (string) (($snapshot['inventory_purchasing']['issue_order_count'] ?? 0))],
+        ['inventory_duplicate_purchase_receipt_reference_count', (string) (($snapshot['inventory_purchasing']['duplicate_purchase_receipt_reference_count'] ?? 0))],
+        ['inventory_duplicate_purchase_receipt_movement_count', (string) (($snapshot['inventory_purchasing']['duplicate_purchase_receipt_movement_count'] ?? 0))],
+        ['inventory_overdue_open_order_count', (string) (($snapshot['inventory_purchasing']['overdue_open_order_count'] ?? 0))],
+        ['conversation_unassigned_count', (string) (($snapshot['conversation_inbox']['unassigned_count'] ?? 0))],
+        ['conversation_overdue_count', (string) (($snapshot['conversation_inbox']['overdue_count'] ?? 0))],
         ['branch_total_count', (string) (($snapshot['branch_defaults']['total_count'] ?? 0))],
         ['branch_default_count', (string) (($snapshot['branch_defaults']['default_count'] ?? 0))],
     ]);
 
     return collect($snapshot)->contains(fn (array $section) => (($section['status'] ?? 'ok') === 'fail')) ? 1 : 0;
-})->purpose('Show booking operational snapshot for outbox, payments, voucher locks, session linkage, reporting, branches, and DB contract');
+})->purpose('Show booking operational snapshot for outbox, payments, reporting, kitchen, inventory, conversations, branches, and DB contract');
 
 Artisan::command('booking:artifacts-normalize {--json : Output machine-readable JSON}', function () {
     /** @var ConsoleCommand $command */
@@ -941,9 +982,10 @@ Artisan::command('booking:alert-check {--json : Output machine-readable JSON} {-
     /** @var OperationalAlertService $service */
     $service = app(OperationalAlertService::class);
     $sampleLimit = max(1, (int) $command->option('payment-sample-limit'));
-    $snapshot = $service->snapshot(now('UTC'), $sampleLimit);
-    $alerts = $service->buildAlerts($snapshot, now('UTC'));
-    $dispatch = $service->dispatchAlerts($alerts, (bool) $command->option('dry-run'), now('UTC'));
+    $capturedAt = Carbon::now('UTC');
+    $snapshot = $service->snapshot($capturedAt, $sampleLimit);
+    $alerts = $service->buildAlerts($snapshot, $capturedAt);
+    $dispatch = $service->dispatchAlerts($alerts, (bool) $command->option('dry-run'), $capturedAt);
 
     $payload = [
         'snapshot' => $snapshot,

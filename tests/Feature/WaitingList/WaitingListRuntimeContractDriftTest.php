@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature\WaitingList;
 
 use App\Http\Controllers\Api\CustomerWaitingListController;
-use App\Services\WaitingList\CustomerWaitingListSelfService;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class WaitingListRuntimeContractDriftTest extends TestCase
 {
-    public function test_customer_waiting_list_routes_do_not_wire_legacy_guest_self_service_residue(): void
+    public function test_customer_waiting_list_routes_stay_on_canonical_owner_only_runtime_contract(): void
     {
-        $legacyClass = CustomerWaitingListSelfService::class;
+        $legacyClass = 'App\\Services\\WaitingList\\CustomerWaitingListSelfService';
         $customerController = CustomerWaitingListController::class;
         $customerWaitingRoutes = 0;
 
@@ -34,5 +33,10 @@ class WaitingListRuntimeContractDriftTest extends TestCase
         }
 
         $this->assertGreaterThan(0, $customerWaitingRoutes);
+        $this->assertFalse(class_exists($legacyClass, false), 'Legacy guest self-service residue should not remain autoloadable.');
+        $this->assertFileDoesNotExist(
+            base_path('app/Services/WaitingList/CustomerWaitingListSelfService.php'),
+            'Legacy guest self-service residue should be removed once the owner-only runtime contract is canonical.'
+        );
     }
 }

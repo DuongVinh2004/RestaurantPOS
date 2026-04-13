@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Notifications;
 
 use App\Models\NotificationPreference;
+use DateTimeZone;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class NotificationPreferenceService
 {
@@ -18,7 +20,7 @@ class NotificationPreferenceService
      *   preference: NotificationPreference|null
      * }
      */
-    public function evaluate(?int $userId, string $channel, ?Carbon $now = null): array
+    public function evaluate(?int $userId, string $channel, ?Carbon $now = null, ?string $timezone = null): array
     {
         $now ??= Carbon::now('UTC');
 
@@ -64,7 +66,7 @@ class NotificationPreferenceService
             ];
         }
 
-        $quietUntil = $this->quietUntil($preference, $now);
+        $quietUntil = $this->quietUntil($preference, $now, $timezone);
 
         return [
             'enabled' => true,
@@ -104,7 +106,7 @@ class NotificationPreferenceService
         };
     }
 
-    private function quietUntil(NotificationPreference $preference, Carbon $now): ?Carbon
+    private function quietUntil(NotificationPreference $preference, Carbon $now, ?string $timezone = null): ?Carbon
     {
         $start = $preference->quiet_hours_start_minute;
         $end = $preference->quiet_hours_end_minute;
@@ -113,7 +115,7 @@ class NotificationPreferenceService
             return null;
         }
 
-        $timezone = (string) config('notifications.preferences.timezone', config('app.timezone', 'UTC'));
+        $timezone = $this->resolveEvaluationTimezone($timezone);
         $localNow = $now->copy()->setTimezone($timezone);
         $minuteOfDay = ((int) $localNow->hour * 60) + (int) $localNow->minute;
 
@@ -136,5 +138,32 @@ class NotificationPreferenceService
         }
 
         return $quietEnd->setTimezone('UTC');
+    }
+
+    private function resolveEvaluationTimezone(?string $timezone = null): string
+    {
+        $normalized = $this->normalizeTimezone($timezone);
+        if ($normalized !== null) {
+            return $normalized;
+        }
+
+        return $this->normalizeTimezone((string) config('notifications.preferences.timezone', config('app.timezone', 'UTC')))
+            ?? 'UTC';
+    }
+
+    private function normalizeTimezone(?string $timezone): ?string
+    {
+        $normalized = trim((string) ($timezone ?? ''));
+        if ($normalized === '') {
+            return null;
+        }
+
+        try {
+            new DateTimeZone($normalized);
+
+            return $normalized;
+        } catch (Throwable) {
+            return null;
+        }
     }
 }

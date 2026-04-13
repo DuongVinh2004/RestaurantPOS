@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\WaitingList;
 
-use App\Models\User;
 use App\Enums\WaitingListStatus;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -70,7 +70,7 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
 
         $waitingId = (int) $createdData['waiting_id'];
 
-        $show = $this->withHeaders($ownerHeaders)->getJson('/api/v1/waiting-list/' . $waitingId);
+        $show = $this->withHeaders($ownerHeaders)->getJson('/api/v1/waiting-list/'.$waitingId);
         $show->assertOk()
             ->assertJsonPath('data.waiting_id', $waitingId)
             ->assertJsonPath('data.notes', 'Near window please');
@@ -239,7 +239,7 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
         $this->assertSame('Declined', (string) $record->customer_response_status);
         $this->assertNotNull($record->customer_responded_at);
         $this->assertNull($record->customer_confirmed_arrival_at);
-        $this->assertSame('Cancelled', (string) DB::table('table_holds')->where('session_id', 'waiting-list:' . $waitingId)->latest('created_at')->value('hold_status'));
+        $this->assertSame('Cancelled', (string) DB::table('table_holds')->where('session_id', 'waiting-list:'.$waitingId)->latest('created_at')->value('hold_status'));
     }
 
     public function test_owner_confirm_arrival_returns_staff_seat_meta_without_legacy_lifecycle_payload_or_persisted_customer_response_fields(): void
@@ -318,18 +318,18 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
         ]);
 
         $this->withHeaders($otherHeaders)
-            ->getJson('/api/v1/waiting-list/' . $waitingId)
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['waiting_id']);
+            ->getJson('/api/v1/waiting-list/'.$waitingId)
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
 
         $this->withHeaders($this->withIdempotencyKey($otherHeaders, 'cust-owner-contract-non-owner-decline'))
-            ->postJson('/api/v1/waiting-list/' . $waitingId . '/decline', [
+            ->postJson('/api/v1/waiting-list/'.$waitingId.'/decline', [
                 'row_version' => 1,
             ])
             ->assertNotFound();
 
         $this->withHeaders($ownerHeaders)
-            ->getJson('/api/v1/waiting-list/' . $waitingId)
+            ->getJson('/api/v1/waiting-list/'.$waitingId)
             ->assertOk();
     }
 
@@ -420,7 +420,7 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
         ]);
 
         $cancel = $this->withHeaders($this->withIdempotencyKey($ownerHeaders, 'cust-owner-contract-cancel-1'))
-            ->postJson('/api/v1/waiting-list/' . $waitingId . '/cancel', [
+            ->postJson('/api/v1/waiting-list/'.$waitingId.'/cancel', [
                 'row_version' => 3,
                 'cancel_reason' => 'Change of plans',
             ]);
@@ -503,7 +503,7 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
     }
 
     /**
-     * @param array<string,mixed> $data
+     * @param  array<string,mixed>  $data
      */
     private function assertCanonicalOwnerResource(
         array $data,
@@ -540,7 +540,7 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
     }
 
     /**
-     * @param array<string,mixed> $data
+     * @param  array<string,mixed>  $data
      */
     private function assertLegacyLifecycleFieldsAreAbsent(array $data): void
     {

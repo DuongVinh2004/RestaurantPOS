@@ -11,6 +11,7 @@ use App\Models\Reservation;
 use App\Models\ReservationOrder;
 use App\Models\RestaurantTable;
 use App\Models\TableHold;
+use App\Services\Branch\BranchContextService;
 use App\Services\Branch\ReservationBranchScopeService;
 use App\Services\RuntimeSettingService;
 use App\Services\TableTimeConflictService;
@@ -29,10 +30,12 @@ class StaffTableBoardService
         ?RuntimeSettingService $runtimeSettings = null,
         ?StaffCheckInReadinessService $checkInReadinessService = null,
         ?ReservationBranchScopeService $reservationBranchScopeService = null,
+        ?BranchContextService $branchContextService = null,
     ) {
         $this->runtimeSettings = $runtimeSettings ?? app(RuntimeSettingService::class);
         $this->checkInReadinessService = $checkInReadinessService ?? app(StaffCheckInReadinessService::class);
         $this->reservationBranchScopeService = $reservationBranchScopeService ?? app(ReservationBranchScopeService::class);
+        $this->branchContextService = $branchContextService ?? app(BranchContextService::class);
     }
 
     private readonly RuntimeSettingService $runtimeSettings;
@@ -41,21 +44,34 @@ class StaffTableBoardService
 
     private readonly ReservationBranchScopeService $reservationBranchScopeService;
 
+    private readonly BranchContextService $branchContextService;
+
     /**
      * @return list<array<string,mixed>>
      */
-    public function getBoard(\DateTimeInterface $from, \DateTimeInterface $to, ?string $zone = null, bool $includeHolds = true): array
-    {
-        return $this->buildBoardSnapshot($from, $to, $zone, $includeHolds)['data'];
+    public function getBoard(
+        \DateTimeInterface $from,
+        \DateTimeInterface $to,
+        mixed $branchId = null,
+        ?string $zone = null,
+        bool $includeHolds = true
+    ): array {
+        return $this->buildBoardSnapshot($from, $to, $branchId, $zone, $includeHolds)['data'];
     }
 
     /**
      * @return array<string,mixed>
      */
-    public function buildBoardSnapshot(\DateTimeInterface $from, \DateTimeInterface $to, ?string $zone = null, bool $includeHolds = true): array
-    {
+    public function buildBoardSnapshot(
+        \DateTimeInterface $from,
+        \DateTimeInterface $to,
+        mixed $branchId = null,
+        ?string $zone = null,
+        bool $includeHolds = true
+    ): array {
         $fromUtc = Carbon::instance(\DateTimeImmutable::createFromInterface($from))->utc();
         $toUtc = Carbon::instance(\DateTimeImmutable::createFromInterface($to))->utc();
+        $resolvedBranchId = $this->resolveBranchId($branchId);
         $zone = $this->normalizeZone($zone);
         $nowUtc = Carbon::now('UTC');
         $checkInGraceMinutes = $this->resolveCheckInGraceMinutes();
@@ -68,6 +84,7 @@ class StaffTableBoardService
 
         $tables = RestaurantTable::query()
             ->notDeleted()
+            ->when($resolvedBranchId !== null, static fn ($query) => $query->where('branch_id', $resolvedBranchId))
             ->inZone($zone)
             ->with('template')
             ->orderBy('zone')
@@ -76,6 +93,7 @@ class StaffTableBoardService
 
         $activeReservations = Reservation::query()
             ->inTimeRange($fromUtc, $toUtc)
+            ->when($resolvedBranchId !== null, static fn ($query) => $query->where('branch_id', $resolvedBranchId))
             ->whereIn('status', ReservationStatus::activeDbValues())
             ->with(['user', 'tables', 'payments'])
             ->get();
@@ -152,6 +170,7 @@ class StaffTableBoardService
             ? []
             : $this->getCandidateTablesForReservations(
                 reservations: $candidateSourceReservations,
+                branchId: $resolvedBranchId,
                 zone: $zone,
                 includeSlotOnly: true,
                 boardFrom: $fromUtc,
@@ -295,13 +314,13 @@ class StaffTableBoardService
         }
         usort($zoneRows, static fn (array $left, array $right): int => strcmp((string) $left['zone'], (string) $right['zone']));
 
-        $unassignedRows = array_map(function (array $row) use ($fromUtc, $toUtc, $zone): array {
+        $unassignedRows = array_map(function (array $row) use ($fromUtc, $toUtc, $resolvedBranchId, $zone): array {
             /** @var Reservation $reservation */
             $reservation = $row['reservation'];
             $deposit = $row['deposit'];
             $flags = $row['flags'];
             $candidateTables = $row['candidate_tables'];
-            $assignmentRequestContext = $this->buildAssignmentRequestContext($fromUtc, $toUtc, $zone, true);
+            $assignmentRequestContext = $this->buildAssignmentRequestContext($fromUtc, $toUtc, $resolvedBranchId, $zone, true);
 
             return [
                 'reservation_id' => (int) $reservation->reservation_id,
@@ -311,6 +330,8 @@ class StaffTableBoardService
                 'guest_count' => (int) $reservation->guest_count,
                 'start_time' => $this->iso($reservation->start_time),
                 'end_time' => $this->iso($reservation->end_time),
+                'user' => $this->presentVisibleCustomer($reservation, ['user_id', 'full_name', 'phone', 'email']),
+                'guest' => $this->presentGuestSnapshot($reservation),
                 'flags' => array_merge($flags, [
                     'deposit_self_service_follow_up' => (bool) data_get($deposit, 'follow_up.needs_staff_follow_up', false),
                 ]),
@@ -370,6 +391,7 @@ class StaffTableBoardService
      */
     public function getCandidateTablesForReservation(
         Reservation $reservation,
+        mixed $branchId = null,
         ?string $zone = null,
         bool $includeSlotOnly = true,
         ?\DateTimeInterface $boardFrom = null,
@@ -377,6 +399,7 @@ class StaffTableBoardService
     ): array {
         return $this->getCandidateTablesForReservations(
             reservations: [$reservation],
+            branchId: $branchId,
             zone: $zone,
             includeSlotOnly: $includeSlotOnly,
             boardFrom: $boardFrom,
@@ -390,12 +413,14 @@ class StaffTableBoardService
      */
     public function getCandidateTablesForReservations(
         iterable $reservations,
+        mixed $branchId = null,
         ?string $zone = null,
         bool $includeSlotOnly = true,
         ?\DateTimeInterface $boardFrom = null,
         ?\DateTimeInterface $boardTo = null,
         ?Collection $preloadedTables = null,
     ): array {
+        $resolvedBranchId = $this->resolveBranchId($branchId);
         $zone = $this->normalizeZone($zone);
         $reservations = Collection::make($reservations)
             ->filter(static fn (mixed $reservation): bool => $reservation instanceof Reservation)
@@ -418,6 +443,7 @@ class StaffTableBoardService
                 ->max());
 
         $context = $this->buildCandidateSearchContext(
+            branchId: $resolvedBranchId,
             zone: $zone,
             contextFromUtc: $contextFromUtc,
             contextToUtc: $contextToUtc,
@@ -465,7 +491,8 @@ class StaffTableBoardService
             'end_time' => $this->iso($reservation->end_time),
             'guest_count' => (int) $reservation->guest_count,
             'checked_in_at' => $this->iso($reservation->checked_in_at),
-            'user' => $reservation->relationLoaded('user') && $reservation->user ? Arr::only($reservation->user->toArray(), $visibleUserFields) : null,
+            'user' => $this->presentVisibleCustomer($reservation, $visibleUserFields),
+            'guest' => $this->presentGuestSnapshot($reservation),
             'deposit' => [
                 'status' => (string) ($reservation->deposit_status?->value ?? $reservation->deposit_status ?? ''),
                 'required_amount' => number_format($required, 2, '.', ''),
@@ -508,6 +535,8 @@ class StaffTableBoardService
             'reservation_code' => (string) $reservation->reservation_code,
             'row_version' => (int) ($reservation->row_version ?? 1),
             'guest_count' => (int) $reservation->guest_count,
+            'user' => $this->presentVisibleCustomer($reservation, ['user_id', 'full_name', 'phone', 'email']),
+            'guest' => $this->presentGuestSnapshot($reservation),
             'flags' => $flags,
             'policy_flags' => (array) ($candidate['policy_flags'] ?? []),
             'deposit' => [
@@ -821,6 +850,7 @@ class StaffTableBoardService
      * }
      */
     private function buildCandidateSearchContext(
+        ?int $branchId,
         ?string $zone,
         Carbon $contextFromUtc,
         Carbon $contextToUtc,
@@ -828,8 +858,12 @@ class StaffTableBoardService
     ): array {
         $tables = $preloadedTables instanceof Collection
             ? $preloadedTables
+                ->when($branchId !== null, static fn (Collection $collection): Collection => $collection
+                    ->filter(static fn (RestaurantTable $table): bool => (int) ($table->branch_id ?? 0) === $branchId)
+                    ->values())
             : RestaurantTable::query()
                 ->notDeleted()
+                ->when($branchId !== null, static fn ($query) => $query->where('branch_id', $branchId))
                 ->inZone($zone)
                 ->with('template')
                 ->orderBy('zone')
@@ -970,6 +1004,7 @@ class StaffTableBoardService
                 'assignment_request_context' => $this->buildAssignmentRequestContext(
                     $boardFromUtc,
                     $boardToUtc,
+                    $reservation->branch_id !== null ? (int) $reservation->branch_id : null,
                     $zone,
                     $includeSlotOnly,
                 ),
@@ -1113,14 +1148,56 @@ class StaffTableBoardService
     private function buildAssignmentRequestContext(
         Carbon $boardFromUtc,
         Carbon $boardToUtc,
+        ?int $branchId,
         ?string $zone,
         bool $includeSlotOnlyCandidates,
     ): array {
         return [
             'board_from' => $boardFromUtc->toIso8601String(),
             'board_to' => $boardToUtc->toIso8601String(),
+            'branch_id' => $branchId,
             'zone' => $zone,
             'include_slot_only_candidates' => $includeSlotOnlyCandidates,
         ];
+    }
+
+    /**
+     * @param  array<int,string>  $visibleUserFields
+     * @return array<string,mixed>|null
+     */
+    private function presentVisibleCustomer(Reservation $reservation, array $visibleUserFields): ?array
+    {
+        $customer = [
+            'user_id' => $reservation->user_id !== null ? (int) $reservation->user_id : null,
+            'full_name' => $reservation->customerDisplayName(),
+            'phone' => $reservation->customerPhone(),
+            'email' => $reservation->customerEmail(),
+        ];
+
+        $visible = Arr::only($customer, $visibleUserFields);
+        foreach ($visible as $value) {
+            if ($value !== null && $value !== '') {
+                return $visible;
+            }
+        }
+
+        return array_key_exists('user_id', $visible) ? $visible : null;
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function presentGuestSnapshot(Reservation $reservation): ?array
+    {
+        return $reservation->guestSnapshot();
+    }
+
+    private function resolveBranchId(mixed $branchId): ?int
+    {
+        if ($branchId === null || $branchId === '') {
+            return null;
+        }
+
+        return $this->branchContextService->resolveBranchId($branchId);
     }
 }

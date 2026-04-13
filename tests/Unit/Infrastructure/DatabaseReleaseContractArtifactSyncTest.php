@@ -103,14 +103,21 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
         ] as $path) {
             $sql = (string) File::get($path);
 
+            $this->assertStringNotContainsString('CREATE TRIGGER `trg_payments__bi_refund_cap`', $sql);
+            $this->assertStringNotContainsString('CREATE TRIGGER `trg_payments__bu_refund_cap`', $sql);
             $this->assertStringNotContainsString('CREATE TRIGGER `trg_payments__bi_refund_lineage_guard`', $sql);
             $this->assertStringNotContainsString('CREATE TRIGGER `trg_payments__bu_refund_lineage_guard`', $sql);
         }
 
         $patchPath = base_path('database/patches/2026_04_08_000041_drop_runtime_incompatible_payment_refund_triggers.sql');
         $patchSql = (string) File::get($patchPath);
+        $verifySql = (string) File::get(base_path('tools/mysql/verify_release_contract.sql'));
 
+        $this->assertStringContainsString('DROP TRIGGER IF EXISTS `trg_payments__bi_refund_cap`', $patchSql);
+        $this->assertStringContainsString('DROP TRIGGER IF EXISTS `trg_payments__bu_refund_cap`', $patchSql);
         $this->assertStringContainsString('DROP TRIGGER IF EXISTS `trg_payments__bi_refund_lineage_guard`', $patchSql);
         $this->assertStringContainsString('DROP TRIGGER IF EXISTS `trg_payments__bu_refund_lineage_guard`', $patchSql);
+        $this->assertStringContainsString('payments.refund_trigger_contract:ok', $verifySql);
+        $this->assertStringContainsString('__runtime_incompatible_payment_refund_triggers_present__', $verifySql);
     }
 }

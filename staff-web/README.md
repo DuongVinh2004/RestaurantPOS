@@ -1,85 +1,129 @@
 # RestaurantPOS Staff Web
 
-`staff-web` la frontend staff production-lean bind truc tiep vao generated SDK va canonical backend contracts cua repo Laravel nay.
+This frontend is now intentionally narrowed around one usable operational chain:
 
-## Scope hien tai
+`login -> table board -> reservation handling -> walk-in / assign table -> active order -> dispatch to kitchen -> kitchen ticket handling -> checkout / settlement / refund`
 
-- Staff auth/session bootstrap qua `POST /api/v1/auth/staff/login`, `GET /api/v1/auth/staff/me`, `POST /api/v1/auth/staff/refresh`
-- Staff auth session envelope nay la startup source chinh cho:
-  - `startup.default_branch`
-  - `startup.active_cashier_shift`
-  - `startup.readiness`
-- Capability-aware route tree cho:
-  - `access`
-  - `board`
-  - `orders`
-  - `settlement`
-  - `refunds`
-  - `cashier`
-  - `conversations`
-- Core staff flows:
-  - table board + waiting notify/seat + check-in
-  - create order + add items + order detail
-  - bill snapshot + settlement preview + finalize
-  - refund preview + refund + refund-cancel
-  - cashier current/open/show/close
-  - conversation inbox list/detail + take-over + internal note + guarded outbound reply
+The app uses:
 
-## Runtime caveats canh source-of-truth
+- React
+- TypeScript
+- Vite
+- React Router
+- TanStack Query
+- Zustand
+- Ant Design
 
-- FE route/nav gating dung granted `capabilities` cong backend `startup.readiness`; `known_capabilities` chi la metadata tham khao.
-- Runtime staff/core stale `row_version` hien tai thuong surfacing qua `422 validation_error` voi `errors.row_version` hoac `details.errors.row_version`, khong nen mac dinh la `409`.
-- Error envelopes quan trong cho operator handling gom `error_code`, `required_capability`, `request_id`, `errors`, va `details.errors`.
-- Order/refund/cashier da bind backend that, nhung lookup UX van production-lean:
-  - uu tien board suggestions hoac current shift sources
-  - manual IDs van duoc giu lam fallback cho historical/non-board cases
-- Settlement nay uu tien canonical reservation lookup + reservation-order lookup truoc khi xuong manual `order_id`
-- Board/waiting change cursors duoc background-poll theo visibility-aware cadence, chi refetch full slices khi backend bao co thay doi
-- Conversations list co them `status`, `assignment_state`, `q` filters qua generated SDK query params
+## Visual contract
 
-## Contracts va docs
+The active staff-web visual contract imported from the design bundle now lives in:
 
-- Architecture: `./STAFF_WEB_ARCHITECTURE.md`
-- Backend contract inventory: `./STAFF_WEB_BACKEND_CONTRACTS.md`
-- Setup/runbook: `./STAFF_WEB_SETUP.md`
-- Roadmap/deferred work: `./STAFF_WEB_ROADMAP.md`
-- Generated SDK source: `../build/api-consumer/sdk/typescript/restaurantpos-sdk.ts`
-- Mutation matrix: `../build/api-consumer/mutation-contracts.md`
+- `staff-web/DESIGN.md`
+- `staff-web/UI_SCOPE.md`
+- `staff-web/REFERENCE_LINKS.md`
 
-## Run
+These files define the shared UI direction for the active app shell and shared primitives. They complement the repo root `AGENTS.md`; they do not replace it.
+
+## Current scope
+
+The shell and route tree only expose the core staff flow:
+
+- `Login`
+- `Table Board`
+- `Reservations`
+- `Waiting List`
+- `Active Order`
+- `Kitchen`
+- `Checkout + Refund`
+- `Cashier Shift`
+- `Finance Review`
+- `Conversation Inbox`
+- `Audit Trail`
+- `Reporting`
+- `Access` readiness screen
+
+Everything else from the older staff-web remains outside the main route tree on purpose.
+
+Deferred outside the current shell:
+
+- `Inventory`
+- `Settings`
+- standalone `Refunds`
+- standalone `Settlement`
+
+## Backend contract usage
+
+This build binds directly to the staff backend and uses real APIs for the core flow:
+
+- Auth: `/api/v1/auth/staff/login`, `/me`, `/refresh`, `/logout`
+- Board: `/api/v1/staff/tables/board`, `/tables/board/changes`
+- Reservations: `/api/v1/staff/reservations`, `/reservations/{id}`, `/assign-table`, `/assign-best-fit`, `/check-in`
+- Walk-in: `/api/v1/staff/service-sessions/walk-in`
+- Orders: `/api/v1/staff/tables/{table_id}/orders`, `/orders/{order_id}`, `/orders/{order_id}/items`, `/tables/{table_id}/active-order`, `/reservations/{reservation_id}/active-order`
+- Staff menu: `/api/v1/staff/menu/items`
+- Kitchen: `/api/v1/staff/kitchen/stations`, `/stations/{station_id}/tickets`, `/orders/{order_id}/kitchen/dispatch`, `/kitchen/tickets/{ticket_id}/fire|bump|recall`
+- Checkout: `/api/v1/staff/orders/{order_id}/bill-snapshot`, `/settlement-preview`, `/settlement/finalize`, `/api/v1/staff/reservations/{reservation_id}/refund-preview`, `/refund`, `/refund-cancel`
+- Cashier shift: `/api/v1/staff/cashier/shifts`, `/current`, `/open`, `/{shift_id}/close`
+- Finance review: `/api/v1/staff/finance/reconciliation`, `/reconciliation/{reservation_id}`, `/finance/invoices/{reservation_id}`, `/finance/invoices/{reservation_id}/issue`
+- Waiting list: `/api/v1/staff/waiting-list`, `/changes`, `/{id}/notify`, `/{id}/advance`, `/{id}/seat`, `/{id}/cancel`
+- Branch context: `/api/v1/staff/branches`
+- Conversation inbox: `/api/v1/staff/conversations`, `/{conversation_id}`, `/take-over`, `/unassign`, `/internal-notes`, `/outbound-replies`
+- Audit trail: `/api/v1/staff/audit-trail`
+- Reporting: `/api/v1/staff/reporting/daily-sales`, `/daily-operations`, `/daily-inventory`
+
+## Honest gaps
+
+The FE does **not** fake completeness where backend contracts are still thin.
+
+- Order line item update/status routes exist, but `GET /api/v1/staff/orders/{order_id}` does not expose per-item `row_version`.
+- Because of that, the order workspace keeps line-level edit/status explicitly blocked for now.
+- Add-item, dispatch, settlement, and reservation-linked refund still run live.
+- Waiting list create/advance/cancel routes are wired live through the local `staff-api` adapter because the generated TypeScript SDK does not currently expose those endpoints.
+- Waiting-list notify prefers board-driven table selection when `table.board.view` is granted; otherwise the UI falls back to explicit `table_id` entry instead of pretending the board data exists.
+- Checkout finalize is still intentionally blocked whenever startup readiness says an active cashier shift is required and the session has not refreshed into that state yet.
+- Refund is intentionally mounted inside the active `/checkout` workspace when the session has `payment.refund`; there is no standalone mounted `/refunds` route in the current shell.
+- Finance reconciliation and invoice responses now surface reservation `row_version` so the review workspace can reopen `/reservations` without dropping stale-write protection.
+- Conversation detail now opens linked waiting-list records through `/waiting-list?focus=<waiting_id>` so staff lands on the intended queue item instead of the first row in the list.
+
+## Local run
 
 ```bash
 npm install
-npm run lint
-npm run test
 npm run build
-npm run smoke:live
 ```
 
-`npm run smoke:live` now prefers the canonical UAT manifest at `../storage/app/uat/scenario-pack.json` when present, stays read-only by default, and only enables write paths behind explicit `STAFF_WEB_SMOKE_ALLOW_*` mutation gates. Smoke auth steps also assert the Batch 1 startup contract on login/me/refresh before moving deeper into board/order/cashier flows. Mutation mode also reuses canonical board/check-in metadata so the dine-in order-create path can promote a `Confirmed` reservation into the in-service state before creating the order.
-
-For preview/staging evidence, set:
+For local development:
 
 ```bash
-STAFF_WEB_SMOKE_TARGET=staging
-STAFF_WEB_SMOKE_EVIDENCE_DIR=../storage/app/booking_release/staff_web_smoke
-STAFF_WEB_SMOKE_PREVIEW_URL=https://preview.example.com
-STAFF_WEB_SMOKE_PREVIEW_LABEL=vercel-preview
+npm run dev
 ```
 
-That makes the smoke harness write JSON/Markdown evidence files in addition to the console summary.
-It only records preview metadata, though. A real preview candidate still needs an actual deployed URL plus runtime-log or release-tag evidence from the chosen platform.
-
-Canonical backend + `staff-web` release candidate loop from the repo root:
-
-```bash
-composer release:loop -- --target=staging --manifest-path=storage/app/uat/scenario-pack.json --base-url=http://127.0.0.1:8000 --bootstrap-uat
-```
+The Vite dev and preview servers intentionally bind to `localhost` so the default backend API base and local CORS setup stay aligned.
 
 ## Environment
 
+Create `.env` from `.env.example` if needed:
+
 ```bash
 VITE_API_URL=http://localhost:8000/api/v1
+VITE_APP_TITLE=RestaurantPOS Staff Web
 ```
 
-Client se normalize base URL ve host goc ma generated SDK can.
+`VITE_API_URL` should include `/api/v1`.
+
+## Verification used for this batch
+
+```bash
+npm run build
+npx vitest run src/core/permissions/capabilities.test.ts src/core/utils/journey.test.ts src/app/router/navigation.test.ts
+```
+
+## Next recommended module after this batch
+
+Once this chain is stable, the next highest-value follow-up is:
+
+1. cashier shift -> checkout handoff polish and reconciliation detail
+2. order line-item edit/status after backend exposes per-item `row_version`
+3. conversation inbox
+4. audit
+5. reporting

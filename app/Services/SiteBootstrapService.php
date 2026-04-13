@@ -16,7 +16,6 @@ use App\Models\User;
 use App\Services\Branch\BranchContextService;
 use App\Services\Finance\FinanceTaxProfileService;
 use Database\Seeders\ReferenceDataSeeder;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -30,7 +29,7 @@ class SiteBootstrapService
     ) {}
 
     /**
-     * @param array<string,mixed> $options
+     * @param  array<string,mixed>  $options
      * @return array<string,mixed>
      */
     public function bootstrap(array $options = []): array
@@ -83,12 +82,12 @@ class SiteBootstrapService
     }
 
     /**
-     * @param array<string,mixed> $options
+     * @param  array<string,mixed>  $options
      */
     private function ensureBranch(array $options): Branch
     {
         $branchCode = strtoupper(trim((string) ($options['branch_code'] ?? config('booking.multi_branch.default_branch_code', 'MAIN'))));
-        $branchName = trim((string) ($options['branch_name'] ?? config('booking.multi_branch.default_branch_name', 'Main Branch')));
+        $branchName = trim((string) ($options['branch_name'] ?? config('booking.multi_branch.default_branch_name', 'Chi nhanh chinh')));
         $timezone = trim((string) ($options['timezone'] ?? config('booking.multi_branch.default_branch_timezone', config('app.timezone', 'UTC'))));
         $currency = strtoupper(trim((string) ($options['currency'] ?? config('booking.multi_branch.default_branch_currency', 'VND'))));
 
@@ -97,7 +96,7 @@ class SiteBootstrapService
             $branch = Branch::query()->create([
                 'branch_code' => $branchCode,
                 'branch_name' => $branchName,
-                'description' => 'Bootstrap site branch.',
+                'description' => 'Chi nhanh khoi tao he thong.',
                 'timezone' => $timezone,
                 'currency' => $currency,
                 'is_active' => true,
@@ -114,7 +113,7 @@ class SiteBootstrapService
             ['branch_code' => $branchCode],
             [
                 'branch_name' => $branchName,
-                'description' => 'Bootstrap site branch.',
+                'description' => 'Chi nhanh khoi tao he thong.',
                 'timezone' => $timezone,
                 'currency' => $currency,
                 'is_active' => true,
@@ -153,9 +152,9 @@ class SiteBootstrapService
     private function ensureTableTemplates(): array
     {
         $definitions = [
-            ['template_code' => 'BOOT-2P', 'seats' => 2, 'description' => 'Bootstrap 2-seat table'],
-            ['template_code' => 'BOOT-4P', 'seats' => 4, 'description' => 'Bootstrap 4-seat table'],
-            ['template_code' => 'BOOT-6P', 'seats' => 6, 'description' => 'Bootstrap 6-seat table'],
+            ['template_code' => 'BOOT-2P', 'seats' => 2, 'description' => 'Ban 2 cho khoi tao'],
+            ['template_code' => 'BOOT-4P', 'seats' => 4, 'description' => 'Ban 4 cho khoi tao'],
+            ['template_code' => 'BOOT-6P', 'seats' => 6, 'description' => 'Ban 6 cho khoi tao'],
         ];
 
         $templates = [];
@@ -172,13 +171,13 @@ class SiteBootstrapService
     }
 
     /**
-     * @param array<int,TableTemplate> $templates
-     * @param array<string,mixed> $options
+     * @param  array<int,TableTemplate>  $templates
+     * @param  array<string,mixed>  $options
      * @return array<int,RestaurantTable>
      */
     private function ensureTables(Branch $branch, array $templates, array $options): array
     {
-        $zones = $this->normalizeZones($options['zones'] ?? 'Main Dining,Patio');
+        $zones = $this->normalizeZones($options['zones'] ?? 'Tang tret,San vuon');
         $tablesPerZone = max(1, (int) ($options['tables_per_zone'] ?? 4));
         $seatPattern = [2, 4, 4, 6];
         $created = [];
@@ -201,7 +200,7 @@ class SiteBootstrapService
                         'pos_x' => $position,
                         'pos_y' => $zoneIndex + 1,
                         'status' => RestaurantTableStatus::Available->value,
-                        'description' => sprintf('%d-seat bootstrap table for %s.', $seats, $zone),
+                        'description' => sprintf('Ban %d cho tai %s.', $seats, $zone),
                         'is_deleted' => false,
                         'price' => null,
                     ]
@@ -227,16 +226,16 @@ class SiteBootstrapService
     {
         $definitions = [
             [
-                'category' => ['name' => 'Beverages', 'description' => 'Bootstrap beverages', 'sort_order' => 10],
+                'category' => ['name' => 'Do uong', 'description' => 'Do uong khoi tao', 'sort_order' => 10],
                 'items' => [
-                    ['code' => 'BOOT-WATER', 'name' => 'House Water', 'price' => 10000],
+                    ['code' => 'BOOT-WATER', 'name' => 'Tra da', 'price' => 10000],
                 ],
             ],
             [
-                'category' => ['name' => 'Mains', 'description' => 'Bootstrap mains', 'sort_order' => 20],
+                'category' => ['name' => 'Mon chinh', 'description' => 'Mon chinh khoi tao', 'sort_order' => 20],
                 'items' => [
-                    ['code' => 'BOOT-FRIED-RICE', 'name' => 'Fried Rice', 'price' => 89000],
-                    ['code' => 'BOOT-NOODLE-BOWL', 'name' => 'Noodle Bowl', 'price' => 79000],
+                    ['code' => 'BOOT-FRIED-RICE', 'name' => 'Com chien', 'price' => 89000],
+                    ['code' => 'BOOT-NOODLE-BOWL', 'name' => 'Bun xao', 'price' => 79000],
                 ],
             ],
         ];
@@ -265,7 +264,7 @@ class SiteBootstrapService
                     [
                         'category_id' => (int) $category->category_id,
                         'name' => $itemDefinition['name'],
-                        'description' => 'Bootstrap menu item',
+                        'description' => 'Mon khoi tao',
                         'img_url' => null,
                         'is_available' => true,
                         'is_preorder_enabled' => false,
@@ -306,19 +305,19 @@ class SiteBootstrapService
     }
 
     /**
-     * @param array<string,mixed> $options
+     * @param  array<string,mixed>  $options
      * @return array{admin:User,staff:User}
      */
     private function ensureBootstrapUsers(array $options): array
     {
         $admin = $this->ensureBootstrapUser(
             username: trim((string) ($options['admin_username'] ?? 'bootstrap-admin')),
-            fullName: trim((string) ($options['admin_name'] ?? 'Bootstrap Admin')),
+            fullName: trim((string) ($options['admin_name'] ?? 'Quan tri khoi tao')),
             roleId: 1,
         );
         $staff = $this->ensureBootstrapUser(
             username: trim((string) ($options['staff_username'] ?? 'bootstrap-staff')),
-            fullName: trim((string) ($options['staff_name'] ?? 'Bootstrap Staff')),
+            fullName: trim((string) ($options['staff_name'] ?? 'Nhan vien khoi tao')),
             roleId: 2,
         );
 
@@ -353,7 +352,7 @@ class SiteBootstrapService
     }
 
     /**
-     * @param array<string,mixed> $options
+     * @param  array<string,mixed>  $options
      * @return array<string,mixed>
      */
     private function ensureStaffApiKey(User $staffUser, array $options): array
@@ -376,7 +375,7 @@ class SiteBootstrapService
             ->first();
 
         $expiresAt = now('UTC')->addDays(max(1, (int) ($options['staff_key_ttl_days'] ?? 90)));
-        $label = trim((string) ($options['staff_key_label'] ?? 'Bootstrap Staff API Key'));
+        $label = trim((string) ($options['staff_key_label'] ?? 'Khoa API nhan vien khoi tao'));
 
         if ($active instanceof StaffApiKey && ! (bool) ($options['rotate_staff_key'] ?? false)) {
             return [
@@ -466,11 +465,11 @@ class SiteBootstrapService
             is_array($value) ? $value : explode(',', (string) $value)
         ), static fn (string $item): bool => $item !== ''));
 
-        return $zones !== [] ? $zones : ['Main Dining'];
+        return $zones !== [] ? $zones : ['Tang tret'];
     }
 
     /**
-     * @param array<int,TableTemplate> $templates
+     * @param  array<int,TableTemplate>  $templates
      */
     private function resolveTemplateBySeats(array $templates, int $seats): TableTemplate
     {
@@ -490,7 +489,7 @@ class SiteBootstrapService
         $normalized = strtoupper(preg_replace('/[^A-Z0-9]+/', '-', Str::ascii($zone)) ?? '');
         $normalized = trim($normalized, '-');
         if ($normalized === '') {
-            $normalized = 'ZONE' . $fallbackIndex;
+            $normalized = 'ZONE'.$fallbackIndex;
         }
 
         return Str::limit($normalized, 12, '');

@@ -17,12 +17,17 @@ use Illuminate\Support\Facades\DB;
 
 class StaffFinancialReconciliationService
 {
+    public function __construct(
+        private readonly StaffBranchContextService $branchContextService,
+    ) {}
+
     /**
      * @param  array<string,mixed>  $filters
      * @return LengthAwarePaginator<int,array<string,mixed>>
      */
-    public function paginate(array $filters = []): LengthAwarePaginator
+    public function paginate(array $filters = [], ?int $staffActorUserId = null): LengthAwarePaginator
     {
+        $filters = $this->withAccessibleBranchScope($filters, $staffActorUserId);
         $perPage = max(1, min((int) ($filters['per_page'] ?? 25), 100));
         $page = max(1, (int) ($filters['page'] ?? 1));
 
@@ -37,8 +42,9 @@ class StaffFinancialReconciliationService
      * @param  array<string,mixed>  $filters
      * @return array<int,array<string,mixed>>
      */
-    public function exportRows(array $filters = []): array
+    public function exportRows(array $filters = [], ?int $staffActorUserId = null): array
     {
+        $filters = $this->withAccessibleBranchScope($filters, $staffActorUserId);
         $limit = max(1, min((int) ($filters['limit'] ?? 500), 1000));
 
         return $this->baseQuery($filters)
@@ -52,8 +58,10 @@ class StaffFinancialReconciliationService
     /**
      * @return array<string,mixed>
      */
-    public function show(int $reservationId): array
+    public function show(int $reservationId, ?int $branchId = null, ?int $staffActorUserId = null): array
     {
+        $branchScope = $this->resolveShowBranchScope($branchId, $staffActorUserId);
+
         /** @var Reservation $reservation */
         $reservation = Reservation::query()
             ->with([
@@ -61,14 +69,19 @@ class StaffFinancialReconciliationService
                 'payments.refundOfPayment',
                 'payments.createdByUser:user_id,full_name,email',
             ])
+            ->whereIn('branch_id', $branchScope)
             ->findOrFail($reservationId);
 
-        $row = $this->baseQuery(['reservation_id' => $reservationId])->first();
+        $row = $this->baseQuery([
+            'branch_scope' => $branchScope,
+            'reservation_id' => $reservationId,
+        ])->first();
         $summary = $row !== null
             ? $this->transformListRow($row)
             : $this->transformListRow((object) [
                 'reservation_id' => (int) $reservation->reservation_id,
                 'reservation_code' => (string) $reservation->reservation_code,
+                'row_version' => (int) $reservation->row_version,
                 'user_id' => $reservation->user_id,
                 'customer_name' => $reservation->user?->full_name,
                 'customer_email' => $reservation->user?->email,
@@ -114,6 +127,7 @@ class StaffFinancialReconciliationService
             'reservation' => [
                 'reservation_id' => (int) $reservation->reservation_id,
                 'reservation_code' => (string) $reservation->reservation_code,
+                'row_version' => (int) $reservation->row_version,
                 'status' => (string) ($reservation->status?->value ?? $reservation->status),
                 'deposit_status' => (string) ($reservation->deposit_status?->value ?? $reservation->deposit_status),
                 'start_time' => $reservation->start_time?->utc()->toIso8601String(),
@@ -134,6 +148,18 @@ class StaffFinancialReconciliationService
     }
 
     /**
+     * @return list<int>
+     */
+    private function resolveShowBranchScope(?int $branchId = null, ?int $staffActorUserId = null): array
+    {
+        if ($branchId !== null && ($staffActorUserId === null || $staffActorUserId <= 0)) {
+            return [$branchId];
+        }
+
+        return $this->branchContextService->branchScopeOrAccessible($staffActorUserId, $branchId);
+    }
+
+    /**
      * @param  array<string,mixed>  $filters
      */
     private function baseQuery(array $filters): Builder
@@ -148,6 +174,7 @@ class StaffFinancialReconciliationService
             ->select([
                 'reservations.reservation_id',
                 'reservations.reservation_code',
+                'reservations.row_version',
                 'reservations.user_id',
                 'customers.full_name as customer_name',
                 'customers.email as customer_email',
@@ -184,6 +211,19 @@ class StaffFinancialReconciliationService
                 DB::raw('COALESCE(payment_agg.net_paid_amount, 0) as net_paid_amount'),
                 DB::raw('COALESCE(payment_agg.over_refunded_amount, 0) as over_refunded_amount'),
             ]);
+
+        $branchScope = array_values(array_unique(array_map(
+            static fn ($value): int => (int) $value,
+            array_filter((array) ($filters['branch_scope'] ?? []), static fn ($value): bool => $value !== null && $value !== ''),
+        )));
+
+        if ($branchScope !== []) {
+            $query->whereIn('reservations.branch_id', $branchScope);
+        } elseif (array_key_exists('branch_scope', $filters)) {
+            $query->whereRaw('1 = 0');
+        } elseif (isset($filters['branch_id']) && $filters['branch_id'] !== null) {
+            $query->where('reservations.branch_id', (int) $filters['branch_id']);
+        }
 
         $query->when(isset($filters['reservation_id']) && $filters['reservation_id'] !== null, function (Builder $builder) use ($filters): void {
             $builder->where('reservations.reservation_id', (int) $filters['reservation_id']);
@@ -267,6 +307,20 @@ class StaffFinancialReconciliationService
         return $query
             ->orderByRaw($sortColumn . ' ' . $sortDirection)
             ->orderBy('reservations.reservation_id', $sortDirection);
+    }
+
+    /**
+     * @param  array<string,mixed>  $filters
+     * @return array<string,mixed>
+     */
+    private function withAccessibleBranchScope(array $filters, ?int $staffActorUserId = null): array
+    {
+        $filters['branch_scope'] = $this->branchContextService->branchScopeOrAccessible(
+            $staffActorUserId,
+            isset($filters['branch_id']) && $filters['branch_id'] !== null ? (int) $filters['branch_id'] : null,
+        );
+
+        return $filters;
     }
 
     private function paymentAggregateSubquery(): Builder
@@ -361,6 +415,7 @@ class StaffFinancialReconciliationService
             'reservation' => [
                 'reservation_id' => (int) $row->reservation_id,
                 'reservation_code' => (string) $row->reservation_code,
+                'row_version' => (int) ($row->row_version ?? 0),
                 'status' => (string) $row->status,
                 'deposit_status' => (string) $row->deposit_status,
                 'start_time' => $this->toIso8601String($row->start_time),

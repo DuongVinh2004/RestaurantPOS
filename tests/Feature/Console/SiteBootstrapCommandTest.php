@@ -20,8 +20,8 @@ class SiteBootstrapCommandTest extends TestCase
         config()->set('database.default', 'sqlite');
         config()->set('database.connections.sqlite.database', ':memory:');
         config()->set('booking.multi_branch.default_branch_code', 'MAIN');
-        config()->set('booking.multi_branch.default_branch_name', 'Main Branch');
-        config()->set('booking.multi_branch.default_branch_timezone', 'Asia/Bangkok');
+        config()->set('booking.multi_branch.default_branch_name', 'Chi nhanh chinh');
+        config()->set('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh');
         config()->set('booking.multi_branch.default_branch_currency', 'VND');
         config()->set('booking.finance_tax_invoice_profile', [
             'tax_code' => 'VAT10',
@@ -97,6 +97,23 @@ class SiteBootstrapCommandTest extends TestCase
         $this->assertSame('SITE01', $payload['data']['branch']['branch_code']);
         $this->assertSame(1, (int) DB::table('branches')->count());
         $this->assertSame('SITE01', (string) DB::table('branches')->value('branch_code'));
+    }
+
+    #[Group('booking-ops')]
+    public function test_bootstrap_site_command_returns_structured_validation_errors_for_invalid_input(): void
+    {
+        $exitCode = Artisan::call('booking:bootstrap-site', [
+            '--staff-username' => '',
+            '--json' => true,
+        ]);
+
+        $this->assertSame(1, $exitCode);
+
+        $payload = $this->decodeArtisanOutput();
+
+        $this->assertSame('validation_error', $payload['error'] ?? null);
+        $this->assertIsArray($payload['errors']['username'] ?? null);
+        $this->assertNotEmpty($payload['errors']['username'] ?? []);
     }
 
     private function createBootstrapTables(): void

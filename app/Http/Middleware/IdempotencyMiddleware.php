@@ -6,12 +6,13 @@ namespace App\Http\Middleware;
 
 use App\Support\ApiErrorResponse;
 use Closure;
+use Illuminate\Cache\Repository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Throwable;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class IdempotencyMiddleware
 {
@@ -27,9 +28,9 @@ class IdempotencyMiddleware
         $idemKey = $this->getIdempotencyKey($request);
         if ($required && ($idemKey === null || $idemKey === '')) {
             Log::channel('audit')->warning('idempotency_missing_key', [
-                'scope'   => $scope,
-                'path'    => $request->path(),
-                'ip'      => $request->ip(),
+                'scope' => $scope,
+                'path' => $request->path(),
+                'ip' => $request->ip(),
                 'user_id' => $request->user()?->user_id,
             ]);
 
@@ -39,6 +40,12 @@ class IdempotencyMiddleware
                 'idempotency_key_required',
                 'Missing Idempotency-Key header.',
                 legacyErrorAlias: true,
+                extra: [
+                    'state_reason' => 'missing_idempotency_key',
+                    'next_actions' => [
+                        'provide_idempotency_key',
+                    ],
+                ],
             );
         }
 
@@ -54,6 +61,12 @@ class IdempotencyMiddleware
                 'invalid_idempotency_key',
                 'Invalid Idempotency-Key.',
                 legacyErrorAlias: true,
+                extra: [
+                    'state_reason' => 'invalid_idempotency_key',
+                    'next_actions' => [
+                        'retry_with_new_idempotency_key',
+                    ],
+                ],
             );
         }
 
@@ -64,7 +77,7 @@ class IdempotencyMiddleware
         $pendingKey = "idem-pending:{$scope}:{$identity}:{$routeFingerprint}:{$clientKey}";
         $payloadHash = $this->hashRequestPayload($request);
 
-        /** @var \Illuminate\Cache\Repository $cache */
+        /** @var Repository $cache */
         $cache = Cache::store('redis');
 
         $cached = $cache->get($cacheKey);
@@ -100,12 +113,12 @@ class IdempotencyMiddleware
                 }
 
                 Log::channel('audit')->warning('idempotency_in_progress', [
-                    'scope'    => $scope,
+                    'scope' => $scope,
                     'identity' => $identity,
                     'key_hash' => sha1($clientKey),
-                    'path'     => $request->path(),
-                    'ip'       => $request->ip(),
-                    'user_id'  => $request->user()?->user_id,
+                    'path' => $request->path(),
+                    'ip' => $request->ip(),
+                    'user_id' => $request->user()?->user_id,
                 ]);
 
                 return ApiErrorResponse::json(
@@ -114,6 +127,15 @@ class IdempotencyMiddleware
                     'idempotency_in_progress',
                     'A request with this Idempotency-Key is already in progress.',
                     legacyErrorAlias: true,
+                    extra: [
+                        'conflict_type' => 'idempotency_replay',
+                        'replay_state' => 'in_progress',
+                        'state_reason' => 'original_request_in_progress',
+                        'next_actions' => [
+                            'wait_for_original_request',
+                            'retry_with_same_key',
+                        ],
+                    ],
                 );
             }
 
@@ -142,11 +164,11 @@ class IdempotencyMiddleware
                 $body = $this->extractJsonBody($response);
 
                 $cache->put($cacheKey, [
-                    'status'       => $status,
-                    'headers'      => $this->filterHeaders($response->headers->all()),
-                    'body'         => $body,
+                    'status' => $status,
+                    'headers' => $this->filterHeaders($response->headers->all()),
+                    'body' => $body,
                     'payload_hash' => $payloadHash,
-                    'stored_at'    => now()->toIso8601String(),
+                    'stored_at' => now()->toIso8601String(),
                 ], $ttlSeconds);
 
                 $response->headers->set('Idempotency-Replayed', 'false');
@@ -172,22 +194,22 @@ class IdempotencyMiddleware
     private function buildTerminalResponseFromCache(Request $request, string $scope, string $identity, string $clientKey, string $payloadHash, mixed $cached): ?Response
     {
         if (
-    ! is_array($cached)
-    || ! array_key_exists('status', $cached)
-    || ! array_key_exists('body', $cached)
-    || ! array_key_exists('payload_hash', $cached)
-) {
-    return null;
-}
+            ! is_array($cached)
+            || ! array_key_exists('status', $cached)
+            || ! array_key_exists('body', $cached)
+            || ! array_key_exists('payload_hash', $cached)
+        ) {
+            return null;
+        }
 
         if (! hash_equals((string) $cached['payload_hash'], (string) $payloadHash)) {
             Log::channel('audit')->warning('idempotency_conflict', [
-                'scope'    => $scope,
+                'scope' => $scope,
                 'identity' => $identity,
                 'key_hash' => sha1($clientKey),
-                'path'     => $request->path(),
-                'ip'       => $request->ip(),
-                'user_id'  => $request->user()?->user_id,
+                'path' => $request->path(),
+                'ip' => $request->ip(),
+                'user_id' => $request->user()?->user_id,
             ]);
 
             return ApiErrorResponse::json(
@@ -196,17 +218,25 @@ class IdempotencyMiddleware
                 'idempotency_conflict',
                 'This Idempotency-Key was already used for a different payload.',
                 legacyErrorAlias: true,
+                extra: [
+                    'conflict_type' => 'idempotency_payload_mismatch',
+                    'replay_state' => 'payload_mismatch',
+                    'state_reason' => 'key_reused_for_different_payload',
+                    'next_actions' => [
+                        'retry_with_new_idempotency_key',
+                    ],
+                ],
             );
         }
 
         Log::channel('audit')->info('idempotency_replay', [
-            'scope'    => $scope,
+            'scope' => $scope,
             'identity' => $identity,
             'key_hash' => sha1($clientKey),
-            'path'     => $request->path(),
-            'status'   => (int) $cached['status'],
-            'ip'       => $request->ip(),
-            'user_id'  => $request->user()?->user_id,
+            'path' => $request->path(),
+            'status' => (int) $cached['status'],
+            'ip' => $request->ip(),
+            'user_id' => $request->user()?->user_id,
         ]);
 
         return $this->buildResponseFromCache($cached);
@@ -238,6 +268,17 @@ class IdempotencyMiddleware
             'idempotency_in_progress',
             'A request with this Idempotency-Key is already in progress.',
             legacyErrorAlias: true,
+            extra: [
+                'conflict_type' => 'idempotency_replay',
+                'replay_state' => 'in_progress',
+                'state_reason' => $payloadMatches === false
+                    ? 'key_reused_while_original_request_in_progress'
+                    : 'original_request_in_progress',
+                'next_actions' => [
+                    $payloadMatches === false ? 'retry_with_new_idempotency_key' : 'retry_with_same_key',
+                    'wait_for_original_request',
+                ],
+            ],
         );
     }
 
@@ -257,6 +298,7 @@ class IdempotencyMiddleware
         if (Str::length($k) > 120) {
             $k = Str::substr($k, 0, 120);
         }
+
         return $k;
     }
 
@@ -264,22 +306,21 @@ class IdempotencyMiddleware
     {
         $userId = $request->user()?->user_id;
         if ($userId) {
-            return 'u' . (int) $userId;
+            return 'u'.(int) $userId;
         }
 
         $staffActorUserId = $request->attributes->get('staff_actor_user_id');
         if ($staffActorUserId !== null && (int) $staffActorUserId > 0) {
-            return 'st' . (int) $staffActorUserId;
+            return 'st'.(int) $staffActorUserId;
         }
 
         $sessionId = $this->resolveSessionIdentity($request);
         if ($sessionId !== '') {
-            return 's' . sha1($sessionId);
+            return 's'.sha1($sessionId);
         }
 
-        return 'ip' . sha1((string) $request->ip());
+        return 'ip'.sha1((string) $request->ip());
     }
-
 
     private function isPendingMarker(mixed $pending): bool
     {
@@ -426,6 +467,7 @@ class IdempotencyMiddleware
         }
 
         $decoded = json_decode($content, true);
+
         return json_last_error() === JSON_ERROR_NONE ? $decoded : $content;
     }
 
@@ -446,35 +488,34 @@ class IdempotencyMiddleware
     }
 
     private function buildResponseFromCache(array $cached)
-{
-    $status = (int) ($cached['status'] ?? 200);
-    $body = $cached['body'] ?? null;
+    {
+        $status = (int) ($cached['status'] ?? 200);
+        $body = $cached['body'] ?? null;
 
-    if (in_array($status, [204, 205, 304], true)) {
-        $res = response('', $status);
-    } elseif (is_array($body) || is_object($body)) {
-        $res = response()->json($body, $status);
-    } elseif ($body === null) {
-        $res = response('', $status);
-    } else {
-        $res = response((string) $body, $status);
-    }
+        if (in_array($status, [204, 205, 304], true)) {
+            $res = response('', $status);
+        } elseif (is_array($body) || is_object($body)) {
+            $res = response()->json($body, $status);
+        } elseif ($body === null) {
+            $res = response('', $status);
+        } else {
+            $res = response((string) $body, $status);
+        }
 
-    if (! empty($cached['headers']) && is_array($cached['headers'])) {
-        foreach ($cached['headers'] as $k => $values) {
-            if (is_array($values)) {
-                foreach ($values as $val) {
-                    $res->headers->set($k, $val, false);
+        if (! empty($cached['headers']) && is_array($cached['headers'])) {
+            foreach ($cached['headers'] as $k => $values) {
+                if (is_array($values)) {
+                    foreach ($values as $val) {
+                        $res->headers->set($k, $val, false);
+                    }
+                } else {
+                    $res->headers->set($k, $values);
                 }
-            } else {
-                $res->headers->set($k, $values);
             }
         }
+
+        $res->headers->set('Idempotency-Replayed', 'true');
+
+        return $res;
     }
-
-    $res->headers->set('Idempotency-Replayed', 'true');
-
-    return $res;
 }
-}
-

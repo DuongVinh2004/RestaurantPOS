@@ -14,6 +14,7 @@ use App\Http\Requests\Staff\SendConversationOutboundReplyRequest;
 use App\Http\Requests\Staff\ShowStaffConversationRequest;
 use App\Http\Requests\Staff\TakeOverConversationRequest;
 use App\Http\Requests\Staff\UnassignConversationRequest;
+use App\Http\Requests\Staff\UpdateConversationWorkflowStateRequest;
 use App\Http\Resources\StaffConversationAssignmentResource;
 use App\Http\Resources\StaffConversationDetailResource;
 use App\Http\Resources\StaffConversationEventResource;
@@ -52,6 +53,8 @@ class StaffConversationInboxController extends Controller
                 'has_more_pages' => $paginator->hasMorePages(),
                 'filters' => [
                     'status' => $validated['status'] ?? null,
+                    'workflow_state' => $validated['workflow_state'] ?? null,
+                    'inbox_view' => (string) ($validated['inbox_view'] ?? 'all'),
                     'channel' => $validated['channel'] ?? null,
                     'assigned_agent_user_id' => $validated['assigned_agent_user_id'] ?? null,
                     'assignment_state' => (string) ($validated['assignment_state'] ?? 'all'),
@@ -161,6 +164,14 @@ class StaffConversationInboxController extends Controller
         $result = $this->workflowService->addInternalNote($conversation_id, $request->validated(), $staffActorUserId);
 
         return $this->mutationResponse($request, $result, 201);
+    }
+
+    public function updateWorkflowState(string $conversation_id, UpdateConversationWorkflowStateRequest $request): JsonResponse
+    {
+        $staffActorUserId = $this->resolveStaffActorUserId($request);
+        $result = $this->workflowService->updateWorkflowState($conversation_id, $request->validated(), $staffActorUserId);
+
+        return $this->mutationResponse($request, $result);
     }
 
     public function sendOutboundReply(string $conversation_id, SendConversationOutboundReplyRequest $request): JsonResponse

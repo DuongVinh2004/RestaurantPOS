@@ -11,8 +11,8 @@ use App\Models\StaffApiKey;
 use App\Models\User;
 use App\Services\Branch\BranchContextService;
 use App\Services\CustomerAccessSessionService;
-use App\Services\StaffApiKeyGovernanceService;
 use App\Services\Staff\StaffCashierShiftService;
+use App\Services\StaffApiKeyGovernanceService;
 use App\Support\AuditEvent;
 use App\Support\StaffCapabilityResolver;
 use Illuminate\Support\Carbon;
@@ -26,12 +26,17 @@ class OpaqueProductAuthService
      * @var list<string>
      */
     private const STAFF_WEB_ENTRY_CAPABILITIES = [
+        'audit.view',
+        'reservation.manage',
         'table.board.view',
         'waiting_list.manage',
         'order.manage',
+        'kitchen.manage',
         'settlement.manage',
+        'cashier.shift.manage',
         'payment.refund',
         'conversation.manage',
+        'reporting.view',
     ];
 
     public function __construct(
@@ -297,7 +302,7 @@ class OpaqueProductAuthService
 
         $device = trim((string) ($context['device_name'] ?? ''));
         if ($device !== '') {
-            return 'Auth Session - ' . $device;
+            return 'Auth Session - '.$device;
         }
 
         return 'Auth Session';
@@ -434,7 +439,8 @@ class OpaqueProductAuthService
         $capabilities = array_values(array_map('strval', (array) ($capabilityContext['capabilities'] ?? [])));
         $knownCapabilities = array_values(array_map('strval', (array) ($capabilityContext['known_capabilities'] ?? [])));
         $hasStaffWebAccess = $this->hasStaffWebEntryCapability($capabilities);
-        $requiresCashierShift = $this->hasCapability($capabilities, 'settlement.manage');
+        $requiresCashierShift = $this->hasCapability($capabilities, 'settlement.manage')
+            || $this->hasCapability($capabilities, 'cashier.shift.manage');
 
         return [
             'default_branch' => $defaultBranch,

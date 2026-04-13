@@ -98,6 +98,17 @@ Default API error payload:
 }
 ```
 
+Canonical optional top-level fields:
+
+- `errors`: validation-style field map when request or domain validation details exist
+- `conflict_type`: machine-readable conflict family such as `stale_write`, `state_conflict`, or `idempotency_payload_mismatch`
+- `replay_state`: idempotency replay state such as `in_progress` or `payload_mismatch`
+- `state_reason`: stable deny/conflict reason token such as `row_version_mismatch` or `missing_required_capability`
+- `required_capability` and `staff_role_name`: capability-denied context for staff/admin guard failures
+- `warnings`: non-fatal contract notes such as deprecated alias warnings
+- `next_actions`: machine-readable recovery hints such as `reload_resource` or `retry_with_latest_row_version`
+- `deprecated_aliases`: legacy top-level aliases still emitted for compatibility
+
 Supported standardized error schemas in the spec:
 
 - `validation_error`
@@ -107,6 +118,17 @@ Supported standardized error schemas in the spec:
 - `conflict`
 - `stale_row_version`
 - idempotency-specific conflicts and replay protection
+
+Canonical conflict split:
+
+- `422 validation_error`: malformed or incomplete input, or domain validation that is not a write-conflict
+- `409 stale_row_version`: optimistic-concurrency failure for `row_version`-guarded mutations
+- `409 conflict`: other state or uniqueness conflicts, including idempotency payload mismatch and database write conflicts
+
+Legacy compatibility note:
+
+- Some idempotency errors still emit top-level `error` for backwards compatibility.
+- Treat `error_code` as canonical; `error` is deprecated and may be removed after consumers migrate.
 
 ### Auth schemes
 

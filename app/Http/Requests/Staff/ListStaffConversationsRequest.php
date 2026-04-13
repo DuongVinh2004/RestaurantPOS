@@ -6,6 +6,7 @@ namespace App\Http\Requests\Staff;
 
 use App\Enums\ConversationChannel;
 use App\Enums\ConversationStatus;
+use App\Enums\StaffConversationWorkflowState;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ListStaffConversationsRequest extends FormRequest
@@ -19,9 +20,14 @@ class ListStaffConversationsRequest extends FormRequest
     {
         $perPage = (int) $this->input('per_page', 25);
         $page = max(1, (int) $this->input('page', 1));
+        $workflowState = StaffConversationWorkflowState::tryFromInput(
+            $this->filled('workflow_state') ? (string) $this->input('workflow_state') : null
+        );
 
         $this->merge([
             'status' => $this->filled('status') ? trim((string) $this->input('status')) : null,
+            'workflow_state' => $workflowState?->value ?? ($this->filled('workflow_state') ? trim((string) $this->input('workflow_state')) : null),
+            'inbox_view' => strtolower(trim((string) $this->input('inbox_view', 'all'))),
             'channel' => $this->filled('channel') ? trim((string) $this->input('channel')) : null,
             'assigned_agent_user_id' => $this->filled('assigned_agent_user_id') ? (int) $this->input('assigned_agent_user_id') : null,
             'assignment_state' => strtolower(trim((string) $this->input('assignment_state', 'all'))),
@@ -46,6 +52,8 @@ class ListStaffConversationsRequest extends FormRequest
 
         return [
             'status' => ['nullable', 'string', 'in:' . implode(',', $statuses)],
+            'workflow_state' => ['nullable', 'string', 'in:' . implode(',', StaffConversationWorkflowState::values())],
+            'inbox_view' => ['nullable', 'string', 'in:all,unassigned,overdue,waiting_on_customer,resolved_today'],
             'channel' => ['nullable', 'string', 'in:' . implode(',', $channels)],
             'assigned_agent_user_id' => ['nullable', 'integer', 'min:1', 'exists:users,user_id'],
             'assignment_state' => ['nullable', 'string', 'in:all,assigned,unassigned,mine'],

@@ -41,18 +41,6 @@ class ReservationController extends Controller
         if ($isStaff) {
             $this->authorizeResolvedStaffCapability($request, 'reservation.manage');
             $actorUserId = $this->resolveStaffActorUserId($request);
-            if (! array_key_exists('user_id', $payload) || $payload['user_id'] === null) {
-                return ApiErrorResponse::json(
-                    $request,
-                    422,
-                    'validation_error',
-                    'Validation error.',
-                    ['errors' => [
-                        'user_id' => ['user_id is required for staff requests.'],
-                    ]],
-                );
-            }
-
             $accessScope = ReservationAccessScope::STAFF;
         } else {
             $actorUserId = $actor->customerUserId();

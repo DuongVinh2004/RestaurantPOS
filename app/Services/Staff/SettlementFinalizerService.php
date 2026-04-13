@@ -30,6 +30,7 @@ class SettlementFinalizerService
         callable $consumeAppliedVoucherLocked,
     ): void {
         $reservationId = (int) $reservation->reservation_id;
+        $now = Carbon::now('UTC');
 
         $tableIds = DB::table('reservation_tables')
             ->where('reservation_id', $reservationId)
@@ -56,12 +57,12 @@ class SettlementFinalizerService
         foreach ($activeOrders as $activeOrder) {
             $activeOrder->status = ReservationOrderStatus::Completed;
             $activeOrder->updated_by = $staffUserId;
-            $activeOrder->updated_at = Carbon::now('UTC');
+            $activeOrder->updated_at = $now;
             $activeOrder->save();
         }
 
         $reservation->status = ReservationStatus::Completed;
-        $reservation->checked_out_at = Carbon::now('UTC');
+        $reservation->checked_out_at = $now;
         $reservation->updated_by = $staffUserId;
         $reservation->save();
 
@@ -75,6 +76,10 @@ class SettlementFinalizerService
 
         $consumeAppliedVoucherLocked($reservation, $orders, $staffUserId);
         $this->loyaltyPointsService->syncReservationCompletionLocked($reservation, $staffUserId);
-        $this->tableStateService->releaseTablesSafely($tableIds, Carbon::now('UTC'));
+        $this->tableStateService->releaseTablesSafely($tableIds, $now, $staffUserId, [
+            'reservation_id' => $reservationId,
+            'source' => 'staff_settlement_finalize',
+            'reason' => 'settlement_finalize',
+        ]);
     }
 }

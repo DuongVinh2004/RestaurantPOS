@@ -62,7 +62,7 @@ class FeatureFlagConsoleCommandTest extends TestCase
         self::assertSame('production', $listPayload['data'][0]['matched_environment']);
         self::assertSame($branchId, $listPayload['data'][0]['matched_branch_id']);
 
-        $entityId = 'customer.bill_self_payment|production|' . $branchId;
+        $entityId = 'customer.bill_self_payment|production|'.$branchId;
         $updatedAudit = $this->assertAuditLogRecorded('feature_flag.updated', 'feature_flag', $entityId);
         self::assertSame($staffId, $updatedAudit->actor_user_id);
         self::assertSame('console', $updatedAudit->actor_type);
@@ -86,6 +86,22 @@ class FeatureFlagConsoleCommandTest extends TestCase
         $clearedAudit = $this->assertAuditLogRecorded('feature_flag.cleared', 'feature_flag', $entityId);
         self::assertSame($staffId, $clearedAudit->actor_user_id);
         self::assertSame('console', $clearedAudit->actor_type);
+    }
+
+    public function test_feature_flag_console_commands_return_standardized_validation_error_payloads(): void
+    {
+        $exitCode = Artisan::call('booking:feature-flags:list', [
+            '--feature' => 'unknown.feature.flag',
+            '--json' => true,
+        ]);
+
+        self::assertSame(1, $exitCode);
+
+        $payload = $this->decodeArtisanOutput();
+
+        self::assertFalse((bool) ($payload['ok'] ?? true));
+        self::assertSame('validation_error', $payload['error'] ?? null);
+        self::assertSame('Selected feature flag is not registered.', $payload['errors']['feature'][0] ?? null);
     }
 
     /**

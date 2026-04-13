@@ -110,13 +110,18 @@ class StaffCashierShiftService
         ?int $expectedRowVersion = null,
         string $closingNote = '',
         ?int $closedBy = null,
+        ?int $cashierUserId = null,
     ): CashierShift {
         $actualCashAmount = round(max(0.0, $actualCashAmount), 2);
         $closingNote = $this->normalizeNullableString($closingNote) ?? '';
 
-        return DB::transaction(function () use ($shiftId, $actualCashAmount, $expectedRowVersion, $closingNote, $closedBy): CashierShift {
+        return DB::transaction(function () use ($shiftId, $actualCashAmount, $expectedRowVersion, $closingNote, $closedBy, $cashierUserId): CashierShift {
             /** @var CashierShift $shift */
-            $shift = CashierShift::query()->whereKey($shiftId)->lockForUpdate()->firstOrFail();
+            $shift = CashierShift::query()
+                ->whereKey($shiftId)
+                ->when($cashierUserId !== null && $cashierUserId > 0, static fn (Builder $query) => $query->where('cashier_user_id', $cashierUserId))
+                ->lockForUpdate()
+                ->firstOrFail();
             $this->assertOpenShift($shift);
             $this->assertExpectedRowVersion($shift, $expectedRowVersion);
 
@@ -156,11 +161,12 @@ class StaffCashierShiftService
         });
     }
 
-    public function currentOpenShift(int $cashierUserId): ?CashierShift
+    public function currentOpenShift(int $cashierUserId, ?int $branchId = null): ?CashierShift
     {
         return CashierShift::query()
             ->where('cashier_user_id', $cashierUserId)
             ->where('status', 'Open')
+            ->when($branchId !== null, static fn (Builder $query) => $query->where('branch_id', $branchId))
             ->latest('cashier_shift_id')
             ->first();
     }
@@ -222,9 +228,11 @@ class StaffCashierShiftService
         return $query->paginate($perPage, ['*'], 'page', $page);
     }
 
-    public function findShiftOrFail(int $shiftId): CashierShift
+    public function findShiftOrFail(int $shiftId, ?int $cashierUserId = null): CashierShift
     {
-        return CashierShift::query()->findOrFail($shiftId);
+        return CashierShift::query()
+            ->when($cashierUserId !== null && $cashierUserId > 0, static fn (Builder $query) => $query->where('cashier_user_id', $cashierUserId))
+            ->findOrFail($shiftId);
     }
 
     /**

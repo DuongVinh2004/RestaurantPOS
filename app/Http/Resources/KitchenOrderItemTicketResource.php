@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Services\Kitchen\KitchenTicketConsistencyInspector;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -17,6 +18,8 @@ class KitchenOrderItemTicketResource extends JsonResource
         $item = $this->relationLoaded('item') ? $this->item : null;
         $station = $this->relationLoaded('station') ? $this->station : null;
         $route = $this->relationLoaded('route') ? $this->route : null;
+        $consistency = app(KitchenTicketConsistencyInspector::class)->describe($this->resource);
+        $reconciliation = $consistency['reconciliation'];
 
         return [
             'ticket_id' => (int) $this->ticket_id,
@@ -43,11 +46,9 @@ class KitchenOrderItemTicketResource extends JsonResource
                 'is_active' => (bool) ($route->is_active ?? false),
             ] : null,
             'routing' => [
-                'route_present' => $route !== null,
-                'route_active' => $route !== null ? (bool) ($route->is_active ?? false) : null,
-                'station_matches_route' => $route !== null && $station !== null
-                    ? ((int) $route->station_id === (int) $station->station_id)
-                    : null,
+                'route_present' => (bool) ($reconciliation['route_present'] ?? false),
+                'route_active' => $reconciliation['route_active'] ?? null,
+                'station_matches_route' => $reconciliation['station_matches_route'] ?? null,
             ],
             'order_item' => $orderItem ? [
                 'order_item_id' => (int) $orderItem->order_item_id,
@@ -63,6 +64,16 @@ class KitchenOrderItemTicketResource extends JsonResource
                 'category_id' => $item->category_id !== null ? (int) $item->category_id : null,
                 'category_name' => $item->relationLoaded('category') && $item->category !== null ? (string) $item->category->name : null,
             ] : null,
+            'lifecycle' => $consistency['lifecycle'],
+            'reconciliation' => [
+                'sync_status' => (string) ($reconciliation['sync_status'] ?? 'in_sync'),
+                'routing_status' => (string) ($reconciliation['routing_status'] ?? 'active_route'),
+                'order_item_expected_status' => $reconciliation['order_item_expected_status'] ?? null,
+                'order_item_matches_ticket' => $reconciliation['order_item_matches_ticket'] ?? null,
+                'station_active' => $reconciliation['station_active'] ?? null,
+                'drift_reasons' => array_values((array) ($reconciliation['drift_reasons'] ?? [])),
+                'next_actions' => array_values((array) ($reconciliation['next_actions'] ?? [])),
+            ],
             'first_dispatched_at' => $this->first_dispatched_at?->toIso8601String(),
             'fired_at' => $this->fired_at?->toIso8601String(),
             'ready_at' => $this->ready_at?->toIso8601String(),

@@ -1,47 +1,17 @@
 <?php
 
-use App\Models\CustomerAccessSession;
-use App\Models\StaffApiKey;
-use App\Models\User;
-use App\Services\ApiArtifacts\ApiConsumerArtifactService;
-use App\Services\ApiContract\OpenApiSpecService;
-use App\Services\BookingDeploySafetyService;
-use App\Services\BookingDoctorService;
-use App\Services\BookingMaintenanceService;
-use App\Services\CoreOpsGateService;
-use App\Services\CustomerAccessSessionService;
-use App\Services\DataLifecycle\DataRetentionService;
-use App\Services\DisasterRecovery\DisasterRecoveryDrillService;
 use App\Services\FeatureFlagManagementService;
-use App\Services\LaunchReadinessService;
-use App\Services\NotificationOutboxHealthService;
-use App\Services\NotificationOutboxService;
-use App\Services\OperationalAlertService;
-use App\Services\OperationalInsightsService;
-use App\Services\OpsGateArtifactService;
-use App\Services\OpsHeartbeatService;
-use App\Services\Performance\PerformanceVerificationService;
-use App\Services\ReleaseArtifactManifestService;
-use App\Services\ReleaseArtifactNormalizerService;
-use App\Services\ReleasePackageService;
-use App\Services\Reporting\ReportingSnapshotService;
-use App\Services\RoundFiveGateService;
-use App\Services\RouteInventoryGateService;
-use App\Services\RuntimeSettingService;
-use App\Services\SiteBootstrapService;
-use App\Services\Staff\StaffWaitingListService;
-use App\Services\StaffApiKeyGovernanceService;
-use App\Services\Uat\UatScenarioPackService;
-use App\Support\AuditEvent;
 use Illuminate\Console\Command as ConsoleCommand;
-use Illuminate\Console\Scheduling\Schedule;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+
+$consoleValidationPayload = static function (ValidationException $exception): array {
+    return [
+        'ok' => false,
+        'error' => 'validation_error',
+        'errors' => $exception->validator->errors()->messages(),
+    ];
+};
 
 Artisan::command('booking:feature-flags:list
     {--feature= : Filter a single registered feature key}

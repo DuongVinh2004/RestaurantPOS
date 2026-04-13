@@ -30,15 +30,8 @@ class StaffReservationInboxResource extends JsonResource
             })->values()->all()
             : [];
 
-        $user = null;
-        if ($this->relationLoaded('user') && $this->user !== null) {
-            $user = [
-                'user_id' => (int) $this->user->user_id,
-                'full_name' => $this->user->full_name,
-                'email' => $this->user->email,
-                'phone' => $this->user->phone,
-            ];
-        }
+        $user = $this->buildCustomerPayload();
+        $guest = method_exists($this->resource, 'guestSnapshot') ? $this->resource->guestSnapshot() : null;
 
         $paymentSummary = $this->relationLoaded('payments')
             ? PaymentSummary::fromPayments($this->payments)
@@ -98,6 +91,7 @@ class StaffReservationInboxResource extends JsonResource
             'created_at' => $this->iso($this->created_at),
             'updated_at' => $this->iso($this->updated_at),
             'user' => $user,
+            'guest' => $guest,
             'table_ids' => array_values(array_map(static fn (array $table): int => (int) $table['table_id'], $tables)),
             'tables' => $tables,
             'summary' => [
@@ -126,5 +120,25 @@ class StaffReservationInboxResource extends JsonResource
         }
 
         return Carbon::parse((string) $value)->utc()->toIso8601String();
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function buildCustomerPayload(): ?array
+    {
+        $hasLinkedUser = $this->relationLoaded('user') && $this->user !== null;
+        $hasGuestSnapshot = method_exists($this->resource, 'hasGuestSnapshot') && $this->resource->hasGuestSnapshot();
+
+        if (! $hasLinkedUser && ! $hasGuestSnapshot && $this->user_id === null) {
+            return null;
+        }
+
+        return [
+            'user_id' => $this->user_id !== null ? (int) $this->user_id : null,
+            'full_name' => method_exists($this->resource, 'customerDisplayName') ? $this->resource->customerDisplayName() : null,
+            'email' => method_exists($this->resource, 'customerEmail') ? $this->resource->customerEmail() : null,
+            'phone' => method_exists($this->resource, 'customerPhone') ? $this->resource->customerPhone() : null,
+        ];
     }
 }

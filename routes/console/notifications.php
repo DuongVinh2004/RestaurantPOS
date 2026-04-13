@@ -103,13 +103,15 @@ Artisan::command('notifications:outbox-health {--json : Output machine-readable 
     if ($channelBreakdown !== []) {
         $command->newLine();
         $command->table(
-            ['Channel', 'Enabled', 'Mode', 'Driver', 'Pending', 'Failed', 'Cancelled', 'Recent failures'],
+            ['Channel', 'Enabled', 'Readiness', 'Mode', 'Driver', 'Provider', 'Pending', 'Failed', 'Cancelled', 'Recent failures'],
             collect($channelBreakdown)->map(static function (array $row, string $channel) {
                 return [
                     $channel,
                     ($row['enabled'] ?? false) ? 'yes' : 'no',
+                    (string) ($row['readiness'] ?? ''),
                     (string) ($row['delivery_mode'] ?? ''),
                     (string) ($row['driver'] ?? ''),
+                    (string) ($row['provider_key'] ?? ''),
                     (string) ($row['pending_count'] ?? 0),
                     (string) ($row['failed_count'] ?? 0),
                     (string) ($row['cancelled_count'] ?? 0),
@@ -154,15 +156,18 @@ Artisan::command('notifications:outbox-dead-letter {--channel= : Filter a single
     $rows = (array) ($snapshot['rows'] ?? []);
     if ($rows !== []) {
         $command->table(
-            ['Outbox', 'Channel', 'Status', 'Template', 'Attempts', 'Recipient', 'Error'],
+            ['Outbox', 'Channel', 'Readiness', 'Mode', 'Status', 'Template', 'Attempts', 'Recipient', 'Error code', 'Error'],
             collect($rows)->map(static function (array $row) {
                 return [
                     (string) ($row['outbox_id'] ?? 0),
                     (string) ($row['channel'] ?? ''),
+                    (string) ($row['readiness'] ?? ''),
+                    (string) ($row['delivery_mode'] ?? ''),
                     (string) ($row['status'] ?? ''),
                     (string) ($row['template_key'] ?? ''),
                     (string) ($row['attempt_count'] ?? 0),
                     (string) ($row['recipient_masked'] ?? ''),
+                    (string) ($row['latest_error_code'] ?? ''),
                     (string) ($row['last_error'] ?? ''),
                 ];
             })->values()->all()

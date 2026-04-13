@@ -69,15 +69,15 @@ class CustomerWaitingListOwnerResponseFlowTest extends TestCase
             ->assertJsonMissing(['waiting_id' => $otherWaitingId]);
 
         $this->withHeader('X-Customer-Token', $token)
-            ->getJson('/api/v1/waiting-list/' . $ownedWaitingId)
+            ->getJson('/api/v1/waiting-list/'.$ownedWaitingId)
             ->assertOk()
             ->assertJsonPath('data.waiting_id', $ownedWaitingId)
             ->assertJsonPath('data.available_actions.cancel', true);
 
         $this->withHeader('X-Customer-Token', $token)
-            ->getJson('/api/v1/waiting-list/' . $otherWaitingId)
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['waiting_id']);
+            ->getJson('/api/v1/waiting-list/'.$otherWaitingId)
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
     }
 
     public function test_owner_can_accept_notified_entry_within_open_window(): void
@@ -97,7 +97,7 @@ class CustomerWaitingListOwnerResponseFlowTest extends TestCase
         $this->withHeaders([
             'X-Customer-Token' => $token,
             'Idempotency-Key' => 'waiting-accept-1',
-        ])->postJson('/api/v1/waiting-list/' . $waitingId . '/accept', [
+        ])->postJson('/api/v1/waiting-list/'.$waitingId.'/accept', [
             'row_version' => 1,
         ])
             ->assertOk()
@@ -134,7 +134,7 @@ class CustomerWaitingListOwnerResponseFlowTest extends TestCase
         $this->withHeaders([
             'X-Customer-Token' => $token,
             'Idempotency-Key' => 'waiting-decline-1',
-        ])->postJson('/api/v1/waiting-list/' . $waitingId . '/decline', [
+        ])->postJson('/api/v1/waiting-list/'.$waitingId.'/decline', [
             'row_version' => 1,
         ])
             ->assertOk()
@@ -144,7 +144,7 @@ class CustomerWaitingListOwnerResponseFlowTest extends TestCase
         $this->assertSame('Declined', (string) DB::table('waiting_list')->where('waiting_id', $waitingId)->value('customer_response_status'));
         $this->assertNotNull(DB::table('waiting_list')->where('waiting_id', $waitingId)->value('customer_responded_at'));
         $this->assertNull(DB::table('waiting_list')->where('waiting_id', $waitingId)->value('customer_confirmed_arrival_at'));
-        $this->assertSame('Cancelled', (string) DB::table('table_holds')->where('session_id', 'waiting-list:' . $waitingId)->value('hold_status'));
+        $this->assertSame('Cancelled', (string) DB::table('table_holds')->where('session_id', 'waiting-list:'.$waitingId)->value('hold_status'));
 
         $log = $this->assertAuditLogRecorded('waiting_list.declined', 'waiting_list', $waitingId);
         self::assertSame($ownerId, $log->actor_user_id);
@@ -167,7 +167,7 @@ class CustomerWaitingListOwnerResponseFlowTest extends TestCase
         $this->withHeaders([
             'X-Customer-Token' => $token,
             'Idempotency-Key' => 'waiting-cancel-1',
-        ])->postJson('/api/v1/waiting-list/' . $waitingId . '/cancel', [
+        ])->postJson('/api/v1/waiting-list/'.$waitingId.'/cancel', [
             'row_version' => 3,
         ])
             ->assertOk()
@@ -200,14 +200,14 @@ class CustomerWaitingListOwnerResponseFlowTest extends TestCase
         $this->withHeaders([
             'X-Customer-Token' => $otherToken,
             'Idempotency-Key' => 'waiting-non-owner-1',
-        ])->postJson('/api/v1/waiting-list/' . $expiredWaitingId . '/decline', [
+        ])->postJson('/api/v1/waiting-list/'.$expiredWaitingId.'/decline', [
             'row_version' => 1,
         ])->assertNotFound();
 
         $this->withHeaders([
             'X-Customer-Token' => $ownerToken,
             'Idempotency-Key' => 'waiting-expired-1',
-        ])->postJson('/api/v1/waiting-list/' . $expiredWaitingId . '/decline', [
+        ])->postJson('/api/v1/waiting-list/'.$expiredWaitingId.'/decline', [
             'row_version' => 1,
         ])
             ->assertStatus(422)
@@ -216,7 +216,7 @@ class CustomerWaitingListOwnerResponseFlowTest extends TestCase
         $this->withHeaders([
             'X-Customer-Token' => $ownerToken,
             'Idempotency-Key' => 'waiting-invalid-state-1',
-        ])->postJson('/api/v1/waiting-list/' . $waitingStateId . '/accept', [
+        ])->postJson('/api/v1/waiting-list/'.$waitingStateId.'/accept', [
             'row_version' => 2,
         ])
             ->assertStatus(422)
@@ -362,8 +362,8 @@ class CustomerWaitingListOwnerResponseFlowTest extends TestCase
         $now = Carbon::now('UTC');
 
         DB::table('table_holds')->insert([
-            'hold_id' => 'hold-' . $waitingId,
-            'session_id' => 'waiting-list:' . $waitingId,
+            'hold_id' => 'hold-'.$waitingId,
+            'session_id' => 'waiting-list:'.$waitingId,
             'user_id' => $ownerId,
             'confirmed_reservation_id' => null,
             'start_time' => $now,

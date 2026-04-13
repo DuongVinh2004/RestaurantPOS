@@ -30,6 +30,11 @@ class StaffConversationInboxFlowTest extends TestCase
         $branchA = $this->createBranch(['branch_code' => 'CONV-A', 'branch_name' => 'Conversation A']);
         $branchB = $this->createBranch(['branch_code' => 'CONV-B', 'branch_name' => 'Conversation B']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-conversation-list');
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchA,
+            'status' => 'Open',
+        ]);
 
         $reservationId = $this->createReservation([
             'branch_id' => $branchA,
@@ -118,6 +123,11 @@ class StaffConversationInboxFlowTest extends TestCase
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $branchId = $this->createBranch(['branch_code' => 'CONV-D', 'branch_name' => 'Conversation Detail']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-conversation-detail');
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId,
+            'status' => 'Open',
+        ]);
 
         $reservationId = $this->createReservation([
             'branch_id' => $branchId,
@@ -238,6 +248,11 @@ class StaffConversationInboxFlowTest extends TestCase
             'branch_name' => 'Conversation AI Off',
         ]);
         $headers = $this->staffAuthHeaders($staffId, 'staff-conversation-detail-ai-off');
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId,
+            'status' => 'Open',
+        ]);
 
         $conversationId = $this->createConversation([
             'branch_id' => $branchId,
@@ -281,6 +296,11 @@ class StaffConversationInboxFlowTest extends TestCase
             'branch_code' => 'CONV-CAP',
             'branch_name' => 'Conversation Capability Branch',
         ]);
+        $this->createCashierShift([
+            'cashier_user_id' => $viewerStaffId,
+            'branch_id' => $branchId,
+            'status' => 'Open',
+        ]);
 
         $conversationId = $this->createConversation([
             'branch_id' => $branchId,
@@ -305,6 +325,58 @@ class StaffConversationInboxFlowTest extends TestCase
             ->assertJsonPath('data.capabilities.outbound_reply.channel', null)
             ->assertJsonPath('data.capabilities.outbound_reply.delivery_mode', null)
             ->assertJsonPath('data.capabilities.outbound_reply.recipient_masked', null);
+    }
+
+    public function test_conversation_reads_and_link_mutations_respect_staff_operational_branch_scope(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $branchA = $this->createBranch(['branch_code' => 'CONV-SCOPE-A', 'branch_name' => 'Conversation Scope A']);
+        $branchB = $this->createBranch(['branch_code' => 'CONV-SCOPE-B', 'branch_name' => 'Conversation Scope B']);
+        $headers = $this->staffAuthHeaders($staffId, 'staff-conversation-branch-scope');
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchA,
+            'status' => 'Open',
+        ]);
+
+        $accessibleConversationId = $this->createConversation([
+            'branch_id' => $branchA,
+            'user_id' => $customerId,
+            'status' => 'Open',
+        ]);
+        $hiddenConversationId = $this->createConversation([
+            'branch_id' => $branchB,
+            'user_id' => $customerId,
+            'status' => 'Open',
+        ]);
+        $hiddenReservationId = $this->createReservation([
+            'branch_id' => $branchB,
+            'user_id' => $customerId,
+        ]);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/conversations?per_page=20')
+            ->assertOk()
+            ->assertJsonFragment(['conversation_id' => $accessibleConversationId])
+            ->assertJsonMissing(['conversation_id' => $hiddenConversationId]);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/conversations/'.$hiddenConversationId)
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'staff-conversation-link-hidden-branch'))
+            ->postJson('/api/v1/staff/conversations/'.$accessibleConversationId.'/links', [
+                'reservation_id' => $hiddenReservationId,
+                'customer_user_id' => $customerId,
+            ])
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        self::assertNull(DB::table('conversations')
+            ->where('conversation_id', $accessibleConversationId)
+            ->value('linked_reservation_id'));
     }
 
     public function test_assign_conflict_take_over_and_unassign_flow_is_safe(): void
@@ -370,6 +442,11 @@ class StaffConversationInboxFlowTest extends TestCase
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $branchId = $this->createBranch(['branch_code' => 'CONV-L', 'branch_name' => 'Conversation Link']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-conversation-link');
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId,
+            'status' => 'Open',
+        ]);
 
         $reservationId = $this->createReservation([
             'branch_id' => $branchId,
@@ -510,6 +587,11 @@ class StaffConversationInboxFlowTest extends TestCase
             'branch_name' => 'Conversation Reply Branch',
         ]);
         $headers = $this->withIdempotencyKey($this->staffAuthHeaders($staffId, 'staff-conversation-reply'), 'staff-conversation-reply-1');
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId,
+            'status' => 'Open',
+        ]);
 
         $reservationId = $this->createReservation([
             'branch_id' => $branchId,
@@ -685,6 +767,11 @@ class StaffConversationInboxFlowTest extends TestCase
             'branch_code' => 'CONV-OFF',
             'branch_name' => 'Conversation Off',
         ]);
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId,
+            'status' => 'Open',
+        ]);
         $conversationId = $this->createConversation([
             'branch_id' => $branchId,
             'status' => 'Open',
@@ -716,5 +803,250 @@ class StaffConversationInboxFlowTest extends TestCase
             ->assertJsonPath('error_code', 'forbidden')
             ->assertJsonPath('required_capability', 'conversation.manage')
             ->assertJsonPath('staff_role_name', 'Host');
+    }
+
+    public function test_staff_can_drive_resolve_reopen_and_close_workflow_transitions_safely(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $conversationId = $this->createConversation([
+            'user_id' => $customerId,
+            'status' => 'Open',
+        ]);
+        $this->createAgentAssignment([
+            'conversation_id' => $conversationId,
+            'agent_user_id' => $staffId,
+            'assigned_at' => $this->nowUtc()->copy()->subMinutes(4),
+            'is_active' => 1,
+        ]);
+
+        $headers = $this->staffAuthHeaders($staffId, 'staff-conversation-workflow');
+
+        $resolve = $this->withHeaders($this->withIdempotencyKey($headers, 'staff-conversation-resolve-1'))
+            ->postJson('/api/v1/staff/conversations/'.$conversationId.'/workflow-state', [
+                'workflow_state' => 'Resolved',
+                'expected_workflow_state' => 'Assigned',
+                'reason' => 'Customer confirmed the issue is resolved.',
+            ]);
+
+        $resolve->assertOk()
+            ->assertJsonPath('data.action', 'conversation.resolved')
+            ->assertJsonPath('data.event.event_type', 'workflow.state_changed')
+            ->assertJsonPath('data.conversation.workflow.state', 'Resolved')
+            ->assertJsonPath('data.conversation.workflow.state_reason', 'resolved')
+            ->assertJsonPath('data.conversation.active_assignment', null);
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'staff-conversation-assign-after-resolve-1'))
+            ->postJson('/api/v1/staff/conversations/'.$conversationId.'/assign', [
+                'agent_user_id' => $staffId,
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonValidationErrors(['conversation_id']);
+
+        $reopen = $this->withHeaders($this->withIdempotencyKey($headers, 'staff-conversation-reopen-1'))
+            ->postJson('/api/v1/staff/conversations/'.$conversationId.'/workflow-state', [
+                'workflow_state' => 'Triaged',
+                'expected_workflow_state' => 'Resolved',
+                'reason' => 'Customer sent a new follow-up.',
+            ]);
+
+        $reopen->assertOk()
+            ->assertJsonPath('data.action', 'conversation.reopened')
+            ->assertJsonPath('data.conversation.workflow.state', 'Triaged')
+            ->assertJsonPath('data.conversation.workflow.state_reason', 'reopened');
+
+        $close = $this->withHeaders($this->withIdempotencyKey($headers, 'staff-conversation-close-1'))
+            ->postJson('/api/v1/staff/conversations/'.$conversationId.'/workflow-state', [
+                'workflow_state' => 'Closed',
+                'expected_workflow_state' => 'Triaged',
+                'reason' => 'Staff archived the completed thread.',
+            ]);
+
+        $close->assertOk()
+            ->assertJsonPath('data.action', 'conversation.closed')
+            ->assertJsonPath('data.conversation.workflow.state', 'Closed')
+            ->assertJsonPath('data.conversation.status', 'Closed');
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'staff-conversation-link-after-close-1'))
+            ->postJson('/api/v1/staff/conversations/'.$conversationId.'/links', [
+                'customer_user_id' => $customerId,
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonValidationErrors(['conversation_id']);
+    }
+
+    public function test_invalid_workflow_transition_and_expected_state_conflict_are_rejected(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $conversationId = $this->createConversation([
+            'status' => 'Open',
+            'workflow_state' => 'Open',
+            'workflow_state_reason' => 'open',
+        ]);
+
+        $headers = $this->staffAuthHeaders($staffId, 'staff-conversation-workflow-invalid');
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'staff-conversation-workflow-invalid-1'))
+            ->postJson('/api/v1/staff/conversations/'.$conversationId.'/workflow-state', [
+                'workflow_state' => 'Resolved',
+                'expected_workflow_state' => 'Open',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonValidationErrors(['workflow_state']);
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'staff-conversation-workflow-conflict-1'))
+            ->postJson('/api/v1/staff/conversations/'.$conversationId.'/workflow-state', [
+                'workflow_state' => 'Triaged',
+                'expected_workflow_state' => 'Assigned',
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('error_code', 'conflict');
+    }
+
+    public function test_operational_inbox_views_surface_unassigned_overdue_waiting_on_customer_and_resolved_today(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $headers = $this->staffAuthHeaders($staffId, 'staff-conversation-views');
+        $branchId = $this->createBranch([
+            'branch_code' => 'CONV-VIEW',
+            'branch_name' => 'Conversation Views',
+        ]);
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId,
+            'status' => 'Open',
+        ]);
+
+        $unassignedId = $this->createConversation([
+            'branch_id' => $branchId,
+            'user_id' => $customerId,
+            'workflow_state' => 'Open',
+            'workflow_state_reason' => 'open',
+            'workflow_state_changed_at' => $this->nowUtc()->copy()->subMinutes(4),
+            'created_at' => $this->nowUtc()->copy()->subMinutes(4),
+        ]);
+
+        $overdueId = $this->createConversation([
+            'branch_id' => $branchId,
+            'user_id' => $customerId,
+            'workflow_state' => 'Triaged',
+            'workflow_state_reason' => 'triaged',
+            'workflow_state_changed_at' => $this->nowUtc()->copy()->subMinutes(40),
+            'first_triaged_at' => $this->nowUtc()->copy()->subMinutes(40),
+            'created_at' => $this->nowUtc()->copy()->subMinutes(40),
+        ]);
+
+        $waitingId = $this->createConversation([
+            'branch_id' => $branchId,
+            'user_id' => $customerId,
+            'status' => 'Pending',
+            'workflow_state' => 'PendingCustomer',
+            'workflow_state_reason' => 'waiting_for_customer',
+            'workflow_state_changed_at' => $this->nowUtc()->copy()->subMinutes(8),
+            'created_at' => $this->nowUtc()->copy()->subMinutes(20),
+        ]);
+        $this->createAgentAssignment([
+            'conversation_id' => $waitingId,
+            'agent_user_id' => $staffId,
+            'assigned_at' => $this->nowUtc()->copy()->subMinutes(12),
+            'is_active' => 1,
+        ]);
+        DB::table('conversations')
+            ->where('conversation_id', $waitingId)
+            ->update([
+                'status' => 'Pending',
+                'workflow_state' => 'PendingCustomer',
+                'workflow_state_reason' => 'waiting_for_customer',
+                'workflow_state_changed_at' => $this->nowUtc()->copy()->subMinutes(8),
+            ]);
+
+        $resolvedId = $this->createConversation([
+            'branch_id' => $branchId,
+            'user_id' => $customerId,
+            'workflow_state' => 'Resolved',
+            'workflow_state_reason' => 'resolved',
+            'workflow_state_changed_at' => $this->nowUtc()->copy()->subMinutes(6),
+            'resolved_at' => $this->nowUtc()->copy()->subMinutes(6),
+            'created_at' => $this->nowUtc()->copy()->subHours(2),
+        ]);
+
+        $summary = $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/conversations?branch_id='.$branchId.'&per_page=20');
+
+        $summary->assertOk()
+            ->assertJsonPath('meta.summary.views.unassigned', 2)
+            ->assertJsonPath('meta.summary.views.overdue', 1)
+            ->assertJsonPath('meta.summary.views.waiting_on_customer', 1)
+            ->assertJsonPath('meta.summary.views.resolved_today', 1);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/conversations?branch_id='.$branchId.'&inbox_view=overdue')
+            ->assertOk()
+            ->assertJsonPath('data.0.conversation_id', $overdueId)
+            ->assertJsonPath('data.0.operational.is_overdue', true);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/conversations?branch_id='.$branchId.'&inbox_view=waiting_on_customer')
+            ->assertOk()
+            ->assertJsonPath('data.0.conversation_id', $waitingId)
+            ->assertJsonPath('data.0.workflow.state', 'PendingCustomer');
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/conversations?branch_id='.$branchId.'&inbox_view=resolved_today')
+            ->assertOk()
+            ->assertJsonPath('data.0.conversation_id', $resolvedId)
+            ->assertJsonPath('data.0.workflow.state', 'Resolved');
+
+        self::assertNotSame($unassignedId, $resolvedId);
+    }
+
+    public function test_unlinking_reservation_preserves_remaining_waiting_list_customer_and_branch_scope(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $branchId = $this->createBranch([
+            'branch_code' => 'CONV-RELINK',
+            'branch_name' => 'Conversation Relink',
+        ]);
+        $headers = $this->staffAuthHeaders($staffId, 'staff-conversation-relink');
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId,
+            'status' => 'Open',
+        ]);
+
+        $reservationId = $this->createReservation([
+            'branch_id' => $branchId,
+            'user_id' => $customerId,
+        ]);
+        $waitingListId = $this->createWaitingListEntry([
+            'branch_id' => $branchId,
+            'user_id' => $customerId,
+            'status' => 'Waiting',
+        ]);
+
+        $conversationId = $this->createConversation([
+            'branch_id' => $branchId,
+            'user_id' => $customerId,
+            'linked_reservation_id' => $reservationId,
+            'linked_waiting_list_id' => $waitingListId,
+            'workflow_state' => 'Triaged',
+            'workflow_state_reason' => 'triaged',
+            'first_triaged_at' => $this->nowUtc()->copy()->subMinutes(5),
+            'workflow_state_changed_at' => $this->nowUtc()->copy()->subMinutes(5),
+        ]);
+
+        $this->deleteJson('/api/v1/staff/conversations/'.$conversationId.'/links/reservation', [], array_merge($headers, [
+            'Idempotency-Key' => 'staff-conversation-unlink-preserve-1',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data.conversation.branch_id', $branchId)
+            ->assertJsonPath('data.conversation.user.user_id', $customerId)
+            ->assertJsonPath('data.conversation.linked_reservation', null)
+            ->assertJsonPath('data.conversation.linked_waiting_list.waiting_id', $waitingListId);
     }
 }

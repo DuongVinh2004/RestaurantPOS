@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Staff;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesStaffActor;
+use App\Http\Requests\Staff\BranchScopeRequest;
 use App\Http\Requests\Staff\DispatchKitchenTicketsRequest;
 use App\Http\Requests\Staff\ListKitchenStationTicketsRequest;
 use App\Http\Requests\Staff\ListOperationalRealtimeChangesRequest;
 use App\Http\Resources\KitchenOrderItemTicketResource;
 use App\Http\Resources\KitchenStationResource;
 use App\Services\Kitchen\KitchenRoutingService;
+use App\Services\Staff\StaffBranchContextService;
 use App\Services\Staff\StaffOperationalRealtimeService;
 use App\Support\ApiErrorResponse;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -19,19 +22,39 @@ use Illuminate\Http\Request;
 
 class StaffKitchenController extends Controller
 {
+    use ResolvesStaffActor;
+
     public function __construct(
         private readonly KitchenRoutingService $kitchenRoutingService,
+        private readonly StaffBranchContextService $branchContextService,
         private readonly StaffOperationalRealtimeService $realtimeService,
     ) {}
 
-    public function stations(Request $request): JsonResponse
+    public function stations(BranchScopeRequest $request): JsonResponse
     {
-        $stations = $this->kitchenRoutingService->listStations(['is_active' => true]);
+        $validated = $request->validated();
+        $branchId = isset($validated['branch_id']) ? (int) $validated['branch_id'] : null;
+        $actorUserId = $this->resolveStaffActorUserId($request);
+
+        try {
+            $accessibleBranchIds = $branchId !== null
+                ? [$this->branchContextService->assertAccessibleBranch($actorUserId, $branchId)]
+                : $this->branchContextService->accessibleBranchIds($actorUserId);
+        } catch (ModelNotFoundException) {
+            return $this->notFoundResponse($request, 'Branch not found.');
+        }
+
+        $stations = $this->kitchenRoutingService->listStations([
+            'is_active' => true,
+            'branch_id' => $branchId,
+            'accessible_branch_ids' => $accessibleBranchIds,
+        ]);
 
         return response()->json([
             'data' => KitchenStationResource::collection($stations)->toArray($request),
             'meta' => [
                 'count' => $stations->count(),
+                'branch_id' => $branchId,
                 'realtime' => $this->realtimeService->describeTopic(
                     StaffOperationalRealtimeService::TOPIC_KITCHEN,
                     '/api/v1/staff/kitchen/changes',
@@ -43,8 +66,22 @@ class StaffKitchenController extends Controller
 
     public function stationTickets(int $station_id, ListKitchenStationTicketsRequest $request): JsonResponse
     {
+        $validated = $request->validated();
+        $branchId = isset($validated['branch_id']) ? (int) $validated['branch_id'] : null;
+        $actorUserId = $this->resolveStaffActorUserId($request);
+
         try {
-            $tickets = $this->kitchenRoutingService->listStationTickets($station_id, $request->validated());
+            $accessibleBranchIds = $branchId !== null
+                ? [$this->branchContextService->assertAccessibleBranch($actorUserId, $branchId)]
+                : $this->branchContextService->accessibleBranchIds($actorUserId);
+        } catch (ModelNotFoundException) {
+            return $this->notFoundResponse($request, 'Branch not found.');
+        }
+
+        try {
+            $tickets = $this->kitchenRoutingService->listStationTickets($station_id, array_merge($validated, [
+                'accessible_branch_ids' => $accessibleBranchIds,
+            ]));
         } catch (ModelNotFoundException) {
             return $this->notFoundResponse($request, 'Kitchen station not found.');
         }
@@ -53,6 +90,7 @@ class StaffKitchenController extends Controller
             'data' => KitchenOrderItemTicketResource::collection($tickets)->toArray($request),
             'meta' => [
                 'station_id' => $station_id,
+                'branch_id' => $branchId,
                 'count' => $tickets->count(),
             ],
         ]);
@@ -123,13 +161,6 @@ class StaffKitchenController extends Controller
                 'action' => $action,
             ],
         ]);
-    }
-
-    private function resolveStaffActorUserId(mixed $request): ?int
-    {
-        $actor = $request->attributes->get('staff_actor_user_id');
-
-        return is_numeric($actor) ? (int) $actor : null;
     }
 
     private function notFoundResponse(Request $request, string $message): JsonResponse

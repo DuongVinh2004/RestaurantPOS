@@ -181,8 +181,11 @@ class ReleaseArtifactManifestService
      *     sha256?: string|null,
      *     bytes?: int,
      *     line_count?: int,
+     *     modified_at_utc?: string,
+     *     modified_epoch?: int,
      *     missing_fragments?: list<string>,
      *     required_fragment_count?: int,
+     *     freshness_issues?: list<string>,
      *     skipped?: bool
      *   }>,
      *   patches: array{
@@ -245,6 +248,8 @@ class ReleaseArtifactManifestService
             $artifact['sha256'] = hash('sha256', $fingerprintContents);
             $artifact['bytes'] = strlen($fingerprintContents);
             $artifact['line_count'] = substr_count($fingerprintContents, "\n") + 1;
+            $artifact['modified_epoch'] = File::lastModified($absolutePath);
+            $artifact['modified_at_utc'] = now('UTC')->setTimestamp((int) $artifact['modified_epoch'])->toIso8601String();
             $artifact['required_fragment_count'] = count($requiredFragments);
             $artifact['missing_fragments'] = $missingFragments;
 
@@ -263,6 +268,18 @@ class ReleaseArtifactManifestService
             }
 
             $artifacts[$key] = $artifact;
+        }
+
+        foreach ($this->freshnessIssues($artifacts) as $artifactKey => $freshnessIssues) {
+            if ($freshnessIssues === [] || ! isset($artifacts[$artifactKey]) || ! is_array($artifacts[$artifactKey])) {
+                continue;
+            }
+
+            $artifacts[$artifactKey]['freshness_issues'] = $freshnessIssues;
+            foreach ($freshnessIssues as $issue) {
+                $issues[] = $issue;
+            }
+            $status = 'fail';
         }
 
         $presentPatches = collect(File::glob(database_path('patches/*.sql')) ?: [])
@@ -429,6 +446,8 @@ class ReleaseArtifactManifestService
                 if ((string) $artifactKey === 'release_manifest_snapshot') {
                     unset($artifact['sha256'], $artifact['bytes'], $artifact['line_count']);
                 }
+
+                unset($artifact['modified_at_utc'], $artifact['modified_epoch']);
             }
             unset($artifact);
 
@@ -448,6 +467,57 @@ class ReleaseArtifactManifestService
         }
 
         return $this->sortRecursive($snapshot);
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $artifacts
+     * @return array<string, list<string>>
+     */
+    private function freshnessIssues(array $artifacts): array
+    {
+        $issuesByArtifact = [];
+
+        foreach ((array) config('booking_release.artifact_freshness', []) as $artifactKey => $dependencyKeys) {
+            if (! isset($artifacts[$artifactKey]) || ! is_array($artifacts[$artifactKey])) {
+                continue;
+            }
+
+            $artifact = $artifacts[$artifactKey];
+            if (! ($artifact['exists'] ?? false)) {
+                continue;
+            }
+
+            $artifactModifiedEpoch = (int) ($artifact['modified_epoch'] ?? 0);
+            if ($artifactModifiedEpoch <= 0) {
+                continue;
+            }
+
+            foreach ((array) $dependencyKeys as $dependencyKey) {
+                $dependencyKey = is_scalar($dependencyKey) ? trim((string) $dependencyKey) : '';
+                if ($dependencyKey === '' || ! isset($artifacts[$dependencyKey]) || ! is_array($artifacts[$dependencyKey])) {
+                    continue;
+                }
+
+                $dependency = $artifacts[$dependencyKey];
+                if (! ($dependency['exists'] ?? false)) {
+                    continue;
+                }
+
+                $dependencyModifiedEpoch = (int) ($dependency['modified_epoch'] ?? 0);
+                if ($dependencyModifiedEpoch <= 0 || $artifactModifiedEpoch >= $dependencyModifiedEpoch) {
+                    continue;
+                }
+
+                $issuesByArtifact[$artifactKey] ??= [];
+                $issuesByArtifact[$artifactKey][] = sprintf(
+                    'Generated artifact %s is stale relative to %s. Regenerate the API consumer artifacts before refreshing the release manifest or packaging the handoff.',
+                    (string) ($artifact['path'] ?? $artifactKey),
+                    (string) ($dependency['path'] ?? $dependencyKey),
+                );
+            }
+        }
+
+        return $issuesByArtifact;
     }
 
     /**

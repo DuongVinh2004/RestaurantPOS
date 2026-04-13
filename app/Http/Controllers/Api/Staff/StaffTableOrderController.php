@@ -14,6 +14,7 @@ use App\Services\Staff\StaffOrderReadService;
 use App\Services\Staff\StaffTableOrderService;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class StaffTableOrderController extends Controller
 {
@@ -24,9 +25,12 @@ class StaffTableOrderController extends Controller
         private readonly StaffOrderReadService $orderReadService,
     ) {}
 
-    public function indexByReservation(int $reservation_id): JsonResponse
+    public function indexByReservation(int $reservation_id, Request $request): JsonResponse
     {
-        $orders = $this->orderReadService->listOrdersByReservation($reservation_id);
+        $orders = $this->orderReadService->listOrdersByReservation(
+            $reservation_id,
+            $this->resolveStaffActorUserId($request),
+        );
 
         return response()->json([
             'data' => ReservationOrderResource::collection($orders),

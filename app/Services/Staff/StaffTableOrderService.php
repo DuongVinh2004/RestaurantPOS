@@ -30,6 +30,7 @@ class StaffTableOrderService
     public function __construct(
         private readonly ReservationLockService $locks,
         ?BranchContextService $branchContextService = null,
+        private readonly ?StaffBranchContextService $staffBranchContextService = null,
     ) {
         $this->branchContextService = $branchContextService ?? app(BranchContextService::class);
     }
@@ -103,6 +104,7 @@ class StaffTableOrderService
                 }
 
                 $tableBranchId = $this->branchContextService->resolveBranchId($table->branch_id ?? null, false);
+                $this->assertOperationalBranchAccessible($tableBranchId, $staffUserId);
                 $this->ensureReservationBranchAligned($reservation, $tableBranchId, $staffUserId);
 
                 // Reuse active order if exists
@@ -264,7 +266,13 @@ class StaffTableOrderService
                             'reservation_id',
                             false
                         );
+                        $this->assertOperationalBranchAccessible($tableBranchId, $staffUserId);
                         $this->ensureReservationBranchAligned($reservation, $tableBranchId, $staffUserId);
+                    } else {
+                        $this->assertOperationalBranchAccessible(
+                            $this->branchContextService->resolveBranchId($reservation->branch_id ?? null, false),
+                            $staffUserId,
+                        );
                     }
 
                     $this->appendItems($order->order_id, $items, $staffUserId);
@@ -305,6 +313,20 @@ class StaffTableOrderService
                 'reservation_id' => 'Reservation bill has already been closed for payment. Reopen the bill before modifying order items.',
             ]);
         }
+    }
+
+    private function assertOperationalBranchAccessible(int $branchId, ?int $staffUserId): void
+    {
+        if ($staffUserId === null || $staffUserId <= 0) {
+            return;
+        }
+
+        $this->staffBranchContextService()->assertAccessibleBranch($staffUserId, $branchId);
+    }
+
+    private function staffBranchContextService(): StaffBranchContextService
+    {
+        return $this->staffBranchContextService ?? app(StaffBranchContextService::class);
     }
 
     private function ensureReservationBranchAligned(Reservation $reservation, int $tableBranchId, ?int $staffUserId = null): int

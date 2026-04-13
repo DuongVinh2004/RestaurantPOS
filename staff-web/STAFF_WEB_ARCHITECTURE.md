@@ -5,98 +5,103 @@
 - Vite
 - React 18
 - TypeScript
-- Tailwind
-- `react-router-dom`
+- React Router
+- TanStack Query
+- Zustand
+- Ant Design
 - Generated OpenAPI SDK at `../build/api-consumer/sdk/typescript/restaurantpos-sdk.ts`
+
+## Canonical Runtime
+
+- `src/App.tsx`
+  - mounts the current staff-web application shell only
+- `src/app/router/index.tsx`
+  - owns the mounted route tree
+  - boots the authenticated session
+  - redirects authenticated staff to `/access`
+- `src/app/layout/StaffAppShell.tsx`
+  - shared shell for all mounted staff routes
+  - holds branch selection, session refresh/logout, current route context, and scoped notices
+
+Legacy files such as `src/app/router.tsx`, `src/components/shell/StaffShell.tsx`, and older page surfaces remain in the repo but are not part of the mounted runtime.
 
 ## Route Tree
 
 - `/login`
 - `/access`
-  - gate: authenticated staff session with zero granted capabilities
-- `/board`
-  - gate: `table.board.view` or `waiting_list.manage`
+  - default authenticated landing page
+  - shows startup readiness, trusted branch context, and recommended next action
+- `/tables`
+  - gate: `table.board.view`
+- `/reservations`
+  - gate: `reservation.manage`
+- `/waiting-list`
+  - gate: `waiting_list.manage`
 - `/orders`
   - gate: `order.manage`
-- `/settlement`
+- `/kitchen`
+  - gate: `kitchen.manage`
+- `/checkout`
   - gate: `settlement.manage`
-- `/refunds`
-  - gate: `payment.refund`
-- `/cashier`
+  - hosts settlement plus reservation-linked refund actions; refund controls additionally require `payment.refund`
+  - no dedicated mounted `/refunds` route in the active shell
+- `/cashier-shift`
+  - gate: `cashier.shift.manage`
+- `/finance-review`
   - gate: `settlement.manage`
 - `/conversations`
   - gate: `conversation.manage`
+- `/audit-trail`
+  - gate: `audit.view`
+- `/reporting`
+  - gate: `reporting.view`
 
-## App Shell
+## State Ownership
 
-- `src/app/session.tsx`
-  - restores staff session from stored opaque token
-  - clears local session only on `401` restore/refresh failures
-  - keeps the stored token on non-auth restore/refresh failures and surfaces a retry notice
-- `src/app/router.tsx`
-  - protected routes
-  - capability route guards
-- `src/components/shell/StaffShell.tsx`
-  - shared nav
-  - refresh/logout
-  - backend host + session summary
+- `src/app/store/auth-store.ts`
+  - session bootstrap, login, refresh, logout, expire notice
+  - `/access` is the default authenticated route
+  - `recommendedPathForSession()` picks the safest next operational screen
+- `src/app/store/flow-store.ts`
+  - branch context plus selected table/reservation/order/station ids
+  - clears core operational context on branch change and session-owner change
+- `src/hooks/useJourneyContext.ts`
+  - applies route query params into the flow store
+- `src/core/utils/journey.ts`
+  - builds and reads route-owned operational context
+  - now also builds a safe “resume current workflow” target for shell/access actions
 
-## API Layer
+## URL-Driven Operational State
 
-- `src/api/client.ts`
-  - wraps canonical SDK methods only
-  - centralizes `Idempotency-Key` generation
-  - exposes typed helpers for board, waiting, orders, settlement, refunds, cashier, conversations
-- `src/lib/api-errors.ts`
-  - normalizes backend error semantics
-- `src/lib/conflicts.ts`
-  - row_version conflict detection + operator-facing retry message
-- `src/lib/capabilities.ts`
-  - session capability checks
+- Journey state remains in query params for table/reservation/order/kitchen/checkout handoff:
+  - `source`
+  - `table_id`
+  - `reservation_id`
+  - `reservation_row_version`
+  - `order_id`
+  - `order_row_version`
+  - `station_id`
+- Conversation inbox state is deep-linkable on `/conversations`:
+  - `status`
+  - `assignment`
+  - `channel`
+  - `q`
+  - `page`
+  - `conversation`
+  - `tab`
 
-## Data Strategy
+This means reload, back/forward, and copied internal links preserve the same inbox triage state and selected detail panel.
 
-- No fake seed data and no axios fallback
-- Page-level state with direct typed wrappers
-- Explicit reload after successful mutations to keep backend as source of truth
-- Visibility-aware background polling on board/waiting via changes endpoints; full board/waiting reload only when cursors report change
-- No optimistic local mutation cache
-- Operator lookup sources stay contract-lean:
-  - orders/refunds prefer board suggestions before manual IDs
-  - settlement prefers canonical reservation lookup plus reservation-order lookup before manual `order_id`
-  - cashier prefers `GET /current` before manual shift lookup
-  - conversations filter through generated SDK query params instead of client-only list slicing
+## Frontend Data Strategy
 
-## Concurrency + Idempotency
+- The backend stays the source of truth
+- No fake seed data or optimistic client-side mutation cache
+- Page-level queries stay route-scoped and capability-gated
+- Persisted flow state is subordinate to route state
+- Shell branch context is explicit, and route-scoped warnings must surface known backend scope gaps instead of implying false confidence
 
-- All mutation wrappers in `src/api/client.ts` attach `Idempotency-Key`
-- Row-versioned flows pull `row_version` from board, order detail, refund preview, or cashier shift payloads
-- Runtime stale `row_version` is detected from actual payload semantics, including `422 validation_error` with `errors.row_version` or `details.errors.row_version`
-- `409` is treated as conflict/idempotency-state handling, not assumed to be row_version drift
+## Verification Surface
 
-## Permission Strategy
-
-- Session bootstrap uses granted capability list returned by backend auth session envelope
-- Navigation and route guards derive directly from `session.capabilities`
-- `session.known_capabilities` is metadata only and never treated as granted access
-- Feature modules still respect backend `403`; client gating is advisory, backend remains authority
-
-## Folder Structure
-
-- `src/app`
-  - router, sections, session
-- `src/api`
-  - client wrapper, sdk re-export
-- `src/components`
-  - login, shell, shared UI
-- `src/features`
-  - `board`
-  - `orders`
-  - `settlement`
-  - `refunds`
-  - `cashier`
-  - `conversations`
-- `src/lib`
-  - formatting, errors, capabilities, conflicts, idempotency
-- `src/test`
-  - setup, fixtures, render helpers
+- Type safety: `npx tsc --noEmit`
+- Route/query/state helpers: targeted Vitest files under `src/core/utils`, `src/app/store`, and per-feature tests
+- Mounted staff-web behavior: focused tests on the new route surfaces under `src/features/*`

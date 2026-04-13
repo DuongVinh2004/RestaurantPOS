@@ -1,0 +1,162 @@
+{
+  "ok": false,
+  "decision": "block",
+  "target": "local",
+  "mode": "read-only",
+  "api_url": "http://127.0.0.1:8000/api/v1",
+  "credential_source": "manifest",
+  "manifest": {
+    "path": "C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\storage\\app\\uat\\scenario-pack.json",
+    "exists": true,
+    "error": null
+  },
+  "preview": {
+    "label": "preview",
+    "url": "",
+    "status": "not-configured"
+  },
+  "mutation_gates": {
+    "orderCreate": {
+      "enabled": false,
+      "source": "default-off"
+    },
+    "orderAddItem": {
+      "enabled": false,
+      "source": "default-off"
+    },
+    "settlementFinalize": {
+      "enabled": false,
+      "source": "default-off"
+    },
+    "refundExecute": {
+      "enabled": false,
+      "source": "default-off"
+    },
+    "cashierOpen": {
+      "enabled": false,
+      "source": "default-off"
+    },
+    "cashierClose": {
+      "enabled": false,
+      "source": "default-off"
+    }
+  },
+  "summary": {
+    "pass_count": 12,
+    "skip_count": 7,
+    "fail_count": 3
+  },
+  "steps": [
+    {
+      "status": "PASS",
+      "step": "backend health",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "step": "login",
+      "detail": "staff_api_key_id=13 | access=ready, branch=ready, shift=action_required"
+    },
+    {
+      "status": "PASS",
+      "step": "session me",
+      "detail": "user=uat.staff | access=ready, branch=ready, shift=action_required"
+    },
+    {
+      "status": "PASS",
+      "step": "session refresh",
+      "detail": "expires_at=2026-04-10T12:59:46+00:00 | access=ready, branch=ready, shift=action_required"
+    },
+    {
+      "status": "PASS",
+      "step": "board refresh",
+      "detail": "items=8"
+    },
+    {
+      "status": "PASS",
+      "step": "board changes",
+      "detail": "current_version=266, has_changes=false, stale_cursor=false"
+    },
+    {
+      "status": "PASS",
+      "step": "waiting list",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "step": "waiting changes",
+      "detail": "current_version=62, has_changes=false, stale_cursor=false"
+    },
+    {
+      "status": "PASS",
+      "step": "reservation lookup",
+      "detail": "ok"
+    },
+    {
+      "status": "FAIL",
+      "step": "reservation orders",
+      "detail": "404 req=1556d369-7517-4727-81a0-f38057a9c425 No query results for model [App\\Models\\Reservation] 2"
+    },
+    {
+      "status": "PASS",
+      "step": "menu items",
+      "detail": "items=3"
+    },
+    {
+      "status": "SKIP",
+      "step": "order create",
+      "detail": "no existing order and order-create gate disabled"
+    },
+    {
+      "status": "SKIP",
+      "step": "order add-item",
+      "detail": "no order available"
+    },
+    {
+      "status": "SKIP",
+      "step": "settlement finalize",
+      "detail": "no order available for finalize"
+    },
+    {
+      "status": "FAIL",
+      "step": "refund preview",
+      "detail": "404 req=3cb2920b-5f5c-4c88-b48a-e37d098a58cf No query results for model [App\\Models\\Reservation] 4"
+    },
+    {
+      "status": "SKIP",
+      "step": "refund execute",
+      "detail": "no reservation available for refund"
+    },
+    {
+      "status": "PASS",
+      "step": "cashier current",
+      "detail": "ok"
+    },
+    {
+      "status": "SKIP",
+      "step": "cashier open",
+      "detail": "no open shift and cashier-open gate disabled"
+    },
+    {
+      "status": "SKIP",
+      "step": "cashier close",
+      "detail": "no cashier shift available"
+    },
+    {
+      "status": "PASS",
+      "step": "conversations list",
+      "detail": "ok"
+    },
+    {
+      "status": "FAIL",
+      "step": "conversation detail",
+      "detail": "500 req=5d6a1965-84f7-481f-a269-f1673a3feeff Database query error."
+    },
+    {
+      "status": "SKIP",
+      "step": "conversation ai assist",
+      "detail": "ai assist payload not present in conversation detail"
+    }
+  ],
+  "generated_at_utc": "2026-04-10T00:59:47.352Z"
+}

@@ -17,5 +17,6 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src", "../build/api-consumer/sdk/typescript/restaurantpos-sdk.ts"],
+  "exclude": ["src/_legacy/**/*"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

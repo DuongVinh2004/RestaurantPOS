@@ -1,9 +1,16 @@
-export const dateTimeFormatter = new Intl.DateTimeFormat('vi-VN', {
-  day: '2-digit',
-  month: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-});
+const localDateTimePattern = /^(\d{4})-(\d{2})-(\d{2})(?:[ T])(\d{2}):(\d{2})(?::(\d{2}))?$/;
+
+function buildDateTimeFormatter(timeZone?: string) {
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    ...(timeZone ? { timeZone } : {}),
+  });
+}
 
 export function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
@@ -52,14 +59,20 @@ export function formatMoney(value: string | number | null | undefined, currency 
   }).format(numeric);
 }
 
-export function formatDateTime(value: string | null | undefined): string {
+export function formatDateTime(value: string | null | undefined, timeZone?: string): string {
   if (!value) {
     return 'N/A';
   }
 
+  const localMatch = value.match(localDateTimePattern);
+  if (localMatch && !/[zZ]|[+-]\d{2}:\d{2}$/.test(value)) {
+    const [, year, month, day, hour, minute] = localMatch;
+    return `${hour}:${minute} ${day}/${month}/${year}`;
+  }
+
   const parsed = new Date(value);
 
-  return Number.isNaN(parsed.getTime()) ? value : dateTimeFormatter.format(parsed);
+  return Number.isNaN(parsed.getTime()) ? value : buildDateTimeFormatter(timeZone).format(parsed);
 }
 
 export function humanizeCode(value: string | null | undefined): string {

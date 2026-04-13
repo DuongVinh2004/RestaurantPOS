@@ -33,23 +33,26 @@ return [
             'driver' => env('NOTIFICATIONS_EMAIL_DRIVER', 'mail'),
             'provider_key' => env('NOTIFICATIONS_EMAIL_PROVIDER_KEY', 'mail'),
             'delivery_mode' => 'real',
+            'readiness' => 'production_lean',
         ],
         'sms' => [
             'enabled' => env('NOTIFICATIONS_SMS_ENABLED', false),
             'driver' => env('NOTIFICATIONS_SMS_DRIVER', 'stub'),
             'provider_key' => env('NOTIFICATIONS_SMS_PROVIDER_KEY', 'sms.stub'),
             'delivery_mode' => 'stub',
+            'readiness' => 'provider_ready',
         ],
         'zalo' => [
             'enabled' => env('NOTIFICATIONS_ZALO_ENABLED', false),
             'driver' => env('NOTIFICATIONS_ZALO_DRIVER', 'stub'),
             'provider_key' => env('NOTIFICATIONS_ZALO_PROVIDER_KEY', 'zalo.stub'),
             'delivery_mode' => 'stub',
+            'readiness' => 'provider_ready',
         ],
     ],
     'preferences' => [
         'enabled' => env('NOTIFICATIONS_PREFERENCES_ENABLED', true),
-        'timezone' => env('NOTIFICATIONS_PREFERENCES_TIMEZONE', env('APP_TIMEZONE', 'UTC')),
+        'timezone' => env('NOTIFICATIONS_PREFERENCES_TIMEZONE', env('BOOKING_DEFAULT_BRANCH_TIMEZONE', 'Asia/Ho_Chi_Minh')),
         'default_opt_in_channels' => array_values(array_filter(array_map(
             'trim',
             explode(',', (string) env('NOTIFICATIONS_DEFAULT_OPT_IN_CHANNELS', 'Email'))

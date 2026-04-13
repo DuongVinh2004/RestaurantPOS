@@ -10,12 +10,16 @@ use Illuminate\Support\Carbon;
 
 class StaffConversationSummaryResource extends JsonResource
 {
+    private const OVERDUE_AFTER_MINUTES = 15;
+
     /**
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
         $staffActorUserId = (int) ($request->attributes->get('staff_actor_user_id') ?? 0);
+        $workflowState = $this->workflowState();
+        $workflowAllowedActions = $this->workflowAllowedActions();
 
         $branch = null;
         if ($this->relationLoaded('branch') && $this->branch !== null) {
@@ -94,19 +98,37 @@ class StaffConversationSummaryResource extends JsonResource
         }
 
         $latestActivity = $this->latest_message_at ?? $this->created_at;
+        $latestActivityIso = $this->iso($latestActivity);
+        $isOverdue = false;
+        if ($latestActivity !== null && ! $workflowState->isQueueTerminal()) {
+            $latestActivityUtc = $latestActivity instanceof \DateTimeInterface
+                ? Carbon::instance($latestActivity)->utc()
+                : Carbon::parse((string) $latestActivity)->utc();
+            $isOverdue = $latestActivityUtc->lessThanOrEqualTo(now('UTC')->subMinutes(self::OVERDUE_AFTER_MINUTES));
+        }
 
         return [
             'conversation_id' => (string) $this->conversation_id,
             'branch_id' => (int) $this->branch_id,
             'branch' => $branch,
             'status' => $this->status?->value ?? (string) $this->status,
+            'workflow' => [
+                'state' => $workflowState->value,
+                'state_reason' => $this->workflowStateReasonValue(),
+                'state_changed_at' => $this->iso($this->workflowStateChangedAtValue()),
+                'first_triaged_at' => $this->iso($this->first_triaged_at),
+                'resolved_at' => $this->iso($this->resolved_at),
+                'closed_at' => $this->iso($this->closed_at),
+                'is_terminal' => $workflowState->isQueueTerminal(),
+                'allowed_actions' => $workflowAllowedActions,
+            ],
             'channel' => $this->channel?->value ?? (string) $this->channel,
             'intent_detected' => $this->intent_detected,
             'customer_session_id' => $this->customer_session_id,
             'session_id' => $this->session_id,
             'created_at' => $this->iso($this->created_at),
             'closed_at' => $this->iso($this->closed_at),
-            'latest_activity_at' => $this->iso($latestActivity),
+            'latest_activity_at' => $latestActivityIso,
             'user' => $user,
             'linked_reservation' => $linkedReservation,
             'linked_waiting_list' => $linkedWaitingList,
@@ -125,6 +147,16 @@ class StaffConversationSummaryResource extends JsonResource
                 'is_mine' => $activeAssignment !== null
                     && $staffActorUserId > 0
                     && (int) ($activeAssignment['agent_user_id'] ?? 0) === $staffActorUserId,
+            ],
+            'operational' => [
+                'is_overdue' => $isOverdue,
+                'overdue_after_minutes' => self::OVERDUE_AFTER_MINUTES,
+                'queue_bucket' => match ($workflowState->value) {
+                    'PendingCustomer' => 'waiting_on_customer',
+                    'Resolved' => 'resolved',
+                    'Closed' => 'closed',
+                    default => $activeAssignment === null ? 'unassigned' : 'assigned',
+                },
             ],
         ];
     }

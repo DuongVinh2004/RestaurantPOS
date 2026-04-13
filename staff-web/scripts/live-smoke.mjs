@@ -147,14 +147,14 @@ async function main() {
   const boardReservation = asArray(board?.data)
     .map((row) => row?.reservation)
     .find((reservation) => reservation && readNumber(reservation, 'reservation_id'));
-  let selectedReservation = pickReservation({
-    reservationId: config.reservationId,
+  const resolvedReservation = resolveReservationSelection({
+    configuredReservationId: config.reservationId,
+    configuredReservationIdSource: config.reservationIdSource,
     reservationLookup,
     boardReservation,
   });
-  const reservationId = selectedReservation
-    ? readNumber(selectedReservation, 'reservation_id')
-    : config.reservationId ?? readNumber(boardReservation, 'reservation_id');
+  let selectedReservation = resolvedReservation.reservation;
+  const reservationId = resolvedReservation.reservationId;
   let orderTableId = config.orderTableId ?? readFirstTableId(selectedReservation) ?? null;
   const selectedBoardRow = findBoardRow(board?.data, reservationId, orderTableId);
   const checkInPlan = resolveCheckInPlan({
@@ -163,6 +163,23 @@ async function main() {
     fallbackTableId: orderTableId,
   });
   orderTableId = checkInPlan.tableId ?? orderTableId;
+
+  let cashierCurrentResponse = null;
+  let cashierShiftResponse = null;
+  let cashierShift = null;
+  let cashierShiftId = null;
+
+  if (shouldPrepareCashierBeforeOperationalOrderFlow(config)) {
+    ({
+      cashierCurrentResponse,
+      cashierShiftResponse,
+      cashierShift,
+      cashierShiftId,
+    } = await ensureCashierShiftReady({
+      token: staffToken,
+      activeConfig: config,
+    }));
+  }
 
   if (!selectedReservation && !reservationId) {
     pushResult('SKIP', 'reservation orders', 'no reservation from lookup, board, or explicit reservation_id');
@@ -183,14 +200,19 @@ async function main() {
     const response = await requestJson('GET', '/api/v1/menu/items', {
       token: staffToken,
       query: {
-        per_page: 4,
+        per_page: Math.max(12, config.menuItemIds.length * 4, 4),
         service_time: new Date().toISOString(),
       },
     });
 
     return response;
   });
-  const menuItem = asArray(menuItemsResponse?.data?.data).find((item) => item?.is_available) ?? null;
+  const menuSelection = resolveMenuItemSelection({
+    configuredMenuItemIds: config.menuItemIds,
+    configuredMenuItemIdsSource: config.menuItemIdsSource,
+    menuItems: asArray(menuItemsResponse?.data?.data),
+  });
+  const menuItem = menuSelection.item;
   const boardOrder = asArray(board?.data)
     .map((row) => row?.active_order)
     .find((order) => order && readNumber(order, 'order_id'));
@@ -203,6 +225,9 @@ async function main() {
     : null;
 
   if (!orderDetailResponse && config.allowOrderCreate && selectedReservation) {
+    if (!isReservationUsableForOrderFlow(selectedReservation)) {
+      pushResult('SKIP', 'order create', 'canonical reservation is no longer active; rerun "php artisan booking:uat-pack:bootstrap --base-url=http://127.0.0.1:8000 --json" before mutation smoke');
+    } else {
     let readyForOrderCreate = true;
 
     if (checkInPlan.required) {
@@ -249,6 +274,7 @@ async function main() {
     } else {
       pushResult('SKIP', 'order create', 'missing table_id or row_version from canonical reservation source');
     }
+    }
   } else if (!orderDetailResponse && !config.allowOrderCreate) {
     pushResult('SKIP', 'order create', 'no existing order and order-create gate disabled');
   } else if (!orderDetailResponse) {
@@ -285,8 +311,88 @@ async function main() {
     pushResult('SKIP', 'order add-item', 'no order available');
   } else if (!config.allowOrderAddItem) {
     pushResult('SKIP', 'order add-item', 'order add-item gate disabled');
+  } else if (config.menuItemIdsSource !== 'missing') {
+    pushResult('SKIP', 'order add-item', `canonical menu item ids [${config.menuItemIds.join(', ')}] were not available at runtime`);
   } else {
     pushResult('SKIP', 'order add-item', 'no available menu item');
+  }
+
+  if (orderId && orderDetail && config.allowKitchenDispatch && !cashierCurrentResponse) {
+    ({
+      cashierCurrentResponse,
+      cashierShiftResponse,
+      cashierShift,
+      cashierShiftId,
+    } = await ensureCashierShiftReady({
+      token: staffToken,
+      activeConfig: config,
+    }));
+  }
+
+  let dispatchedKitchenTicket = null;
+  if (orderId && orderDetail && config.allowKitchenDispatch) {
+    const orderRowVersion = readNumber(orderDetail?.order, 'row_version');
+
+    if (orderRowVersion) {
+      const dispatchResponse = await runStep('kitchen dispatch', async () => requestJson('POST', `/api/v1/staff/orders/${orderId}/kitchen/dispatch`, {
+        token: staffToken,
+        expectedStatuses: [200, 201],
+        idempotencyKey: idempotencyKey('kitchen-dispatch'),
+        body: {
+          row_version: orderRowVersion,
+        },
+      }));
+
+      dispatchedKitchenTicket = asArray(dispatchResponse?.data?.data)[0] ?? null;
+      if (!dispatchedKitchenTicket) {
+        pushResult('FAIL', 'kitchen ticket read', 'dispatch returned no routed ticket for the canonical smoke order');
+      }
+    } else {
+      pushResult('SKIP', 'kitchen dispatch', 'order row_version is missing after reload');
+    }
+  } else if (!orderId) {
+    pushResult('SKIP', 'kitchen dispatch', 'no order available');
+  } else if (!config.allowKitchenDispatch) {
+    pushResult('SKIP', 'kitchen dispatch', 'kitchen dispatch gate disabled');
+  } else {
+    pushResult('SKIP', 'kitchen dispatch', 'order detail was not available after add-item flow');
+  }
+
+  if (dispatchedKitchenTicket) {
+    await runStep('kitchen ticket read', async () => {
+      const stationId = readNumber(dispatchedKitchenTicket?.station, 'station_id');
+      const ticketId = readNumber(dispatchedKitchenTicket, 'ticket_id');
+
+      if (!stationId || !ticketId) {
+        throw new Error('dispatch response is missing station_id or ticket_id');
+      }
+
+      const response = await requestJson('GET', `/api/v1/staff/kitchen/stations/${stationId}/tickets`, {
+        token: staffToken,
+        query: {
+          include_terminal: true,
+        },
+      });
+
+      const matchedTicket = asArray(response.data?.data).find((ticket) => readNumber(ticket, 'ticket_id') === ticketId);
+      if (!matchedTicket) {
+        throw new Error(`ticket_id=${ticketId} was not returned by station_id=${stationId}`);
+      }
+
+      return `ticket_id=${ticketId} status=${readString(matchedTicket, 'ticket_status') ?? 'unknown'} station_id=${stationId}`;
+    });
+  }
+
+  if (!cashierCurrentResponse && shouldPrepareCashierBeforeFinance(config)) {
+    ({
+      cashierCurrentResponse,
+      cashierShiftResponse,
+      cashierShift,
+      cashierShiftId,
+    } = await ensureCashierShiftReady({
+      token: staffToken,
+      activeConfig: config,
+    }));
   }
 
   const settlementPreviewResponse = orderId
@@ -330,7 +436,29 @@ async function main() {
     pushResult('SKIP', 'settlement finalize', 'no order available for finalize');
   }
 
-  const refundReservationId = config.refundReservationId ?? reservationId;
+  const refundReservationLookupResponse = config.refundReservationCode && config.refundReservationIdSource !== 'env'
+    ? await runStep('refund reservation lookup', async () => requestJson('GET', '/api/v1/staff/reservations', {
+      token: staffToken,
+      query: {
+        bucket: 'all',
+        reservation_code: config.refundReservationCode,
+        per_page: 4,
+      },
+    }))
+    : null;
+  const refundReservationId = resolveRefundReservationId({
+    configuredReservationId: config.refundReservationId,
+    configuredReservationIdSource: config.refundReservationIdSource,
+    refundReservationLookup: asArray(refundReservationLookupResponse?.data?.data),
+    selectedReservation,
+    fallbackReservationId: reservationId,
+  });
+
+  if (!refundReservationId) {
+    pushResult('SKIP', 'refund preview', config.refundReservationIdSource === 'manifest'
+      ? 'canonical refund reservation from the manifest was not found at runtime; refresh the UAT pack before release smoke'
+      : 'no reservation available for refund');
+  }
 
   const refundPreviewResponse = refundReservationId
     ? await runStep('refund preview', async () => requestJson('GET', `/api/v1/staff/reservations/${refundReservationId}/refund-preview`, {
@@ -374,57 +502,16 @@ async function main() {
     pushResult('SKIP', 'refund execute', 'no reservation available for refund');
   }
 
-  let cashierCurrentResponse = await runStep('cashier current', async () => {
-    const response = await requestJson('GET', '/api/v1/staff/cashier/shifts/current', {
+  if (!cashierCurrentResponse) {
+    ({
+      cashierCurrentResponse,
+      cashierShiftResponse,
+      cashierShift,
+      cashierShiftId,
+    } = await ensureCashierShiftReady({
       token: staffToken,
-      expectedStatuses: [200, 404],
-    });
-
-    return response;
-  });
-
-  if (cashierCurrentResponse?.status === 404 && config.allowCashierOpen) {
-    cashierCurrentResponse = await runStep('cashier open', async () => requestJson('POST', '/api/v1/staff/cashier/shifts/open', {
-      token: staffToken,
-      expectedStatuses: [200, 201],
-      idempotencyKey: idempotencyKey('cashier-open'),
-      body: {
-        opening_float_amount: config.cashierOpeningFloat,
-        branch_id: config.cashierBranchId ?? undefined,
-        currency: config.cashierCurrency,
-        terminal_code: config.cashierTerminalCode,
-        notes: 'staff-web live smoke',
-      },
+      activeConfig: config,
     }));
-  } else if (cashierCurrentResponse?.status === 404) {
-    pushResult('SKIP', 'cashier open', 'no open shift and cashier-open gate disabled');
-  } else {
-    pushResult('SKIP', 'cashier open', 'current shift already exists');
-  }
-
-  const cashierShiftId = readNumber(cashierCurrentResponse?.data?.data, 'cashier_shift_id');
-  const cashierShiftResponse = cashierShiftId
-    ? await runStep('cashier show', async () => requestJson('GET', `/api/v1/staff/cashier/shifts/${cashierShiftId}`, {
-      token: staffToken,
-    }))
-    : null;
-
-  const cashierShift = cashierShiftResponse?.data?.data ?? cashierCurrentResponse?.data?.data ?? null;
-
-  if (cashierShiftId && cashierShift && config.allowCashierClose) {
-    await runStep('cashier close', async () => requestJson('POST', `/api/v1/staff/cashier/shifts/${cashierShiftId}/close`, {
-      token: staffToken,
-      idempotencyKey: idempotencyKey('cashier-close'),
-      body: {
-        actual_cash_amount: Number(cashierShift.expected_cash_amount ?? cashierShift.opening_float_amount ?? 0),
-        notes: 'staff-web live smoke',
-        row_version: readNumber(cashierShift, 'row_version'),
-      },
-    }));
-  } else if (cashierShiftId) {
-    pushResult('SKIP', 'cashier close', 'close gate disabled');
-  } else {
-    pushResult('SKIP', 'cashier close', 'no cashier shift available');
   }
 
   const conversationsResponse = await runStep('conversations list', async () => requestJson('GET', '/api/v1/staff/conversations', {
@@ -435,7 +522,11 @@ async function main() {
     },
   }));
 
-  const conversationId = config.conversationId || readString(asArray(conversationsResponse?.data?.data)[0], 'conversation_id');
+  const conversationId = resolveConversationId({
+    configuredConversationId: config.conversationId,
+    configuredConversationIdSource: config.conversationIdSource,
+    conversations: asArray(conversationsResponse?.data?.data),
+  });
 
   if (conversationId) {
     const conversationDetailResponse = await runStep('conversation detail', async () => requestJson('GET', `/api/v1/staff/conversations/${conversationId}`, {
@@ -453,7 +544,75 @@ async function main() {
     pushResult('SKIP', 'conversation ai assist', 'conversation detail was skipped');
   }
 
+  if (cashierShiftId && cashierShift && config.allowCashierClose) {
+    await runStep('cashier close', async () => requestJson('POST', `/api/v1/staff/cashier/shifts/${cashierShiftId}/close`, {
+      token: staffToken,
+      idempotencyKey: idempotencyKey('cashier-close'),
+      body: {
+        actual_cash_amount: Number(cashierShift.expected_cash_amount ?? cashierShift.opening_float_amount ?? 0),
+        notes: 'staff-web live smoke',
+        row_version: readNumber(cashierShift, 'row_version'),
+      },
+    }));
+  } else if (cashierShiftId) {
+    pushResult('SKIP', 'cashier close', 'close gate disabled');
+  } else {
+    pushResult('SKIP', 'cashier close', 'no cashier shift available');
+  }
+
   finalizeSmokeRun(config);
+}
+
+async function ensureCashierShiftReady({ token, activeConfig, existingCurrentResponse = null }) {
+  let cashierCurrentResponse = existingCurrentResponse;
+
+  if (!cashierCurrentResponse) {
+    cashierCurrentResponse = await runStep('cashier current', async () => {
+      const response = await requestJson('GET', '/api/v1/staff/cashier/shifts/current', {
+        token,
+        query: {
+          branch_id: activeConfig.cashierBranchId ?? undefined,
+        },
+        expectedStatuses: [200, 404],
+      });
+
+      return response;
+    });
+  }
+
+  if (cashierCurrentResponse?.status === 404 && activeConfig.allowCashierOpen) {
+    cashierCurrentResponse = await runStep('cashier open', async () => requestJson('POST', '/api/v1/staff/cashier/shifts/open', {
+      token,
+      expectedStatuses: [200, 201],
+      idempotencyKey: idempotencyKey('cashier-open'),
+      body: {
+        opening_float_amount: activeConfig.cashierOpeningFloat,
+        branch_id: activeConfig.cashierBranchId ?? undefined,
+        currency: activeConfig.cashierCurrency,
+        terminal_code: activeConfig.cashierTerminalCode,
+        notes: 'staff-web live smoke',
+      },
+    }));
+  } else if (cashierCurrentResponse?.status === 404) {
+    pushResult('SKIP', 'cashier open', 'no open shift and cashier-open gate disabled');
+  } else {
+    pushResult('SKIP', 'cashier open', 'current shift already exists');
+  }
+
+  const cashierShiftId = readNumber(cashierCurrentResponse?.data?.data, 'cashier_shift_id');
+  const cashierShiftResponse = cashierShiftId
+    ? await runStep('cashier show', async () => requestJson('GET', `/api/v1/staff/cashier/shifts/${cashierShiftId}`, {
+      token,
+    }))
+    : null;
+  const cashierShift = cashierShiftResponse?.data?.data ?? cashierCurrentResponse?.data?.data ?? null;
+
+  return {
+    cashierCurrentResponse,
+    cashierShiftResponse,
+    cashierShift,
+    cashierShiftId,
+  };
 }
 
 async function requestJson(method, routePath, { token, query, body, expectedStatuses = [200], idempotencyKey } = {}) {
@@ -757,16 +916,107 @@ export function shouldRecordBootstrapFailure(smokeResults = results) {
   return !smokeResults.some((result) => result.status === 'FAIL');
 }
 
-function pickReservation({ reservationId, reservationLookup, boardReservation }) {
-  if (reservationId) {
-    return reservationLookup.find((reservation) => readNumber(reservation, 'reservation_id') === reservationId) ?? boardReservation ?? null;
+export function resolveReservationSelection({
+  configuredReservationId,
+  configuredReservationIdSource = 'missing',
+  reservationLookup,
+  boardReservation,
+}) {
+  const runtimeOperationalReservation = reservationLookup.find(isReservationUsableForOrderFlow)
+    ?? (isReservationUsableForOrderFlow(boardReservation) ? boardReservation : null);
+  const matchedConfiguredReservation = configuredReservationId
+    ? reservationLookup.find((reservation) => readNumber(reservation, 'reservation_id') === configuredReservationId)
+      ?? (readNumber(boardReservation, 'reservation_id') === configuredReservationId ? boardReservation : null)
+    : null;
+
+  if (matchedConfiguredReservation) {
+    if (
+      configuredReservationIdSource === 'manifest'
+      && !isReservationUsableForOrderFlow(matchedConfiguredReservation)
+      && runtimeOperationalReservation
+      && readNumber(runtimeOperationalReservation, 'reservation_id') !== configuredReservationId
+    ) {
+      return {
+        reservation: runtimeOperationalReservation,
+        reservationId: readNumber(runtimeOperationalReservation, 'reservation_id'),
+      };
+    }
+
+    return {
+      reservation: matchedConfiguredReservation,
+      reservationId: readNumber(matchedConfiguredReservation, 'reservation_id'),
+    };
   }
 
-  return reservationLookup.find((reservation) => readFirstTableId(reservation)) ?? boardReservation ?? null;
+  if (configuredReservationId && configuredReservationIdSource === 'env') {
+    return {
+      reservation: boardReservation ?? null,
+      reservationId: configuredReservationId,
+    };
+  }
+
+  const fallbackReservation = runtimeOperationalReservation
+    ?? reservationLookup.find((reservation) => readFirstTableId(reservation))
+    ?? boardReservation
+    ?? null;
+
+  return {
+    reservation: fallbackReservation,
+    reservationId: readNumber(fallbackReservation, 'reservation_id'),
+  };
+}
+
+export function resolveRefundReservationId({
+  configuredReservationId,
+  configuredReservationIdSource = 'missing',
+  refundReservationLookup = [],
+  selectedReservation,
+  fallbackReservationId = null,
+}) {
+  const matchedConfiguredReservation = configuredReservationId
+    ? refundReservationLookup.find((reservation) => readNumber(reservation, 'reservation_id') === configuredReservationId)
+    : null;
+
+  if (matchedConfiguredReservation) {
+    return readNumber(matchedConfiguredReservation, 'reservation_id');
+  }
+
+  if (configuredReservationId && configuredReservationIdSource === 'env') {
+    return configuredReservationId;
+  }
+
+  if (configuredReservationId && configuredReservationIdSource === 'manifest') {
+    return readNumber(refundReservationLookup[0], 'reservation_id');
+  }
+
+  return readNumber(refundReservationLookup[0], 'reservation_id')
+    ?? readNumber(selectedReservation, 'reservation_id')
+    ?? fallbackReservationId;
+}
+
+export function resolveConversationId({
+  configuredConversationId,
+  configuredConversationIdSource = 'missing',
+  conversations = [],
+}) {
+  const firstConversationId = readString(conversations[0], 'conversation_id');
+
+  if (!configuredConversationId) {
+    return firstConversationId;
+  }
+
+  const matchedConversation = conversations.find((conversation) => readString(conversation, 'conversation_id') === configuredConversationId);
+  if (matchedConversation) {
+    return configuredConversationId;
+  }
+
+  return configuredConversationIdSource === 'env' ? configuredConversationId : firstConversationId;
 }
 
 function pickOrderId(reservationOrders, boardOrder) {
-  return readNumber(reservationOrders[0], 'order_id') ?? readNumber(boardOrder, 'order_id') ?? null;
+  const activeReservationOrder = reservationOrders.find(isActiveOrder);
+  return readNumber(activeReservationOrder, 'order_id')
+    ?? (isActiveOrder(boardOrder) ? readNumber(boardOrder, 'order_id') : null);
 }
 
 function readFirstTableId(reservation) {
@@ -776,6 +1026,10 @@ function readFirstTableId(reservation) {
 
 function asArray(value) {
   return Array.isArray(value) ? value : [];
+}
+
+function asObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : null;
 }
 
 function readNumber(source, key) {
@@ -823,6 +1077,23 @@ function normalizeApiBaseUrl(value) {
   return value.trim().replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
 }
 
+function isReservationUsableForOrderFlow(reservation) {
+  const status = readString(reservation, 'status')?.toLowerCase() ?? null;
+  if (status === null) {
+    return false;
+  }
+
+  if (status === 'completed' || status === 'cancelled' || status === 'no_show') {
+    return false;
+  }
+
+  return !readString(reservation, 'checked_out_at');
+}
+
+function isActiveOrder(order) {
+  return (readString(order, 'status')?.toLowerCase() ?? null) === 'active';
+}
+
 function buildBoardWindow(reference = new Date()) {
   return {
     from: new Date(reference.getTime() - 60 * 60 * 1000).toISOString(),
@@ -837,16 +1108,68 @@ function idempotencyKey(prefix) {
 function formatErrorDetails(error) {
   const details = error?.details;
   if (details?.kind === 'network') {
-    return `network failure at ${details.url}: ${details.message}. Ensure the backend HTTP server is reachable and verify local runtime prerequisites with "php artisan booking:doctor --json".`;
+    return `network failure at ${details.url}: ${details.message}. Ensure the backend HTTP server is reachable and verify local runtime prerequisites with "npm run preflight:local" or "php artisan booking:doctor --json".`;
   }
 
   if (details?.status) {
     const requestId = readString(details.data, 'request_id');
+    const healthSummary = describeHealthFailurePayload(details.data);
+    if (healthSummary) {
+      return `${details.status}${requestId ? ` req=${requestId}` : ''} ${healthSummary}`;
+    }
+
     const message = readString(details.data, 'message') ?? JSON.stringify(details.data);
     return `${details.status}${requestId ? ` req=${requestId}` : ''} ${message}`;
   }
 
   return error instanceof Error ? error.message : String(error);
+}
+
+export function describeHealthFailurePayload(payload) {
+  const envelope = asObject(payload);
+  const checks = asObject(envelope?.checks);
+
+  if (!checks) {
+    return null;
+  }
+
+  const failingChecks = [];
+
+  const db = asObject(checks.db);
+  if (db?.ok === false) {
+    failingChecks.push(`db=${readString(db, 'reason') ?? 'db_unavailable'}`);
+  }
+
+  const redis = asObject(checks.redis);
+  if (redis?.ok === false) {
+    const reason = readString(redis, 'reason') ?? 'redis_unavailable';
+    const error = readString(redis, 'error');
+    failingChecks.push(`redis=${reason}${error ? ` (${error})` : ''}`);
+  } else if (redis?.ok !== true) {
+    const reason = readString(redis, 'reason');
+    if (reason) {
+      failingChecks.push(`redis=${reason}`);
+    }
+  }
+
+  const scheduler = asObject(checks.scheduler);
+  if (scheduler?.ok === false) {
+    const reason = readString(scheduler, 'reason') ?? 'scheduler_unavailable';
+    const age = readNumber(scheduler, 'age_seconds');
+    const staleThreshold = readNumber(scheduler, 'stale_threshold_seconds');
+    failingChecks.push(`scheduler=${reason}${age !== null ? ` age=${age}s` : ''}${staleThreshold !== null ? ` ttl=${staleThreshold}s` : ''}`);
+  }
+
+  const disk = asObject(checks.disk);
+  if (disk?.ok === false) {
+    failingChecks.push(`disk=${readString(disk, 'reason') ?? 'disk_probe_failed'}`);
+  }
+
+  if (failingChecks.length === 0) {
+    return null;
+  }
+
+  return `health=${readString(envelope, 'status') ?? 'fail'} ${failingChecks.join('; ')}`;
 }
 
 export function buildSmokeEvidence(activeConfig, smokeResults = results) {
@@ -955,6 +1278,37 @@ export function createSmokeConfig(env = process.env, manifestResult = readSmokeM
   const previewUrl = env.STAFF_WEB_SMOKE_PREVIEW_URL ?? '';
   const previewLabel = env.STAFF_WEB_SMOKE_PREVIEW_LABEL ?? 'preview';
   const evidenceDir = env.STAFF_WEB_SMOKE_EVIDENCE_DIR ?? '';
+  const reservationConfig = resolveConfiguredNumber({
+    envValue: env.STAFF_WEB_SMOKE_RESERVATION_ID,
+    manifestValues: [
+      readManifestNumber(manifestData, 'scenarios.dine_in_checkout.reservation_id'),
+      readManifestNumber(manifestData, 'reservations.dine_in_checkin.reservation_id'),
+    ],
+  });
+  const refundReservationConfig = resolveConfiguredNumber({
+    envValue: env.STAFF_WEB_SMOKE_REFUND_RESERVATION_ID,
+    manifestValues: [
+      readManifestNumber(manifestData, 'scenarios.refund_partial.reservation_id'),
+      readManifestNumber(manifestData, 'reservations.refund_partial_ready.reservation_id'),
+      readManifestNumber(manifestData, 'scenarios.refund_cancel.reservation_id'),
+      readManifestNumber(manifestData, 'reservations.refund_cancel_ready.reservation_id'),
+    ],
+  });
+  const conversationConfig = resolveConfiguredString({
+    envValue: env.STAFF_WEB_SMOKE_CONVERSATION_ID,
+    manifestValues: [
+      readManifestString(manifestData, 'scenarios.conversation_inbox.conversation_id'),
+      readManifestString(manifestData, 'conversation.conversation_id'),
+    ],
+  });
+  const menuItemConfig = resolveConfiguredNumberList({
+    envValue: env.STAFF_WEB_SMOKE_MENU_ITEM_IDS,
+    manifestValues: [
+      readManifestNumberList(manifestData, 'scenarios.dine_in_checkout.menu_item_ids'),
+    ],
+  });
+  const refundReservationCode = readManifestString(manifestData, 'reservations.refund_partial_ready.reservation_code')
+    ?? readManifestString(manifestData, 'reservations.refund_cancel_ready.reservation_code');
 
   return {
     apiBaseUrl: normalizeApiBaseUrl(
@@ -967,19 +1321,22 @@ export function createSmokeConfig(env = process.env, manifestResult = readSmokeM
     password: env.STAFF_WEB_SMOKE_PASSWORD ?? readManifestString(manifestData, 'auth.staff.password') ?? '',
     deviceName: env.STAFF_WEB_SMOKE_DEVICE_NAME ?? 'staff-web-live-smoke',
     reservationQuery: env.STAFF_WEB_SMOKE_RESERVATION_QUERY ?? readManifestString(manifestData, 'reservations.dine_in_checkin.reservation_code') ?? '',
-    reservationId: readOptionalNumber(env.STAFF_WEB_SMOKE_RESERVATION_ID) ?? readManifestNumber(manifestData, 'scenarios.dine_in_checkout.reservation_id') ?? readManifestNumber(manifestData, 'reservations.dine_in_checkin.reservation_id'),
+    reservationId: reservationConfig.value,
+    reservationIdSource: reservationConfig.source,
     orderTableId: readOptionalNumber(env.STAFF_WEB_SMOKE_ORDER_TABLE_ID) ?? readManifestNumber(manifestData, 'scenarios.dine_in_checkout.table_id'),
-    refundReservationId: readOptionalNumber(env.STAFF_WEB_SMOKE_REFUND_RESERVATION_ID)
-      ?? readManifestNumber(manifestData, 'scenarios.refund_partial.reservation_id')
-      ?? readManifestNumber(manifestData, 'reservations.refund_partial_ready.reservation_id')
-      ?? readManifestNumber(manifestData, 'scenarios.refund_cancel.reservation_id')
-      ?? readManifestNumber(manifestData, 'reservations.refund_cancel_ready.reservation_id'),
+    refundReservationId: refundReservationConfig.value,
+    refundReservationIdSource: refundReservationConfig.source,
+    refundReservationCode,
     orderId: readOptionalNumber(env.STAFF_WEB_SMOKE_ORDER_ID),
-    conversationId: env.STAFF_WEB_SMOKE_CONVERSATION_ID ?? readManifestString(manifestData, 'scenarios.conversation_inbox.conversation_id') ?? readManifestString(manifestData, 'conversation.conversation_id') ?? '',
+    menuItemIds: menuItemConfig.value,
+    menuItemIdsSource: menuItemConfig.source,
+    conversationId: conversationConfig.value,
+    conversationIdSource: conversationConfig.source,
     conversationQuery: env.STAFF_WEB_SMOKE_CONVERSATION_QUERY ?? '',
     allowMutations: Object.values(mutationGate).some((gate) => gate.enabled),
     allowOrderCreate: mutationGate.orderCreate.enabled,
     allowOrderAddItem: mutationGate.orderAddItem.enabled,
+    allowKitchenDispatch: mutationGate.kitchenDispatch.enabled,
     allowSettlementFinalize: mutationGate.settlementFinalize.enabled,
     allowRefundMutation: mutationGate.refundExecute.enabled,
     allowCashierOpen: mutationGate.cashierOpen.enabled,
@@ -1056,37 +1413,51 @@ export function resolveMutationGate(env = process.env, manifestData = null) {
   const sharedMutationGate = readExplicitBooleanEnv(env.STAFF_WEB_SMOKE_ALLOW_MUTATIONS)
     ?? readManifestMutationGate(manifestData, 'allow_mutations');
 
-  return {
-    orderCreate: resolveMutationGateAction({
+  const orderCreate = resolveMutationGateAction({
       envValue: readExplicitBooleanEnv(env.STAFF_WEB_SMOKE_ALLOW_ORDER_CREATE),
       manifestValue: readManifestMutationGate(manifestData, 'order_create'),
       inheritedValue: sharedMutationGate,
-    }),
-    orderAddItem: resolveMutationGateAction({
+    });
+  const orderAddItem = resolveMutationGateAction({
       envValue: readExplicitBooleanEnv(env.STAFF_WEB_SMOKE_ALLOW_ORDER_ADD_ITEM),
       manifestValue: readManifestMutationGate(manifestData, 'order_add_item'),
       inheritedValue: sharedMutationGate,
-    }),
-    settlementFinalize: resolveMutationGateAction({
+    });
+  const kitchenDispatch = resolveMutationGateAction({
+      envValue: readExplicitBooleanEnv(env.STAFF_WEB_SMOKE_ALLOW_KITCHEN_DISPATCH),
+      manifestValue: readManifestMutationGate(manifestData, 'kitchen_dispatch'),
+      inheritedValue: sharedMutationGate,
+    });
+  const settlementFinalize = resolveMutationGateAction({
       envValue: readExplicitBooleanEnv(env.STAFF_WEB_SMOKE_ALLOW_SETTLEMENT_FINALIZE),
       manifestValue: readManifestMutationGate(manifestData, 'settlement_finalize'),
       inheritedValue: sharedMutationGate,
-    }),
-    refundExecute: resolveMutationGateAction({
+    });
+  const refundExecute = resolveMutationGateAction({
       envValue: readExplicitBooleanEnv(env.STAFF_WEB_SMOKE_ALLOW_REFUND_MUTATION),
       manifestValue: readManifestMutationGate(manifestData, 'refund_execute'),
       inheritedValue: sharedMutationGate,
-    }),
-    cashierOpen: resolveMutationGateAction({
+    });
+  const cashierOpen = resolveCashierOpenMutationGate({
       envValue: readExplicitBooleanEnv(env.STAFF_WEB_SMOKE_ALLOW_CASHIER_OPEN),
       manifestValue: readManifestMutationGate(manifestData, 'cashier_open'),
       inheritedValue: sharedMutationGate,
-    }),
-    cashierClose: resolveMutationGateAction({
+      prerequisiteGates: [kitchenDispatch, settlementFinalize, refundExecute],
+    });
+  const cashierClose = resolveMutationGateAction({
       envValue: readExplicitBooleanEnv(env.STAFF_WEB_SMOKE_ALLOW_CASHIER_CLOSE),
       manifestValue: readManifestMutationGate(manifestData, 'cashier_close'),
       inheritedValue: null,
-    }),
+    });
+
+  return {
+    orderCreate,
+    orderAddItem,
+    kitchenDispatch,
+    settlementFinalize,
+    refundExecute,
+    cashierOpen,
+    cashierClose,
   };
 }
 
@@ -1094,6 +1465,19 @@ export function describeMutationGate(mutationGate) {
   return Object.entries(mutationGate)
     .map(([key, gate]) => `${key}=${gate.enabled ? 'on' : 'off'}(${gate.source})`)
     .join(', ');
+}
+
+export function shouldPrepareCashierBeforeFinance(activeConfig) {
+  return Boolean(activeConfig?.allowSettlementFinalize || activeConfig?.allowRefundMutation);
+}
+
+export function shouldPrepareCashierBeforeOperationalOrderFlow(activeConfig) {
+  return Boolean(
+    activeConfig?.allowOrderCreate
+      || activeConfig?.allowOrderAddItem
+      || activeConfig?.allowKitchenDispatch
+      || activeConfig?.allowSettlementFinalize
+  );
 }
 
 function resolveCredentialSource(env, manifestData) {
@@ -1137,6 +1521,16 @@ function readManifestNumber(source, dottedPath) {
   return null;
 }
 
+function readManifestNumberList(source, dottedPath) {
+  const value = readManifestValue(source, dottedPath);
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return normalizePositiveIntegerList(value);
+}
+
 function readManifestBoolean(source, dottedPath) {
   const value = readManifestValue(source, dottedPath);
 
@@ -1156,6 +1550,47 @@ function readManifestMutationGate(source, key) {
     ?? readManifestBoolean(source, `scenarios.staff_web_smoke.mutations.${key}`);
 }
 
+function resolveConfiguredNumber({ envValue, manifestValues }) {
+  const envNumber = readOptionalNumber(envValue);
+  if (envNumber !== null) {
+    return { value: envNumber, source: 'env' };
+  }
+
+  const manifestNumber = manifestValues.find((value) => typeof value === 'number' && !Number.isNaN(value)) ?? null;
+  if (manifestNumber !== null) {
+    return { value: manifestNumber, source: 'manifest' };
+  }
+
+  return { value: null, source: 'missing' };
+}
+
+function resolveConfiguredNumberList({ envValue, manifestValues }) {
+  const envNumbers = parseNumberList(envValue);
+  if (envNumbers.length > 0) {
+    return { value: envNumbers, source: 'env' };
+  }
+
+  const manifestNumbers = manifestValues.find((value) => Array.isArray(value) && value.length > 0) ?? [];
+  if (manifestNumbers.length > 0) {
+    return { value: manifestNumbers, source: 'manifest' };
+  }
+
+  return { value: [], source: 'missing' };
+}
+
+function resolveConfiguredString({ envValue, manifestValues }) {
+  if (typeof envValue === 'string' && envValue.trim() !== '') {
+    return { value: envValue.trim(), source: 'env' };
+  }
+
+  const manifestString = manifestValues.find((value) => typeof value === 'string' && value.trim() !== '') ?? null;
+  if (manifestString !== null) {
+    return { value: manifestString, source: 'manifest' };
+  }
+
+  return { value: '', source: 'missing' };
+}
+
 function resolveMutationGateAction({ envValue, manifestValue, inheritedValue }) {
   if (envValue !== null) {
     return { enabled: envValue, source: 'env' };
@@ -1172,6 +1607,59 @@ function resolveMutationGateAction({ envValue, manifestValue, inheritedValue }) 
   return { enabled: false, source: 'default-off' };
 }
 
+function resolveCashierOpenMutationGate({ envValue, manifestValue, inheritedValue, prerequisiteGates = [] }) {
+  if (envValue !== null) {
+    return { enabled: envValue, source: 'env' };
+  }
+
+  if (manifestValue !== null) {
+    return { enabled: manifestValue, source: 'manifest' };
+  }
+
+  if (inheritedValue !== null) {
+    return { enabled: inheritedValue, source: 'shared' };
+  }
+
+  if (prerequisiteGates.some((gate) => gate?.enabled)) {
+    return { enabled: true, source: 'prerequisite' };
+  }
+
+  return { enabled: false, source: 'default-off' };
+}
+
+export function resolveMenuItemSelection({
+  configuredMenuItemIds = [],
+  configuredMenuItemIdsSource = 'missing',
+  menuItems = [],
+}) {
+  const availableItems = asArray(menuItems).filter((item) => item?.is_available);
+
+  if (configuredMenuItemIds.length === 0) {
+    return {
+      item: availableItems[0] ?? null,
+      source: availableItems[0] ? 'runtime-first-available' : 'missing',
+      matchedConfiguredId: null,
+    };
+  }
+
+  for (const itemId of configuredMenuItemIds) {
+    const matchedItem = availableItems.find((item) => readNumber(item, 'item_id') === itemId);
+    if (matchedItem) {
+      return {
+        item: matchedItem,
+        source: configuredMenuItemIdsSource,
+        matchedConfiguredId: itemId,
+      };
+    }
+  }
+
+  return {
+    item: null,
+    source: configuredMenuItemIdsSource,
+    matchedConfiguredId: null,
+  };
+}
+
 function readManifestValue(source, dottedPath) {
   return dottedPath.split('.').reduce((current, segment) => {
     if (!current || typeof current !== 'object') {
@@ -1184,4 +1672,31 @@ function readManifestValue(source, dottedPath) {
 
 function isExecutedDirectly() {
   return process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+}
+
+function normalizePositiveIntegerList(values) {
+  return Array.from(new Set(
+    asArray(values)
+      .map((value) => {
+        if (typeof value === 'number') {
+          return value;
+        }
+
+        if (typeof value === 'string' && value.trim() !== '') {
+          const parsed = Number(value);
+          return Number.isNaN(parsed) ? null : parsed;
+        }
+
+        return null;
+      })
+      .filter((value) => typeof value === 'number' && Number.isInteger(value) && value > 0),
+  ));
+}
+
+function parseNumberList(value) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return [];
+  }
+
+  return normalizePositiveIntegerList(value.split(',').map((entry) => entry.trim()));
 }

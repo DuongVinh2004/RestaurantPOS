@@ -21,7 +21,7 @@ export function isRowVersionConflict(error: unknown): boolean {
 }
 
 export function rowVersionConflictMessage(resourceLabel: string): string {
-  return `${resourceLabel} da thay doi tren backend. Lam moi du lieu, lay row_version moi roi thu lai.`;
+  return `${resourceLabel} vừa thay đổi. Hãy tải lại dữ liệu rồi thử lại.`;
 }
 
 function hasStaleSignal(value: string): boolean {

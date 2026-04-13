@@ -82,6 +82,8 @@ class PaymentCaptureService
             throw ValidationException::withMessages(['order_id' => 'Only on-spot orders can be used as payment anchor.']);
         }
 
+        $this->assertIdempotencyKeyFitsStorage($idempotencyKey);
+
         [$subtotal, $discount, $totalDue, $currencyCode] = $computeReservationBillSnapshot(
             (int) $reservation->reservation_id,
             (float) ($reservation->discount_amount ?? 0.0)
@@ -252,5 +254,24 @@ class PaymentCaptureService
         }
 
         return $paymentBranchId ?? $this->branchContextService->resolveBranchId(null, false);
+    }
+
+    private function assertIdempotencyKeyFitsStorage(string $idempotencyKey): void
+    {
+        $trimmed = trim($idempotencyKey);
+        if ($trimmed === '') {
+            return;
+        }
+
+        if (mb_strlen($trimmed) > Payment::IDEMPOTENCY_KEY_MAX_LENGTH) {
+            throw ValidationException::withMessages([
+                'idempotency_key' => [
+                    sprintf(
+                        'Idempotency-Key may not exceed %d characters for payment capture.',
+                        Payment::IDEMPOTENCY_KEY_MAX_LENGTH,
+                    ),
+                ],
+            ]);
+        }
     }
 }

@@ -82,6 +82,7 @@ class ReleaseLoopServiceTest extends TestCase
         $this->assertSame('pass', $report['decision'] ?? null);
         $this->assertSame([
             'contract_artifacts',
+            'package_integrity',
             'backend_fe_contract',
             'backend_web_auth',
             'backend_golden_flows',
@@ -154,6 +155,7 @@ class ReleaseLoopServiceTest extends TestCase
         $this->assertSame('block', $report['decision'] ?? null);
         $this->assertSame([
             'contract_artifacts',
+            'package_integrity',
             'backend_fe_contract',
             'backend_web_auth',
             'backend_golden_flows',
@@ -167,8 +169,8 @@ class ReleaseLoopServiceTest extends TestCase
         ], $service->stepKeys);
         $this->assertCount(1, (array) ($report['blocking_failures'] ?? []));
         $this->assertSame('backend_doctor', data_get($report, 'blocking_failures.0.step_key'));
-        $this->assertSame('frontend_test', data_get($report, 'steps.6.key'));
-        $this->assertSame('backend_launch_readiness', data_get($report, 'steps.10.key'));
+        $this->assertSame('frontend_test', data_get($report, 'steps.7.key'));
+        $this->assertSame('backend_launch_readiness', data_get($report, 'steps.11.key'));
         $this->assertSame('skipped', data_get($report, 'preview.status'));
         $this->assertStringContainsString(
             'Observability: Sentry release/runtime evidence unavailable;',
@@ -207,7 +209,7 @@ class ReleaseLoopServiceTest extends TestCase
         $this->assertFalse((bool) data_get($report, 'preview.linked_project_detected', true));
         $this->assertStringContainsString(
             'external platform blocker',
-            (string) data_get($report, 'steps.8.summary')
+            (string) data_get($report, 'steps.9.summary')
         );
         $this->assertStringContainsString(
             'Preview deploy: no linked preview project detected',
@@ -269,8 +271,8 @@ class ReleaseLoopServiceTest extends TestCase
         $this->assertFalse((bool) ($report['ok'] ?? true));
         $this->assertSame('block', $report['decision'] ?? null);
         $this->assertSame('backend_deploy_preflight', data_get($report, 'blocking_failures.0.step_key'));
-        $this->assertStringContainsString('timed out after 1 seconds', (string) data_get($report, 'steps.5.summary'));
-        $this->assertSame('frontend_test', data_get($report, 'steps.6.key'));
+        $this->assertStringContainsString('timed out after 1 seconds', (string) data_get($report, 'steps.6.summary'));
+        $this->assertSame('frontend_test', data_get($report, 'steps.7.key'));
         $this->assertContains('backend_launch_readiness', $service->stepKeys);
     }
 }

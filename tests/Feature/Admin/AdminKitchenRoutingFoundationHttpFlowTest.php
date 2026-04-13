@@ -190,6 +190,7 @@ class AdminKitchenRoutingFoundationHttpFlowTest extends TestCase
     public function test_missing_kitchen_station_routes_return_standardized_not_found_envelope(): void
     {
         [, $headers] = $this->adminHeaders('admin-kitchen-missing-resource-key');
+        $categoryId = $this->ensureMenuCategory('Kitchen Missing Route');
 
         $this->withHeaders(array_merge($headers, [
             'X-Request-Id' => 'req-admin-kitchen-station-404',
@@ -208,7 +209,7 @@ class AdminKitchenRoutingFoundationHttpFlowTest extends TestCase
             ->putJson('/api/v1/admin/kitchen/stations/999999/category-routes', [
                 'routes' => [
                     [
-                        'category_id' => 999999,
+                        'category_id' => $categoryId,
                         'sort_order' => 10,
                     ],
                 ],

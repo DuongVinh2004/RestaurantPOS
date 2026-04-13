@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { formatApiError, normalizeApiError } from './api-errors';
 import { buildApiError } from '../test/fixtures';
+import { StaffApiError } from '../core/api/http';
 
 describe('api-errors', () => {
   it('normalizes validation payloads with field errors', () => {
@@ -64,7 +65,22 @@ describe('api-errors', () => {
 
     const formatted = formatApiError(error, 'Fallback');
 
-    expect(formatted).toContain('conversation.manage');
-    expect(formatted).toContain('req-403');
+    expect(formatted).toContain('Thiếu quyền: conversation.manage.');
+    expect(formatted).toContain('Mã truy vết: req-403.');
+  });
+
+  it('normalizes StaffApiError payloads from the new staff-api seam', () => {
+    const error = new StaffApiError(409, {
+      error_code: 'conflict',
+      message: 'State conflict detected.',
+      request_id: 'req-staff-api',
+    }, 'Conflict');
+
+    const normalized = normalizeApiError(error, 'Fallback');
+
+    expect(normalized.kind).toBe('conflict');
+    expect(normalized.status).toBe(409);
+    expect(normalized.code).toBe('conflict');
+    expect(normalized.requestId).toBe('req-staff-api');
   });
 });

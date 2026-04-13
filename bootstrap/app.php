@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AuditRequestMiddleware;
 use App\Http\Middleware\IdempotencyMiddleware;
+use App\Http\Middleware\NormalizeApiJsonResponseEncodingMiddleware;
 use App\Http\Middleware\RedisThrottleMiddleware;
 use App\Http\Middleware\RequestCorrelationIdMiddleware;
 use App\Http\Middleware\RequireRedisCacheMiddleware;
@@ -29,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Make the split-frontend CORS contract explicit in the bootstrap path.
         $middleware->append(HandleCors::class);
+        $middleware->append(NormalizeApiJsonResponseEncodingMiddleware::class);
 
         $middleware->alias([
             'reqid' => RequestCorrelationIdMiddleware::class,
@@ -47,12 +49,13 @@ return Application::configure(basePath: dirname(__DIR__))
                 || $request->is('api/*');
         };
 
-        $makeError = static fn (Request $request, int $status, string $code, string $message, array $details = []) => ApiErrorResponse::json(
+        $makeError = static fn (Request $request, int $status, string $code, string $message, array $details = [], array $extra = []) => ApiErrorResponse::json(
             $request,
             $status,
             $code,
             $message,
             $details,
+            extra: $extra,
         );
 
         $exceptions->render(function (ValidationException $e, Request $request) use ($isApi, $makeError) {
@@ -123,6 +126,23 @@ return Application::configure(basePath: dirname(__DIR__))
                     array_key_exists('row_version', $errors) ? 'stale_row_version' : 'conflict',
                     'The record changed or conflicts with the current state.',
                     ['errors' => $errors],
+                    array_key_exists('row_version', $errors)
+                        ? [
+                            'conflict_type' => 'stale_write',
+                            'state_reason' => 'row_version_mismatch',
+                            'next_actions' => [
+                                'reload_resource',
+                                'retry_with_latest_row_version',
+                            ],
+                        ]
+                        : [
+                            'conflict_type' => 'state_conflict',
+                            'state_reason' => 'constraint_violation',
+                            'next_actions' => [
+                                'reload_resource',
+                                'retry_with_current_state',
+                            ],
+                        ],
                 );
             }
 

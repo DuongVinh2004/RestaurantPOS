@@ -593,6 +593,7 @@ trait BuildsBookingScenario
                 $table->string('notes', 500)->nullable();
                 $table->unsignedInteger('created_by')->nullable();
                 $table->dateTime('created_at')->nullable();
+                $table->unique(['reference_type', 'reference_id'], 'uq_ingredient_stock_movements__reference');
             });
         }
 
@@ -921,6 +922,9 @@ trait BuildsBookingScenario
                 $table->increments('reservation_id');
                 $table->unsignedInteger('branch_id')->default(1);
                 $table->unsignedInteger('user_id')->nullable();
+                $table->string('guest_name')->nullable();
+                $table->string('guest_phone', 50)->nullable();
+                $table->string('guest_email')->nullable();
                 $table->string('reservation_code')->unique();
                 $table->dateTime('reserved_at')->nullable();
                 $table->dateTime('start_time');
@@ -954,6 +958,24 @@ trait BuildsBookingScenario
         if (! Schema::hasColumn('reservations', 'deposit_requirement_acknowledged_at')) {
             Schema::table('reservations', function (Blueprint $table): void {
                 $table->dateTime('deposit_requirement_acknowledged_at')->nullable();
+            });
+        }
+
+        if (! Schema::hasColumn('reservations', 'guest_name')) {
+            Schema::table('reservations', function (Blueprint $table): void {
+                $table->string('guest_name')->nullable()->after('user_id');
+            });
+        }
+
+        if (! Schema::hasColumn('reservations', 'guest_phone')) {
+            Schema::table('reservations', function (Blueprint $table): void {
+                $table->string('guest_phone', 50)->nullable()->after('guest_name');
+            });
+        }
+
+        if (! Schema::hasColumn('reservations', 'guest_email')) {
+            Schema::table('reservations', function (Blueprint $table): void {
+                $table->string('guest_email')->nullable()->after('guest_phone');
             });
         }
 
@@ -1283,14 +1305,20 @@ trait BuildsBookingScenario
                 $table->string('session_id', 100)->nullable();
                 $table->string('channel', 50)->default('WebChat');
                 $table->string('status', 20)->default('Open');
+                $table->string('workflow_state', 40)->default('Open');
+                $table->string('workflow_state_reason', 100)->nullable();
                 $table->string('intent_detected', 200)->nullable();
                 $table->unsignedInteger('linked_reservation_id')->nullable();
                 $table->unsignedInteger('linked_waiting_list_id')->nullable();
                 $table->dateTime('created_at')->nullable();
+                $table->dateTime('workflow_state_changed_at')->nullable();
+                $table->dateTime('first_triaged_at')->nullable();
+                $table->dateTime('resolved_at')->nullable();
                 $table->dateTime('closed_at')->nullable();
 
                 $table->index(['user_id', 'status']);
                 $table->index(['branch_id', 'status', 'created_at'], 'idx_conversations__branch_id__status__created_at');
+                $table->index(['branch_id', 'workflow_state', 'created_at'], 'idx_conversations__branch_id__workflow_state__created_at');
                 $table->index(['channel', 'created_at'], 'idx_conversations__channel__created_at');
                 $table->index('linked_reservation_id', 'fk_conversations__linked_reservation_id__reservations');
                 $table->index('linked_waiting_list_id', 'fk_conversations__linked_waiting_list_id__waiting_list');
@@ -1312,6 +1340,36 @@ trait BuildsBookingScenario
         if (Schema::hasTable('conversations') && ! Schema::hasColumn('conversations', 'linked_waiting_list_id')) {
             Schema::table('conversations', function (Blueprint $table): void {
                 $table->unsignedInteger('linked_waiting_list_id')->nullable();
+            });
+        }
+
+        if (Schema::hasTable('conversations') && ! Schema::hasColumn('conversations', 'workflow_state')) {
+            Schema::table('conversations', function (Blueprint $table): void {
+                $table->string('workflow_state', 40)->default('Open')->after('status');
+            });
+        }
+
+        if (Schema::hasTable('conversations') && ! Schema::hasColumn('conversations', 'workflow_state_reason')) {
+            Schema::table('conversations', function (Blueprint $table): void {
+                $table->string('workflow_state_reason', 100)->nullable()->after('workflow_state');
+            });
+        }
+
+        if (Schema::hasTable('conversations') && ! Schema::hasColumn('conversations', 'workflow_state_changed_at')) {
+            Schema::table('conversations', function (Blueprint $table): void {
+                $table->dateTime('workflow_state_changed_at')->nullable()->after('created_at');
+            });
+        }
+
+        if (Schema::hasTable('conversations') && ! Schema::hasColumn('conversations', 'first_triaged_at')) {
+            Schema::table('conversations', function (Blueprint $table): void {
+                $table->dateTime('first_triaged_at')->nullable()->after('workflow_state_changed_at');
+            });
+        }
+
+        if (Schema::hasTable('conversations') && ! Schema::hasColumn('conversations', 'resolved_at')) {
+            Schema::table('conversations', function (Blueprint $table): void {
+                $table->dateTime('resolved_at')->nullable()->after('first_triaged_at');
             });
         }
 
@@ -2194,6 +2252,9 @@ SQL);
         $payload = array_merge([
             'user_id' => $this->createUser(),
             'branch_id' => 1,
+            'guest_name' => null,
+            'guest_phone' => null,
+            'guest_email' => null,
             'reservation_code' => 'RSV-' . Str::upper(Str::random(10)),
             'reserved_at' => $now,
             'start_time' => $start,
@@ -2563,12 +2624,33 @@ SQL);
             'session_id' => 'sess-' . Str::lower(Str::random(12)),
             'channel' => 'WebChat',
             'status' => 'Open',
+            'workflow_state' => 'Open',
+            'workflow_state_reason' => 'open',
             'intent_detected' => null,
             'linked_reservation_id' => null,
             'linked_waiting_list_id' => null,
             'created_at' => $now,
+            'workflow_state_changed_at' => $now,
+            'first_triaged_at' => null,
+            'resolved_at' => null,
             'closed_at' => null,
         ], $overrides);
+
+        if (! array_key_exists('workflow_state', $overrides)) {
+            $payload['workflow_state'] = match ((string) ($payload['status'] ?? 'Open')) {
+                'Pending' => 'PendingCustomer',
+                'Closed' => 'Closed',
+                default => 'Open',
+            };
+        }
+
+        if (! array_key_exists('workflow_state_reason', $overrides)) {
+            $payload['workflow_state_reason'] = match ((string) ($payload['workflow_state'] ?? 'Open')) {
+                'PendingCustomer' => 'waiting_for_customer',
+                'Closed' => 'closed',
+                default => 'open',
+            };
+        }
 
         $this->assertPortableConversationPayloadMatchesCanonical($payload);
 
@@ -2690,7 +2772,22 @@ SQL);
 
         $payload = $this->stripGeneratedColumnsForInsert('agent_assignments', $payload);
 
-        return (int) DB::table('agent_assignments')->insertGetId($payload);
+        $assignmentId = (int) DB::table('agent_assignments')->insertGetId($payload);
+
+        if ((int) ($payload['is_active'] ?? 0) === 1) {
+            DB::table('conversations')
+                ->where('conversation_id', $payload['conversation_id'])
+                ->update([
+                    'workflow_state' => 'Assigned',
+                    'workflow_state_reason' => 'assigned',
+                    'workflow_state_changed_at' => $payload['assigned_at'] ?? $this->nowUtc(),
+                    'first_triaged_at' => DB::raw('COALESCE(first_triaged_at, workflow_state_changed_at, created_at)'),
+                    'status' => 'Open',
+                    'closed_at' => null,
+                ]);
+        }
+
+        return $assignmentId;
     }
 
     /**
@@ -2728,6 +2825,13 @@ SQL);
 
         if ((int) ($payload['guest_count'] ?? 0) <= 0) {
             throw new \InvalidArgumentException('Portable booking schema fixture violates reservations guest-count contract.');
+        }
+
+        $hasUser = isset($payload['user_id']) && $payload['user_id'] !== null && (int) $payload['user_id'] > 0;
+        $guestName = trim((string) ($payload['guest_name'] ?? ''));
+        $guestPhone = trim((string) ($payload['guest_phone'] ?? ''));
+        if (! $hasUser && ($guestName === '' || $guestPhone === '')) {
+            throw new \InvalidArgumentException('Portable booking schema fixture requires user_id or guest_name + guest_phone.');
         }
 
         foreach (['deposit_required_amount', 'deposit_paid_amount', 'discount_amount'] as $field) {
@@ -2838,8 +2942,18 @@ SQL);
             throw new \InvalidArgumentException('Portable booking schema fixture violates conversations branch scope contract.');
         }
 
-        if (! in_array((string) ($payload['status'] ?? 'Open'), ['Open', 'Pending', 'Closed', 'Spam'], true)) {
+        $status = (string) ($payload['status'] ?? 'Open');
+        if (! in_array($status, ['Open', 'Pending', 'Closed', 'Spam'], true)) {
             throw new \InvalidArgumentException('Portable booking schema fixture violates conversations status contract.');
+        }
+
+        $workflowState = (string) ($payload['workflow_state'] ?? 'Open');
+        if (! in_array($workflowState, ['Open', 'Triaged', 'Assigned', 'PendingCustomer', 'Resolved', 'Closed'], true)) {
+            throw new \InvalidArgumentException('Portable booking schema fixture violates conversations workflow_state contract.');
+        }
+
+        if ($status === 'Closed' && $workflowState !== 'Closed') {
+            throw new \InvalidArgumentException('Portable booking schema fixture violates conversations closed/status workflow alignment contract.');
         }
 
         if (! in_array((string) ($payload['channel'] ?? 'WebChat'), ['WebChat', 'Facebook', 'Zalo', 'Whatsapp', 'Instagram', 'Line', 'Other'], true)) {

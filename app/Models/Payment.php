@@ -14,6 +14,8 @@ class Payment extends Model
 {
     use HasRowVersion;
 
+    public const IDEMPOTENCY_KEY_MAX_LENGTH = 64;
+
     protected $table = 'payments';
     protected $primaryKey = 'payment_id';
 

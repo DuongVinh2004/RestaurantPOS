@@ -16,8 +16,10 @@ use App\Models\Reservation;
 use App\Models\ReservationOrder;
 use App\Models\ReservationOrderItem;
 use App\Services\FeatureFlagService;
+use App\Services\Staff\StaffBranchContextService;
 use App\Services\Staff\StaffOperationalRealtimeService;
 use App\Support\AuditEvent;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
@@ -29,6 +31,8 @@ class KitchenRoutingService
     public function __construct(
         private readonly StaffOperationalRealtimeService $realtimeService,
         private readonly FeatureFlagService $featureFlags,
+        private readonly KitchenTicketConsistencyInspector $ticketConsistencyInspector,
+        private readonly StaffBranchContextService $branchContextService,
     ) {}
 
     /**
@@ -37,18 +41,36 @@ class KitchenRoutingService
      */
     public function listStations(array $filters = []): Collection
     {
+        $branchId = isset($filters['branch_id']) && $filters['branch_id'] !== null
+            ? (int) $filters['branch_id']
+            : null;
+        $accessibleBranchIds = $this->accessibleBranchIdsFromFilters($filters);
+
         $query = KitchenStation::query()
             ->withCount([
                 'categoryRoutes as route_count' => static fn ($query) => $query->where('is_active', true),
-                'tickets as queued_ticket_count' => static fn ($query) => $query->where('ticket_status', KitchenTicketStatus::Queued->value),
-                'tickets as fired_ticket_count' => static fn ($query) => $query->where('ticket_status', KitchenTicketStatus::Fired->value),
-                'tickets as ready_ticket_count' => static fn ($query) => $query->where('ticket_status', KitchenTicketStatus::Ready->value),
+                'tickets as queued_ticket_count' => function (Builder $query) use ($branchId, $accessibleBranchIds): void {
+                    $query->where('ticket_status', KitchenTicketStatus::Queued->value);
+                    $this->constrainTicketQueryToReservationScope($query, $branchId, $accessibleBranchIds);
+                },
+                'tickets as fired_ticket_count' => function (Builder $query) use ($branchId, $accessibleBranchIds): void {
+                    $query->where('ticket_status', KitchenTicketStatus::Fired->value);
+                    $this->constrainTicketQueryToReservationScope($query, $branchId, $accessibleBranchIds);
+                },
+                'tickets as ready_ticket_count' => function (Builder $query) use ($branchId, $accessibleBranchIds): void {
+                    $query->where('ticket_status', KitchenTicketStatus::Ready->value);
+                    $this->constrainTicketQueryToReservationScope($query, $branchId, $accessibleBranchIds);
+                },
             ])
             ->orderBy('name')
             ->orderBy('station_id');
 
         if (array_key_exists('is_active', $filters)) {
             $query->where('is_active', (bool) $filters['is_active']);
+        }
+
+        if ($branchId !== null || $accessibleBranchIds !== []) {
+            $this->constrainStationQueryToBranchScope($query, $branchId, $accessibleBranchIds);
         }
 
         /** @var Collection<int, KitchenStation> $stations */
@@ -236,13 +258,24 @@ class KitchenRoutingService
      */
     public function listStationTickets(int $stationId, array $filters = []): Collection
     {
-        KitchenStation::query()->findOrFail($stationId);
+        $branchId = isset($filters['branch_id']) && $filters['branch_id'] !== null
+            ? (int) $filters['branch_id']
+            : null;
+        $accessibleBranchIds = $this->accessibleBranchIdsFromFilters($filters);
+
+        $stationQuery = KitchenStation::query()->where('station_id', $stationId);
+        if ($branchId !== null || $accessibleBranchIds !== []) {
+            $this->constrainStationQueryToBranchScope($stationQuery, $branchId, $accessibleBranchIds);
+        }
+        $stationQuery->firstOrFail();
 
         $query = KitchenOrderItemTicket::query()
             ->with(['station', 'route', 'orderItem', 'item.category'])
             ->where('station_id', $stationId)
             ->orderByRaw("CASE `ticket_status` WHEN 'Fired' THEN 1 WHEN 'Queued' THEN 2 WHEN 'Ready' THEN 3 ELSE 4 END")
             ->orderBy('ticket_id');
+
+        $this->constrainTicketQueryToReservationScope($query, $branchId, $accessibleBranchIds);
 
         if (! empty($filters['status'])) {
             $query->where('ticket_status', (string) $filters['status']);
@@ -262,11 +295,18 @@ class KitchenRoutingService
     public function dispatchOrder(int $orderId, ?int $expectedOrderRowVersion = null, ?int $actorUserId = null): array
     {
         return DB::transaction(function () use ($orderId, $expectedOrderRowVersion, $actorUserId): array {
+            $accessibleBranchIds = $actorUserId !== null && $actorUserId > 0
+                ? $this->branchContextService->accessibleBranchIds($actorUserId)
+                : [];
+
             /** @var ReservationOrder $order */
-            $order = ReservationOrder::query()
+            $orderQuery = ReservationOrder::query()
                 ->with(['items.item', 'reservation:reservation_id,branch_id'])
-                ->lockForUpdate()
-                ->findOrFail($orderId);
+                ->lockForUpdate();
+            if ($actorUserId !== null && $actorUserId > 0) {
+                $this->constrainReservationLookupToAccessibleBranches($orderQuery, $accessibleBranchIds);
+            }
+            $order = $orderQuery->findOrFail($orderId);
 
             $this->assertDispatchEnabledForReservation($order->reservation);
 
@@ -294,13 +334,6 @@ class KitchenRoutingService
                     continue;
                 }
 
-                $route = $this->resolveRouteForOrderItem($orderItem);
-                if ($route === null) {
-                    $unroutedCount++;
-
-                    continue;
-                }
-
                 /** @var KitchenOrderItemTicket|null $ticket */
                 $ticket = KitchenOrderItemTicket::query()
                     ->where('order_item_id', $orderItem->order_item_id)
@@ -319,15 +352,48 @@ class KitchenRoutingService
                     $isNew = true;
                 } else {
                     $currentTicketStatus = $this->normalizeTicketStatus($ticket);
+                    $ticket->loadMissing(['station', 'route', 'orderItem']);
+
+                    if (! $this->isTerminalTicketStatus($currentTicketStatus)
+                        && ! $this->ticketConsistencyInspector->canRedispatchActiveTicket($ticket)) {
+                        $inspection = $this->ticketConsistencyInspector->describe($ticket);
+
+                        AuditEvent::warning('staff.kitchen.redispatch_blocked_for_drifted_ticket', [
+                            'order_id' => $orderId,
+                            'ticket_id' => (int) $ticket->ticket_id,
+                            'order_item_id' => (int) $ticket->order_item_id,
+                            'actor_user_id' => $actorUserId,
+                            'sync_status' => (string) ($inspection['reconciliation']['sync_status'] ?? 'unknown'),
+                            'routing_status' => (string) ($inspection['reconciliation']['routing_status'] ?? 'unknown'),
+                            'drift_reasons' => (array) ($inspection['reconciliation']['drift_reasons'] ?? []),
+                        ]);
+
+                        throw ValidationException::withMessages([
+                            'ticket_id' => [
+                                'Active kitchen tickets with drifted routing or item state cannot be redispatched until reconciled.',
+                            ],
+                        ]);
+                    }
                 }
 
-                $effectiveStation = $route->station;
-                $effectiveRouteId = (int) $route->route_id;
+                $route = $this->resolveRouteForOrderItem($orderItem);
+                if ($route === null && ($isNew || $this->isTerminalTicketStatus($currentTicketStatus))) {
+                    $unroutedCount++;
+
+                    continue;
+                }
+
+                $effectiveStation = $route?->station;
+                $effectiveRouteId = $route?->route_id !== null ? (int) $route->route_id : null;
                 $effectiveRouteSource = 'Category';
-                $effectiveOutputMode = $effectiveStation->output_mode instanceof KitchenStationOutputMode
-                    ? $effectiveStation->output_mode
-                    : KitchenStationOutputMode::from((string) $effectiveStation->output_mode);
-                $effectivePrinterTarget = $effectiveStation->printer_target;
+                $effectiveOutputMode = $effectiveStation instanceof KitchenStation
+                    ? ($effectiveStation->output_mode instanceof KitchenStationOutputMode
+                        ? $effectiveStation->output_mode
+                        : KitchenStationOutputMode::from((string) $effectiveStation->output_mode))
+                    : null;
+                $effectivePrinterTarget = $effectiveStation instanceof KitchenStation
+                    ? $effectiveStation->printer_target
+                    : null;
 
                 if (! $isNew) {
                     if (! $this->isTerminalTicketStatus($currentTicketStatus)) {
@@ -340,7 +406,15 @@ class KitchenRoutingService
                         ? $ticket->output_mode
                         : KitchenStationOutputMode::from((string) $ticket->output_mode);
                     $effectivePrinterTarget = $ticket->printer_target;
-                    $effectiveStation = KitchenStation::query()->findOrFail((int) $ticket->station_id);
+                    $effectiveStation = $ticket->relationLoaded('station') && $ticket->station instanceof KitchenStation
+                        ? $ticket->station
+                        : KitchenStation::query()->findOrFail((int) $ticket->station_id);
+                }
+
+                if ($effectiveStation === null || $effectiveRouteId === null || ! ($effectiveOutputMode instanceof KitchenStationOutputMode)) {
+                    $unroutedCount++;
+
+                    continue;
                 }
 
                 $ticket->station_id = (int) $effectiveStation->station_id;
@@ -410,11 +484,18 @@ class KitchenRoutingService
     public function fireTicket(int $ticketId, ?int $actorUserId = null): KitchenOrderItemTicket
     {
         return DB::transaction(function () use ($ticketId, $actorUserId): KitchenOrderItemTicket {
+            $accessibleBranchIds = $actorUserId !== null && $actorUserId > 0
+                ? $this->branchContextService->accessibleBranchIds($actorUserId)
+                : [];
+
             /** @var KitchenOrderItemTicket $ticket */
-            $ticket = KitchenOrderItemTicket::query()
+            $ticketQuery = KitchenOrderItemTicket::query()
                 ->with(['orderItem', 'reservation:reservation_id,branch_id'])
-                ->lockForUpdate()
-                ->findOrFail($ticketId);
+                ->lockForUpdate();
+            if ($actorUserId !== null && $actorUserId > 0) {
+                $this->constrainReservationLookupToAccessibleBranches($ticketQuery, $accessibleBranchIds);
+            }
+            $ticket = $ticketQuery->findOrFail($ticketId);
 
             $this->assertDispatchEnabledForReservation($ticket->reservation);
 
@@ -424,6 +505,8 @@ class KitchenRoutingService
                     'ticket_id' => 'Only queued kitchen tickets can be fired.',
                 ]);
             }
+
+            $this->assertTicketOrderItemAllowsAction($ticket, 'fire');
 
             $now = Carbon::now('UTC');
             $ticket->ticket_status = KitchenTicketStatus::Fired;
@@ -442,11 +525,18 @@ class KitchenRoutingService
     public function bumpTicket(int $ticketId, ?int $actorUserId = null): KitchenOrderItemTicket
     {
         return DB::transaction(function () use ($ticketId, $actorUserId): KitchenOrderItemTicket {
+            $accessibleBranchIds = $actorUserId !== null && $actorUserId > 0
+                ? $this->branchContextService->accessibleBranchIds($actorUserId)
+                : [];
+
             /** @var KitchenOrderItemTicket $ticket */
-            $ticket = KitchenOrderItemTicket::query()
-                ->with(['reservation:reservation_id,branch_id'])
-                ->lockForUpdate()
-                ->findOrFail($ticketId);
+            $ticketQuery = KitchenOrderItemTicket::query()
+                ->with(['orderItem', 'reservation:reservation_id,branch_id'])
+                ->lockForUpdate();
+            if ($actorUserId !== null && $actorUserId > 0) {
+                $this->constrainReservationLookupToAccessibleBranches($ticketQuery, $accessibleBranchIds);
+            }
+            $ticket = $ticketQuery->findOrFail($ticketId);
 
             $this->assertDispatchEnabledForReservation($ticket->reservation);
 
@@ -455,6 +545,8 @@ class KitchenRoutingService
                     'ticket_id' => 'Only fired kitchen tickets can be bumped to ready.',
                 ]);
             }
+
+            $this->assertTicketOrderItemAllowsAction($ticket, 'bump');
 
             $ticket->ticket_status = KitchenTicketStatus::Ready;
             $ticket->ready_at = Carbon::now('UTC');
@@ -470,11 +562,18 @@ class KitchenRoutingService
     public function recallTicket(int $ticketId, ?int $actorUserId = null): KitchenOrderItemTicket
     {
         return DB::transaction(function () use ($ticketId, $actorUserId): KitchenOrderItemTicket {
+            $accessibleBranchIds = $actorUserId !== null && $actorUserId > 0
+                ? $this->branchContextService->accessibleBranchIds($actorUserId)
+                : [];
+
             /** @var KitchenOrderItemTicket $ticket */
-            $ticket = KitchenOrderItemTicket::query()
-                ->with(['reservation:reservation_id,branch_id'])
-                ->lockForUpdate()
-                ->findOrFail($ticketId);
+            $ticketQuery = KitchenOrderItemTicket::query()
+                ->with(['orderItem', 'reservation:reservation_id,branch_id'])
+                ->lockForUpdate();
+            if ($actorUserId !== null && $actorUserId > 0) {
+                $this->constrainReservationLookupToAccessibleBranches($ticketQuery, $accessibleBranchIds);
+            }
+            $ticket = $ticketQuery->findOrFail($ticketId);
 
             $this->assertDispatchEnabledForReservation($ticket->reservation);
 
@@ -483,6 +582,8 @@ class KitchenRoutingService
                     'ticket_id' => 'Only ready kitchen tickets can be recalled.',
                 ]);
             }
+
+            $this->assertTicketOrderItemAllowsAction($ticket, 'recall');
 
             $ticket->ticket_status = KitchenTicketStatus::Fired;
             $ticket->last_recalled_at = Carbon::now('UTC');
@@ -511,6 +612,10 @@ class KitchenRoutingService
             $targetStatus = $this->ticketStatusFromOrderItemStatus($this->normalizeOrderItemStatus($orderItem));
             $nextStatus = $this->resolveSynchronizedTicketStatus($currentStatus, $targetStatus);
             if ($currentStatus === $nextStatus) {
+                $ticket->setRelation('orderItem', $orderItem);
+                $inspection = $this->ticketConsistencyInspector->describe($ticket);
+                $this->recordTicketDriftWarning('kitchen.ticket_sync_drift_detected', $ticket, $inspection, $actorUserId);
+
                 return $this->freshTicket((int) $ticket->ticket_id);
             }
 
@@ -544,6 +649,87 @@ class KitchenRoutingService
             ->where('route_id', $routeId)
             ->whereNotIn('ticket_status', [KitchenTicketStatus::Completed->value, KitchenTicketStatus::Cancelled->value])
             ->exists();
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return list<int>
+     */
+    private function accessibleBranchIdsFromFilters(array $filters): array
+    {
+        $branchIds = [];
+
+        foreach ((array) ($filters['accessible_branch_ids'] ?? []) as $branchId) {
+            $normalizedBranchId = (int) $branchId;
+            if ($normalizedBranchId > 0) {
+                $branchIds[] = $normalizedBranchId;
+            }
+        }
+
+        $branchIds = array_values(array_unique($branchIds));
+        sort($branchIds);
+
+        return $branchIds;
+    }
+
+    /**
+     * @param  Builder<Reservation>  $query
+     * @param  list<int>  $accessibleBranchIds
+     */
+    private function applyReservationBranchScope(Builder $query, ?int $branchId, array $accessibleBranchIds): void
+    {
+        if ($branchId !== null && $branchId > 0) {
+            $query->where('branch_id', $branchId);
+
+            return;
+        }
+
+        if ($accessibleBranchIds !== []) {
+            $query->whereIn('branch_id', $accessibleBranchIds);
+        }
+    }
+
+    /**
+     * @param  Builder<KitchenOrderItemTicket>  $query
+     * @param  list<int>  $accessibleBranchIds
+     */
+    private function constrainTicketQueryToReservationScope(Builder $query, ?int $branchId, array $accessibleBranchIds): void
+    {
+        if ($branchId === null && $accessibleBranchIds === []) {
+            return;
+        }
+
+        $query->whereHas('reservation', function (Builder $reservationQuery) use ($branchId, $accessibleBranchIds): void {
+            $this->applyReservationBranchScope($reservationQuery, $branchId, $accessibleBranchIds);
+        });
+    }
+
+    /**
+     * @param  Builder<KitchenStation>  $query
+     * @param  list<int>  $accessibleBranchIds
+     */
+    private function constrainStationQueryToBranchScope(Builder $query, ?int $branchId, array $accessibleBranchIds): void
+    {
+        $query->whereHas('tickets.reservation', function (Builder $reservationQuery) use ($branchId, $accessibleBranchIds): void {
+            $this->applyReservationBranchScope($reservationQuery, $branchId, $accessibleBranchIds);
+        });
+    }
+
+    /**
+     * @param  Builder<ReservationOrder|KitchenOrderItemTicket>  $query
+     * @param  list<int>  $accessibleBranchIds
+     */
+    private function constrainReservationLookupToAccessibleBranches(Builder $query, array $accessibleBranchIds): void
+    {
+        if ($accessibleBranchIds === []) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->whereHas('reservation', function (Builder $reservationQuery) use ($accessibleBranchIds): void {
+            $reservationQuery->whereIn('branch_id', $accessibleBranchIds);
+        });
     }
 
     private function stationHasActiveTickets(int $stationId): bool
@@ -712,7 +898,7 @@ class KitchenRoutingService
 
     private function isTerminalTicketStatus(?KitchenTicketStatus $status): bool
     {
-        return in_array($status, [KitchenTicketStatus::Completed, KitchenTicketStatus::Cancelled], true);
+        return $status?->isTerminal() ?? false;
     }
 
     private function applyTicketLifecycleTimestamps(
@@ -783,6 +969,71 @@ class KitchenRoutingService
         $orderItem->save();
     }
 
+    private function assertTicketOrderItemAllowsAction(KitchenOrderItemTicket $ticket, string $action): void
+    {
+        $orderItem = $ticket->relationLoaded('orderItem') ? $ticket->orderItem : null;
+        if (! $orderItem instanceof ReservationOrderItem) {
+            throw ValidationException::withMessages([
+                'ticket_id' => ['Kitchen ticket is missing its linked order item. Run kitchen reconciliation before retrying.'],
+            ]);
+        }
+
+        $status = $this->normalizeOrderItemStatus($orderItem);
+        $allowedStatuses = match ($action) {
+            'fire' => [ReservationOrderItemStatus::Ordered, ReservationOrderItemStatus::InProgress],
+            'bump', 'recall' => [ReservationOrderItemStatus::InProgress],
+            default => [],
+        };
+
+        if (in_array($status, $allowedStatuses, true)) {
+            return;
+        }
+
+        $actionVerb = match ($action) {
+            'fire' => 'fired',
+            'bump' => 'bumped',
+            'recall' => 'recalled',
+            default => $action,
+        };
+
+        throw ValidationException::withMessages([
+            'ticket_id' => [sprintf('Kitchen ticket cannot be %s while the linked order item is %s.', $actionVerb, $status->value)],
+        ]);
+    }
+
+    /**
+     * @param  array{
+     *     lifecycle: array<string,mixed>,
+     *     reconciliation: array<string,mixed>
+     * }  $inspection
+     */
+    private function recordTicketDriftWarning(
+        string $eventType,
+        KitchenOrderItemTicket $ticket,
+        array $inspection,
+        ?int $actorUserId,
+    ): void {
+        $reconciliation = $inspection['reconciliation'] ?? [];
+        $syncStatus = (string) ($reconciliation['sync_status'] ?? 'in_sync');
+        $routingStatus = (string) ($reconciliation['routing_status'] ?? 'active_route');
+
+        if ($syncStatus === 'in_sync' && $routingStatus === 'active_route') {
+            return;
+        }
+
+        AuditEvent::warning($eventType, [
+            'ticket_id' => (int) $ticket->ticket_id,
+            'order_id' => (int) $ticket->order_id,
+            'order_item_id' => (int) $ticket->order_item_id,
+            'actor_user_id' => $actorUserId,
+            'ticket_status' => (string) ($inspection['lifecycle']['status'] ?? ''),
+            'sync_status' => $syncStatus,
+            'routing_status' => $routingStatus,
+            'drift_reasons' => (array) ($reconciliation['drift_reasons'] ?? []),
+            'next_actions' => (array) ($reconciliation['next_actions'] ?? []),
+        ]);
+    }
+
     /**
      * @param  list<string>  $refreshTargets
      */
@@ -794,6 +1045,7 @@ class KitchenRoutingService
             'order_item_id' => (int) $ticket->order_item_id,
             'actor_user_id' => $actorUserId,
             'ticket_status' => $this->normalizeTicketStatus($ticket)->value,
+            'ticket_state_reason' => $this->normalizeTicketStatus($ticket)->stateReason(),
         ]);
 
         $this->realtimeService->publishKitchenEvent($eventType, [
@@ -803,6 +1055,7 @@ class KitchenRoutingService
             'reservation_id' => (int) $ticket->reservation_id,
             'order_item_id' => (int) $ticket->order_item_id,
             'ticket_status' => $this->normalizeTicketStatus($ticket)->value,
+            'ticket_state_reason' => $this->normalizeTicketStatus($ticket)->stateReason(),
         ], $refreshTargets);
     }
 

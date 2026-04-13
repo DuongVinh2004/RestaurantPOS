@@ -37,6 +37,7 @@ class DatabaseContractInspector
             'checks' => [
                 'refund_lineage_trigger_insert' => null,
                 'refund_lineage_trigger_update' => null,
+                'payment_refund_trigger_compatibility' => null,
                 'menu_price_overlap_trigger_insert' => null,
                 'menu_price_overlap_trigger_update' => null,
                 'voucher_usage_cap_index' => null,
@@ -65,6 +66,7 @@ class DatabaseContractInspector
                 'notification_outbox_recipient_user_column' => null,
                 'notification_outbox_dedupe_key_column' => null,
                 'notification_outbox_operational_indexes' => null,
+                'ingredient_stock_movement_reference_unique' => null,
                 'notification_delivery_attempts_table' => null,
                 'notification_delivery_attempts_operational_indexes' => null,
                 'notification_preferences_table' => null,
@@ -107,6 +109,8 @@ class DatabaseContractInspector
                 ->selectRaw('TRIGGER_NAME as trigger_name')
                 ->whereRaw('TRIGGER_SCHEMA = DATABASE()')
                 ->whereIn('TRIGGER_NAME', [
+                    'trg_payments__bi_refund_cap',
+                    'trg_payments__bu_refund_cap',
                     'trg_payments__bi_refund_lineage_guard',
                     'trg_payments__bu_refund_lineage_guard',
                     'trg_menu_item_prices__bi_overlap_guard',
@@ -162,6 +166,9 @@ class DatabaseContractInspector
                                 'idx_notification_outbox__dedupe_key__created_at',
                                 'idx_notification_outbox__recipient_user_id__status__created_at',
                             ]);
+                    })->orWhere(function ($inner): void {
+                        $inner->where('TABLE_NAME', 'ingredient_stock_movements')
+                            ->where('INDEX_NAME', 'uq_ingredient_stock_movements__reference');
                     })->orWhere(function ($inner): void {
                         $inner->where('TABLE_NAME', 'notification_delivery_attempts')
                             ->whereIn('INDEX_NAME', [
@@ -312,6 +319,7 @@ class DatabaseContractInspector
 
             $snapshot['checks']['refund_lineage_trigger_insert'] = in_array('trg_payments__bi_refund_lineage_guard', $triggerNames, true);
             $snapshot['checks']['refund_lineage_trigger_update'] = in_array('trg_payments__bu_refund_lineage_guard', $triggerNames, true);
+            $snapshot['checks']['payment_refund_trigger_compatibility'] = ! self::hasRuntimeIncompatiblePaymentRefundTriggers($triggerNames);
             $snapshot['checks']['menu_price_overlap_trigger_insert'] = in_array('trg_menu_item_prices__bi_overlap_guard', $triggerNames, true);
             $snapshot['checks']['menu_price_overlap_trigger_update'] = in_array('trg_menu_item_prices__bu_overlap_guard', $triggerNames, true);
             $snapshot['checks']['voucher_usage_cap_index'] = self::hasVoucherUsageCapIndex($indexNames);
@@ -341,6 +349,7 @@ class DatabaseContractInspector
             $snapshot['checks']['notification_outbox_recipient_user_column'] = array_key_exists('notification_outbox:recipient_user_id', $columnMetadata);
             $snapshot['checks']['notification_outbox_dedupe_key_column'] = array_key_exists('notification_outbox:dedupe_key', $columnMetadata);
             $snapshot['checks']['notification_outbox_operational_indexes'] = self::hasNotificationOutboxOperationalIndexes($indexNames);
+            $snapshot['checks']['ingredient_stock_movement_reference_unique'] = self::hasIngredientStockMovementReferenceUniqueIndex($indexNames);
             $snapshot['checks']['notification_delivery_attempts_table'] = array_key_exists('notification_delivery_attempts:attempt_id', $columnMetadata);
             $snapshot['checks']['notification_delivery_attempts_operational_indexes'] = self::hasNotificationDeliveryAttemptsOperationalIndexes($indexNames);
             $snapshot['checks']['notification_preferences_table'] = array_key_exists('notification_preferences:notification_preference_id', $columnMetadata);
@@ -368,9 +377,9 @@ class DatabaseContractInspector
             return $snapshot;
         }
 
-        if ($snapshot['checks']['refund_lineage_trigger_insert'] !== true || $snapshot['checks']['refund_lineage_trigger_update'] !== true) {
+        if ($snapshot['checks']['payment_refund_trigger_compatibility'] !== true) {
             $snapshot['status'] = 'fail';
-            $snapshot['issues'][] = 'Required refund lineage guard triggers are missing from the current database.';
+            $snapshot['issues'][] = 'Runtime-incompatible payments refund triggers are still installed; refund execution can fail with MySQL ERROR 1442.';
         }
 
         if ($snapshot['checks']['menu_price_overlap_trigger_insert'] !== true || $snapshot['checks']['menu_price_overlap_trigger_update'] !== true) {
@@ -508,6 +517,11 @@ class DatabaseContractInspector
             $snapshot['issues'][] = 'Notification outbox operational indexes for dedupe and recipient scans are incomplete.';
         }
 
+        if ($snapshot['checks']['ingredient_stock_movement_reference_unique'] !== true) {
+            $snapshot['status'] = 'fail';
+            $snapshot['issues'][] = 'Ingredient stock movement reference uniqueness guard is missing.';
+        }
+
         if ($snapshot['checks']['notification_delivery_attempts_table'] !== true) {
             $snapshot['status'] = 'fail';
             $snapshot['issues'][] = 'Notification delivery attempt table is missing from the current database contract.';
@@ -614,6 +628,25 @@ class DatabaseContractInspector
         return in_array('user_vouchers:idx_user_vouchers__voucher_id__is_used__user_id', $indexNames, true);
     }
 
+    /**
+     * @param list<string> $triggerNames
+     */
+    public static function hasRuntimeIncompatiblePaymentRefundTriggers(array $triggerNames): bool
+    {
+        foreach ([
+            'trg_payments__bi_refund_cap',
+            'trg_payments__bu_refund_cap',
+            'trg_payments__bi_refund_lineage_guard',
+            'trg_payments__bu_refund_lineage_guard',
+        ] as $candidate) {
+            if (in_array($candidate, $triggerNames, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 
     /**
      * @param list<string> $indexNames
@@ -695,6 +728,14 @@ class DatabaseContractInspector
         }
 
         return true;
+    }
+
+    /**
+     * @param list<string> $indexNames
+     */
+    public static function hasIngredientStockMovementReferenceUniqueIndex(array $indexNames): bool
+    {
+        return in_array('ingredient_stock_movements:uq_ingredient_stock_movements__reference', $indexNames, true);
     }
 
     /**

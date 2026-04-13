@@ -27,14 +27,24 @@ class BookingVerifySelectCommandTest extends TestCase
         $this->assertContains('php artisan booking:round5-gate --json', $commands);
     }
 
-    public function test_booking_verify_select_reports_error_when_no_paths_and_git_is_unavailable(): void
+    public function test_booking_verify_select_uses_static_analysis_fallback_when_no_domain_matches_cleanly(): void
     {
-        $exitCode = Artisan::call('booking:verify-select', ['--json' => true]);
+        $exitCode = Artisan::call('booking:verify-select', [
+            '--json' => true,
+            '--path' => ['infra/fallback-proof.txt'],
+        ]);
         $payload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+        $commands = array_map(static fn (array $command): string => (string) $command['command'], $payload['commands']);
 
-        $this->assertSame(1, $exitCode);
-        $this->assertFalse($payload['ok']);
-        $this->assertSame('verification_selection_failed', $payload['error']);
+        $this->assertSame(0, $exitCode);
+        $this->assertTrue($payload['ok']);
+        $this->assertSame(['infra/fallback-proof.txt'], $payload['paths']);
+        $this->assertSame([], $payload['domains']);
+        $this->assertContains('vendor/bin/phpstan analyse', $commands);
+        $this->assertContains(
+            'no domain-specific rule matched cleanly; selector escalated to static analysis instead of defaulting to the full suite',
+            $payload['notes']
+        );
     }
 
     public function test_booking_verify_select_matches_web_harness_contract_domain(): void

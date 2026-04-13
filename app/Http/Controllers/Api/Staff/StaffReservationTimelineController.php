@@ -32,6 +32,7 @@ class StaffReservationTimelineController extends Controller
         $request->attributes->set('staff_reservation_timeline_assignment_request_context', [
             'board_from' => $timeline['range_start_utc']->toIso8601String(),
             'board_to' => $timeline['range_end_utc']->toIso8601String(),
+            'branch_id' => $timeline['filters']['branch_id'] ?? null,
             'zone' => $timeline['filters']['zone'] ?? null,
             'include_slot_only_candidates' => false,
         ]);
@@ -83,6 +84,7 @@ class StaffReservationTimelineController extends Controller
                         'end_date',
                         'from_time',
                         'to_time',
+                        'branch_id',
                         'status',
                         'table_id',
                         'zone',
@@ -103,6 +105,7 @@ class StaffReservationTimelineController extends Controller
                         'end_date' => 'filter[end_date]',
                         'from_time' => 'filter[from_time]',
                         'to_time' => 'filter[to_time]',
+                        'branch_id' => 'filter[branch_id]',
                         'status' => 'filter[status]',
                         'table_id' => 'filter[table_id]',
                         'zone' => 'filter[zone]',
@@ -134,7 +137,7 @@ class StaffReservationTimelineController extends Controller
     }
 
     /**
-     * @param \Illuminate\Support\Collection<int,array<string,mixed>> $items
+     * @param  Collection<int,array<string,mixed>>  $items
      * @return array<string,mixed>
      */
     private function buildSummary($items): array
@@ -169,7 +172,7 @@ class StaffReservationTimelineController extends Controller
             $operationalStateCounts[$operationalState] = (int) ($operationalStateCounts[$operationalState] ?? 0) + 1;
 
             foreach (array_keys($flagCounts) as $flag) {
-                if ((bool) data_get($item, 'flags.' . $flag, false)) {
+                if ((bool) data_get($item, 'flags.'.$flag, false)) {
                     $flagCounts[$flag]++;
                 }
             }
@@ -202,7 +205,7 @@ class StaffReservationTimelineController extends Controller
     }
 
     /**
-     * @param list<array<string,mixed>> $slots
+     * @param  list<array<string,mixed>>  $slots
      * @return array<string,mixed>
      */
     private function buildCalendarPayload(array $slots, string $laneMode): array
@@ -289,7 +292,7 @@ class StaffReservationTimelineController extends Controller
     }
 
     /**
-     * @param array<string,mixed> $item
+     * @param  array<string,mixed>  $item
      * @return array<string,mixed>
      */
     private function resolveLaneDescriptor(array $item, string $laneMode): array
@@ -310,7 +313,7 @@ class StaffReservationTimelineController extends Controller
             $zone = trim($zone);
 
             return [
-                'lane_key' => 'zone:' . $zone,
+                'lane_key' => 'zone:'.$zone,
                 'lane_type' => 'zone',
                 'label' => $zone,
                 'zone' => $zone,
@@ -330,7 +333,7 @@ class StaffReservationTimelineController extends Controller
         }
 
         return [
-            'lane_key' => 'table:' . (int) ($table['table_id'] ?? 0),
+            'lane_key' => 'table:'.(int) ($table['table_id'] ?? 0),
             'lane_type' => 'table',
             'label' => (string) ($table['table_code'] ?? 'Unknown Table'),
             'zone' => $table['zone'] ?? null,

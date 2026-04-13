@@ -151,6 +151,7 @@ class StaffCheckoutHttpFlowTest extends TestCase
     public function test_pay_and_finalize_alias_complete_the_reservation_settlement(): void
     {
         [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario();
+        $this->openCashierShiftForReservationBranch($staffId, $reservationId);
 
         $payResponse = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-pay'))
             ->postJson("/api/v1/staff/orders/{$orderId}/pay", [
@@ -171,6 +172,7 @@ class StaffCheckoutHttpFlowTest extends TestCase
         $this->assertSame('Completed', (string) $this->table('reservations')->where('reservation_id', $reservationId)->value('status'));
 
         [$staffId2, $orderId2, $reservationId2] = $this->seedActiveOrderScenario();
+        $this->openCashierShiftForReservationBranch($staffId2, $reservationId2);
 
         $checkoutResponse = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId2), 'idem-finalize-checkout'))
             ->postJson("/api/v1/staff/orders/{$orderId2}/settlement/finalize", [
@@ -190,6 +192,65 @@ class StaffCheckoutHttpFlowTest extends TestCase
 
         $this->assertSame('Completed', (string) $this->table('reservations')->where('reservation_id', $reservationId2)->value('status'));
         $this->assertSame(1, (int) $this->table('payments')->where('reservation_id', $reservationId2)->where('payment_type', 'Final')->count());
+    }
+
+    public function test_settlement_and_refund_mutations_require_open_cashier_shift_in_the_reservation_branch(): void
+    {
+        [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario();
+        $otherBranchId = $this->createBranch([
+            'branch_code' => 'CHKSHIFT',
+            'branch_name' => 'Checkout Shift Branch',
+        ]);
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $otherBranchId,
+            'status' => 'Open',
+        ]);
+
+        $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-finalize-without-branch-shift'))
+            ->postJson("/api/v1/staff/orders/{$orderId}/settlement/finalize", [
+                'payment_method' => 'Cash',
+                'payment_provider' => 'Cash',
+                'paid_amount' => 100000,
+                'currency' => 'VND',
+                'transaction_code' => 'PAY-NO-BRANCH-SHIFT-1',
+                'row_version' => 1,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['cashier_shift']);
+
+        $this->assertSame(0, (int) $this->table('payments')->where('reservation_id', $reservationId)->count());
+
+        $completedReservationId = $this->createReservation([
+            'user_id' => $this->createUser(['role_name' => 'Customer']),
+            'status' => 'Completed',
+            'final_bill_amount' => '100000.00',
+            'bill_currency' => 'VND',
+            'billed_at' => $this->nowUtc(),
+        ]);
+        $this->createPayment([
+            'reservation_id' => $completedReservationId,
+            'payment_type' => 'Final',
+            'status' => 'Success',
+            'amount' => '100000.00',
+            'currency' => 'VND',
+            'payment_method' => 'Cash',
+            'payment_provider' => 'Cash',
+            'created_by' => $staffId,
+            'transaction_code' => 'REFUND-NO-BRANCH-SHIFT-PAID-1',
+        ]);
+
+        $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-refund-without-branch-shift'))
+            ->postJson("/api/v1/staff/reservations/{$completedReservationId}/refund", [
+                'payment_method' => 'Cash',
+                'payment_provider' => 'Cash',
+                'refund_scope' => 'all',
+                'currency' => 'VND',
+                'transaction_code' => 'REFUND-NO-BRANCH-SHIFT-1',
+                'row_version' => 1,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['cashier_shift']);
     }
 
     /**
@@ -228,5 +289,15 @@ class StaffCheckoutHttpFlowTest extends TestCase
     private function table(string $table)
     {
         return DB::table($table);
+    }
+
+    private function openCashierShiftForReservationBranch(int $staffId, int $reservationId): void
+    {
+        $branchId = (int) $this->table('reservations')->where('reservation_id', $reservationId)->value('branch_id');
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId > 0 ? $branchId : 1,
+            'status' => 'Open',
+        ]);
     }
 }

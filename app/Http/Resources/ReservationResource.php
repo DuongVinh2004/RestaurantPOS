@@ -126,29 +126,8 @@ class ReservationResource extends JsonResource
             });
         }
 
-        $user = $this->whenLoaded('user', function () use ($canViewIdentity, $canViewDisplayName, $canViewContact, $canViewLoyalty) {
-            if (! $this->user) {
-                return null;
-            }
-
-            return [
-                'user_id' => $canViewIdentity ? (int) $this->user->user_id : null,
-                'full_name' => $canViewDisplayName ? $this->user->full_name : null,
-                'email' => $canViewContact ? $this->user->email : null,
-                'phone' => $canViewContact ? $this->user->phone : null,
-                'current_points' => $canViewLoyalty && $this->user->relationLoaded('points') && $this->user->points
-                    ? (int) $this->user->points->total_points
-                    : null,
-                'current_tier' => $canViewLoyalty && $this->user->relationLoaded('currentTier') && $this->user->currentTier
-                    ? [
-                        'tier_id' => (int) $this->user->currentTier->tier_id,
-                        'tier_code' => (string) $this->user->currentTier->tier_code,
-                        'tier_name' => (string) $this->user->currentTier->tier_name,
-                        'min_points' => (int) $this->user->currentTier->min_points,
-                    ]
-                    : null,
-            ];
-        });
+        $user = $this->buildCustomerUserPayload($canViewIdentity, $canViewDisplayName, $canViewContact, $canViewLoyalty);
+        $guest = $isStaff ? $this->buildGuestSnapshotPayload() : null;
 
         $appliedVoucher = null;
         if ($canViewVoucherDetails) {
@@ -184,7 +163,7 @@ class ReservationResource extends JsonResource
             'api_contract' => [
                 'access_scope' => $accessScope,
             ],
-            'user_id' => $canViewIdentity ? (int) $this->user_id : null,
+            'user_id' => $canViewIdentity && $this->user_id !== null ? (int) $this->user_id : null,
             'booking_time' => $this->iso($this->reserved_at ?? $this->created_at),
             'reserved_at' => $this->iso($this->reserved_at),
             'start_time' => $this->iso($this->start_time),
@@ -212,6 +191,7 @@ class ReservationResource extends JsonResource
             'status_flags' => $statusFlags,
             'customer_self_service' => $customerSelfService,
             'user' => $user,
+            'guest' => $guest,
             'table_ids' => $tableIds,
             'table_summary' => $tableSummary,
             'tables' => $tables,
@@ -359,6 +339,56 @@ class ReservationResource extends JsonResource
         }
 
         return $summary;
+    }
+
+    private function buildCustomerUserPayload(
+        bool $canViewIdentity,
+        bool $canViewDisplayName,
+        bool $canViewContact,
+        bool $canViewLoyalty,
+    ): ?array {
+        $hasLinkedUser = $this->relationLoaded('user') && $this->user !== null;
+        $hasGuestSnapshot = method_exists($this->resource, 'hasGuestSnapshot') && $this->resource->hasGuestSnapshot();
+
+        if (! $hasLinkedUser && ! $hasGuestSnapshot && $this->user_id === null) {
+            return null;
+        }
+
+        return [
+            'user_id' => $canViewIdentity && $this->user_id !== null ? (int) $this->user_id : null,
+            'full_name' => $canViewDisplayName && method_exists($this->resource, 'customerDisplayName')
+                ? $this->resource->customerDisplayName()
+                : null,
+            'email' => $canViewContact && method_exists($this->resource, 'customerEmail')
+                ? $this->resource->customerEmail()
+                : null,
+            'phone' => $canViewContact && method_exists($this->resource, 'customerPhone')
+                ? $this->resource->customerPhone()
+                : null,
+            'current_points' => $canViewLoyalty && $hasLinkedUser && $this->user->relationLoaded('points') && $this->user->points
+                ? (int) $this->user->points->total_points
+                : null,
+            'current_tier' => $canViewLoyalty && $hasLinkedUser && $this->user->relationLoaded('currentTier') && $this->user->currentTier
+                ? [
+                    'tier_id' => (int) $this->user->currentTier->tier_id,
+                    'tier_code' => (string) $this->user->currentTier->tier_code,
+                    'tier_name' => (string) $this->user->currentTier->tier_name,
+                    'min_points' => (int) $this->user->currentTier->min_points,
+                ]
+                : null,
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function buildGuestSnapshotPayload(): ?array
+    {
+        if (! method_exists($this->resource, 'guestSnapshot')) {
+            return null;
+        }
+
+        return $this->resource->guestSnapshot();
     }
 
 

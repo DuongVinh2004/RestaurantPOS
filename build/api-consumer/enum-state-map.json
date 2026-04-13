@@ -381,6 +381,26 @@
                 "Maintenance": "Maintenance"
             }
         },
+        "StaffConversationWorkflowState": {
+            "php_class": "App\\Enums\\StaffConversationWorkflowState",
+            "backing_type": "string",
+            "values": [
+                "Open",
+                "Triaged",
+                "Assigned",
+                "PendingCustomer",
+                "Resolved",
+                "Closed"
+            ],
+            "cases": {
+                "Open": "Open",
+                "Triaged": "Triaged",
+                "Assigned": "Assigned",
+                "PendingCustomer": "PendingCustomer",
+                "Resolved": "Resolved",
+                "Closed": "Closed"
+            }
+        },
         "TableHoldStatus": {
             "php_class": "App\\Enums\\TableHoldStatus",
             "backing_type": "string",

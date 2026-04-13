@@ -32,6 +32,12 @@ Can co cac thanh phan sau:
 - `mysql.exe` trong `PATH`
 - Redis
 
+Neu service MySQL cua may khong tien dung hoac user hien tai khong co quyen `Start-Service`, repo nay co script chay MySQL local bang datadir trong `storage\mysql-local\data`:
+
+```cmd
+powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-mysql.ps1 -Restart
+```
+
 Kiem tra nhanh:
 
 ```cmd
@@ -116,14 +122,50 @@ Neu lenh tren pass, ban khong can chay lai moi ngay.
 
 ## 4. Chay project moi ngay
 
-Moi lan mo project de dev/test local, chi can 3 tien trinh bat buoc va 1 tien trinh tuy chon.
+Moi lan mo project de dev/test local, chi can 1 lenh bat runtime backend va 1 tien trinh tuy chon cho frontend.
 
-### 4.1. Terminal 1: Redis
-
-Chocolatey package Redis tren may Windows nay khong tu tao service. Cach chay on dinh la mo foreground process trong cua so rieng:
+### 4.0. One-liner runtime
 
 ```cmd
-start "Redis" cmd /k "cd /d C:\ProgramData\chocolatey\lib\redis\tools && redis-server.exe redis.conf"
+npm run runtime:up
+```
+
+Lenh nay se:
+
+- ensure repo-local MySQL tren `127.0.0.1:3306`
+- ensure repo-local Redis tren `127.0.0.1:6379`
+- start `php artisan serve`
+- start `php artisan schedule:work`
+- touch 1 lan scheduler heartbeat de `booking:doctor` khong fail ngay luc vua len runtime
+
+Khi can ha runtime:
+
+```cmd
+npm run runtime:down
+```
+
+Neu can debug tung process rieng le, dung fallback thu cong ben duoi.
+
+### 4.1. Manual fallback theo tung process
+
+Chocolatey package Redis tren may Windows nay khong tu tao service. Khong chay truc tiep config mac dinh trong `C:\ProgramData\chocolatey\lib\redis\tools` vi thu muc do co the chi doc voi user thuong, lam Redis tu bao `MISCONF` sau khi RDB snapshot fail.
+
+#### MySQL local, neu can
+
+Neu may ban da co MySQL service rieng dang chay tren `127.0.0.1:3306`, giu nguyen cach van hanh do.
+
+Neu khong, dung script repo-local:
+
+```cmd
+powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-mysql.ps1 -Restart
+```
+
+#### Redis
+
+Cach chay on dinh cho repo nay la dung script local de Redis ghi snapshot vao `storage\redis`:
+
+```cmd
+powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-redis.ps1 -Restart
 ```
 
 Kiem tra Redis:
@@ -138,13 +180,13 @@ Ket qua dung:
 PONG
 ```
 
-### 4.2. Terminal 2: Laravel app
+#### Laravel app
 
 ```cmd
 php artisan serve
 ```
 
-### 4.3. Terminal 3: Scheduler
+#### Scheduler
 
 ```cmd
 php artisan schedule:work
@@ -159,7 +201,7 @@ Scheduler la bat buoc cho local neu ban muon business flow dong:
 - outbox processing
 - reporting freshness
 
-### 4.4. Terminal 4: Frontend assets, neu can
+#### Frontend assets, neu can
 
 Neu ban co dung giao dien frontend:
 
@@ -171,9 +213,10 @@ Neu chi test API thi co the bo qua buoc nay.
 
 ## 5. Health check sau khi app da len
 
-Sau khi `schedule:work` chay khoang 1 phut, chay:
+Sau khi `npm run runtime:up` xong, chay:
 
 ```cmd
+npm run runtime:preflight
 php artisan booking:doctor --json
 php artisan notifications:outbox-health --json
 php artisan booking:release-manifest --json
@@ -202,6 +245,7 @@ Nen test theo 3 lop, theo dung thu tu nay:
 Day la lop can chay moi khi ban vua mo project, vua doi `.env`, vua bootstrap lai, hoac vua pull code.
 
 ```cmd
+npm run runtime:preflight
 php artisan booking:doctor --json
 php artisan notifications:outbox-health --json
 php artisan booking:release-manifest --json
@@ -637,6 +681,12 @@ Cach xu ly:
 - them MySQL vao `PATH`
 - hoac set `MYSQL_BIN=` trong `.env`
 
+Neu MySQL service cua may khong start duoc bang user hien tai, chay MySQL local cua repo:
+
+```cmd
+powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-mysql.ps1 -Restart
+```
+
 ### 15.2. `Redis connection refused`
 
 Nguyen nhan:
@@ -646,7 +696,13 @@ Nguyen nhan:
 Cach xu ly:
 
 ```cmd
-start "Redis" cmd /k "cd /d C:\ProgramData\chocolatey\lib\redis\tools && redis-server.exe redis.conf"
+npm run runtime:up
+```
+
+Neu ban muon debug rieng Redis:
+
+```cmd
+powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-redis.ps1 -Restart
 redis-cli ping
 ```
 
@@ -660,12 +716,13 @@ Nguyen nhan:
 Cach xu ly:
 
 ```cmd
-php artisan schedule:work
+npm run runtime:up
 ```
 
-Doi khoang 1 phut roi chay lai:
+Neu van fail, chay lai gate:
 
 ```cmd
+npm run runtime:preflight
 php artisan booking:doctor --json
 ```
 
@@ -685,31 +742,30 @@ Thuong la do thieu 1 trong 2 process nay:
 - `redis-server`
 - `php artisan schedule:work`
 
+Cach nhanh nhat de dua local runtime ve dung lane:
+
+```cmd
+npm run runtime:up
+```
+
 ## 16. Checklist nhanh de mo project moi ngay
 
-Mo 3 terminal trong VSCode:
-
-Terminal 1:
+Mo 1 terminal trong VSCode:
 
 ```cmd
-start "Redis" cmd /k "cd /d C:\ProgramData\chocolatey\lib\redis\tools && redis-server.exe redis.conf"
+npm run runtime:up
 ```
 
-Terminal 2:
+Neu can dong runtime:
 
 ```cmd
-php artisan serve
-```
-
-Terminal 3:
-
-```cmd
-php artisan schedule:work
+npm run runtime:down
 ```
 
 Kiem tra:
 
 ```cmd
+npm run runtime:preflight
 php artisan booking:doctor --json
 ```
 
@@ -727,8 +783,7 @@ composer install
 npm install
 php artisan key:generate --ansi --force
 composer bootstrap:booking
-start "Redis" cmd /k "cd /d C:\ProgramData\chocolatey\lib\redis\tools && redis-server.exe redis.conf"
-php artisan serve
-php artisan schedule:work
+npm run runtime:up
+npm run runtime:preflight
 php artisan booking:doctor --json
 ```

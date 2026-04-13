@@ -38,7 +38,6 @@ import {
   type RefundReservationRequest,
   type SeatWaitingListRequest,
   type SendConversationOutboundReplyRequest,
-  type StaffAuthSessionEnvelope,
   type StaffCheckoutSettlementEnvelope,
   type StaffConversationCollectionEnvelope,
   type StaffConversationDetailEnvelope,
@@ -62,15 +61,21 @@ import {
   type StaffWaitingListSeatEnvelope,
   type TakeOverConversationRequest,
 } from './sdk';
+import {
+  persistStaffSessionToken,
+  readStoredStaffToken,
+  writeStoredStaffToken,
+  type StaffSession as SharedStaffSession,
+} from '../core/auth/storage';
+import { resolveApiBaseUrl } from '../core/config/env';
 import { createIdempotencyKey } from '../lib/idempotency';
 import { formatApiError, isApiStatus, isRestaurantPosApiError, normalizeApiError } from '../lib/api-errors';
 
-const STAFF_TOKEN_STORAGE_KEY = 'restaurantpos.staff_web.staff_api_key';
-const RAW_API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000/api/v1';
+const RAW_API_BASE = resolveApiBaseUrl(import.meta.env.VITE_API_URL as string | undefined);
 
 export const apiBaseUrl = normalizeApiBaseUrl(RAW_API_BASE);
 
-export type StaffSession = StaffAuthSessionEnvelope['data'];
+export type StaffSession = SharedStaffSession;
 export type StaffBoardWindow = {
   from: string;
   to: string;
@@ -82,11 +87,11 @@ export const staffClient = new RestaurantPosClient({
 });
 
 export function getStaffToken(): string | null {
-  return localStorage.getItem(STAFF_TOKEN_STORAGE_KEY);
+  return readStoredStaffToken();
 }
 
 export function clearStaffSession(): void {
-  localStorage.removeItem(STAFF_TOKEN_STORAGE_KEY);
+  writeStoredStaffToken(null);
 }
 
 export async function loginStaff(
@@ -250,7 +255,7 @@ export async function loadKitchenChanges(
 }
 
 export async function loadKitchenStations(): Promise<StaffKitchenStationCollectionEnvelope> {
-  return staffClient.getV1StaffKitchenStations();
+  return staffClient.getV1StaffKitchenStations({});
 }
 
 export async function loadDailySalesReporting(
@@ -375,7 +380,7 @@ export async function refundAndCancelReservation(
 }
 
 export async function loadCurrentCashierShift(): Promise<CashierShiftEnvelope> {
-  return staffClient.getV1StaffCashierShiftsCurrent();
+  return staffClient.getV1StaffCashierShiftsCurrent({});
 }
 
 export async function loadCashierShifts(
@@ -466,19 +471,7 @@ export function isMissingResource(error: unknown): boolean {
 export { formatApiError, isRestaurantPosApiError, normalizeApiError };
 
 function persist(session: StaffSession): void {
-  if (typeof session.access_token === 'string') {
-    if (session.access_token.trim() !== '') {
-      localStorage.setItem(STAFF_TOKEN_STORAGE_KEY, session.access_token);
-      return;
-    }
-
-    clearStaffSession();
-    return;
-  }
-
-  if (!getStaffToken()) {
-    clearStaffSession();
-  }
+  persistStaffSessionToken(session);
 }
 
 export function boardWindow(reference = new Date()): StaffBoardWindow {

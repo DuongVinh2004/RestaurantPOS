@@ -57,6 +57,21 @@ class DatabaseContractInspectorTest extends TestCase
         ]));
     }
 
+    public function test_it_detects_runtime_incompatible_payment_refund_triggers(): void
+    {
+        $this->assertFalse(DatabaseContractInspector::hasRuntimeIncompatiblePaymentRefundTriggers([
+            'trg_menu_item_prices__bi_overlap_guard',
+        ]));
+
+        $this->assertTrue(DatabaseContractInspector::hasRuntimeIncompatiblePaymentRefundTriggers([
+            'trg_payments__bi_refund_cap',
+        ]));
+
+        $this->assertTrue(DatabaseContractInspector::hasRuntimeIncompatiblePaymentRefundTriggers([
+            'trg_payments__bu_refund_lineage_guard',
+        ]));
+    }
+
     public function test_it_requires_payment_provider_transaction_uniqueness_guard(): void
     {
         $this->assertFalse(DatabaseContractInspector::hasPaymentProviderTransactionUniqueIndex([
@@ -152,6 +167,17 @@ class DatabaseContractInspectorTest extends TestCase
         ]));
     }
 
+    public function test_it_requires_ingredient_stock_movement_reference_uniqueness_guard(): void
+    {
+        $this->assertFalse(DatabaseContractInspector::hasIngredientStockMovementReferenceUniqueIndex([
+            'ingredient_stock_movements:idx_ingredient_stock_movements__reference',
+        ]));
+
+        $this->assertTrue(DatabaseContractInspector::hasIngredientStockMovementReferenceUniqueIndex([
+            'ingredient_stock_movements:uq_ingredient_stock_movements__reference',
+        ]));
+    }
+
     public function test_it_requires_audit_privacy_and_feature_flag_contract_helpers(): void
     {
         $this->assertFalse(DatabaseContractInspector::hasAuditLogContextColumns([
@@ -216,6 +242,7 @@ class DatabaseContractInspectorTest extends TestCase
             'notification_outbox_recipient_user_column',
             'notification_outbox_dedupe_key_column',
             'notification_outbox_operational_indexes',
+            'ingredient_stock_movement_reference_unique',
             'notification_delivery_attempts_table',
             'notification_delivery_attempts_operational_indexes',
             'notification_preferences_table',
@@ -231,6 +258,7 @@ class DatabaseContractInspectorTest extends TestCase
             'users_privacy_anonymized_at_column',
             'feature_flags_table',
             'feature_flags_unique',
+            'payment_refund_trigger_compatibility',
         ] as $checkKey) {
             $this->assertArrayHasKey($checkKey, $snapshot['checks']);
             $this->assertNull($snapshot['checks'][$checkKey]);

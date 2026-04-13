@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Notifications;
 
-use PHPUnit\Framework\Attributes\Group;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\NotificationOutbox;
+use App\Models\Reservation;
 use App\Services\NotificationOutboxService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
@@ -47,7 +48,7 @@ class NotificationOutboxServiceSmokeTest extends TestCase
 
         foreach (['notification_outbox'] as $table) {
             if (! Schema::hasTable($table)) {
-$this->failOrSkipBookingSchemaContract(sprintf('Required table [%s] is missing. Run booking migrations on the test database first.', $table));
+                $this->failOrSkipBookingSchemaContract(sprintf('Required table [%s] is missing. Run booking migrations on the test database first.', $table));
             }
         }
     }
@@ -80,6 +81,49 @@ $this->failOrSkipBookingSchemaContract(sprintf('Required table [%s] is missing. 
     }
 
     #[Group('booking-smoke')]
+    public function test_reservation_notifications_keep_utc_contract_fields_and_add_branch_local_display_times(): void
+    {
+        $this->requireOutboxSchema();
+        config()->set('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh');
+
+        $branchId = $this->createBranch([
+            'branch_code' => 'HCM',
+            'timezone' => 'Asia/Ho_Chi_Minh',
+        ]);
+        $userId = $this->createUser(['email' => 'customer.localtime@example.test']);
+        $reservationId = $this->createReservation([
+            'branch_id' => $branchId,
+            'user_id' => $userId,
+            'status' => 'Confirmed',
+            'start_time' => Carbon::parse('2026-03-14T13:05:00Z')->utc(),
+            'end_time' => Carbon::parse('2026-03-14T15:05:00Z')->utc(),
+        ]);
+        $this->attachReservationTable($reservationId);
+
+        $reservation = Reservation::query()->findOrFail($reservationId);
+        $service = app(NotificationOutboxService::class);
+        $message = $service->enqueueReservationReminder($reservation, 60);
+
+        self::assertNotNull($message);
+
+        $payload = (array) $message->payload_json;
+        self::assertSame('2026-03-14 13:05:00 UTC', $payload['start_time_utc'] ?? null);
+        self::assertSame('2026-03-14 15:05:00 UTC', $payload['end_time_utc'] ?? null);
+        self::assertSame('20:05 14/03/2026', $payload['start_time_local'] ?? null);
+        self::assertSame('22:05 14/03/2026', $payload['end_time_local'] ?? null);
+        self::assertSame('production_lean', data_get($payload, '_notification.readiness'));
+        self::assertSame('real', data_get($payload, '_notification.delivery_mode'));
+
+        $renderEmailBody = new \ReflectionMethod($service, 'renderEmailBody');
+        $renderEmailBody->setAccessible(true);
+        $body = $renderEmailBody->invoke($service, 'reservation.reminder', $payload);
+
+        self::assertIsString($body);
+        self::assertStringContainsString('20:05 14/03/2026', $body);
+        self::assertStringNotContainsString('UTC', $body);
+    }
+
+    #[Group('booking-smoke')]
     public function test_process_due_messages_marks_email_rows_as_sent(): void
     {
         $this->requireOutboxSchema();
@@ -90,7 +134,7 @@ $this->failOrSkipBookingSchemaContract(sprintf('Required table [%s] is missing. 
             'channel' => 'Email',
             'recipient' => 'ops@example.test',
             'template_key' => 'reservation.created',
-            'idempotency_key' => 'test:outbox:sent:' . uniqid('', true),
+            'idempotency_key' => 'test:outbox:sent:'.uniqid('', true),
             'payload_json' => [
                 'reservation_code' => 'RSV-TEST-001',
                 'customer_name' => 'Test User',
@@ -119,7 +163,7 @@ $this->failOrSkipBookingSchemaContract(sprintf('Required table [%s] is missing. 
     }
 
     #[Group('booking-smoke')]
-    public function test_process_due_messages_marks_unsupported_channel_rows_as_failed_with_retry(): void
+    public function test_process_due_messages_cancels_non_retryable_channel_rows_without_retry_loop(): void
     {
         $this->requireOutboxSchema();
 
@@ -127,7 +171,7 @@ $this->failOrSkipBookingSchemaContract(sprintf('Required table [%s] is missing. 
             'channel' => 'SMS',
             'recipient' => '84901234567',
             'template_key' => 'reservation.created',
-            'idempotency_key' => 'test:outbox:failed:' . uniqid('', true),
+            'idempotency_key' => 'test:outbox:failed:'.uniqid('', true),
             'payload_json' => [
                 'reservation_code' => 'RSV-TEST-002',
             ],
@@ -147,8 +191,11 @@ $this->failOrSkipBookingSchemaContract(sprintf('Required table [%s] is missing. 
 
         $this->assertSame(1, $processed);
         $message->refresh();
-        $this->assertSame('Failed', $message->status);
-        $this->assertNotNull($message->next_retry_at);
+        $this->assertSame('Cancelled', $message->status);
+        $this->assertNull($message->next_retry_at);
         $this->assertStringContainsString('not enabled', (string) $message->last_error);
+        $attempt = NotificationDeliveryAttempt::query()->firstOrFail();
+        $this->assertSame('Failed', $attempt->status);
+        $this->assertSame('channel_disabled', $attempt->error_code);
     }
 }
