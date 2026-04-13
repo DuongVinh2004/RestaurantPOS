@@ -253,7 +253,9 @@ return [
         '2026_04_05_000047_data_lifecycle_foundation.sql',
         '2026_04_05_000048_feature_flags_foundation.sql',
         '2026_04_08_000041_drop_runtime_incompatible_payment_refund_triggers.sql',
+        '2026_04_11_000049_reservation_guest_snapshot_support.sql',
         '2026_04_12_000050_staff_conversation_workflow_hardening.sql',
+        '2026_04_13_000051_inventory_stock_movement_reference_uniqueness.sql',
     ],
     'release_manifest' => [
         'definition_path' => 'config/booking_release.php',
