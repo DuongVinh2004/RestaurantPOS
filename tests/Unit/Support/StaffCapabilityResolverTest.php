@@ -28,19 +28,19 @@ class StaffCapabilityResolverTest extends TestCase
 
     public function test_it_expands_configured_legacy_capability_aliases(): void
     {
-        config()->set('staff_capabilities.known_capabilities', ['cashier.manage']);
+        config()->set('staff_capabilities.known_capabilities', ['cashier.shift.manage', 'reporting.view']);
         config()->set('staff_capabilities.capability_aliases', [
-            'cashier.shift.manage' => 'cashier.manage',
+            'settlement.manage' => ['cashier.shift.manage', 'reporting.view'],
         ]);
         config()->set('staff_capabilities.role_id_capabilities', [
-            7 => ['cashier.shift.manage'],
+            7 => ['settlement.manage'],
         ]);
         config()->set('staff_capabilities.role_capabilities', []);
 
         $resolved = app(StaffCapabilityResolver::class)->resolveForActor(7, 'Staff');
 
-        $this->assertSame(['cashier.manage', 'cashier.shift.manage'], $resolved['capabilities']);
-        $this->assertSame(['cashier.manage'], $resolved['known_capabilities']);
+        $this->assertSame(['cashier.shift.manage', 'reporting.view', 'settlement.manage'], $resolved['capabilities']);
+        $this->assertSame(['cashier.shift.manage', 'reporting.view'], $resolved['known_capabilities']);
         $this->assertSame('role_id_capabilities', $resolved['source']);
     }
 

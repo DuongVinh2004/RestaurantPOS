@@ -20,6 +20,135 @@ Build a single immutable release artifact for the booking backend, together with
 3. The repository is the full backend root, not a source-only export.
 4. `storage/app/booking_release/release_manifest_snapshot.json` is already frozen and fresh.
 
+## Final release handoff checklist
+
+Use this exact checklist for final packaging and handoff:
+
+1. Generate before packaging.
+   - `php artisan booking:api-contract --write`
+   - `php artisan booking:api-artifacts:generate`
+   - `php artisan booking:release-manifest --write`
+   - If the handoff needs demo/API-client variables, refresh `storage/app/uat/scenario-pack.json` first and pass it to the artifact generator or release loop.
+2. Source-only package.
+   - Source-only exports are review artifacts only. Label them `SOURCE-ONLY`, do not deploy them, and do not cite them as release evidence because they can omit generated artifacts, frozen manifests, package sidecars, and smoke reports.
+3. Release/handoff package.
+   - Use only `build/booking-release/*.tar.gz` plus matching `.metadata.json`, `.inventory.json`, `.checksums.sha256`, `.package.sha256`, and `latest-package.json` after `booking:package-release --verify-frozen` or `booking:release-build`.
+4. Authoritative smoke proof.
+   - Cite the exact timestamped smoke file for the target, not an old failure copied from the folder listing. Current pointers live at `storage/app/booking_release/staff_web_smoke/latest-local.*`, `latest-staging.*`, and release-loop step artifacts under `storage/app/booking_release/release_loop/steps/<target>/<timestamp>/staff-web-smoke/`.
+   - Timestamped reports that are not the cited target evidence are historical only unless the release ticket explicitly promotes them.
+5. Contract-critical generated artifacts.
+   - `storage/app/booking_release/openapi-v1.json`
+   - `build/api-consumer/sdk/typescript/restaurantpos-sdk.ts`
+   - `build/api-consumer/sdk/typescript/restaurantpos-enums.ts`
+   - `build/api-consumer/enum-state-map.json`
+   - `build/api-consumer/mutation-contracts.md`
+   - `build/api-consumer/postman/RestaurantPOS.postman_collection.json`
+   - `storage/app/booking_release/release_manifest_snapshot.json`
+6. Gates that must fail the release.
+   - Package integrity reports blocking missing files or blocking stale generated artifacts.
+   - `booking:release-manifest --verify-frozen` reports stale, missing, or invalid frozen manifest state.
+   - `booking:deploy-check --mode=preflight --strict` fails.
+   - Backend, staff-web, or target smoke tests fail for lanes enabled in the release ticket.
+   - `booking:package-release --verify-frozen` cannot create the package or sidecars deterministically.
+   - The package inventory contains install-time garbage such as `node_modules`, `vendor`, `.env`, `.git`, caches, or local temp output.
+7. Domain maturity label for this handoff.
+   - Mature / strong: auth/identity/RBAC, dine-in service session, order lifecycle, checkout/refund/cashier shift.
+   - Hardened but still higher risk: branch-scope operational consistency, kitchen/KDS, conversation inbox, staff-web branch shell context.
+   - Foundation-usable only: inventory basics, reporting/ops dashboards, notification/provider external E2E, advanced realtime collaboration.
+
+## Canonical package shape
+
+Blocking files that must exist for the repo to run at all:
+
+- `composer.json`
+- `artisan`
+- `.env.example`
+- `public/index.php`
+- `routes/`
+- `bootstrap/`
+- `config/`
+- `database/`
+- `tools/mysql/`
+- `tools/bootstrap_booking.php`
+- `staff-web/package.json`
+- `staff-web/vite.config.ts`
+- `staff-web/index.html`
+
+Blocking files that must exist for build/test/smoke and FE contract verification:
+
+- `tests/`
+- `phpunit.xml`
+- `package.json`
+- `vite.config.js`
+- `scripts/`
+- `staff-web/tsconfig.json`
+- `staff-web/vitest.config.ts`
+- `staff-web/scripts/live-smoke.mjs`
+- `staff-web/src/api/sdk.ts`
+- `staff-web/src/core/api/sdk.ts`
+
+Generated artifacts that must stay aligned with the current backend contract:
+
+- `build/api-consumer/sdk/typescript/restaurantpos-sdk.ts`
+- `build/api-consumer/sdk/typescript/restaurantpos-enums.ts`
+- `build/api-consumer/mutation-contracts.md`
+- `storage/app/booking_release/openapi-v1.json`
+- `storage/app/booking_release/release_manifest_snapshot.json`
+
+Useful handover files that should stay in the snapshot even though they are advisory-only:
+
+- `README.md`
+- `docs/runbooks/`
+- `docs/runbooks/api-consumer-artifacts.md`
+- `docs/runbooks/booking-release-packaging-runbook.md`
+- `staff-web/.env.example`
+- `staff-web/STAFF_WEB_SETUP.md`
+- `build/api-consumer/sdk/typescript/README.md`
+
+## Package integrity gate
+
+Run the integrity gate before handoff, before FE build/test, and inside release-loop:
+
+- `node scripts/release/check-package-integrity.mjs`
+- `node scripts/release/check-package-integrity.mjs --json`
+- `npm run verify:package`
+
+For FE-only handoff validation from `staff-web/`:
+
+- `npm run integrity:check`
+- `node ../scripts/release/check-package-integrity.mjs --staff-web-only --root-dir=..`
+
+This gate is intentionally narrow. It does not replace runtime checks; it fails early when the backend roots, `staff-web` roots, or generated FE-facing artifacts are missing from the package shape that release tooling expects.
+
+The gate now emits three explicit groups:
+
+- `required to run`
+- `required for build/test/smoke`
+- `useful for handover`
+
+Missing items in the first two groups return `decision=block` and a non-zero exit code. Missing handover-only items return `decision=warn` and exit cleanly so reviewers can separate documentation drift from real package blockers.
+
+## Focused pre-release regression slice
+
+When the candidate touches reporting, audit, shell scope messaging, or FE handoff reliability, run this smaller but high-signal slice before the broader release loop:
+
+1. Backend reporting and audit regression
+   - `php artisan test tests/Feature/Staff/StaffReportingReadModelsHttpFlowTest tests/Feature/Staff/StaffAuditTrailHttpFlowTest tests/Unit/Services/OperationalInsightsServiceTest`
+2. Contract and package shape
+   - `php artisan booking:api-contract --write`
+   - `php artisan booking:api-artifacts:generate`
+   - `php artisan booking:release-manifest --write`
+   - `npm run verify:package`
+3. Staff-web regression for the affected surfaces from `staff-web/`
+   - `npm run integrity:check`
+   - `npm run test -- --run src/features/reporting/reporting-hub.test.ts src/features/audit/audit-trail.test.ts src/features/audit/AuditTrailPage.test.tsx src/features/dashboard/DashboardPage.test.tsx src/app/layout/route-scope.test.ts`
+
+This slice is meant to answer three questions quickly:
+
+- are reporting freshness semantics still consistent between backend and staff-web
+- is audit investigation still filterable by branch and request correlation
+- is the release package still shipping the backend, `staff-web`, and generated consumer artifacts together
+
 ## Canonical build path
 
 The canonical release pipeline is:
@@ -89,6 +218,8 @@ The release-loop report now records preview and observability context explicitly
 
 Treat `preview.status=unconfigured` and `observability.status=missing-configuration` as external promotion blockers, not as soft green evidence.
 
+The canonical release loop now also runs `package_integrity` immediately after `contract_artifacts`, so missing FE/BE roots or generated SDK artifacts block the candidate before backend harnesses or `staff-web` build spend time on a broken handoff shape.
+
 The release-loop report is written under:
 
 - `storage/app/booking_release/release_loop/reports/`
@@ -96,6 +227,59 @@ The release-loop report is written under:
 `staff-web` smoke evidence created inside that loop is written under the step artifact tree, currently:
 
 - `storage/app/booking_release/release_loop/steps/<target>/<timestamp>/staff-web-smoke/`
+
+Historical failed smoke reports remain in `storage/app/booking_release/staff_web_smoke/` for audit context. Do not delete them to make a folder look green. Current release truth is the latest pointer for the target plus the exact timestamped file cited by the release ticket after the current candidate was generated.
+
+## Order And Kitchen Mutation Smoke
+
+For the canonical dine-in order mutation lane, reset the local UAT pack first so the manifest-backed `dine_in_checkout` reservation is not already consumed by an older run:
+
+- `php artisan booking:uat-pack:bootstrap --base-url=http://127.0.0.1:8000 --json`
+
+Then run the targeted `staff-web` mutation smoke with the order and kitchen gates enabled:
+
+- PowerShell:
+  `$env:STAFF_WEB_SMOKE_ALLOW_ORDER_CREATE='1'; $env:STAFF_WEB_SMOKE_ALLOW_ORDER_ADD_ITEM='1'; $env:STAFF_WEB_SMOKE_ALLOW_KITCHEN_DISPATCH='1'; npm run smoke:live`
+
+Expected happy-path evidence in the summary:
+
+- `reservation check-in`
+- `order create`
+- `order add-item`
+- `kitchen dispatch`
+- `kitchen ticket read`
+
+If kitchen actions look inconsistent after the smoke lane, inspect the KDS lifecycle and reconciliation guidance in [`docs/runbooks/kitchen-kds-lifecycle.md`](./kitchen-kds-lifecycle.md) before collecting release evidence.
+
+If the manifest-backed reservation has already moved to `Completed`, the smoke lane should be reset with `booking:uat-pack:bootstrap` before release evidence is collected.
+
+## Finance Mutation Smoke
+
+Before collecting checkout, cashier, or refund evidence, reset the SQL-first contract and the UAT pack in that order:
+
+- `composer bootstrap:booking`
+- `php artisan booking:uat-pack:bootstrap --base-url=http://127.0.0.1:8000 --json`
+
+`booking:deploy-check --mode=preflight --strict` must stay green before finance mutation smoke. If it reports `data.payment_refund_trigger_compatibility`, the target database still has the legacy `payments` refund triggers that MySQL rejects with `ERROR 1442` during refund inserts. Re-run `composer bootstrap:booking`; do not keep collecting refund evidence on that drifted schema.
+
+Then run the deterministic money lane with the upstream order prerequisites enabled:
+
+- PowerShell:
+  `$env:STAFF_WEB_SMOKE_ALLOW_ORDER_CREATE='1'; $env:STAFF_WEB_SMOKE_ALLOW_ORDER_ADD_ITEM='1'; $env:STAFF_WEB_SMOKE_ALLOW_KITCHEN_DISPATCH='1'; $env:STAFF_WEB_SMOKE_ALLOW_SETTLEMENT_FINALIZE='1'; $env:STAFF_WEB_SMOKE_ALLOW_REFUND_MUTATION='1'; $env:STAFF_WEB_SMOKE_ALLOW_CASHIER_OPEN='1'; $env:STAFF_WEB_SMOKE_ALLOW_CASHIER_CLOSE='1'; npm run smoke:live`
+
+Expected happy-path evidence in the summary:
+
+- `cashier current`
+- `cashier open`
+- `cashier show`
+- `cashier close`
+- `settlement finalize`
+- `refund preview`
+- `refund execute`
+
+`settlement finalize` depends on the canonical order-create lane. If order mutation gates are off, finalize will skip because there is no deterministic open order to settle.
+
+Refund preview and refund execute must agree on the same manifest-backed reservation and `row_version` returned by preview. If refund preview passes but refund execute fails after bootstrap, treat that as a money-flow blocker and archive the request id from `storage/logs/laravel.log` with the release evidence.
 
 For limited-production go/no-go, archive the release-loop report together with the launch-readiness manual evidence JSON that records these checks as `pass` for the same candidate:
 
@@ -113,14 +297,25 @@ Configured release roots come from `config/booking_release.php` and currently in
 
 - `artisan`
 - `composer.json`
+- `.env.example`
 - `app/`
 - `bootstrap/`
 - `build/api-consumer/`
 - `config/`
 - `database/`
+- `package.json`
+- `phpunit.xml`
+- `public/index.php`
 - `routes/`
+- `scripts/`
+- `staff-web/`
 - `storage/app/booking_release/`
-- optional runbooks / CI scripts / MySQL tools / `db_all.sql`
+- `tests/`
+- `tools/bootstrap_booking.php`
+- `tools/mysql/`
+- `vite.config.js`
+- `db_all.sql`
+- optional `README.md` and `docs/runbooks/`
 
 ## Operator checks after build
 

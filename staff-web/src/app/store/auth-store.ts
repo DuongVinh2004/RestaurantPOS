@@ -1,8 +1,9 @@
 import { create } from 'zustand';
-import { formatApiError, isApiStatus } from '../../core/api/errors';
-import { getCurrentStaffSession, loginStaff, logoutStaff, refreshStaffSession } from '../../core/api/staff-api';
+import { formatStaffFacingApiError, isApiStatus } from '../../core/api/errors';
+import { getCurrentStaffSession, loginStaff, logoutStaff, refreshStaffSession } from '../../core/api/staff-auth-api';
 import { registerStaffAuthFailureHandler } from '../../core/auth/session-events';
 import { readStoredStaffToken, writeStoredStaffToken, type StaffSession } from '../../core/auth/storage';
+import { requiresStaffAccessGate, shouldRedirectToStaffCashierShift } from '../../core/auth/startup';
 import { useFlowStore } from './flow-store';
 
 export type AuthNotice = {
@@ -13,6 +14,7 @@ export type AuthNotice = {
 type AuthState = {
   status: 'booting' | 'authenticated' | 'anonymous';
   session: StaffSession | null;
+  lastSessionSyncAt: number | null;
   notice: AuthNotice;
   bootstrap: () => Promise<void>;
   login: (payload: { identifier: string; password: string; deviceName: string }) => Promise<StaffSession>;
@@ -30,6 +32,7 @@ export const STAFF_SESSION_EXPIRED_MESSAGE = 'Phiên làm việc của nhân vi�
 export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'booting',
   session: null,
+  lastSessionSyncAt: null,
   notice: null,
   bootstrap: async () => {
     if (bootstrapPromise) {
@@ -41,6 +44,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         useFlowStore.getState().syncSessionContext(null);
         set({
           session: null,
+          lastSessionSyncAt: null,
           status: 'anonymous',
           notice: null,
         });
@@ -59,10 +63,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         useFlowStore.getState().syncSessionContext(null);
         set({
           session: null,
+          lastSessionSyncAt: null,
           status: 'anonymous',
           notice: {
             tone: 'error',
-            message: formatApiError(error, 'KhÃ´ng thá»ƒ khÃ´i phá»¥c phiÃªn lÃ m viá»‡c cá»§a nhÃ¢n viÃªn.'),
+            message: formatStaffFacingApiError(
+              error,
+              'Không thể khôi phục phiên làm việc. Hãy thử làm mới hoặc đăng nhập lại.',
+            ),
           },
         });
       }
@@ -90,7 +98,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({
       notice: {
         tone: 'success',
-        message: 'ÄÃ£ lÃ m má»›i phiÃªn lÃ m viá»‡c cá»§a nhÃ¢n viÃªn.',
+        message: 'Đã làm mới phiên làm việc của nhân viên.',
       },
     });
 
@@ -101,6 +109,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     useFlowStore.getState().syncSessionContext(null);
     set({
       session: null,
+      lastSessionSyncAt: null,
       status: 'anonymous',
       notice: null,
     });
@@ -109,6 +118,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     useFlowStore.getState().syncSessionContext(session);
     set({
       session,
+      lastSessionSyncAt: session ? Date.now() : null,
       status: session ? 'authenticated' : 'anonymous',
       notice: null,
     });
@@ -118,6 +128,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     useFlowStore.getState().syncSessionContext(null);
     set({
       session: null,
+      lastSessionSyncAt: null,
       status: 'anonymous',
       notice: {
         tone: 'error',
@@ -155,61 +166,13 @@ export function recommendedPathForSession(session: StaffSession | null): string 
     return '/login';
   }
 
-  if (
-    session.startup.readiness.access !== 'ready'
-    || session.startup.readiness.branch !== 'ready'
-    || !session.startup.readiness.operator_ready
-  ) {
+  if (requiresStaffAccessGate(session)) {
     return '/access';
   }
 
-  if (
-    session.startup.readiness.requires_cashier_shift
-    && session.startup.readiness.cashier_shift === 'action_required'
-    && session.capabilities.includes('cashier.shift.manage')
-  ) {
+  if (shouldRedirectToStaffCashierShift(session)) {
     return '/cashier-shift';
   }
 
-  if (session.capabilities.includes('table.board.view')) {
-    return '/tables';
-  }
-
-  if (session.capabilities.includes('reservation.manage')) {
-    return '/reservations';
-  }
-
-  if (session.capabilities.includes('waiting_list.manage')) {
-    return '/waiting-list';
-  }
-
-  if (session.capabilities.includes('order.manage')) {
-    return '/orders';
-  }
-
-  if (session.capabilities.includes('kitchen.manage')) {
-    return '/kitchen';
-  }
-
-  if (session.capabilities.includes('settlement.manage')) {
-    return '/checkout';
-  }
-
-  if (session.capabilities.includes('cashier.shift.manage')) {
-    return '/cashier-shift';
-  }
-
-  if (session.capabilities.includes('conversation.manage')) {
-    return '/conversations';
-  }
-
-  if (session.capabilities.includes('audit.view')) {
-    return '/audit-trail';
-  }
-
-  if (session.capabilities.includes('reporting.view')) {
-    return '/reporting';
-  }
-
-  return '/access';
+  return '/dashboard';
 }

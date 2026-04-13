@@ -200,6 +200,69 @@ JSON . PHP_EOL);
         $this->assertSame(substr_count($normalized, "\n") + 1, $snapshot['artifacts']['route_inventory_gate_definition']['line_count']);
     }
 
+    public function test_snapshot_fails_when_generated_consumer_artifacts_are_stale_relative_to_openapi_or_manifest(): void
+    {
+        $openApiPath = base_path($this->root . '/openapi-v1.json');
+        $sdkPath = base_path($this->root . '/restaurantpos-sdk.ts');
+        $enumsPath = base_path($this->root . '/restaurantpos-enums.ts');
+        $mutationContractPath = base_path($this->root . '/mutation-contracts.md');
+        File::ensureDirectoryExists(dirname($openApiPath));
+        File::put($openApiPath, "{\"openapi\":\"3.1.0\"}\n");
+        File::put($sdkPath, "export class RestaurantPosClient {}\n");
+        File::put($enumsPath, "export const reservationStatusValues = [] as const;\n");
+        File::put($mutationContractPath, "# RestaurantPOS Mutation Contract Matrix\n");
+
+        $baseTime = time();
+        touch($sdkPath, $baseTime - 20);
+        touch($enumsPath, $baseTime - 20);
+        touch($mutationContractPath, $baseTime - 20);
+        touch($openApiPath, $baseTime - 10);
+        clearstatcache();
+
+        config()->set('booking_release.artifacts', [
+            'openapi_v1_spec' => [
+                'path' => $this->root . '/openapi-v1.json',
+                'optional' => false,
+                'required_fragments' => ['"openapi":"3.1.0"'],
+            ],
+            'api_consumer_sdk_typescript' => [
+                'path' => $this->root . '/restaurantpos-sdk.ts',
+                'optional' => false,
+                'required_fragments' => ['RestaurantPosClient'],
+            ],
+            'api_consumer_sdk_enums_typescript' => [
+                'path' => $this->root . '/restaurantpos-enums.ts',
+                'optional' => false,
+                'required_fragments' => ['reservationStatusValues'],
+            ],
+            'api_consumer_mutation_contract' => [
+                'path' => $this->root . '/mutation-contracts.md',
+                'optional' => false,
+                'required_fragments' => ['Mutation Contract Matrix'],
+            ],
+        ]);
+        config()->set('booking_release.artifact_freshness', [
+            'api_consumer_sdk_typescript' => ['openapi_v1_spec'],
+            'api_consumer_sdk_enums_typescript' => ['openapi_v1_spec'],
+            'api_consumer_mutation_contract' => ['openapi_v1_spec'],
+        ]);
+        config()->set('booking_release.required_sql_patches', []);
+
+        $snapshot = app(ReleaseArtifactManifestService::class)->snapshot();
+
+        $this->assertFalse($snapshot['ok']);
+        $this->assertSame('fail', $snapshot['status']);
+        $this->assertArrayHasKey('freshness_issues', $snapshot['artifacts']['api_consumer_sdk_typescript']);
+        $this->assertContains(
+            sprintf(
+                'Generated artifact %s is stale relative to %s. Regenerate the API consumer artifacts before refreshing the release manifest or packaging the handoff.',
+                $this->root . '/restaurantpos-sdk.ts',
+                $this->root . '/openapi-v1.json',
+            ),
+            $snapshot['artifacts']['api_consumer_sdk_typescript']['freshness_issues']
+        );
+    }
+
     public function test_inspect_frozen_snapshot_ignores_self_referential_release_manifest_metadata(): void
     {
         $schemaPath = base_path($this->root . '/schema.sql');

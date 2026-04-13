@@ -95,11 +95,7 @@ class StaffCapabilityResolver
                 continue;
             }
 
-            $normalized[] = $capability;
-
-            if (array_key_exists($capability, $aliases)) {
-                $normalized[] = $aliases[$capability];
-            }
+            $normalized = array_merge($normalized, $this->expandCapability($capability, $aliases));
         }
 
         $normalized = array_values(array_unique($normalized));
@@ -109,7 +105,39 @@ class StaffCapabilityResolver
     }
 
     /**
-     * @return array<string,string>
+     * @param  array<string, list<string>>  $aliases
+     * @return list<string>
+     */
+    private function expandCapability(string $capability, array $aliases): array
+    {
+        $expanded = [];
+        $queue = [$capability];
+
+        while ($queue !== []) {
+            $current = array_shift($queue);
+            if (! is_string($current)) {
+                continue;
+            }
+
+            $current = trim($current);
+            if ($current === '' || in_array($current, $expanded, true)) {
+                continue;
+            }
+
+            $expanded[] = $current;
+
+            foreach ($aliases[$current] ?? [] as $alias) {
+                if (! in_array($alias, $expanded, true)) {
+                    $queue[] = $alias;
+                }
+            }
+        }
+
+        return $expanded;
+    }
+
+    /**
+     * @return array<string, list<string>>
      */
     private function capabilityAliases(): array
     {
@@ -118,14 +146,30 @@ class StaffCapabilityResolver
 
         foreach ($configured as $legacy => $canonical) {
             $legacyCapability = trim((string) $legacy);
-            $canonicalCapability = trim((string) $canonical);
-
-            if ($legacyCapability === '' || $canonicalCapability === '') {
+            if ($legacyCapability === '') {
                 continue;
             }
 
-            $aliases[$legacyCapability] = $canonicalCapability;
+            $canonicalCapabilities = [];
+            foreach ((array) $canonical as $candidate) {
+                $canonicalCapability = trim((string) $candidate);
+                if ($canonicalCapability === '') {
+                    continue;
+                }
+
+                $canonicalCapabilities[] = $canonicalCapability;
+            }
+
+            $canonicalCapabilities = array_values(array_unique($canonicalCapabilities));
+            if ($canonicalCapabilities === []) {
+                continue;
+            }
+
+            sort($canonicalCapabilities);
+            $aliases[$legacyCapability] = $canonicalCapabilities;
         }
+
+        ksort($aliases);
 
         return $aliases;
     }

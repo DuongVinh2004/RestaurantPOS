@@ -3,7 +3,17 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
+        "encoding:check": "node scripts/ui-text-encoding-guard.mjs",
+        "encoding:fix": "node scripts/ui-text-encoding-guard.mjs --write",
+        "verify:package": "node scripts/release/check-package-integrity.mjs",
+        "mysql:local": "powershell -ExecutionPolicy Bypass -File scripts/ops/start-local-mysql.ps1",
+        "mysql:local:restart": "powershell -ExecutionPolicy Bypass -File scripts/ops/start-local-mysql.ps1 -Restart",
+        "mysql:local:stop": "powershell -ExecutionPolicy Bypass -File scripts/ops/start-local-mysql.ps1 -Stop",
+        "runtime:up": "powershell -ExecutionPolicy Bypass -File scripts/ops/local-runtime.ps1 -Action up",
+        "runtime:down": "powershell -ExecutionPolicy Bypass -File scripts/ops/local-runtime.ps1 -Action down",
+        "runtime:restart": "powershell -ExecutionPolicy Bypass -File scripts/ops/local-runtime.ps1 -Action restart",
+        "runtime:preflight": "node scripts/ops/local-runtime-preflight.mjs",
+        "build": "node scripts/ui-text-encoding-guard.mjs && vite build",
         "dev": "vite"
     },
     "devDependencies": {

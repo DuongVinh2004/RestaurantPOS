@@ -11,5 +11,6 @@ What this checks:
 
 - environment/config validation summary
 - migration repository and pending migration visibility
-- fail-fast data guards for deposit status, payment refund lineage, reservation lifecycle, order item totals, and voucher state
+- fail-fast data guards for deposit status, payment refund lineage, duplicate purchase-receipt stock movement lineage, reservation lifecycle, order item totals, and voucher state
+- operational guards for kitchen/KDS drift, inventory/purchasing reconciliation, and conversation inbox assignment/backlog health
 - postflight mode additionally fails when the release still has pending migrations

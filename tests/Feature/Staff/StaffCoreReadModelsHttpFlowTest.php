@@ -89,6 +89,35 @@ class StaffCoreReadModelsHttpFlowTest extends TestCase
             ->assertJsonPath('data.deposit_summary.status', 'Paid');
     }
 
+    public function test_staff_reservation_detail_falls_back_to_guest_snapshot_when_user_is_missing(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->staffAuthHeaders($staffId, 'staff-reservation-show-guest');
+        $tableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'RD-GUEST-01', 'zone' => 'Main']);
+        $reservationId = $this->createReservation([
+            'user_id' => null,
+            'guest_name' => 'Reservation Guest Snapshot',
+            'guest_phone' => '0904567000',
+            'guest_email' => 'reservation.snapshot@example.test',
+            'reservation_code' => 'RSV-DETAIL-GUEST-001',
+            'status' => 'Confirmed',
+            'source' => 'Offline',
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+
+        $response = $this->withHeaders($headers)->getJson('/api/v1/staff/reservations/'.$reservationId);
+
+        $response->assertOk()
+            ->assertJsonPath('data.reservation_id', $reservationId)
+            ->assertJsonPath('data.user_id', null)
+            ->assertJsonPath('data.user.user_id', null)
+            ->assertJsonPath('data.user.full_name', 'Reservation Guest Snapshot')
+            ->assertJsonPath('data.user.phone', '0904567000')
+            ->assertJsonPath('data.user.email', 'reservation.snapshot@example.test')
+            ->assertJsonPath('data.guest.full_name', 'Reservation Guest Snapshot')
+            ->assertJsonPath('data.tables.0.table_id', $tableId);
+    }
+
     public function test_staff_can_list_menu_items_for_ordering(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
@@ -136,6 +165,11 @@ class StaffCoreReadModelsHttpFlowTest extends TestCase
             'is_active' => 0,
             'is_default' => 0,
         ]);
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $activeBranchId,
+            'status' => 'Open',
+        ]);
 
         $response = $this->withHeaders($headers)->getJson('/api/v1/staff/branches');
 
@@ -146,5 +180,39 @@ class StaffCoreReadModelsHttpFlowTest extends TestCase
         self::assertContains(1, $branchIds);
         self::assertContains($activeBranchId, $branchIds);
         self::assertCount(2, $branchIds);
+    }
+
+    public function test_staff_reservation_detail_returns_not_found_for_inaccessible_branch_scope(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->staffAuthHeaders($staffId, 'staff-reservation-scope-deny');
+        $accessibleBranchId = $this->createBranch([
+            'branch_code' => 'RSCOPEA',
+            'branch_name' => 'Reservation Scope A',
+            'is_active' => 1,
+            'is_default' => 0,
+        ]);
+        $inaccessibleBranchId = $this->createBranch([
+            'branch_code' => 'RSCOPEB',
+            'branch_name' => 'Reservation Scope B',
+            'is_active' => 1,
+            'is_default' => 0,
+        ]);
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $accessibleBranchId,
+            'status' => 'Open',
+        ]);
+
+        $reservationId = $this->createReservation([
+            'branch_id' => $inaccessibleBranchId,
+            'status' => 'Confirmed',
+        ]);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/reservations/'.$reservationId)
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonPath('message', 'Reservation not found.');
     }
 }

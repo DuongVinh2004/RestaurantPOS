@@ -7,9 +7,11 @@
             "path": "database/schema/mysql-schema.sql",
             "exists": true,
             "optional": false,
-            "sha256": "a937163b07cc395631e62b93da5f6a9f6d39d1cce5c8a39ca3659f0cef2bed83",
-            "bytes": 164876,
-            "line_count": 2403,
+            "sha256": "fb482c327a226751dd5cc36eabbae6aaa912a0cf5efb6e5fa034910b45f6ac28",
+            "bytes": 165622,
+            "line_count": 2412,
+            "modified_epoch": 1776016462,
+            "modified_at_utc": "2026-04-12T17:54:22+00:00",
             "required_fragment_count": 41,
             "missing_fragments": []
         },
@@ -17,9 +19,11 @@
             "path": "db_all.sql",
             "exists": true,
             "optional": false,
-            "sha256": "6f1fb1894ad8ad88bc8f46a727669e6335a45248f846b98c62f8bfd268db0ced",
-            "bytes": 164399,
-            "line_count": 2400,
+            "sha256": "0f5957e9c276c7afbac8d80b658f426807c1b9df15f84576d9f392df9d955a76",
+            "bytes": 165145,
+            "line_count": 2409,
+            "modified_epoch": 1776040448,
+            "modified_at_utc": "2026-04-13T00:34:08+00:00",
             "required_fragment_count": 41,
             "missing_fragments": []
         },
@@ -30,6 +34,8 @@
             "sha256": "d1a0a21f6771264ea5c761d13550a06ce33b2c7f08899b894721f7fa10ffe772",
             "bytes": 1567,
             "line_count": 52,
+            "modified_epoch": 1775121075,
+            "modified_at_utc": "2026-04-02T09:11:15+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -40,6 +46,8 @@
             "sha256": "588bd4e91d879c01467edce09c85c820ea972fc33e19db12f39781dd51ede067",
             "bytes": 2789,
             "line_count": 82,
+            "modified_epoch": 1775120334,
+            "modified_at_utc": "2026-04-02T08:58:54+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -47,9 +55,11 @@
             "path": "tests/fixtures/route_inventory_gate.json",
             "exists": true,
             "optional": false,
-            "sha256": "92857324bf2dea497345422708e228ea6552e74da642aa5cb140db730374c72a",
-            "bytes": 67578,
-            "line_count": 1537,
+            "sha256": "4abb9968b489ebf1ac208c44aab08009f536b5561e18bcabc9a8d8dec7e83c56",
+            "bytes": 67440,
+            "line_count": 1526,
+            "modified_epoch": 1776011131,
+            "modified_at_utc": "2026-04-12T16:25:31+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -57,9 +67,11 @@
             "path": "storage/app/booking_release/openapi-v1.json",
             "exists": true,
             "optional": false,
-            "sha256": "102f16be7e1997702daf0fbc32919450d0d275bb3330eef743ccc5d0b4b0977c",
-            "bytes": 2197075,
-            "line_count": 53559,
+            "sha256": "da74094821f6135b4a7f6c5897ec8d8a01d74c87a4c7e65e25285b385980389d",
+            "bytes": 2269545,
+            "line_count": 55285,
+            "modified_epoch": 1776054024,
+            "modified_at_utc": "2026-04-13T04:20:24+00:00",
             "required_fragment_count": 5,
             "missing_fragments": []
         },
@@ -67,9 +79,11 @@
             "path": "build/api-consumer/postman/RestaurantPOS.postman_collection.json",
             "exists": true,
             "optional": false,
-            "sha256": "8b727c3416cfb53f812dd9825610690d092af82899c2a1ed45881191b2c7416b",
-            "bytes": 226646,
-            "line_count": 4243,
+            "sha256": "eeb233e9386d36e4102d317b3b00764cc786f3db470b5dc32a0ad033bffc0266",
+            "bytes": 231219,
+            "line_count": 4304,
+            "modified_epoch": 1776054024,
+            "modified_at_utc": "2026-04-13T04:20:24+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -80,6 +94,8 @@
             "sha256": "6bf859443aca4944b2fede78e8810badc42a9f2cd813955fad9ca2b0dfb4469b",
             "bytes": 17043,
             "line_count": 710,
+            "modified_epoch": 1776054024,
+            "modified_at_utc": "2026-04-13T04:20:24+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -90,6 +106,8 @@
             "sha256": "9c9511d32a1f5a3da4199a82dfdb03ad3c2b55a23a9acbca2e5473dc8b284ba8",
             "bytes": 16939,
             "line_count": 710,
+            "modified_epoch": 1776054024,
+            "modified_at_utc": "2026-04-13T04:20:24+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -97,9 +115,23 @@
             "path": "build/api-consumer/sdk/typescript/restaurantpos-sdk.ts",
             "exists": true,
             "optional": false,
-            "sha256": "6ae8839cc867669fd8b3d0ab0e35ed3e6b868bc7c7437c2cd5c76746d0a5d742",
-            "bytes": 124140,
-            "line_count": 4520,
+            "sha256": "6b9e9a82fcbaa4e2f211c482326349d9ca20d502978bd3466f1d003c5cc23d22",
+            "bytes": 129163,
+            "line_count": 4703,
+            "modified_epoch": 1776054024,
+            "modified_at_utc": "2026-04-13T04:20:24+00:00",
+            "required_fragment_count": 3,
+            "missing_fragments": []
+        },
+        "api_consumer_sdk_enums_typescript": {
+            "path": "build/api-consumer/sdk/typescript/restaurantpos-enums.ts",
+            "exists": true,
+            "optional": false,
+            "sha256": "4cc4f0a187d6aa01fe3477af86d3d53f6f71034067f18d0e75cef8545caa1bfe",
+            "bytes": 10550,
+            "line_count": 199,
+            "modified_epoch": 1776054024,
+            "modified_at_utc": "2026-04-13T04:20:24+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -107,9 +139,23 @@
             "path": "build/api-consumer/sdk/typescript/README.md",
             "exists": true,
             "optional": false,
-            "sha256": "07b09c1dfa08ced55eccae34b6426dc4b02767272b8c0cb0d128a35ee1701851",
-            "bytes": 7483,
-            "line_count": 189,
+            "sha256": "9ac20bc10f30675eae02f58a9333404b10284bf26f94cbaadddd22b3b25969cf",
+            "bytes": 7514,
+            "line_count": 190,
+            "modified_epoch": 1776054024,
+            "modified_at_utc": "2026-04-13T04:20:24+00:00",
+            "required_fragment_count": 3,
+            "missing_fragments": []
+        },
+        "api_consumer_enum_state_json": {
+            "path": "build/api-consumer/enum-state-map.json",
+            "exists": true,
+            "optional": false,
+            "sha256": "87a86b42da964f2ba73082d8c42a613db2f8b72fad0958d0c63af76e2980f84c",
+            "bytes": 14242,
+            "line_count": 465,
+            "modified_epoch": 1776054024,
+            "modified_at_utc": "2026-04-13T04:20:24+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -120,6 +166,8 @@
             "sha256": "6d7b1a7d374fbe105c31f876b44f6136aa0d2831f1555778d0fd393feea692eb",
             "bytes": 12819,
             "line_count": 89,
+            "modified_epoch": 1776054024,
+            "modified_at_utc": "2026-04-13T04:20:24+00:00",
             "required_fragment_count": 4,
             "missing_fragments": []
         },
@@ -130,6 +178,8 @@
             "sha256": "e44b615b1135e3520d2f084b9e78cd718c8775123af099c91c769d998b29a886",
             "bytes": 11886,
             "line_count": 101,
+            "modified_epoch": 1775221686,
+            "modified_at_utc": "2026-04-03T13:08:06+00:00",
             "required_fragment_count": 6,
             "missing_fragments": []
         },
@@ -140,6 +190,8 @@
             "sha256": "c6e055da38bb2e7f1daf97696ab1be4730a82156aaf2bdf9b22d4489de5f6604",
             "bytes": 18388,
             "line_count": 155,
+            "modified_epoch": 1775221058,
+            "modified_at_utc": "2026-04-03T12:57:38+00:00",
             "required_fragment_count": 6,
             "missing_fragments": []
         },
@@ -147,9 +199,11 @@
             "path": "storage/app/booking_release/release_manifest_snapshot.json",
             "exists": true,
             "optional": false,
-            "sha256": "1c77b8f4dd071b35ecfa1ebb7648acb891a6c880e4924a63c943a3dba8ba6df0",
-            "bytes": 12841,
-            "line_count": 258,
+            "sha256": "3fbfcd9bd8142f4c779fa258b6486ce90a9f365b95d8a44adde170851eb4841a",
+            "bytes": 15705,
+            "line_count": 316,
+            "modified_epoch": 1776053706,
+            "modified_at_utc": "2026-04-13T04:15:06+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         }
@@ -201,7 +255,10 @@
             "2026_04_05_000047_branch_scheduling_policy_foundation.sql",
             "2026_04_05_000047_data_lifecycle_foundation.sql",
             "2026_04_05_000048_feature_flags_foundation.sql",
-            "2026_04_08_000041_drop_runtime_incompatible_payment_refund_triggers.sql"
+            "2026_04_08_000041_drop_runtime_incompatible_payment_refund_triggers.sql",
+            "2026_04_11_000049_reservation_guest_snapshot_support.sql",
+            "2026_04_12_000050_staff_conversation_workflow_hardening.sql",
+            "2026_04_13_000051_inventory_stock_movement_reference_uniqueness.sql"
         ],
         "required": [
             "2026_03_14_000015_access_contract_and_portability_hardening.sql",
@@ -242,16 +299,17 @@
             "2026_04_05_000047_branch_scheduling_policy_foundation.sql",
             "2026_04_05_000047_data_lifecycle_foundation.sql",
             "2026_04_05_000048_feature_flags_foundation.sql",
-            "2026_04_08_000041_drop_runtime_incompatible_payment_refund_triggers.sql"
+            "2026_04_08_000041_drop_runtime_incompatible_payment_refund_triggers.sql",
+            "2026_04_12_000050_staff_conversation_workflow_hardening.sql"
         ],
         "missing": [],
-        "count": 46,
-        "required_count": 39
+        "count": 49,
+        "required_count": 40
     },
     "meta": {
-        "generated_at_utc": "2026-04-10T13:42:03+00:00"
+        "generated_at_utc": "2026-04-13T04:20:24+00:00"
     },
     "definition_path": "config/booking_release.php",
-    "definition_sha256": "b14ba209b906dbf92f492a6ac1c576f88eeadd7dc3b3085d6252345640043475",
+    "definition_sha256": "6f9bf60ccc6dfd99f6d04bdd86098ce1e979ced5915c998d859b6e46313cc56f",
     "snapshot_path": "storage/app/booking_release/release_manifest_snapshot.json"
 }

@@ -51,6 +51,20 @@ This adds:
 
 - `build/api-consumer/postman/RestaurantPOS.uat.postman_environment.json`
 
+## Freshness Control
+
+The release package integrity check treats generated API artifacts as stale when they are older than the frozen OpenAPI source they depend on, or when the frozen release manifest snapshot is older than the generated artifacts it records.
+
+If freshness fails, do not hand-edit generated outputs. Re-run the canonical refresh flow:
+
+```bash
+php artisan booking:api-contract --write
+php artisan booking:api-artifacts:generate
+php artisan booking:release-manifest --write
+```
+
+Then re-run the package integrity check and frozen manifest verification before packaging.
+
 ## Official frontend contract story
 
 | Need | Official source |
@@ -139,6 +153,17 @@ Current scope:
 Use the generated SDK when the route you need appears in `build/api-consumer/sdk/typescript/README.md`.
 
 Use `build/api-consumer/mutation-contracts.md` when FE needs to know whether a mutation requires `row_version`, `Idempotency-Key`, or session propagation, and whether the current frozen contract formally exposes `401`, `403`, `409`, or `422` handling for that route.
+
+## Canonical error metadata
+
+Frontend and QA consumers should rely on this error contract:
+
+- Always read `error_code`, `message`, and `request_id`.
+- Read `errors` for field-level validation or domain validation details.
+- Treat `409 stale_row_version` as a stale-write retry path, not as ordinary validation.
+- Use `conflict_type`, `replay_state`, `state_reason`, `warnings`, and `next_actions` when present to drive retry, reload, or operator guidance.
+- On capability-denied staff/admin routes, `required_capability` and `staff_role_name` are the canonical machine-readable fields.
+- If an idempotency error still includes top-level `error`, treat it as deprecated compatibility output and prefer `error_code`.
 
 If the route is not in that curated batch but already has a full-contract shape in the frozen OpenAPI artifact, generate your own client from `storage/app/booking_release/openapi-v1.json` instead of reading controllers/resources directly.
 
@@ -304,8 +329,8 @@ fetch(`${API_BASE}/tables/available?branch_id=1`, {
   headers: { 'Accept': 'application/json', 'X-Customer-Token': token },
 });
 
-// Incorrect — do not use credentials mode
-fetch(url, { credentials: 'include' }); // ← not needed, would fail
+// Incorrect - do not use credentials mode
+fetch(url, { credentials: 'include' }); // not needed, would fail
 ```
 
 ## Current limitations

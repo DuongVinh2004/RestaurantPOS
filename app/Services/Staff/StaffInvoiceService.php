@@ -6,6 +6,7 @@ namespace App\Services\Staff;
 
 use App\Models\BillingInvoice;
 use App\Models\Reservation;
+use App\Services\Branch\BranchContextService;
 use App\Services\Finance\FinanceTaxProfileService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
@@ -17,28 +18,40 @@ class StaffInvoiceService
     public function __construct(
         private readonly FinanceTaxProfileService $taxProfileService,
         private readonly StaffFinancialReconciliationService $financialReconciliationService,
+        private readonly BranchContextService $branchContextService,
+        private readonly StaffCashierShiftService $cashierShiftService,
+        private readonly StaffBranchContextService $staffBranchContextService,
     ) {
     }
 
     /**
      * @return array{invoice:BillingInvoice,created:bool}
      */
-    public function issue(int $reservationId, ?int $issuedByUserId = null): array
+    public function issue(int $reservationId, ?int $issuedByUserId = null, ?int $branchId = null): array
     {
-        return DB::transaction(function () use ($reservationId, $issuedByUserId): array {
+        return DB::transaction(function () use ($reservationId, $issuedByUserId, $branchId): array {
+            $reservationQuery = Reservation::query()
+                ->lockForUpdate();
+
+            if ($branchId !== null) {
+                $reservationQuery->where('branch_id', $branchId);
+            }
+
             /** @var Reservation $reservation */
-            $reservation = Reservation::query()
-                ->lockForUpdate()
-                ->findOrFail($reservationId);
+            $reservation = $reservationQuery->findOrFail($reservationId);
+            $reservationBranchId = $this->resolveReservationBranchId($reservation, $branchId);
 
             /** @var BillingInvoice|null $existing */
             $existing = BillingInvoice::query()
                 ->where('reservation_id', $reservationId)
+                ->when($branchId !== null, static function ($query) use ($branchId): void {
+                    $query->whereHas('reservation', static fn ($reservationQuery) => $reservationQuery->where('branch_id', $branchId));
+                })
                 ->first();
 
             if ($existing instanceof BillingInvoice) {
                 return [
-                    'invoice' => $this->findInvoiceByReservationId($reservationId),
+                    'invoice' => $this->findInvoiceByReservationId($reservationId, $reservationBranchId),
                     'created' => false,
                 ];
             }
@@ -48,6 +61,10 @@ class StaffInvoiceService
                     'reservation' => ['Invoice can only be issued for a reservation with a locked bill total.'],
                 ]);
             }
+
+            $reconciliation = $this->financialReconciliationService->show($reservationId, $reservationBranchId);
+            $this->assertIssuableReservationFinancialTruth($reconciliation);
+            $this->assertOpenCashierShiftForBranch($issuedByUserId, $reservationBranchId);
 
             $profile = $this->taxProfileService->effectiveProfile();
             if (! (bool) ($profile['prices_include_tax'] ?? true)) {
@@ -93,7 +110,7 @@ class StaffInvoiceService
             $invoice->save();
 
             return [
-                'invoice' => $this->findInvoiceByReservationId($reservationId),
+                'invoice' => $this->findInvoiceByReservationId($reservationId, $reservationBranchId),
                 'created' => true,
             ];
         }, 3);
@@ -102,10 +119,11 @@ class StaffInvoiceService
     /**
      * @return array<string,mixed>
      */
-    public function show(int $reservationId): array
+    public function show(int $reservationId, ?int $branchId = null, ?int $staffActorUserId = null): array
     {
-        $invoice = $this->findInvoiceByReservationId($reservationId);
-        $reconciliation = $this->financialReconciliationService->show($reservationId);
+        $branchScope = $this->resolveAccessibleBranchScope($staffActorUserId, $branchId);
+        $invoice = $this->findInvoiceByReservationId($reservationId, $branchScope);
+        $reconciliation = $this->financialReconciliationService->show($reservationId, $branchId, $staffActorUserId);
 
         return [
             'invoice' => $this->transformInvoice($invoice),
@@ -119,9 +137,9 @@ class StaffInvoiceService
      * @param array<string,mixed> $filters
      * @return array<int,array<string,mixed>>
      */
-    public function exportRows(array $filters = []): array
+    public function exportRows(array $filters = [], ?int $staffActorUserId = null): array
     {
-        $reconciliationRows = $this->financialReconciliationService->exportRows($filters);
+        $reconciliationRows = $this->financialReconciliationService->exportRows($filters, $staffActorUserId);
         $reservationIds = [];
         foreach ($reconciliationRows as $row) {
             if (isset($row['reservation_id']) && is_numeric((string) $row['reservation_id'])) {
@@ -170,8 +188,13 @@ class StaffInvoiceService
         return $rows;
     }
 
-    public function findInvoiceByReservationId(int $reservationId): BillingInvoice
+    /**
+     * @param  list<int>|int|null  $branchScope
+     */
+    public function findInvoiceByReservationId(int $reservationId, array|int|null $branchScope = null): BillingInvoice
     {
+        $normalizedBranchScope = $this->normalizeBranchScope($branchScope);
+
         /** @var BillingInvoice|null $invoice */
         $invoice = BillingInvoice::query()
             ->with([
@@ -179,6 +202,11 @@ class StaffInvoiceService
                 'issuedByUser:user_id,full_name,email',
             ])
             ->where('reservation_id', $reservationId)
+            ->when($normalizedBranchScope !== [], static function ($query) use ($normalizedBranchScope): void {
+                $query->whereHas('reservation', static fn ($reservationQuery) => $reservationQuery->whereIn('branch_id', $normalizedBranchScope));
+            }, static function ($query): void {
+                $query->whereRaw('1 = 0');
+            })
             ->first();
 
         if (! $invoice instanceof BillingInvoice) {
@@ -186,6 +214,34 @@ class StaffInvoiceService
         }
 
         return $invoice;
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function resolveAccessibleBranchScope(?int $staffActorUserId = null, ?int $requestedBranchId = null): array
+    {
+        return $this->staffBranchContextService->branchScopeOrAccessible($staffActorUserId, $requestedBranchId);
+    }
+
+    /**
+     * @param  list<int>|int|null  $branchScope
+     * @return list<int>
+     */
+    private function normalizeBranchScope(array|int|null $branchScope): array
+    {
+        if (is_int($branchScope)) {
+            return [$branchScope];
+        }
+
+        if (! is_array($branchScope)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_map(
+            static fn ($value): int => (int) $value,
+            array_filter($branchScope, static fn ($value): bool => $value !== null && $value !== ''),
+        )));
     }
 
     /**
@@ -269,5 +325,53 @@ class StaffInvoiceService
         }
 
         return number_format((float) $value, 2, '.', '');
+    }
+
+    /**
+     * @param array<string,mixed> $reconciliation
+     */
+    private function assertIssuableReservationFinancialTruth(array $reconciliation): void
+    {
+        $summary = (array) ($reconciliation['summary'] ?? []);
+        $flags = (array) ($summary['flags'] ?? []);
+        $finalBillAmount = $this->money(data_get($summary, 'reconciliation.final_bill_amount'));
+
+        if (
+            $finalBillAmount <= 0.0
+            || ! (bool) ($flags['is_fully_settled'] ?? false)
+            || (bool) ($flags['has_discrepancy'] ?? false)
+            || (bool) ($flags['has_bill_outstanding'] ?? false)
+            || (bool) ($flags['has_bill_overpaid'] ?? false)
+            || (bool) ($flags['has_over_refund'] ?? false)
+            || (bool) ($flags['has_mixed_payment_currencies'] ?? false)
+        ) {
+            throw ValidationException::withMessages([
+                'reservation' => ['Invoice can only be issued after the reservation is fully settled with no outstanding or reconciliation discrepancy.'],
+            ]);
+        }
+    }
+
+    private function resolveReservationBranchId(Reservation $reservation, ?int $branchId = null): int
+    {
+        if ($reservation->branch_id !== null && $reservation->branch_id !== '') {
+            return $this->branchContextService->resolveBranchId($reservation->branch_id, false);
+        }
+
+        return $this->branchContextService->resolveBranchId($branchId, false);
+    }
+
+    private function assertOpenCashierShiftForBranch(?int $staffUserId, int $branchId): void
+    {
+        if ($staffUserId === null || $staffUserId <= 0) {
+            return;
+        }
+
+        if ($this->cashierShiftService->currentOpenShift($staffUserId, $branchId) !== null) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'cashier_shift' => ['Open a cashier shift for this branch before issuing invoices.'],
+        ]);
     }
 }

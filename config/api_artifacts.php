@@ -101,6 +101,7 @@ return [
             [
                 'name' => 'Operations Read Models',
                 'signatures' => [
+                    'GET api/v1/staff/audit-trail',
                     'GET api/v1/staff/reporting/daily-sales',
                     'GET api/v1/staff/reporting/daily-operations',
                     'GET api/v1/staff/reporting/daily-inventory',

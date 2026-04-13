@@ -4,10 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "encoding:check": "node ../scripts/ui-text-encoding-guard.mjs",
+    "encoding:fix": "node ../scripts/ui-text-encoding-guard.mjs --write",
+    "integrity:check": "node ../scripts/release/check-package-integrity.mjs --staff-web-only --root-dir=..",
+    "preflight:local": "node ../scripts/ops/local-runtime-preflight.mjs",
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "node ../scripts/ui-text-encoding-guard.mjs && npm run integrity:check && tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "test": "vitest run src scripts/live-smoke.test.mjs",
+    "test": "node ../scripts/ui-text-encoding-guard.mjs && npm run integrity:check && vitest run src scripts/live-smoke.test.mjs scripts/local-runtime-preflight.test.mjs scripts/text-encoding-guard.test.mjs scripts/package-integrity.test.mjs",
     "smoke:live": "node scripts/live-smoke.mjs",
     "preview": "vite preview"
   },

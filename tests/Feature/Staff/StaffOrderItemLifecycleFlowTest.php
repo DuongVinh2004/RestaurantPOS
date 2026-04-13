@@ -203,6 +203,33 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             ->assertJsonPath('details.errors.row_version.0', 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.');
     }
 
+    public function test_order_item_mutation_rejects_branch_outside_staff_operational_scope(): void
+    {
+        $annexBranchId = $this->createBranch([
+            'branch_code' => 'ITEMANNEX',
+            'branch_name' => 'Item Annex',
+        ]);
+        [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario(
+            tableOverrides: [
+                'branch_id' => $annexBranchId,
+            ],
+            reservationOverrides: [
+                'branch_id' => $annexBranchId,
+            ],
+        );
+
+        $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-out-of-branch'))
+            ->patchJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}", [
+                'order_row_version' => 1,
+                'row_version' => 1,
+                'qty' => 2,
+            ])
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        self::assertSame(1, (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('quantity'));
+    }
+
     public function test_served_item_cannot_be_edited_or_cancelled(): void
     {
         [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario([
@@ -234,21 +261,23 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
 
     /**
      * @param  array<string,mixed>  $itemOverrides
+     * @param  array<string,mixed>  $reservationOverrides
+     * @param  array<string,mixed>  $tableOverrides
      * @return array{0:int,1:int,2:int}
      */
-    private function seedOrderItemScenario(array $itemOverrides = []): array
+    private function seedOrderItemScenario(array $itemOverrides = [], array $reservationOverrides = [], array $tableOverrides = []): array
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
-        $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
-        $reservationId = $this->createReservation([
+        $tableId = $this->createRestaurantTable(array_merge(['status' => 'Occupied'], $tableOverrides));
+        $reservationId = $this->createReservation(array_merge([
             'user_id' => $customerId,
             'status' => 'Reserved',
             'deposit_required_amount' => '0.00',
             'deposit_paid_amount' => '0.00',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
-        ]);
+        ], $reservationOverrides));
         $this->attachReservationTable($reservationId, $tableId);
         $orderId = $this->createOrder([
             'reservation_id' => $reservationId,

@@ -9,11 +9,18 @@ use App\Models\Reservation;
 use App\Support\Listing\SafeLike;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 
 class StaffReservationInboxService
 {
-    public function paginate(array $filters = []): LengthAwarePaginator
+    private ?bool $supportsGuestSnapshotColumns = null;
+
+    public function __construct(
+        private readonly StaffBranchContextService $branchContextService,
+    ) {}
+
+    public function paginate(array $filters = [], ?int $staffActorUserId = null): LengthAwarePaginator
     {
         $bucket = (string) ($filters['bucket'] ?? 'upcoming');
         $perPage = max(1, min((int) ($filters['per_page'] ?? 25), 100));
@@ -22,11 +29,16 @@ class StaffReservationInboxService
         $sortDir = strtolower((string) ($filters['sort_dir'] ?? ($bucket === 'history' ? 'desc' : 'asc')));
         $sortDir = in_array($sortDir, ['asc', 'desc'], true) ? $sortDir : 'asc';
         $includeFinancials = (bool) ($filters['include_financials'] ?? false);
+        $requestedBranchId = ! empty($filters['branch_id']) ? (int) $filters['branch_id'] : null;
+        $branchScope = $this->branchContextService->branchScopeOrAccessible($staffActorUserId, $requestedBranchId);
 
         $query = $this->newQuery($includeFinancials);
+        $query->whereIn('reservations.branch_id', $branchScope);
 
         $this->applyBucket($query, $bucket);
-        $this->applyCommonFilters($query, $filters);
+        $scopedFilters = $filters;
+        unset($scopedFilters['branch_id']);
+        $this->applyCommonFilters($query, $scopedFilters);
         $this->applyOrdering($query, $sortBy, $sortDir);
 
         return $query->paginate($perPage, ['*'], 'page', $page);
@@ -37,9 +49,11 @@ class StaffReservationInboxService
         return Reservation::query()->select('reservations.*')->distinct()->with($this->relations($includeFinancials));
     }
 
-    public function findForStaffOrFail(int $reservationId): Reservation
+    public function findForStaffOrFail(int $reservationId, ?int $staffActorUserId = null): Reservation
     {
-        /** @var Reservation $reservation */
+        $branchScope = $this->branchContextService->accessibleBranchIds($staffActorUserId);
+
+        /** @var Reservation|null $reservation */
         $reservation = Reservation::query()
             ->with([
                 'user.points',
@@ -50,7 +64,13 @@ class StaffReservationInboxService
                 'depositPaymentSessions',
                 'appliedUserVoucher.voucher',
             ])
-            ->findOrFail($reservationId);
+            ->where('reservation_id', $reservationId)
+            ->whereIn('branch_id', $branchScope)
+            ->first();
+
+        if (! $reservation instanceof Reservation) {
+            throw (new ModelNotFoundException())->setModel(Reservation::class, [$reservationId]);
+        }
 
         return $reservation;
     }
@@ -61,6 +81,8 @@ class StaffReservationInboxService
      */
     public function applyCommonFilters(Builder $query, array $filters): void
     {
+        $supportsGuestSnapshotColumns = $this->supportsGuestSnapshotColumns();
+
         if (! empty($filters['branch_id'])) {
             $query->where('branch_id', (int) $filters['branch_id']);
         }
@@ -89,7 +111,17 @@ class StaffReservationInboxService
 
         if (! empty($filters['phone'])) {
             $phone = trim((string) $filters['phone']);
-            $query->whereHas('user', static fn (Builder $userQuery) => $userQuery->where('phone', 'like', SafeLike::contains($phone)));
+            $query->where(function (Builder $phoneQuery) use ($phone, $supportsGuestSnapshotColumns): void {
+                if ($supportsGuestSnapshotColumns) {
+                    $phoneQuery
+                        ->where('guest_phone', 'like', SafeLike::contains($phone))
+                        ->orWhereHas('user', static fn (Builder $userQuery) => $userQuery->where('phone', 'like', SafeLike::contains($phone)));
+
+                    return;
+                }
+
+                $phoneQuery->whereHas('user', static fn (Builder $userQuery) => $userQuery->where('phone', 'like', SafeLike::contains($phone)));
+            });
         }
 
         if (array_key_exists('deposit_acknowledged', $filters) && $filters['deposit_acknowledged'] !== null) {
@@ -123,7 +155,7 @@ class StaffReservationInboxService
 
         if (! empty($filters['q'])) {
             $term = trim((string) $filters['q']);
-            $query->where(function (Builder $searchQuery) use ($term): void {
+            $query->where(function (Builder $searchQuery) use ($term, $supportsGuestSnapshotColumns): void {
                 $searchQuery
                     ->where('reservation_code', 'like', SafeLike::contains($term))
                     ->orWhere('notes', 'like', SafeLike::contains($term))
@@ -138,6 +170,13 @@ class StaffReservationInboxService
                             ->where('table_code', 'like', SafeLike::contains($term))
                             ->orWhere('zone', 'like', SafeLike::contains($term));
                     });
+
+                if ($supportsGuestSnapshotColumns) {
+                    $searchQuery
+                        ->orWhere('guest_name', 'like', SafeLike::contains($term))
+                        ->orWhere('guest_phone', 'like', SafeLike::contains($term))
+                        ->orWhere('guest_email', 'like', SafeLike::contains($term));
+                }
             });
         }
     }
@@ -226,5 +265,23 @@ class StaffReservationInboxService
             'end_time', 'created_at', 'updated_at', 'reservation_id', 'guest_count' => $sortBy,
             default => 'start_time',
         };
+    }
+
+    protected function supportsGuestSnapshotColumns(): bool
+    {
+        if ($this->supportsGuestSnapshotColumns !== null) {
+            return $this->supportsGuestSnapshotColumns;
+        }
+
+        $reservation = new Reservation;
+
+        return $this->supportsGuestSnapshotColumns = $reservation
+            ->getConnection()
+            ->getSchemaBuilder()
+            ->hasColumns($reservation->getTable(), [
+                'guest_name',
+                'guest_phone',
+                'guest_email',
+            ]);
     }
 }

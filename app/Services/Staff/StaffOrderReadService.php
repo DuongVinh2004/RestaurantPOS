@@ -11,6 +11,7 @@ use App\Models\ReservationOrder;
 use App\Services\Branch\ReservationBranchScopeService;
 use App\Services\ReservationFinancialSyncService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Collection;
 
 class StaffOrderReadService
@@ -21,15 +22,19 @@ class StaffOrderReadService
         private readonly ReservationFinancialSyncService $reservationFinancialSyncService,
         private readonly SettlementAmountCalculator $settlementAmountCalculator,
         ?ReservationBranchScopeService $reservationBranchScopeService = null,
+        private readonly ?StaffBranchContextService $staffBranchContextService = null,
     ) {
         $this->reservationBranchScopeService = $reservationBranchScopeService ?? app(ReservationBranchScopeService::class);
     }
 
-    public function findOrder(int $orderId): ?ReservationOrder
+    public function findOrder(int $orderId, ?int $staffUserId = null): ?ReservationOrder
     {
-        $order = $this->baseOrderQuery()
-            ->where('order_id', $orderId)
-            ->first();
+        $query = $this->baseOrderQuery()
+            ->where('order_id', $orderId);
+
+        $this->constrainOrderQueryToStaffBranchScope($query, $staffUserId);
+
+        $order = $query->first();
 
         if (! $order instanceof ReservationOrder) {
             return null;
@@ -38,9 +43,9 @@ class StaffOrderReadService
         return $this->attachReservationSettlementTotals($order);
     }
 
-    public function findActiveOrderByTable(int $tableId): ?ReservationOrder
+    public function findActiveOrderByTable(int $tableId, ?int $staffUserId = null): ?ReservationOrder
     {
-        $order = $this->baseOrderQuery()
+        $query = $this->baseOrderQuery()
             ->where('reservation_orders.status', ReservationOrderStatus::Active->value)
             ->whereExists(function ($query) use ($tableId): void {
                 $query
@@ -50,8 +55,11 @@ class StaffOrderReadService
                     ->where('reservation_tables.table_id', $tableId);
             })
             ->orderByRaw($this->activeOrderPrioritySql())
-            ->orderByDesc('reservation_orders.order_id')
-            ->first();
+            ->orderByDesc('reservation_orders.order_id');
+
+        $this->constrainOrderQueryToStaffBranchScope($query, $staffUserId);
+
+        $order = $query->first();
 
         if (! $order instanceof ReservationOrder) {
             return null;
@@ -60,14 +68,17 @@ class StaffOrderReadService
         return $this->attachReservationSettlementTotals($order);
     }
 
-    public function findActiveOrderByReservation(int $reservationId): ?ReservationOrder
+    public function findActiveOrderByReservation(int $reservationId, ?int $staffUserId = null): ?ReservationOrder
     {
-        $order = $this->baseOrderQuery()
+        $query = $this->baseOrderQuery()
             ->where('reservation_id', $reservationId)
             ->where('status', ReservationOrderStatus::Active->value)
             ->orderByRaw($this->activeOrderPrioritySql())
-            ->orderByDesc('order_id')
-            ->first();
+            ->orderByDesc('order_id');
+
+        $this->constrainOrderQueryToStaffBranchScope($query, $staffUserId);
+
+        $order = $query->first();
 
         if (! $order instanceof ReservationOrder) {
             return null;
@@ -79,13 +90,27 @@ class StaffOrderReadService
     /**
      * @return Collection<int, ReservationOrder>
      */
-    public function listOrdersByReservation(int $reservationId): Collection
+    public function listOrdersByReservation(int $reservationId, ?int $staffUserId = null): Collection
     {
-        Reservation::query()->findOrFail($reservationId);
+        $reservationQuery = Reservation::query()->where('reservation_id', $reservationId);
+        if ($staffUserId !== null && $staffUserId > 0) {
+            $accessibleBranchIds = $this->staffBranchContextService()->accessibleBranchIds($staffUserId);
+            if ($accessibleBranchIds === []) {
+                throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
+            }
 
-        return $this->baseOrderQuery()
+            $reservationQuery->whereIn('branch_id', $accessibleBranchIds);
+        }
+
+        $reservationQuery->firstOrFail();
+
+        $query = $this->baseOrderQuery()
             ->where('reservation_id', $reservationId)
-            ->orderBy('order_id')
+            ->orderBy('order_id');
+
+        $this->constrainOrderQueryToStaffBranchScope($query, $staffUserId);
+
+        return $query
             ->get()
             ->map(fn (ReservationOrder $order): ReservationOrder => $this->attachReservationSettlementTotals($order));
     }
@@ -122,6 +147,32 @@ class StaffOrderReadService
             'reservation.payments.refundOfPayment',
             'reservation.appliedUserVoucher.voucher',
         ]);
+    }
+
+    /**
+     * @param  Builder<ReservationOrder>  $query
+     */
+    private function constrainOrderQueryToStaffBranchScope(Builder $query, ?int $staffUserId): void
+    {
+        if ($staffUserId === null || $staffUserId <= 0) {
+            return;
+        }
+
+        $accessibleBranchIds = $this->staffBranchContextService()->accessibleBranchIds($staffUserId);
+        if ($accessibleBranchIds === []) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->whereHas('reservation', static function (Builder $reservationQuery) use ($accessibleBranchIds): void {
+            $reservationQuery->whereIn('branch_id', $accessibleBranchIds);
+        });
+    }
+
+    private function staffBranchContextService(): StaffBranchContextService
+    {
+        return $this->staffBranchContextService ?? app(StaffBranchContextService::class);
     }
 
     /**

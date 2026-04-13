@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\KitchenTicketStatus;
+use App\Enums\PurchaseOrderStatus;
+use App\Enums\StaffConversationWorkflowState;
+use App\Services\Inventory\PurchaseOrderReconciliationService;
+use App\Services\Kitchen\KitchenTicketReconciliationService;
+use App\Services\Staff\StaffConversationInboxService;
 use App\Support\OperationalHealthEvaluator;
 use App\Support\StaffMutationRowVersionContract;
 use Illuminate\Support\Carbon;
@@ -15,6 +21,8 @@ class OperationalInsightsService
 {
     public function __construct(
         private readonly DatabaseContractInspector $databaseContractInspector,
+        private readonly KitchenTicketReconciliationService $kitchenTicketReconciliationService,
+        private readonly PurchaseOrderReconciliationService $purchaseOrderReconciliationService,
     ) {
     }
 
@@ -34,6 +42,9 @@ class OperationalInsightsService
             'table_state_audit' => $this->safeSectionSnapshot('table_state_audit', fn () => $this->tableStateAuditSnapshot($now)),
             'row_version_contract' => $this->safeSectionSnapshot('row_version_contract', fn () => $this->rowVersionContractSnapshot()),
             'reporting_snapshots' => $this->safeSectionSnapshot('reporting_snapshots', fn () => $this->reportingSnapshotsSnapshot($now)),
+            'kitchen_kds' => $this->safeSectionSnapshot('kitchen_kds', fn () => $this->kitchenKdsSnapshot($now)),
+            'inventory_purchasing' => $this->safeSectionSnapshot('inventory_purchasing', fn () => $this->inventoryPurchasingSnapshot($now)),
+            'conversation_inbox' => $this->safeSectionSnapshot('conversation_inbox', fn () => $this->conversationInboxSnapshot($now)),
             'branch_defaults' => $this->safeSectionSnapshot('branch_defaults', fn () => $this->branchDefaultsSnapshot()),
             'database_contract' => $this->safeSectionSnapshot('database_contract', fn () => $this->databaseContractInspector->snapshot()),
         ];
@@ -363,37 +374,59 @@ class OperationalInsightsService
             });
 
         $activeCount = (int) (clone $activeQuery)->count();
+        $activeSessionCount = (int) $this->applyStaffSessionKeyScope(clone $activeQuery)->count();
+        $activeGovernanceCount = max(0, $activeCount - $activeSessionCount);
+        $expiringSoonCount = (int) DB::table('staff_api_keys')
+            ->whereNull('revoked_at')
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '>', $now)
+            ->where('expires_at', '<=', $expiringSoonAt)
+            ->count();
+        $expiringSoonSessionCount = (int) $this->applyStaffSessionKeyScope(
+            DB::table('staff_api_keys')
+                ->whereNull('revoked_at')
+                ->whereNotNull('expires_at')
+                ->where('expires_at', '>', $now)
+                ->where('expires_at', '<=', $expiringSoonAt)
+        )->count();
+        $neverUsedActiveCount = (int) (clone $activeQuery)->whereNull('last_used_at')->count();
+        $neverUsedActiveSessionCount = (int) $this->applyStaffSessionKeyScope(
+            (clone $activeQuery)->whereNull('last_used_at')
+        )->count();
+
         $snapshot = [
             'database_store_enabled' => $databaseStoreEnabled,
             'env_fallback_enabled' => $envFallbackEnabled,
             'active_count' => $activeCount,
+            'active_governance_count' => $activeGovernanceCount,
+            'active_session_count' => $activeSessionCount,
             'revoked_count' => (int) DB::table('staff_api_keys')->whereNotNull('revoked_at')->count(),
             'expired_count' => (int) DB::table('staff_api_keys')
                 ->whereNull('revoked_at')
                 ->whereNotNull('expires_at')
                 ->where('expires_at', '<=', $now)
                 ->count(),
-            'expiring_soon_count' => (int) DB::table('staff_api_keys')
-                ->whereNull('revoked_at')
-                ->whereNotNull('expires_at')
-                ->where('expires_at', '>', $now)
-                ->where('expires_at', '<=', $expiringSoonAt)
-                ->count(),
-            'never_used_active_count' => (int) (clone $activeQuery)->whereNull('last_used_at')->count(),
+            'expiring_soon_count' => $expiringSoonCount,
+            'expiring_soon_governance_count' => max(0, $expiringSoonCount - $expiringSoonSessionCount),
+            'expiring_soon_session_count' => $expiringSoonSessionCount,
+            'never_used_active_count' => $neverUsedActiveCount,
+            'never_used_active_governance_count' => max(0, $neverUsedActiveCount - $neverUsedActiveSessionCount),
+            'never_used_active_session_count' => $neverUsedActiveSessionCount,
+            'session_key_label_prefix' => 'Auth Session',
         ];
 
         $status = 'ok';
         $reasons = [];
-        if ($databaseStoreEnabled && $activeCount < max(1, (int) config('booking.ops.staff_api_keys_missing_active_fail_count', 1))) {
+        if ($databaseStoreEnabled && $activeGovernanceCount < max(1, (int) config('booking.ops.staff_api_keys_missing_active_fail_count', 1))) {
             $status = 'fail';
             $reasons[] = 'staff_api_keys_missing_active_keys';
         } elseif ($envFallbackEnabled) {
             $status = 'degraded';
             $reasons[] = 'staff_api_keys_env_fallback_enabled';
-        } elseif ((int) $snapshot['never_used_active_count'] >= max(1, (int) config('booking.ops.staff_api_keys_never_used_warn_count', 5))) {
+        } elseif ((int) $snapshot['never_used_active_governance_count'] >= max(1, (int) config('booking.ops.staff_api_keys_never_used_warn_count', 5))) {
             $status = 'degraded';
             $reasons[] = 'staff_api_keys_never_used_backlog';
-        } elseif ((int) $snapshot['expiring_soon_count'] > 0) {
+        } elseif ((int) $snapshot['expiring_soon_governance_count'] > 0) {
             $status = 'degraded';
             $reasons[] = 'staff_api_keys_expiring_soon';
         }
@@ -402,6 +435,11 @@ class OperationalInsightsService
             'status' => $status,
             'reasons' => $reasons,
         ]);
+    }
+
+    private function applyStaffSessionKeyScope(\Illuminate\Database\Query\Builder $query): \Illuminate\Database\Query\Builder
+    {
+        return $query->whereRaw("LOWER(COALESCE(label, '')) LIKE ?", ['auth session%']);
     }
 
     /**
@@ -610,6 +648,377 @@ class OperationalInsightsService
     }
 
     /**
+     * @return array<string,mixed>
+     */
+    public function kitchenKdsSnapshot(?Carbon $now = null): array
+    {
+        $now ??= Carbon::now('UTC');
+
+        $requiredTables = [
+            'kitchen_order_item_tickets',
+            'reservation_order_items',
+            'kitchen_station_category_routes',
+            'kitchen_stations',
+        ];
+        $missingTables = array_values(array_filter(
+            $requiredTables,
+            static fn (string $table): bool => ! Schema::hasTable($table),
+        ));
+
+        if ($missingTables !== []) {
+            return [
+                'table_present' => false,
+                'missing_tables' => $missingTables,
+                'active_ticket_count' => 0,
+                'queued_count' => 0,
+                'fired_count' => 0,
+                'ready_count' => 0,
+                'checked_ticket_count' => 0,
+                'drift_count' => 0,
+                'status_drift_count' => 0,
+                'routing_drift_count' => 0,
+                'oldest_fired_age_seconds' => null,
+                'oldest_ready_age_seconds' => null,
+                'drift_examples' => [],
+                'backlog_examples' => [],
+                'status' => 'fail',
+                'reasons' => ['kitchen_kds_tables_missing'],
+            ];
+        }
+
+        $activeBaseQuery = DB::table('kitchen_order_item_tickets')
+            ->whereNotIn('ticket_status', [
+                KitchenTicketStatus::Completed->value,
+                KitchenTicketStatus::Cancelled->value,
+            ]);
+
+        $reconciliation = $this->kitchenTicketReconciliationService->scan([
+            'include_terminal' => false,
+        ]);
+
+        $backlogTimestampSql = 'COALESCE(ready_at, fired_at, first_dispatched_at, created_at)';
+
+        $backlogExamples = DB::table('kitchen_order_item_tickets')
+            ->select(['ticket_id', 'station_id', 'ticket_status'])
+            ->selectRaw($backlogTimestampSql.' AS backlog_started_at')
+            ->whereIn('ticket_status', [
+                KitchenTicketStatus::Fired->value,
+                KitchenTicketStatus::Ready->value,
+            ])
+            ->orderByRaw($backlogTimestampSql.' ASC')
+            ->limit(3)
+            ->get()
+            ->map(function (object $row) use ($now): array {
+                return [
+                    'ticket_id' => (int) ($row->ticket_id ?? 0),
+                    'station_id' => (int) ($row->station_id ?? 0),
+                    'ticket_status' => (string) ($row->ticket_status ?? ''),
+                    'backlog_started_at_utc' => $row->backlog_started_at !== null
+                        ? Carbon::parse((string) $row->backlog_started_at)->utc()->toIso8601String()
+                        : null,
+                    'backlog_age_seconds' => $this->ageSeconds($row->backlog_started_at, $now),
+                ];
+            })
+            ->values()
+            ->all();
+
+        $snapshot = [
+            'table_present' => true,
+            'missing_tables' => [],
+            'active_ticket_count' => (int) (clone $activeBaseQuery)->count(),
+            'queued_count' => (int) (clone $activeBaseQuery)
+                ->where('ticket_status', KitchenTicketStatus::Queued->value)
+                ->count(),
+            'fired_count' => (int) (clone $activeBaseQuery)
+                ->where('ticket_status', KitchenTicketStatus::Fired->value)
+                ->count(),
+            'ready_count' => (int) (clone $activeBaseQuery)
+                ->where('ticket_status', KitchenTicketStatus::Ready->value)
+                ->count(),
+            'checked_ticket_count' => (int) ($reconciliation['checked_count'] ?? 0),
+            'drift_count' => (int) ($reconciliation['drift_count'] ?? 0),
+            'status_drift_count' => (int) ($reconciliation['status_drift_count'] ?? 0),
+            'routing_drift_count' => (int) ($reconciliation['routing_drift_count'] ?? 0),
+            'oldest_fired_age_seconds' => $this->ageSeconds(
+                DB::table('kitchen_order_item_tickets')
+                    ->where('ticket_status', KitchenTicketStatus::Fired->value)
+                    ->min(DB::raw('COALESCE(fired_at, first_dispatched_at, created_at)')),
+                $now,
+            ),
+            'oldest_ready_age_seconds' => $this->ageSeconds(
+                DB::table('kitchen_order_item_tickets')
+                    ->where('ticket_status', KitchenTicketStatus::Ready->value)
+                    ->min(DB::raw('COALESCE(ready_at, fired_at, first_dispatched_at, created_at)')),
+                $now,
+            ),
+            'drift_examples' => array_values(array_slice((array) ($reconciliation['tickets'] ?? []), 0, 3)),
+            'backlog_examples' => $backlogExamples,
+        ];
+
+        $evaluation = OperationalHealthEvaluator::forKitchenKds($snapshot, [
+            'fired_backlog_warn_seconds' => (int) config('booking.ops.kitchen_fired_backlog_warn_seconds', 900),
+            'ready_backlog_warn_seconds' => (int) config('booking.ops.kitchen_ready_backlog_warn_seconds', 600),
+        ]);
+
+        return array_merge($snapshot, $evaluation);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function inventoryPurchasingSnapshot(?Carbon $now = null): array
+    {
+        $now ??= Carbon::now('UTC');
+
+        $requiredTables = [
+            'purchase_orders',
+            'purchase_order_lines',
+            'purchase_receipts',
+            'purchase_receipt_lines',
+            'ingredient_stock_movements',
+        ];
+        $missingTables = array_values(array_filter(
+            $requiredTables,
+            static fn (string $table): bool => ! Schema::hasTable($table),
+        ));
+
+        if ($missingTables !== []) {
+            return [
+                'table_present' => false,
+                'missing_tables' => $missingTables,
+                'checked_order_count' => 0,
+                'issue_order_count' => 0,
+                'line_issue_count' => 0,
+                'receipt_issue_count' => 0,
+                'movement_issue_count' => 0,
+                'duplicate_purchase_receipt_reference_count' => 0,
+                'duplicate_purchase_receipt_movement_count' => 0,
+                'open_purchase_order_count' => 0,
+                'overdue_open_order_count' => 0,
+                'oldest_overdue_open_age_seconds' => null,
+                'status_counts' => [],
+                'issue_examples' => [],
+                'overdue_examples' => [],
+                'duplicate_purchase_receipt_reference_examples' => [],
+                'status' => 'fail',
+                'reasons' => ['inventory_purchasing_tables_missing'],
+            ];
+        }
+
+        $scan = $this->purchaseOrderReconciliationService->scan([
+            'limit' => (int) config('booking.ops.inventory_purchase_scan_limit', 50),
+        ]);
+        $duplicateReferenceSummary = $this->purchaseOrderReconciliationService->duplicatePurchaseReceiptReferenceSummary();
+
+        $openStatuses = [
+            PurchaseOrderStatus::Ordered->value,
+            PurchaseOrderStatus::PartiallyReceived->value,
+        ];
+        $openOrdersQuery = DB::table('purchase_orders')
+            ->whereIn('purchase_order_status', $openStatuses);
+        $overdueOpenOrdersQuery = (clone $openOrdersQuery)
+            ->whereNotNull('expected_at')
+            ->where('expected_at', '<=', $now);
+
+        $statusCounts = DB::table('purchase_orders')
+            ->select('purchase_order_status')
+            ->selectRaw('COUNT(*) AS aggregate')
+            ->groupBy('purchase_order_status')
+            ->get()
+            ->mapWithKeys(static fn (object $row): array => [
+                (string) ($row->purchase_order_status ?? 'unknown') => (int) ($row->aggregate ?? 0),
+            ])
+            ->all();
+
+        $overdueExamples = (clone $overdueOpenOrdersQuery)
+            ->select(['purchase_order_id', 'order_code', 'branch_id', 'purchase_order_status', 'expected_at'])
+            ->orderBy('expected_at')
+            ->limit(3)
+            ->get()
+            ->map(function (object $row) use ($now): array {
+                return [
+                    'purchase_order_id' => (int) ($row->purchase_order_id ?? 0),
+                    'order_code' => (string) ($row->order_code ?? ''),
+                    'branch_id' => (int) ($row->branch_id ?? 0),
+                    'purchase_order_status' => (string) ($row->purchase_order_status ?? ''),
+                    'expected_at_utc' => $row->expected_at !== null
+                        ? Carbon::parse((string) $row->expected_at)->utc()->toIso8601String()
+                        : null,
+                    'overdue_age_seconds' => $this->ageSeconds($row->expected_at, $now),
+                ];
+            })
+            ->values()
+            ->all();
+
+        $issueExamples = array_values(array_slice(array_values(array_filter(
+            (array) ($scan['orders'] ?? []),
+            static fn (array $row): bool => (int) ($row['issue_count'] ?? 0) > 0,
+        )), 0, 3));
+
+        $snapshot = [
+            'table_present' => true,
+            'missing_tables' => [],
+            'checked_order_count' => (int) ($scan['checked_order_count'] ?? 0),
+            'issue_order_count' => (int) ($scan['issue_order_count'] ?? 0),
+            'line_issue_count' => (int) ($scan['line_issue_count'] ?? 0),
+            'receipt_issue_count' => (int) ($scan['receipt_issue_count'] ?? 0),
+            'movement_issue_count' => (int) ($scan['movement_issue_count'] ?? 0),
+            'duplicate_purchase_receipt_reference_count' => (int) ($duplicateReferenceSummary['duplicate_reference_count'] ?? 0),
+            'duplicate_purchase_receipt_movement_count' => (int) ($duplicateReferenceSummary['duplicate_movement_count'] ?? 0),
+            'open_purchase_order_count' => (int) (clone $openOrdersQuery)->count(),
+            'overdue_open_order_count' => (int) (clone $overdueOpenOrdersQuery)->count(),
+            'oldest_overdue_open_age_seconds' => $this->ageSeconds(
+                (clone $overdueOpenOrdersQuery)->min('expected_at'),
+                $now,
+            ),
+            'status_counts' => $statusCounts,
+            'issue_examples' => $issueExamples,
+            'overdue_examples' => $overdueExamples,
+            'duplicate_purchase_receipt_reference_examples' => array_values((array) ($duplicateReferenceSummary['examples'] ?? [])),
+        ];
+
+        $evaluation = OperationalHealthEvaluator::forInventoryPurchasing($snapshot, [
+            'overdue_open_order_warn_count' => (int) config('booking.ops.inventory_purchase_overdue_warn_count', 1),
+            'overdue_open_order_warn_seconds' => (int) config('booking.ops.inventory_purchase_overdue_warn_seconds', 86400),
+        ]);
+
+        return array_merge($snapshot, $evaluation);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function conversationInboxSnapshot(?Carbon $now = null): array
+    {
+        $now ??= Carbon::now('UTC');
+
+        $requiredTables = [
+            'conversations',
+            'agent_assignments',
+            'conversation_messages',
+        ];
+        $missingTables = array_values(array_filter(
+            $requiredTables,
+            static fn (string $table): bool => ! Schema::hasTable($table),
+        ));
+
+        if ($missingTables !== []) {
+            return [
+                'table_present' => false,
+                'missing_tables' => $missingTables,
+                'active_conversation_count' => 0,
+                'unassigned_count' => 0,
+                'overdue_count' => 0,
+                'waiting_on_customer_count' => 0,
+                'resolved_today_count' => 0,
+                'terminal_with_active_assignment_count' => 0,
+                'oldest_overdue_age_seconds' => null,
+                'sla_minutes' => StaffConversationInboxService::OVERDUE_AFTER_MINUTES,
+                'workflow_state_counts' => [],
+                'overdue_examples' => [],
+                'status' => 'fail',
+                'reasons' => ['conversation_inbox_tables_missing'],
+            ];
+        }
+
+        $terminalWorkflowStates = [
+            StaffConversationWorkflowState::Resolved->value,
+            StaffConversationWorkflowState::Closed->value,
+        ];
+        $overdueThreshold = $now->copy()
+            ->subMinutes(StaffConversationInboxService::OVERDUE_AFTER_MINUTES)
+            ->toDateTimeString();
+        $latestActivitySql = $this->conversationLatestActivitySql();
+
+        $activeConversationsQuery = DB::table('conversations')
+            ->whereNotIn('workflow_state', $terminalWorkflowStates);
+
+        $unassignedConversationsQuery = (clone $activeConversationsQuery)
+            ->whereNotExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('agent_assignments as active_assignments')
+                    ->whereColumn('active_assignments.conversation_id', 'conversations.conversation_id')
+                    ->where('active_assignments.is_active', 1);
+            });
+
+        $overdueConversationsQuery = (clone $activeConversationsQuery)
+            ->whereRaw($latestActivitySql.' <= ?', [$overdueThreshold]);
+
+        $terminalAssignedQuery = DB::table('conversations')
+            ->whereIn('workflow_state', $terminalWorkflowStates)
+            ->whereExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('agent_assignments as active_assignments')
+                    ->whereColumn('active_assignments.conversation_id', 'conversations.conversation_id')
+                    ->where('active_assignments.is_active', 1);
+            });
+
+        $workflowStateCounts = DB::table('conversations')
+            ->select('workflow_state')
+            ->selectRaw('COUNT(*) AS aggregate')
+            ->groupBy('workflow_state')
+            ->get()
+            ->mapWithKeys(static fn (object $row): array => [
+                (string) ($row->workflow_state ?? 'unknown') => (int) ($row->aggregate ?? 0),
+            ])
+            ->all();
+
+        $overdueExamples = (clone $overdueConversationsQuery)
+            ->select(['conversations.conversation_id', 'conversations.branch_id', 'conversations.workflow_state'])
+            ->selectRaw($latestActivitySql.' AS latest_activity_at')
+            ->orderByRaw($latestActivitySql.' ASC')
+            ->limit(3)
+            ->get()
+            ->map(function (object $row) use ($now): array {
+                return [
+                    'conversation_id' => (string) ($row->conversation_id ?? ''),
+                    'branch_id' => (int) ($row->branch_id ?? 0),
+                    'workflow_state' => (string) ($row->workflow_state ?? ''),
+                    'latest_activity_at_utc' => $row->latest_activity_at !== null
+                        ? Carbon::parse((string) $row->latest_activity_at)->utc()->toIso8601String()
+                        : null,
+                    'overdue_age_seconds' => $this->ageSeconds($row->latest_activity_at, $now),
+                ];
+            })
+            ->values()
+            ->all();
+
+        $snapshot = [
+            'table_present' => true,
+            'missing_tables' => [],
+            'active_conversation_count' => (int) (clone $activeConversationsQuery)->count(),
+            'unassigned_count' => (int) (clone $unassignedConversationsQuery)->count(),
+            'overdue_count' => (int) (clone $overdueConversationsQuery)->count(),
+            'waiting_on_customer_count' => (int) (clone $activeConversationsQuery)
+                ->where('workflow_state', StaffConversationWorkflowState::PendingCustomer->value)
+                ->count(),
+            'resolved_today_count' => (int) DB::table('conversations')
+                ->where('workflow_state', StaffConversationWorkflowState::Resolved->value)
+                ->whereBetween('resolved_at', [
+                    $now->copy()->startOfDay(),
+                    $now->copy()->endOfDay(),
+                ])
+                ->count(),
+            'terminal_with_active_assignment_count' => (int) (clone $terminalAssignedQuery)->count(),
+            'oldest_overdue_age_seconds' => $this->ageSeconds(
+                (clone $overdueConversationsQuery)->selectRaw('MIN('.$latestActivitySql.') AS oldest_activity_at')->value('oldest_activity_at'),
+                $now,
+            ),
+            'sla_minutes' => StaffConversationInboxService::OVERDUE_AFTER_MINUTES,
+            'workflow_state_counts' => $workflowStateCounts,
+            'overdue_examples' => $overdueExamples,
+        ];
+
+        $evaluation = OperationalHealthEvaluator::forConversationInbox($snapshot, [
+            'unassigned_warn_count' => (int) config('booking.ops.conversation_unassigned_warn_count', 5),
+            'overdue_warn_count' => (int) config('booking.ops.conversation_overdue_warn_count', 5),
+            'oldest_overdue_warn_seconds' => (int) config('booking.ops.conversation_oldest_overdue_warn_seconds', 3600),
+        ]);
+
+        return array_merge($snapshot, $evaluation);
+    }
+
+    /**
      * @return array{sales:int,operations:int,inventory:int}
      */
     private function reportingSnapshotSourceActivityCounts(): array
@@ -774,6 +1183,11 @@ class OperationalInsightsService
         $evaluation = OperationalHealthEvaluator::forBranchDefaults($snapshot, []);
 
         return array_merge($snapshot, $evaluation);
+    }
+
+    private function conversationLatestActivitySql(): string
+    {
+        return 'COALESCE((SELECT cm.created_at FROM conversation_messages cm WHERE cm.conversation_id = conversations.conversation_id ORDER BY cm.created_at DESC, cm.message_id DESC LIMIT 1), conversations.workflow_state_changed_at, conversations.created_at)';
     }
 
     private function ageSeconds(mixed $value, Carbon $now): ?int

@@ -117,6 +117,7 @@ $this->failOrSkipBookingSchemaContract('Required table [notification_outbox] is 
         $this->assertSame(0, $snapshot['dead_letter_count']);
         $this->assertArrayHasKey('Email', $snapshot['channel_breakdown']);
         $this->assertSame(3, $snapshot['channel_breakdown']['Email']['total_count']);
+        $this->assertSame('production_lean', $snapshot['channel_breakdown']['Email']['readiness']);
     }
 
     #[Group('booking-ops')]
@@ -171,6 +172,7 @@ $this->failOrSkipBookingSchemaContract('Required table [notification_outbox] is 
         $this->assertSame('Email', $snapshot['channel']);
         $this->assertSame(1, $snapshot['count']);
         $this->assertSame((int) $message->outbox_id, $snapshot['rows'][0]['outbox_id']);
+        $this->assertSame('production_lean', $snapshot['rows'][0]['readiness']);
         $this->assertSame('mail', $snapshot['rows'][0]['latest_attempt']['provider_key']);
         $this->assertSame('mail_failed', $snapshot['rows'][0]['latest_attempt']['error_code']);
     }

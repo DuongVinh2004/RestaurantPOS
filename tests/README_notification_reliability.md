@@ -8,6 +8,8 @@ This round adds smoke coverage for background reliability flows:
 - `notifications:outbox-dead-letter`
 - `waiting-list:expire-notified`
 - `NotificationOutboxService` send / retry / dedupe / preference behavior
+- non-retryable channel failures cancel immediately instead of looping through retry backlog
+- delivery-time preference and quiet-hour rechecks record explicit suppression/defer evidence
 - `NotificationOutboxHealthService` degraded-state detection
 
 Suggested local run order:

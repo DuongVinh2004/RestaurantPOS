@@ -105,6 +105,85 @@ class StaffServiceSessionHttpFlowTest extends TestCase
         $this->assertAuditSubjectRecorded($audit, 'user', $customerId, 'customer');
     }
 
+    public function test_walk_in_create_reuses_existing_customer_by_phone(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $customerId = $this->createUser([
+            'role_name' => 'Customer',
+            'full_name' => 'Known Walk In Customer',
+            'email' => 'walkin.phone.customer@example.test',
+            'phone' => '0900000123',
+        ]);
+        $branchId = $this->createBranch([
+            'branch_code' => 'WALKIN-PHONE',
+            'branch_name' => 'Walk In Phone Branch',
+        ]);
+        $tableId = $this->createRestaurantTableWithSeats(4, [
+            'branch_id' => $branchId,
+            'table_code' => 'WALKIN-PHONE-01',
+            'status' => 'Available',
+        ]);
+
+        $response = $this->withHeaders($this->withIdempotencyKey(
+            $this->staffAuthHeaders($staffId, 'staff-service-session-phone'),
+            'staff-service-session-phone-1',
+        ))->postJson('/api/v1/staff/service-sessions/walk-in', [
+            'branch_id' => $branchId,
+            'guest_name' => 'Same Phone Guest',
+            'phone' => '0900000123',
+            'table_ids' => [$tableId],
+            'guest_count' => 2,
+            'started_at' => $this->nowUtc()->copy()->addMinutes(30)->toIso8601String(),
+            'service_minutes' => 60,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.user.user_id', $customerId)
+            ->assertJsonPath('data.table_ids.0', $tableId)
+            ->assertJsonPath('data.source', 'WalkIn');
+
+        self::assertSame(1, (int) DB::table('users')->where('phone', '0900000123')->count());
+    }
+
+    public function test_walk_in_create_rejects_phone_owned_by_non_customer(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createUser([
+            'role_name' => 'Staff',
+            'full_name' => 'Staff Phone Owner',
+            'email' => 'walkin.phone.staff@example.test',
+            'phone' => '0900000456',
+        ]);
+        $branchId = $this->createBranch([
+            'branch_code' => 'WALKIN-PHONE-GUARD',
+            'branch_name' => 'Walk In Phone Guard Branch',
+        ]);
+        $tableId = $this->createRestaurantTableWithSeats(4, [
+            'branch_id' => $branchId,
+            'status' => 'Available',
+        ]);
+
+        $response = $this->withHeaders($this->withIdempotencyKey(
+            $this->staffAuthHeaders($staffId, 'staff-service-session-phone-guard'),
+            'staff-service-session-phone-guard-1',
+        ))->postJson('/api/v1/staff/service-sessions/walk-in', [
+            'branch_id' => $branchId,
+            'guest_name' => 'Blocked Guest',
+            'phone' => '0900000456',
+            'table_ids' => [$tableId],
+            'guest_count' => 2,
+            'started_at' => $this->nowUtc()->copy()->addMinutes(30)->toIso8601String(),
+            'service_minutes' => 60,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonValidationErrors(['phone']);
+
+        self::assertSame(0, (int) DB::table('reservations')->where('source', 'WalkIn')->count());
+        self::assertSame('Available', (string) DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
+    }
+
     public function test_active_service_session_lookup_returns_current_checked_in_reservation_for_table(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);

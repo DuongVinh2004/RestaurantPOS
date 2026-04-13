@@ -1,35 +1,49 @@
-import { Tag } from 'antd';
+import type { ReactNode } from 'react';
+import type { StatusChipAppearance, StatusChipVariant, StatusTone } from '../../core/utils/status';
 import { translateUiLabel } from '../../core/utils/translation';
-
-type StatusTone = 'default' | 'processing' | 'success' | 'warning' | 'error';
 
 export function StatusChip({
   label,
   tone = 'default',
+  variant = 'entity',
+  appearance,
+  icon,
+  className,
 }: {
   label: string;
   tone?: StatusTone;
+  variant?: StatusChipVariant;
+  appearance?: StatusChipAppearance;
+  icon?: ReactNode;
+  className?: string;
 }) {
-  const color = mapToneToColor(tone);
+  const resolvedAppearance = appearance ?? resolveAppearance(variant);
 
   return (
-    <Tag color={color} variant="filled" style={{ marginInlineEnd: 0 }}>
-      {translateUiLabel(label)}
-    </Tag>
+    <span
+      className={[
+        'staff-status-chip',
+        `staff-status-chip-${variant}`,
+        `staff-status-chip-${tone}`,
+        `staff-status-chip-${resolvedAppearance}`,
+        className,
+      ].filter(Boolean).join(' ')}
+    >
+      {icon ? <span className="staff-status-chip-icon" aria-hidden="true">{icon}</span> : null}
+      <span className="staff-status-chip-label">{translateUiLabel(label)}</span>
+    </span>
   );
 }
 
-function mapToneToColor(tone: StatusTone): string {
-  switch (tone) {
-    case 'processing':
-      return 'blue';
-    case 'success':
-      return 'green';
-    case 'warning':
-      return 'gold';
-    case 'error':
-      return 'red';
+function resolveAppearance(variant: StatusChipVariant): StatusChipAppearance {
+  switch (variant) {
+    case 'severity':
+      return 'filled';
+    case 'freshness':
+      return 'outline';
+    case 'count':
+      return 'soft';
     default:
-      return 'default';
+      return 'soft';
   }
 }

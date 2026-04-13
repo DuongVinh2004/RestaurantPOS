@@ -152,6 +152,13 @@ export function buildConversationInboxSearch(
   return params.toString();
 }
 
+export function buildConversationWaitingListPath(waitingListId: number): string {
+  const params = new URLSearchParams();
+  params.set('focus', String(waitingListId));
+
+  return `/waiting-list?${params.toString()}`;
+}
+
 function nullableNumberLabel(value: number | null, prefix: string): string | null {
   return typeof value === 'number' ? `${prefix} #${value}` : null;
 }

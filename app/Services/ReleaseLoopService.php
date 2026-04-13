@@ -201,6 +201,13 @@ class ReleaseLoopService
                 'cwd' => $rootPath,
             ],
             [
+                'key' => 'package_integrity',
+                'label' => 'Package integrity',
+                'command' => ['node', 'scripts/release/check-package-integrity.mjs', '--json'],
+                'cwd' => $rootPath,
+                'capture_json' => true,
+            ],
+            [
                 'key' => 'backend_fe_contract',
                 'label' => 'Backend FE contract harness',
                 'command' => $this->buildArtisanCommand('booking:harness:fe-contract', [

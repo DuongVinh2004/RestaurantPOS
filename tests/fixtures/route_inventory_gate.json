@@ -285,12 +285,6 @@
             "action": "App\\Http\\Controllers\\Api\\Auth\\StaffAuthController@me"
         },
         {
-            "key": "get_v1_staff_branches",
-            "method": "GET",
-            "uri": "api/v1/staff/branches",
-            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffBranchContextController@index"
-        },
-        {
             "key": "health",
             "method": "GET",
             "uri": "api/v1/health",
@@ -426,6 +420,12 @@
             "action": "App\\Http\\Controllers\\Api\\Staff\\StaffAuditTrailController@index"
         },
         {
+            "key": "get_v1_staff_branches",
+            "method": "GET",
+            "uri": "api/v1/staff/branches",
+            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffBranchContextController@index"
+        },
+        {
             "key": "get_v1_staff_cashier_shifts",
             "method": "GET",
             "uri": "api/v1/staff/cashier/shifts",
@@ -454,18 +454,6 @@
             "method": "GET",
             "uri": "api/v1/staff/conversations/{conversation_id}",
             "action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@show"
-        },
-        {
-            "key": "get_v1_staff_menu_items",
-            "method": "GET",
-            "uri": "api/v1/staff/menu/items",
-            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffMenuCatalogController@index"
-        },
-        {
-            "key": "get_v1_staff_tables_table_id_active_service_session",
-            "method": "GET",
-            "uri": "api/v1/staff/tables/{table_id}/active-service-session",
-            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffServiceSessionController@showActiveByTable"
         },
         {
             "key": "get_v1_staff_finance_accounting_export",
@@ -516,6 +504,12 @@
             "action": "App\\Http\\Controllers\\Api\\Staff\\StaffKitchenController@stationTickets"
         },
         {
+            "key": "get_v1_staff_menu_items",
+            "method": "GET",
+            "uri": "api/v1/staff/menu/items",
+            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffMenuCatalogController@index"
+        },
+        {
             "key": "get_v1_staff_orders_order_id",
             "method": "GET",
             "uri": "api/v1/staff/orders/{order_id}",
@@ -552,28 +546,22 @@
             "action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationInboxController@index"
         },
         {
-            "key": "get_v1_staff_reservations_reservation_id",
-            "method": "GET",
-            "uri": "api/v1/staff/reservations/{reservation_id}",
-            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationInboxController@show"
-        },
-        {
             "key": "get_v1_staff_reservations_timeline",
             "method": "GET",
             "uri": "api/v1/staff/reservations/timeline",
             "action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationTimelineController@index"
         },
         {
+            "key": "get_v1_staff_reservations_reservation_id",
+            "method": "GET",
+            "uri": "api/v1/staff/reservations/{reservation_id}",
+            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationInboxController@show"
+        },
+        {
             "key": "get_v1_staff_reservations_reservation_id_active_order",
             "method": "GET",
             "uri": "api/v1/staff/reservations/{reservation_id}/active-order",
             "action": "App\\Http\\Controllers\\Api\\Staff\\StaffOrderReadController@showActiveByReservation"
-        },
-        {
-            "key": "get_v1_staff_reservations_reservation_id_orders",
-            "method": "GET",
-            "uri": "api/v1/staff/reservations/{reservation_id}/orders",
-            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffTableOrderController@indexByReservation"
         },
         {
             "key": "get_v1_staff_reservations_reservation_id_deposit_preview",
@@ -586,6 +574,12 @@
             "method": "GET",
             "uri": "api/v1/staff/reservations/{reservation_id}/loyalty",
             "action": "App\\Http\\Controllers\\Api\\Staff\\StaffLoyaltyController@showReservation"
+        },
+        {
+            "key": "get_v1_staff_reservations_reservation_id_orders",
+            "method": "GET",
+            "uri": "api/v1/staff/reservations/{reservation_id}/orders",
+            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffTableOrderController@indexByReservation"
         },
         {
             "key": "get_v1_staff_reservations_reservation_id_refund_preview",
@@ -626,6 +620,12 @@
             "method": "GET",
             "uri": "api/v1/staff/tables/{table_id}/active-order",
             "action": "App\\Http\\Controllers\\Api\\Staff\\StaffOrderReadController@showActiveByTable"
+        },
+        {
+            "key": "get_v1_staff_tables_table_id_active_service_session",
+            "method": "GET",
+            "uri": "api/v1/staff/tables/{table_id}/active-service-session",
+            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffServiceSessionController@showActiveByTable"
         },
         {
             "key": "get_v1_staff_users_user_id_loyalty",
@@ -1084,22 +1084,16 @@
             "action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@addInternalNote"
         },
         {
-            "key": "post_v1_staff_conversations_conversation_id_outbound_replies",
-            "method": "POST",
-            "uri": "api/v1/staff/conversations/{conversation_id}/outbound-replies",
-            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@sendOutboundReply"
-        },
-        {
             "key": "post_v1_staff_conversations_conversation_id_links",
             "method": "POST",
             "uri": "api/v1/staff/conversations/{conversation_id}/links",
             "action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@link"
         },
         {
-            "key": "post_v1_staff_service_sessions_walk_in",
+            "key": "post_v1_staff_conversations_conversation_id_outbound_replies",
             "method": "POST",
-            "uri": "api/v1/staff/service-sessions/walk-in",
-            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffServiceSessionController@store"
+            "uri": "api/v1/staff/conversations/{conversation_id}/outbound-replies",
+            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@sendOutboundReply"
         },
         {
             "key": "post_v1_staff_conversations_conversation_id_take_over",
@@ -1112,6 +1106,12 @@
             "method": "POST",
             "uri": "api/v1/staff/conversations/{conversation_id}/unassign",
             "action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@unassign"
+        },
+        {
+            "key": "post_v1staffconversationsconversation_idworkflow_state",
+            "method": "POST",
+            "uri": "api/v1/staff/conversations/{conversation_id}/workflow-state",
+            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@updateWorkflowState"
         },
         {
             "key": "post_v1_staff_finance_invoices_reservation_id_issue",
@@ -1286,6 +1286,12 @@
             "method": "POST",
             "uri": "api/v1/staff/reservations/{reservation_id}/voucher/remove",
             "action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationVoucherController@remove"
+        },
+        {
+            "key": "post_v1_staff_service_sessions_walk_in",
+            "method": "POST",
+            "uri": "api/v1/staff/service-sessions/walk-in",
+            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffServiceSessionController@store"
         },
         {
             "key": "post_v1_staff_tables_table_id_orders",
@@ -1467,16 +1473,6 @@
     ],
     "alias_groups": [
         {
-            "canonical": "api/v1/staff/tables/board",
-            "canonical_action": "App\\Http\\Controllers\\Api\\Staff\\StaffTableBoardController@index",
-            "aliases": [
-                {
-                    "uri": "api/v1/staff/table-board",
-                    "action": "App\\Http\\Controllers\\Api\\Staff\\StaffTableBoardController@legacyIndex"
-                }
-            ]
-        },
-        {
             "canonical": "api/v1/staff/orders/{order_id}/bill-snapshot",
             "canonical_action": "App\\Http\\Controllers\\Api\\Staff\\StaffCheckoutController@billSnapshot",
             "aliases": [
@@ -1497,16 +1493,6 @@
             ]
         },
         {
-            "canonical": "api/v1/staff/reservations/{reservation_id}/voucher/remove",
-            "canonical_action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationVoucherController@remove",
-            "aliases": [
-                {
-                    "uri": "api/v1/staff/reservations/{reservation_id}/voucher/release",
-                    "action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationVoucherController@release"
-                }
-            ]
-        },
-        {
             "canonical": "api/v1/staff/reservations/{reservation_id}/loyalty/redeem/release",
             "canonical_action": "App\\Http\\Controllers\\Api\\Staff\\StaffLoyaltyController@releaseReservation",
             "aliases": [
@@ -1517,18 +1503,22 @@
             ]
         },
         {
-            "canonical": "api/v1/reservations/{id}/preorder",
+            "canonical": "api/v1/staff/reservations/{reservation_id}/voucher/remove",
+            "canonical_action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationVoucherController@remove",
             "aliases": [
                 {
-                    "uri": "api/v1/reservations/{id}/pre-order"
+                    "uri": "api/v1/staff/reservations/{reservation_id}/voucher/release",
+                    "action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationVoucherController@release"
                 }
             ]
         },
         {
-            "canonical": "api/v1/reservations/{id}/preorder/preview",
+            "canonical": "api/v1/staff/tables/board",
+            "canonical_action": "App\\Http\\Controllers\\Api\\Staff\\StaffTableBoardController@index",
             "aliases": [
                 {
-                    "uri": "api/v1/reservations/{id}/pre-order/preview"
+                    "uri": "api/v1/staff/table-board",
+                    "action": "App\\Http\\Controllers\\Api\\Staff\\StaffTableBoardController@legacyIndex"
                 }
             ]
         }

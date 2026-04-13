@@ -24,15 +24,23 @@ class ReleasePackageDefinitionContractTest extends TestCase
         $this->assertSame('restaurantpos-backend-release', (string) ($definition['package_prefix'] ?? ''));
         $this->assertContains('artisan', $requiredPaths);
         $this->assertContains('composer.json', $requiredPaths);
+        $this->assertContains('.env.example', $requiredPaths);
         $this->assertContains('app', $requiredPaths);
         $this->assertContains('bootstrap', $requiredPaths);
         $this->assertContains('build/api-consumer', $requiredPaths);
         $this->assertContains('config', $requiredPaths);
         $this->assertContains('database', $requiredPaths);
+        $this->assertContains('package.json', $requiredPaths);
+        $this->assertContains('phpunit.xml', $requiredPaths);
+        $this->assertContains('public/index.php', $requiredPaths);
         $this->assertContains('routes', $requiredPaths);
+        $this->assertContains('scripts', $requiredPaths);
+        $this->assertContains('staff-web', $requiredPaths);
         $this->assertContains('storage/app/booking_release', $requiredPaths);
         $this->assertContains('tests', $requiredPaths);
+        $this->assertContains('tools/bootstrap_booking.php', $requiredPaths);
         $this->assertContains('tools/mysql', $requiredPaths);
+        $this->assertContains('vite.config.js', $requiredPaths);
         $this->assertContains('db_all.sql', $requiredPaths);
     }
 
@@ -46,8 +54,15 @@ class ReleasePackageDefinitionContractTest extends TestCase
             ->all();
 
         $this->assertContains('docs/runbooks', $optionalPaths);
-        $this->assertContains('scripts/ci', $optionalPaths);
-        $this->assertContains('scripts/release', $optionalPaths);
+        $this->assertContains('README.md', $optionalPaths);
         $this->assertNotContains('tools/mysql', $optionalPaths);
+        $this->assertNotContains('staff-web', $optionalPaths);
+
+        $excludedPaths = collect((array) ($definition['exclude_paths'] ?? []))
+            ->values()
+            ->all();
+
+        $this->assertContains('staff-web/node_modules', $excludedPaths);
+        $this->assertContains('staff-web/dist', $excludedPaths);
     }
 }

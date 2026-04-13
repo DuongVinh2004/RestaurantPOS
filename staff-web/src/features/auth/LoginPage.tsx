@@ -53,20 +53,20 @@ export function LoginPage() {
   return (
     <div className="staff-auth-screen">
       <Card className="staff-auth-card">
-        <Space direction="vertical" size={20} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={20} style={{ width: '100%' }}>
           <div>
             <Typography.Text className="staff-eyebrow">Đăng nhập nhân viên</Typography.Text>
             <Typography.Title level={2} style={{ marginTop: 8, marginBottom: 8 }}>
               {appTitle}
             </Typography.Title>
             <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-              Đăng nhập bằng hợp đồng backend hiện có cho nhân viên. Màn hình này tập trung vào luồng cốt lõi:
+              Đăng nhập bằng phiên nhân viên hiện có. Màn hình này tập trung vào luồng cốt lõi:
               đăng nhập, sơ đồ bàn, đặt bàn, đơn hàng, bếp và thanh toán.
             </Typography.Paragraph>
           </div>
 
-          {notice ? <Alert type={notice.tone === 'success' ? 'success' : notice.tone === 'warning' ? 'warning' : 'error'} showIcon message={notice.message} /> : null}
-          {error ? <Alert type="error" showIcon message={error} /> : null}
+          {notice ? <Alert type={notice.tone === 'success' ? 'success' : notice.tone === 'warning' ? 'warning' : 'error'} showIcon title={notice.message} /> : null}
+          {error ? <Alert type="error" showIcon title={error} /> : null}
 
           <Form<LoginFormValues> layout="vertical" initialValues={initialValues} onFinish={handleFinish}>
             <Form.Item name="identifier" label="Tài khoản / email / số điện thoại" rules={[{ required: true, message: 'Nhập định danh nhân viên.' }]}>

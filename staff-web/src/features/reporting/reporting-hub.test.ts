@@ -11,6 +11,9 @@ import {
   buildSalesQuery,
   snapshotHealthDescription,
   snapshotHealthLabel,
+  snapshotHealthReferenceAgeSeconds,
+  snapshotHealthScopeExamples,
+  snapshotHealthScopeSummary,
   summarizeInventory,
   summarizeOperations,
   summarizeSales,
@@ -21,6 +24,17 @@ const filters = {
   dateTo: '2026-04-10',
   currency: 'VND',
   ingredientId: '88',
+};
+
+type ExtendedMeta = StaffReportingCollectionMeta & {
+  snapshot_health: StaffReportingCollectionMeta['snapshot_health'] & {
+    scope_count: number;
+    healthy_scope_count: number;
+    stale_scope_count: number;
+    stale_scope_examples: Array<Record<string, unknown>>;
+    health_reference_refreshed_at_utc: string | null;
+    health_reference_refresh_age_seconds: number | null;
+  };
 };
 
 describe('reporting hub helpers', () => {
@@ -151,7 +165,7 @@ describe('reporting hub helpers', () => {
     expect(inventory).toEqual({ movementCount: 6, netQuantityDelta: 4.25, wastageQuantity: 0.25 });
   });
 
-  it('describes degraded snapshot health explicitly', () => {
+  it('describes partially stale snapshot health with scope evidence', () => {
     const meta = {
       filters: {},
       sort: { supported: true, value: '-business_date', by: 'business_date', dir: 'desc' },
@@ -188,6 +202,80 @@ describe('reporting hub helpers', () => {
         },
         legacy_aliases: {},
       },
+      action: 'staff_reporting_daily_inventory_index',
+      snapshot_health: {
+        family: 'inventory',
+        row_count: 2,
+        date_range: { start_date: '2026-04-01', end_date: '2026-04-10' },
+        latest_business_date: '2026-04-10',
+        latest_refreshed_at_utc: '2026-04-10T00:00:00Z',
+        latest_refresh_age_seconds: 60,
+        scope_count: 2,
+        healthy_scope_count: 1,
+        stale_scope_count: 1,
+        stale_scope_examples: [
+          {
+            branch_id: 3,
+            ingredient_id: 88,
+            latest_refresh_age_seconds: 172800,
+          },
+        ],
+        health_reference_refreshed_at_utc: '2026-04-08T00:00:00Z',
+        health_reference_refresh_age_seconds: 172800,
+        stale_threshold_seconds: 86400,
+        is_empty: false,
+        is_stale: true,
+        status: 'degraded',
+        reasons: ['reporting_snapshot_stale', 'reporting_snapshot_scope_partial'],
+      },
+    } as ExtendedMeta;
+
+    expect(snapshotHealthLabel(meta)).toBe('Stale từng phần');
+    expect(snapshotHealthReferenceAgeSeconds(meta)).toBe(172800);
+    expect(snapshotHealthScopeSummary(meta)).toBe('Phạm vi 2 | stale 1 | ổn 1');
+    expect(snapshotHealthScopeExamples(meta)).toContain('branch_id=3');
+    expect(snapshotHealthScopeExamples(meta)).toContain('ingredient_id=88');
+    expect(snapshotHealthDescription(meta)).toContain('stale 1');
+    expect(snapshotHealthDescription(meta)).toContain('Snapshot stale');
+  });
+
+  it('keeps empty-scope messaging explicit', () => {
+    const meta = {
+      filters: {},
+      sort: { supported: true, value: '-business_date', by: 'business_date', dir: 'desc' },
+      pagination: {
+        mode: 'paged',
+        current_page: 1,
+        per_page: 12,
+        from: null,
+        to: null,
+        total: 0,
+        last_page: 1,
+        has_more_pages: false,
+      },
+      current_page: 1,
+      per_page: 12,
+      from: null,
+      to: null,
+      total: 0,
+      last_page: 1,
+      has_more_pages: false,
+      query_contract: {
+        parameters: {
+          filter: 'filter',
+          sort: 'sort',
+          page: 'page',
+          per_page: 'per_page',
+        },
+        filter_keys: [],
+        sort_fields: [],
+        default_sort: '-business_date',
+        pagination: {
+          supported: true,
+          max_per_page: 100,
+        },
+        legacy_aliases: {},
+      },
       action: 'staff_reporting_daily_sales_index',
       snapshot_health: {
         family: 'sales',
@@ -196,15 +284,21 @@ describe('reporting hub helpers', () => {
         latest_business_date: null,
         latest_refreshed_at_utc: null,
         latest_refresh_age_seconds: null,
+        scope_count: 0,
+        healthy_scope_count: 0,
+        stale_scope_count: 0,
+        stale_scope_examples: [],
+        health_reference_refreshed_at_utc: null,
+        health_reference_refresh_age_seconds: null,
         stale_threshold_seconds: 86400,
         is_empty: true,
         is_stale: false,
         status: 'degraded',
-        reasons: ['empty_scope'],
+        reasons: ['reporting_snapshot_empty'],
       },
-    } satisfies StaffReportingCollectionMeta;
+    } as ExtendedMeta;
 
     expect(snapshotHealthLabel(meta)).toBe('Phạm vi trống');
-    expect(snapshotHealthDescription(meta)).toContain('Nguyên nhân Phạm vi trống');
+    expect(snapshotHealthDescription(meta)).toContain('Phạm vi trống');
   });
 });

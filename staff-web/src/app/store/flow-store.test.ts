@@ -104,6 +104,37 @@ describe('flow-store', () => {
       source: undefined,
     });
   });
+
+  it('keeps pinned work and trims recent work for quick resume', () => {
+    useFlowStore.getState().touchWork({
+      key: '/orders?order_id=51',
+      path: '/orders?order_id=51',
+      label: 'Đơn hàng',
+      subtitle: 'Đơn #51',
+      branchId: 1,
+      pinned: true,
+    });
+
+    for (let index = 0; index < 8; index += 1) {
+      useFlowStore.getState().touchWork({
+        key: `/tables?table_id=${index + 1}`,
+        path: `/tables?table_id=${index + 1}`,
+        label: 'Sơ đồ bàn',
+        subtitle: `Bàn ${index + 1}`,
+        branchId: 1,
+      });
+    }
+
+    const workItems = useFlowStore.getState().workItems;
+
+    expect(workItems[0]).toMatchObject({
+      key: '/orders?order_id=51',
+      pinned: true,
+    });
+    expect(workItems).toHaveLength(7);
+    expect(workItems.some((item) => item.key === '/tables?table_id=1')).toBe(false);
+    expect(workItems.some((item) => item.key === '/tables?table_id=8')).toBe(true);
+  });
 });
 
 function makeSession(staffApiKeyId: number, defaultBranchId: number) {

@@ -20,7 +20,7 @@ function makeSession(overrides: Partial<StaffSession> = {}): StaffSession {
     },
     capabilities: ['table.board.view'],
     known_capabilities: ['table.board.view'],
-    capability_source: 'role',
+    capability_source: 'role_capabilities',
     startup: {
       default_branch: null,
       active_cashier_shift: null,

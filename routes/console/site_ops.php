@@ -308,3 +308,131 @@ Artisan::command('booking:backfill-confirmed-hold-linkage {--dry-run : Show elig
 
     return 0;
 })->purpose('Backfill table_holds.confirmed_reservation_id using exact reservation matches for legacy rows');
+
+Artisan::command('booking:backfill-table-state-audit-context
+    {--dry-run : Show eligible audit rows without updating them}
+    {--window-hours= : How many recent hours to inspect; defaults to booking.ops.table_state_audit_recent_window_hours}
+    {--limit=500 : Maximum number of recent audit rows to inspect}', function () {
+    /** @var ConsoleCommand $command */
+    // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
+    $command = $this;
+
+    $windowHours = max(1, (int) ($command->option('window-hours') ?: config('booking.ops.table_state_audit_recent_window_hours', 24)));
+    $limit = max(1, (int) $command->option('limit'));
+    $dryRun = (bool) $command->option('dry-run');
+
+    if (! Schema::hasTable('audit_logs')) {
+        $command->error('audit_logs table is not available.');
+
+        return 1;
+    }
+
+    if (! Schema::hasTable('reservation_orders')) {
+        $command->error('reservation_orders table is not available.');
+
+        return 1;
+    }
+
+    $windowStart = Carbon::now('UTC')->subHours($windowHours);
+    $rows = DB::table('audit_logs')
+        ->where('entity_type', 'restaurant_table')
+        ->where('action', 'like', 'table_state_%')
+        ->whereNotNull('created_at')
+        ->where('created_at', '>=', $windowStart)
+        ->orderBy('audit_id')
+        ->limit($limit)
+        ->get([
+            'audit_id',
+            'after_json',
+            'meta_json',
+            'created_at',
+        ]);
+
+    $inspected = 0;
+    $matched = 0;
+    $updated = 0;
+    $skippedWithContext = 0;
+    $unresolved = 0;
+
+    foreach ($rows as $row) {
+        $inspected++;
+
+        $afterPayload = json_decode((string) ($row->after_json ?? ''), true);
+        if (! is_array($afterPayload)) {
+            $unresolved++;
+            continue;
+        }
+
+        if (is_array($afterPayload['context'] ?? null) && ($afterPayload['context'] ?? []) !== []) {
+            $skippedWithContext++;
+            continue;
+        }
+
+        $metaPayload = json_decode((string) ($row->meta_json ?? ''), true);
+        if (! is_array($metaPayload)) {
+            $unresolved++;
+            continue;
+        }
+
+        $requestPath = trim((string) data_get($metaPayload, 'request.path', ''));
+        if (! preg_match('#^api/v1/staff/orders/(\d+)/settlement/finalize$#', $requestPath, $matches)) {
+            continue;
+        }
+
+        $orderId = (int) ($matches[1] ?? 0);
+        if ($orderId <= 0) {
+            $unresolved++;
+            continue;
+        }
+
+        $reservationId = (int) DB::table('reservation_orders')
+            ->where('order_id', $orderId)
+            ->value('reservation_id');
+
+        if ($reservationId <= 0) {
+            $unresolved++;
+            continue;
+        }
+
+        $matched++;
+
+        $context = [
+            'order_id' => $orderId,
+            'reservation_id' => $reservationId,
+            'source' => 'staff_settlement_finalize',
+            'reason' => 'settlement_finalize',
+        ];
+
+        $afterPayload['context'] = $context;
+        $metaPayload['context'] = array_merge(
+            is_array($metaPayload['context'] ?? null) ? $metaPayload['context'] : [],
+            $context,
+        );
+
+        $command->line(sprintf('Matched audit %d -> order %d -> reservation %d', (int) $row->audit_id, $orderId, $reservationId));
+
+        if (! $dryRun) {
+            $affected = DB::table('audit_logs')
+                ->where('audit_id', (int) $row->audit_id)
+                ->update([
+                    'after_json' => json_encode($afterPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    'meta_json' => json_encode($metaPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                ]);
+
+            if ($affected > 0) {
+                $updated += $affected;
+            }
+        }
+    }
+
+    $command->table(['inspected', 'matched', 'updated', 'skipped_with_context', 'unresolved', 'dry_run'], [[
+        $inspected,
+        $matched,
+        $updated,
+        $skippedWithContext,
+        $unresolved,
+        $dryRun ? 'yes' : 'no',
+    ]]);
+
+    return 0;
+})->purpose('Backfill missing restaurant table audit context for recent settlement finalize release rows');

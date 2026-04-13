@@ -6,13 +6,19 @@ import {
   buildSmokeEvidence,
   canExecuteRefund,
   createSmokeConfig,
+  resolveConversationId,
+  resolveRefundReservationId,
+  resolveReservationSelection,
   describeHealthFailurePayload,
   describeConversationAiAssist,
   describeMutationGate,
   describeStartupBlockers,
   resolveCheckInPlan,
   resolveMutationGate,
+  resolveMenuItemSelection,
   resolveSmokeMode,
+  shouldPrepareCashierBeforeFinance,
+  shouldPrepareCashierBeforeOperationalOrderFlow,
   shouldRecordBootstrapFailure,
   writeSmokeEvidence,
 } from './live-smoke.mjs';
@@ -26,9 +32,15 @@ describe('live smoke config', () => {
     expect(config.password).toBe('UatDemo!123');
     expect(config.reservationQuery).toBe('RES-77');
     expect(config.reservationId).toBe(77);
+    expect(config.reservationIdSource).toBe('manifest');
     expect(config.orderTableId).toBe(11);
+    expect(config.menuItemIds).toEqual([201, 202]);
+    expect(config.menuItemIdsSource).toBe('manifest');
     expect(config.refundReservationId).toBe(91);
+    expect(config.refundReservationIdSource).toBe('manifest');
+    expect(config.refundReservationCode).toBe('RSV-RF-91');
     expect(config.conversationId).toBe('conv-uat-1');
+    expect(config.conversationIdSource).toBe('manifest');
     expect(config.cashierBranchId).toBe(5);
     expect(config.cashierCurrency).toBe('VND');
     expect(config.credentialSource).toBe('manifest');
@@ -62,6 +74,7 @@ describe('live smoke config', () => {
     const manifest = createManifestResult();
     manifest.data.staff_web_smoke = {
       mutations: {
+        kitchen_dispatch: true,
         settlement_finalize: true,
         refund_execute: true,
       },
@@ -69,10 +82,14 @@ describe('live smoke config', () => {
 
     const gate = resolveMutationGate({}, manifest.data);
 
+    expect(gate.kitchenDispatch).toEqual({ enabled: true, source: 'manifest' });
     expect(gate.settlementFinalize).toEqual({ enabled: true, source: 'manifest' });
     expect(gate.refundExecute).toEqual({ enabled: true, source: 'manifest' });
+    expect(gate.cashierOpen).toEqual({ enabled: true, source: 'prerequisite' });
     expect(gate.cashierClose).toEqual({ enabled: false, source: 'default-off' });
+    expect(describeMutationGate(gate)).toContain('kitchenDispatch=on(manifest)');
     expect(describeMutationGate(gate)).toContain('settlementFinalize=on(manifest)');
+    expect(describeMutationGate(gate)).toContain('cashierOpen=on(prerequisite)');
   });
 
   it('lets env override manifest mutation gates per action', () => {
@@ -92,6 +109,63 @@ describe('live smoke config', () => {
     expect(config.allowSettlementFinalize).toBe(true);
     expect(config.allowCashierClose).toBe(false);
     expect(config.mode).toBe('mutation-gated');
+  });
+
+  it('primes cashier before finance mutations but stays lazy for read-only smoke', () => {
+    expect(shouldPrepareCashierBeforeFinance(createSmokeConfig({}, createManifestResult()))).toBe(false);
+
+    expect(shouldPrepareCashierBeforeFinance(createSmokeConfig({
+      STAFF_WEB_SMOKE_ALLOW_SETTLEMENT_FINALIZE: '1',
+    }, createManifestResult()))).toBe(true);
+
+    expect(shouldPrepareCashierBeforeFinance(createSmokeConfig({
+      STAFF_WEB_SMOKE_ALLOW_REFUND_MUTATION: '1',
+    }, createManifestResult()))).toBe(true);
+  });
+
+  it('primes cashier before operational order mutations so branch-scoped reads can pass', () => {
+    expect(shouldPrepareCashierBeforeOperationalOrderFlow(createSmokeConfig({}, createManifestResult()))).toBe(false);
+
+    expect(shouldPrepareCashierBeforeOperationalOrderFlow(createSmokeConfig({
+      STAFF_WEB_SMOKE_ALLOW_ORDER_CREATE: '1',
+    }, createManifestResult()))).toBe(true);
+
+    expect(shouldPrepareCashierBeforeOperationalOrderFlow(createSmokeConfig({
+      STAFF_WEB_SMOKE_ALLOW_ORDER_ADD_ITEM: '1',
+    }, createManifestResult()))).toBe(true);
+
+    expect(shouldPrepareCashierBeforeOperationalOrderFlow(createSmokeConfig({
+      STAFF_WEB_SMOKE_ALLOW_KITCHEN_DISPATCH: '1',
+    }, createManifestResult()))).toBe(true);
+  });
+
+  it('locks menu item selection to canonical scenario ids before order add-item', () => {
+    expect(resolveMenuItemSelection({
+      configuredMenuItemIds: [202, 201],
+      configuredMenuItemIdsSource: 'manifest',
+      menuItems: [
+        { item_id: 200, is_available: true, name: 'Fallback' },
+        { item_id: 201, is_available: true, name: 'Canonical Item' },
+      ],
+    })).toEqual({
+      item: { item_id: 201, is_available: true, name: 'Canonical Item' },
+      source: 'manifest',
+      matchedConfiguredId: 201,
+    });
+  });
+
+  it('does not silently fall back to a different menu item when canonical ids are stale', () => {
+    expect(resolveMenuItemSelection({
+      configuredMenuItemIds: [202, 203],
+      configuredMenuItemIdsSource: 'manifest',
+      menuItems: [
+        { item_id: 200, is_available: true, name: 'Fallback' },
+      ],
+    })).toEqual({
+      item: null,
+      source: 'manifest',
+      matchedConfiguredId: null,
+    });
   });
 
   it('prefers board check-in payload before order create when reservation is still confirmed', () => {
@@ -139,6 +213,101 @@ describe('live smoke config', () => {
       },
       tableId: 11,
     });
+  });
+
+  it('does not trust a stale manifest reservation id when runtime lookup disagrees', () => {
+    expect(resolveReservationSelection({
+      configuredReservationId: 77,
+      configuredReservationIdSource: 'manifest',
+      reservationLookup: [
+        {
+          reservation_id: 91,
+          table_ids: [11],
+        },
+      ],
+      boardReservation: null,
+    })).toEqual({
+      reservation: {
+        reservation_id: 91,
+        table_ids: [11],
+      },
+      reservationId: 91,
+    });
+  });
+
+  it('falls back to a runtime operational reservation when the manifest reservation is already completed', () => {
+    expect(resolveReservationSelection({
+      configuredReservationId: 77,
+      configuredReservationIdSource: 'manifest',
+      reservationLookup: [
+        {
+          reservation_id: 77,
+          status: 'Completed',
+          table_ids: [11],
+          checked_out_at: '2026-04-11T07:00:00Z',
+        },
+        {
+          reservation_id: 91,
+          status: 'Reserved',
+          table_ids: [12],
+          checked_out_at: null,
+        },
+      ],
+      boardReservation: null,
+    })).toEqual({
+      reservation: {
+        reservation_id: 91,
+        status: 'Reserved',
+        table_ids: [12],
+        checked_out_at: null,
+      },
+      reservationId: 91,
+    });
+  });
+
+  it('keeps an explicit env reservation id even when lookup is empty', () => {
+    expect(resolveReservationSelection({
+      configuredReservationId: 77,
+      configuredReservationIdSource: 'env',
+      reservationLookup: [],
+      boardReservation: null,
+    })).toEqual({
+      reservation: null,
+      reservationId: 77,
+    });
+  });
+
+  it('reconciles refund reservation id from runtime lookup before preview calls', () => {
+    expect(resolveRefundReservationId({
+      configuredReservationId: 91,
+      configuredReservationIdSource: 'manifest',
+      refundReservationLookup: [
+        { reservation_id: 13, reservation_code: 'RSV-RF-91' },
+      ],
+      selectedReservation: { reservation_id: 77 },
+      fallbackReservationId: 77,
+    })).toBe(13);
+  });
+
+  it('does not silently fall back to a different reservation when the manifest refund scenario is stale', () => {
+    expect(resolveRefundReservationId({
+      configuredReservationId: 91,
+      configuredReservationIdSource: 'manifest',
+      refundReservationLookup: [],
+      selectedReservation: { reservation_id: 77 },
+      fallbackReservationId: 77,
+    })).toBeNull();
+  });
+
+  it('falls back to the first runtime conversation when a manifest conversation id is stale', () => {
+    expect(resolveConversationId({
+      configuredConversationId: 'conv-stale',
+      configuredConversationIdSource: 'manifest',
+      conversations: [
+        { conversation_id: 'conv-live-1' },
+        { conversation_id: 'conv-live-2' },
+      ],
+    })).toBe('conv-live-1');
   });
 
   it('treats refund preview amount as the execute gate', () => {
@@ -286,12 +455,14 @@ function createManifestResult() {
         },
         refund_partial_ready: {
           reservation_id: 91,
+          reservation_code: 'RSV-RF-91',
         },
       },
       scenarios: {
         dine_in_checkout: {
           reservation_id: 77,
           table_id: 11,
+          menu_item_ids: [201, 202],
         },
         refund_partial: {
           reservation_id: 91,

@@ -84,6 +84,14 @@ class UatScenarioPackService
         'dessert' => 'UAT-DESSERT',
     ];
 
+    /**
+     * @var array<string,string>
+     */
+    private const KITCHEN_STATION_CODES = [
+        'hot_pass' => 'UAT-HOT-PASS',
+        'drink_bar' => 'UAT-DRINK-BAR',
+    ];
+
     private const VOUCHER_CODE = 'UAT-VOUCHER-50';
 
     /**
@@ -136,6 +144,7 @@ class UatScenarioPackService
             $users = $this->ensureCanonicalUsers();
             $staffApiKeys = $this->reissueStaffApiKeys($users);
             $menu = $this->ensureCanonicalMenu();
+            $this->ensureCanonicalKitchenRouting($menu);
             $benefits = $this->ensureCanonicalBenefits($users);
             $reservationContext = $this->seedReservationsAndPayments($branch, $users, $menu, $benefits);
             $waitingList = $this->seedWaitingListFoundation($branch, $users);
@@ -289,9 +298,32 @@ class UatScenarioPackService
                 ->map(static fn (mixed $value): int => (int) $value)
                 ->all();
 
+            $orderItemIds = [];
+            if ($orderIds !== [] || $menuItemIds !== []) {
+                $orderItemIds = DB::table('reservation_order_items')
+                    ->where(function ($query) use ($orderIds, $menuItemIds): void {
+                        if ($orderIds !== []) {
+                            $query->whereIn('order_id', $orderIds);
+                        }
+
+                        if ($menuItemIds !== []) {
+                            $method = $orderIds !== [] ? 'orWhereIn' : 'whereIn';
+                            $query->{$method}('item_id', $menuItemIds);
+                        }
+                    })
+                    ->pluck('order_item_id')
+                    ->map(static fn (mixed $value): int => (int) $value)
+                    ->all();
+            }
+
             $menuCategoryIds = DB::table('menu_categories')
                 ->whereIn('name', ['UAT Signatures', 'UAT Drinks'])
                 ->pluck('category_id')
+                ->map(static fn (mixed $value): int => (int) $value)
+                ->all();
+            $kitchenStationIds = DB::table('kitchen_stations')
+                ->whereIn('code', array_values(self::KITCHEN_STATION_CODES))
+                ->pluck('station_id')
                 ->map(static fn (mixed $value): int => (int) $value)
                 ->all();
 
@@ -305,8 +337,25 @@ class UatScenarioPackService
                 'conversations' => $conversationIds === [] ? 0 : DB::table('conversations')->whereIn('conversation_id', $conversationIds)->delete(),
                 'reservation_bill_payment_sessions' => $reservationIds === [] ? 0 : DB::table('reservation_bill_payment_sessions')->whereIn('reservation_id', $reservationIds)->delete(),
                 'reservation_deposit_payment_sessions' => $reservationIds === [] ? 0 : DB::table('reservation_deposit_payment_sessions')->whereIn('reservation_id', $reservationIds)->delete(),
-                'kitchen_order_item_tickets' => $orderIds === [] ? 0 : DB::table('kitchen_order_item_tickets')->whereIn('order_id', $orderIds)->delete(),
-                'reservation_order_items' => $orderIds === [] ? 0 : DB::table('reservation_order_items')->whereIn('order_id', $orderIds)->delete(),
+                'billing_invoices' => $reservationIds === [] ? 0 : DB::table('billing_invoices')->whereIn('reservation_id', $reservationIds)->delete(),
+                'kitchen_order_item_tickets' => ($orderIds === [] && $orderItemIds === [] && $menuItemIds === []) ? 0 : DB::table('kitchen_order_item_tickets')
+                    ->where(function ($query) use ($orderIds, $orderItemIds, $menuItemIds): void {
+                        if ($orderIds !== []) {
+                            $query->whereIn('order_id', $orderIds);
+                        }
+
+                        if ($orderItemIds !== []) {
+                            $method = $orderIds !== [] ? 'orWhereIn' : 'whereIn';
+                            $query->{$method}('order_item_id', $orderItemIds);
+                        }
+
+                        if ($menuItemIds !== []) {
+                            $method = ($orderIds !== [] || $orderItemIds !== []) ? 'orWhereIn' : 'whereIn';
+                            $query->{$method}('item_id', $menuItemIds);
+                        }
+                    })
+                    ->delete(),
+                'reservation_order_items' => $orderItemIds === [] ? 0 : DB::table('reservation_order_items')->whereIn('order_item_id', $orderItemIds)->delete(),
                 'reservation_orders' => $reservationIds === [] ? 0 : DB::table('reservation_orders')->whereIn('reservation_id', $reservationIds)->delete(),
                 'payments' => $reservationIds === [] ? 0 : DB::table('payments')->whereIn('reservation_id', $reservationIds)->delete(),
                 'reservation_tables' => $reservationIds === [] ? 0 : DB::table('reservation_tables')->whereIn('reservation_id', $reservationIds)->delete(),
@@ -332,6 +381,22 @@ class UatScenarioPackService
                 'user_points' => $userIds === [] ? 0 : DB::table('user_points')->whereIn('user_id', $userIds)->delete(),
                 'user_tier_history' => $userIds === [] ? 0 : DB::table('user_tier_history')->whereIn('user_id', $userIds)->delete(),
                 'feature_flags' => $branchIds === [] ? 0 : DB::table('feature_flags')->whereIn('branch_id', $branchIds)->delete(),
+                'reporting_daily_inventory_movement_snapshots' => $branchIds === [] ? 0 : DB::table('reporting_daily_inventory_movement_snapshots')->whereIn('branch_id', $branchIds)->delete(),
+                'reporting_daily_operation_snapshots' => $branchIds === [] ? 0 : DB::table('reporting_daily_operation_snapshots')->whereIn('branch_id', $branchIds)->delete(),
+                'reporting_daily_sales_snapshots' => $branchIds === [] ? 0 : DB::table('reporting_daily_sales_snapshots')->whereIn('branch_id', $branchIds)->delete(),
+                'kitchen_station_category_routes' => ($menuCategoryIds === [] && $kitchenStationIds === []) ? 0 : DB::table('kitchen_station_category_routes')
+                    ->where(function ($query) use ($menuCategoryIds, $kitchenStationIds): void {
+                        if ($menuCategoryIds !== []) {
+                            $query->whereIn('category_id', $menuCategoryIds);
+                        }
+
+                        if ($kitchenStationIds !== []) {
+                            $method = $menuCategoryIds !== [] ? 'orWhereIn' : 'whereIn';
+                            $query->{$method}('station_id', $kitchenStationIds);
+                        }
+                    })
+                    ->delete(),
+                'kitchen_stations' => $kitchenStationIds === [] ? 0 : DB::table('kitchen_stations')->whereIn('station_id', $kitchenStationIds)->delete(),
                 'restaurant_tables' => $branchIds === [] ? 0 : DB::table('restaurant_tables')->whereIn('branch_id', $branchIds)->delete(),
                 'branches' => $branchIds === [] ? 0 : DB::table('branches')->whereIn('branch_id', $branchIds)->delete(),
                 'users' => $userIds === [] ? 0 : DB::table('users')->whereIn('user_id', $userIds)->delete(),
@@ -503,6 +568,37 @@ class UatScenarioPackService
                 'tea' => $this->upsertMenuItem(self::MENU_CODES['tea'], $categoryIds['drinks'], 'UAT Peach Tea', 'Drink for menu and order-item demos.', '35000.00'),
             ],
         ];
+    }
+
+    /**
+     * @param array<string,mixed> $menu
+     */
+    private function ensureCanonicalKitchenRouting(array $menu): void
+    {
+        $signatureCategoryId = (int) data_get($menu, 'categories.signatures.category_id');
+        $drinkCategoryId = (int) data_get($menu, 'categories.drinks.category_id');
+
+        if ($signatureCategoryId > 0) {
+            $stationId = $this->upsertKitchenStation(
+                self::KITCHEN_STATION_CODES['hot_pass'],
+                'UAT Hot Pass',
+                'Canonical hot-pass station for dine-in order and kitchen smoke.',
+                'Both',
+                'printer://uat-hot-pass'
+            );
+            $this->upsertKitchenStationRoute($stationId, $signatureCategoryId, 10);
+        }
+
+        if ($drinkCategoryId > 0) {
+            $stationId = $this->upsertKitchenStation(
+                self::KITCHEN_STATION_CODES['drink_bar'],
+                'UAT Drink Bar',
+                'Canonical beverage station for dine-in kitchen smoke.',
+                'Both',
+                'printer://uat-drink-bar'
+            );
+            $this->upsertKitchenStationRoute($stationId, $drinkCategoryId, 20);
+        }
     }
 
     /**
@@ -1390,6 +1486,49 @@ class UatScenarioPackService
             'current_price' => $price,
             'currency' => 'VND',
         ];
+    }
+
+    private function upsertKitchenStation(
+        string $code,
+        string $name,
+        string $description,
+        string $outputMode,
+        ?string $printerTarget = null,
+    ): int {
+        $now = now('UTC');
+
+        DB::table('kitchen_stations')->updateOrInsert(
+            ['code' => $code],
+            [
+                'name' => $name,
+                'description' => $description,
+                'output_mode' => $outputMode,
+                'printer_target' => $printerTarget,
+                'is_active' => 1,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]
+        );
+
+        return (int) DB::table('kitchen_stations')
+            ->where('code', $code)
+            ->value('station_id');
+    }
+
+    private function upsertKitchenStationRoute(int $stationId, int $categoryId, int $sortOrder): void
+    {
+        $now = now('UTC');
+
+        DB::table('kitchen_station_category_routes')->updateOrInsert(
+            ['category_id' => $categoryId],
+            [
+                'station_id' => $stationId,
+                'sort_order' => $sortOrder,
+                'is_active' => 1,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]
+        );
     }
 
     private function upsertLoyaltyTier(): int

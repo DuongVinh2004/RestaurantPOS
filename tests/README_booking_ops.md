@@ -18,6 +18,12 @@ This round adds a lightweight operability smoke layer on top of the earlier book
 - scheduler heartbeat freshness
 - notification outbox backlog summary
 
+`booking:ops-snapshot --json` is the complementary operator check when the runtime is up but you still need domain-specific confidence for:
+
+- kitchen/KDS drift and backlog age
+- inventory/purchasing reconciliation and overdue PO backlog
+- conversation inbox unassigned/overdue workload and terminal-assignment drift
+
 ## Exit code behavior
 
 - returns `0` when validation passes and runtime dependencies are healthy

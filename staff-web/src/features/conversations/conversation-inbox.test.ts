@@ -3,6 +3,7 @@ import type { StaffConversationDetailEnvelope, StaffConversationSummary } from '
 import {
   assignmentAgentLabel,
   buildConversationInboxSearch,
+  buildConversationWaitingListPath,
   conversationBranchLabel,
   conversationReservationId,
   conversationSummaryStats,
@@ -16,6 +17,16 @@ function makeConversation(overrides: Partial<StaffConversationSummary> = {}): St
     conversation_id: 'conv-001',
     branch_id: 4,
     status: 'Open',
+    workflow: {
+      state: 'Unassigned',
+      state_reason: null,
+      state_changed_at: null,
+      first_triaged_at: null,
+      resolved_at: null,
+      closed_at: null,
+      is_terminal: false,
+      allowed_actions: ['take_over'],
+    },
     channel: 'WebChat',
     counts: {
       messages: 2,
@@ -27,6 +38,11 @@ function makeConversation(overrides: Partial<StaffConversationSummary> = {}): St
       is_assigned: false,
       is_unassigned: true,
       is_mine: false,
+    },
+    operational: {
+      is_overdue: false,
+      overdue_after_minutes: 15,
+      queue_bucket: 'active',
     },
     ...overrides,
   };
@@ -138,5 +154,9 @@ describe('conversation inbox helpers', () => {
         tab: 'ai',
       },
     )).toBe('source=reservation&reservation_id=12&status=Open&assignment=unassigned&q=guest&page=2&conversation=conv-009&tab=ai');
+  });
+
+  it('builds a waiting-list focus path for linked waiting entries', () => {
+    expect(buildConversationWaitingListPath(51)).toBe('/waiting-list?focus=51');
   });
 });

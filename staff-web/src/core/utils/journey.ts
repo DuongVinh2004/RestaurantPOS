@@ -1,8 +1,9 @@
-export type JourneySource = 'board' | 'reservation' | 'order' | 'kitchen' | 'checkout';
+export type JourneySource = 'board' | 'reservation' | 'order' | 'kitchen' | 'checkout' | 'audit';
 
 export type JourneyContext = {
   source?: JourneySource;
   tableId?: number;
+  tableIds?: Array<number>;
   reservationId?: number;
   reservationRowVersion?: number;
   orderId?: number;
@@ -18,7 +19,8 @@ export type JourneyResumeTarget = {
 export function mergeJourneyContext(primary: JourneyContext, fallback: JourneyContext): JourneyContext {
   return {
     source: primary.source ?? fallback.source,
-    tableId: primary.tableId ?? fallback.tableId,
+    tableId: primary.tableId ?? primary.tableIds?.[0] ?? fallback.tableId ?? fallback.tableIds?.[0],
+    tableIds: primary.tableIds ?? fallback.tableIds,
     reservationId: primary.reservationId ?? fallback.reservationId,
     reservationRowVersion: primary.reservationRowVersion ?? fallback.reservationRowVersion,
     orderId: primary.orderId ?? fallback.orderId,
@@ -29,12 +31,14 @@ export function mergeJourneyContext(primary: JourneyContext, fallback: JourneyCo
 
 export function buildJourneySearch(context: JourneyContext): string {
   const params = new URLSearchParams();
+  const normalizedTableIds = normalizePositiveIntegerList(context.tableIds);
 
   if (context.source) {
     params.set('source', context.source);
   }
 
-  setPositiveInteger(params, 'table_id', context.tableId);
+  setPositiveInteger(params, 'table_id', context.tableId ?? normalizedTableIds[0]);
+  setPositiveIntegerList(params, 'table_ids', normalizedTableIds);
   setPositiveInteger(params, 'reservation_id', context.reservationId);
   setPositiveInteger(params, 'reservation_row_version', context.reservationRowVersion);
   setPositiveInteger(params, 'order_id', context.orderId);
@@ -61,10 +65,13 @@ export function buildJourneyResumeTarget(context: JourneyContext): JourneyResume
 export function readJourneyContext(search: string | URLSearchParams): JourneyContext {
   const params = toSearchParams(search);
   const source = params.get('source');
+  const tableIds = readPositiveIntegerList(params.get('table_ids'));
+  const tableId = readPositiveInteger(params.get('table_id')) ?? tableIds[0];
 
   return {
     source: isJourneySource(source) ? source : undefined,
-    tableId: readPositiveInteger(params.get('table_id')),
+    tableId,
+    tableIds: tableIds.length > 0 ? tableIds : undefined,
     reservationId: readPositiveInteger(params.get('reservation_id')),
     reservationRowVersion: readPositiveInteger(params.get('reservation_row_version')),
     orderId: readPositiveInteger(params.get('order_id')),
@@ -78,6 +85,7 @@ export function stripJourneySearch(search: string | URLSearchParams): string {
 
   params.delete('source');
   params.delete('table_id');
+  params.delete('table_ids');
   params.delete('reservation_id');
   params.delete('reservation_row_version');
   params.delete('order_id');
@@ -107,6 +115,12 @@ function setPositiveInteger(params: URLSearchParams, key: string, value: number 
   }
 }
 
+function setPositiveIntegerList(params: URLSearchParams, key: string, value: Array<number>): void {
+  if (value.length > 0) {
+    params.set(key, value.join(','));
+  }
+}
+
 function readPositiveInteger(value: string | null): number | undefined {
   if (!value) {
     return undefined;
@@ -120,8 +134,30 @@ function readPositiveInteger(value: string | null): number | undefined {
   return parsed;
 }
 
+function readPositiveIntegerList(value: string | null): Array<number> {
+  if (!value) {
+    return [];
+  }
+
+  return normalizePositiveIntegerList(
+    value
+      .split(',')
+      .map((entry) => Number(entry.trim())),
+  );
+}
+
+function normalizePositiveIntegerList(value: Array<number> | undefined): Array<number> {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(new Set(
+    value.filter((entry): entry is number => Number.isInteger(entry) && entry > 0),
+  ));
+}
+
 function isJourneySource(value: string | null): value is JourneySource {
-  return value === 'board' || value === 'reservation' || value === 'order' || value === 'kitchen' || value === 'checkout';
+  return value === 'board' || value === 'reservation' || value === 'order' || value === 'kitchen' || value === 'checkout' || value === 'audit';
 }
 
 function toSearchParams(search: string | URLSearchParams): URLSearchParams {

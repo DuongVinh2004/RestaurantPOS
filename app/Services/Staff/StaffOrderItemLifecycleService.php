@@ -12,6 +12,7 @@ use App\Models\Reservation;
 use App\Models\ReservationOrder;
 use App\Models\ReservationOrderItem;
 use App\Models\RestaurantTable;
+use App\Services\Branch\ReservationBranchScopeService;
 use App\Services\Inventory\OrderItemInventoryConsumptionService;
 use App\Services\Kitchen\KitchenRoutingService;
 use App\Services\ReservationLockService;
@@ -23,11 +24,19 @@ use Illuminate\Validation\ValidationException;
 
 class StaffOrderItemLifecycleService
 {
+    private readonly ReservationBranchScopeService $reservationBranchScopeService;
+    private readonly StaffBranchContextService $staffBranchContextService;
+
     public function __construct(
         private readonly ReservationLockService $locks,
         private readonly OrderItemInventoryConsumptionService $orderItemInventoryConsumptionService,
         private readonly KitchenRoutingService $kitchenRoutingService,
-    ) {}
+        ?ReservationBranchScopeService $reservationBranchScopeService = null,
+        ?StaffBranchContextService $staffBranchContextService = null,
+    ) {
+        $this->reservationBranchScopeService = $reservationBranchScopeService ?? app(ReservationBranchScopeService::class);
+        $this->staffBranchContextService = $staffBranchContextService ?? app(StaffBranchContextService::class);
+    }
 
     public function updateItem(
         int $orderId,
@@ -47,6 +56,7 @@ class StaffOrderItemLifecycleService
                         [$order, $item] = $this->loadWritableContext(
                             orderId: $orderId,
                             orderItemId: $orderItemId,
+                            staffUserId: $staffUserId,
                             expectedOrderRowVersion: $expectedOrderRowVersion,
                             expectedItemRowVersion: $expectedItemRowVersion,
                         );
@@ -130,6 +140,7 @@ class StaffOrderItemLifecycleService
                         [$order, $item] = $this->loadWritableContext(
                             orderId: $orderId,
                             orderItemId: $orderItemId,
+                            staffUserId: $staffUserId,
                             expectedOrderRowVersion: $expectedOrderRowVersion,
                             expectedItemRowVersion: $expectedItemRowVersion,
                         );
@@ -220,6 +231,7 @@ class StaffOrderItemLifecycleService
     private function loadWritableContext(
         int $orderId,
         int $orderItemId,
+        ?int $staffUserId,
         ?int $expectedOrderRowVersion,
         ?int $expectedItemRowVersion,
     ): array {
@@ -247,17 +259,30 @@ class StaffOrderItemLifecycleService
             ->all();
 
         if ($tableIds !== []) {
-            $occupiedCount = RestaurantTable::query()
+            $tables = RestaurantTable::query()
                 ->whereIn('table_id', $tableIds)
                 ->lockForUpdate()
-                ->where('status', RestaurantTableStatus::Occupied->value)
+                ->get(['table_id', 'branch_id', 'status']);
+
+            $occupiedCount = $tables
+                ->filter(fn (RestaurantTable $table): bool => ($table->status?->value ?? (string) $table->status) === RestaurantTableStatus::Occupied->value)
                 ->count();
 
-            if ($occupiedCount !== count($tableIds)) {
+            if ($tables->count() !== count($tableIds) || $occupiedCount !== count($tableIds)) {
                 throw ValidationException::withMessages([
                     'reservation_id' => 'Assigned tables are not currently occupied.',
                 ]);
             }
+
+            $branchId = $this->reservationBranchScopeService->syncReservationBranchOrAssert(
+                $reservation,
+                $tables->pluck('branch_id')->all(),
+                $staffUserId,
+            );
+            $this->assertOperationalBranchAccessible($branchId, $staffUserId);
+        } else {
+            $branchId = $this->reservationBranchScopeService->resolveEffectiveReservationBranchId($reservation->branch_id);
+            $this->assertOperationalBranchAccessible($branchId, $staffUserId);
         }
 
         /** @var ReservationOrderItem $item */
@@ -291,6 +316,15 @@ class StaffOrderItemLifecycleService
                 'reservation_id' => 'Reservation bill has already been closed for payment. Reopen the bill before modifying order items.',
             ]);
         }
+    }
+
+    private function assertOperationalBranchAccessible(int $branchId, ?int $staffUserId): void
+    {
+        if ($staffUserId === null || $staffUserId <= 0) {
+            return;
+        }
+
+        $this->staffBranchContextService->assertAccessibleBranch($staffUserId, $branchId);
     }
 
     private function assertExpectedOrderRowVersion(ReservationOrder $order, ?int $expectedRowVersion): void

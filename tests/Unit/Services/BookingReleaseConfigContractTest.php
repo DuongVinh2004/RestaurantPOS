@@ -50,10 +50,22 @@ class BookingReleaseConfigContractTest extends TestCase
             ->values()
             ->all();
 
+        $this->assertContains('.env.example', $requiredPaths);
         $this->assertContains('build/api-consumer', $requiredPaths);
+        $this->assertContains('package.json', $requiredPaths);
+        $this->assertContains('phpunit.xml', $requiredPaths);
+        $this->assertContains('public/index.php', $requiredPaths);
+        $this->assertContains('scripts', $requiredPaths);
+        $this->assertContains('staff-web', $requiredPaths);
         $this->assertContains('storage/app/booking_release', $requiredPaths);
         $this->assertContains('tests', $requiredPaths);
+        $this->assertContains('tools/bootstrap_booking.php', $requiredPaths);
         $this->assertContains('tools/mysql', $requiredPaths);
+        $this->assertContains('vite.config.js', $requiredPaths);
+
+        $excludedPaths = array_values((array) config('booking_release.packaging.exclude_paths', []));
+        $this->assertContains('staff-web/node_modules', $excludedPaths);
+        $this->assertContains('staff-web/dist', $excludedPaths);
     }
 
     public function test_release_build_metadata_and_consumer_artifact_contracts_are_registered(): void
@@ -76,8 +88,20 @@ class BookingReleaseConfigContractTest extends TestCase
             (string) config('booking_release.artifacts.api_consumer_sdk_typescript.path')
         );
         $this->assertSame(
+            'build/api-consumer/sdk/typescript/restaurantpos-enums.ts',
+            (string) config('booking_release.artifacts.api_consumer_sdk_enums_typescript.path')
+        );
+        $this->assertSame(
+            'build/api-consumer/enum-state-map.json',
+            (string) config('booking_release.artifacts.api_consumer_enum_state_json.path')
+        );
+        $this->assertSame(
             'build/api-consumer/mutation-contracts.md',
             (string) config('booking_release.artifacts.api_consumer_mutation_contract.path')
+        );
+        $this->assertSame(
+            ['openapi_v1_spec'],
+            (array) config('booking_release.artifact_freshness.api_consumer_sdk_typescript')
         );
     }
 }

@@ -1,33 +1,45 @@
 import type { ReactNode } from 'react';
-import { Space, Typography } from 'antd';
 
 export function PageHeader({
   eyebrow,
   title,
   description,
   extra,
+  meta,
+  context,
+  className,
 }: {
   eyebrow?: string;
   title: string;
   description: string;
   extra?: ReactNode;
+  meta?: ReactNode;
+  context?: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="staff-page-header">
-      <div>
-        {eyebrow ? (
-          <Typography.Text className="staff-eyebrow">
-            {eyebrow}
-          </Typography.Text>
+    <div className={['staff-page-header', className].filter(Boolean).join(' ')}>
+      <div className="staff-page-header-main">
+        {eyebrow ? <span className="staff-eyebrow">{eyebrow}</span> : null}
+
+        <div className="staff-page-header-copy">
+          <h3>{title}</h3>
+          <p className="staff-page-header-description">{description}</p>
+        </div>
+
+        {meta || context ? (
+          <div className="staff-page-header-support">
+            {meta ? <div className="staff-page-header-meta">{meta}</div> : null}
+            {context ? <div className="staff-page-header-context">{context}</div> : null}
+          </div>
         ) : null}
-        <Typography.Title level={3} style={{ marginBottom: 8, marginTop: 8 }}>
-          {title}
-        </Typography.Title>
-        <Typography.Paragraph type="secondary" style={{ marginBottom: 0, maxWidth: 760 }}>
-          {description}
-        </Typography.Paragraph>
       </div>
-      {extra ? <Space wrap>{extra}</Space> : null}
+
+      {extra ? (
+        <div className="staff-page-header-actions-wrap">
+          <div className="staff-page-header-actions">{extra}</div>
+        </div>
+      ) : null}
     </div>
   );
 }

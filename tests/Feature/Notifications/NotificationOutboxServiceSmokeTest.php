@@ -111,6 +111,8 @@ class NotificationOutboxServiceSmokeTest extends TestCase
         self::assertSame('2026-03-14 15:05:00 UTC', $payload['end_time_utc'] ?? null);
         self::assertSame('20:05 14/03/2026', $payload['start_time_local'] ?? null);
         self::assertSame('22:05 14/03/2026', $payload['end_time_local'] ?? null);
+        self::assertSame('production_lean', data_get($payload, '_notification.readiness'));
+        self::assertSame('real', data_get($payload, '_notification.delivery_mode'));
 
         $renderEmailBody = new \ReflectionMethod($service, 'renderEmailBody');
         $renderEmailBody->setAccessible(true);
@@ -161,7 +163,7 @@ class NotificationOutboxServiceSmokeTest extends TestCase
     }
 
     #[Group('booking-smoke')]
-    public function test_process_due_messages_marks_unsupported_channel_rows_as_failed_with_retry(): void
+    public function test_process_due_messages_cancels_non_retryable_channel_rows_without_retry_loop(): void
     {
         $this->requireOutboxSchema();
 
@@ -189,8 +191,11 @@ class NotificationOutboxServiceSmokeTest extends TestCase
 
         $this->assertSame(1, $processed);
         $message->refresh();
-        $this->assertSame('Failed', $message->status);
-        $this->assertNotNull($message->next_retry_at);
+        $this->assertSame('Cancelled', $message->status);
+        $this->assertNull($message->next_retry_at);
         $this->assertStringContainsString('not enabled', (string) $message->last_error);
+        $attempt = NotificationDeliveryAttempt::query()->firstOrFail();
+        $this->assertSame('Failed', $attempt->status);
+        $this->assertSame('channel_disabled', $attempt->error_code);
     }
 }

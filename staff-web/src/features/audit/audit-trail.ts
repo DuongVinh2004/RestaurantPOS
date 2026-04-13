@@ -1,4 +1,5 @@
 import type { AuditTrailEntry, AuditTrailQuery } from '../../core/api/staff-api';
+import { buildJourneySearch } from '../../core/utils/journey';
 import { translateUiCode } from '../../core/utils/translation';
 
 export type AuditReferenceFilter =
@@ -10,7 +11,12 @@ export type AuditReferenceFilter =
   | 'cashier_shift'
   | 'subject';
 
+export type AuditBranchScope = 'shell' | 'all';
+
 export type AuditFilterState = {
+  branchScope: AuditBranchScope;
+  requestId: string;
+  searchText: string;
   action: string;
   actorType: string;
   actorUserId: string;
@@ -21,8 +27,36 @@ export type AuditFilterState = {
   dateTo: string;
 };
 
-export function buildAuditTrailQuery(filters: AuditFilterState, page: number, perPage: number): AuditTrailQuery {
+export type AuditLinkedEntityTarget =
+  | { kind: 'reservation'; id: number; path: string }
+  | { kind: 'order'; id: number; path: string };
+
+export function buildInitialAuditFilters(branchId: number | null): AuditFilterState {
+  return {
+    branchScope: branchId ? 'shell' : 'all',
+    requestId: '',
+    searchText: '',
+    action: '',
+    actorType: '',
+    actorUserId: '',
+    referenceType: 'reservation',
+    referenceId: '',
+    subjectType: '',
+    dateFrom: '',
+    dateTo: '',
+  };
+}
+
+export function buildAuditTrailQuery(
+  filters: AuditFilterState,
+  branchId: number | null,
+  page: number,
+  perPage: number,
+): AuditTrailQuery {
   const query: AuditTrailQuery = {
+    branch_id: filters.branchScope === 'shell' ? branchId ?? undefined : undefined,
+    request_id: nullableString(filters.requestId),
+    q: nullableString(filters.searchText),
     action: nullableString(filters.action),
     actor_type: nullableString(filters.actorType),
     actor_user_id: parsePositiveInteger(filters.actorUserId),
@@ -102,6 +136,17 @@ export function auditSummaryLine(entry: AuditTrailEntry): string {
   return 'Không có dữ liệu tóm tắt';
 }
 
+export function auditRequestSummary(entry: AuditTrailEntry): string {
+  const parts = [
+    nullableString(entry.request?.request_id),
+    entry.request?.branch_id ? `branch #${entry.request.branch_id}` : null,
+    nullableString(entry.request?.method),
+    nullableString(entry.request?.path),
+  ].filter((value): value is string => !!value);
+
+  return parts.join(' | ') || 'Chưa có dữ liệu request';
+}
+
 export function auditRelatedSubjects(entry: AuditTrailEntry): Array<string> {
   return entry.subjects.map((subject) => {
     const role = nullableString(subject.role);
@@ -109,7 +154,45 @@ export function auditRelatedSubjects(entry: AuditTrailEntry): Array<string> {
   });
 }
 
-function parsePositiveInteger(value: string): number | undefined {
+export function auditLinkedEntityTarget(
+  entry: AuditTrailEntry,
+  permissions: { canManageReservations: boolean; canManageOrders: boolean },
+): AuditLinkedEntityTarget | null {
+  const reservationSubject = entry.subjects.find((subject) => subject.type === 'reservation') ?? (
+    entry.primary_subject.type === 'reservation' ? entry.primary_subject : null
+  );
+  const orderSubject = entry.subjects.find((subject) => subject.type === 'reservation_order') ?? (
+    entry.primary_subject.type === 'reservation_order' ? entry.primary_subject : null
+  );
+
+  const reservationId = reservationSubject ? parsePositiveInteger(reservationSubject.id) : undefined;
+  if (reservationId && permissions.canManageReservations) {
+    return {
+      kind: 'reservation',
+      id: reservationId,
+      path: `/reservations?${buildJourneySearch({
+        source: 'audit',
+        reservationId,
+      })}`,
+    };
+  }
+
+  const orderId = orderSubject ? parsePositiveInteger(orderSubject.id) : undefined;
+  if (orderId && permissions.canManageOrders) {
+    return {
+      kind: 'order',
+      id: orderId,
+      path: `/orders?${buildJourneySearch({
+        source: 'audit',
+        orderId,
+      })}`,
+    };
+  }
+
+  return null;
+}
+
+function parsePositiveInteger(value: string | number): number | undefined {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
     return undefined;

@@ -85,6 +85,9 @@ final class DatabaseWriteConflictMapper
             str_contains($message, 'payments refund exceeds source payment amount') => ValidationException::withMessages([
                 'refund_amount' => ['Total refunded amount exceeds the source payment amount. Reload data and try again.'],
             ]),
+            self::isIngredientStockMovementReferenceConflictMessage($message) => ValidationException::withMessages([
+                'reference_id' => ['This stock movement reference is already recorded. Reload lineage data and retry against the existing movement instead of creating a duplicate.'],
+            ]),
             default => null,
         };
     }
@@ -124,6 +127,14 @@ final class DatabaseWriteConflictMapper
             'uq_payments_idempotency_key',
             'payments_idempotency_key_unique',
             'unique constraint failed: payments.idempotency_key',
+        ]);
+    }
+
+    private static function isIngredientStockMovementReferenceConflictMessage(string $message): bool
+    {
+        return self::containsAny($message, [
+            'uq_ingredient_stock_movements__reference',
+            'unique constraint failed: ingredient_stock_movements.reference_type, ingredient_stock_movements.reference_id',
         ]);
     }
 

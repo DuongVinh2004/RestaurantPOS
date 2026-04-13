@@ -1,6 +1,8 @@
 import type { JourneySource } from './journey';
 
 export type StatusTone = 'default' | 'processing' | 'success' | 'warning' | 'error';
+export type StatusChipVariant = 'entity' | 'severity' | 'freshness' | 'count';
+export type StatusChipAppearance = 'soft' | 'filled' | 'outline';
 
 export function tableTone(status: string | null | undefined): StatusTone {
   switch ((status ?? '').toLowerCase()) {

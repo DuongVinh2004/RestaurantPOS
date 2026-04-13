@@ -65,8 +65,8 @@ describe('api-errors', () => {
 
     const formatted = formatApiError(error, 'Fallback');
 
-    expect(formatted).toContain('conversation.manage');
-    expect(formatted).toContain('req-403');
+    expect(formatted).toContain('Thiếu quyền: conversation.manage.');
+    expect(formatted).toContain('Mã truy vết: req-403.');
   });
 
   it('normalizes StaffApiError payloads from the new staff-api seam', () => {

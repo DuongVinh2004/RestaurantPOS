@@ -1164,6 +1164,31 @@ export type GetV1ReservationsReservationIdDepositPaymentSessionsSessionIdPathPar
   session_id: number;
 };
 
+export type GetV1StaffAuditTrailQueryParams = {
+  reservation_id?: (number) | null;
+  order_id?: (number) | null;
+  payment_id?: (number) | null;
+  waiting_id?: (number) | null;
+  table_id?: (number) | null;
+  cashier_shift_id?: (number) | null;
+  actor_user_id?: (number) | null;
+  branch_id?: (number) | null;
+  request_id?: (string) | null;
+  q?: (string) | null;
+  action?: (string) | null;
+  actor_type?: (string) | null;
+  subject_type?: (string) | null;
+  subject_id?: (string) | null;
+  date_from?: (string) | null;
+  date_to?: (string) | null;
+  per_page?: (number) | null;
+  page?: (number) | null;
+};
+
+export type GetV1StaffCashierShiftsCurrentQueryParams = {
+  branch_id?: (number) | null;
+};
+
 export type GetV1StaffCashierShiftsQueryParams = {
   filter?: Array<Record<string, never>>;
   filters?: Array<Record<string, never>>;
@@ -1195,6 +1220,8 @@ export type GetV1StaffConversationsConversationIdQueryParams = {
 
 export type GetV1StaffConversationsQueryParams = {
   status?: ("Open" | "Pending" | "Closed" | "Spam") | null;
+  workflow_state?: ("Open" | "Triaged" | "Assigned" | "PendingCustomer" | "Resolved" | "Closed") | null;
+  inbox_view?: ("all" | "unassigned" | "overdue" | "waiting_on_customer" | "resolved_today") | null;
   channel?: ("WebChat" | "Facebook" | "Zalo" | "Whatsapp" | "Instagram" | "Line" | "Other") | null;
   assigned_agent_user_id?: (number) | null;
   assignment_state?: ("all" | "assigned" | "unassigned" | "mine") | null;
@@ -1216,11 +1243,16 @@ export type GetV1StaffKitchenChangesQueryParams = {
   limit?: (number) | null;
 };
 
+export type GetV1StaffKitchenStationsQueryParams = {
+  branch_id?: (number) | null;
+};
+
 export type GetV1StaffKitchenStationsStationIdTicketsPathParams = {
   station_id: number;
 };
 
 export type GetV1StaffKitchenStationsStationIdTicketsQueryParams = {
+  branch_id?: (number) | null;
   status?: ("Queued" | "Fired" | "Ready" | "Completed" | "Cancelled") | null;
   include_terminal?: (boolean) | null;
 };
@@ -1418,6 +1450,21 @@ export type KitchenOrderItemTicket = {
   category_id: (number) | null;
   category_name: (string) | null;
 }) | null;
+  lifecycle: {
+  status: string;
+  state_reason: string;
+  is_terminal: boolean;
+  allowed_actions: Array<string>;
+};
+  reconciliation: {
+  sync_status: string;
+  routing_status: string;
+  order_item_expected_status: (string) | null;
+  order_item_matches_ticket: (boolean) | null;
+  station_active: (boolean) | null;
+  drift_reasons: Array<string>;
+  next_actions: Array<string>;
+};
   first_dispatched_at: (string) | null;
   fired_at: (string) | null;
   ready_at: (string) | null;
@@ -1828,6 +1875,15 @@ export type ReportingDailySalesSnapshot = {
 };
 };
 
+export type ReservationCustomerSummary = {
+  user_id: (number) | null;
+  full_name: (string) | null;
+  email: (string) | null;
+  phone: (string) | null;
+  current_points: (number) | null;
+  current_tier: (CustomerLoyaltyTier) | null;
+};
+
 export type ReservationEnvelope = {
   data: {
   reservation_id: number;
@@ -1849,12 +1905,20 @@ export type ReservationEnvelope = {
   customer_self_service?: Record<string, unknown>;
   table_ids?: Array<number>;
   table_summary?: Record<string, unknown>;
-  user?: (Record<string, unknown>) | null;
+  user?: (ReservationCustomerSummary) | null;
+  guest?: (ReservationGuestSnapshot) | null;
   payments?: (Array<Record<string, unknown>>) | null;
   payment_summary?: (Record<string, unknown>) | null;
   deposit_summary?: (Record<string, unknown>) | null;
   [key: string]: unknown;
 };
+};
+
+export type ReservationGuestSnapshot = {
+  full_name: (string) | null;
+  phone: (string) | null;
+  email: (string) | null;
+  is_snapshot_only: boolean;
 };
 
 export type ReservationOrder = {
@@ -1922,7 +1986,8 @@ export type ReservationSummary = {
   customer_self_service?: Record<string, unknown>;
   table_ids?: Array<number>;
   table_summary?: Record<string, unknown>;
-  user?: (Record<string, unknown>) | null;
+  user?: (ReservationCustomerSummary) | null;
+  guest?: (ReservationGuestSnapshot) | null;
   payments?: (Array<Record<string, unknown>>) | null;
   payment_summary?: (Record<string, unknown>) | null;
   deposit_summary?: (Record<string, unknown>) | null;
@@ -1973,6 +2038,66 @@ export type SendConversationOutboundReplyRequest = {
   message_text: string;
   related_reservation_id?: (number) | null;
   related_order_id?: (number) | null;
+};
+
+export type StaffAuditTrailActor = {
+  user_id: (number) | null;
+  type: (string) | null;
+  key: (string) | null;
+  user: StaffAuditTrailActorUser | null;
+};
+
+export type StaffAuditTrailActorUser = {
+  user_id: number;
+  full_name: string;
+};
+
+export type StaffAuditTrailCollectionMeta = {
+  action: string;
+  page: number;
+  per_page: number;
+  total: number;
+  last_page: number;
+  filters: Record<string, unknown>;
+};
+
+export type StaffAuditTrailEntry = {
+  audit_id: number;
+  action: string;
+  occurred_at: (string) | null;
+  primary_subject: StaffAuditTrailPrimarySubject;
+  subjects: Array<StaffAuditTrailSubject>;
+  actor: StaffAuditTrailActor;
+  request: StaffAuditTrailRequest;
+  before: (Record<string, unknown>) | null;
+  after: (Record<string, unknown>) | null;
+  summary: (Record<string, unknown>) | null;
+  meta: (Record<string, unknown>) | null;
+};
+
+export type StaffAuditTrailEnvelope = {
+  data: Array<StaffAuditTrailEntry>;
+  meta?: StaffAuditTrailCollectionMeta;
+};
+
+export type StaffAuditTrailPrimarySubject = {
+  type: string;
+  id: string;
+};
+
+export type StaffAuditTrailRequest = {
+  request_id: (string) | null;
+  branch_id: (number) | null;
+  ip: (string) | null;
+  user_agent: (string) | null;
+  method: (string) | null;
+  path: (string) | null;
+};
+
+export type StaffAuditTrailSubject = {
+  type: string;
+  id: string;
+  role: (string) | null;
 };
 
 export type StaffAuthSessionEnvelope = {
@@ -2079,6 +2204,16 @@ export type StaffConversationCollectionEnvelope = {
   branch_id: number;
   branch?: (Record<string, unknown>) | null;
   status: string;
+  workflow: {
+  state: string;
+  state_reason: (string) | null;
+  state_changed_at: (string) | null;
+  first_triaged_at: (string) | null;
+  resolved_at: (string) | null;
+  closed_at: (string) | null;
+  is_terminal: boolean;
+  allowed_actions: Array<string>;
+};
   channel: string;
   intent_detected?: (string) | null;
   customer_session_id?: (string) | null;
@@ -2102,6 +2237,11 @@ export type StaffConversationCollectionEnvelope = {
   is_assigned: boolean;
   is_unassigned: boolean;
   is_mine: boolean;
+};
+  operational: {
+  is_overdue: boolean;
+  overdue_after_minutes: number;
+  queue_bucket: string;
 };
 }>;
   meta?: {
@@ -2196,6 +2336,16 @@ export type StaffConversationSummary = {
   branch_id: number;
   branch?: (Record<string, unknown>) | null;
   status: string;
+  workflow: {
+  state: string;
+  state_reason: (string) | null;
+  state_changed_at: (string) | null;
+  first_triaged_at: (string) | null;
+  resolved_at: (string) | null;
+  closed_at: (string) | null;
+  is_terminal: boolean;
+  allowed_actions: Array<string>;
+};
   channel: string;
   intent_detected?: (string) | null;
   customer_session_id?: (string) | null;
@@ -2219,6 +2369,11 @@ export type StaffConversationSummary = {
   is_assigned: boolean;
   is_unassigned: boolean;
   is_mine: boolean;
+};
+  operational: {
+  is_overdue: boolean;
+  overdue_after_minutes: number;
+  queue_bucket: string;
 };
 };
 
@@ -2429,6 +2584,12 @@ export type StaffReportingCollectionMeta = {
   latest_business_date: (string) | null;
   latest_refreshed_at_utc: (string) | null;
   latest_refresh_age_seconds: (number) | null;
+  scope_count: number;
+  healthy_scope_count: number;
+  stale_scope_count: number;
+  stale_scope_examples: Array<Record<string, unknown>>;
+  health_reference_refreshed_at_utc: (string) | null;
+  health_reference_refresh_age_seconds: (number) | null;
   stale_threshold_seconds: number;
   is_empty: boolean;
   is_stale: boolean;
@@ -2517,6 +2678,7 @@ export type StaffReservationLookupEntry = {
   created_at: (string) | null;
   updated_at: (string) | null;
   user: (StaffReservationLookupUser) | null;
+  guest: (ReservationGuestSnapshot) | null;
   table_ids: Array<number>;
   tables: Array<StaffReservationLookupTable>;
   summary: {
@@ -2542,7 +2704,7 @@ export type StaffReservationLookupTable = {
 };
 
 export type StaffReservationLookupUser = {
-  user_id: number;
+  user_id: (number) | null;
   full_name: (string) | null;
   email: (string) | null;
   phone: (string) | null;
@@ -2687,6 +2849,7 @@ export type StaffTableBoardAssignedReservation = {
   guest_count: number;
   checked_in_at: (string) | null;
   user: (StaffTableBoardReservationUser) | null;
+  guest: (ReservationGuestSnapshot) | null;
   deposit: StaffTableBoardReservationDeposit;
   flags: {
   deposit_self_service_follow_up: boolean;
@@ -2866,6 +3029,8 @@ export type StaffTableBoardRow = {
   reservation_code: string;
   row_version: number;
   guest_count: number;
+  user: (StaffTableBoardReservationUser) | null;
+  guest: (ReservationGuestSnapshot) | null;
   flags: {
   due_soon: boolean;
   late: boolean;
@@ -2888,6 +3053,8 @@ export type StaffTableBoardUnassignedReservation = {
   guest_count: number;
   start_time: (string) | null;
   end_time: (string) | null;
+  user: (StaffTableBoardReservationUser) | null;
+  guest: (ReservationGuestSnapshot) | null;
   flags: {
   due_soon: boolean;
   late: boolean;
@@ -3137,6 +3304,9 @@ export type StoreOwnerWaitingListRequest = {
 export type StoreReservationRequest = {
   user_id?: (number) | null;
   branch_id?: (number) | null;
+  guest_name?: string;
+  guest_phone?: string;
+  guest_email?: string;
   start_time: string;
   end_time: string;
   guest_count: number;
@@ -3684,14 +3854,14 @@ export class RestaurantPosClient {
     );
   }
 
-  async getV1StaffCashierShiftsCurrent(options: RequestOptions = {}): Promise<CashierShiftEnvelope> {
+  async getV1StaffCashierShiftsCurrent(query: GetV1StaffCashierShiftsCurrentQueryParams, options: RequestOptions = {}): Promise<CashierShiftEnvelope> {
     return this.request<CashierShiftEnvelope>(
       'GET',
       '/api/v1/staff/cashier/shifts/current',
       'staff',
       false,
       false,
-      undefined,
+      query,
       undefined,
       options,
     );
@@ -3775,14 +3945,14 @@ export class RestaurantPosClient {
     );
   }
 
-  async getV1StaffKitchenStations(options: RequestOptions = {}): Promise<StaffKitchenStationCollectionEnvelope> {
+  async getV1StaffKitchenStations(query: GetV1StaffKitchenStationsQueryParams, options: RequestOptions = {}): Promise<StaffKitchenStationCollectionEnvelope> {
     return this.request<StaffKitchenStationCollectionEnvelope>(
       'GET',
       '/api/v1/staff/kitchen/stations',
       'staff',
       false,
       false,
-      undefined,
+      query,
       undefined,
       options,
     );
@@ -3883,6 +4053,19 @@ export class RestaurantPosClient {
     return this.request<CashierShiftCollectionEnvelope>(
       'GET',
       '/api/v1/staff/cashier/shifts',
+      'staff',
+      false,
+      false,
+      query,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1StaffAuditTrail(query: GetV1StaffAuditTrailQueryParams, options: RequestOptions = {}): Promise<StaffAuditTrailEnvelope> {
+    return this.request<StaffAuditTrailEnvelope>(
+      'GET',
+      '/api/v1/staff/audit-trail',
       'staff',
       false,
       false,

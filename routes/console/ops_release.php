@@ -698,12 +698,20 @@ Artisan::command('booking:ops-snapshot {--json : Output machine-readable JSON} {
         ['session_unlinked_hold_count', (string) (($snapshot['session_linkage']['active_unlinked_session_hold_count'] ?? 0))],
         ['reporting_snapshot_total_row_count', (string) (($snapshot['reporting_snapshots']['total_row_count'] ?? 0))],
         ['reporting_snapshot_populated_family_count', (string) (($snapshot['reporting_snapshots']['populated_family_count'] ?? 0))],
+        ['kitchen_active_ticket_count', (string) (($snapshot['kitchen_kds']['active_ticket_count'] ?? 0))],
+        ['kitchen_drift_count', (string) (($snapshot['kitchen_kds']['drift_count'] ?? 0))],
+        ['inventory_issue_order_count', (string) (($snapshot['inventory_purchasing']['issue_order_count'] ?? 0))],
+        ['inventory_duplicate_purchase_receipt_reference_count', (string) (($snapshot['inventory_purchasing']['duplicate_purchase_receipt_reference_count'] ?? 0))],
+        ['inventory_duplicate_purchase_receipt_movement_count', (string) (($snapshot['inventory_purchasing']['duplicate_purchase_receipt_movement_count'] ?? 0))],
+        ['inventory_overdue_open_order_count', (string) (($snapshot['inventory_purchasing']['overdue_open_order_count'] ?? 0))],
+        ['conversation_unassigned_count', (string) (($snapshot['conversation_inbox']['unassigned_count'] ?? 0))],
+        ['conversation_overdue_count', (string) (($snapshot['conversation_inbox']['overdue_count'] ?? 0))],
         ['branch_total_count', (string) (($snapshot['branch_defaults']['total_count'] ?? 0))],
         ['branch_default_count', (string) (($snapshot['branch_defaults']['default_count'] ?? 0))],
     ]);
 
     return collect($snapshot)->contains(fn (array $section) => (($section['status'] ?? 'ok') === 'fail')) ? 1 : 0;
-})->purpose('Show booking operational snapshot for outbox, payments, voucher locks, session linkage, reporting, branches, and DB contract');
+})->purpose('Show booking operational snapshot for outbox, payments, reporting, kitchen, inventory, conversations, branches, and DB contract');
 
 Artisan::command('booking:artifacts-normalize {--json : Output machine-readable JSON}', function () {
     /** @var ConsoleCommand $command */

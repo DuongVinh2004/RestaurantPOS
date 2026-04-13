@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Alert,
-  App,
   Button,
   Card,
   Col,
@@ -28,11 +27,12 @@ import {
 } from '../../core/api/staff-api';
 import { formatApiError, isApiStatus } from '../../core/api/errors';
 import { can } from '../../core/permissions/capabilities';
-import { formatDateTime, humanizeCode } from '../../core/utils/format';
+import { formatDateTime, formatRelativeAge, humanizeCode } from '../../core/utils/format';
 import { buildJourneySearch } from '../../core/utils/journey';
 import { conversationTone } from '../../core/utils/status';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { SplitWorkspace } from '../../components/layout/SplitWorkspace';
+import { toast } from '../../components/feedback/toast';
 import { EmptyBlock, InlineError, InlineLoading } from '../../components/states/StateBlocks';
 import { StatusChip } from '../../components/status/StatusChip';
 import { useAuthStore } from '../../app/store/auth-store';
@@ -41,6 +41,7 @@ import { useConfirmAction } from '../../hooks/useConfirmAction';
 import {
   assignmentAgentLabel,
   buildConversationInboxSearch,
+  buildConversationWaitingListPath,
   type ConversationAssignmentFilter,
   type ConversationChannelFilter,
   type ConversationInboxTab,
@@ -96,7 +97,7 @@ export function ConversationInboxPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const { message } = App.useApp();
+  const message = toast;
   const confirmAction = useConfirmAction();
   const session = useAuthStore((state) => state.session);
   const branchId = useFlowStore((state) => state.branchId);
@@ -104,6 +105,7 @@ export function ConversationInboxPage() {
   const [searchDraft, setSearchDraft] = useState('');
   const [noteDraft, setNoteDraft] = useState('');
   const [replyDraft, setReplyDraft] = useState('');
+  const [selectedConversationIds, setSelectedConversationIds] = useState<Array<string>>([]);
   const currentStaffUserId = session?.user?.user_id ?? null;
 
   const urlState = useMemo(() => readConversationInboxUrlState(searchParams), [searchParams]);
@@ -164,6 +166,11 @@ export function ConversationInboxPage() {
     }
   }, [inboxQuery.data?.data, selectedConversationId, updateUrlState]);
 
+  useEffect(() => {
+    const currentIds = new Set((inboxQuery.data?.data ?? []).map((item) => item.conversation_id));
+    setSelectedConversationIds((existing) => existing.filter((id) => currentIds.has(id)));
+  }, [inboxQuery.data?.data]);
+
   const selectedConversation = useMemo(
     () => inboxQuery.data?.data.find((item) => item.conversation_id === selectedConversationId) ?? null,
     [inboxQuery.data?.data, selectedConversationId],
@@ -179,6 +186,10 @@ export function ConversationInboxPage() {
   const detailConversation = detailQuery.data?.data.conversation ?? selectedConversation;
   const replyState = outboundReplyState(detailQuery.data?.data);
   const summaryStats = conversationSummaryStats(inboxQuery.data?.meta?.summary);
+  const selectedConversationRows = useMemo(
+    () => (inboxQuery.data?.data ?? []).filter((item) => selectedConversationIds.includes(item.conversation_id)),
+    [inboxQuery.data?.data, selectedConversationIds],
+  );
   const linkedReservationId = detailConversation ? conversationReservationId(detailConversation) : null;
   const linkedReservationCode = detailConversation ? conversationReservationCode(detailConversation) : null;
   const linkedWaitingListId = detailConversation ? conversationWaitingListId(detailConversation) : null;
@@ -186,6 +197,12 @@ export function ConversationInboxPage() {
   const currentAssignment = detailConversation?.active_assignment ?? null;
   const canTakeOver = !!activeConversationId && currentAssignment?.agent_user_id !== currentStaffUserId;
   const canUnassign = !!activeConversationId && currentAssignment?.agent_user_id === currentStaffUserId;
+  const bulkTakeOverIds = selectedConversationRows
+    .filter((item) => !item.assignment_state.is_mine)
+    .map((item) => item.conversation_id);
+  const bulkUnassignIds = selectedConversationRows
+    .filter((item) => item.assignment_state.is_mine)
+    .map((item) => item.conversation_id);
 
   const takeOverMutation = useMutation({
     mutationFn: () => takeOverConversation(activeConversationId as string),
@@ -206,6 +223,19 @@ export function ConversationInboxPage() {
         message_text: draft,
         related_reservation_id: linkedReservationId ?? undefined,
       }),
+  });
+  const bulkOwnershipMutation = useMutation({
+    mutationFn: async ({ mode, ids }: { mode: 'takeover' | 'unassign'; ids: Array<string> }) => {
+      const results = await Promise.allSettled(
+        ids.map((id) => (mode === 'takeover' ? takeOverConversation(id) : unassignConversation(id))),
+      );
+
+      return {
+        mode,
+        total: ids.length,
+        successCount: results.filter((result) => result.status === 'fulfilled').length,
+      };
+    },
   });
 
   async function refreshInbox(conversationId = activeConversationId) {
@@ -310,6 +340,42 @@ export function ConversationInboxPage() {
     }
   }
 
+  async function handleBulkOwnership(mode: 'takeover' | 'unassign') {
+    const ids = mode === 'takeover' ? bulkTakeOverIds : bulkUnassignIds;
+    if (ids.length === 0) {
+      return;
+    }
+
+    const confirmed = await confirmAction({
+      title: mode === 'takeover' ? `Nhận xử lý ${ids.length} hội thoại đã chọn?` : `Trả ${ids.length} hội thoại đã chọn về hàng chờ?`,
+      content: mode === 'takeover'
+        ? 'Chỉ dùng khi ca bận cần gom nhanh các hội thoại chưa có owner rõ ràng.'
+        : 'Chỉ dùng khi bạn thực sự cần bàn giao lại hàng chờ cho người khác.',
+      okText: mode === 'takeover' ? 'Nhận xử lý hàng loạt' : 'Trả về hàng chờ',
+      danger: mode === 'unassign',
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const result = await bulkOwnershipMutation.mutateAsync({ mode, ids });
+      await refreshInbox();
+      setSelectedConversationIds([]);
+      message.success(
+        mode === 'takeover'
+          ? `Đã nhận xử lý ${result.successCount}/${result.total} hội thoại đã chọn.`
+          : `Đã trả ${result.successCount}/${result.total} hội thoại về hàng chờ.`,
+      );
+      if (result.successCount < result.total) {
+        message.warning('Một số hội thoại không cập nhật được. Hãy làm mới và kiểm tra lại ownership.');
+      }
+    } catch (error) {
+      message.error(formatApiError(error, 'Không thể cập nhật ownership cho các hội thoại đã chọn.'));
+    }
+  }
+
   function openLinkedReservation() {
     if (!linkedReservationId) {
       return;
@@ -326,11 +392,19 @@ export function ConversationInboxPage() {
   }
 
   const main = (
-    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }} className="staff-conversation-page">
       <PageHeader
+        className="staff-conversation-page-header"
         eyebrow="Hộp thư hội thoại"
-        title="Hàng chờ hội thoại vận hành"
-        description="Bộ lọc, phân trang, hội thoại đang mở và tab chi tiết đều nằm trên URL của màn hình này. Nhân viên có thể làm mới, quay lại hoặc chia sẻ liên kết nội bộ mà không làm mất ngữ cảnh triage."
+        title="Inbox xử lý hội thoại"
+        description="Giữ rõ ownership, liên kết nghiệp vụ và bước trả lời kế tiếp để không bỏ sót khách đang chờ."
+        context={(
+          <>
+            <StatusChip label={branchId ? `Chi nhánh #${branchId}` : 'Toàn bộ phạm vi được cấp'} tone="default" variant="freshness" />
+            <StatusChip label={`${summaryStats.unassigned} chưa phân công`} tone={summaryStats.unassigned > 0 ? 'warning' : 'success'} variant="severity" />
+            <StatusChip label={selectedConversationId ? `Đang mở ${selectedConversationId}` : 'Chưa khóa hội thoại'} tone={selectedConversationId ? 'processing' : 'warning'} variant="entity" />
+          </>
+        )}
         extra={(
           <>
             <Select
@@ -378,23 +452,93 @@ export function ConversationInboxPage() {
         )}
       />
 
+      <Card size="small" className="staff-conversation-preset-card">
+        <Space wrap>
+          <Button type={assignmentFilter === 'unassigned' ? 'primary' : 'default'} onClick={() => updateUrlState({ assignment: 'unassigned', status: 'Open', page: 1, conversationId: null })}>
+            Chưa phân công
+          </Button>
+          <Button type={assignmentFilter === 'mine' ? 'primary' : 'default'} onClick={() => updateUrlState({ assignment: 'mine', status: 'Open', page: 1, conversationId: null })}>
+            Của tôi
+          </Button>
+          <Button type={channelFilter === 'WebChat' ? 'primary' : 'default'} onClick={() => updateUrlState({ channel: 'WebChat', page: 1, conversationId: null })}>
+            Web chat
+          </Button>
+          <Button type={statusFilter === 'Pending' ? 'primary' : 'default'} onClick={() => updateUrlState({ status: 'Pending', page: 1, conversationId: null })}>
+            Đang chờ
+          </Button>
+          <Button onClick={() => updateUrlState({ status: 'all', assignment: 'all', channel: 'all', q: '', page: 1, conversationId: null })}>
+            Xóa preset
+          </Button>
+        </Space>
+      </Card>
+
       <Alert
+        className="staff-conversation-scope-alert"
         type={branchId ? 'info' : 'warning'}
         showIcon
         title={branchId ? `Đang triage theo chi nhánh #${branchId}` : 'Đang xem tất cả chi nhánh được phép'}
         description={branchId
           ? 'Danh sách hiện đang lấy theo branch context của shell. Nếu cần đổi phạm vi, hãy chuyển chi nhánh ở shell để URL và dữ liệu tiếp tục khớp nhau.'
-          : 'Shell chưa giữ một branch context rõ ràng, nên danh sách có thể trải qua nhiều chi nhánh được backend cho phép.'}
+          : 'Shell chưa giữ một branch context rõ ràng, nên danh sách có thể trải qua nhiều chi nhánh mà phiên nhân viên được phép xem.'}
       />
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} md={6}><Card><Statistic title="Tổng số" value={summaryStats.total} /></Card></Col>
-        <Col xs={24} md={6}><Card><Statistic title="Đã phân công" value={summaryStats.assigned} /></Card></Col>
-        <Col xs={24} md={6}><Card><Statistic title="Chưa phân công" value={summaryStats.unassigned} /></Card></Col>
-        <Col xs={24} md={6}><Card><Statistic title="Của tôi" value={summaryStats.mine} /></Card></Col>
+      {selectedConversationIds.length > 0 ? (
+        <Alert
+          className="staff-conversation-bulk-alert"
+          type="info"
+          showIcon
+          title={`Đã chọn ${selectedConversationIds.length} hội thoại để triage nhanh`}
+          description={(
+            <Space wrap>
+              <Button
+                type="primary"
+                disabled={bulkTakeOverIds.length === 0}
+                loading={bulkOwnershipMutation.isPending}
+                onClick={() => void handleBulkOwnership('takeover')}
+              >
+                Nhận xử lý đã chọn
+              </Button>
+              <Button
+                danger
+                disabled={bulkUnassignIds.length === 0}
+                loading={bulkOwnershipMutation.isPending}
+                onClick={() => void handleBulkOwnership('unassign')}
+              >
+                Trả về hàng chờ
+              </Button>
+            </Space>
+          )}
+        />
+      ) : null}
+
+      <Row gutter={[16, 16]} className="staff-conversation-summary-grid">
+        <Col xs={24} md={6}>
+          <Card className="staff-conversation-summary-card">
+            <Statistic title="Tổng số" value={summaryStats.total} />
+          </Card>
+        </Col>
+        <Col xs={24} md={6}>
+          <Card className={`staff-conversation-summary-card ${assignmentFilter === 'assigned' ? 'staff-conversation-summary-card-active' : ''}`}>
+            <Statistic title="Đã phân công" value={summaryStats.assigned} />
+          </Card>
+        </Col>
+        <Col xs={24} md={6}>
+          <Card className={`staff-conversation-summary-card ${assignmentFilter === 'unassigned' ? 'staff-conversation-summary-card-active' : ''}`}>
+            <Statistic title="Chưa phân công" value={summaryStats.unassigned} />
+          </Card>
+        </Col>
+        <Col xs={24} md={6}>
+          <Card className={`staff-conversation-summary-card ${assignmentFilter === 'mine' ? 'staff-conversation-summary-card-active' : ''}`}>
+            <Statistic title="Của tôi" value={summaryStats.mine} />
+          </Card>
+        </Col>
       </Row>
 
-      <Card title="Hàng chờ hội thoại" extra={activeConversationId ? `Đang mở ${activeConversationId}` : 'Chưa khóa hội thoại'}>
+      <Card
+        title="Hàng chờ hội thoại"
+        extra={activeConversationId ? `Đang mở ${activeConversationId}` : 'Chưa khóa hội thoại'}
+        className="staff-conversation-inbox-card"
+      >
         {inboxQuery.isLoading ? <InlineLoading tip="Đang tải hộp thư hội thoại..." /> : null}
         {inboxQuery.error ? <InlineError message={formatApiError(inboxQuery.error, 'Không thể tải hộp thư hội thoại.')} /> : null}
         {!inboxQuery.isLoading && !inboxQuery.error && (inboxQuery.data?.data.length ?? 0) === 0 ? (
@@ -402,9 +546,14 @@ export function ConversationInboxPage() {
         ) : null}
         {(inboxQuery.data?.data.length ?? 0) > 0 ? (
           <Table<StaffConversationCollectionEnvelope['data'][number]>
+            className="staff-conversation-table"
             rowKey="conversation_id"
             dataSource={inboxQuery.data?.data ?? []}
-            rowClassName={(entry) => (entry.conversation_id === selectedConversationId ? 'staff-row-selected' : '')}
+            rowSelection={{
+              selectedRowKeys: selectedConversationIds,
+              onChange: (keys) => setSelectedConversationIds(keys.map((key) => String(key))),
+            }}
+            rowClassName={(entry) => (entry.conversation_id === selectedConversationId ? 'staff-row-selected staff-conversation-row-selected' : '')}
             pagination={{
               current: inboxQuery.data?.meta?.current_page ?? page,
               pageSize: inboxQuery.data?.meta?.per_page ?? pageSize,
@@ -416,7 +565,7 @@ export function ConversationInboxPage() {
               {
                 title: 'Hội thoại',
                 render: (_, entry) => (
-                  <Space orientation="vertical" size={2}>
+                  <Space orientation="vertical" size={2} className="staff-conversation-table-title">
                     <Button
                       type="link"
                       className="staff-link-button"
@@ -432,12 +581,12 @@ export function ConversationInboxPage() {
               {
                 title: 'Triage',
                 render: (_, entry) => (
-                  <Space orientation="vertical" size={6}>
+                  <Space orientation="vertical" size={6} className="staff-conversation-triage-cell">
                     <Space wrap size={4}>
-                      <StatusChip label={entry.status} tone={conversationTone(entry.status)} />
-                      <StatusChip label={entry.channel} tone="processing" />
-                      {entry.assignment_state.is_mine ? <StatusChip label="Của tôi" tone="success" /> : null}
-                      {entry.assignment_state.is_unassigned ? <StatusChip label="Chưa phân công" tone="warning" /> : null}
+                      <StatusChip label={entry.status} tone={conversationTone(entry.status)} variant="severity" />
+                      <StatusChip label={entry.channel} tone="processing" variant="freshness" />
+                      {entry.assignment_state.is_mine ? <StatusChip label="Của tôi" tone="success" variant="severity" /> : null}
+                      {entry.assignment_state.is_unassigned ? <StatusChip label="Chưa phân công" tone="warning" variant="severity" /> : null}
                     </Space>
                     <Typography.Text type="secondary">
                       {assignmentAgentLabel(entry.active_assignment)}
@@ -448,8 +597,9 @@ export function ConversationInboxPage() {
               {
                 title: 'Hoạt động gần nhất',
                 render: (_, entry) => (
-                  <Space orientation="vertical" size={2}>
+                  <Space orientation="vertical" size={2} className="staff-conversation-activity-cell">
                     <Typography.Text>{formatDateTime(entry.latest_activity_at ?? entry.created_at)}</Typography.Text>
+                    <Typography.Text type="secondary">{formatRelativeAge(entry.latest_activity_at ?? entry.created_at)}</Typography.Text>
                     <Typography.Paragraph type="secondary" style={{ marginBottom: 0, maxWidth: 320 }} ellipsis={{ rows: 2 }}>
                       {entry.latest_message?.message_text ?? 'Chưa có tin nhắn nào.'}
                     </Typography.Paragraph>
@@ -463,7 +613,7 @@ export function ConversationInboxPage() {
                     type={entry.conversation_id === selectedConversationId ? 'primary' : 'default'}
                     onClick={() => updateUrlState({ conversationId: entry.conversation_id })}
                   >
-                    Tập trung
+                    Mở thread
                   </Button>
                 ),
               },
@@ -475,7 +625,7 @@ export function ConversationInboxPage() {
   );
 
   const side = (
-    <Card title="Chi tiết hội thoại">
+    <Card title="Chi tiết hội thoại" className="staff-conversation-detail-card">
       {!activeConversationId ? (
         <EmptyBlock title="Chưa chọn hội thoại" description="Chọn một hội thoại trong danh sách để khóa ngữ cảnh chi tiết, lịch sử phân công và các thao tác nội bộ." />
       ) : detailQuery.isLoading ? (
@@ -483,40 +633,41 @@ export function ConversationInboxPage() {
       ) : detailQuery.error ? (
         <InlineError message={formatApiError(detailQuery.error, 'Không thể tải chi tiết hội thoại.')} extra={<Button onClick={() => detailQuery.refetch()}>Thử lại</Button>} />
       ) : detailConversation ? (
-        <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-          <Space orientation="vertical" size={4} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={16} style={{ width: '100%' }} className="staff-conversation-detail-shell">
+          <Space orientation="vertical" size={4} style={{ width: '100%' }} className="staff-conversation-detail-header">
             <Typography.Title level={4} style={{ margin: 0 }}>{conversationTitle(detailConversation)}</Typography.Title>
             <Typography.Text type="secondary">{conversationBranchLabel(detailConversation)}</Typography.Text>
           </Space>
 
-          <Space wrap size={6}>
-            <StatusChip label={detailConversation.status} tone={conversationTone(detailConversation.status)} />
-            <StatusChip label={detailConversation.channel} tone="processing" />
-            {detailConversation.intent_detected ? <StatusChip label={humanizeCode(detailConversation.intent_detected)} tone="default" /> : null}
+          <Space wrap size={6} className="staff-conversation-detail-ownership">
+            <StatusChip label={detailConversation.status} tone={conversationTone(detailConversation.status)} variant="severity" />
+            <StatusChip label={detailConversation.channel} tone="processing" variant="freshness" />
+            {detailConversation.intent_detected ? <StatusChip label={humanizeCode(detailConversation.intent_detected)} tone="default" variant="entity" /> : null}
             {currentAssignment?.agent_user_id === currentStaffUserId ? (
-              <StatusChip label="Đang giao cho tôi" tone="success" />
+              <StatusChip label="Đang giao cho tôi" tone="success" variant="severity" />
             ) : currentAssignment ? (
-              <StatusChip label="Đang giao cho nhân viên khác" tone="warning" />
+              <StatusChip label="Đang giao cho nhân viên khác" tone="warning" variant="severity" />
             ) : (
-              <StatusChip label="Hàng chờ chung" tone="default" />
+              <StatusChip label="Hàng chờ chung" tone="default" variant="severity" />
             )}
           </Space>
 
           <Alert
+            className="staff-conversation-linkage-alert"
             type="info"
             showIcon
             title="Ownership, liên kết nghiệp vụ và phản hồi ra ngoài được tách riêng"
             description="Nhận xử lý và trả hàng chờ chỉ thay đổi ownership. Mở đặt bàn hoặc khách chờ chỉ điều hướng sang luồng liên quan. Phản hồi ra ngoài luôn phụ thuộc vào capability trong detail envelope của chính hội thoại này."
           />
 
-          <div className="staff-action-row">
+          <div className="staff-action-row staff-conversation-detail-actions">
             {canTakeOver ? <Button type="primary" onClick={() => void handleTakeOver()} loading={takeOverMutation.isPending}>Nhận xử lý</Button> : null}
             {canUnassign ? <Button danger onClick={() => void handleUnassign()} loading={unassignMutation.isPending}>Trả về hàng chờ</Button> : null}
             {linkedReservationId && can(session, 'reservation.manage') ? <Button onClick={openLinkedReservation}>Mở đặt bàn</Button> : null}
-            {linkedWaitingListId && can(session, 'waiting_list.manage') ? <Button onClick={() => navigate('/waiting-list')}>Mở danh sách chờ</Button> : null}
+            {linkedWaitingListId && can(session, 'waiting_list.manage') ? <Button onClick={() => navigate(buildConversationWaitingListPath(linkedWaitingListId))}>Mở danh sách chờ</Button> : null}
           </div>
 
-          <Descriptions bordered size="small" column={1}>
+          <Descriptions bordered size="small" column={1} className="staff-conversation-linkage-grid">
             <Descriptions.Item label="Khách">{conversationCustomerLabel(detailConversation)}</Descriptions.Item>
             <Descriptions.Item label="Người đang phụ trách">{assignmentAgentLabel(currentAssignment)}</Descriptions.Item>
             <Descriptions.Item label="Liên kết đặt bàn">{linkedReservationCode ?? (linkedReservationId ? `Đặt bàn #${linkedReservationId}` : 'Chưa liên kết')}</Descriptions.Item>
@@ -524,15 +675,16 @@ export function ConversationInboxPage() {
             <Descriptions.Item label="Hoạt động gần nhất">{formatDateTime(detailConversation.latest_activity_at ?? detailConversation.created_at)}</Descriptions.Item>
             <Descriptions.Item label="Số lượng">
               <Space wrap size={8}>
-                <StatusChip label={`${detailConversation.counts.messages} tin nhắn`} />
-                <StatusChip label={`${detailConversation.counts.internal_notes} ghi chú`} tone="warning" />
-                <StatusChip label={`${detailConversation.counts.events} sự kiện`} tone="processing" />
-                <StatusChip label={`${detailConversation.counts.analyses} phân tích`} tone="success" />
+                <StatusChip label={`${detailConversation.counts.messages} tin nhắn`} variant="count" />
+                <StatusChip label={`${detailConversation.counts.internal_notes} ghi chú`} tone="warning" variant="count" />
+                <StatusChip label={`${detailConversation.counts.events} sự kiện`} tone="processing" variant="count" />
+                <StatusChip label={`${detailConversation.counts.analyses} phân tích`} tone="success" variant="count" />
               </Space>
             </Descriptions.Item>
           </Descriptions>
 
           <Alert
+            className="staff-conversation-outbound-alert"
             type={replyState.canSend ? 'success' : 'warning'}
             showIcon
             title={replyState.canSend ? 'Luồng phản hồi ra ngoài đang sẵn sàng cho hội thoại này.' : 'Phản hồi ra ngoài đang bị khóa.'}
@@ -540,6 +692,7 @@ export function ConversationInboxPage() {
           />
 
           <Tabs
+            className="staff-conversation-detail-tabs"
             activeKey={activeTab}
             onChange={(key) => updateUrlState({ tab: key as ConversationInboxTab }, { replace: true })}
             items={[
@@ -549,31 +702,30 @@ export function ConversationInboxPage() {
             ]}
           />
 
-          <Card size="small" title="Thêm ghi chú nội bộ">
-            <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-              <Input.TextArea value={noteDraft} rows={4} placeholder="Ghi chú cho bàn giao, rủi ro thời gian hoặc theo dõi đặt bàn." onChange={(event) => setNoteDraft(event.target.value)} />
-              <Button type="primary" onClick={() => void handleAddNote()} disabled={noteDraft.trim() === ''} loading={addNoteMutation.isPending}>Thêm ghi chú</Button>
-            </Space>
-          </Card>
+          <div className="staff-conversation-composer staff-conversation-composer-note">
+            <Typography.Text strong>Thêm ghi chú nội bộ</Typography.Text>
+            <Typography.Text type="secondary">Giữ lại bối cảnh bàn giao, rủi ro thời gian hoặc các điểm cần staff ca sau tiếp tục.</Typography.Text>
+            <Input.TextArea value={noteDraft} rows={4} placeholder="Ghi chú cho bàn giao, rủi ro thời gian hoặc theo dõi đặt bàn." onChange={(event) => setNoteDraft(event.target.value)} />
+            <Button type="primary" onClick={() => void handleAddNote()} disabled={noteDraft.trim() === ''} loading={addNoteMutation.isPending}>Thêm ghi chú</Button>
+          </div>
 
-          <Card size="small" title="Xếp hàng phản hồi ra ngoài">
-            <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-              <Typography.Text type="secondary">Thao tác này tuân theo quyền trong chi tiết hội thoại, không chỉ dựa vào quyền của phiên đăng nhập.</Typography.Text>
-              <Input.TextArea value={replyDraft} rows={4} placeholder="Nội dung phản hồi cần gửi cho khách khi kênh hiện tại cho phép." onChange={(event) => setReplyDraft(event.target.value)} disabled={!replyState.canSend} />
-              <Button type="primary" onClick={() => void handleReply()} disabled={!replyState.canSend || replyDraft.trim() === ''} loading={replyMutation.isPending}>Xếp hàng phản hồi</Button>
-            </Space>
-          </Card>
+          <div className="staff-conversation-composer staff-conversation-composer-reply">
+            <Typography.Text strong>Xếp hàng phản hồi ra ngoài</Typography.Text>
+            <Typography.Text type="secondary">Thao tác này tuân theo capability của chính hội thoại đang mở, không chỉ dựa vào quyền phiên đăng nhập.</Typography.Text>
+            <Input.TextArea value={replyDraft} rows={4} placeholder="Nội dung phản hồi cần gửi cho khách khi kênh hiện tại cho phép." onChange={(event) => setReplyDraft(event.target.value)} disabled={!replyState.canSend} />
+            <Button type="primary" onClick={() => void handleReply()} disabled={!replyState.canSend || replyDraft.trim() === ''} loading={replyMutation.isPending}>Xếp hàng phản hồi</Button>
+          </div>
         </Space>
       ) : null}
     </Card>
   );
 
-  return <SplitWorkspace main={main} side={side} />;
+  return <SplitWorkspace main={main} side={side} variant="balanced" className="staff-conversation-workspace" />;
 }
 
 function describeOutboundReplyState(state: ReturnType<typeof outboundReplyState>): string {
   if (state.canSend) {
-    const parts = ['Backend hiện cho phép phiên nhân viên này xếp hàng phản hồi ra ngoài.'];
+    const parts = ['Phiên nhân viên này hiện có thể xếp hàng phản hồi ra ngoài.'];
     if (state.channel) {
       parts.push(`Kênh: ${state.channel}.`);
     }
@@ -587,7 +739,7 @@ function describeOutboundReplyState(state: ReturnType<typeof outboundReplyState>
   }
 
   if (state.reasonCode) {
-    return `Phản hồi ra ngoài đang bị khóa vì backend trả về trạng thái ${humanizeCode(state.reasonCode)}.`;
+    return `Phản hồi ra ngoài đang bị khóa vì trạng thái hiện tại là ${humanizeCode(state.reasonCode)}.`;
   }
 
   return 'Phản hồi ra ngoài đang bị khóa vì chi tiết hội thoại chưa cho phép thao tác này.';

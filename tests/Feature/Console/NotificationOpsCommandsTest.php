@@ -86,7 +86,9 @@ class NotificationOpsCommandsTest extends TestCase
                     'Email' => [
                         'channel' => 'Email',
                         'enabled' => true,
+                        'readiness' => 'production_lean',
                         'driver' => 'mail',
+                        'provider_key' => 'mail',
                         'delivery_mode' => 'real',
                         'pending_count' => 4,
                         'failed_count' => 2,
@@ -104,6 +106,7 @@ class NotificationOpsCommandsTest extends TestCase
         $this->assertSame(1, $exitCode);
         $this->assertStringContainsString('"failed_count": 2', $output);
         $this->assertStringContainsString('"stale_processing_count": 1', $output);
+        $this->assertStringContainsString('"readiness": "production_lean"', $output);
     }
 
     #[Group('booking-ops')]
@@ -122,10 +125,13 @@ class NotificationOpsCommandsTest extends TestCase
                     [
                         'outbox_id' => 99,
                         'channel' => 'SMS',
+                        'readiness' => 'provider_ready',
+                        'delivery_mode' => 'stub',
                         'status' => 'Cancelled',
                         'template_key' => 'reservation.reminder',
                         'attempt_count' => 2,
                         'recipient_masked' => '84******99',
+                        'latest_error_code' => 'channel_disabled',
                         'last_error' => 'Notification channel [SMS] is not enabled.',
                     ],
                 ],
@@ -138,9 +144,11 @@ class NotificationOpsCommandsTest extends TestCase
             '--limit' => 5,
             '--json' => true,
         ]);
+        $payload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
 
         $this->assertSame(0, $exitCode);
-        $this->assertStringContainsString('"outbox_id": 99', Artisan::output());
+        $this->assertSame(99, $payload['rows'][0]['outbox_id'] ?? null);
+        $this->assertSame('channel_disabled', $payload['rows'][0]['latest_error_code'] ?? null);
     }
 
 
@@ -164,6 +172,9 @@ class NotificationOpsCommandsTest extends TestCase
                 'voucher_locks' => ['status' => 'ok', 'reasons' => [], 'stale_lock_count' => 0],
                 'session_linkage' => ['status' => 'degraded', 'reasons' => ['session_hold_linkage_backfill_needed'], 'active_unlinked_session_hold_count' => 6],
                 'reporting_snapshots' => ['status' => 'ok', 'reasons' => [], 'total_row_count' => 12, 'populated_family_count' => 3],
+                'kitchen_kds' => ['status' => 'degraded', 'reasons' => ['kitchen_ticket_ready_backlog_stale'], 'active_ticket_count' => 2, 'drift_count' => 0],
+                'inventory_purchasing' => ['status' => 'ok', 'reasons' => [], 'issue_order_count' => 0, 'duplicate_purchase_receipt_reference_count' => 0, 'duplicate_purchase_receipt_movement_count' => 0, 'overdue_open_order_count' => 0],
+                'conversation_inbox' => ['status' => 'ok', 'reasons' => [], 'unassigned_count' => 0, 'overdue_count' => 0],
                 'branch_defaults' => ['status' => 'ok', 'reasons' => [], 'total_count' => 2, 'default_count' => 1],
                 'database_contract' => ['status' => 'ok', 'reasons' => []],
             ]);
@@ -176,6 +187,7 @@ class NotificationOpsCommandsTest extends TestCase
         $this->assertStringContainsString('"payment_integrity"', $output);
         $this->assertStringContainsString('"over_refunded_source_count": 1', $output);
         $this->assertStringContainsString('"active_unlinked_session_hold_count": 6', $output);
+        $this->assertStringContainsString('"kitchen_kds"', $output);
     }
 
     #[Group('booking-ops')]
@@ -198,6 +210,9 @@ class NotificationOpsCommandsTest extends TestCase
                 'voucher_locks' => ['status' => 'ok', 'reasons' => [], 'stale_lock_count' => 0],
                 'session_linkage' => ['status' => 'ok', 'reasons' => [], 'active_unlinked_session_hold_count' => 0],
                 'reporting_snapshots' => ['status' => 'ok', 'reasons' => [], 'total_row_count' => 7, 'populated_family_count' => 2],
+                'kitchen_kds' => ['status' => 'ok', 'reasons' => [], 'active_ticket_count' => 1, 'drift_count' => 0],
+                'inventory_purchasing' => ['status' => 'ok', 'reasons' => [], 'issue_order_count' => 0, 'duplicate_purchase_receipt_reference_count' => 1, 'duplicate_purchase_receipt_movement_count' => 2, 'overdue_open_order_count' => 1],
+                'conversation_inbox' => ['status' => 'ok', 'reasons' => [], 'unassigned_count' => 2, 'overdue_count' => 1],
                 'branch_defaults' => ['status' => 'ok', 'reasons' => [], 'total_count' => 3, 'default_count' => 1],
                 'database_contract' => ['status' => 'ok', 'reasons' => []],
             ]);
@@ -208,6 +223,10 @@ class NotificationOpsCommandsTest extends TestCase
 
         $this->assertSame(0, $exitCode);
         $this->assertStringContainsString('reporting_snapshot_total_row_count', $output);
+        $this->assertStringContainsString('kitchen_active_ticket_count', $output);
+        $this->assertStringContainsString('inventory_duplicate_purchase_receipt_reference_count', $output);
+        $this->assertStringContainsString('inventory_overdue_open_order_count', $output);
+        $this->assertStringContainsString('conversation_overdue_count', $output);
         $this->assertStringContainsString('branch_default_count', $output);
     }
 

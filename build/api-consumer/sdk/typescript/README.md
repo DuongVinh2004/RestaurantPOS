@@ -100,6 +100,7 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 
 ### Operations Read Models
 
+- GET api/v1/staff/audit-trail
 - GET api/v1/staff/reporting/daily-sales
 - GET api/v1/staff/reporting/daily-operations
 - GET api/v1/staff/reporting/daily-inventory

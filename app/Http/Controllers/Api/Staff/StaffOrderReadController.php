@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Staff;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesStaffActor;
 use App\Http\Resources\StaffOrderReadResource;
 use App\Services\Staff\StaffOrderReadService;
 use App\Support\ApiErrorResponse;
@@ -14,13 +15,15 @@ use Illuminate\Http\Request;
 
 class StaffOrderReadController extends Controller
 {
+    use ResolvesStaffActor;
+
     public function __construct(
         private readonly StaffOrderReadService $orderReadService,
     ) {}
 
     public function show(int $order_id, Request $request): JsonResponse
     {
-        $order = $this->orderReadService->findOrder($order_id);
+        $order = $this->orderReadService->findOrder($order_id, $this->resolveStaffActorUserId($request));
         if ($order === null) {
             return $this->notFoundOrderResponse($request);
         }
@@ -30,7 +33,7 @@ class StaffOrderReadController extends Controller
 
     public function showActiveByTable(int $table_id, Request $request): JsonResponse
     {
-        $order = $this->orderReadService->findActiveOrderByTable($table_id);
+        $order = $this->orderReadService->findActiveOrderByTable($table_id, $this->resolveStaffActorUserId($request));
         if ($order === null) {
             return $this->notFoundOrderResponse($request);
         }
@@ -42,7 +45,7 @@ class StaffOrderReadController extends Controller
 
     public function showActiveByReservation(int $reservation_id, Request $request): JsonResponse
     {
-        $order = $this->orderReadService->findActiveOrderByReservation($reservation_id);
+        $order = $this->orderReadService->findActiveOrderByReservation($reservation_id, $this->resolveStaffActorUserId($request));
         if ($order === null) {
             return $this->notFoundOrderResponse($request);
         }

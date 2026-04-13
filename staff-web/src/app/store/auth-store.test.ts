@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { StaffApiError } from '../../core/api/http';
+import type { StaffSession } from '../../core/auth/storage';
 import { STAFF_TOKEN_STORAGE_KEY } from '../../core/auth/storage';
 import { notifyStaffAuthFailure } from '../../core/auth/session-events';
 import { STAFF_SESSION_EXPIRED_MESSAGE, defaultPathForSession, recommendedPathForSession, useAuthStore } from './auth-store';
-import type { StaffSession } from '../../core/auth/storage';
 
 const staffApiMocks = vi.hoisted(() => ({
   getCurrentStaffSession: vi.fn(),
@@ -11,7 +12,7 @@ const staffApiMocks = vi.hoisted(() => ({
   logoutStaff: vi.fn(),
 }));
 
-vi.mock('../../core/api/staff-api', () => staffApiMocks);
+vi.mock('../../core/api/staff-auth-api', () => staffApiMocks);
 
 function makeSession(capabilities: Array<string>, overrides: Partial<StaffSession> = {}): StaffSession {
   return {
@@ -22,7 +23,7 @@ function makeSession(capabilities: Array<string>, overrides: Partial<StaffSessio
     staff_api_key_id: 1,
     capabilities,
     known_capabilities: capabilities,
-    capability_source: 'role',
+    capability_source: 'role_capabilities',
     startup: {
       default_branch: null,
       active_cashier_shift: null,
@@ -76,7 +77,7 @@ describe('routing helpers', () => {
     }))).toBe('/cashier-shift');
   });
 
-  it('recommends the access hub when the startup branch is missing', () => {
+  it('recommends the access hub when startup readiness is incomplete', () => {
     expect(recommendedPathForSession(makeSession(['table.board.view'], {
       startup: {
         default_branch: null,
@@ -94,28 +95,12 @@ describe('routing helpers', () => {
     }))).toBe('/access');
   });
 
-  it('recommends the main floor flow once the session is fully ready', () => {
-    expect(recommendedPathForSession(makeSession(['cashier.shift.manage', 'table.board.view', 'waiting_list.manage']))).toBe('/tables');
+  it('recommends the dashboard once the session is fully ready', () => {
+    expect(recommendedPathForSession(makeSession(['cashier.shift.manage', 'table.board.view', 'waiting_list.manage']))).toBe('/dashboard');
   });
 
-  it('falls back to waiting list when that is the first operational capability', () => {
-    expect(recommendedPathForSession(makeSession(['waiting_list.manage']))).toBe('/waiting-list');
-  });
-
-  it('falls back to cashier shift when finance shift capability is the only route left', () => {
-    expect(recommendedPathForSession(makeSession(['cashier.shift.manage']))).toBe('/cashier-shift');
-  });
-
-  it('falls back to conversation inbox when that is the only granted module', () => {
-    expect(recommendedPathForSession(makeSession(['conversation.manage']))).toBe('/conversations');
-  });
-
-  it('falls back to audit trail when audit is the only granted module', () => {
-    expect(recommendedPathForSession(makeSession(['audit.view']))).toBe('/audit-trail');
-  });
-
-  it('falls back to reporting when reporting is the only granted module', () => {
-    expect(recommendedPathForSession(makeSession(['reporting.view']))).toBe('/reporting');
+  it('keeps the dashboard as the ready-state entry even with one workspace capability', () => {
+    expect(recommendedPathForSession(makeSession(['reporting.view']))).toBe('/dashboard');
   });
 
   it('keeps the stored opaque token during bootstrap when auth/me omits access_token', async () => {
@@ -126,6 +111,26 @@ describe('routing helpers', () => {
 
     expect(localStorage.getItem(STAFF_TOKEN_STORAGE_KEY)).toBe('persisted-token');
     expect(useAuthStore.getState().status).toBe('authenticated');
+  });
+
+  it('keeps the stored token when bootstrap fails with a forbidden response', async () => {
+    localStorage.setItem(STAFF_TOKEN_STORAGE_KEY, 'persisted-token');
+    staffApiMocks.getCurrentStaffSession.mockRejectedValue(new StaffApiError(403, {
+      error_code: 'forbidden',
+      message: 'Forbidden.',
+      required_capability: 'settlement.manage',
+      request_id: 'req-auth-store-403',
+    }, 'Forbidden'));
+
+    await useAuthStore.getState().bootstrap();
+
+    expect(localStorage.getItem(STAFF_TOKEN_STORAGE_KEY)).toBe('persisted-token');
+    expect(useAuthStore.getState().status).toBe('anonymous');
+    expect(useAuthStore.getState().session).toBeNull();
+    expect(useAuthStore.getState().notice).toEqual({
+      tone: 'error',
+      message: 'Không thể khôi phục phiên làm việc. Hãy thử làm mới hoặc đăng nhập lại.',
+    });
   });
 
   it('setSession promotes the store to authenticated and clears stale notices', () => {

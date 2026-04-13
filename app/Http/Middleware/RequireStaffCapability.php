@@ -28,6 +28,10 @@ class RequireStaffCapability
                 (string) config('staff_capabilities.messages.unknown_capability', 'Staff capability contract is not registered.'),
                 extra: [
                     'required_capability' => $capability,
+                    'state_reason' => 'capability_contract_missing',
+                    'next_actions' => [
+                        'register_required_capability',
+                    ],
                 ],
             );
         }
@@ -43,6 +47,11 @@ class RequireStaffCapability
                 extra: [
                     'required_capability' => $capability,
                     'staff_role_name' => $roleName !== '' ? $roleName : null,
+                    'state_reason' => 'missing_required_capability',
+                    'next_actions' => [
+                        'request_capability_access',
+                        'use_authorized_actor',
+                    ],
                 ],
             );
         }

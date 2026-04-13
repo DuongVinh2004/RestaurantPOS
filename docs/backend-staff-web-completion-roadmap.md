@@ -12,7 +12,7 @@ As of 2026-04-08, the repo already has a strong production-lean base:
   - harness coverage for split-web auth and golden flows
 - Staff web:
   - working auth/session shell
-  - board, orders, settlement, refunds, cashier, conversations
+  - board, orders, checkout/refund, cashier shift, conversations
   - generated SDK integration
   - `npm run test`, `npm run build`, and `npm run smoke:live`
 
@@ -21,6 +21,136 @@ Current completion gap is no longer "build the whole backend". The gap is:
 1. finish the operator-ready integration surface between backend and `staff-web`
 2. bring missing staff-web domains online in repo priority order
 3. turn preview, smoke, deploy, and regression signals into a repeatable release loop
+
+## 2026-04-12 Revision
+
+This section supersedes the older Batch 2-7 plan below when planning the next user-facing batches.
+
+Repo reality on 2026-04-12:
+
+- the active `staff-web` shell already mounts `dashboard`, `tables`, `reservations`, `orders`, `kitchen`, `checkout`, `waiting-list`, `cashier-shift`, `finance-review`, `conversations`, `audit-trail`, and `reporting`
+- `inventory`, `settings`, standalone `refunds`, and standalone `settlement` remain intentionally outside the current route tree
+- local runtime proof is currently infrastructure-blocked, not purely code-blocked
+  - `npm run smoke:live` fails immediately when `http://127.0.0.1:8000/api/v1/health` is unavailable
+  - `php artisan booking:doctor --json` is red when MySQL and Redis are not reachable
+- the highest-value remaining work is now contract closure, operator handoff polish, and honest release/runbook alignment
+
+### Batch 2 - Runtime Truth + Smoke Alignment
+
+Intent:
+- keep the batch plan anchored to the real repo and not the stale prompt pack
+- make local smoke and release claims honest when backend HTTP, MySQL, Redis, or scheduler readiness is missing
+
+Likely changed files:
+- `docs/backend-staff-web-completion-roadmap.md`
+- `staff-web/README.md`
+- `staff-web/STAFF_WEB_SETUP.md`
+
+Verification:
+- `cd staff-web && npm run smoke:live`
+- `php artisan booking:doctor --json`
+
+Done when:
+- batch planning explicitly distinguishes green test slices from red runtime prerequisites
+- operators and reviewers can see whether a failure is code, backend HTTP reachability, or runtime dependency drift
+
+Remaining risks:
+- this batch does not by itself fix missing local services
+- smoke evidence can still go stale if UAT manifests drift from live data
+
+### Batch 3 - Active Scope Declaration
+
+Intent:
+- document the real mounted scope of the new shell and explicitly mark deferred surfaces
+- stop the repo from pretending that inventory, settings, or standalone finance pages are still part of the active route tree
+
+Likely changed files:
+- `staff-web/README.md`
+- `staff-web/STAFF_WEB_BACKEND_CONTRACTS.md`
+
+Verification:
+- `cd staff-web && npx vitest run src/app/router/navigation.test.ts`
+
+Done when:
+- active routes and deferred routes are both spelled out in staff-web docs
+- operator docs no longer imply a standalone `/refunds`, `/settlement`, `/inventory`, or `/settings` shell path
+
+Remaining risks:
+- old historical docs lower in this roadmap still exist for reference and can confuse readers if quoted out of context
+
+### Batch 4 - Finance Handoff Closure
+
+Intent:
+- close the finance-review to reservation-workspace handoff gap with real stale-write context
+- expose reservation `row_version` across reconciliation and invoice envelopes so reopen flows keep mutation guards intact
+
+Likely changed files:
+- `app/Services/Staff/StaffFinancialReconciliationService.php`
+- `tests/Feature/Staff/StaffFinancialReconciliationHttpFlowTest.php`
+- `tests/Feature/Staff/StaffFinanceInvoiceAndAccountingExportHttpFlowTest.php`
+- `staff-web/src/core/api/staff-api.ts`
+- `staff-web/src/features/finance/FinanceReviewPage.tsx`
+- `staff-web/src/features/finance/FinanceReviewPage.test.tsx`
+- `staff-web/STAFF_WEB_BACKEND_CONTRACTS.md`
+
+Verification:
+- `php artisan test tests/Feature/Staff/StaffFinancialReconciliationHttpFlowTest.php tests/Feature/Staff/StaffFinanceInvoiceAndAccountingExportHttpFlowTest.php`
+- `cd staff-web && npx vitest run src/features/finance/FinanceReviewPage.test.tsx`
+
+Done when:
+- reconciliation list/detail and finance invoice envelopes return `reservation.row_version`
+- finance review can reopen `/reservations` with `reservation_row_version` on the URL journey context
+
+Remaining risks:
+- this does not prove live payment or cashier runtime without MySQL, Redis, and backend HTTP up
+
+### Batch 5 - Conversation -> Waiting Linkage
+
+Intent:
+- make conversation detail links land staff on the exact linked waiting-list entry
+- preserve the queue item context instead of dumping the operator onto the default first row
+
+Likely changed files:
+- `staff-web/src/features/conversations/ConversationInboxPage.tsx`
+- `staff-web/src/features/conversations/conversation-inbox.ts`
+- `staff-web/src/features/conversations/conversation-inbox.test.ts`
+- `staff-web/src/features/waiting/WaitingListPage.tsx`
+- `staff-web/src/features/waiting/WaitingListPage.test.tsx`
+- `docs/runbooks/staff-conversation-inbox.md`
+- `staff-web/STAFF_WEB_BACKEND_CONTRACTS.md`
+
+Verification:
+- `cd staff-web && npx vitest run src/features/conversations/conversation-inbox.test.ts src/features/waiting/WaitingListPage.test.tsx`
+
+Done when:
+- conversation detail opens `/waiting-list?focus=<waiting_id>` for linked queue items
+- waiting list respects and preserves that `focus` state through selection and local refresh
+
+Remaining risks:
+- this closes FE linkage only; it does not change backend branch-consistency enforcement for conversation links
+
+### Batch 6 - Docs + Release Confidence Sync
+
+Intent:
+- align roadmap, setup, and contract docs with the current repo after the finance and conversation handoff fixes
+- make local smoke evidence paths and active-shell assumptions explicit before the next release pass
+
+Likely changed files:
+- `docs/backend-staff-web-completion-roadmap.md`
+- `staff-web/README.md`
+- `staff-web/STAFF_WEB_SETUP.md`
+- `staff-web/STAFF_WEB_BACKEND_CONTRACTS.md`
+- `docs/runbooks/staff-conversation-inbox.md`
+
+Verification:
+- doc review against current mounted routes and latest targeted tests
+
+Done when:
+- the revised Batch 2-6 plan matches the repo as of 2026-04-12
+- docs point to the active shell, current handoff contracts, and local smoke artifact behavior without stale route claims
+
+Remaining risks:
+- generated API artifacts still need a separate refresh batch if frontend-consumer bundles are being republished from this workspace
 
 ## Planning Rules
 
@@ -248,9 +378,8 @@ Likely changed files:
 - `app/Services/Finance`
 - `app/Services/PaymentIntegration`
 - `app/Services/Staff`
-- `staff-web/src/features/settlement/SettlementPage.tsx`
-- `staff-web/src/features/refunds/RefundsPage.tsx`
-- `staff-web/src/features/cashier/CashierPage.tsx`
+- `staff-web/src/features/checkout/CheckoutPage.tsx`
+- `staff-web/src/features/cashier/CashierShiftPage.tsx`
 - `staff-web/src/api/client.ts`
 - `staff-web/scripts/live-smoke.mjs`
 
@@ -565,8 +694,7 @@ Likely backend areas:
 - app/Services/Checkout
 
 Likely frontend areas:
-- staff-web/src/features/settlement/*
-- staff-web/src/features/refunds/*
+- staff-web/src/features/checkout/*
 - staff-web/src/features/cashier/*
 - staff-web/src/api/client.ts
 - staff-web/scripts/live-smoke.mjs

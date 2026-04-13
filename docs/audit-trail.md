@@ -2,87 +2,51 @@
 
 ## Intent
 
-Audit trail chỉ ghi các mutation có giá trị vận hành, pháp lý hoặc tài chính. Mục tiêu không phải access log đầy đủ, mà là trả lời được:
+The audit trail is intentionally narrower than an access log. It records mutations that matter for operational, financial, or legal investigation so staff can answer:
 
-- ai đã làm gì
-- khi nào
-- trên subject nào
-- trạng thái trước/sau hoặc change summary là gì
-- request/source context nào liên quan
+- who performed the action
+- when it happened
+- which primary subject was changed
+- which related subjects were part of the same action
+- what changed before and after
+- which request or source context should be used for correlation
 
 ## Canonical Event Shape
 
-Mỗi audit row chuẩn hóa theo các trường chính:
+Each audit row is normalized around these fields:
 
-- `action`: canonical action name, ví dụ `reservation.checked_in`
-- `entity_type` + `entity_id`: primary subject
-- `actor_user_id`, `actor_type`, `actor_key`: actor đã thực hiện
-- `before_json`: trạng thái trước khi mutation xảy ra, chỉ giữ phần có ích
-- `after_json`: trạng thái sau mutation
-- `summary_json`: tóm tắt ngắn cho staff/admin đọc nhanh
-- `meta_json`: request/source context đã được lọc
-- `request_id`: correlation id để lần theo request
+- `action`: canonical action name such as `reservation.checked_in`
+- `entity_type` and `entity_id`: the primary subject
+- `actor_user_id`, `actor_type`, `actor_key`: the actor that performed the mutation
+- `before_json`: the relevant before-state
+- `after_json`: the relevant after-state
+- `summary_json`: a compact operational summary for quick reading
+- `meta_json`: filtered request and source context
+- `request_id`: correlation key for request tracing
 
-`audit_log_subjects` lưu các subject phụ như `reservation_order`, `payment`, `restaurant_table`, `waiting_list`, `voucher`, `cashier_shift`.
+`audit_log_subjects` stores additional subjects that belong to the same mutation, such as `reservation_order`, `payment`, `restaurant_table`, `waiting_list`, or `cashier_shift`.
 
 ## Actor Taxonomy
 
-- `staff_user`: staff/admin xác thực qua staff auth
-- `staff_api_key`: staff action đi qua DB-backed API key
-- `customer_account`: customer authenticated account
-- `customer_access_session`: customer account qua access session
-- `customer_session`: guest/session-scoped actor khi không có account
-- `webhook_provider`: webhook provider như `simulated`, `generic_http_hmac`
-- `system`: console/scheduler/system actor
+- `staff_user`
+- `staff_api_key`
+- `customer_account`
+- `customer_access_session`
+- `customer_session`
+- `webhook_provider`
+- `system`
 
-Customer self-service voucher/loyalty được gán lại về `customer_account`, không còn bị coi là `staff_user`.
+Customer-facing loyalty and voucher actions should resolve back to a customer actor, not a staff actor, unless staff actually performed the mutation.
 
-## Audited Actions
+## Staff Read Surface
 
-Đã canonical hóa cho các nhóm chính:
-
-- `reservation.created`
-- `reservation.status_changed`
-- `reservation.rescheduled`
-- `reservation.checked_in`
-- `reservation.table_moved`
-- `table.released`
-- `waiting_list.created`
-- `waiting_list.notified`
-- `waiting_list.accepted`
-- `waiting_list.declined`
-- `waiting_list.arrival_confirmed`
-- `waiting_list.seated`
-- `waiting_list.cancelled`
-- `reservation.voucher.applied`
-- `reservation.voucher.removed`
-- `reservation.loyalty.redeemed`
-- `reservation.loyalty.released`
-- `payment_session.created`
-- `payment_session.confirmed`
-- `payment.webhook.processed`
-- `payment.final_captured`
-- `checkout.finalized`
-- `payment.refunded`
-- `reservation.refund_cancelled`
-- `cashier_shift.opened`
-- `cashier_shift.closed`
-- `master_data.voucher.created`
-- `master_data.voucher.updated`
-- `master_data.loyalty_tier.created`
-- `master_data.loyalty_tier.updated`
-- `master_data.restaurant_table.created`
-- `master_data.restaurant_table.updated`
-- `master_data.restaurant_table.deleted`
-
-## Read Surface
-
-Staff/admin có thể đọc audit trail qua:
+Staff and admin users read the audit trail through:
 
 - `GET /api/v1/staff/audit-trail`
 
-Filter hỗ trợ:
+Supported filters:
 
+- `branch_id`
 - `reservation_id`
 - `order_id`
 - `payment_id`
@@ -92,53 +56,83 @@ Filter hỗ trợ:
 - `actor_user_id`
 - `actor_type`
 - `action`
-- `subject_type` + `subject_id`
+- `request_id`
+- `q`
+- `subject_type`
+- `subject_id`
 - `date_from`
 - `date_to`
 - `page`
 - `per_page`
 
-Response trả về:
+Staff audit reads now fail closed to the authenticated actor's operational branches. Without an explicit `branch_id`, the query defaults to that actor's accessible branch scope. When a caller sends `branch_id` outside that scope, the API returns `404 not_found` instead of silently broadening or returning cross-branch data.
 
-- actor
+Within that allowed scope, `branch_id` remains useful for day-to-day triage. The query first checks branch context embedded in audit metadata, then falls back to branch-owned entity and subject lookups for reservations, orders, payments, waiting list entries, tables, and cashier shifts. This keeps branch-scoped investigation useful even when older events did not persist `meta_json.branch_id`.
+
+`q` is intentionally narrow and operational. It searches canonical action, request id, primary entity, actor key, actor name, and related subject identifiers.
+
+## Response Shape
+
+Each row returns:
+
+- actor summary
 - request context
 - primary subject
-- subject list
+- related subjects
 - `before`
 - `after`
 - `summary`
 - `meta`
 
+Request context now includes `request.branch_id` when the audit event carried branch metadata. This gives the staff web a stable way to keep branch investigation context visible inside the detail panel.
+
+## Investigation Recipes
+
+Typical high-signal reads:
+
+1. Branch-scoped refund investigation
+   - `GET /api/v1/staff/audit-trail?branch_id=3&action=payment.refunded&date_from=2026-04-10&date_to=2026-04-10`
+2. Request-correlation follow-up from API or runtime logs
+   - `GET /api/v1/staff/audit-trail?request_id=req-abc123`
+3. Free-text triage when the exact subject is not known
+   - `GET /api/v1/staff/audit-trail?q=refund`
+4. Primary-subject drill-in
+   - `GET /api/v1/staff/audit-trail?payment_id=7001`
+
+Operational guidance:
+
+- start with `branch_id` whenever the incident is branch-local
+- use `request_id` when the report already comes from an API error, smoke log, or release evidence
+- move to a different branch only after the actor has operational access for that branch
+
 ## PII And Sensitive Data
 
-Không ghi các payload nhạy cảm hoặc ít giá trị vận hành:
+Do not persist high-risk request material such as:
 
-- password, token, secret
-- authorization header, cookie
-- webhook signature
-- raw request body / raw provider payload
-- idempotency key
-- phone/email từ request context
+- passwords
+- tokens
+- secrets
+- authorization headers
+- cookies
+- webhook signatures
+- raw provider payloads
+- idempotency keys
+- request-context phone or email values
 
-Audit summary ưu tiên mã định danh nghiệp vụ, amount, status, scope, reason, row version. Không lưu toàn bộ payload đầu vào nếu không cần.
+Audit summaries should prefer business identifiers, amounts, statuses, scope markers, reasons, and row versions over raw payload copies.
 
 ## Retention And Redaction
 
-Hiện tại repo cung cấp redaction ở tầng recorder. Chính sách retention nên áp dụng khi go-live:
+Current code supports recorder-level redaction. For go-live operations, keep these principles:
 
-- giữ hot audit data ít nhất 180 ngày cho ops
-- archive dài hơn cho payment/refund/cashier/webhook events theo yêu cầu pháp lý nội bộ
-- purge hoặc re-redact khi một field mới bị xác định là sensitive
+- keep hot audit data long enough for operational triage
+- retain payment, refund, cashier, and webhook events per internal finance policy
+- re-redact or purge newly identified sensitive fields when the schema evolves
 
-Nếu cần export cho điều tra, ưu tiên export theo subject/action/date range thay vì dump toàn bộ bảng.
+Prefer targeted exports by subject, action, and date range over dumping the full table for investigation.
 
-## Known Scope Limits
+## Known Limits
 
-Chủ đích không audit hóa mọi event legacy. Các event bị loại thường là:
-
-- access/request noise
-- noop events
-- low-value technical telemetry
-- payload quá chi tiết nhưng không giúp điều tra vận hành
-
-Một số flow admin/master-data khác ngoài voucher, loyalty tier, restaurant table chưa được chuẩn hóa trong batch này vì chưa nằm trong nhóm ưu tiên rollout.
+- The audit trail is not intended to capture every low-value legacy event.
+- Some system-level events remain legitimately global and may not carry branch metadata.
+- Branch fallback works for the current high-value operational subjects, not for every possible legacy entity type.

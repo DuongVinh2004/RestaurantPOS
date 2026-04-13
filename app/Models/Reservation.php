@@ -24,6 +24,9 @@ class Reservation extends Model
     protected $fillable = [
         'branch_id',
         'user_id',
+        'guest_name',
+        'guest_phone',
+        'guest_email',
         'reservation_code',
         'reserved_at',
         'start_time',
@@ -58,6 +61,9 @@ class Reservation extends Model
         'reservation_id' => 'int',
         'branch_id' => 'int',
         'user_id' => 'int',
+        'guest_name' => 'string',
+        'guest_phone' => 'string',
+        'guest_email' => 'string',
         'reservation_code' => 'string',
         'reserved_at' => 'datetime',
         'start_time' => 'datetime',
@@ -160,5 +166,51 @@ class Reservation extends Model
     public function scopeLatestStart($query)
     {
         return $query->orderByDesc('start_time')->orderByDesc('reservation_id');
+    }
+
+    public function hasGuestSnapshot(): bool
+    {
+        return $this->normalizeCustomerField($this->guest_name) !== null
+            || $this->normalizeCustomerField($this->guest_phone) !== null
+            || $this->normalizeCustomerField($this->guest_email) !== null;
+    }
+
+    public function customerDisplayName(): ?string
+    {
+        return $this->normalizeCustomerField($this->user?->full_name ?? $this->guest_name);
+    }
+
+    public function customerEmail(): ?string
+    {
+        return $this->normalizeCustomerField($this->user?->email ?? $this->guest_email);
+    }
+
+    public function customerPhone(): ?string
+    {
+        return $this->normalizeCustomerField($this->user?->phone ?? $this->guest_phone);
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    public function guestSnapshot(): ?array
+    {
+        if (! $this->hasGuestSnapshot()) {
+            return null;
+        }
+
+        return [
+            'full_name' => $this->normalizeCustomerField($this->guest_name),
+            'phone' => $this->normalizeCustomerField($this->guest_phone),
+            'email' => $this->normalizeCustomerField($this->guest_email),
+            'is_snapshot_only' => $this->user_id === null,
+        ];
+    }
+
+    private function normalizeCustomerField(mixed $value): ?string
+    {
+        $trimmed = trim((string) ($value ?? ''));
+
+        return $trimmed === '' ? null : $trimmed;
     }
 }

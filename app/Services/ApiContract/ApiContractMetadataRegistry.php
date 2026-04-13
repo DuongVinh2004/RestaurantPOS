@@ -727,7 +727,7 @@ class ApiContractMetadataRegistry
             ],
             'GET api/v1/staff/reservations/{reservation_id}' => [
                 'summary' => 'Show staff reservation detail',
-                'description' => 'Return the staff-scoped reservation detail read model with tables, user context, order lines, and financial snapshots needed for operational drawers and linked order workflows.',
+                'description' => 'Return the staff-scoped reservation detail read model with tables, user context, order lines, and financial snapshots needed for operational drawers and linked order workflows. Reads fail closed outside the actor operational branch scope (default branch plus open cashier-shift branches).',
                 'tags' => ['Staff Tables'],
                 'responses' => [
                     200 => ['schema' => 'ReservationEnvelope'],
@@ -833,7 +833,7 @@ class ApiContractMetadataRegistry
             ],
             'GET api/v1/staff/branches' => [
                 'summary' => 'List accessible staff branches',
-                'description' => 'Return the active branch context list exposed to staff-web for branch switching and branch-aware filters.',
+                'description' => 'Return the active branch context list exposed to staff-web for branch switching and branch-aware filters. The list is limited to the authenticated actor operational scope: default branch plus branches where the actor currently has an open cashier shift.',
                 'tags' => ['Admin Settings'],
                 'responses' => [
                     200 => ['schema' => 'BranchCollectionEnvelope'],
@@ -1248,7 +1248,7 @@ class ApiContractMetadataRegistry
             ],
             'GET api/v1/staff/kitchen/stations' => [
                 'summary' => 'List kitchen stations',
-                'description' => 'Return the active kitchen station roster with route counts, queued or fired or ready ticket counts, and realtime metadata for staff KDS visibility.',
+                'description' => 'Return the active kitchen station roster with route counts, queued or fired or ready ticket counts, and realtime metadata for staff KDS visibility. Branch reads are constrained to the authenticated actor operational branch scope and explicit inaccessible branch filters fail closed.',
                 'tags' => ['Staff Kitchen'],
                 'responses' => [
                     200 => ['schema' => 'StaffKitchenStationCollectionEnvelope'],
@@ -1259,7 +1259,7 @@ class ApiContractMetadataRegistry
             ],
             'GET api/v1/staff/kitchen/stations/{station_id}/tickets' => [
                 'summary' => 'List kitchen station tickets',
-                'description' => 'Return the kitchen tickets routed to the selected station, including order-item status snapshots, routing details, and optional terminal tickets for operator review.',
+                'description' => 'Return the kitchen tickets routed to the selected station, including order-item status snapshots, routing details, and optional terminal tickets for operator review. The station read is limited to the authenticated actor operational branch scope and returns not found outside that scope.',
                 'tags' => ['Staff Kitchen'],
                 'responses' => [
                     200 => ['schema' => 'StaffKitchenTicketCollectionEnvelope'],
@@ -1325,6 +1325,19 @@ class ApiContractMetadataRegistry
                     403 => ['schema' => 'ForbiddenError'],
                     404 => ['schema' => 'NotFoundError'],
                     409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/staff/audit-trail' => [
+                'summary' => 'List staff audit trail',
+                'description' => 'Return the operational audit trail for the authenticated staff actor with branch, subject, actor, and request correlation filters.',
+                'tags' => ['Audit Trail'],
+                'responses' => [
+                    200 => ['schema' => 'StaffAuditTrailEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
                     422 => ['schema' => 'ValidationError'],
                 ],
                 'contract_grade' => 'full',
@@ -1400,6 +1413,25 @@ class ApiContractMetadataRegistry
                 ],
                 'request_example' => [
                     'notes' => 'Returning conversation to the shared inbox.',
+                ],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/staff/conversations/{conversation_id}/workflow-state' => [
+                'summary' => 'Update conversation workflow state',
+                'description' => 'Move a staff conversation through the explicit inbox workflow with guarded transitions for triage, waiting-on-customer, resolve, reopen, and close.',
+                'tags' => ['Staff Conversations'],
+                'responses' => [
+                    200 => ['schema' => 'StaffConversationMutationEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'workflow_state' => 'Resolved',
+                    'expected_workflow_state' => 'Assigned',
+                    'reason' => 'Customer confirmed the issue is resolved.',
                 ],
                 'contract_grade' => 'full',
             ],
@@ -1590,6 +1622,24 @@ class ApiContractMetadataRegistry
                 'message' => ['type' => 'string'],
                 'request_id' => ['type' => 'string', 'nullable' => true],
                 'error' => ['type' => 'string', 'nullable' => true, 'description' => 'Legacy idempotency alias retained for compatibility.'],
+                'conflict_type' => ['type' => 'string', 'nullable' => true, 'description' => 'Machine-readable conflict family such as stale_write or idempotency_payload_mismatch.'],
+                'replay_state' => ['type' => 'string', 'nullable' => true, 'description' => 'Machine-readable idempotency replay state such as in_progress or payload_mismatch.'],
+                'state_reason' => ['type' => 'string', 'nullable' => true, 'description' => 'Stable reason token describing why the request was denied or conflicted.'],
+                'required_capability' => ['type' => 'string', 'nullable' => true, 'description' => 'Required staff capability when a capability guard denied the request.'],
+                'staff_role_name' => ['type' => 'string', 'nullable' => true, 'description' => 'Resolved staff role name when a capability guard denied the request.'],
+                'warnings' => [
+                    'type' => 'array',
+                    'items' => ['type' => 'string'],
+                ],
+                'next_actions' => [
+                    'type' => 'array',
+                    'items' => ['type' => 'string'],
+                ],
+                'deprecated_aliases' => [
+                    'type' => 'array',
+                    'items' => ['type' => 'string'],
+                    'description' => 'Deprecated top-level aliases still emitted for backwards compatibility.',
+                ],
                 'errors' => [
                     'type' => 'object',
                     'additionalProperties' => [
@@ -1598,6 +1648,32 @@ class ApiContractMetadataRegistry
                     ],
                 ],
                 'details' => ['type' => 'object', 'additionalProperties' => true],
+            ],
+            'additionalProperties' => false,
+        ];
+
+        $reservationCustomerSummarySchema = [
+            'type' => 'object',
+            'required' => ['user_id', 'full_name', 'email', 'phone', 'current_points', 'current_tier'],
+            'properties' => [
+                'user_id' => ['type' => 'integer', 'nullable' => true],
+                'full_name' => ['type' => 'string', 'nullable' => true],
+                'email' => ['type' => 'string', 'nullable' => true],
+                'phone' => ['type' => 'string', 'nullable' => true],
+                'current_points' => ['type' => 'integer', 'nullable' => true],
+                'current_tier' => ['$ref' => '#/components/schemas/CustomerLoyaltyTier', 'nullable' => true],
+            ],
+            'additionalProperties' => false,
+        ];
+
+        $reservationGuestSnapshotSchema = [
+            'type' => 'object',
+            'required' => ['full_name', 'phone', 'email', 'is_snapshot_only'],
+            'properties' => [
+                'full_name' => ['type' => 'string', 'nullable' => true],
+                'phone' => ['type' => 'string', 'nullable' => true],
+                'email' => ['type' => 'string', 'nullable' => true],
+                'is_snapshot_only' => ['type' => 'boolean'],
             ],
             'additionalProperties' => false,
         ];
@@ -1625,7 +1701,8 @@ class ApiContractMetadataRegistry
                 'customer_self_service' => ['type' => 'object', 'additionalProperties' => true],
                 'table_ids' => ['type' => 'array', 'items' => ['type' => 'integer']],
                 'table_summary' => ['type' => 'object', 'additionalProperties' => true],
-                'user' => ['type' => 'object', 'nullable' => true, 'additionalProperties' => true],
+                'user' => ['$ref' => '#/components/schemas/ReservationCustomerSummary', 'nullable' => true],
+                'guest' => ['$ref' => '#/components/schemas/ReservationGuestSnapshot', 'nullable' => true],
                 'payments' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => true], 'nullable' => true],
                 'payment_summary' => ['type' => 'object', 'nullable' => true, 'additionalProperties' => true],
                 'deposit_summary' => ['type' => 'object', 'nullable' => true, 'additionalProperties' => true],
@@ -1650,6 +1727,20 @@ class ApiContractMetadataRegistry
                 'customer_self_service' => ['can_attempt_cancel' => true, 'can_attempt_reschedule' => true],
                 'table_ids' => [12, 13],
                 'table_summary' => ['count' => 2, 'table_codes' => ['A-12', 'A-13']],
+                'user' => [
+                    'user_id' => 77,
+                    'full_name' => 'Customer Demo',
+                    'email' => 'customer@example.invalid',
+                    'phone' => '+84901234567',
+                    'current_points' => 650,
+                    'current_tier' => [
+                        'tier_id' => 1,
+                        'tier_code' => 'BRONZE',
+                        'tier_name' => 'Bronze',
+                        'min_points' => 0,
+                    ],
+                ],
+                'guest' => null,
             ],
         ];
 
@@ -3167,14 +3258,124 @@ class ApiContractMetadataRegistry
             'additionalProperties' => false,
         ];
 
+        $staffAuditTrailPrimarySubjectSchema = [
+            'type' => 'object',
+            'required' => ['type', 'id'],
+            'properties' => [
+                'type' => ['type' => 'string'],
+                'id' => ['type' => 'string'],
+            ],
+            'additionalProperties' => false,
+        ];
+
+        $staffAuditTrailSubjectSchema = [
+            'type' => 'object',
+            'required' => ['type', 'id', 'role'],
+            'properties' => [
+                'type' => ['type' => 'string'],
+                'id' => ['type' => 'string'],
+                'role' => ['type' => 'string', 'nullable' => true],
+            ],
+            'additionalProperties' => false,
+        ];
+
+        $staffAuditTrailActorUserSchema = [
+            'type' => 'object',
+            'required' => ['user_id', 'full_name'],
+            'properties' => [
+                'user_id' => ['type' => 'integer'],
+                'full_name' => ['type' => 'string'],
+            ],
+            'additionalProperties' => false,
+        ];
+
+        $staffAuditTrailActorSchema = [
+            'type' => 'object',
+            'required' => ['user_id', 'type', 'key', 'user'],
+            'properties' => [
+                'user_id' => ['type' => 'integer', 'nullable' => true],
+                'type' => ['type' => 'string', 'nullable' => true],
+                'key' => ['type' => 'string', 'nullable' => true],
+                'user' => [
+                    'anyOf' => [
+                        ['$ref' => '#/components/schemas/StaffAuditTrailActorUser'],
+                        ['type' => 'null'],
+                    ],
+                ],
+            ],
+            'additionalProperties' => false,
+        ];
+
+        $staffAuditTrailRequestSchema = [
+            'type' => 'object',
+            'required' => ['request_id', 'branch_id', 'ip', 'user_agent', 'method', 'path'],
+            'properties' => [
+                'request_id' => ['type' => 'string', 'nullable' => true],
+                'branch_id' => ['type' => 'integer', 'nullable' => true],
+                'ip' => ['type' => 'string', 'nullable' => true],
+                'user_agent' => ['type' => 'string', 'nullable' => true],
+                'method' => ['type' => 'string', 'nullable' => true],
+                'path' => ['type' => 'string', 'nullable' => true],
+            ],
+            'additionalProperties' => false,
+        ];
+
+        $staffAuditTrailEntrySchema = [
+            'type' => 'object',
+            'required' => ['audit_id', 'action', 'occurred_at', 'primary_subject', 'subjects', 'actor', 'request', 'before', 'after', 'summary', 'meta'],
+            'properties' => [
+                'audit_id' => ['type' => 'integer'],
+                'action' => ['type' => 'string'],
+                'occurred_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'primary_subject' => ['$ref' => '#/components/schemas/StaffAuditTrailPrimarySubject'],
+                'subjects' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/StaffAuditTrailSubject']],
+                'actor' => ['$ref' => '#/components/schemas/StaffAuditTrailActor'],
+                'request' => ['$ref' => '#/components/schemas/StaffAuditTrailRequest'],
+                'before' => ['type' => 'object', 'nullable' => true, 'additionalProperties' => true],
+                'after' => ['type' => 'object', 'nullable' => true, 'additionalProperties' => true],
+                'summary' => ['type' => 'object', 'nullable' => true, 'additionalProperties' => true],
+                'meta' => ['type' => 'object', 'nullable' => true, 'additionalProperties' => true],
+            ],
+            'additionalProperties' => false,
+        ];
+
+        $staffAuditTrailCollectionMetaSchema = [
+            'type' => 'object',
+            'required' => ['action', 'page', 'per_page', 'total', 'last_page', 'filters'],
+            'properties' => [
+                'action' => ['type' => 'string'],
+                'page' => ['type' => 'integer'],
+                'per_page' => ['type' => 'integer'],
+                'total' => ['type' => 'integer'],
+                'last_page' => ['type' => 'integer'],
+                'filters' => ['type' => 'object', 'additionalProperties' => true],
+            ],
+            'additionalProperties' => false,
+        ];
+
         $staffConversationSummarySchema = [
             'type' => 'object',
-            'required' => ['conversation_id', 'branch_id', 'status', 'channel', 'counts', 'assignment_state'],
+            'required' => ['conversation_id', 'branch_id', 'status', 'workflow', 'channel', 'counts', 'assignment_state', 'operational'],
             'properties' => [
                 'conversation_id' => ['type' => 'string', 'format' => 'uuid'],
                 'branch_id' => ['type' => 'integer'],
                 'branch' => ['type' => 'object', 'nullable' => true, 'additionalProperties' => true],
                 'status' => ['type' => 'string'],
+                'workflow' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'state' => ['type' => 'string'],
+                        'state_reason' => ['type' => 'string', 'nullable' => true],
+                        'state_changed_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                        'first_triaged_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                        'resolved_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                        'closed_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                        'is_terminal' => ['type' => 'boolean'],
+                        'allowed_actions' => ['type' => 'array', 'items' => ['type' => 'string']],
+                    ],
+                    'required' => ['state', 'state_reason', 'state_changed_at', 'first_triaged_at', 'resolved_at', 'closed_at', 'is_terminal', 'allowed_actions'],
+                    'additionalProperties' => false,
+                ],
                 'channel' => ['type' => 'string'],
                 'intent_detected' => ['type' => 'string', 'nullable' => true],
                 'customer_session_id' => ['type' => 'string', 'nullable' => true],
@@ -3222,6 +3423,16 @@ class ApiContractMetadataRegistry
                         'is_mine' => ['type' => 'boolean'],
                     ],
                     'required' => ['is_assigned', 'is_unassigned', 'is_mine'],
+                    'additionalProperties' => false,
+                ],
+                'operational' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'is_overdue' => ['type' => 'boolean'],
+                        'overdue_after_minutes' => ['type' => 'integer'],
+                        'queue_bucket' => ['type' => 'string'],
+                    ],
+                    'required' => ['is_overdue', 'overdue_after_minutes', 'queue_bucket'],
                     'additionalProperties' => false,
                 ],
             ],
@@ -3640,7 +3851,25 @@ class ApiContractMetadataRegistry
 
         $reportingSnapshotHealthSchema = [
             'type' => 'object',
-            'required' => ['family', 'row_count', 'date_range', 'latest_business_date', 'latest_refreshed_at_utc', 'latest_refresh_age_seconds', 'stale_threshold_seconds', 'is_empty', 'is_stale', 'status', 'reasons'],
+            'required' => [
+                'family',
+                'row_count',
+                'date_range',
+                'latest_business_date',
+                'latest_refreshed_at_utc',
+                'latest_refresh_age_seconds',
+                'scope_count',
+                'healthy_scope_count',
+                'stale_scope_count',
+                'stale_scope_examples',
+                'health_reference_refreshed_at_utc',
+                'health_reference_refresh_age_seconds',
+                'stale_threshold_seconds',
+                'is_empty',
+                'is_stale',
+                'status',
+                'reasons',
+            ],
             'properties' => [
                 'family' => ['type' => 'string'],
                 'row_count' => ['type' => 'integer'],
@@ -3656,6 +3885,18 @@ class ApiContractMetadataRegistry
                 'latest_business_date' => ['type' => 'string', 'nullable' => true],
                 'latest_refreshed_at_utc' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
                 'latest_refresh_age_seconds' => ['type' => 'integer', 'nullable' => true],
+                'scope_count' => ['type' => 'integer'],
+                'healthy_scope_count' => ['type' => 'integer'],
+                'stale_scope_count' => ['type' => 'integer'],
+                'stale_scope_examples' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'additionalProperties' => true,
+                    ],
+                ],
+                'health_reference_refreshed_at_utc' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'health_reference_refresh_age_seconds' => ['type' => 'integer', 'nullable' => true],
                 'stale_threshold_seconds' => ['type' => 'integer'],
                 'is_empty' => ['type' => 'boolean'],
                 'is_stale' => ['type' => 'boolean'],
@@ -4023,7 +4264,7 @@ class ApiContractMetadataRegistry
 
         $staffTableBoardAssignedReservationSchema = [
             'type' => 'object',
-            'required' => ['reservation_id', 'reservation_code', 'status', 'row_version', 'table_ids', 'start_time', 'end_time', 'guest_count', 'checked_in_at', 'user', 'deposit', 'flags'],
+            'required' => ['reservation_id', 'reservation_code', 'status', 'row_version', 'table_ids', 'start_time', 'end_time', 'guest_count', 'checked_in_at', 'user', 'guest', 'deposit', 'flags'],
             'properties' => [
                 'reservation_id' => ['type' => 'integer'],
                 'reservation_code' => ['type' => 'string'],
@@ -4035,6 +4276,7 @@ class ApiContractMetadataRegistry
                 'guest_count' => ['type' => 'integer'],
                 'checked_in_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
                 'user' => ['$ref' => '#/components/schemas/StaffTableBoardReservationUser', 'nullable' => true],
+                'guest' => ['$ref' => '#/components/schemas/ReservationGuestSnapshot', 'nullable' => true],
                 'deposit' => ['$ref' => '#/components/schemas/StaffTableBoardReservationDeposit'],
                 'flags' => [
                     'type' => 'object',
@@ -4180,12 +4422,14 @@ class ApiContractMetadataRegistry
                     'type' => 'array',
                     'items' => [
                         'type' => 'object',
-                        'required' => ['reservation_id', 'reservation_code', 'row_version', 'guest_count', 'flags', 'policy_flags', 'deposit'],
+                        'required' => ['reservation_id', 'reservation_code', 'row_version', 'guest_count', 'user', 'guest', 'flags', 'policy_flags', 'deposit'],
                         'properties' => [
                             'reservation_id' => ['type' => 'integer'],
                             'reservation_code' => ['type' => 'string'],
                             'row_version' => ['type' => 'integer'],
                             'guest_count' => ['type' => 'integer'],
+                            'user' => ['$ref' => '#/components/schemas/StaffTableBoardReservationUser', 'nullable' => true],
+                            'guest' => ['$ref' => '#/components/schemas/ReservationGuestSnapshot', 'nullable' => true],
                             'flags' => [
                                 'type' => 'object',
                                 'required' => ['due_soon', 'late', 'overdue'],
@@ -4241,7 +4485,7 @@ class ApiContractMetadataRegistry
 
         $staffTableBoardUnassignedReservationSchema = [
             'type' => 'object',
-            'required' => ['reservation_id', 'reservation_code', 'status', 'row_version', 'guest_count', 'start_time', 'end_time', 'flags', 'deposit', 'orchestration'],
+            'required' => ['reservation_id', 'reservation_code', 'status', 'row_version', 'guest_count', 'start_time', 'end_time', 'user', 'guest', 'flags', 'deposit', 'orchestration'],
             'properties' => [
                 'reservation_id' => ['type' => 'integer'],
                 'reservation_code' => ['type' => 'string'],
@@ -4250,6 +4494,8 @@ class ApiContractMetadataRegistry
                 'guest_count' => ['type' => 'integer'],
                 'start_time' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
                 'end_time' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'user' => ['$ref' => '#/components/schemas/StaffTableBoardReservationUser', 'nullable' => true],
+                'guest' => ['$ref' => '#/components/schemas/ReservationGuestSnapshot', 'nullable' => true],
                 'flags' => [
                     'type' => 'object',
                     'required' => ['due_soon', 'late', 'overdue', 'deposit_self_service_follow_up'],
@@ -4397,7 +4643,7 @@ class ApiContractMetadataRegistry
             'type' => 'object',
             'required' => ['user_id', 'full_name', 'email', 'phone'],
             'properties' => [
-                'user_id' => ['type' => 'integer'],
+                'user_id' => ['type' => 'integer', 'nullable' => true],
                 'full_name' => ['type' => 'string', 'nullable' => true],
                 'email' => ['type' => 'string', 'nullable' => true],
                 'phone' => ['type' => 'string', 'nullable' => true],
@@ -4438,6 +4684,7 @@ class ApiContractMetadataRegistry
                 'created_at',
                 'updated_at',
                 'user',
+                'guest',
                 'table_ids',
                 'tables',
                 'summary',
@@ -4462,6 +4709,7 @@ class ApiContractMetadataRegistry
                 'created_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
                 'updated_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
                 'user' => ['$ref' => '#/components/schemas/StaffReservationLookupUser', 'nullable' => true],
+                'guest' => ['$ref' => '#/components/schemas/ReservationGuestSnapshot', 'nullable' => true],
                 'table_ids' => ['type' => 'array', 'items' => ['type' => 'integer']],
                 'tables' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/StaffReservationLookupTable']],
                 'summary' => [
@@ -4650,11 +4898,17 @@ class ApiContractMetadataRegistry
                 'error_code' => 'conflict',
                 'message' => 'State conflict detected.',
                 'request_id' => 'req-123',
+                'conflict_type' => 'state_conflict',
+                'state_reason' => 'constraint_violation',
+                'next_actions' => ['reload_resource', 'retry_with_current_state'],
             ]]),
             'StaleRowVersionError' => array_replace_recursive($genericError, ['example' => [
                 'error_code' => 'stale_row_version',
-                'message' => 'State conflict detected.',
+                'message' => 'The resource was modified by another writer. Reload data and try again.',
                 'request_id' => 'req-123',
+                'conflict_type' => 'stale_write',
+                'state_reason' => 'row_version_mismatch',
+                'next_actions' => ['reload_resource', 'retry_with_latest_row_version'],
                 'errors' => [
                     'row_version' => ['The resource was modified by another writer.'],
                 ],
@@ -4677,6 +4931,8 @@ class ApiContractMetadataRegistry
             'CustomerReservationPreorderSnapshot' => $customerReservationPreorderSnapshotSchema,
             'CustomerReservationPreorderManagementPolicy' => $customerReservationPreorderManagementPolicySchema,
             'CustomerReservationPreorderPayload' => $customerReservationPreorderPayloadSchema,
+            'ReservationCustomerSummary' => $reservationCustomerSummarySchema,
+            'ReservationGuestSnapshot' => $reservationGuestSnapshotSchema,
             'ReservationSummary' => $reservationSummary,
             'CustomerWaitingListEntry' => $waitingListEntry,
             'CustomerDepositPaymentSession' => $depositPaymentSession,
@@ -4731,6 +4987,13 @@ class ApiContractMetadataRegistry
             'StaffWaitingListEntry' => $waitingListEntry,
             'StaffWaitingListCollectionMeta' => $staffWaitingListCollectionMetaSchema,
             'StaffCheckoutSettlement' => $staffCheckoutSettlementSchema,
+            'StaffAuditTrailPrimarySubject' => $staffAuditTrailPrimarySubjectSchema,
+            'StaffAuditTrailSubject' => $staffAuditTrailSubjectSchema,
+            'StaffAuditTrailActorUser' => $staffAuditTrailActorUserSchema,
+            'StaffAuditTrailActor' => $staffAuditTrailActorSchema,
+            'StaffAuditTrailRequest' => $staffAuditTrailRequestSchema,
+            'StaffAuditTrailEntry' => $staffAuditTrailEntrySchema,
+            'StaffAuditTrailCollectionMeta' => $staffAuditTrailCollectionMetaSchema,
             'StaffConversationAssignment' => $staffConversationAssignmentSchema,
             'StaffConversationAnalysis' => $staffConversationAnalysisSchema,
             'StaffConversationAiAssistAction' => $staffConversationAiAssistActionSchema,
@@ -5067,6 +5330,11 @@ class ApiContractMetadataRegistry
             ], [
                 '$ref' => '#/components/schemas/StaffWaitingListCollectionMeta',
             ]),
+            'StaffAuditTrailEnvelope' => $this->collectionEnvelope([
+                '$ref' => '#/components/schemas/StaffAuditTrailEntry',
+            ], [
+                '$ref' => '#/components/schemas/StaffAuditTrailCollectionMeta',
+            ]),
             'StaffWaitingListSeatEnvelope' => $this->dataEnvelope([
                 'type' => 'object',
                 'required' => ['waiting_list', 'reservation'],
@@ -5191,7 +5459,7 @@ class ApiContractMetadataRegistry
             ],
             'KitchenOrderItemTicket' => [
                 'type' => 'object',
-                'required' => ['ticket_id', 'ticket_status', 'route_source', 'dispatch_count', 'recall_count', 'output_mode', 'printer_target', 'ticket_notes', 'order', 'station', 'route', 'routing', 'order_item', 'item', 'first_dispatched_at', 'fired_at', 'ready_at', 'completed_at', 'cancelled_at', 'last_recalled_at', 'created_at', 'updated_at'],
+                'required' => ['ticket_id', 'ticket_status', 'route_source', 'dispatch_count', 'recall_count', 'output_mode', 'printer_target', 'ticket_notes', 'order', 'station', 'route', 'routing', 'order_item', 'item', 'lifecycle', 'reconciliation', 'first_dispatched_at', 'fired_at', 'ready_at', 'completed_at', 'cancelled_at', 'last_recalled_at', 'created_at', 'updated_at'],
                 'properties' => [
                     'ticket_id' => ['type' => 'integer'],
                     'ticket_status' => ['type' => 'string'],
@@ -5266,6 +5534,31 @@ class ApiContractMetadataRegistry
                             'name' => ['type' => 'string'],
                             'category_id' => ['type' => 'integer', 'nullable' => true],
                             'category_name' => ['type' => 'string', 'nullable' => true],
+                        ],
+                        'additionalProperties' => false,
+                    ],
+                    'lifecycle' => [
+                        'type' => 'object',
+                        'required' => ['status', 'state_reason', 'is_terminal', 'allowed_actions'],
+                        'properties' => [
+                            'status' => ['type' => 'string'],
+                            'state_reason' => ['type' => 'string'],
+                            'is_terminal' => ['type' => 'boolean'],
+                            'allowed_actions' => ['type' => 'array', 'items' => ['type' => 'string']],
+                        ],
+                        'additionalProperties' => false,
+                    ],
+                    'reconciliation' => [
+                        'type' => 'object',
+                        'required' => ['sync_status', 'routing_status', 'order_item_expected_status', 'order_item_matches_ticket', 'station_active', 'drift_reasons', 'next_actions'],
+                        'properties' => [
+                            'sync_status' => ['type' => 'string'],
+                            'routing_status' => ['type' => 'string'],
+                            'order_item_expected_status' => ['type' => 'string', 'nullable' => true],
+                            'order_item_matches_ticket' => ['type' => 'boolean', 'nullable' => true],
+                            'station_active' => ['type' => 'boolean', 'nullable' => true],
+                            'drift_reasons' => ['type' => 'array', 'items' => ['type' => 'string']],
+                            'next_actions' => ['type' => 'array', 'items' => ['type' => 'string']],
                         ],
                         'additionalProperties' => false,
                     ],

@@ -15,6 +15,7 @@ class NotificationDeliveryException extends RuntimeException
         string $message,
         private readonly ?string $errorCode = null,
         private readonly array $responsePayload = [],
+        private readonly bool $retryable = false,
     ) {
         parent::__construct($message);
     }
@@ -30,5 +31,10 @@ class NotificationDeliveryException extends RuntimeException
     public function responsePayload(): array
     {
         return $this->responsePayload;
+    }
+
+    public function isRetryable(): bool
+    {
+        return $this->retryable;
     }
 }

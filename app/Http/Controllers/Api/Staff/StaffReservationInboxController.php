@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Staff;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesStaffActor;
 use App\Http\Requests\Staff\ListStaffReservationsRequest;
 use App\Http\Resources\ReservationResource;
 use App\Http\Resources\StaffReservationInboxResource;
@@ -18,6 +19,8 @@ use Illuminate\Http\Request;
 
 class StaffReservationInboxController extends Controller
 {
+    use ResolvesStaffActor;
+
     public function __construct(
         private readonly StaffReservationInboxService $inboxService,
     ) {}
@@ -25,7 +28,17 @@ class StaffReservationInboxController extends Controller
     public function index(ListStaffReservationsRequest $request): JsonResponse
     {
         $validated = $request->validated();
-        $paginator = $this->inboxService->paginate($validated);
+
+        try {
+            $paginator = $this->inboxService->paginate($validated, $this->resolveStaffActorUserId($request));
+        } catch (ModelNotFoundException) {
+            return ApiErrorResponse::json(
+                $request,
+                404,
+                'not_found',
+                'Branch not found.',
+            );
+        }
 
         return response()->json([
             'data' => StaffReservationInboxResource::collection($paginator->getCollection()),
@@ -97,7 +110,10 @@ class StaffReservationInboxController extends Controller
     public function show(int $reservation_id, Request $request): JsonResponse
     {
         try {
-            $reservation = $this->inboxService->findForStaffOrFail($reservation_id);
+            $reservation = $this->inboxService->findForStaffOrFail(
+                $reservation_id,
+                $this->resolveStaffActorUserId($request),
+            );
         } catch (ModelNotFoundException) {
             return ApiErrorResponse::json(
                 $request,

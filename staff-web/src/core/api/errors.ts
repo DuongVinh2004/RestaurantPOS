@@ -1,5 +1,10 @@
-import { RestaurantPosApiError } from './sdk';
+import type { RestaurantPosApiError } from './sdk';
 import { StaffApiError } from './http';
+
+type ApiErrorWithPayload<TPayload = unknown> = {
+  status: number;
+  payload: TPayload;
+};
 
 export type ApiErrorKind =
   | 'auth'
@@ -25,7 +30,7 @@ export type NormalizedApiError = {
 };
 
 export function isKnownApiError(error: unknown): error is RestaurantPosApiError<unknown> | StaffApiError<unknown> {
-  return error instanceof RestaurantPosApiError || error instanceof StaffApiError;
+  return error instanceof StaffApiError || hasApiErrorPayload(error);
 }
 
 export function normalizeApiError(error: unknown, fallback: string): NormalizedApiError {
@@ -75,14 +80,33 @@ export function formatApiError(error: unknown, fallback: string): string {
   const parts = [normalized.message.trim() !== '' ? normalized.message.trim() : fallback];
 
   if (normalized.requiredCapability) {
-    parts.push(`Required capability: ${normalized.requiredCapability}.`);
+    parts.push(`Thiếu quyền: ${normalized.requiredCapability}.`);
   }
 
   if (normalized.requestId) {
-    parts.push(`Request: ${normalized.requestId}.`);
+    parts.push(`Mã truy vết: ${normalized.requestId}.`);
   }
 
   return parts.join(' ').trim();
+}
+
+export function formatStaffFacingApiError(error: unknown, fallback: string): string {
+  const normalized = normalizeApiError(error, fallback);
+  const firstValidationMessage = Object.values(normalized.validation).flat().find((message) => message.trim() !== '');
+
+  if (normalized.kind === 'auth') {
+    return 'Phiên làm việc đã thay đổi. Hãy làm mới phiên rồi thử lại.';
+  }
+
+  if (normalized.kind === 'rate-limit') {
+    return 'Hệ thống đang xử lý nhiều yêu cầu. Hãy chờ một lát rồi thử lại.';
+  }
+
+  if (normalized.kind === 'validation' && firstValidationMessage) {
+    return firstValidationMessage;
+  }
+
+  return fallback;
 }
 
 export function isApiStatus(error: unknown, status: number): boolean {
@@ -213,4 +237,13 @@ function isGenericApiMessage(message: string): boolean {
     'too many requests.',
     'server error.',
   ].includes(message.trim().toLowerCase());
+}
+
+function hasApiErrorPayload(error: unknown): error is ApiErrorWithPayload {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const candidate = error as Partial<ApiErrorWithPayload>;
+  return typeof candidate.status === 'number' && 'payload' in candidate;
 }

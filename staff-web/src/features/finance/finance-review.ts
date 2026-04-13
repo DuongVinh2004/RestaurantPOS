@@ -21,6 +21,7 @@ export type FinanceReviewUrlState = FinanceFilterState & {
 
 export type FinanceSummary = {
   discrepancyCount: number;
+  outstandingCount: number;
   outstandingAmount: number;
   overRefundAmount: number;
   fullySettledCount: number;
@@ -31,8 +32,10 @@ export function buildFinanceQuery(
   page: number,
   perPage: number,
   reservationId?: number | null,
+  branchId?: number | null,
 ): FinancialReconciliationQuery {
   return {
+    branch_id: branchId ?? undefined,
     reservation_id: reservationId ?? undefined,
     reservation_code: normalizeText(filters.reservationCode),
     status: normalizeText(filters.status),
@@ -92,11 +95,13 @@ export function buildFinanceReviewSearch(
 export function summarizeFinance(rows: Array<FinancialReconciliationRow>): FinanceSummary {
   return rows.reduce<FinanceSummary>((summary, row) => ({
     discrepancyCount: summary.discrepancyCount + (row.flags.has_discrepancy ? 1 : 0),
+    outstandingCount: summary.outstandingCount + (row.flags.has_bill_outstanding ? 1 : 0),
     outstandingAmount: roundMoney(summary.outstandingAmount + Number(row.reconciliation.bill_outstanding_amount ?? 0)),
     overRefundAmount: roundMoney(summary.overRefundAmount + Number(row.payment_summary.over_refunded_amount ?? 0)),
     fullySettledCount: summary.fullySettledCount + (row.flags.is_fully_settled ? 1 : 0),
   }), {
     discrepancyCount: 0,
+    outstandingCount: 0,
     outstandingAmount: 0,
     overRefundAmount: 0,
     fullySettledCount: 0,
@@ -133,7 +138,13 @@ export function canIssueInvoiceForRow(row: FinancialReconciliationRow | null | u
     return false;
   }
 
-  return Number(row.reconciliation.final_bill_amount ?? 0) > 0;
+  return Number(row.reconciliation.final_bill_amount ?? 0) > 0
+    && row.flags.is_fully_settled
+    && !row.flags.has_discrepancy
+    && !row.flags.has_bill_outstanding
+    && !row.flags.has_bill_overpaid
+    && !row.flags.has_over_refund
+    && !row.flags.has_mixed_payment_currencies;
 }
 
 function normalizeText(value: string): string | undefined {

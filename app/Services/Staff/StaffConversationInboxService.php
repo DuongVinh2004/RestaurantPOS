@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Staff;
 
+use App\Enums\StaffConversationWorkflowState;
 use App\Models\AgentAssignment;
 use App\Models\Conversation;
 use App\Models\ConversationAnalysis;
@@ -18,10 +19,13 @@ use Illuminate\Support\Carbon;
 
 class StaffConversationInboxService
 {
+    public const OVERDUE_AFTER_MINUTES = 15;
+
     public function __construct(
         private readonly FeatureFlagService $featureFlags,
         private readonly StaffConversationOutboundReplySupportService $outboundReplySupportService,
         private readonly ConversationThreadAssistService $conversationThreadAssistService,
+        private readonly StaffBranchContextService $branchContextService,
     ) {}
 
     /**
@@ -33,6 +37,11 @@ class StaffConversationInboxService
      */
     public function paginate(array $filters = [], ?int $staffActorUserId = null): array
     {
+        $filters['accessible_branch_ids'] = $this->branchContextService->branchScopeOrAccessible(
+            $staffActorUserId,
+            isset($filters['branch_id']) ? (int) $filters['branch_id'] : null,
+        );
+
         $this->featureFlags->assertEnabled(
             'staff.conversation_inbox',
             isset($filters['branch_id']) ? (int) $filters['branch_id'] : null,
@@ -45,10 +54,13 @@ class StaffConversationInboxService
         $sortDir = strtolower((string) ($filters['sort_dir'] ?? 'desc'));
         $sortDir = in_array($sortDir, ['asc', 'desc'], true) ? $sortDir : 'desc';
 
-        $baseQuery = $this->buildFilteredQuery($filters, $staffActorUserId);
+        $baseQuery = $this->buildFilteredQuery($filters, $staffActorUserId, false);
         $summary = $this->buildSummary($baseQuery, $staffActorUserId);
 
-        $query = $this->decorateSummaryQuery(clone $baseQuery);
+        $query = $this->applyInboxViewFilter(
+            $this->decorateSummaryQuery(clone $baseQuery),
+            (string) ($filters['inbox_view'] ?? 'all'),
+        );
         $this->applyOrdering($query, $sortBy, $sortDir);
 
         return [
@@ -57,11 +69,20 @@ class StaffConversationInboxService
         ];
     }
 
-    public function findSummaryOrFail(string $conversationId): Conversation
+    public function findSummaryOrFail(string $conversationId, ?int $staffActorUserId = null): Conversation
     {
-        $conversation = $this->decorateSummaryQuery(
-            Conversation::query()->where('conversation_id', $conversationId)
-        )->first();
+        $query = Conversation::query()->where('conversation_id', $conversationId);
+
+        if ($staffActorUserId !== null && $staffActorUserId > 0) {
+            $accessibleBranchIds = $this->branchContextService->accessibleBranchIds($staffActorUserId);
+            if ($accessibleBranchIds === []) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn('conversations.branch_id', $accessibleBranchIds);
+            }
+        }
+
+        $conversation = $this->decorateSummaryQuery($query)->first();
 
         if (! $conversation instanceof Conversation) {
             throw (new ModelNotFoundException)->setModel(Conversation::class, [$conversationId]);
@@ -86,7 +107,7 @@ class StaffConversationInboxService
         $eventLimit = max(1, min((int) ($options['event_limit'] ?? 50), 200));
         $includeClosedAssignments = (bool) ($options['include_closed_assignments'] ?? true);
 
-        $conversation = $this->findSummaryOrFail($conversationId);
+        $conversation = $this->findSummaryOrFail($conversationId, $staffActorUserId);
         $outboundReply = $this->outboundReplySupportService->describe($conversation, $staffActorUserId);
 
         $messages = ConversationMessage::query()
@@ -138,6 +159,7 @@ class StaffConversationInboxService
                 'can_take_over' => true,
                 'can_unassign' => true,
                 'can_link' => true,
+                'can_update_workflow_state' => true,
                 'can_add_internal_note' => true,
                 'can_send_outbound_reply' => (bool) ($outboundReply['supported'] ?? false),
                 'outbound_reply' => [
@@ -159,12 +181,35 @@ class StaffConversationInboxService
     /**
      * @param  array<string, mixed>  $filters
      */
-    private function buildFilteredQuery(array $filters, ?int $staffActorUserId): Builder
+    private function buildFilteredQuery(array $filters, ?int $staffActorUserId, bool $applyInboxView = true): Builder
     {
-        $query = Conversation::query()->select('conversations.*');
+        $query = Conversation::query()
+            ->select('conversations.*')
+            ->selectSub(
+                ConversationMessage::query()
+                    ->select('created_at')
+                    ->whereColumn('conversation_id', 'conversations.conversation_id')
+                    ->latest('created_at')
+                    ->latest('message_id')
+                    ->limit(1),
+                'latest_message_at'
+            );
 
         if (! empty($filters['status'])) {
             $query->where('conversations.status', (string) $filters['status']);
+        }
+
+        if (array_key_exists('accessible_branch_ids', $filters)) {
+            $accessibleBranchIds = $this->accessibleBranchIdsFromFilters($filters);
+            if ($accessibleBranchIds === []) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn('conversations.branch_id', $accessibleBranchIds);
+            }
+        }
+
+        if (! empty($filters['workflow_state'])) {
+            $query->where('conversations.workflow_state', (string) $filters['workflow_state']);
         }
 
         if (! empty($filters['channel'])) {
@@ -236,7 +281,9 @@ class StaffConversationInboxService
             });
         }
 
-        return $query;
+        return $applyInboxView
+            ? $this->applyInboxViewFilter($query, (string) ($filters['inbox_view'] ?? 'all'))
+            : $query;
     }
 
     private function decorateSummaryQuery(Builder $query): Builder
@@ -260,16 +307,7 @@ class StaffConversationInboxService
                 'messages as internal_notes_count' => static function (Builder $messageQuery): void {
                     $messageQuery->where('is_internal_note', true);
                 },
-            ])
-            ->selectSub(
-                ConversationMessage::query()
-                    ->select('created_at')
-                    ->whereColumn('conversation_id', 'conversations.conversation_id')
-                    ->latest('created_at')
-                    ->latest('message_id')
-                    ->limit(1),
-                'latest_message_at'
-            );
+            ]);
     }
 
     /**
@@ -285,6 +323,14 @@ class StaffConversationInboxService
             ->map(static fn (mixed $value): int => (int) $value)
             ->all();
 
+        $workflowCounts = (clone $query)
+            ->select('conversations.workflow_state')
+            ->selectRaw('COUNT(*) as aggregate')
+            ->groupBy('conversations.workflow_state')
+            ->pluck('aggregate', 'conversations.workflow_state')
+            ->map(static fn (mixed $value): int => (int) $value)
+            ->all();
+
         return [
             'total' => (clone $query)->count(),
             'assigned' => (clone $query)->whereHas('activeAssignment')->count(),
@@ -295,6 +341,24 @@ class StaffConversationInboxService
                 })->count()
                 : 0,
             'status_counts' => $statusCounts,
+            'workflow_state_counts' => $workflowCounts,
+            'views' => [
+                'unassigned' => (clone $query)
+                    ->whereDoesntHave('activeAssignment')
+                    ->whereNotIn('conversations.workflow_state', [
+                        StaffConversationWorkflowState::Resolved->value,
+                        StaffConversationWorkflowState::Closed->value,
+                    ])
+                    ->count(),
+                'overdue' => $this->applyInboxViewFilter(clone $query, 'overdue')->count(),
+                'waiting_on_customer' => (clone $query)
+                    ->where('conversations.workflow_state', StaffConversationWorkflowState::PendingCustomer->value)
+                    ->count(),
+                'resolved_today' => $this->applyInboxViewFilter(clone $query, 'resolved_today')->count(),
+            ],
+            'sla_minutes' => [
+                'overdue' => self::OVERDUE_AFTER_MINUTES,
+            ],
         ];
     }
 
@@ -317,5 +381,64 @@ class StaffConversationInboxService
             'created_at', 'message_count' => $sortBy,
             default => 'latest_activity',
         };
+    }
+
+    private function applyInboxViewFilter(Builder $query, string $inboxView): Builder
+    {
+        $normalizedView = strtolower(trim($inboxView));
+
+        return match ($normalizedView) {
+            'unassigned' => $query
+                ->whereDoesntHave('activeAssignment')
+                ->whereNotIn('conversations.workflow_state', [
+                    StaffConversationWorkflowState::Resolved->value,
+                    StaffConversationWorkflowState::Closed->value,
+                ]),
+            'waiting_on_customer' => $query
+                ->where('conversations.workflow_state', StaffConversationWorkflowState::PendingCustomer->value),
+            'resolved_today' => $query
+                ->where('conversations.workflow_state', StaffConversationWorkflowState::Resolved->value)
+                ->whereBetween('conversations.resolved_at', [
+                    now('UTC')->startOfDay(),
+                    now('UTC')->endOfDay(),
+                ]),
+            'overdue' => $query
+                ->whereNotIn('conversations.workflow_state', [
+                    StaffConversationWorkflowState::Resolved->value,
+                    StaffConversationWorkflowState::Closed->value,
+                ])
+                ->whereRaw(
+                    'COALESCE((
+                        SELECT cm.created_at
+                        FROM conversation_messages cm
+                        WHERE cm.conversation_id = conversations.conversation_id
+                        ORDER BY cm.created_at DESC, cm.message_id DESC
+                        LIMIT 1
+                    ), conversations.workflow_state_changed_at, conversations.created_at) <= ?',
+                    [now('UTC')->subMinutes(self::OVERDUE_AFTER_MINUTES)->toDateTimeString()]
+                ),
+            default => $query,
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return list<int>
+     */
+    private function accessibleBranchIdsFromFilters(array $filters): array
+    {
+        $branchIds = [];
+
+        foreach ((array) ($filters['accessible_branch_ids'] ?? []) as $branchId) {
+            $normalizedBranchId = (int) $branchId;
+            if ($normalizedBranchId > 0) {
+                $branchIds[] = $normalizedBranchId;
+            }
+        }
+
+        $branchIds = array_values(array_unique($branchIds));
+        sort($branchIds);
+
+        return $branchIds;
     }
 }

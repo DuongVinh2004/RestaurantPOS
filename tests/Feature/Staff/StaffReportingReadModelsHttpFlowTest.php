@@ -172,6 +172,8 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
             ->assertJsonPath('meta.snapshot_health.family', 'sales')
             ->assertJsonPath('meta.snapshot_health.status', 'ok')
             ->assertJsonPath('meta.snapshot_health.is_empty', false)
+            ->assertJsonPath('meta.snapshot_health.scope_count', 1)
+            ->assertJsonPath('meta.snapshot_health.stale_scope_count', 0)
             ->assertJsonPath('data.0.business_date', $businessDay->toDateString())
             ->assertJsonPath('data.0.branch.branch_code', 'MAIN')
             ->assertJsonPath('data.0.billed.reservation_count', 1)
@@ -186,6 +188,7 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
             ->assertJsonPath('meta.action', 'staff_reporting_daily_operations_index')
             ->assertJsonPath('meta.snapshot_health.family', 'operations')
             ->assertJsonPath('meta.snapshot_health.status', 'ok')
+            ->assertJsonPath('meta.snapshot_health.scope_count', 1)
             ->assertJsonPath('data.0.reservations.scheduled_count', 1)
             ->assertJsonPath('data.0.reservations.completed_count', 1)
             ->assertJsonPath('data.0.turn_time.avg_turn_minutes', 70.0)
@@ -200,6 +203,7 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
             ->assertJsonPath('meta.action', 'staff_reporting_daily_inventory_index')
             ->assertJsonPath('meta.snapshot_health.family', 'inventory')
             ->assertJsonPath('meta.snapshot_health.status', 'ok')
+            ->assertJsonPath('meta.snapshot_health.scope_count', 1)
             ->assertJsonPath('data.0.ingredient.code', 'BEANS')
             ->assertJsonPath('data.0.movement_summary.movement_count', 2)
             ->assertJsonPath('data.0.movement_summary.purchase_receipt_movement_count', 1)
@@ -222,6 +226,77 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
             ->assertJsonPath('meta.snapshot_health.status', 'degraded')
             ->assertJsonPath('meta.snapshot_health.is_empty', true)
             ->assertJsonPath('meta.snapshot_health.reasons.0', 'reporting_snapshot_empty');
+    }
+
+    public function test_staff_reporting_meta_marks_partially_stale_inventory_scope_as_degraded(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $ingredientFreshId = $this->createIngredient(['code' => 'FRESH-RPT', 'name' => 'Fresh Scope', 'unit_code' => 'kg']);
+        $ingredientStaleId = $this->createIngredient(['code' => 'STALE-RPT', 'name' => 'Stale Scope', 'unit_code' => 'kg']);
+        $headers = $this->staffAuthHeaders($staffId, 'staff-reporting-stale-scope');
+
+        config()->set('booking.ops.reporting_snapshot_stale_hours', 24);
+
+        $freshRefreshedAt = Carbon::parse('2026-04-03 12:00:00', 'UTC');
+        $staleRefreshedAt = Carbon::parse('2026-04-01 08:00:00', 'UTC');
+
+        Carbon::setTestNow(Carbon::parse('2026-04-04 08:00:00', 'UTC'));
+
+        try {
+            DB::table('reporting_daily_inventory_movement_snapshots')->insert([
+                [
+                    'branch_id' => 1,
+                    'business_date' => '2026-04-03',
+                    'ingredient_id' => $ingredientFreshId,
+                    'unit_code' => 'kg',
+                    'movement_count' => 2,
+                    'purchase_receipt_movement_count' => 1,
+                    'stock_in_quantity' => '5.000',
+                    'stock_out_quantity' => '1.000',
+                    'adjustment_increase_quantity' => '0.000',
+                    'adjustment_decrease_quantity' => '0.000',
+                    'wastage_quantity' => '0.250',
+                    'net_quantity_delta' => '4.000',
+                    'last_movement_at' => $freshRefreshedAt->copy()->subHour(),
+                    'refreshed_at' => $freshRefreshedAt,
+                    'created_at' => $freshRefreshedAt,
+                    'updated_at' => $freshRefreshedAt,
+                ],
+                [
+                    'branch_id' => 1,
+                    'business_date' => '2026-04-03',
+                    'ingredient_id' => $ingredientStaleId,
+                    'unit_code' => 'kg',
+                    'movement_count' => 1,
+                    'purchase_receipt_movement_count' => 0,
+                    'stock_in_quantity' => '0.000',
+                    'stock_out_quantity' => '2.000',
+                    'adjustment_increase_quantity' => '0.000',
+                    'adjustment_decrease_quantity' => '0.000',
+                    'wastage_quantity' => '0.500',
+                    'net_quantity_delta' => '-2.000',
+                    'last_movement_at' => $staleRefreshedAt->copy()->subHour(),
+                    'refreshed_at' => $staleRefreshedAt,
+                    'created_at' => $staleRefreshedAt,
+                    'updated_at' => $staleRefreshedAt,
+                ],
+            ]);
+
+            $response = $this->withHeaders($headers)
+                ->getJson('/api/v1/staff/reporting/daily-inventory?start_date=2026-04-03&end_date=2026-04-03');
+
+            $response->assertOk()
+                ->assertJsonPath('meta.snapshot_health.family', 'inventory')
+                ->assertJsonPath('meta.snapshot_health.status', 'degraded')
+                ->assertJsonPath('meta.snapshot_health.is_stale', true)
+                ->assertJsonPath('meta.snapshot_health.scope_count', 2)
+                ->assertJsonPath('meta.snapshot_health.stale_scope_count', 1)
+                ->assertJsonPath('meta.snapshot_health.stale_scope_examples.0.ingredient_id', $ingredientStaleId)
+                ->assertJsonPath('meta.snapshot_health.reasons.0', 'reporting_snapshot_stale')
+                ->assertJsonPath('meta.snapshot_health.reasons.1', 'reporting_snapshot_scope_partial');
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_non_staff_requests_are_rejected_for_reporting_read_models(): void

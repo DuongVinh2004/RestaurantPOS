@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Alert,
-  App,
   Button,
   Card,
   Col,
@@ -35,17 +34,19 @@ import {
 } from '../../core/api/staff-api';
 import { formatApiError } from '../../core/api/errors';
 import { can } from '../../core/permissions/capabilities';
-import { formatDateTime } from '../../core/utils/format';
+import { formatDateTime, formatRelativeAge } from '../../core/utils/format';
 import { buildJourneySearch } from '../../core/utils/journey';
 import { type StatusTone, waitingTone } from '../../core/utils/status';
 import { translateUiCode } from '../../core/utils/translation';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { SplitWorkspace } from '../../components/layout/SplitWorkspace';
+import { toast } from '../../components/feedback/toast';
 import { EmptyBlock, InlineError, InlineLoading } from '../../components/states/StateBlocks';
 import { StatusChip } from '../../components/status/StatusChip';
 import { useAuthStore } from '../../app/store/auth-store';
 import { useFlowStore } from '../../app/store/flow-store';
 import { useConfirmAction } from '../../hooks/useConfirmAction';
+import { useJourneyContext } from '../../hooks/useJourneyContext';
 
 type CreateWaitingValues = {
   guest_name: string;
@@ -89,16 +90,18 @@ const queueModeOptions = [
 
 export function WaitingListPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const { message } = App.useApp();
+  const message = toast;
   const confirmAction = useConfirmAction();
+  const journey = useJourneyContext();
   const session = useAuthStore((state) => state.session);
   const branchId = useFlowStore((state) => state.branchId);
-  const selectedTableId = useFlowStore((state) => state.selectedTableId);
   const setReservationContext = useFlowStore((state) => state.setReservationContext);
   const setTableContext = useFlowStore((state) => state.setTableContext);
   const [statusFilter, setStatusFilter] = useState<WaitingStatusFilter>('all');
   const [queueMode, setQueueMode] = useState<QueueMode>('active');
+  const [searchDraft, setSearchDraft] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedWaitingId, setSelectedWaitingId] = useState<number | null>(null);
   const [createForm] = Form.useForm<CreateWaitingValues>();
@@ -106,6 +109,8 @@ export function WaitingListPage() {
   const [seatForm] = Form.useForm<SeatWaitingValues>();
   const [cancelForm] = Form.useForm<CancelWaitingValues>();
   const boardWindow = useMemo(() => buildBoardWindow(), []);
+  const lastAppliedWaitingChangeVersionRef = useRef<number | null>(null);
+  const focusedWaitingId = useMemo(() => readWaitingListFocus(searchParams), [searchParams]);
 
   const waitingFilters = useMemo(() => toWaitingListSearchFilters(searchTerm), [searchTerm]);
   const boardAccess = !!session && can(session, 'table.board.view');
@@ -145,18 +150,66 @@ export function WaitingListPage() {
   });
 
   useEffect(() => {
+    const currentVersion = waitingListQuery.data?.meta?.realtime.current_version ?? null;
+    const latestVersion = changesQuery.data?.data.current_version ?? null;
+    const eventCount = changesQuery.data?.data.events.length ?? 0;
+
+    if (currentVersion === null || latestVersion === null) {
+      return;
+    }
+
+    if (latestVersion === currentVersion) {
+      lastAppliedWaitingChangeVersionRef.current = latestVersion;
+      return;
+    }
+
+    if (
+      (latestVersion > currentVersion || eventCount > 0)
+      && lastAppliedWaitingChangeVersionRef.current !== latestVersion
+    ) {
+      lastAppliedWaitingChangeVersionRef.current = latestVersion;
+      void queryClient.invalidateQueries({ queryKey: ['waiting-list'], refetchType: 'active' });
+    }
+  }, [
+    changesQuery.data?.data.current_version,
+    changesQuery.data?.data.events.length,
+    queryClient,
+    waitingListQuery.data?.meta?.realtime.current_version,
+  ]);
+
+  useEffect(() => {
+    if (!waitingListQuery.data) {
+      return;
+    }
+
     const currentRows = waitingListQuery.data?.data ?? [];
     if (currentRows.length === 0) {
       if (selectedWaitingId !== null) {
         setSelectedWaitingId(null);
       }
+      if (focusedWaitingId !== null) {
+        setSearchParams(setWaitingListFocus(searchParams, null), { replace: true });
+      }
+      return;
+    }
+
+    if (focusedWaitingId !== null) {
+      if (currentRows.some((entry) => entry.waiting_id === focusedWaitingId)) {
+        if (selectedWaitingId !== focusedWaitingId) {
+          setSelectedWaitingId(focusedWaitingId);
+        }
+        return;
+      }
+
+      setSelectedWaitingId(currentRows[0].waiting_id);
+      setSearchParams(setWaitingListFocus(searchParams, currentRows[0].waiting_id), { replace: true });
       return;
     }
 
     if (!selectedWaitingId || !currentRows.some((entry) => entry.waiting_id === selectedWaitingId)) {
       setSelectedWaitingId(currentRows[0].waiting_id);
     }
-  }, [selectedWaitingId, waitingListQuery.data?.data]);
+  }, [focusedWaitingId, searchParams, selectedWaitingId, setSearchParams, waitingListQuery.data]);
 
   const selectedEntry = useMemo(
     () => waitingListQuery.data?.data.find((entry) => entry.waiting_id === selectedWaitingId) ?? null,
@@ -175,33 +228,63 @@ export function WaitingListPage() {
     })),
     [availableTables],
   );
+  const canonicalBoardContext = useMemo(() => getCanonicalWaitingTableContext(selectedEntry), [selectedEntry]);
+  const explicitBoardJourneyTableId = journey.source === 'board' ? journey.tableId ?? null : null;
+  const preferredNotifyTableId = canonicalBoardContext?.tableId ?? explicitBoardJourneyTableId ?? null;
 
   useEffect(() => {
+    if (!selectedEntry || selectedEntry.status !== 'Waiting') {
+      return;
+    }
+
+    if (!preferredNotifyTableId) {
+      return;
+    }
+
+    if (notifyForm.getFieldValue('table_id') === preferredNotifyTableId) {
+      return;
+    }
+
+    notifyForm.setFieldsValue({ table_id: preferredNotifyTableId });
+  }, [notifyForm, preferredNotifyTableId, selectedEntry]);
+
+  useEffect(() => {
+    if (!selectedEntry || selectedEntry.status !== 'Waiting') {
+      return;
+    }
+
     if (!availableTableOptions.length) {
       return;
     }
 
-    const selectedTableStillValid = availableTableOptions.some((option) => option.value === selectedTableId);
-    if (selectedTableStillValid) {
-      notifyForm.setFieldsValue({ table_id: selectedTableId ?? undefined });
+    const currentTableId = notifyForm.getFieldValue('table_id');
+    const currentTableStillValid = availableTableOptions.some((option) => option.value === currentTableId);
+    if (currentTableStillValid) {
       return;
     }
 
-    if (!notifyForm.getFieldValue('table_id')) {
-      notifyForm.setFieldsValue({ table_id: availableTableOptions[0].value });
+    const preferredTableStillValid = availableTableOptions.some((option) => option.value === preferredNotifyTableId);
+    if (preferredTableStillValid) {
+      notifyForm.setFieldsValue({ table_id: preferredNotifyTableId ?? undefined });
+      return;
     }
-  }, [availableTableOptions, notifyForm, selectedTableId]);
+
+    notifyForm.setFieldsValue({ table_id: availableTableOptions[0].value });
+  }, [availableTableOptions, notifyForm, preferredNotifyTableId, selectedEntry]);
 
   useEffect(() => {
     if (!selectedEntry) {
       return;
     }
 
-    seatForm.setFieldsValue({
-      user_id: selectedEntry.user_id ?? undefined,
-      notes: selectedEntry.notes ?? undefined,
-      service_minutes: 120,
-    });
+    if (selectedEntry.invite_lifecycle.can_staff_seat_now) {
+      seatForm.setFieldsValue({
+        user_id: selectedEntry.user_id ?? undefined,
+        notes: selectedEntry.notes ?? undefined,
+        service_minutes: 120,
+      });
+    }
+
     cancelForm.setFieldsValue({
       cancel_reason: selectedEntry.cancel_reason ?? undefined,
     });
@@ -221,6 +304,7 @@ export function WaitingListPage() {
     onSuccess: async (envelope) => {
       createForm.resetFields();
       setSelectedWaitingId(envelope.data.waiting_id);
+      setSearchParams(setWaitingListFocus(searchParams, envelope.data.waiting_id));
       await queryClient.invalidateQueries({ queryKey: ['waiting-list'] });
       message.success(`Đã tạo lượt chờ #${envelope.data.waiting_id}.`);
     },
@@ -247,6 +331,7 @@ export function WaitingListPage() {
     },
     onSuccess: async (envelope) => {
       setSelectedWaitingId(envelope.data.waiting_id);
+      setSearchParams(setWaitingListFocus(searchParams, envelope.data.waiting_id));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['waiting-list'] }),
         queryClient.invalidateQueries({ queryKey: ['table-board'] }),
@@ -269,7 +354,9 @@ export function WaitingListPage() {
       });
     },
     onSuccess: async (envelope) => {
-      setSelectedWaitingId(envelope.data.advanced_waiting_list?.waiting_id ?? envelope.data.source_waiting_list.waiting_id);
+      const nextWaitingId = envelope.data.advanced_waiting_list?.waiting_id ?? envelope.data.source_waiting_list.waiting_id;
+      setSelectedWaitingId(nextWaitingId);
+      setSearchParams(setWaitingListFocus(searchParams, nextWaitingId));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['waiting-list'] }),
         queryClient.invalidateQueries({ queryKey: ['table-board'] }),
@@ -297,16 +384,17 @@ export function WaitingListPage() {
     onSuccess: async (envelope) => {
       const reservation = envelope.data.reservation;
       const tableId = reservation.table_ids?.[0];
+      const nextSource = journey.source ?? 'reservation';
 
       setReservationContext({
         reservationId: reservation.reservation_id,
         reservationRowVersion: reservation.row_version,
-        source: 'reservation',
+        source: nextSource,
       });
       if (tableId) {
         setTableContext({
           tableId,
-          source: 'reservation',
+          source: nextSource,
         });
       }
 
@@ -318,8 +406,9 @@ export function WaitingListPage() {
 
       message.success(`Đã xếp bàn lượt chờ và tạo đặt bàn ${reservation.reservation_code}.`);
       navigate(`/orders?${buildJourneySearch({
-        source: 'reservation',
+        source: nextSource,
         tableId,
+        tableIds: reservation.table_ids,
         reservationId: reservation.reservation_id,
         reservationRowVersion: reservation.row_version,
       })}`);
@@ -342,6 +431,7 @@ export function WaitingListPage() {
     },
     onSuccess: async (envelope) => {
       setSelectedWaitingId(envelope.data.waiting_id);
+      setSearchParams(setWaitingListFocus(searchParams, envelope.data.waiting_id));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['waiting-list'] }),
         queryClient.invalidateQueries({ queryKey: ['table-board'] }),
@@ -356,7 +446,7 @@ export function WaitingListPage() {
   async function handleAdvanceQueue() {
     const confirmed = await confirmAction({
       title: `Đẩy hàng chờ cho lượt #${selectedEntry?.waiting_id ?? ''}`,
-      content: 'Chỉ dùng khi khách hiện tại đã từ chối hoặc cửa sổ báo khách đã hết hạn. Backend sẽ thử báo cho ứng viên hợp lệ tiếp theo của bàn vừa được nhả.',
+      content: 'Chỉ dùng khi khách hiện tại đã từ chối hoặc cửa sổ báo khách đã hết hạn. Hệ thống sẽ thử báo cho ứng viên hợp lệ tiếp theo của bàn vừa được nhả.',
       okText: 'Đẩy hàng chờ',
     });
 
@@ -379,20 +469,29 @@ export function WaitingListPage() {
   }
 
   const main = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <PageHeader
         eyebrow="Danh sách chờ"
         title="Hàng chờ phục vụ"
-        description="Giữ hàng chờ dễ đọc và có thể thao tác ngay: thêm lượt nhanh, báo khách theo bàn thật, chỉ đẩy hàng chờ khi luồng báo khách cho phép, rồi đưa thẳng sang luồng đặt bàn và đơn hàng."
+        description="Xử lý hàng chờ theo lượt ưu tiên, báo khách đúng bàn và đẩy sang luồng phục vụ khi đã sẵn sàng."
+        context={(
+          <>
+            <StatusChip label={branchId ? `Chi nhánh #${branchId}` : 'Theo phạm vi mặc định'} tone="default" />
+            <StatusChip label={`${waitingListQuery.data?.meta?.summary.ready_to_seat_count ?? 0} sẵn sàng vào bàn`} tone={(waitingListQuery.data?.meta?.summary.ready_to_seat_count ?? 0) > 0 ? 'warning' : 'success'} />
+            <StatusChip label={selectedEntry ? `Đang xem #${selectedEntry.waiting_id}` : 'Chưa khóa lượt chờ'} tone={selectedEntry ? 'processing' : 'warning'} />
+          </>
+        )}
         extra={(
           <>
             <Select
+              aria-label="Lọc trạng thái hàng chờ"
               style={{ width: 160 }}
               value={statusFilter}
               options={waitingStatusOptions}
               onChange={(value) => setStatusFilter(value)}
             />
             <Select
+              aria-label="Lọc phạm vi hàng chờ"
               style={{ width: 140 }}
               value={queueMode}
               options={queueModeOptions}
@@ -400,9 +499,23 @@ export function WaitingListPage() {
             />
             <Input.Search
               allowClear
-              placeholder="Khách hoặc số điện thoại"
+              aria-label="Tìm hàng chờ"
+              placeholder="Khách hoặc số điện thoại…"
               style={{ width: 220 }}
-              onSearch={setSearchTerm}
+              value={searchDraft}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setSearchDraft(nextValue);
+
+                if (nextValue === '') {
+                  setSearchTerm('');
+                }
+              }}
+              onSearch={(value) => {
+                const normalizedValue = value.trim();
+                setSearchDraft(value);
+                setSearchTerm(normalizedValue);
+              }}
             />
             <Button onClick={() => waitingListQuery.refetch()} loading={waitingListQuery.isFetching}>
               Làm mới hàng chờ
@@ -410,6 +523,23 @@ export function WaitingListPage() {
           </>
         )}
       />
+
+      <Card size="small">
+        <Space wrap>
+          <Button type={statusFilter === 'Waiting' && queueMode === 'active' ? 'primary' : 'default'} onClick={() => { setStatusFilter('Waiting'); setQueueMode('active'); }}>
+            Chờ vào bàn
+          </Button>
+          <Button type={statusFilter === 'Notified' ? 'primary' : 'default'} onClick={() => { setStatusFilter('Notified'); setQueueMode('active'); }}>
+            Đã báo khách
+          </Button>
+          <Button type={queueMode === 'all' ? 'primary' : 'default'} onClick={() => { setStatusFilter('all'); setQueueMode('all'); }}>
+            Toàn bộ hàng chờ
+          </Button>
+          <Button onClick={() => { setStatusFilter('all'); setQueueMode('active'); setSearchDraft(''); setSearchTerm(''); }}>
+            Xóa preset
+          </Button>
+        </Space>
+      </Card>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} md={6}>
@@ -450,13 +580,16 @@ export function WaitingListPage() {
             dataSource={waitingListQuery.data?.data ?? []}
             rowClassName={(entry) => (entry.waiting_id === selectedWaitingId ? 'staff-row-selected' : '')}
             onRow={(entry) => ({
-              onClick: () => setSelectedWaitingId(entry.waiting_id),
+              onClick: () => {
+                setSelectedWaitingId(entry.waiting_id);
+                setSearchParams(setWaitingListFocus(searchParams, entry.waiting_id));
+              },
             })}
             columns={[
               {
                 title: 'Khách',
                 render: (_, entry) => (
-                  <Space direction="vertical" size={2}>
+                  <Space orientation="vertical" size={2}>
                     <Typography.Text strong>{entry.guest_name ?? `Lượt chờ #${entry.waiting_id}`}</Typography.Text>
                     <Typography.Text type="secondary">{entry.phone ?? `Khách #${entry.user_id ?? 'vãng lai'}`}</Typography.Text>
                   </Space>
@@ -464,7 +597,12 @@ export function WaitingListPage() {
               },
               {
                 title: 'Thời điểm tạo',
-                render: (_, entry) => formatDateTime(entry.requested_at),
+                render: (_, entry) => (
+                  <Space orientation="vertical" size={2}>
+                    <Typography.Text>{formatDateTime(entry.requested_at)}</Typography.Text>
+                    <Typography.Text type="secondary">{formatRelativeAge(entry.requested_at)}</Typography.Text>
+                  </Space>
+                ),
               },
               {
                 title: 'Số khách',
@@ -493,9 +631,16 @@ export function WaitingListPage() {
   const seatSupported = !!selectedEntry?.invite_lifecycle.can_staff_seat_now;
   const advanceSupported = !!selectedEntry?.orchestration.advance_queue.supported;
   const selectedReleasedTable = selectedEntry?.orchestration.released_table ?? null;
+  const boardReturnSearch = canonicalBoardContext || explicitBoardJourneyTableId
+    ? buildJourneySearch({
+      source: 'board',
+      tableId: canonicalBoardContext?.tableId ?? explicitBoardJourneyTableId ?? undefined,
+      tableIds: canonicalBoardContext?.tableIds,
+    })
+    : '';
 
   const side = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <Card title="Thêm lượt chờ">
         <Form<CreateWaitingValues>
           form={createForm}
@@ -504,12 +649,12 @@ export function WaitingListPage() {
           onFinish={(values) => createMutation.mutate(values)}
         >
           <Form.Item name="guest_name" label="Tên khách" rules={[{ required: true, message: 'Nhập tên khách.' }]}>
-            <Input placeholder="Tên khách đang chờ" />
+            <Input autoComplete="name" placeholder="Tên khách đang chờ…" />
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
               <Form.Item name="phone" label="Số điện thoại">
-                <Input />
+                <Input autoComplete="tel" inputMode="tel" placeholder="090…" type="tel" />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -531,13 +676,13 @@ export function WaitingListPage() {
             </Col>
           </Row>
           <Form.Item name="notes" label="Ghi chú">
-            <Input.TextArea rows={3} placeholder="Ghi chú tiếp đón nếu cần" />
+            <Input.TextArea autoComplete="off" rows={3} placeholder="Ghi chú tiếp đón nếu cần…" />
           </Form.Item>
           <Alert
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
-            message={`Đang dùng ngữ cảnh chi nhánh ${branchId ?? session?.startup.default_branch?.branch_id ?? 'mặc định'} từ shell nhân viên.`}
+            title={`Đang dùng ngữ cảnh chi nhánh ${branchId ?? session?.startup.default_branch?.branch_id ?? 'mặc định'} từ shell nhân viên.`}
           />
           <Button type="primary" htmlType="submit" loading={createMutation.isPending} block>
             Thêm lượt chờ
@@ -552,7 +697,7 @@ export function WaitingListPage() {
             description="Chọn một dòng hàng chờ để xem điều phối, trạng thái báo khách và mức sẵn sàng vào bàn."
           />
         ) : (
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={16} style={{ width: '100%' }}>
             <Descriptions bordered size="small" column={1}>
               <Descriptions.Item label="Khách">
                 {selectedEntry.guest_name ?? `Lượt chờ #${selectedEntry.waiting_id}`}
@@ -603,7 +748,7 @@ export function WaitingListPage() {
                         type="warning"
                         showIcon
                         style={{ marginBottom: 16 }}
-                        message="Không lấy được gợi ý từ sơ đồ bàn"
+                        title="Không lấy được gợi ý từ sơ đồ bàn"
                         description="Phiên hiện tại không đọc được sơ đồ bàn hoặc chưa có bàn phù hợp. Hãy nhập thủ công mã bàn để giữ chỗ khi báo khách."
                       />
                       <Form.Item
@@ -627,7 +772,7 @@ export function WaitingListPage() {
 
             {advanceSupported ? (
               <Card size="small" title="Đẩy hàng chờ">
-                <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                <Space orientation="vertical" size={12} style={{ width: '100%' }}>
                   <Typography.Text type="secondary">
                     Gợi ý kết quả: {translateUiCode(selectedEntry.orchestration.advance_queue.resulting_action)}
                   </Typography.Text>
@@ -635,7 +780,7 @@ export function WaitingListPage() {
                     <Alert
                       type="info"
                       showIcon
-                      message={`Ứng viên kế tiếp: ${selectedEntry.orchestration.advance_queue.next_candidate.guest_name ?? selectedEntry.orchestration.advance_queue.next_candidate.waiting_id}`}
+                      title={`Ứng viên kế tiếp: ${selectedEntry.orchestration.advance_queue.next_candidate.guest_name ?? selectedEntry.orchestration.advance_queue.next_candidate.waiting_id}`}
                       description={`Độ lệch chỗ ngồi ${selectedEntry.orchestration.advance_queue.next_candidate.capacity_fit.seat_delta}`}
                     />
                   ) : null}
@@ -658,8 +803,8 @@ export function WaitingListPage() {
                     type="warning"
                     showIcon
                     style={{ marginBottom: 16 }}
-                    message="Cần có mã khách hàng trước khi xếp bàn"
-                    description="Backend yêu cầu `user_id` khi lượt chờ chưa liên kết khách hàng. Hãy nhập tại đây trước khi chuyển lượt chờ thành đặt bàn."
+                    title="Cần có mã khách hàng trước khi xếp bàn"
+                    description="Lượt chờ này chưa liên kết khách hàng. Hãy nhập mã khách hàng tại đây trước khi chuyển lượt chờ thành đặt bàn."
                   />
                 ) : null}
                 <Form<SeatWaitingValues> form={seatForm} layout="vertical" onFinish={(values) => seatMutation.mutate(values)}>
@@ -676,7 +821,7 @@ export function WaitingListPage() {
                     <InputNumber min={30} max={480} style={{ width: '100%' }} />
                   </Form.Item>
                   <Form.Item name="notes" label="Ghi chú xếp bàn">
-                    <Input.TextArea rows={3} placeholder="Ghi chú xếp bàn nếu cần" />
+                    <Input.TextArea autoComplete="off" rows={3} placeholder="Ghi chú xếp bàn nếu cần…" />
                   </Form.Item>
                   <Button type="primary" htmlType="submit" loading={seatMutation.isPending} block>
                     Xếp bàn và mở đơn hàng
@@ -688,7 +833,7 @@ export function WaitingListPage() {
             <Card size="small" title="Hủy lượt chờ">
               <Form<CancelWaitingValues> form={cancelForm} layout="vertical" onFinish={handleCancel}>
                 <Form.Item name="cancel_reason" label="Lý do hủy">
-                  <Input.TextArea rows={2} placeholder="Lý do hủy nếu cần" />
+                  <Input.TextArea autoComplete="off" rows={2} placeholder="Lý do hủy nếu cần…" />
                 </Form.Item>
                 <Button danger htmlType="submit" loading={cancelMutation.isPending} block>
                   Hủy lượt chờ
@@ -705,14 +850,14 @@ export function WaitingListPage() {
         ) : changesQuery.error ? (
           <InlineError message={formatApiError(changesQuery.error, 'Không thể tải luồng thay đổi của danh sách chờ.')} />
         ) : (
-          <Space direction="vertical" size={8}>
+          <Space orientation="vertical" size={8}>
             <Typography.Text type="secondary">
               Phiên bản realtime v{changesQuery.data?.data.current_version ?? waitingListQuery.data?.meta?.realtime.current_version ?? 0}
             </Typography.Text>
             <Typography.Text type="secondary">
               Sự kiện: {changesQuery.data?.data.events.length ?? 0}
             </Typography.Text>
-            <Button onClick={() => navigate('/tables')}>
+            <Button onClick={() => navigate(boardReturnSearch ? `/tables?${boardReturnSearch}` : '/tables')}>
               Mở sơ đồ bàn
             </Button>
           </Space>
@@ -735,6 +880,30 @@ function toWaitingListSearchFilters(searchTerm: string): { guest_name?: string; 
     : { guest_name: trimmed };
 }
 
+function readWaitingListFocus(search: string | URLSearchParams): number | null {
+  const params = search instanceof URLSearchParams ? search : new URLSearchParams(search);
+  const rawValue = params.get('focus');
+
+  if (!rawValue) {
+    return null;
+  }
+
+  const parsed = Number(rawValue);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function setWaitingListFocus(search: string | URLSearchParams, waitingId: number | null): URLSearchParams {
+  const params = search instanceof URLSearchParams ? new URLSearchParams(search) : new URLSearchParams(search);
+
+  if (typeof waitingId === 'number' && Number.isInteger(waitingId) && waitingId > 0) {
+    params.set('focus', String(waitingId));
+    return params;
+  }
+
+  params.delete('focus');
+  return params;
+}
+
 function waitingResponseTone(status: string | null | undefined): StatusTone {
   switch ((status ?? '').toLowerCase()) {
     case 'arrival_confirmed':
@@ -748,4 +917,27 @@ function waitingResponseTone(status: string | null | undefined): StatusTone {
     default:
       return 'default';
   }
+}
+
+function getCanonicalWaitingTableContext(entry: StaffWaitingListEntry | null): { tableId: number; tableIds: Array<number> } | null {
+  if (!entry) {
+    return null;
+  }
+
+  const tableIds = Array.from(new Set([
+    entry.orchestration.released_table?.table_id,
+    ...(entry.orchestration.released_table?.table_ids ?? []),
+    ...(entry.invite_hold.active?.table_ids ?? []),
+    ...(entry.invite_hold.latest?.table_ids ?? []),
+  ].filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0)));
+
+  const [tableId] = tableIds;
+  if (tableId === undefined) {
+    return null;
+  }
+
+  return {
+    tableId,
+    tableIds,
+  };
 }

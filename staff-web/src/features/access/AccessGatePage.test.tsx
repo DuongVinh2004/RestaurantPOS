@@ -49,7 +49,7 @@ describe('AccessGatePage', () => {
     });
   });
 
-  it('recommends the table board when the session is fully ready', () => {
+  it('recommends the dashboard when the session is fully ready', () => {
     useAuthStore.setState({
       ...useAuthStore.getState(),
       session: buildStaffSession({
@@ -60,7 +60,7 @@ describe('AccessGatePage', () => {
 
     renderWithProviders();
 
-    expect(screen.getByRole('button', { name: /Mở Sơ đồ bàn/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Mở Tổng quan/i })).toBeInTheDocument();
     expect(screen.getByText(/điều hướng theo bước công việc an toàn/i)).toBeInTheDocument();
   });
 

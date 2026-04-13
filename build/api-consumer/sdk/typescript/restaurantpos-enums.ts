@@ -68,6 +68,9 @@ export type ReservationStatus = typeof reservationStatusValues[number];
 export const restaurantTableStatusValues = ["Available","Reserved","Occupied","Blocked","Maintenance"] as const;
 export type RestaurantTableStatus = typeof restaurantTableStatusValues[number];
 
+export const staffConversationWorkflowStateValues = ["Open","Triaged","Assigned","PendingCustomer","Resolved","Closed"] as const;
+export type StaffConversationWorkflowState = typeof staffConversationWorkflowStateValues[number];
+
 export const tableHoldStatusValues = ["Holding","Pending","Confirmed","Expired","Cancelled"] as const;
 export type TableHoldStatus = typeof tableHoldStatusValues[number];
 
@@ -171,6 +174,10 @@ export const restaurantPosEnumStateMap = {
   RestaurantTableStatus: {
     values: restaurantTableStatusValues,
     cases: {"Available":"Available","Reserved":"Reserved","Occupied":"Occupied","Blocked":"Blocked","Maintenance":"Maintenance"} as const
+  },
+  StaffConversationWorkflowState: {
+    values: staffConversationWorkflowStateValues,
+    cases: {"Open":"Open","Triaged":"Triaged","Assigned":"Assigned","PendingCustomer":"PendingCustomer","Resolved":"Resolved","Closed":"Closed"} as const
   },
   TableHoldStatus: {
     values: tableHoldStatusValues,

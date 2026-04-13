@@ -1,6 +1,7 @@
 import { readStoredStaffToken } from '../auth/storage';
 import { notifyStaffAuthFailure } from '../auth/session-events';
 import { apiBaseUrl } from '../config/env';
+import { normalizeMojibakePayload, warnOnRepairedPayload } from '../utils/text-encoding';
 
 export class StaffApiError<TPayload = unknown> extends Error {
   status: number;
@@ -55,7 +56,7 @@ export async function apiRequest<TResponse>(path: string, options: RequestOption
     signal: options.signal,
   });
 
-  const payload = await parseResponse(response);
+  const payload = await parseResponse(response, normalizedPath);
 
   if (!response.ok) {
     if (response.status === 401 && token && normalizedPath !== '/auth/staff/logout') {
@@ -101,13 +102,19 @@ function appendQuery(url: URL, query?: Record<string, unknown>): void {
   }
 }
 
-async function parseResponse(response: Response): Promise<unknown> {
+async function parseResponse(response: Response, path: string): Promise<unknown> {
   const contentType = response.headers.get('content-type') ?? '';
 
   if (contentType.includes('application/json')) {
-    return response.json();
+    return normalizeResponsePayload(await response.json(), path);
   }
 
   const text = await response.text();
-  return text.trim() === '' ? null : { message: text };
+  return normalizeResponsePayload(text.trim() === '' ? null : { message: text }, path);
+}
+
+function normalizeResponsePayload(payload: unknown, path: string): unknown {
+  const normalized = normalizeMojibakePayload(payload);
+  warnOnRepairedPayload(path, normalized.replacementCount);
+  return normalized.value;
 }

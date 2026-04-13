@@ -157,6 +157,7 @@ final class ApiOpenApiContractCoverageTest extends TestCase
             'GET api/v1/staff/reservations/{reservation_id}/refund-preview' => ['status' => '200', 'schema' => '#/components/schemas/StaffRefundPreviewEnvelope'],
             'POST api/v1/staff/reservations/{reservation_id}/refund' => ['status' => '200', 'schema' => '#/components/schemas/StaffRefundEnvelope'],
             'POST api/v1/staff/reservations/{reservation_id}/refund-cancel' => ['status' => '200', 'schema' => '#/components/schemas/StaffRefundEnvelope'],
+            'GET api/v1/staff/audit-trail' => ['status' => '200', 'schema' => '#/components/schemas/StaffAuditTrailEnvelope'],
         ];
 
         foreach ($expectations as $signature => $expectation) {
@@ -200,6 +201,14 @@ final class ApiOpenApiContractCoverageTest extends TestCase
         $this->assertSame(
             'array',
             data_get($spec, 'components.schemas.StaffAuthSessionEnvelope.properties.data.properties.capabilities.type')
+        );
+        $this->assertSame(
+            '#/components/schemas/StaffAuditTrailEntry',
+            data_get($spec, 'components.schemas.StaffAuditTrailEnvelope.properties.data.items.$ref')
+        );
+        $this->assertSame(
+            '#/components/schemas/StaffAuditTrailRequest',
+            data_get($spec, 'components.schemas.StaffAuditTrailEntry.properties.request.$ref')
         );
         $this->assertSame(
             'string',

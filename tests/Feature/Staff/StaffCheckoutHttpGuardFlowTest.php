@@ -48,6 +48,7 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
             'deposit_paid_amount' => '0.00',
             'deposit_status' => 'NotRequired',
         ]);
+        $this->openCashierShiftForReservationBranch($staffId, $reservationId);
         $this->attachReservationTable($reservationId, $tableId);
         $orderId = $this->createOrder([
             'reservation_id' => $reservationId,
@@ -85,6 +86,7 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
         $headers = $this->withIdempotencyKey($this->staffAuthHeaders($staffId, 'staff-http-pay-2'), 'idem-http-pay-2');
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation(['status' => 'Reserved']);
+        $this->openCashierShiftForReservationBranch($staffId, $reservationId);
         $this->attachReservationTable($reservationId, $tableId);
         $orderId = $this->createOrder([
             'reservation_id' => $reservationId,
@@ -150,6 +152,7 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
         $headers = $this->withIdempotencyKey($this->staffAuthHeaders($staffId, 'staff-http-finalize-1'), 'idem-http-finalize-1');
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation(['status' => 'Reserved']);
+        $this->openCashierShiftForReservationBranch($staffId, $reservationId);
         $this->attachReservationTable($reservationId, $tableId);
         $orderId = $this->createOrder([
             'reservation_id' => $reservationId,
@@ -197,6 +200,7 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
         );
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation(['status' => 'Reserved']);
+        $this->openCashierShiftForReservationBranch($staffId, $reservationId);
         $this->attachReservationTable($reservationId, $tableId);
         $orderId = $this->createOrder([
             'reservation_id' => $reservationId,
@@ -223,5 +227,15 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['idempotency_key']);
         $this->assertSame(0, (int) DB::table('payments')->where('reservation_id', $reservationId)->count());
+    }
+
+    private function openCashierShiftForReservationBranch(int $staffId, int $reservationId): void
+    {
+        $branchId = (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('branch_id');
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId > 0 ? $branchId : 1,
+            'status' => 'Open',
+        ]);
     }
 }

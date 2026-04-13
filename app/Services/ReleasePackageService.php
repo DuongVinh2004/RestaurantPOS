@@ -67,19 +67,27 @@ class ReleasePackageService
 
         if (($snapshot['status'] ?? 'fail') === 'fail') {
             $issues[] = 'Release artifact manifest is failing. Resolve manifest issues before packaging the release.';
+            foreach ((array) ($snapshot['issues'] ?? []) as $snapshotIssue) {
+                $message = trim((string) $snapshotIssue);
+                if ($message !== '') {
+                    $issues[] = $message;
+                }
+            }
         } elseif (($snapshot['status'] ?? 'ok') === 'warning') {
             $warnings[] = 'Release artifact manifest has warnings; review optional artifacts before promotion.';
+            foreach ((array) ($snapshot['issues'] ?? []) as $snapshotWarning) {
+                $message = trim((string) $snapshotWarning);
+                if ($message !== '') {
+                    $warnings[] = $message;
+                }
+            }
         }
 
-        if ($verifyFrozen && ! ($frozenSnapshot['ok'] ?? false)) {
+        if (! ($frozenSnapshot['ok'] ?? false)) {
             $issues[] = sprintf(
                 'Frozen release manifest snapshot verification failed with status [%s].',
                 (string) ($frozenSnapshot['status'] ?? 'missing')
             );
-        }
-
-        if (! class_exists(\PharData::class)) {
-            $issues[] = 'PharData support is unavailable; cannot build immutable .tar.gz release artifacts.';
         }
 
         $absoluteOutputRoot = base_path($outputRoot);
@@ -161,11 +169,14 @@ class ReleasePackageService
             );
         }
 
+        $packageTimestamp = $this->stablePackageTimestamp($frozenSnapshot, $snapshot);
+        $packageTimestampEpoch = $this->stablePackageTimestampEpoch($packageTimestamp);
+        $packageFrozenSnapshot = $this->stableFrozenSnapshotForPackage($frozenSnapshot, $packageTimestamp);
         $inventoryEntries = $this->inventoryEntries($absoluteStagePath, $packageBasename);
         $inventoryPayload = [
             'package_id' => $packageId,
             'package_basename' => $packageBasename,
-            'generated_at_utc' => now('UTC')->toIso8601String(),
+            'generated_at_utc' => $packageTimestamp,
             'file_count' => count($inventoryEntries),
             'total_bytes' => array_sum(array_map(static fn (array $entry): int => (int) $entry['bytes'], $inventoryEntries)),
             'entries' => $inventoryEntries,
@@ -174,7 +185,7 @@ class ReleasePackageService
         $metadataPayload = [
             'package_id' => $packageId,
             'package_basename' => $packageBasename,
-            'created_at_utc' => now('UTC')->toIso8601String(),
+            'created_at_utc' => $packageTimestamp,
             'app_env' => (string) config('app.env', 'production'),
             'package_format' => 'tar.gz',
             'include_roots' => $includeRoots,
@@ -183,7 +194,7 @@ class ReleasePackageService
                 'status' => (string) ($snapshot['status'] ?? 'fail'),
                 'definition_sha256' => (string) ($snapshot['definition_sha256'] ?? ''),
                 'snapshot_path' => (string) ($snapshot['snapshot_path'] ?? ''),
-                'frozen_snapshot' => $frozenSnapshot,
+                'frozen_snapshot' => $packageFrozenSnapshot,
             ],
             'build' => $buildMetadata,
         ];
@@ -210,6 +221,7 @@ class ReleasePackageService
             $checksumEntries
         ))."\n";
         File::put($absoluteStagePath.DIRECTORY_SEPARATOR.'release_checksums.sha256', $checksumsContent);
+        $this->normalizeStageTimestamps($absoluteStagePath, $packageTimestampEpoch);
 
         try {
             $this->buildArchive(
@@ -249,7 +261,7 @@ class ReleasePackageService
         $latestPointerPayload = [
             'package_id' => $packageId,
             'package_basename' => $packageBasename,
-            'generated_at_utc' => now('UTC')->toIso8601String(),
+            'generated_at_utc' => $packageTimestamp,
             'package_path' => $packagePath,
             'package_sha256' => $packageSha256,
             'package_bytes' => $packageBytes,
@@ -294,6 +306,7 @@ class ReleasePackageService
      * @return array{
      *   output_root: string,
      *   package_prefix: string,
+     *   exclude_paths: list<string>,
      *   include_paths: list<array{path: string, required: bool}>,
      *   sidecars: array{metadata_suffix: string, inventory_suffix: string, checksums_suffix: string, package_sha256_suffix: string, latest_pointer_path: string}
      * }
@@ -322,6 +335,10 @@ class ReleasePackageService
         return [
             'output_root' => trim((string) ($packaging['output_root'] ?? 'build/booking-release'), '/'),
             'package_prefix' => trim((string) ($packaging['package_prefix'] ?? 'restaurantpos-backend-release')),
+            'exclude_paths' => array_values(array_filter(array_map(
+                static fn (mixed $path): string => is_scalar($path) ? trim(str_replace('\\', '/', (string) $path), '/') : '',
+                (array) ($packaging['exclude_paths'] ?? [])
+            ), static fn (string $path): bool => $path !== '')),
             'include_paths' => $includePaths,
             'sidecars' => [
                 'metadata_suffix' => (string) ($packaging['sidecars']['metadata_suffix'] ?? '.metadata.json'),
@@ -357,8 +374,13 @@ class ReleasePackageService
 
     private function stagePath(string $absoluteSourcePath, string $relativeSourcePath, string $absoluteStagePath): void
     {
+        $excludedPaths = $this->excludedStagePaths();
         $relativeSourcePath = trim(str_replace('\\', '/', $relativeSourcePath), '/');
         if (is_file($absoluteSourcePath)) {
+            if ($this->shouldSkipStagePath($relativeSourcePath, $excludedPaths)) {
+                return;
+            }
+
             $destination = $absoluteStagePath.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $relativeSourcePath);
             File::ensureDirectoryExists(dirname($destination));
             File::copy($absoluteSourcePath, $destination);
@@ -377,10 +399,42 @@ class ReleasePackageService
             }
 
             $relativeChild = trim(str_replace('\\', '/', substr($item->getPathname(), strlen($absoluteSourcePath) + 1)), '/');
-            $destination = $absoluteStagePath.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $relativeSourcePath.'/'.$relativeChild);
+            $archiveRelativePath = trim($relativeSourcePath.'/'.$relativeChild, '/');
+            if ($this->shouldSkipStagePath($archiveRelativePath, $excludedPaths)) {
+                continue;
+            }
+
+            $destination = $absoluteStagePath.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $archiveRelativePath);
             File::ensureDirectoryExists(dirname($destination));
             File::copy($item->getPathname(), $destination);
         }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function excludedStagePaths(): array
+    {
+        $excludedPaths = (array) ($this->definition()['exclude_paths'] ?? []);
+        sort($excludedPaths);
+
+        return array_values(array_unique(array_filter($excludedPaths, static fn (mixed $path): bool => is_string($path) && $path !== '')));
+    }
+
+    /**
+     * @param  list<string>  $excludedPaths
+     */
+    private function shouldSkipStagePath(string $relativePath, array $excludedPaths): bool
+    {
+        $normalizedPath = trim(str_replace('\\', '/', $relativePath), '/');
+
+        foreach ($excludedPaths as $excludedPath) {
+            if ($normalizedPath === $excludedPath || str_starts_with($normalizedPath, $excludedPath.'/')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -442,6 +496,69 @@ class ReleasePackageService
         File::put($absolutePath, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     }
 
+    private function stablePackageTimestamp(array $frozenSnapshot, array $snapshot): string
+    {
+        foreach ([
+            data_get($frozenSnapshot, 'frozen.meta.generated_at_utc'),
+            data_get($snapshot, 'meta.generated_at_utc'),
+        ] as $candidate) {
+            if (! is_string($candidate) || trim($candidate) === '') {
+                continue;
+            }
+
+            $epoch = strtotime($candidate);
+            if ($epoch !== false) {
+                return gmdate('c', $epoch);
+            }
+        }
+
+        return gmdate('c', 0);
+    }
+
+    private function stablePackageTimestampEpoch(string $timestamp): int
+    {
+        $epoch = strtotime($timestamp);
+
+        return $epoch === false ? 0 : max(0, $epoch);
+    }
+
+    private function stableFrozenSnapshotForPackage(array $frozenSnapshot, string $packageTimestamp): array
+    {
+        foreach (['live', 'frozen'] as $snapshotKey) {
+            if (! isset($frozenSnapshot[$snapshotKey]) || ! is_array($frozenSnapshot[$snapshotKey])) {
+                continue;
+            }
+
+            $frozenSnapshot[$snapshotKey]['meta'] = (array) ($frozenSnapshot[$snapshotKey]['meta'] ?? []);
+            $frozenSnapshot[$snapshotKey]['meta']['generated_at_utc'] = $packageTimestamp;
+        }
+
+        return $frozenSnapshot;
+    }
+
+    private function normalizeStageTimestamps(string $absoluteStagePath, int $epoch): void
+    {
+        if (! File::exists($absoluteStagePath)) {
+            return;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($absoluteStagePath, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($iterator as $item) {
+            if (! $item instanceof \SplFileInfo || $item->isLink()) {
+                continue;
+            }
+
+            @touch($item->getPathname(), $epoch);
+        }
+
+        @touch($absoluteStagePath, $epoch);
+        clearstatcache();
+    }
+
     private function buildArchive(string $stageAbsolutePath, string $packageBasename, string $tarAbsolutePath, string $packageAbsolutePath, bool $overwrite): void
     {
         foreach ([$tarAbsolutePath, $packageAbsolutePath] as $path) {
@@ -456,24 +573,108 @@ class ReleasePackageService
 
         File::ensureDirectoryExists(dirname($tarAbsolutePath));
 
-        $tar = new \PharData($tarAbsolutePath);
-        foreach ($this->collectStageFiles($stageAbsolutePath) as $relativePath) {
-            $absolutePath = $stageAbsolutePath.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
-            $archivePath = $packageBasename.'/'.$relativePath;
-            $tar->addFile($absolutePath, $archivePath);
-        }
-
-        unset($tar);
-
-        $tar = new \PharData($tarAbsolutePath);
-        $tar->compress(\Phar::GZ);
-        unset($tar);
+        $this->buildDeterministicTarGz(
+            stageAbsolutePath: $stageAbsolutePath,
+            packageBasename: $packageBasename,
+            packageAbsolutePath: $packageAbsolutePath,
+        );
 
         if (! File::exists($packageAbsolutePath)) {
             throw new RuntimeException(sprintf('Expected compressed release package [%s] was not created.', $packageAbsolutePath));
         }
 
         File::delete($tarAbsolutePath);
+    }
+
+    private function buildDeterministicTarGz(string $stageAbsolutePath, string $packageBasename, string $packageAbsolutePath): void
+    {
+        $tar = '';
+
+        foreach ($this->collectStageFiles($stageAbsolutePath) as $relativePath) {
+            $absolutePath = $stageAbsolutePath.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+            $contents = (string) File::get($absolutePath);
+            $archivePath = $packageBasename.'/'.$relativePath;
+            $tar .= $this->tarHeader($archivePath, strlen($contents), (int) filemtime($absolutePath));
+            $tar .= $contents;
+            $tar .= str_repeat("\0", $this->tarPaddingLength(strlen($contents)));
+        }
+
+        $tar .= str_repeat("\0", 1024);
+
+        File::put($packageAbsolutePath, $this->deterministicGzip($tar));
+    }
+
+    private function tarHeader(string $archivePath, int $bytes, int $mtime): string
+    {
+        [$name, $prefix] = $this->splitTarPath($archivePath);
+        $header = str_pad($name, 100, "\0");
+        $header .= sprintf("%07o\0", 0644);
+        $header .= sprintf("%07o\0", 0);
+        $header .= sprintf("%07o\0", 0);
+        $header .= sprintf("%011o\0", $bytes);
+        $header .= sprintf("%011o\0", $mtime);
+        $header .= str_repeat(' ', 8);
+        $header .= '0';
+        $header .= str_repeat("\0", 100);
+        $header .= "ustar\0";
+        $header .= '00';
+        $header .= str_repeat("\0", 32);
+        $header .= str_repeat("\0", 32);
+        $header .= str_repeat("\0", 8);
+        $header .= str_repeat("\0", 8);
+        $header .= str_pad($prefix, 155, "\0");
+        $header .= str_repeat("\0", 12);
+
+        $checksum = 0;
+        for ($index = 0, $length = strlen($header); $index < $length; $index++) {
+            $checksum += ord($header[$index]);
+        }
+
+        return substr_replace($header, sprintf("%06o\0 ", $checksum), 148, 8);
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function splitTarPath(string $archivePath): array
+    {
+        $archivePath = trim(str_replace('\\', '/', $archivePath), '/');
+
+        if (strlen($archivePath) <= 100) {
+            return [$archivePath, ''];
+        }
+
+        $parts = explode('/', $archivePath);
+        $nameParts = [];
+
+        while ($parts !== []) {
+            array_unshift($nameParts, (string) array_pop($parts));
+            $name = implode('/', $nameParts);
+            $prefix = implode('/', $parts);
+
+            if (strlen($name) <= 100 && strlen($prefix) <= 155) {
+                return [$name, $prefix];
+            }
+        }
+
+        throw new RuntimeException(sprintf('Archive path [%s] is too long for the deterministic ustar package writer.', $archivePath));
+    }
+
+    private function tarPaddingLength(int $bytes): int
+    {
+        $remainder = $bytes % 512;
+
+        return $remainder === 0 ? 0 : 512 - $remainder;
+    }
+
+    private function deterministicGzip(string $contents): string
+    {
+        $deflated = gzdeflate($contents, 9);
+        if (! is_string($deflated)) {
+            throw new RuntimeException('Unable to gzip release package contents.');
+        }
+
+        return "\x1f\x8b\x08\x00".pack('V', 0)."\x02\xff".$deflated.pack('V', crc32($contents)).pack('V', strlen($contents));
     }
 
     private function lineCount(string $contents): int

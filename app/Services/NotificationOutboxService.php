@@ -15,6 +15,7 @@ use App\Services\Notifications\NotificationDeliveryException;
 use App\Services\Notifications\NotificationPreferenceService;
 use App\Support\AuditEvent;
 use App\Support\PaymentSummary;
+use DateTimeZone;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -87,7 +88,18 @@ class NotificationOutboxService
         $createdAt = ($attributes['created_at'] ?? null) instanceof Carbon
             ? $attributes['created_at']->copy()->utc()
             : Carbon::now('UTC');
+        $branchId = isset($attributes['branch_id']) && $attributes['branch_id'] !== null
+            ? (int) $attributes['branch_id']
+            : (isset($payload['branch_id']) && $payload['branch_id'] !== null
+                ? (int) $payload['branch_id']
+                : null);
         $missingRecipientAuditContext = (array) ($attributes['missing_recipient_audit_context'] ?? []);
+        $channelMeta = $this->channelManager->describe($channel);
+        $preferredTimezone = $this->resolveNotificationPreferenceTimezone(
+            $this->normalizeNullableString($attributes['preferred_timezone'] ?? null),
+            $branchId,
+            $payload,
+        );
 
         if ($recipient === '') {
             AuditEvent::warning('notification_outbox_skipped_missing_recipient', array_merge($missingRecipientAuditContext, [
@@ -105,7 +117,7 @@ class NotificationOutboxService
             return $existing;
         }
 
-        $preference = $this->preferenceService->evaluate($recipientUserId, $channel, $createdAt);
+        $preference = $this->preferenceService->evaluate($recipientUserId, $channel, $createdAt, $preferredTimezone);
         if (! ($preference['enabled'] ?? true)) {
             AuditEvent::info('notification_outbox_suppressed_by_preference', [
                 'channel' => $channel,
@@ -151,6 +163,8 @@ class NotificationOutboxService
             $recipientUserId,
             $dedupeKey,
             $cooldownSeconds,
+            $channelMeta,
+            $preferredTimezone,
         );
         $message->status = 'Pending';
         $message->processing_token = null;
@@ -297,7 +311,7 @@ class NotificationOutboxService
 
         return $this->enqueueMessage([
             'channel' => 'Email',
-            'recipient' => (string) ($reservation->user?->email ?? ''),
+            'recipient' => (string) ($reservation->customerEmail() ?? ''),
             'recipient_user_id' => $reservation->user_id !== null ? (int) $reservation->user_id : null,
             'template_key' => 'payment.refunded',
             'event_key' => 'payment.refunded',
@@ -305,6 +319,8 @@ class NotificationOutboxService
             'dedupe_key' => $idempotencyKey,
             'payload' => $payload,
             'related_reservation_id' => (int) $reservation->reservation_id,
+            'branch_id' => $reservation->branch_id !== null ? (int) $reservation->branch_id : null,
+            'preferred_timezone' => $payload['reservation_timezone'] ?? null,
             'missing_recipient_audit_context' => [
                 'reservation_id' => (int) $reservation->reservation_id,
                 'user_id' => (int) ($reservation->user_id ?? 0),
@@ -348,6 +364,8 @@ class NotificationOutboxService
             'dedupe_key' => sprintf('waiting-list:%d:%s:Email', (int) $entry->waiting_id, 'waiting_list.notified'),
             'payload' => $payload,
             'related_reservation_id' => null,
+            'branch_id' => (int) ($table->branch_id ?? $entry->branch_id ?? 0),
+            'preferred_timezone' => $this->resolveOperationalTimezone((int) ($table->branch_id ?? $entry->branch_id ?? 0)),
             'missing_recipient_audit_context' => [
                 'waiting_id' => (int) $entry->waiting_id,
                 'user_id' => (int) ($entry->user_id ?? 0),
@@ -409,7 +427,7 @@ class NotificationOutboxService
 
         return $this->enqueueMessage([
             'channel' => 'Email',
-            'recipient' => (string) ($reservation->user?->email ?? ''),
+            'recipient' => (string) ($reservation->customerEmail() ?? ''),
             'recipient_user_id' => $reservation->user_id !== null ? (int) $reservation->user_id : null,
             'template_key' => $templateKey,
             'event_key' => $templateKey,
@@ -425,6 +443,8 @@ class NotificationOutboxService
                 ],
             ),
             'related_reservation_id' => (int) $reservation->reservation_id,
+            'branch_id' => $reservation->branch_id !== null ? (int) $reservation->branch_id : null,
+            'preferred_timezone' => $this->resolveOperationalTimezone($reservation->branch_id !== null ? (int) $reservation->branch_id : null),
             'missing_recipient_audit_context' => [
                 'reservation_id' => (int) $reservation->reservation_id,
                 'user_id' => (int) ($reservation->user_id ?? 0),
@@ -459,7 +479,7 @@ class NotificationOutboxService
 
         return $this->enqueueMessage([
             'channel' => 'Email',
-            'recipient' => (string) ($reservation->user?->email ?? ''),
+            'recipient' => (string) ($reservation->customerEmail() ?? ''),
             'recipient_user_id' => $reservation->user_id !== null ? (int) $reservation->user_id : null,
             'template_key' => $templateKey,
             'event_key' => $templateKey,
@@ -467,6 +487,8 @@ class NotificationOutboxService
             'dedupe_key' => $dedupeKey,
             'payload' => $this->buildReservationPayload($reservation),
             'related_reservation_id' => (int) $reservation->reservation_id,
+            'branch_id' => $reservation->branch_id !== null ? (int) $reservation->branch_id : null,
+            'preferred_timezone' => $this->resolveOperationalTimezone($reservation->branch_id !== null ? (int) $reservation->branch_id : null),
             'missing_recipient_audit_context' => [
                 'reservation_id' => (int) $reservation->reservation_id,
                 'user_id' => (int) ($reservation->user_id ?? 0),
@@ -521,6 +543,10 @@ class NotificationOutboxService
         $providerKey = null;
         $attemptedAt = Carbon::now('UTC');
 
+        if (! $this->applyDeliveryBoundaryGuards($message, $attemptedAt, $workerId)) {
+            return;
+        }
+
         try {
             $message->attempt_count = (int) $message->attempt_count + 1;
             $message->last_attempted_at = $attemptedAt;
@@ -566,7 +592,8 @@ class NotificationOutboxService
             ]);
         } catch (Throwable $e) {
             $maxAttempts = max(1, (int) config('notifications.outbox.max_attempts', 5));
-            $exhausted = (int) $message->attempt_count >= $maxAttempts;
+            $nonRetryable = $e instanceof NotificationDeliveryException && ! $e->isRetryable();
+            $exhausted = $nonRetryable || (int) $message->attempt_count >= $maxAttempts;
             $errorCode = $e instanceof NotificationDeliveryException ? $e->errorCode() : null;
             $responsePayload = $e instanceof NotificationDeliveryException ? $e->responsePayload() : [];
 
@@ -591,7 +618,9 @@ class NotificationOutboxService
             $message->last_error = mb_substr($e->getMessage(), 0, 500);
             $message->save();
 
-            AuditEvent::warning($exhausted ? 'notification_outbox_cancelled_after_max_attempts' : 'notification_outbox_failed', [
+            AuditEvent::warning($nonRetryable
+                ? 'notification_outbox_cancelled_non_retryable'
+                : ($exhausted ? 'notification_outbox_cancelled_after_max_attempts' : 'notification_outbox_failed'), [
                 'outbox_id' => (int) $message->outbox_id,
                 'reservation_id' => (int) ($message->related_reservation_id ?? 0),
                 'channel' => (string) $message->channel,
@@ -604,12 +633,125 @@ class NotificationOutboxService
                 'worker_id' => $workerId,
                 'error' => $e->getMessage(),
                 'error_code' => $errorCode,
+                'retryable' => ! $nonRetryable,
             ]);
             $this->recordMetric($exhausted ? 'notification_outbox_cancelled_total' : 'notification_outbox_failed_total', [
                 'channel' => (string) $message->channel,
                 'template_key' => (string) $message->template_key,
             ]);
         }
+    }
+
+    private function applyDeliveryBoundaryGuards(NotificationOutbox $message, Carbon $now, string $workerId): bool
+    {
+        $payload = (array) $message->payload_json;
+        $preferredTimezone = $this->extractNotificationPreferredTimezone($payload);
+        $preference = $this->preferenceService->evaluate(
+            $message->recipient_user_id !== null ? (int) $message->recipient_user_id : null,
+            (string) $message->channel,
+            $now,
+            $preferredTimezone,
+        );
+
+        if (! ($preference['enabled'] ?? true)) {
+            $reasonCode = (string) ($preference['reason'] ?? 'channel_disabled_by_user');
+            $reasonMessage = $this->preferenceSuppressionMessage($reasonCode);
+
+            $this->recordDeliveryAttempt(
+                message: $message,
+                providerKey: null,
+                status: 'Suppressed',
+                dispatchPayload: [],
+                attemptedAt: $now,
+                responsePayload: [
+                    'gate' => 'preference',
+                    'reason_code' => $reasonCode,
+                ],
+                errorCode: $reasonCode,
+                errorMessage: $reasonMessage,
+                attemptNumber: (int) $message->attempt_count,
+            );
+
+            $message->status = 'Cancelled';
+            $message->processing_token = null;
+            $message->locked_by = null;
+            $message->locked_until = null;
+            $message->next_retry_at = null;
+            $message->last_error = mb_substr($reasonMessage, 0, 500);
+            $message->save();
+
+            AuditEvent::info('notification_outbox_cancelled_by_preference', [
+                'outbox_id' => (int) $message->outbox_id,
+                'reservation_id' => (int) ($message->related_reservation_id ?? 0),
+                'channel' => (string) $message->channel,
+                'template_key' => (string) $message->template_key,
+                'recipient_masked' => $this->maskRecipientForAudit((string) $message->recipient),
+                'worker_id' => $workerId,
+                'reason_code' => $reasonCode,
+            ]);
+            $this->recordMetric('notification_outbox_cancelled_total', [
+                'channel' => (string) $message->channel,
+                'template_key' => (string) $message->template_key,
+            ]);
+
+            return false;
+        }
+
+        $quietUntil = $preference['quiet_until'] ?? null;
+        if ($quietUntil instanceof Carbon && $quietUntil->greaterThan($now)) {
+            $quietUntilUtc = $quietUntil->copy()->utc();
+
+            $this->recordDeliveryAttempt(
+                message: $message,
+                providerKey: null,
+                status: 'Deferred',
+                dispatchPayload: [],
+                attemptedAt: $now,
+                responsePayload: [
+                    'gate' => 'quiet_hours',
+                    'reason_code' => 'quiet_hours_active',
+                    'quiet_until_utc' => $quietUntilUtc->toIso8601String(),
+                ],
+                errorCode: 'quiet_hours_active',
+                errorMessage: 'Delivery deferred until recipient quiet hours end.',
+                attemptNumber: (int) $message->attempt_count,
+            );
+
+            $message->status = 'Pending';
+            $message->processing_token = null;
+            $message->locked_by = null;
+            $message->locked_until = null;
+            $message->next_retry_at = $quietUntilUtc;
+            $message->last_error = null;
+            $message->save();
+
+            AuditEvent::info('notification_outbox_deferred_by_quiet_hours', [
+                'outbox_id' => (int) $message->outbox_id,
+                'reservation_id' => (int) ($message->related_reservation_id ?? 0),
+                'channel' => (string) $message->channel,
+                'template_key' => (string) $message->template_key,
+                'recipient_masked' => $this->maskRecipientForAudit((string) $message->recipient),
+                'worker_id' => $workerId,
+                'quiet_until_utc' => $quietUntilUtc->toIso8601String(),
+            ]);
+            $this->recordMetric('notification_outbox_deferred_total', [
+                'channel' => (string) $message->channel,
+                'template_key' => (string) $message->template_key,
+            ]);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private function preferenceSuppressionMessage(string $reasonCode): string
+    {
+        return match ($reasonCode) {
+            'channel_not_opted_in' => 'Recipient is not opted in for this notification channel.',
+            'channel_disabled_by_user' => 'Recipient disabled this notification channel before delivery.',
+            default => 'Recipient notification preferences block this message before delivery.',
+        };
     }
 
     private function computeNextRetryAt(int $attemptCount): Carbon
@@ -640,6 +782,7 @@ class NotificationOutboxService
 
     /**
      * @param  array<string,mixed>  $payload
+     * @param  array<string,mixed>  $channelMeta
      * @return array<string,mixed>
      */
     private function enrichPayloadWithNotificationMeta(
@@ -650,6 +793,8 @@ class NotificationOutboxService
         ?int $recipientUserId,
         ?string $dedupeKey,
         int $cooldownSeconds,
+        array $channelMeta,
+        string $preferredTimezone,
     ): array {
         $meta = (array) ($payload['_notification'] ?? []);
         $meta['channel'] = $channel;
@@ -658,6 +803,11 @@ class NotificationOutboxService
         $meta['recipient_user_id'] = $recipientUserId;
         $meta['dedupe_key'] = $dedupeKey;
         $meta['cooldown_seconds'] = $cooldownSeconds;
+        $meta['provider_key'] = $this->normalizeNullableString($channelMeta['provider_key'] ?? null);
+        $meta['delivery_mode'] = $this->normalizeNullableString($channelMeta['delivery_mode'] ?? null);
+        $meta['readiness'] = $this->normalizeNullableString($channelMeta['readiness'] ?? null);
+        $meta['supports_live_delivery'] = (bool) ($channelMeta['supports_live_delivery'] ?? false);
+        $meta['preferred_timezone'] = $preferredTimezone;
         $payload['_notification'] = $meta;
 
         return $payload;
@@ -689,13 +839,14 @@ class NotificationOutboxService
         array $responsePayload = [],
         ?string $errorCode = null,
         ?string $errorMessage = null,
+        ?int $attemptNumber = null,
     ): void {
         try {
             NotificationDeliveryAttempt::query()->create([
                 'outbox_id' => (int) $message->outbox_id,
                 'channel' => (string) $message->channel,
                 'provider_key' => $providerKey,
-                'attempt_number' => (int) $message->attempt_count,
+                'attempt_number' => max(0, (int) ($attemptNumber ?? $message->attempt_count)),
                 'status' => $status,
                 'recipient' => (string) $message->recipient,
                 'provider_message_id' => $providerMessageId,
@@ -756,6 +907,39 @@ class NotificationOutboxService
         return $normalized === '' ? null : $normalized;
     }
 
+    private function normalizeTimezone(?string $timezone): ?string
+    {
+        $normalized = $this->normalizeNullableString($timezone);
+        if ($normalized === null) {
+            return null;
+        }
+
+        try {
+            new DateTimeZone($normalized);
+
+            return $normalized;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    private function resolveNotificationPreferenceTimezone(?string $preferredTimezone, ?int $branchId, array $payload): string
+    {
+        return $this->normalizeTimezone($preferredTimezone)
+            ?? $this->extractNotificationPreferredTimezone($payload)
+            ?? $this->normalizeTimezone(isset($payload['reservation_timezone']) ? (string) $payload['reservation_timezone'] : null)
+            ?? $this->resolveOperationalTimezone($branchId);
+    }
+
+    private function extractNotificationPreferredTimezone(array $payload): ?string
+    {
+        $notificationMeta = (array) ($payload['_notification'] ?? []);
+
+        return $this->normalizeTimezone($notificationMeta['preferred_timezone'] ?? null)
+            ?? $this->normalizeTimezone($payload['preferred_timezone'] ?? null)
+            ?? $this->normalizeTimezone($payload['reservation_timezone'] ?? null);
+    }
+
     private function buildReservationPayload(Reservation $reservation): array
     {
         $reservation->loadMissing('tables', 'user', 'payments');
@@ -768,7 +952,11 @@ class NotificationOutboxService
         return [
             'reservation_id' => (int) $reservation->reservation_id,
             'reservation_code' => (string) $reservation->reservation_code,
-            'customer_name' => (string) ($reservation->user?->full_name ?? 'Quý khách'),
+            'customer_name' => (string) ($reservation->customerDisplayName() ?? 'Quý khách'),
+            'customer_email_masked' => $this->maskRecipientForAudit($reservation->customerEmail()),
+            'guest_name' => (string) ($reservation->guest_name ?? ''),
+            'guest_phone' => (string) ($reservation->guest_phone ?? ''),
+            'guest_email' => (string) ($reservation->guest_email ?? ''),
             'guest_count' => (int) $reservation->guest_count,
             'status' => (string) ($reservation->status?->value ?? $reservation->status),
             'reservation_timezone' => $timezone,
@@ -879,12 +1067,14 @@ class NotificationOutboxService
                 ->where('branch_id', $branchId)
                 ->value('timezone');
 
-            if (is_string($timezone) && trim($timezone) !== '') {
-                return trim($timezone);
+            $normalizedTimezone = is_string($timezone) ? $this->normalizeTimezone($timezone) : null;
+            if ($normalizedTimezone !== null) {
+                return $normalizedTimezone;
             }
         }
 
-        return (string) config('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh');
+        return $this->normalizeTimezone((string) config('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh'))
+            ?? 'UTC';
     }
 
     private function resolveSubject(string $templateKey, array $payload): string

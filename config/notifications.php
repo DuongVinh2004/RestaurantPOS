@@ -33,18 +33,21 @@ return [
             'driver' => env('NOTIFICATIONS_EMAIL_DRIVER', 'mail'),
             'provider_key' => env('NOTIFICATIONS_EMAIL_PROVIDER_KEY', 'mail'),
             'delivery_mode' => 'real',
+            'readiness' => 'production_lean',
         ],
         'sms' => [
             'enabled' => env('NOTIFICATIONS_SMS_ENABLED', false),
             'driver' => env('NOTIFICATIONS_SMS_DRIVER', 'stub'),
             'provider_key' => env('NOTIFICATIONS_SMS_PROVIDER_KEY', 'sms.stub'),
             'delivery_mode' => 'stub',
+            'readiness' => 'provider_ready',
         ],
         'zalo' => [
             'enabled' => env('NOTIFICATIONS_ZALO_ENABLED', false),
             'driver' => env('NOTIFICATIONS_ZALO_DRIVER', 'stub'),
             'provider_key' => env('NOTIFICATIONS_ZALO_PROVIDER_KEY', 'zalo.stub'),
             'delivery_mode' => 'stub',
+            'readiness' => 'provider_ready',
         ],
     ],
     'preferences' => [

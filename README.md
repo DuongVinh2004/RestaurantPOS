@@ -80,6 +80,12 @@ Do not treat `php artisan migrate` as the primary path for local, staging, or re
 
 For a Windows `cmd.exe` daily-use runbook inside VSCode, see `docs/runbooks/booking-local-windows-vscode-cmd-runbook.md`.
 
+For the Windows local daily runtime lane, use:
+
+- `npm run runtime:up` to ensure repo-local MySQL, Redis, backend HTTP, and `schedule:work` are running and to prime the scheduler heartbeat once
+- `npm run runtime:down` to stop the same repo-local runtime processes
+- `npm run runtime:preflight` when you want the full doctor/outbox readiness gate after startup
+
 ## What `composer bootstrap:booking` does
 
 - imports `database/schema/mysql-schema.sql`
@@ -93,6 +99,30 @@ For a Windows `cmd.exe` daily-use runbook inside VSCode, see `docs/runbooks/book
 - primes the scheduler heartbeat once for immediate runtime verification
 
 ## Verification
+
+For repo handoff or snapshot triage, verify package shape before spending time on builds or smoke:
+
+- `npm run verify:package`
+- `node scripts/release/check-package-integrity.mjs --json`
+- `cd staff-web && npm run integrity:check`
+
+The package-integrity gate reports three explicit buckets:
+
+- `required to run`
+- `required for build/test/smoke`
+- `useful for handover`
+
+Missing items in the first two buckets block the command. Missing handover-only items return `decision=warn` so reviewers can fix setup or contract notes without mistaking them for runtime blockers.
+
+Canonical local FE-facing artifacts for this snapshot are:
+
+- `build/api-consumer/sdk/typescript/restaurantpos-sdk.ts`
+- `build/api-consumer/sdk/typescript/restaurantpos-enums.ts`
+- `build/api-consumer/mutation-contracts.md`
+- `storage/app/booking_release/openapi-v1.json`
+- `storage/app/booking_release/release_manifest_snapshot.json`
+
+When validating `staff-web`, remember that `npm run smoke:live` is read-only by default. Order create, kitchen dispatch, settlement finalize, refund execute, and cashier open/close remain mutation-gated until the corresponding `STAFF_WEB_SMOKE_ALLOW_*` flags are enabled or the manifest-backed gate explicitly allows them.
 
 Start with the changed-file selector instead of jumping straight to the full suite:
 

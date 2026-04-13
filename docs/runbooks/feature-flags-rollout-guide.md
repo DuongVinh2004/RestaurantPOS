@@ -109,6 +109,7 @@ php artisan booking:feature-flags:clear customer.bill_self_payment --branch-id=3
 - gated at admin inventory surface
 - gated at admin purchasing surface
 - branch-aware gating applies when branch scope is present on the request or resolved from purchase orders
+- receiving lifecycle and reconciliation notes live in [`docs/runbooks/inventory-purchasing-lifecycle.md`](./inventory-purchasing-lifecycle.md)
 
 ### `staff.conversation_inbox`
 

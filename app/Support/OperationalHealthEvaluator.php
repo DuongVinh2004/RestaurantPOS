@@ -380,4 +380,139 @@ final class OperationalHealthEvaluator
             'reasons' => array_values(array_unique($reasons)),
         ];
     }
+
+    /**
+     * @param array<string,mixed> $snapshot
+     * @param array<string,int> $thresholds
+     * @return array{status:string,reasons:array<int,string>}
+     */
+    public static function forKitchenKds(array $snapshot, array $thresholds): array
+    {
+        $reasons = [];
+        $status = 'ok';
+
+        $statusDriftCount = (int) ($snapshot['status_drift_count'] ?? 0);
+        $routingDriftCount = (int) ($snapshot['routing_drift_count'] ?? 0);
+        $oldestFiredAgeSeconds = (int) ($snapshot['oldest_fired_age_seconds'] ?? 0);
+        $oldestReadyAgeSeconds = (int) ($snapshot['oldest_ready_age_seconds'] ?? 0);
+
+        if ($statusDriftCount > 0) {
+            $status = 'fail';
+            $reasons[] = 'kitchen_ticket_status_drift_detected';
+        }
+
+        if ($routingDriftCount > 0) {
+            $status = 'fail';
+            $reasons[] = 'kitchen_ticket_routing_drift_detected';
+        }
+
+        if ($status !== 'fail') {
+            if ($oldestFiredAgeSeconds >= max(60, (int) ($thresholds['fired_backlog_warn_seconds'] ?? 900))) {
+                $status = 'degraded';
+                $reasons[] = 'kitchen_ticket_fire_backlog_stale';
+            }
+
+            if ($oldestReadyAgeSeconds >= max(60, (int) ($thresholds['ready_backlog_warn_seconds'] ?? 600))) {
+                $status = 'degraded';
+                $reasons[] = 'kitchen_ticket_ready_backlog_stale';
+            }
+        }
+
+        return [
+            'status' => $status,
+            'reasons' => array_values(array_unique($reasons)),
+        ];
+    }
+
+    /**
+     * @param array<string,mixed> $snapshot
+     * @param array<string,int> $thresholds
+     * @return array{status:string,reasons:array<int,string>}
+     */
+    public static function forInventoryPurchasing(array $snapshot, array $thresholds): array
+    {
+        $reasons = [];
+        $status = 'ok';
+
+        $issueOrderCount = (int) ($snapshot['issue_order_count'] ?? 0);
+        $movementIssueCount = (int) ($snapshot['movement_issue_count'] ?? 0);
+        $duplicatePurchaseReceiptReferenceCount = (int) ($snapshot['duplicate_purchase_receipt_reference_count'] ?? 0);
+        $overdueOpenOrderCount = (int) ($snapshot['overdue_open_order_count'] ?? 0);
+        $oldestOverdueOpenAgeSeconds = (int) ($snapshot['oldest_overdue_open_age_seconds'] ?? 0);
+
+        if ($duplicatePurchaseReceiptReferenceCount > 0) {
+            $status = 'fail';
+            $reasons[] = 'inventory_purchase_receipt_lineage_duplicate_detected';
+        }
+
+        if ($movementIssueCount > 0) {
+            $status = 'fail';
+            $reasons[] = 'inventory_stock_movement_lineage_drift_detected';
+        }
+
+        if ($issueOrderCount > 0) {
+            $status = 'fail';
+            $reasons[] = 'inventory_purchase_receiving_drift_detected';
+        }
+
+        if ($status !== 'fail') {
+            if ($overdueOpenOrderCount >= max(1, (int) ($thresholds['overdue_open_order_warn_count'] ?? 1))) {
+                $status = 'degraded';
+                $reasons[] = 'inventory_purchase_order_overdue_backlog';
+            }
+
+            if ($oldestOverdueOpenAgeSeconds >= max(60, (int) ($thresholds['overdue_open_order_warn_seconds'] ?? 86400))) {
+                $status = 'degraded';
+                $reasons[] = 'inventory_purchase_order_overdue_stale';
+            }
+        }
+
+        return [
+            'status' => $status,
+            'reasons' => array_values(array_unique($reasons)),
+        ];
+    }
+
+    /**
+     * @param array<string,mixed> $snapshot
+     * @param array<string,int> $thresholds
+     * @return array{status:string,reasons:array<int,string>}
+     */
+    public static function forConversationInbox(array $snapshot, array $thresholds): array
+    {
+        $reasons = [];
+        $status = 'ok';
+
+        $terminalWithActiveAssignmentCount = (int) ($snapshot['terminal_with_active_assignment_count'] ?? 0);
+        $unassignedCount = (int) ($snapshot['unassigned_count'] ?? 0);
+        $overdueCount = (int) ($snapshot['overdue_count'] ?? 0);
+        $oldestOverdueAgeSeconds = (int) ($snapshot['oldest_overdue_age_seconds'] ?? 0);
+
+        if ($terminalWithActiveAssignmentCount > 0) {
+            $status = 'fail';
+            $reasons[] = 'conversation_terminal_assignment_drift';
+        }
+
+        if ($status !== 'fail') {
+            if ($unassignedCount >= max(1, (int) ($thresholds['unassigned_warn_count'] ?? 5))) {
+                $status = 'degraded';
+                $reasons[] = 'conversation_unassigned_backlog';
+            }
+
+            if ($overdueCount >= max(1, (int) ($thresholds['overdue_warn_count'] ?? 5))) {
+                $status = 'degraded';
+                $reasons[] = 'conversation_overdue_backlog';
+            }
+
+            if ($oldestOverdueAgeSeconds >= max(60, (int) ($thresholds['oldest_overdue_warn_seconds'] ?? 3600))) {
+                $status = 'degraded';
+                $reasons[] = 'conversation_backlog_stale';
+            }
+        }
+
+        return [
+            'status' => $status,
+            'reasons' => array_values(array_unique($reasons)),
+        ];
+    }
 }

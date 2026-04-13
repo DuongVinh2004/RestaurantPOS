@@ -1,0 +1,166 @@
+:root {
+  --staff-bg-page: #f6f1e8;
+  --staff-bg-page-accent: #fffaf3;
+  --staff-bg-elevated: rgba(255, 251, 245, 0.98);
+  --staff-bg-muted: #fbf6ee;
+  --staff-bg-contrast: #efe5d6;
+  --staff-surface-warning: rgba(201, 135, 36, 0.14);
+  --staff-surface-critical: rgba(185, 74, 68, 0.12);
+  --staff-surface-success: rgba(49, 112, 74, 0.12);
+  --staff-surface-info: rgba(47, 110, 167, 0.12);
+  --staff-border-default: #ded2bf;
+  --staff-border-strong: #cdbda5;
+  --staff-border-active: #b8652c;
+  --staff-border-warning: #c98724;
+  --staff-border-critical: #b94a44;
+  --staff-text-primary: #201914;
+  --staff-text-secondary: #5d5248;
+  --staff-text-tertiary: #756452;
+  --staff-accent-primary: #b8652c;
+  --staff-accent-warning: #a86a17;
+  --staff-accent-danger: #b94a44;
+  --staff-accent-success: #31704a;
+  --staff-accent-info: #2f6ea7;
+  --staff-accent-analytics: #6b7f99;
+  --staff-space-1: 4px;
+  --staff-space-2: 8px;
+  --staff-space-3: 12px;
+  --staff-space-4: 16px;
+  --staff-space-5: 20px;
+  --staff-space-6: 24px;
+  --staff-space-7: 32px;
+  --staff-radius-sm: 12px;
+  --staff-radius-md: 16px;
+  --staff-radius-lg: 20px;
+  --staff-radius-hero: 24px;
+  --staff-shadow-card: 0 18px 36px rgba(78, 57, 37, 0.08);
+  --staff-shadow-hover: 0 24px 46px rgba(78, 57, 37, 0.14);
+  --staff-shadow-selected: 0 22px 48px rgba(126, 88, 52, 0.18);
+  --staff-shadow-sticky: 0 28px 56px rgba(73, 55, 39, 0.14);
+  color-scheme: light;
+  font-family:
+    'IBM Plex Sans',
+    'Segoe UI',
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  color: var(--staff-text-primary);
+  background: var(--staff-bg-page);
+}
+
+html,
+body,
+#root {
+  background: var(--staff-bg-page);
+}
+
+body {
+  color: var(--staff-text-primary);
+  background:
+    radial-gradient(circle at top left, rgba(184, 101, 44, 0.12), transparent 24%),
+    radial-gradient(circle at top right, rgba(86, 126, 94, 0.1), transparent 26%),
+    linear-gradient(180deg, var(--staff-bg-page-accent) 0%, var(--staff-bg-page) 100%);
+}
+
+button,
+input,
+select,
+textarea {
+  color: inherit;
+}
+
+.staff-eyebrow {
+  color: var(--staff-accent-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ant-btn,
+.ant-input,
+.ant-input-number,
+.ant-input-affix-wrapper,
+.ant-select-selector,
+.ant-picker,
+.ant-card,
+.ant-alert,
+.ant-modal-content,
+.ant-drawer-content,
+.ant-table-wrapper,
+.ant-tabs-nav::before {
+  border-radius: var(--staff-radius-sm) !important;
+}
+
+.ant-btn {
+  font-weight: 700;
+}
+
+.ant-input,
+.ant-input-number,
+.ant-input-affix-wrapper,
+.ant-select-selector,
+.ant-picker {
+  border-color: var(--staff-border-default) !important;
+  box-shadow: none !important;
+}
+
+.ant-input:hover,
+.ant-input-number:hover,
+.ant-input-affix-wrapper:hover,
+.ant-select-selector:hover,
+.ant-picker:hover {
+  border-color: var(--staff-border-active) !important;
+}
+
+.ant-btn-primary {
+  background: linear-gradient(135deg, #c97732, #b8652c) !important;
+  border-color: #b8652c !important;
+  box-shadow: 0 12px 26px rgba(139, 84, 35, 0.18) !important;
+  color: #fffaf5 !important;
+}
+
+.ant-btn-primary:hover,
+.ant-btn-primary:focus {
+  background: linear-gradient(135deg, #d1833e, #be6f35) !important;
+  border-color: #be6f35 !important;
+}
+
+.ant-card,
+.ant-alert,
+.ant-modal-content,
+.ant-drawer-content,
+.ant-table-wrapper,
+.ant-descriptions-bordered .ant-descriptions-view,
+.ant-tabs-nav {
+  border-color: var(--staff-border-default) !important;
+}
+
+.staff-shell-layout {
+  background:
+    radial-gradient(circle at top left, rgba(184, 101, 44, 0.09), transparent 22%),
+    radial-gradient(circle at top right, rgba(86, 126, 94, 0.08), transparent 24%),
+    linear-gradient(180deg, #fffaf3 0%, #f6f1e8 100%);
+}
+
+:where(
+  a,
+  button,
+  [role='button'],
+  input,
+  textarea,
+  select,
+  .ant-btn,
+  .ant-menu-item,
+  .ant-select-selector,
+  .ant-input-affix-wrapper,
+  .ant-input-number,
+  .ant-table-row,
+  .staff-shell-command-item,
+  .staff-table-board-card,
+  .staff-order-line-card,
+  .staff-order-menu-item
+):focus-visible {
+  outline: 2px solid rgba(184, 101, 44, 0.34);
+  outline-offset: 2px;
+}

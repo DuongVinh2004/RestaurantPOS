@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS `ingredient_stock_movements` (
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`movement_id`),
   KEY `idx_ingredient_stock_movements__ingredient_id__created_at` (`ingredient_id`,`created_at`),
-  KEY `idx_ingredient_stock_movements__reference` (`reference_type`,`reference_id`),
+  UNIQUE KEY `uq_ingredient_stock_movements__reference` (`reference_type`,`reference_id`),
   CONSTRAINT `fk_ingredient_stock_movements__created_by__users` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT,
   CONSTRAINT `fk_ingredient_stock_movements__ingredient_id__ingredients` FOREIGN KEY (`ingredient_id`) REFERENCES `ingredients` (`ingredient_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `chk_ingredient_stock_movements__quantity_delta_nonzero` CHECK ((`quantity_delta` <> 0)),

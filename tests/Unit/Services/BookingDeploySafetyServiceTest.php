@@ -76,7 +76,35 @@ class BookingDeploySafetyServiceTest extends TestCase
     #[Group('booking-smoke')]
     public function test_preflight_passes_when_guard_tables_are_clean(): void
     {
-        $report = app(BookingDeploySafetyService::class)->inspect('preflight');
+        $service = new class(
+            app(\App\Services\BookingEnvironmentValidator::class),
+            app(\App\Services\OperationalInsightsService::class),
+            app(\App\Services\Inventory\PurchaseOrderReconciliationService::class),
+        ) extends BookingDeploySafetyService
+        {
+            protected function inspectOperationalGuards(): array
+            {
+                return array_merge(parent::inspectOperationalGuards(), [
+                    'kitchen_kds' => [
+                        'ok' => true,
+                        'severity' => 'info',
+                        'message' => 'Kitchen/KDS reconciliation looks healthy.',
+                    ],
+                    'inventory_purchasing' => [
+                        'ok' => true,
+                        'severity' => 'info',
+                        'message' => 'Inventory and purchasing reconciliation looks healthy.',
+                    ],
+                    'conversation_inbox' => [
+                        'ok' => true,
+                        'severity' => 'info',
+                        'message' => 'Conversation inbox workflow health looks clean.',
+                    ],
+                ]);
+            }
+        };
+
+        $report = $service->inspect('preflight');
 
         $this->assertArrayHasKey('checks', $report);
         $this->assertArrayHasKey('data.deposit_status', $report['checks']);
@@ -85,8 +113,12 @@ class BookingDeploySafetyServiceTest extends TestCase
         $this->assertArrayHasKey('ops.staff_api_keys', $report['checks']);
         $this->assertArrayHasKey('ops.table_state_audit', $report['checks']);
         $this->assertArrayHasKey('ops.row_version_contract', $report['checks']);
+        $this->assertArrayHasKey('ops.kitchen_kds', $report['checks']);
+        $this->assertArrayHasKey('ops.inventory_purchasing', $report['checks']);
+        $this->assertArrayHasKey('ops.conversation_inbox', $report['checks']);
         $this->assertTrue($report['checks']['data.deposit_status']['ok']);
         $this->assertTrue($report['checks']['data.payment_refund_lineage']['ok']);
+        $this->assertTrue($report['checks']['data.purchase_receipt_lineage_uniqueness']['ok']);
         $this->assertTrue($report['checks']['data.bank_account_defaults']['ok']);
         $this->assertTrue($report['checks']['data.active_agent_assignments']['ok']);
         $this->assertTrue($report['checks']['data.session_hold_linkage']['ok']);
@@ -96,6 +128,9 @@ class BookingDeploySafetyServiceTest extends TestCase
         $this->assertTrue($report['checks']['ops.staff_api_keys']['ok']);
         $this->assertTrue($report['checks']['ops.table_state_audit']['ok']);
         $this->assertTrue($report['checks']['ops.row_version_contract']['ok']);
+        $this->assertTrue($report['checks']['ops.kitchen_kds']['ok']);
+        $this->assertTrue($report['checks']['ops.inventory_purchasing']['ok']);
+        $this->assertTrue($report['checks']['ops.conversation_inbox']['ok']);
     }
 
     #[Group('booking-smoke')]
@@ -104,6 +139,7 @@ class BookingDeploySafetyServiceTest extends TestCase
         $service = new class(
             app(\App\Services\BookingEnvironmentValidator::class),
             app(\App\Services\OperationalInsightsService::class),
+            app(\App\Services\Inventory\PurchaseOrderReconciliationService::class),
         ) extends BookingDeploySafetyService
         {
             protected function inspectDataGuards(): array
@@ -119,6 +155,38 @@ class BookingDeploySafetyServiceTest extends TestCase
         $this->assertFalse($report['checks']['data.runtime']['ok']);
         $this->assertSame('error', $report['checks']['data.runtime']['severity']);
         $this->assertStringContainsString('Data guard inspection failed: mysql runtime unavailable', $report['checks']['data.runtime']['message']);
+    }
+
+    #[Group('booking-ops')]
+    public function test_preflight_surfaces_runtime_incompatible_payment_refund_trigger_guard(): void
+    {
+        $service = new class(
+            app(\App\Services\BookingEnvironmentValidator::class),
+            app(\App\Services\OperationalInsightsService::class),
+            app(\App\Services\Inventory\PurchaseOrderReconciliationService::class),
+        ) extends BookingDeploySafetyService
+        {
+            protected function inspectDataGuards(): array
+            {
+                return array_merge(parent::inspectDataGuards(), [
+                    'payment_refund_trigger_compatibility' => [
+                        'ok' => false,
+                        'severity' => 'error',
+                        'message' => 'Runtime-incompatible payments refund triggers are still installed; refund execute can fail with MySQL ERROR 1442.',
+                        'meta' => [
+                            'present_triggers' => ['trg_payments__bi_refund_cap'],
+                        ],
+                    ],
+                ]);
+            }
+        };
+
+        $report = $service->inspect('preflight');
+
+        $this->assertFalse($report['ok']);
+        $this->assertArrayHasKey('data.payment_refund_trigger_compatibility', $report['checks']);
+        $this->assertFalse($report['checks']['data.payment_refund_trigger_compatibility']['ok']);
+        $this->assertStringContainsString('ERROR 1442', $report['checks']['data.payment_refund_trigger_compatibility']['message']);
     }
 
     #[Group('booking-ops')]
@@ -201,6 +269,53 @@ class BookingDeploySafetyServiceTest extends TestCase
         $this->assertFalse($report['checks']['data.session_hold_linkage']['ok']);
         $this->assertFalse($report['checks']['ops.staff_api_keys']['ok']);
         $this->assertFalse($report['checks']['ops.table_state_audit']['ok']);
+    }
+
+    #[Group('booking-ops')]
+    public function test_preflight_fails_when_purchase_receipt_stock_movement_reference_is_duplicated(): void
+    {
+        DB::table('ingredient_stock_movements')->insert([
+            [
+                'movement_id' => 1,
+                'reference_type' => 'PurchaseReceipt',
+                'reference_id' => 'GRN-001:10',
+            ],
+            [
+                'movement_id' => 2,
+                'reference_type' => 'PurchaseReceipt',
+                'reference_id' => 'GRN-001:10',
+            ],
+        ]);
+
+        $service = new class(
+            app(\App\Services\BookingEnvironmentValidator::class),
+            app(\App\Services\OperationalInsightsService::class),
+            app(\App\Services\Inventory\PurchaseOrderReconciliationService::class),
+        ) extends BookingDeploySafetyService
+        {
+            protected function inspectOperationalGuards(): array
+            {
+                return [
+                    'staff_api_keys' => ['ok' => true, 'severity' => 'info', 'message' => 'ok'],
+                    'table_state_audit' => ['ok' => true, 'severity' => 'info', 'message' => 'ok'],
+                    'row_version_contract' => ['ok' => true, 'severity' => 'info', 'message' => 'ok'],
+                    'reporting_snapshots' => ['ok' => true, 'severity' => 'info', 'message' => 'ok'],
+                    'kitchen_kds' => ['ok' => true, 'severity' => 'info', 'message' => 'ok'],
+                    'inventory_purchasing' => ['ok' => true, 'severity' => 'info', 'message' => 'ok'],
+                    'conversation_inbox' => ['ok' => true, 'severity' => 'info', 'message' => 'ok'],
+                    'branch_defaults' => ['ok' => true, 'severity' => 'info', 'message' => 'ok'],
+                ];
+            }
+        };
+
+        $report = $service->inspect('preflight');
+
+        $this->assertFalse($report['ok']);
+        $this->assertArrayHasKey('data.purchase_receipt_lineage_uniqueness', $report['checks']);
+        $this->assertFalse($report['checks']['data.purchase_receipt_lineage_uniqueness']['ok']);
+        $this->assertSame(1, $report['checks']['data.purchase_receipt_lineage_uniqueness']['meta']['duplicate_reference_count'] ?? null);
+        $this->assertSame(2, $report['checks']['data.purchase_receipt_lineage_uniqueness']['meta']['duplicate_movement_count'] ?? null);
+        $this->assertStringContainsString('2026_04_13_000051_inventory_stock_movement_reference_uniqueness.sql', (string) ($report['checks']['data.purchase_receipt_lineage_uniqueness']['meta']['remediation'] ?? ''));
     }
 
     #[Group('booking-ops')]
@@ -416,6 +531,14 @@ class BookingDeploySafetyServiceTest extends TestCase
                 $table->timestamp('created_at')->nullable();
             });
         }
+
+        if (! Schema::hasTable('ingredient_stock_movements')) {
+            Schema::create('ingredient_stock_movements', function (Blueprint $table): void {
+                $table->unsignedBigInteger('movement_id')->primary();
+                $table->string('reference_type', 50)->nullable();
+                $table->string('reference_id', 120)->nullable();
+            });
+        }
     }
 
     private function truncateDeploySafetyTables(): void
@@ -429,5 +552,6 @@ class BookingDeploySafetyServiceTest extends TestCase
         DB::table('table_holds')->delete();
         DB::table('staff_api_keys')->delete();
         DB::table('audit_logs')->delete();
+        DB::table('ingredient_stock_movements')->delete();
     }
 }

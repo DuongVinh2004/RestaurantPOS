@@ -2,7 +2,7 @@
 
 This frontend is now intentionally narrowed around one usable operational chain:
 
-`login -> table board -> reservation handling -> walk-in / assign table -> active order -> dispatch to kitchen -> kitchen ticket handling -> checkout / settlement`
+`login -> table board -> reservation handling -> walk-in / assign table -> active order -> dispatch to kitchen -> kitchen ticket handling -> checkout / settlement / refund`
 
 The app uses:
 
@@ -14,6 +14,16 @@ The app uses:
 - Zustand
 - Ant Design
 
+## Visual contract
+
+The active staff-web visual contract imported from the design bundle now lives in:
+
+- `staff-web/DESIGN.md`
+- `staff-web/UI_SCOPE.md`
+- `staff-web/REFERENCE_LINKS.md`
+
+These files define the shared UI direction for the active app shell and shared primitives. They complement the repo root `AGENTS.md`; they do not replace it.
+
 ## Current scope
 
 The shell and route tree only expose the core staff flow:
@@ -24,7 +34,7 @@ The shell and route tree only expose the core staff flow:
 - `Waiting List`
 - `Active Order`
 - `Kitchen`
-- `Checkout`
+- `Checkout + Refund`
 - `Cashier Shift`
 - `Finance Review`
 - `Conversation Inbox`
@@ -33,6 +43,13 @@ The shell and route tree only expose the core staff flow:
 - `Access` readiness screen
 
 Everything else from the older staff-web remains outside the main route tree on purpose.
+
+Deferred outside the current shell:
+
+- `Inventory`
+- `Settings`
+- standalone `Refunds`
+- standalone `Settlement`
 
 ## Backend contract usage
 
@@ -45,7 +62,7 @@ This build binds directly to the staff backend and uses real APIs for the core f
 - Orders: `/api/v1/staff/tables/{table_id}/orders`, `/orders/{order_id}`, `/orders/{order_id}/items`, `/tables/{table_id}/active-order`, `/reservations/{reservation_id}/active-order`
 - Staff menu: `/api/v1/staff/menu/items`
 - Kitchen: `/api/v1/staff/kitchen/stations`, `/stations/{station_id}/tickets`, `/orders/{order_id}/kitchen/dispatch`, `/kitchen/tickets/{ticket_id}/fire|bump|recall`
-- Checkout: `/api/v1/staff/orders/{order_id}/bill-snapshot`, `/settlement-preview`, `/settlement/finalize`
+- Checkout: `/api/v1/staff/orders/{order_id}/bill-snapshot`, `/settlement-preview`, `/settlement/finalize`, `/api/v1/staff/reservations/{reservation_id}/refund-preview`, `/refund`, `/refund-cancel`
 - Cashier shift: `/api/v1/staff/cashier/shifts`, `/current`, `/open`, `/{shift_id}/close`
 - Finance review: `/api/v1/staff/finance/reconciliation`, `/reconciliation/{reservation_id}`, `/finance/invoices/{reservation_id}`, `/finance/invoices/{reservation_id}/issue`
 - Waiting list: `/api/v1/staff/waiting-list`, `/changes`, `/{id}/notify`, `/{id}/advance`, `/{id}/seat`, `/{id}/cancel`
@@ -60,10 +77,13 @@ The FE does **not** fake completeness where backend contracts are still thin.
 
 - Order line item update/status routes exist, but `GET /api/v1/staff/orders/{order_id}` does not expose per-item `row_version`.
 - Because of that, the order workspace keeps line-level edit/status explicitly blocked for now.
-- Add-item, dispatch and settlement still run live.
+- Add-item, dispatch, settlement, and reservation-linked refund still run live.
 - Waiting list create/advance/cancel routes are wired live through the local `staff-api` adapter because the generated TypeScript SDK does not currently expose those endpoints.
 - Waiting-list notify prefers board-driven table selection when `table.board.view` is granted; otherwise the UI falls back to explicit `table_id` entry instead of pretending the board data exists.
 - Checkout finalize is still intentionally blocked whenever startup readiness says an active cashier shift is required and the session has not refreshed into that state yet.
+- Refund is intentionally mounted inside the active `/checkout` workspace when the session has `payment.refund`; there is no standalone mounted `/refunds` route in the current shell.
+- Finance reconciliation and invoice responses now surface reservation `row_version` so the review workspace can reopen `/reservations` without dropping stale-write protection.
+- Conversation detail now opens linked waiting-list records through `/waiting-list?focus=<waiting_id>` so staff lands on the intended queue item instead of the first row in the list.
 
 ## Local run
 

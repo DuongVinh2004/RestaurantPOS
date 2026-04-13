@@ -15,6 +15,7 @@ use App\Models\PurchaseReceiptLine;
 use App\Models\Supplier;
 use App\Services\Branch\BranchContextService;
 use App\Services\Inventory\InventoryStockMovementService;
+use App\Services\Inventory\PurchaseOrderReconciliationService;
 use App\Support\AuditEvent;
 use App\Support\Listing\SafeLike;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -30,11 +31,11 @@ class AdminPurchasingService
     public function __construct(
         private readonly InventoryStockMovementService $stockMovementService,
         private readonly BranchContextService $branchContextService,
-    ) {
-    }
+        private readonly PurchaseOrderReconciliationService $purchaseOrderReconciliationService,
+    ) {}
 
     /**
-     * @param array<string,mixed> $filters
+     * @param  array<string,mixed>  $filters
      */
     public function paginateSuppliers(array $filters = []): LengthAwarePaginator
     {
@@ -75,18 +76,18 @@ class AdminPurchasingService
         $supplier = Supplier::query()->find($supplierId);
 
         if (! $supplier instanceof Supplier) {
-            throw (new ModelNotFoundException())->setModel(Supplier::class, [$supplierId]);
+            throw (new ModelNotFoundException)->setModel(Supplier::class, [$supplierId]);
         }
 
         return $supplier;
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      */
     public function createSupplier(array $payload): Supplier
     {
-        $supplier = new Supplier();
+        $supplier = new Supplier;
         $supplier->fill([
             'code' => $this->normalizeNullableString($payload['code'] ?? null),
             'name' => trim((string) $payload['name']),
@@ -107,7 +108,7 @@ class AdminPurchasingService
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      */
     public function updateSupplier(int $supplierId, array $payload): Supplier
     {
@@ -146,7 +147,7 @@ class AdminPurchasingService
     }
 
     /**
-     * @param array<string,mixed> $filters
+     * @param  array<string,mixed>  $filters
      */
     public function paginatePurchaseOrders(array $filters = []): LengthAwarePaginator
     {
@@ -212,14 +213,14 @@ class AdminPurchasingService
             ->find($purchaseOrderId);
 
         if (! $order instanceof PurchaseOrder) {
-            throw (new ModelNotFoundException())->setModel(PurchaseOrder::class, [$purchaseOrderId]);
+            throw (new ModelNotFoundException)->setModel(PurchaseOrder::class, [$purchaseOrderId]);
         }
 
         return $order;
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      */
     public function createPurchaseOrder(array $payload, ?int $actorUserId = null): PurchaseOrder
     {
@@ -235,7 +236,7 @@ class AdminPurchasingService
             $status = $this->normalizeWritableStatus((string) ($payload['purchase_order_status'] ?? PurchaseOrderStatus::Ordered->value), false);
             $orderedAt = $payload['ordered_at'] ?? null;
 
-            $order = new PurchaseOrder();
+            $order = new PurchaseOrder;
             $order->fill([
                 'branch_id' => $this->branchContextService->resolveBranchId($payload['branch_id'] ?? null),
                 'supplier_id' => $supplierId,
@@ -265,7 +266,7 @@ class AdminPurchasingService
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      */
     public function updatePurchaseOrder(int $purchaseOrderId, array $payload, ?int $actorUserId = null): PurchaseOrder
     {
@@ -386,7 +387,7 @@ class AdminPurchasingService
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      * @return array{order: PurchaseOrder, receipt: PurchaseReceipt}
      */
     public function createReceipt(int $purchaseOrderId, array $payload, ?int $actorUserId = null): array
@@ -397,18 +398,6 @@ class AdminPurchasingService
             $status = $order->purchase_order_status instanceof PurchaseOrderStatus
                 ? $order->purchase_order_status
                 : PurchaseOrderStatus::from((string) $order->purchase_order_status);
-
-            if ($status === PurchaseOrderStatus::Cancelled || $status === PurchaseOrderStatus::Received) {
-                throw ValidationException::withMessages([
-                    'purchase_order_id' => 'This purchase order cannot receive additional stock.',
-                ]);
-            }
-
-            if (! in_array($status, [PurchaseOrderStatus::Ordered, PurchaseOrderStatus::PartiallyReceived], true)) {
-                throw ValidationException::withMessages([
-                    'purchase_order_status' => 'Only ordered purchase orders can receive stock.',
-                ]);
-            }
 
             /** @var Collection<int, PurchaseOrderLine> $orderLines */
             $orderLines = PurchaseOrderLine::query()
@@ -426,16 +415,49 @@ class AdminPurchasingService
             /** @var list<array<string,mixed>> $receiptLines */
             $receiptLines = array_values((array) $payload['lines']);
             $this->assertDistinctReceiptLines($receiptLines);
+            $supplierDocumentNo = $this->normalizeNullableString($payload['supplier_document_no'] ?? null);
+            $requestedReceiptSignature = $this->normalizeRequestedReceiptSignature($receiptLines, $orderLines);
+            $replayedReceipt = $this->findReplayableReceipt(
+                purchaseOrderId: $purchaseOrderId,
+                supplierDocumentNo: $supplierDocumentNo,
+                requestedReceiptSignature: $requestedReceiptSignature,
+            );
+
+            if ($replayedReceipt instanceof PurchaseReceipt) {
+                AuditEvent::info('admin.purchase_order.receipt_replayed', [
+                    'purchase_order_id' => $purchaseOrderId,
+                    'receipt_id' => (int) $replayedReceipt->receipt_id,
+                    'supplier_document_no' => $supplierDocumentNo,
+                    'line_count' => count($receiptLines),
+                ]);
+
+                return [
+                    'order' => $this->findPurchaseOrder($purchaseOrderId),
+                    'receipt' => $replayedReceipt,
+                ];
+            }
+
+            if ($status === PurchaseOrderStatus::Cancelled || $status === PurchaseOrderStatus::Received) {
+                throw ValidationException::withMessages([
+                    'purchase_order_id' => 'This purchase order cannot receive additional stock.',
+                ]);
+            }
+
+            if (! in_array($status, [PurchaseOrderStatus::Ordered, PurchaseOrderStatus::PartiallyReceived], true)) {
+                throw ValidationException::withMessages([
+                    'purchase_order_status' => 'Only ordered purchase orders can receive stock.',
+                ]);
+            }
 
             $receivedAt = $payload['received_at'] ?? Carbon::now('UTC');
-            $receipt = new PurchaseReceipt();
+            $receipt = new PurchaseReceipt;
             $receipt->fill([
                 'branch_id' => (int) $order->branch_id,
                 'purchase_order_id' => $purchaseOrderId,
                 'receipt_code' => $this->normalizeNullableString($payload['receipt_code'] ?? null) ?? $this->generateReceiptCode(),
                 'receipt_status' => PurchaseReceiptStatus::Posted,
                 'received_at' => $receivedAt,
-                'supplier_document_no' => $this->normalizeNullableString($payload['supplier_document_no'] ?? null),
+                'supplier_document_no' => $supplierDocumentNo,
                 'notes' => $this->normalizeNullableString($payload['notes'] ?? null),
                 'created_by' => $actorUserId,
                 'created_at' => Carbon::now('UTC'),
@@ -449,7 +471,7 @@ class AdminPurchasingService
 
                 if (! $orderLine instanceof PurchaseOrderLine) {
                     throw ValidationException::withMessages([
-                        'lines.' . $index . '.purchase_order_line_id' => 'Purchase order line does not belong to this purchase order.',
+                        'lines.'.$index.'.purchase_order_line_id' => 'Purchase order line does not belong to this purchase order.',
                     ]);
                 }
 
@@ -458,16 +480,16 @@ class AdminPurchasingService
 
                 if ($receivedQuantity - $remainingQuantity > 0.0005) {
                     throw ValidationException::withMessages([
-                        'lines.' . $index . '.received_quantity' => 'Received quantity exceeds the remaining purchase order quantity.',
+                        'lines.'.$index.'.received_quantity' => 'Received quantity exceeds the remaining purchase order quantity.',
                     ]);
                 }
 
                 $unitCode = $this->resolvePurchaseOrderLineUnitCode(
                     $orderLine,
                     $linePayload['unit_code'] ?? null,
-                    'lines.' . $index . '.unit_code'
+                    'lines.'.$index.'.unit_code'
                 );
-                $referenceId = $receipt->receipt_code . ':' . $orderLine->po_line_id;
+                $referenceId = $receipt->receipt_code.':'.$orderLine->po_line_id;
                 $movement = $this->stockMovementService->recordMovement((int) $orderLine->ingredient_id, [
                     'branch_id' => (int) $order->branch_id,
                     'movement_type' => IngredientStockMovement::TYPE_STOCK_IN,
@@ -512,6 +534,18 @@ class AdminPurchasingService
             $order->updated_by = $actorUserId;
             $order->save();
 
+            $reconciliation = $this->purchaseOrderReconciliationService->report($purchaseOrderId);
+            if ((int) ($reconciliation['issue_count'] ?? 0) > 0) {
+                AuditEvent::warning('admin.purchase_order.receipt_reconciliation_drift_detected', [
+                    'purchase_order_id' => $purchaseOrderId,
+                    'receipt_id' => (int) $receipt->receipt_id,
+                    'issue_count' => (int) ($reconciliation['issue_count'] ?? 0),
+                    'line_issue_count' => (int) ($reconciliation['line_issue_count'] ?? 0),
+                    'receipt_issue_count' => (int) ($reconciliation['receipt_issue_count'] ?? 0),
+                    'movement_issue_count' => (int) ($reconciliation['movement_issue_count'] ?? 0),
+                ]);
+            }
+
             AuditEvent::info('admin.purchase_order.receipt_posted', [
                 'purchase_order_id' => $purchaseOrderId,
                 'receipt_id' => (int) $receipt->receipt_id,
@@ -549,7 +583,7 @@ class AdminPurchasingService
     }
 
     /**
-     * @param list<array<string,mixed>> $lines
+     * @param  list<array<string,mixed>>  $lines
      * @return array<int, Ingredient>
      */
     private function loadIngredientsForLines(array $lines): array
@@ -567,14 +601,14 @@ class AdminPurchasingService
             ->all();
 
         if (count(array_unique($ingredientIds)) !== count($ingredients)) {
-            throw (new ModelNotFoundException())->setModel(Ingredient::class, $ingredientIds);
+            throw (new ModelNotFoundException)->setModel(Ingredient::class, $ingredientIds);
         }
 
         return $ingredients;
     }
 
     /**
-     * @param list<array<string,mixed>> $lines
+     * @param  list<array<string,mixed>>  $lines
      */
     private function assertDistinctIngredientLines(array $lines): void
     {
@@ -591,7 +625,7 @@ class AdminPurchasingService
     }
 
     /**
-     * @param list<array<string,mixed>> $receiptLines
+     * @param  list<array<string,mixed>>  $receiptLines
      */
     private function assertDistinctReceiptLines(array $receiptLines): void
     {
@@ -608,8 +642,115 @@ class AdminPurchasingService
     }
 
     /**
-     * @param list<array<string,mixed>> $lines
-     * @param array<int, Ingredient> $ingredients
+     * @param  list<array<string,mixed>>  $receiptLines
+     * @param  Collection<int, PurchaseOrderLine>  $orderLines
+     * @return list<string>
+     */
+    private function normalizeRequestedReceiptSignature(array $receiptLines, Collection $orderLines): array
+    {
+        $signature = [];
+
+        foreach ($receiptLines as $index => $linePayload) {
+            $poLineId = (int) $linePayload['purchase_order_line_id'];
+            /** @var PurchaseOrderLine|null $orderLine */
+            $orderLine = $orderLines->get($poLineId);
+            if (! $orderLine instanceof PurchaseOrderLine) {
+                throw ValidationException::withMessages([
+                    'lines.'.$index.'.purchase_order_line_id' => 'Purchase order line does not belong to this purchase order.',
+                ]);
+            }
+
+            $signature[] = $this->receiptLineSignature(
+                purchaseOrderLineId: $poLineId,
+                receivedQuantity: (float) $linePayload['received_quantity'],
+                unitCode: $this->resolvePurchaseOrderLineUnitCode(
+                    $orderLine,
+                    $linePayload['unit_code'] ?? null,
+                    'lines.'.$index.'.unit_code'
+                ),
+                unitCost: array_key_exists('unit_cost', $linePayload) && $linePayload['unit_cost'] !== null
+                    ? (float) $linePayload['unit_cost']
+                    : null,
+            );
+        }
+
+        sort($signature);
+
+        return $signature;
+    }
+
+    /**
+     * @param  list<string>  $requestedReceiptSignature
+     */
+    private function findReplayableReceipt(
+        int $purchaseOrderId,
+        ?string $supplierDocumentNo,
+        array $requestedReceiptSignature,
+    ): ?PurchaseReceipt {
+        if ($supplierDocumentNo === null) {
+            return null;
+        }
+
+        /** @var Collection<int, PurchaseReceipt> $candidateReceipts */
+        $candidateReceipts = PurchaseReceipt::query()
+            ->with([
+                'lines' => static function ($query): void {
+                    $query
+                        ->with(['ingredient' => static fn ($inner) => $inner->select('ingredient_id', 'code', 'name', 'unit_code', 'is_active')])
+                        ->orderBy('receipt_line_id');
+                },
+            ])
+            ->where('purchase_order_id', $purchaseOrderId)
+            ->where('supplier_document_no', $supplierDocumentNo)
+            ->orderByDesc('receipt_id')
+            ->get();
+
+        foreach ($candidateReceipts as $candidateReceipt) {
+            $existingSignature = $candidateReceipt->lines
+                ->map(fn (PurchaseReceiptLine $line): string => $this->receiptLineSignature(
+                    purchaseOrderLineId: (int) $line->purchase_order_line_id,
+                    receivedQuantity: (float) $line->received_quantity,
+                    unitCode: (string) $line->unit_code,
+                    unitCost: $line->unit_cost !== null ? (float) $line->unit_cost : null,
+                ))
+                ->sort()
+                ->values()
+                ->all();
+
+            if ($existingSignature === $requestedReceiptSignature) {
+                return $candidateReceipt;
+            }
+        }
+
+        if ($candidateReceipts->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'supplier_document_no' => sprintf(
+                    'Supplier document [%s] is already posted for this purchase order with different receipt details.',
+                    $supplierDocumentNo
+                ),
+            ]);
+        }
+
+        return null;
+    }
+
+    private function receiptLineSignature(
+        int $purchaseOrderLineId,
+        float $receivedQuantity,
+        string $unitCode,
+        ?float $unitCost,
+    ): string {
+        return implode('|', [
+            $purchaseOrderLineId,
+            number_format($receivedQuantity, 3, '.', ''),
+            strtolower(trim($unitCode)),
+            $unitCost !== null ? number_format($unitCost, 3, '.', '') : '',
+        ]);
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $lines
+     * @param  array<int, Ingredient>  $ingredients
      */
     private function replacePurchaseOrderLines(PurchaseOrder $order, array $lines, array $ingredients): void
     {
@@ -621,7 +762,7 @@ class AdminPurchasingService
             $unitCode = $this->resolveIngredientUnitCode(
                 $ingredient,
                 $line['unit_code'] ?? null,
-                'lines.' . $index . '.unit_code'
+                'lines.'.$index.'.unit_code'
             );
 
             PurchaseOrderLine::query()->create([
@@ -660,12 +801,12 @@ class AdminPurchasingService
 
     private function generatePurchaseOrderCode(): string
     {
-        return 'PO-' . Carbon::now('UTC')->format('YmdHis') . '-' . Str::upper(Str::random(4));
+        return 'PO-'.Carbon::now('UTC')->format('YmdHis').'-'.Str::upper(Str::random(4));
     }
 
     private function generateReceiptCode(): string
     {
-        return 'GRN-' . Carbon::now('UTC')->format('YmdHis') . '-' . Str::upper(Str::random(4));
+        return 'GRN-'.Carbon::now('UTC')->format('YmdHis').'-'.Str::upper(Str::random(4));
     }
 
     private function resolveIngredientUnitCode(Ingredient $ingredient, mixed $requestedUnitCode, string $field): string

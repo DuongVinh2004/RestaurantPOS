@@ -66,3 +66,67 @@ export function readNumber(value: string | number | null | undefined): number | 
 
   return null;
 }
+
+export function formatRelativeAge(
+  value: string | number | Date | null | undefined,
+  options: {
+    now?: number;
+    short?: boolean;
+    emptyLabel?: string;
+  } = {},
+): string {
+  const timestamp = normalizeTimestamp(value);
+  if (timestamp === null) {
+    return options.emptyLabel ?? 'Chưa có mốc thời gian';
+  }
+
+  const ageSeconds = Math.max(0, Math.floor(((options.now ?? Date.now()) - timestamp) / 1000));
+  if (ageSeconds < 60) {
+    return options.short ? '<1 phút' : 'Mới cập nhật';
+  }
+
+  const minutes = Math.floor(ageSeconds / 60);
+  if (minutes < 60) {
+    return options.short ? `${minutes} phút` : `${minutes} phút trước`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return options.short ? `${hours} giờ` : `${hours} giờ trước`;
+  }
+
+  const days = Math.floor(hours / 24);
+  return options.short ? `${days} ngày` : `${days} ngày trước`;
+}
+
+export function formatFreshnessLabel(
+  value: string | number | Date | null | undefined,
+  options: {
+    now?: number;
+    emptyLabel?: string;
+  } = {},
+): string {
+  const timestamp = normalizeTimestamp(value);
+  if (timestamp === null) {
+    return options.emptyLabel ?? 'Chưa đồng bộ';
+  }
+
+  return `Cập nhật ${formatRelativeAge(timestamp, { now: options.now })}`;
+}
+
+function normalizeTimestamp(value: string | number | Date | null | undefined): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.getTime();
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+}

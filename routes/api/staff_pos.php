@@ -238,6 +238,9 @@ use App\Http\Middleware\StaffApiKeyMiddleware;
                         Route::post('conversations/{conversation_id}/unassign', [StaffConversationInboxController::class, 'unassign'])
                             ->whereUuid('conversation_id')
                             ->middleware(['staff.capability:conversation.manage', 'idempotency:staff.conversation-unassign']);
+                        Route::post('conversations/{conversation_id}/workflow-state', [StaffConversationInboxController::class, 'updateWorkflowState'])
+                            ->whereUuid('conversation_id')
+                            ->middleware(['staff.capability:conversation.manage', 'idempotency:staff.conversation-workflow-state']);
                         Route::post('conversations/{conversation_id}/links', [StaffConversationInboxController::class, 'link'])
                             ->whereUuid('conversation_id')
                             ->middleware(['staff.capability:conversation.manage', 'idempotency:staff.conversation-link']);

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\DepositStatus;
 use App\Enums\ReservationStatus;
+use App\Services\Inventory\PurchaseOrderReconciliationService;
 use Illuminate\Database\Migrations\DatabaseMigrationRepository;
 use Illuminate\Database\Migrations\Migrator;
 use Illuminate\Support\Carbon;
@@ -17,6 +18,7 @@ class BookingDeploySafetyService
     public function __construct(
         private readonly BookingEnvironmentValidator $environmentValidator,
         private readonly OperationalInsightsService $operationalInsightsService,
+        private readonly PurchaseOrderReconciliationService $purchaseOrderReconciliationService,
     ) {
     }
 
@@ -291,6 +293,9 @@ class BookingDeploySafetyService
         $tableAudit = (array) ($opsSnapshot['table_state_audit'] ?? []);
         $rowVersionContract = (array) ($opsSnapshot['row_version_contract'] ?? []);
         $reportingSnapshots = (array) ($opsSnapshot['reporting_snapshots'] ?? []);
+        $kitchenKds = (array) ($opsSnapshot['kitchen_kds'] ?? []);
+        $inventoryPurchasing = (array) ($opsSnapshot['inventory_purchasing'] ?? []);
+        $conversationInbox = (array) ($opsSnapshot['conversation_inbox'] ?? []);
         $branchDefaults = (array) ($opsSnapshot['branch_defaults'] ?? []);
 
         return [
@@ -317,6 +322,24 @@ class BookingDeploySafetyService
                 okMessage: 'Reporting snapshot coverage looks healthy.',
                 degradedMessage: 'Reporting snapshot coverage needs review before relying on staff/admin reporting surfaces.',
                 failMessage: 'Reporting snapshot coverage is broken and risks live reporting APIs.'
+            ),
+            'kitchen_kds' => $this->fromOperationalSnapshot(
+                $kitchenKds,
+                okMessage: 'Kitchen/KDS reconciliation looks healthy.',
+                degradedMessage: 'Kitchen/KDS backlog needs operator review before relying on board freshness.',
+                failMessage: 'Kitchen/KDS drift is present and risks ticket/order-item correctness.'
+            ),
+            'inventory_purchasing' => $this->fromOperationalSnapshot(
+                $inventoryPurchasing,
+                okMessage: 'Inventory and purchasing reconciliation looks healthy.',
+                degradedMessage: 'Inventory and purchasing backlog needs operator review before rollout.',
+                failMessage: 'Inventory or purchasing lineage drift is present and risks stock correctness.'
+            ),
+            'conversation_inbox' => $this->fromOperationalSnapshot(
+                $conversationInbox,
+                okMessage: 'Conversation inbox workflow health looks clean.',
+                degradedMessage: 'Conversation inbox backlog needs operator review before rollout.',
+                failMessage: 'Conversation inbox assignment drift is present and risks operational triage.'
             ),
             'branch_defaults' => $this->fromOperationalSnapshot(
                 $branchDefaults,
@@ -357,6 +380,8 @@ class BookingDeploySafetyService
             'deposit_status' => $this->guardDepositStatus(),
             'reservation_order_item_totals' => $this->guardReservationOrderItemTotals(),
             'payment_refund_lineage' => $this->guardPaymentRefundLineage(),
+            'payment_refund_trigger_compatibility' => $this->guardPaymentRefundTriggerCompatibility(),
+            'purchase_receipt_lineage_uniqueness' => $this->guardPurchaseReceiptLineageUniqueness(),
             'reservation_lifecycle' => $this->guardReservationLifecycle(),
             'user_voucher_state' => $this->guardUserVoucherState(),
             'bank_account_defaults' => $this->guardBankAccountDefaults(),
@@ -819,6 +844,51 @@ class BookingDeploySafetyService
     /**
      * @return array{ok: bool, severity: string, message: string, meta?: array<string, mixed>}
      */
+    private function guardPaymentRefundTriggerCompatibility(): array
+    {
+        if (! Schema::hasTable('payments')) {
+            return $this->warning('Skipped payment refund trigger compatibility guard because the payments table is not available in this schema.');
+        }
+
+        $driver = (string) DB::connection()->getDriverName();
+        if (! in_array($driver, ['mysql', 'mariadb'], true)) {
+            return $this->warning('Skipped payment refund trigger compatibility guard because the current database driver is not MySQL-compatible.', [
+                'driver' => $driver,
+            ]);
+        }
+
+        $presentTriggers = DB::table('information_schema.triggers')
+            ->selectRaw('TRIGGER_NAME as trigger_name')
+            ->whereRaw('TRIGGER_SCHEMA = DATABASE()')
+            ->where('EVENT_OBJECT_TABLE', 'payments')
+            ->whereIn('TRIGGER_NAME', [
+                'trg_payments__bi_refund_cap',
+                'trg_payments__bu_refund_cap',
+                'trg_payments__bi_refund_lineage_guard',
+                'trg_payments__bu_refund_lineage_guard',
+            ])
+            ->pluck('trigger_name')
+            ->map(static fn ($value) => (string) $value)
+            ->values()
+            ->all();
+
+        if ($presentTriggers !== []) {
+            return $this->error('Runtime-incompatible payments refund triggers are still installed; refund execute can fail with MySQL ERROR 1442.', [
+                'driver' => $driver,
+                'present_triggers' => $presentTriggers,
+                'remediation' => 'Run composer bootstrap:booking or apply database/patches/2026_04_08_000041_drop_runtime_incompatible_payment_refund_triggers.sql against the target MySQL database.',
+            ]);
+        }
+
+        return $this->ok('Payments refund trigger contract looks runtime-safe for refund execution.', [
+            'driver' => $driver,
+            'present_trigger_count' => 0,
+        ]);
+    }
+
+    /**
+     * @return array{ok: bool, severity: string, message: string, meta?: array<string, mixed>}
+     */
     private function guardReservationLifecycle(): array
     {
         if (! Schema::hasTable('reservations')) {
@@ -1010,6 +1080,38 @@ class BookingDeploySafetyService
 
         return $this->ok('table_holds session linkage looks migration-safe.', [
             'unlinked_session_hold_count' => 0,
+        ]);
+    }
+
+    /**
+     * @return array{ok: bool, severity: string, message: string, meta?: array<string, mixed>}
+     */
+    private function guardPurchaseReceiptLineageUniqueness(): array
+    {
+        if (! Schema::hasTable('ingredient_stock_movements')) {
+            return $this->warning('Skipped purchase receipt lineage uniqueness guard because ingredient_stock_movements is not available in this schema.');
+        }
+
+        $summary = $this->purchaseOrderReconciliationService->duplicatePurchaseReceiptReferenceSummary();
+        $duplicateReferenceCount = (int) ($summary['duplicate_reference_count'] ?? 0);
+        $duplicateMovementCount = (int) ($summary['duplicate_movement_count'] ?? 0);
+
+        if ($duplicateReferenceCount > 0) {
+            return $this->error(
+                'Duplicate PurchaseReceipt stock movement references will block the inventory uniqueness patch and keep receipt lineage ambiguous.',
+                [
+                    'duplicate_reference_count' => $duplicateReferenceCount,
+                    'duplicate_movement_count' => $duplicateMovementCount,
+                    'examples' => (array) ($summary['examples'] ?? []),
+                    'remediation' => 'Deduplicate the listed ingredient_stock_movements reference_id values before applying database/patches/2026_04_13_000051_inventory_stock_movement_reference_uniqueness.sql.',
+                ],
+            );
+        }
+
+        return $this->ok('PurchaseReceipt stock movement reference lineage is unique and safe for the inventory uniqueness patch.', [
+            'duplicate_reference_count' => 0,
+            'duplicate_movement_count' => 0,
+            'examples' => [],
         ]);
     }
 

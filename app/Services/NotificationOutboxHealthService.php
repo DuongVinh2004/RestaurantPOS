@@ -209,6 +209,7 @@ class NotificationOutboxHealthService
 
             $items = [];
             foreach ($rows as $row) {
+                $channelMeta = $this->channelManager->describe((string) $row->channel);
                 $latestAttempt = null;
                 if (Schema::hasTable('notification_delivery_attempts')) {
                     $latestAttempt = NotificationDeliveryAttempt::query()
@@ -224,8 +225,13 @@ class NotificationOutboxHealthService
                     'status' => (string) $row->status,
                     'template_key' => (string) $row->template_key,
                     'attempt_count' => (int) $row->attempt_count,
+                    'provider_key' => $channelMeta['provider_key'] ?? null,
+                    'delivery_mode' => $channelMeta['delivery_mode'] ?? null,
+                    'readiness' => $channelMeta['readiness'] ?? null,
                     'recipient_masked' => $this->maskRecipient((string) $row->recipient),
                     'last_error' => $row->last_error,
+                    'latest_error_code' => $latestAttempt?->error_code,
+                    'latest_provider_status' => $latestAttempt?->provider_status,
                     'last_attempted_at_utc' => $row->last_attempted_at?->utc()->toIso8601String(),
                     'next_retry_at_utc' => $row->next_retry_at?->utc()->toIso8601String(),
                     'latest_attempt' => $latestAttempt === null ? null : [
@@ -328,6 +334,8 @@ class NotificationOutboxHealthService
             'driver' => null,
             'provider_key' => null,
             'delivery_mode' => null,
+            'readiness' => null,
+            'supports_live_delivery' => false,
             'total_count' => 0,
             'pending_count' => 0,
             'processing_count' => 0,

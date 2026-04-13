@@ -1,5 +1,10 @@
-import { RestaurantPosApiError } from '../api/sdk';
+import type { RestaurantPosApiError } from '../api/sdk';
 import { StaffApiError } from '../core/api/http';
+
+type ApiErrorWithPayload<TPayload = unknown> = {
+  status: number;
+  payload: TPayload;
+};
 
 export type ApiErrorKind =
   | 'auth'
@@ -25,7 +30,7 @@ export type NormalizedApiError = {
 };
 
 export function isRestaurantPosApiError(error: unknown): error is RestaurantPosApiError<unknown> | StaffApiError<unknown> {
-  return error instanceof RestaurantPosApiError || error instanceof StaffApiError;
+  return error instanceof StaffApiError || hasApiErrorPayload(error);
 }
 
 export function normalizeApiError(error: unknown, fallback: string): NormalizedApiError {
@@ -211,11 +216,11 @@ function operatorMessage(error: NormalizedApiError): string {
   }
 
   if (error.requiredCapability && !parts.join(' ').includes(error.requiredCapability)) {
-    parts.push(`Quyền cần có: ${error.requiredCapability}.`);
+    parts.push(`Thiếu quyền: ${error.requiredCapability}.`);
   }
 
   if (error.requestId && !parts.join(' ').includes(error.requestId)) {
-    parts.push(`Mã yêu cầu: ${error.requestId}.`);
+    parts.push(`Mã truy vết: ${error.requestId}.`);
   }
 
   return parts.join(' ').trim();
@@ -241,4 +246,13 @@ function isGenericApiMessage(message: string): boolean {
     'too many requests.',
     'server error.',
   ].includes(message.trim().toLowerCase());
+}
+
+function hasApiErrorPayload(error: unknown): error is ApiErrorWithPayload {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const candidate = error as Partial<ApiErrorWithPayload>;
+  return typeof candidate.status === 'number' && 'payload' in candidate;
 }

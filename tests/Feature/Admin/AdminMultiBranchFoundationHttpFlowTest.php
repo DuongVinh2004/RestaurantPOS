@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
@@ -143,6 +144,42 @@ class AdminMultiBranchFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('data.closure_windows.0.reason', 'Su kien cuoi nam')
             ->assertJsonPath('data.booking_policy.reservation.min_lead_time_minutes', 90)
             ->assertJsonPath('data.booking_policy.waiting_list.enabled', false);
+    }
+
+    public function test_admin_branch_update_rejects_stale_row_version_with_conflict_contract(): void
+    {
+        [, $headers] = $this->adminHeaders('admin-branches-stale-row-version-key');
+
+        $create = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-branch-create-stale'))
+            ->postJson('/api/v1/admin/settings/branches', [
+                'branch_code' => 'STALE01',
+                'branch_name' => 'Stale Branch',
+                'timezone' => 'Asia/Ho_Chi_Minh',
+                'currency' => 'VND',
+                'is_active' => true,
+            ]);
+
+        $create->assertCreated();
+
+        $branchId = (int) $create->json('data.branch_id');
+        $staleRowVersion = (int) $create->json('data.row_version');
+
+        DB::table('branches')
+            ->where('branch_id', $branchId)
+            ->update(['row_version' => $staleRowVersion + 1]);
+
+        $response = $this->withHeaders(array_merge($headers, [
+            'X-Request-Id' => 'req-admin-branch-stale-row-version',
+        ]))->patchJson('/api/v1/admin/settings/branches/'.$branchId, [
+            'row_version' => $staleRowVersion,
+            'description' => 'This update should be rejected as stale.',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertHeader('X-Request-Id', 'req-admin-branch-stale-row-version')
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonPath('request_id', 'req-admin-branch-stale-row-version')
+            ->assertJsonPath('details.errors.row_version.0', 'Branch has been modified by another operation. Please reload and retry.');
     }
 
     /**

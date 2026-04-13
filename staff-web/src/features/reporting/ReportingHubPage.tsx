@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   Alert,
+  Button,
   Card,
   Col,
   Descriptions,
@@ -26,7 +27,7 @@ import {
   listDailySalesReporting,
 } from '../../core/api/staff-api';
 import { formatApiError } from '../../core/api/errors';
-import { formatDateTime, formatMoney } from '../../core/utils/format';
+import { formatDateTime, formatFreshnessLabel, formatMoney } from '../../core/utils/format';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { SplitWorkspace } from '../../components/layout/SplitWorkspace';
 import { EmptyBlock, InlineError, InlineLoading } from '../../components/states/StateBlocks';
@@ -38,6 +39,9 @@ import {
   buildSalesQuery,
   snapshotHealthDescription,
   snapshotHealthLabel,
+  snapshotHealthReferenceAgeSeconds,
+  snapshotHealthScopeExamples,
+  snapshotHealthScopeSummary,
   snapshotHealthTone,
   summarizeInventory,
   summarizeOperations,
@@ -59,6 +63,23 @@ export function ReportingHubPage() {
     ingredientId: '',
   });
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
+
+  const defaultFilters: ReportingFilterState = {
+    dateFrom: isoDateDaysAgo(6),
+    dateTo: isoDateDaysAgo(0),
+    currency: '',
+    ingredientId: '',
+  };
+  const filtersActive = filters.dateFrom !== defaultFilters.dateFrom
+    || filters.dateTo !== defaultFilters.dateTo
+    || filters.currency !== ''
+    || filters.ingredientId !== '';
+
+  function resetFilters() {
+    setFilters(defaultFilters);
+    setPage(1);
+    setSelectedRowKey(null);
+  }
 
   const salesQuery = useQuery({
     queryKey: ['reporting-sales', branchId, filters, page],
@@ -102,42 +123,69 @@ export function ReportingHubPage() {
   const salesSummary = summarizeSales(salesQuery.data?.data ?? []);
   const operationsSummary = summarizeOperations(operationsQuery.data?.data ?? []);
   const inventorySummary = summarizeInventory(inventoryQuery.data?.data ?? []);
+  const activeTabLabel = activeTab === 'sales'
+    ? 'Bán hàng'
+    : activeTab === 'operations'
+      ? 'Vận hành'
+      : 'Kho';
+  const latestRefreshSeconds = snapshotHealthReferenceAgeSeconds(activeMeta);
+  const latestRefreshLabel = typeof latestRefreshSeconds === 'number'
+    ? formatFreshnessLabel(Date.now() - (latestRefreshSeconds * 1000))
+    : 'Chưa rõ độ mới dữ liệu';
+
+  const scopeSummary = snapshotHealthScopeSummary(activeMeta);
+  const scopeExamples = snapshotHealthScopeExamples(activeMeta);
 
   const main = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <PageHeader
-        eyebrow="Báo cáo vận hành"
-        title="Ảnh chụp số liệu theo ngày"
-        description="Đây là màn hình đọc số liệu theo chi nhánh để rà soát ảnh chụp báo cáo. Không phải báo cáo realtime: mỗi thẻ hiển thị rõ độ mới dữ liệu và phạm vi thiếu hụt nếu có."
+        eyebrow="Điều tra snapshot"
+        title="Hub giám sát và điều tra"
+        description="Tra cứu snapshot theo ngày để lần vết nhanh bán hàng, vận hành và tồn kho trước khi mở điều tra sâu hơn."
+        meta={latestRefreshLabel}
+        context={(
+          <>
+            <StatusChip label={activeTabLabel} tone="processing" />
+            <StatusChip label={branchId ? `Chi nhánh #${branchId}` : 'Toàn bộ phạm vi được cấp'} tone="default" />
+            <StatusChip label={snapshotHealthLabel(activeMeta)} tone={snapshotHealthTone(activeMeta?.snapshot_health.status)} />
+          </>
+        )}
       />
 
       <Alert
-        type="info"
+        type={activeMeta?.snapshot_health?.status === 'degraded' ? 'warning' : 'info'}
         showIcon
-        message={branchId ? `Đang dùng ngữ cảnh chi nhánh #${branchId}` : 'Đang dùng toàn bộ chi nhánh được phép'}
-        description="Phạm vi chi nhánh lấy từ bộ chọn ở shell. Bộ lọc tiền tệ và nguyên liệu chỉ áp dụng cho từng nhóm báo cáo tương ứng."
+        title={branchId ? `Đang dùng ngữ cảnh chi nhánh #${branchId}` : 'Đang dùng toàn bộ chi nhánh được phép'}
+        description="Phạm vi chi nhánh lấy từ bộ chọn ở shell. Bộ lọc tiền tệ và nguyên liệu chỉ áp dụng cho từng nhóm báo cáo tương ứng. Khi snapshot bị degraded, hãy dùng panel chi tiết bên phải để khoanh vùng trước khi mở luồng khác."
       />
 
-      <Card title="Bộ lọc">
+      <Card title="Bộ lọc" className="staff-workspace-filter-card" extra={filtersActive ? <Button size="small" onClick={resetFilters}>Đặt lại bộ lọc</Button> : null}>
         <Row gutter={[12, 12]}>
           <Col xs={24} md={6}>
-            <Input type="date" value={filters.dateFrom} onChange={(event) => updateFilters(setFilters, setPage, 'dateFrom', event.target.value)} />
+            <Input aria-label="Từ ngày báo cáo" type="date" value={filters.dateFrom} onChange={(event) => updateFilters(setFilters, setPage, 'dateFrom', event.target.value)} />
           </Col>
           <Col xs={24} md={6}>
-            <Input type="date" value={filters.dateTo} onChange={(event) => updateFilters(setFilters, setPage, 'dateTo', event.target.value)} />
+            <Input aria-label="Đến ngày báo cáo" type="date" value={filters.dateTo} onChange={(event) => updateFilters(setFilters, setPage, 'dateTo', event.target.value)} />
           </Col>
           <Col xs={24} md={6}>
             <Input
+              aria-label="Loại tiền cho báo cáo bán hàng"
+              autoComplete="off"
+              name="reportingCurrency"
+              placeholder="Ví dụ: VND…"
+              spellCheck={false}
               value={filters.currency}
-              placeholder="Loại tiền cho báo cáo bán hàng"
               disabled={activeTab !== 'sales'}
               onChange={(event) => updateFilters(setFilters, setPage, 'currency', event.target.value)}
             />
           </Col>
           <Col xs={24} md={6}>
             <Input
+              aria-label="Mã nguyên liệu cho báo cáo kho"
+              autoComplete="off"
+              name="ingredientId"
+              placeholder="Mã nguyên liệu…"
               value={filters.ingredientId}
-              placeholder="Mã nguyên liệu cho báo cáo kho"
               inputMode="numeric"
               disabled={activeTab !== 'inventory'}
               onChange={(event) => updateFilters(setFilters, setPage, 'ingredientId', event.target.value)}
@@ -147,6 +195,7 @@ export function ReportingHubPage() {
       </Card>
 
       <Tabs
+        className="staff-workspace-tabs"
         activeKey={activeTab}
         onChange={(key) => {
           setActiveTab(key as ReportingTabKey);
@@ -238,17 +287,23 @@ export function ReportingHubPage() {
   );
 
   const side = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card title="Tình trạng dữ liệu">
-        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+      <Card title="Tình trạng snapshot" className="staff-workspace-detail-card">
+        <Space orientation="vertical" size={12} style={{ width: '100%' }}>
           <StatusChip label={snapshotHealthLabel(activeMeta)} tone={snapshotHealthTone(activeMeta?.snapshot_health.status)} />
+          {scopeSummary ? <StatusChip label={scopeSummary} tone={snapshotHealthTone(activeMeta?.snapshot_health.status)} /> : null}
           <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
             {snapshotHealthDescription(activeMeta)}
           </Typography.Paragraph>
+          {scopeExamples ? (
+            <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+              {`Phạm vi đang stale: ${scopeExamples}`}
+            </Typography.Paragraph>
+          ) : null}
         </Space>
       </Card>
 
-      <Card title="Tóm tắt thẻ hiện tại">
+      <Card title="Tóm tắt tab đang xem" className="staff-workspace-detail-card">
         {activeTab === 'sales' ? (
           <Row gutter={[12, 12]}>
             <Col span={24}><Statistic title="Thực thu" value={salesSummary.netPaidAmount} formatter={(value) => formatMoney(Number(value ?? 0), filters.currency || 'VND')} /></Col>
@@ -270,7 +325,7 @@ export function ReportingHubPage() {
         )}
       </Card>
 
-      <Card title="Chi tiết dòng đang chọn">
+      <Card title="Dòng đang được soi" className="staff-workspace-detail-card">
         {!selectedRow ? (
           <EmptyBlock title="Chưa chọn dòng dữ liệu" description="Chọn một dòng để xem chi tiết ảnh chụp báo cáo." />
         ) : activeTab === 'sales' ? (

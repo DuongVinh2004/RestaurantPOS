@@ -1,327 +1,452 @@
-import { useEffect, useMemo } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Alert, Button, Layout, Menu, Select, Space, Tag, Typography } from 'antd';
-import { listBranches } from '../../core/api/staff-api';
-import { formatApiError } from '../../core/api/errors';
-import { buildJourneyResumeTarget, stripJourneySearch } from '../../core/utils/journey';
-import { visibleNavigation } from '../router/navigation';
-import { recommendedPathForSession, useAuthStore } from '../store/auth-store';
-import { useFlowStore } from '../store/flow-store';
+import {
+  Command,
+  Armchair,
+  BarChart3,
+  CalendarClock,
+  ChefHat,
+  ClipboardList,
+  Clock3,
+  LayoutDashboard,
+  LogOut,
+  MessagesSquare,
+  PanelLeftOpen,
+  ReceiptText,
+  RefreshCcw,
+  ShieldCheck,
+  WalletCards,
+  type LucideIcon,
+} from 'lucide-react';
+import { formatStaffFacingApiError } from '../../core/api/errors';
+import type { StaffNavIconKey } from '../../core/types/navigation';
+import { StaffFacingAlert } from '../../components/feedback/StaffFacingAlert';
+import { useAuthStore } from '../store/auth-store';
+import { useStaffShellContext } from './useStaffShellContext';
+const StaffShellCommandPalette = lazy(
+  () => import('./StaffShellCommandPalette').then((module) => ({ default: module.StaffShellCommandPalette })),
+);
+const StaffShellNavDrawer = lazy(
+  () => import('./StaffShellNavDrawer').then((module) => ({ default: module.StaffShellNavDrawer })),
+);
 
-const { Header, Sider, Content } = Layout;
+const navIcons: Record<StaffNavIconKey, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  tables: Armchair,
+  reservations: CalendarClock,
+  waiting: Clock3,
+  orders: ClipboardList,
+  kitchen: ChefHat,
+  checkout: ReceiptText,
+  cashier: WalletCards,
+  finance: ShieldCheck,
+  conversations: MessagesSquare,
+  audit: ShieldCheck,
+  reporting: BarChart3,
+};
 
 export function StaffAppShell() {
   const navigate = useNavigate();
   const location = useLocation();
-  const session = useAuthStore((state) => state.session);
   const notice = useAuthStore((state) => state.notice);
   const clearNotice = useAuthStore((state) => state.clearNotice);
   const refresh = useAuthStore((state) => state.refresh);
   const logout = useAuthStore((state) => state.logout);
-  const setNotice = useAuthStore((state) => state.setNotice);
-  const branchId = useFlowStore((state) => state.branchId);
-  const hydrateFromSession = useFlowStore((state) => state.hydrateFromSession);
-  const setBranchId = useFlowStore((state) => state.setBranchId);
-  const selectedTableId = useFlowStore((state) => state.selectedTableId);
-  const selectedReservationId = useFlowStore((state) => state.selectedReservationId);
-  const selectedReservationRowVersion = useFlowStore((state) => state.selectedReservationRowVersion);
-  const selectedOrderId = useFlowStore((state) => state.selectedOrderId);
-  const selectedOrderRowVersion = useFlowStore((state) => state.selectedOrderRowVersion);
-  const selectedStationId = useFlowStore((state) => state.selectedStationId);
-  const source = useFlowStore((state) => state.source);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState('');
+  const [commandActiveIndex, setCommandActiveIndex] = useState(0);
+  const [navDrawerOpen, setNavDrawerOpen] = useState(false);
+  const [compactNavigation, setCompactNavigation] = useState(false);
+  const {
+    branchId,
+    branchOptions,
+    branchesQuery,
+    contextDock,
+    freshnessLabel,
+    freshnessTone,
+    handleBranchChange,
+    navigationGroups,
+    otherBranchWorkItems,
+    quickNavOptions,
+    resumeTrayItems,
+    routeDescriptor,
+    routeScopedNotice,
+    selectedMenuKey,
+    session,
+  } = useStaffShellContext();
+
+  const isDashboardRoute = location.pathname === '/dashboard';
+  const commandItems = useMemo(() => {
+    const items = [
+      ...quickNavOptions.map((item) => ({
+        key: `nav-${item.value}`,
+        label: item.label,
+        subtitle: item.description,
+        path: item.value,
+        group: 'Đi nhanh',
+      })),
+      ...resumeTrayItems.map((item) => ({
+        key: `resume-${item.key}`,
+        label: item.label,
+        subtitle: item.subtitle ?? 'Tiếp tục đúng flow đang dở.',
+        path: item.path,
+        group: item.pinned ? 'Việc đã ghim' : 'Tiếp tục công việc',
+      })),
+    ];
+
+    const deduped = new Map(items.map((item) => [item.path, item]));
+    return Array.from(deduped.values());
+  }, [quickNavOptions, resumeTrayItems]);
+  const filteredCommandItems = useMemo(() => {
+    const normalizedQuery = commandQuery.trim().toLowerCase();
+    if (normalizedQuery === '') {
+      return commandItems.slice(0, 10);
+    }
+
+    return commandItems
+      .filter((item) => `${item.label} ${item.subtitle} ${item.group}`.toLowerCase().includes(normalizedQuery))
+      .slice(0, 10);
+  }, [commandItems, commandQuery]);
+  const groupedCommandItems = useMemo(() => {
+    const grouped = new Map<string, typeof filteredCommandItems>();
+
+    filteredCommandItems.forEach((item) => {
+      const existing = grouped.get(item.group) ?? [];
+      existing.push(item);
+      grouped.set(item.group, existing);
+    });
+
+    return Array.from(grouped.entries());
+  }, [filteredCommandItems]);
+  const commandActiveItem = filteredCommandItems[commandActiveIndex] ?? null;
 
   useEffect(() => {
-    hydrateFromSession(session);
-  }, [hydrateFromSession, session]);
+    function handleKeyDown(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCommandOpen(true);
+      }
+    }
 
-  const navigationItems = visibleNavigation(session);
-  const activeNavigationItem = navigationItems.find((item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)) ?? null;
-  const selectedMenuKey = activeNavigationItem?.key;
-
-  const branchesQuery = useQuery({
-    queryKey: ['staff-branches'],
-    queryFn: listBranches,
-    enabled: !!session,
-    staleTime: 5 * 60_000,
-  });
-
-  const branchOptions = useMemo(
-    () => (branchesQuery.data?.data ?? []).map((branch) => ({
-      value: branch.branch_id,
-      label: `${branch.branch_code} • ${branch.branch_name}`,
-    })),
-    [branchesQuery.data?.data],
-  );
-
-  const activeBranch = useMemo(
-    () => (branchesQuery.data?.data ?? []).find((branch) => branch.branch_id === branchId) ?? null,
-    [branchId, branchesQuery.data?.data],
-  );
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
-    const branches = branchesQuery.data?.data ?? [];
-    if (branches.length === 0) {
+    function syncCompactNavigation() {
+      setCompactNavigation(window.matchMedia('(max-width: 1100px)').matches);
+    }
+
+    syncCompactNavigation();
+    window.addEventListener('resize', syncCompactNavigation);
+    return () => window.removeEventListener('resize', syncCompactNavigation);
+  }, []);
+
+  useEffect(() => {
+    if (!commandOpen) {
+      setCommandActiveIndex(0);
       return;
     }
 
-    const defaultBranchId = session?.startup.default_branch?.branch_id ?? null;
-    const hasActiveBranch = branchId !== null && branches.some((branch) => branch.branch_id === branchId);
-    const fallbackBranchId = defaultBranchId !== null && branches.some((branch) => branch.branch_id === defaultBranchId)
-      ? defaultBranchId
-      : branches[0]?.branch_id ?? null;
-
-    if (hasActiveBranch || branchId === fallbackBranchId) {
+    if (filteredCommandItems.length === 0) {
+      setCommandActiveIndex(0);
       return;
     }
 
-    setBranchId(fallbackBranchId);
-  }, [branchId, branchesQuery.data?.data, session?.startup.default_branch?.branch_id, setBranchId]);
+    setCommandActiveIndex((currentIndex) => Math.min(currentIndex, filteredCommandItems.length - 1));
+  }, [commandOpen, filteredCommandItems.length]);
 
-  const resumeTarget = useMemo(
-    () => buildJourneyResumeTarget({
-      source,
-      tableId: selectedTableId ?? undefined,
-      reservationId: selectedReservationId ?? undefined,
-      reservationRowVersion: selectedReservationRowVersion ?? undefined,
-      orderId: selectedOrderId ?? undefined,
-      orderRowVersion: selectedOrderRowVersion ?? undefined,
-      stationId: selectedStationId ?? undefined,
-    }),
-    [
-      selectedOrderId,
-      selectedOrderRowVersion,
-      selectedReservationId,
-      selectedReservationRowVersion,
-      selectedStationId,
-      selectedTableId,
-      source,
-    ],
-  );
+  function openPath(path: string) {
+    setCommandOpen(false);
+    setNavDrawerOpen(false);
+    setCommandQuery('');
+    setCommandActiveIndex(0);
+    navigate(path);
+  }
 
-  const recommendedPath = recommendedPathForSession(session);
-  const recommendedRoute = recommendedPath === '/access'
-    ? {
-      path: '/access',
-      label: 'Trung tâm vận hành',
-      description: 'Kiểm tra độ sẵn sàng ca làm việc, chi nhánh và bước tiếp theo an toàn trước khi mở luồng chính.',
-    }
-    : navigationItems.find((item) => item.path === recommendedPath) ?? null;
+  function handleBranchSelectChange(event: ChangeEvent<HTMLSelectElement>) {
+    const nextBranchId = event.target.value === '' ? null : Number(event.target.value);
+    handleBranchChange(Number.isNaN(nextBranchId) ? null : nextBranchId);
+  }
 
-  const routeDescriptor = useMemo(() => {
-    if (location.pathname === '/access') {
-      return {
-        label: 'Trung tâm vận hành',
-        description: 'Bàn điều phối đầu ca để kiểm tra chi nhánh, độ sẵn sàng và lối vào công việc phù hợp.',
-      };
+  function handleCommandKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (filteredCommandItems.length === 0) {
+      if (event.key === 'Escape') {
+        setCommandOpen(false);
+        setCommandQuery('');
+      }
+      return;
     }
 
-    return activeNavigationItem ?? {
-      label: 'Staff Web',
-      description: 'Không gian điều phối tác vụ cho ca làm việc hiện tại.',
-    };
-  }, [activeNavigationItem, location.pathname]);
-
-  const routeScopedNotice = useMemo(() => {
-    if (location.pathname === '/finance-review') {
-      return {
-        tone: 'warning' as const,
-        title: 'Đối soát tài chính chưa khóa hoàn toàn theo chi nhánh đã chọn',
-        description: 'Bộ chọn chi nhánh hiện vẫn giúp giữ ngữ cảnh điều hướng trong staff-web, nhưng dữ liệu đối soát còn phụ thuộc vào giới hạn backend hiện tại. Chỉ dùng màn hình này như bước triage và xác nhận lại chi tiết trước khi xử lý tài chính.',
-      };
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setCommandActiveIndex((currentIndex) => (currentIndex + 1) % filteredCommandItems.length);
     }
 
-    if (session?.startup.readiness.branch !== 'ready') {
-      return {
-        tone: 'warning' as const,
-        title: 'Ngữ cảnh chi nhánh chưa đủ tin cậy',
-        description: 'Hãy quay lại trung tâm vận hành để xác nhận chi nhánh mặc định trước khi tiếp tục các luồng gắn bàn, đơn hàng hoặc tài chính.',
-      };
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setCommandActiveIndex((currentIndex) => (
+        currentIndex === 0 ? filteredCommandItems.length - 1 : currentIndex - 1
+      ));
     }
 
-    return null;
-  }, [location.pathname, session?.startup.readiness.branch]);
+    if (event.key === 'Enter' && commandActiveItem) {
+      event.preventDefault();
+      openPath(commandActiveItem.path);
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setCommandOpen(false);
+      setCommandQuery('');
+    }
+  }
 
   if (!session) {
     return null;
   }
 
-  const contextTags = [
-    selectedTableId ? `Bàn #${selectedTableId}` : null,
-    selectedReservationId ? `Đặt bàn #${selectedReservationId}` : null,
-    selectedOrderId ? `Đơn #${selectedOrderId}` : null,
-    selectedStationId ? `Trạm #${selectedStationId}` : null,
-  ].filter((value): value is string => value !== null);
+  const branchSelectValue = branchId === null ? '' : String(branchId);
 
-  const resumePathname = resumeTarget?.path.split('?')[0] ?? null;
-  const showResumeAction = !!resumeTarget && resumePathname !== location.pathname;
-  const showRecommendedAction = !!recommendedRoute && recommendedRoute.path !== location.pathname && recommendedRoute.path !== resumePathname;
-  const branchSummary = activeBranch
-    ? `${activeBranch.branch_code} • ${activeBranch.branch_name}`
-    : session.startup.default_branch
-      ? `${session.startup.default_branch.branch_code} • ${session.startup.default_branch.branch_name}`
-      : 'Chưa có chi nhánh đáng tin cậy';
+  const navContent = (
+    <>
+      <div className="staff-sider-brand">
+        <span className="staff-eyebrow">Operations cockpit</span>
+        <h2 className="staff-sider-brand-title">RestaurantPOS</h2>
+        <p className="staff-sider-brand-copy">
+          Điều phối ca làm, branch context và việc nóng theo cùng một command surface.
+        </p>
+      </div>
 
-  function handleBranchChange(nextBranchId: number | null) {
-    if (nextBranchId === branchId) {
-      return;
-    }
+      <nav className="staff-shell-menu" aria-label="Điều hướng staff">
+        {navigationGroups.map((group) => (
+          <section key={group.key} className="staff-shell-nav-group">
+            <span className="staff-nav-group-label">{group.label}</span>
 
-    setBranchId(nextBranchId);
+            <div className="staff-shell-nav-list">
+              {group.items.map((item) => {
+                const Icon = navIcons[item.iconKey];
+                const isSelected = item.key === selectedMenuKey;
+                const badgeLabel = typeof item.badgeCount === 'number' && item.badgeCount > 99
+                  ? '99+'
+                  : item.badgeCount;
 
-    const nextSearch = stripJourneySearch(location.search);
-    if (nextSearch !== location.search.replace(/^\?/, '')) {
-      navigate(
-        {
-          pathname: location.pathname,
-          search: nextSearch ? `?${nextSearch}` : '',
-        },
-        { replace: true },
-      );
-    }
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={`staff-shell-nav-item ${isSelected ? 'staff-shell-nav-item-selected' : ''}`}
+                    aria-current={isSelected ? 'page' : undefined}
+                    onClick={() => openPath(item.path)}
+                  >
+                    <span className="staff-nav-item-icon" aria-hidden="true">
+                      <Icon size={17} strokeWidth={2.1} />
+                    </span>
 
-    setNotice({
-      tone: 'warning',
-      message: 'Đã xóa ngữ cảnh bàn, đặt bàn, đơn hàng hoặc trạm của chi nhánh cũ. Hãy chọn lại dữ liệu trong chi nhánh mới.',
-    });
-  }
+                    <span className="staff-nav-item-row">
+                      <span className="staff-nav-item-title">{item.label}</span>
+                      {typeof item.badgeCount === 'number' && item.badgeCount > 0 ? (
+                        <span className="staff-nav-item-badge">{badgeLabel}</span>
+                      ) : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </nav>
+    </>
+  );
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider width={270}>
-        <div className="staff-sider-brand">
-          <Typography.Text className="staff-eyebrow">Màn hình nhân viên</Typography.Text>
-          <Typography.Title level={4} style={{ color: '#fff', margin: '8px 0 4px' }}>
-            RestaurantPOS
-          </Typography.Title>
-          <Typography.Paragraph style={{ color: 'rgba(255,255,255,0.68)', marginBottom: 0 }}>
-            Staff-web chuẩn vận hành: rõ ngữ cảnh, rõ bước tiếp theo, không để ca làm việc dựa vào trạng thái mơ hồ.
-          </Typography.Paragraph>
-        </div>
+    <div className="staff-shell-layout">
+      <aside className="staff-shell-sider">
+        {navContent}
+      </aside>
 
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={selectedMenuKey ? [selectedMenuKey] : []}
-          items={navigationItems.map((item) => ({
-            key: item.key,
-            label: item.label,
-            onClick: () => navigate(item.path),
-          }))}
-        />
-      </Sider>
+      <div className="staff-shell-main">
+        <header className={`staff-shell-header ${isDashboardRoute ? 'staff-shell-header-dashboard' : ''}`}>
+          <div className="staff-shell-header-top">
+            <div className="staff-shell-header-primary">
+              <div className="staff-shell-header-status" aria-label="Ngữ cảnh màn hình hiện tại">
+                {compactNavigation ? (
+                  <button
+                    type="button"
+                    className="staff-shell-control-button staff-shell-button-ghost staff-shell-button-icon staff-shell-nav-toggle"
+                    onClick={() => setNavDrawerOpen(true)}
+                    aria-label="Mở điều hướng"
+                  >
+                    <PanelLeftOpen size={18} />
+                  </button>
+                ) : null}
 
-      <Layout>
-        <Header className="staff-shell-header">
-          <div className="staff-shell-header-main">
-            <div className="staff-shell-headline">
-              <Typography.Text className="staff-eyebrow">Ngữ cảnh ca làm việc</Typography.Text>
-              <Typography.Title level={2} style={{ margin: '8px 0 6px' }}>
-                {routeDescriptor.label}
-              </Typography.Title>
-              <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                {routeDescriptor.description}
-              </Typography.Paragraph>
-            </div>
-
-            <div className="staff-shell-context-strip">
-              <div className="staff-shell-context-summary">
-                <Typography.Text strong>{branchSummary}</Typography.Text>
-                <Typography.Text type="secondary">
-                  {session.startup.readiness.branch === 'ready'
-                    ? 'Chi nhánh đang được dùng làm điểm neo cho điều hướng và bộ lọc staff-web.'
-                    : 'Cần xác nhận lại chi nhánh mặc định trước khi tiếp tục các luồng có ràng buộc bàn hoặc tài chính.'}
-                </Typography.Text>
+                <div className="staff-shell-header-title-block">
+                  <span className="staff-eyebrow">Bảng điều phối hiện tại</span>
+                  <div className="staff-shell-header-title-row">
+                    <h1 className="staff-shell-header-title">{routeDescriptor.label}</h1>
+                    <span className={`staff-shell-freshness-chip staff-shell-freshness-chip-${freshnessTone}`}>
+                      {freshnessLabel}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              <Space wrap size={8}>
-                {session.startup.default_branch ? (
-                  <Tag color="blue">
-                    Mặc định {session.startup.default_branch.branch_code}
-                  </Tag>
-                ) : null}
-                <Tag color={session.startup.readiness.branch === 'ready' ? 'green' : 'gold'}>
-                  Chi nhánh {session.startup.readiness.branch}
-                </Tag>
-                <Tag color={session.startup.readiness.cashier_shift === 'ready' ? 'green' : 'gold'}>
-                  Ca {session.startup.active_cashier_shift?.shift_code ?? session.startup.readiness.cashier_shift}
-                </Tag>
-                {contextTags.map((tag) => (
-                  <Tag key={tag}>{tag}</Tag>
+              <div className="staff-shell-header-context">
+                {contextDock.slice(0, 3).map((entry) => (
+                  <div
+                    key={entry.key}
+                    className={`staff-shell-context-card staff-shell-context-card-${entry.tone}`}
+                    aria-label={entry.label}
+                  >
+                    <span className="staff-shell-context-label">{entry.label}</span>
+                    <strong className="staff-shell-context-value">{entry.value}</strong>
+                    {entry.meta ? <span className="staff-shell-context-meta">{entry.meta}</span> : null}
+                  </div>
                 ))}
-              </Space>
+              </div>
+            </div>
+
+            <div className="staff-shell-header-controls">
+              <div className="staff-shell-header-select">
+                <label className="staff-shell-branch-label" htmlFor="staff-shell-branch-select">
+                  Chi nhánh thao tác
+                </label>
+                <div className="staff-shell-select-wrap">
+                  <select
+                    id="staff-shell-branch-select"
+                    aria-label="Chọn chi nhánh hoạt động"
+                    className="staff-shell-branch-select"
+                    value={branchSelectValue}
+                    disabled={branchesQuery.isLoading || branchOptions.length === 0}
+                    onChange={handleBranchSelectChange}
+                  >
+                    {branchSelectValue === '' ? (
+                      <option value="">
+                        {branchesQuery.isLoading ? 'Đang tải chi nhánh...' : 'Chọn chi nhánh'}
+                      </option>
+                    ) : null}
+                    {branchOptions.map((option) => (
+                      <option key={option.value} value={String(option.value)}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="staff-shell-action-row">
+                <button
+                  type="button"
+                  className="staff-shell-control-button staff-shell-button-subtle"
+                  onClick={() => void refresh()}
+                >
+                  <RefreshCcw size={16} />
+                  <span>Làm mới</span>
+                </button>
+                <button
+                  type="button"
+                  className="staff-shell-control-button staff-shell-button-quiet"
+                  onClick={() => setCommandOpen(true)}
+                >
+                  <Command size={16} />
+                  <span>Tìm</span>
+                </button>
+                <button
+                  type="button"
+                  className="staff-shell-control-button staff-shell-button-ghost"
+                  onClick={async () => {
+                    await logout();
+                    navigate('/login', { replace: true });
+                  }}
+                >
+                  <LogOut size={16} />
+                  <span>Đăng xuất</span>
+                </button>
+              </div>
             </div>
           </div>
+        </header>
 
-          <div className="staff-shell-control-stack">
-            <Select
-              aria-label="Chọn chi nhánh hoạt động"
-              style={{ width: 300 }}
-              value={branchId ?? undefined}
-              placeholder="Chọn chi nhánh hoạt động"
-              options={branchOptions}
-              onChange={(value) => handleBranchChange(value)}
-              loading={branchesQuery.isLoading}
-            />
-
-            <Space wrap size={8} className="staff-shell-action-row">
-              {showResumeAction ? (
-                <Button type="primary" onClick={() => navigate(resumeTarget.path)}>
-                  {resumeTarget.label}
-                </Button>
-              ) : null}
-              {showRecommendedAction ? (
-                <Button onClick={() => navigate(recommendedRoute.path)}>
-                  {recommendedRoute.label}
-                </Button>
-              ) : null}
-              <Button onClick={() => void refresh()}>
-                Làm mới phiên
-              </Button>
-              <Button
-                onClick={async () => {
-                  await logout();
-                  navigate('/login', { replace: true });
-                }}
-              >
-                Đăng xuất
-              </Button>
-            </Space>
-          </div>
-        </Header>
-
-        <Content className="staff-shell-content">
+        <main className={`staff-shell-content ${isDashboardRoute ? 'staff-shell-content-dashboard' : ''}`}>
           {notice ? (
-            <Alert
-              style={{ marginBottom: 16 }}
-              type={notice.tone === 'success' ? 'success' : notice.tone === 'warning' ? 'warning' : 'error'}
-              showIcon
-              title={notice.message}
-              closable
-              onClose={clearNotice}
-            />
+            <div className="staff-shell-alert-stack">
+              <StaffFacingAlert
+                tone={notice.tone === 'success' ? 'success' : notice.tone === 'warning' ? 'warning' : 'error'}
+                title={notice.message}
+                closable
+                onClose={clearNotice}
+              />
+            </div>
           ) : null}
+
           {branchesQuery.error ? (
-            <Alert
-              style={{ marginBottom: 16 }}
-              type="warning"
-              showIcon
-              title="Không thể tải danh sách chi nhánh nhân viên"
-              description={formatApiError(branchesQuery.error, 'Kiểm tra lại backend hoặc làm mới phiên để lấy lại danh sách chi nhánh.')}
-            />
+            <div className="staff-shell-alert-stack">
+              <StaffFacingAlert
+                tone="warning"
+                title="Dữ liệu chi nhánh tạm thời chưa sẵn sàng"
+                description={formatStaffFacingApiError(
+                  branchesQuery.error,
+                  'Hãy làm mới phiên hoặc liên hệ quản trị nếu lỗi tiếp tục lặp lại.',
+                )}
+              />
+            </div>
           ) : null}
+
+          {otherBranchWorkItems.length > 0 ? (
+            <div className="staff-shell-alert-stack">
+              <StaffFacingAlert
+                tone="info"
+                title={`Còn ${otherBranchWorkItems.length} flow dở ở chi nhánh khác`}
+                description="Resume tray chỉ mở ngay các flow cùng chi nhánh hiện tại để tránh thao tác nhầm. Đổi chi nhánh nếu cần nối lại công việc cũ."
+              />
+            </div>
+          ) : null}
+
           {routeScopedNotice ? (
-            <Alert
-              style={{ marginBottom: 16 }}
-              type={routeScopedNotice.tone}
-              showIcon
-              title={routeScopedNotice.title}
-              description={routeScopedNotice.description}
-            />
+            <div className="staff-shell-alert-stack">
+              <StaffFacingAlert
+                tone={routeScopedNotice.tone}
+                title={routeScopedNotice.title}
+                description={routeScopedNotice.description}
+              />
+            </div>
           ) : null}
+
           <Outlet />
-        </Content>
-      </Layout>
-    </Layout>
+        </main>
+      </div>
+
+      {commandOpen ? (
+        <Suspense fallback={null}>
+          <StaffShellCommandPalette
+            activeIndex={commandActiveIndex}
+            groupedItems={groupedCommandItems}
+            items={filteredCommandItems}
+            open={commandOpen}
+            query={commandQuery}
+            onActivate={setCommandActiveIndex}
+            onClose={() => {
+              setCommandOpen(false);
+              setCommandQuery('');
+              setCommandActiveIndex(0);
+            }}
+            onInputKeyDown={handleCommandKeyDown}
+            onOpenPath={openPath}
+            onQueryChange={setCommandQuery}
+          />
+        </Suspense>
+      ) : null}
+
+      {navDrawerOpen ? (
+        <Suspense fallback={null}>
+          <StaffShellNavDrawer
+            content={navContent}
+            open={navDrawerOpen}
+            onClose={() => setNavDrawerOpen(false)}
+          />
+        </Suspense>
+      ) : null}
+    </div>
   );
 }

@@ -33,7 +33,8 @@ describe('finance review helpers', () => {
       hasDiscrepancy: 'yes',
       activityFrom: '2026-04-01',
       activityTo: '2026-04-10',
-    }, 3, 15, 77)).toEqual({
+    }, 3, 15, 77, 5)).toEqual({
+      branch_id: 5,
       reservation_id: 77,
       reservation_code: 'RSV-001',
       status: 'Completed',
@@ -69,6 +70,7 @@ describe('finance review helpers', () => {
 
     expect(summarizeFinance(rows)).toEqual({
       discrepancyCount: 1,
+      outstandingCount: 0,
       outstandingAmount: 15000,
       overRefundAmount: 5000,
       fullySettledCount: 1,
@@ -86,7 +88,16 @@ describe('finance review helpers', () => {
     });
 
     expect(financeFlagLabels(row)).toEqual(['Có chênh lệch', 'Còn thiếu', 'Lệch loại tiền']);
-    expect(canIssueInvoiceForRow(row)).toBe(true);
+    expect(canIssueInvoiceForRow(row)).toBe(false);
+    expect(canIssueInvoiceForRow(makeRow({
+      reservationId: 7,
+      hasDiscrepancy: false,
+      hasBillOutstanding: false,
+      hasMixedCurrencies: false,
+      isFullySettled: true,
+      overRefundAmount: 0,
+      finalBillAmount: 240000,
+    }))).toBe(true);
     expect(canIssueInvoiceForRow(makeRow({
       reservationId: 6,
       finalBillAmount: null,

@@ -16,6 +16,7 @@ import type {
   GetV1AdminInventoryPurchaseOrdersQueryParams,
   GetV1AdminInventorySuppliersQueryParams,
   GetV1AdminSettingsBranchesQueryParams,
+  GetV1StaffAuditTrailQueryParams,
   GetV1StaffConversationsConversationIdQueryParams,
   GetV1StaffConversationsQueryParams,
   GetV1StaffCashierShiftsQueryParams,
@@ -28,6 +29,7 @@ import type {
   GetV1StaffReservationsQueryParams,
   GetV1StaffReservationsReservationIdRefundPreviewQueryParams,
   GetV1StaffWaitingListQueryParams,
+  GenericDataEnvelope,
   LoginStaffAuthRequest,
   NotifyWaitingListRequest,
   OpenCashierShiftRequest,
@@ -37,12 +39,14 @@ import type {
   SendConversationOutboundReplyRequest,
   SeatWaitingListRequest,
   StaffAuthSessionEnvelope,
+  StaffAuditTrailEnvelope,
   StaffCheckoutSettlementEnvelope,
   StaffConversationCollectionEnvelope,
   StaffConversationDetailEnvelope,
   StaffConversationMutationEnvelope,
   StaffKitchenDispatchEnvelope,
   StaffKitchenStationCollectionEnvelope,
+  StaffKitchenTicketEnvelope,
   StaffKitchenTicketCollectionEnvelope,
   StaffOperationalRealtimeEnvelope,
   StaffOrderReadEnvelope,
@@ -60,11 +64,14 @@ import type {
   StaffWaitingListEnvelope,
   StaffWaitingListSeatEnvelope,
   StaffTablesBoardQueryParams,
+  StoreReservationRequest,
   TakeOverConversationRequest,
 } from './sdk';
 import { persistStaffSessionToken, readStoredStaffToken, writeStoredStaffToken, type StaffSession } from '../auth/storage';
 import { createIdempotencyKey } from '../utils/idempotency';
 import { apiRequest } from './http';
+export { getCurrentStaffSession, loginStaff, logoutStaff, refreshStaffSession } from './staff-auth-api';
+export { listBranches } from './staff-branch-api';
 
 export type WalkInPayload = {
   branch_id?: number | null;
@@ -77,6 +84,8 @@ export type WalkInPayload = {
   service_minutes?: number | null;
   notes?: string | null;
 };
+
+export type CreateReservationPayload = StoreReservationRequest;
 
 export type AssignSuggestedTablePayload = {
   table_id: number;
@@ -106,6 +115,19 @@ export type UpdateOrderItemStatusPayload = {
   row_version: number;
 };
 
+export type MoveTablePayload = {
+  from_table_id: number;
+  to_table_id: number;
+  row_version?: number | null;
+  moved_at?: string | null;
+};
+
+export type ReleaseTablePayload = {
+  row_version?: number | null;
+  force?: boolean;
+  notes?: string | null;
+};
+
 export type ReservationListQuery = GetV1StaffReservationsQueryParams & {
   branch_id?: number;
 };
@@ -115,28 +137,13 @@ export type ConversationDetailQuery = GetV1StaffConversationsConversationIdQuery
 export type UnassignConversationPayload = {
   notes?: string | null;
 };
-export type AuditTrailQuery = {
-  reservation_id?: number;
-  order_id?: number;
-  payment_id?: number;
-  waiting_id?: number;
-  table_id?: number;
-  cashier_shift_id?: number;
-  actor_user_id?: number;
-  action?: string;
-  actor_type?: string;
-  subject_type?: string;
-  subject_id?: string;
-  date_from?: string;
-  date_to?: string;
-  per_page?: number;
-  page?: number;
-};
+export type AuditTrailQuery = GetV1StaffAuditTrailQueryParams;
 
 export type DailySalesReportingQuery = GetV1StaffReportingDailySalesQueryParams;
 export type DailyOperationsReportingQuery = GetV1StaffReportingDailyOperationsQueryParams;
 export type DailyInventoryReportingQuery = GetV1StaffReportingDailyInventoryQueryParams;
 export type FinancialReconciliationQuery = {
+  branch_id?: number;
   reservation_id?: number;
   reservation_code?: string;
   user_id?: number;
@@ -156,56 +163,16 @@ export type FinancialReconciliationQuery = {
   format?: 'json' | 'csv';
 };
 
-export type AuditTrailEntry = {
-  audit_id: number;
-  action: string;
-  occurred_at?: string | null;
-  primary_subject: {
-    type: string;
-    id: string;
-  };
-  subjects: Array<{
-    type: string;
-    id: string;
-    role?: string | null;
-  }>;
-  actor: {
-    user_id?: number | null;
-    type?: string | null;
-    key?: string | null;
-    user?: {
-      user_id: number;
-      full_name: string;
-    } | null;
-  };
-  request?: {
-    request_id?: string | null;
-    ip?: string | null;
-    user_agent?: string | null;
-    method?: string | null;
-    path?: string | null;
-  } | null;
-  before?: Record<string, unknown> | null;
-  after?: Record<string, unknown> | null;
-  summary?: Record<string, unknown> | null;
-  meta?: Record<string, unknown> | null;
+export type BranchScopedQuery = {
+  branch_id?: number;
 };
 
-export type AuditTrailEnvelope = {
-  data: Array<AuditTrailEntry>;
-  meta?: {
-    action: string;
-    page: number;
-    per_page: number;
-    total: number;
-    last_page: number;
-    filters: Record<string, unknown>;
-  };
-};
+export type AuditTrailEntry = StaffAuditTrailEnvelope['data'][number];
 
 export type FinancialReservationSummary = {
   reservation_id: number;
   reservation_code: string;
+  row_version?: number | null;
   status: string;
   deposit_status: string;
   start_time?: string | null;
@@ -421,48 +388,11 @@ export type WaitingListAdvanceEnvelope = {
   };
 };
 
-export async function loginStaff(payload: Pick<LoginStaffAuthRequest, 'identifier' | 'password' | 'device_name'>): Promise<StaffSession> {
-  const envelope = await apiRequest<StaffAuthSessionEnvelope>('/auth/staff/login', {
-    method: 'POST',
-    body: payload,
-    token: null,
-  });
-
-  persistStaffSessionToken(envelope.data);
-  return envelope.data;
-}
-
-export async function getCurrentStaffSession(): Promise<StaffSession> {
-  const envelope = await apiRequest<StaffAuthSessionEnvelope>('/auth/staff/me');
-  persistStaffSessionToken(envelope.data);
-  return envelope.data;
-}
-
-export async function refreshStaffSession(): Promise<StaffSession> {
-  const envelope = await apiRequest<StaffAuthSessionEnvelope>('/auth/staff/refresh', { method: 'POST' });
-  persistStaffSessionToken(envelope.data);
-  return envelope.data;
-}
-
-export async function logoutStaff(): Promise<void> {
-  try {
-    if (readStoredStaffToken()) {
-      await apiRequest('/auth/staff/logout', { method: 'POST' });
-    }
-  } finally {
-    writeStoredStaffToken(null);
-  }
-}
-
 export function buildBoardWindow(reference = new Date()): Pick<StaffTablesBoardQueryParams, 'from' | 'to'> {
   return {
     from: new Date(reference.getTime() - 60 * 60 * 1000).toISOString(),
     to: new Date(reference.getTime() + 4 * 60 * 60 * 1000).toISOString(),
   };
-}
-
-export async function listBranches(): Promise<BranchCollectionEnvelope> {
-  return apiRequest<BranchCollectionEnvelope>('/staff/branches');
 }
 
 export async function listAdminIngredients(
@@ -489,8 +419,12 @@ export async function listAdminBranches(
   return apiRequest<BranchCollectionEnvelope>('/admin/settings/branches', { query });
 }
 
-export async function getCurrentCashierShift(): Promise<CashierShiftEnvelope> {
-  return apiRequest<CashierShiftEnvelope>('/staff/cashier/shifts/current');
+export async function getCurrentCashierShift(branchId?: number): Promise<CashierShiftEnvelope> {
+  return apiRequest<CashierShiftEnvelope>('/staff/cashier/shifts/current', {
+    query: {
+      branch_id: branchId,
+    },
+  });
 }
 
 export async function listCashierShifts(
@@ -591,6 +525,14 @@ export async function listReservations(query: ReservationListQuery): Promise<Sta
   return apiRequest<StaffReservationLookupCollectionEnvelope>('/staff/reservations', { query });
 }
 
+export async function createReservation(payload: CreateReservationPayload): Promise<ReservationEnvelope> {
+  return apiRequest<ReservationEnvelope>('/reservations', {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`reservation-create-${payload.table_ids?.join('-') ?? 'manual'}`),
+  });
+}
+
 export async function getReservationDetail(reservationId: number): Promise<ReservationEnvelope> {
   return apiRequest<ReservationEnvelope>(`/staff/reservations/${reservationId}`);
 }
@@ -654,9 +596,8 @@ export async function sendConversationOutboundReply(
   });
 }
 
-// Audit trail currently ships through the legacy route inventory schema, so FE keeps a local read-model type here.
-export async function listAuditTrail(query: AuditTrailQuery): Promise<AuditTrailEnvelope> {
-  return apiRequest<AuditTrailEnvelope>('/staff/audit-trail', { query });
+export async function listAuditTrail(query: AuditTrailQuery): Promise<StaffAuditTrailEnvelope> {
+  return apiRequest<StaffAuditTrailEnvelope>('/staff/audit-trail', { query });
 }
 
 export async function listDailySalesReporting(query: DailySalesReportingQuery): Promise<StaffReportingDailySalesCollectionEnvelope> {
@@ -671,25 +612,25 @@ export async function listDailyInventoryReporting(query: DailyInventoryReporting
   return apiRequest<StaffReportingDailyInventoryCollectionEnvelope>('/staff/reporting/daily-inventory', { query });
 }
 
-export async function listFinancialReconciliation(
-  query: FinancialReconciliationQuery,
-): Promise<FinancialReconciliationCollectionEnvelope> {
+export async function listFinancialReconciliation(query: FinancialReconciliationQuery): Promise<FinancialReconciliationCollectionEnvelope> {
   return apiRequest<FinancialReconciliationCollectionEnvelope>('/staff/finance/reconciliation', { query });
 }
 
 export async function getFinancialReconciliationDetail(
   reservationId: number,
+  query: BranchScopedQuery = {},
 ): Promise<FinancialReconciliationDetailEnvelope> {
-  return apiRequest<FinancialReconciliationDetailEnvelope>(`/staff/finance/reconciliation/${reservationId}`);
+  return apiRequest<FinancialReconciliationDetailEnvelope>(`/staff/finance/reconciliation/${reservationId}`, { query });
 }
 
-export async function getFinanceInvoice(reservationId: number): Promise<FinanceInvoiceEnvelope> {
-  return apiRequest<FinanceInvoiceEnvelope>(`/staff/finance/invoices/${reservationId}`);
+export async function getFinanceInvoice(reservationId: number, query: BranchScopedQuery = {}): Promise<FinanceInvoiceEnvelope> {
+  return apiRequest<FinanceInvoiceEnvelope>(`/staff/finance/invoices/${reservationId}`, { query });
 }
 
-export async function issueFinanceInvoice(reservationId: number): Promise<FinanceInvoiceEnvelope> {
+export async function issueFinanceInvoice(reservationId: number, query: BranchScopedQuery = {}): Promise<FinanceInvoiceEnvelope> {
   return apiRequest<FinanceInvoiceEnvelope>(`/staff/finance/invoices/${reservationId}/issue`, {
     method: 'POST',
+    query,
     idempotencyKey: createIdempotencyKey(`finance-invoice-${reservationId}`),
   });
 }
@@ -715,6 +656,22 @@ export async function checkInReservation(reservationId: number, payload: CheckIn
     method: 'POST',
     body: payload,
     idempotencyKey: createIdempotencyKey(`reservation-check-in-${reservationId}`),
+  });
+}
+
+export async function moveReservationTable(reservationId: number, payload: MoveTablePayload): Promise<ReservationEnvelope> {
+  return apiRequest<ReservationEnvelope>(`/staff/reservations/${reservationId}/move-table`, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`reservation-move-table-${reservationId}`),
+  });
+}
+
+export async function releaseStaffTable(tableId: number, payload: ReleaseTablePayload = {}): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>(`/staff/tables/${tableId}/release`, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`table-release-${tableId}`),
   });
 }
 
@@ -783,13 +740,17 @@ export async function updateOrderItemStatus(orderId: number, orderItemId: number
   });
 }
 
-export async function listKitchenStations(): Promise<StaffKitchenStationCollectionEnvelope> {
-  return apiRequest<StaffKitchenStationCollectionEnvelope>('/staff/kitchen/stations');
+export async function listKitchenStations(branchId?: number): Promise<StaffKitchenStationCollectionEnvelope> {
+  return apiRequest<StaffKitchenStationCollectionEnvelope>('/staff/kitchen/stations', {
+    query: {
+      branch_id: branchId,
+    },
+  });
 }
 
 export async function getKitchenStationTickets(
   stationId: number,
-  query: GetV1StaffKitchenStationsStationIdTicketsQueryParams,
+  query: GetV1StaffKitchenStationsStationIdTicketsQueryParams & BranchScopedQuery,
 ): Promise<StaffKitchenTicketCollectionEnvelope> {
   return apiRequest<StaffKitchenTicketCollectionEnvelope>(`/staff/kitchen/stations/${stationId}/tickets`, { query });
 }
@@ -811,22 +772,22 @@ export async function dispatchKitchenOrder(orderId: number, payload: DispatchKit
   });
 }
 
-export async function fireKitchenTicket(ticketId: number): Promise<void> {
-  await apiRequest(`/staff/kitchen/tickets/${ticketId}/fire`, {
+export async function fireKitchenTicket(ticketId: number): Promise<StaffKitchenTicketEnvelope> {
+  return apiRequest<StaffKitchenTicketEnvelope>(`/staff/kitchen/tickets/${ticketId}/fire`, {
     method: 'POST',
     idempotencyKey: createIdempotencyKey(`kitchen-fire-${ticketId}`),
   });
 }
 
-export async function bumpKitchenTicket(ticketId: number): Promise<void> {
-  await apiRequest(`/staff/kitchen/tickets/${ticketId}/bump`, {
+export async function bumpKitchenTicket(ticketId: number): Promise<StaffKitchenTicketEnvelope> {
+  return apiRequest<StaffKitchenTicketEnvelope>(`/staff/kitchen/tickets/${ticketId}/bump`, {
     method: 'POST',
     idempotencyKey: createIdempotencyKey(`kitchen-bump-${ticketId}`),
   });
 }
 
-export async function recallKitchenTicket(ticketId: number): Promise<void> {
-  await apiRequest(`/staff/kitchen/tickets/${ticketId}/recall`, {
+export async function recallKitchenTicket(ticketId: number): Promise<StaffKitchenTicketEnvelope> {
+  return apiRequest<StaffKitchenTicketEnvelope>(`/staff/kitchen/tickets/${ticketId}/recall`, {
     method: 'POST',
     idempotencyKey: createIdempotencyKey(`kitchen-recall-${ticketId}`),
   });

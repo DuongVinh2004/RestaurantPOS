@@ -11,6 +11,7 @@
    - `php artisan booking:deploy-check --mode=preflight --strict`
    - `php artisan booking:release-manifest --verify-frozen --json`
    - `php artisan booking:package-release --verify-frozen --json`
+   - if `booking:deploy-check --mode=preflight --strict` reports `data.purchase_receipt_lineage_uniqueness`, stop the rollout and deduplicate the listed `ingredient_stock_movements.reference_id` values before applying `database/patches/2026_04_13_000051_inventory_stock_movement_reference_uniqueness.sql`
 3. Run smoke suite
    - `bash scripts/ci/booking-smoke-gate.sh`
    - `bash scripts/ci/booking-reliability-smoke.sh`
@@ -45,6 +46,7 @@
    - `php artisan booking:deploy-check --mode=postflight --strict`
 9. Run ops diagnostics
    - `php artisan booking:doctor --strict`
+   - `php artisan booking:ops-snapshot --json`
    - `php artisan notifications:outbox-health --json`
 10. Hit health endpoints with staff auth for detailed checks.
 
@@ -69,6 +71,8 @@
 - Logging and audit:
   - keep the `audit` log channel writable
   - retain `booking:doctor`, `booking:deploy-check`, `booking:release-manifest`, `booking:launch-readiness`, `booking:ops-snapshot`, and `notifications:outbox-health` output as release evidence for staging/UAT
+  - `booking:ops-snapshot` is the fastest place to confirm non-core readiness for kitchen/KDS, inventory/purchasing, and conversation inbox before drilling into domain runbooks
+  - when inventory/purchasing is the blocker, `booking:ops-snapshot --json` now exposes `duplicate_purchase_receipt_reference_count`, `duplicate_purchase_receipt_movement_count`, and `duplicate_purchase_receipt_reference_examples[]` so duplicate receipt lineage can be cleaned up before the uniqueness patch is applied
   - `booking:doctor` writes JSON/Markdown artifacts under `storage/app/booking_release/doctor/reports/`
   - `booking:deploy-check` writes JSON/Markdown artifacts under `storage/app/booking_release/deploy_checks/reports/`
   - `booking:release-manifest` writes JSON/Markdown report artifacts under `storage/app/booking_release/release_manifest/reports/` while keeping the frozen snapshot at `storage/app/booking_release/release_manifest_snapshot.json`

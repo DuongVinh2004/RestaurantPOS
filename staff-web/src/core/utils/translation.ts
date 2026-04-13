@@ -86,6 +86,9 @@ const translationMap: Record<string, string> = {
   'declined': 'Từ chối',
   'invite_expired': 'Lời mời hết hạn',
   'action_required': 'Cần xử lý',
+  'assignment_candidate': 'Có thể xếp khách',
+  'check_in': 'Nhận bàn',
+  'move_table': 'Chuyển bàn',
   'not_applicable': 'Không áp dụng',
   'capability_missing': 'Thiếu quyền',
   'missing': 'Còn thiếu',
@@ -102,6 +105,9 @@ const translationMap: Record<string, string> = {
   'healthy': 'Ổn định',
   'degraded': 'Cần kiểm tra',
   'empty_scope': 'Phạm vi trống',
+  'reporting_snapshot_empty': 'Ph\u1ea1m vi tr\u1ed1ng',
+  'reporting_snapshot_stale': 'Snapshot stale',
+  'reporting_snapshot_scope_partial': 'Stale t\u1eebng ph\u1ea7n',
 };
 
 function normalizeTranslationKey(value: string): string {

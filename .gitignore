@@ -36,6 +36,7 @@
 /storage/framework/views
 /storage/logs
 /storage/mysql-local
+/storage/redis
 /storage/*.key
 /storage/pail
 /test-logs

@@ -1,4 +1,4 @@
-import { Alert, Card, Descriptions, Empty, Space, Typography } from 'antd';
+import { Descriptions, Space, Typography } from 'antd';
 import type {
   StaffConversationAiAssist,
   StaffConversationAssignment,
@@ -7,115 +7,134 @@ import type {
 } from '../../core/api/sdk';
 import { formatDateTime, humanizeCode } from '../../core/utils/format';
 import { type StatusTone } from '../../core/utils/status';
+import { EmptyBlock } from '../../components/states/StateBlocks';
 import { StatusChip } from '../../components/status/StatusChip';
 
 export function MessageThread({ messages }: { messages: Array<StaffConversationMessage> }) {
   if (messages.length === 0) {
-    return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có tin nhắn trong cửa sổ chi tiết hiện tại." />;
+    return (
+      <EmptyBlock
+        title="Chưa có tin nhắn trong cửa sổ này"
+        description="Khi có trao đổi với khách, nội bộ hoặc hệ thống, thread sẽ hiện tại đây theo đúng vai trò gửi."
+      />
+    );
   }
 
   return (
-    <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+    <div className="staff-conversation-thread">
       {messages.map((message) => (
-        <Card
+        <article
           key={message.message_id}
-          size="small"
-          type="inner"
-          title={message.is_internal_note ? 'Ghi chú nội bộ' : messageSenderLabel(message)}
-          extra={formatDateTime(message.created_at)}
+          className={`staff-conversation-message staff-conversation-message-${messageType(message)}`}
         >
-          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
-            <Typography.Paragraph style={{ marginBottom: 0 }}>
-              {message.message_text}
-            </Typography.Paragraph>
+          <div className="staff-conversation-message-head">
+            <div className="staff-conversation-message-author">
+              <Typography.Text strong>{message.is_internal_note ? 'Ghi chú nội bộ' : messageSenderLabel(message)}</Typography.Text>
+              <Typography.Text type="secondary">{formatDateTime(message.created_at)}</Typography.Text>
+            </div>
             <Space wrap size={6}>
-              <StatusChip label={humanizeCode(message.message_type)} tone="default" />
+              <StatusChip label={humanizeCode(message.message_type)} tone="default" variant="freshness" />
               {message.processing_status ? (
-                <StatusChip label={humanizeCode(message.processing_status)} tone="processing" />
+                <StatusChip label={humanizeCode(message.processing_status)} tone="processing" variant="freshness" />
               ) : null}
               {message.related_reservation_id ? (
-                <StatusChip label={`Đặt bàn #${message.related_reservation_id}`} tone="success" />
+                <StatusChip label={`Đặt bàn #${message.related_reservation_id}`} tone="success" variant="entity" />
               ) : null}
             </Space>
-            {message.files?.length ? (
-              <div className="staff-mini-list">
-                {message.files.map((file) => (
-                  <Typography.Link key={file.file_id} href={file.file_url} target="_blank" rel="noreferrer">
-                    Tệp #{file.file_id}
-                  </Typography.Link>
-                ))}
-              </div>
-            ) : null}
-            {message.entities?.length ? (
-              <Space wrap size={6}>
-                {message.entities.map((entity) => (
-                  <StatusChip
-                    key={entity.message_entity_id}
-                    label={`${humanizeCode(entity.entity_type)}: ${entity.entity_normalized ?? entity.entity_text}`}
-                    tone="warning"
-                  />
-                ))}
-              </Space>
-            ) : null}
-          </Space>
-        </Card>
+          </div>
+
+          <Typography.Paragraph className="staff-conversation-message-body">
+            {message.message_text}
+          </Typography.Paragraph>
+
+          {message.files?.length ? (
+            <div className="staff-conversation-message-links">
+              {message.files.map((file) => (
+                <Typography.Link key={file.file_id} href={file.file_url} target="_blank" rel="noreferrer">
+                  Tệp #{file.file_id}
+                </Typography.Link>
+              ))}
+            </div>
+          ) : null}
+
+          {message.entities?.length ? (
+            <div className="staff-conversation-message-entities">
+              {message.entities.map((entity) => (
+                <StatusChip
+                  key={entity.message_entity_id}
+                  label={`${humanizeCode(entity.entity_type)}: ${entity.entity_normalized ?? entity.entity_text}`}
+                  tone="warning"
+                  variant="severity"
+                />
+              ))}
+            </div>
+          ) : null}
+        </article>
       ))}
-    </Space>
+    </div>
   );
 }
 
 export function AiAssistPanel({ aiAssist }: { aiAssist?: StaffConversationAiAssist }) {
   if (!aiAssist) {
-    return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có dữ liệu AI hỗ trợ cho hội thoại này." />;
+    return (
+      <EmptyBlock
+        title="AI chưa có dữ liệu hỗ trợ"
+        description="Khi hệ thống sinh được tóm tắt hoặc gợi ý hành động, phần này sẽ tập trung chúng vào một khối riêng."
+      />
+    );
   }
 
   return (
-    <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-      <Alert
-        type={aiAssist.status === 'ready' ? 'success' : aiAssist.status === 'unavailable' ? 'warning' : 'info'}
-        showIcon
-        title={`AI hỗ trợ: ${humanizeCode(aiAssist.status)}`}
-        description={aiAssist.summary ?? aiAssist.fallback_reason ?? 'Chưa có tóm tắt AI cho hội thoại này.'}
-      />
+    <div className="staff-conversation-ai-panel">
+      <div className={`staff-conversation-ai-summary staff-conversation-ai-summary-${aiAssist.status}`}>
+        <Typography.Text className="staff-eyebrow">AI hỗ trợ</Typography.Text>
+        <Typography.Title level={4}>
+          {aiAssist.summary ?? aiAssist.fallback_reason ?? 'Chưa có tóm tắt AI cho hội thoại này.'}
+        </Typography.Title>
+        <Space wrap size={6}>
+          <StatusChip label={humanizeCode(aiAssist.status)} tone={aiAssist.status === 'ready' ? 'success' : aiAssist.status === 'unavailable' ? 'warning' : 'processing'} variant="severity" />
+          <StatusChip label={humanizeCode(aiAssist.priority ?? 'normal')} tone={aiPriorityTone(aiAssist.priority)} variant="entity" />
+        </Space>
+      </div>
 
-      <Descriptions bordered size="small" column={1}>
+      <Descriptions bordered size="small" column={1} className="staff-conversation-ai-details">
         <Descriptions.Item label="Nhà cung cấp">{aiAssist.provider ?? 'Không có'}</Descriptions.Item>
         <Descriptions.Item label="Mô hình">{aiAssist.model ?? 'Không có'}</Descriptions.Item>
-        <Descriptions.Item label="Mức ưu tiên">
-          <StatusChip label={humanizeCode(aiAssist.priority ?? 'normal')} tone={aiPriorityTone(aiAssist.priority)} />
-        </Descriptions.Item>
         <Descriptions.Item label="Sinh từ dữ liệu">
           {`${aiAssist.generated_from.message_count} tin nhắn / ${aiAssist.generated_from.internal_note_count} ghi chú / ${aiAssist.generated_from.analysis_count} phân tích`}
         </Descriptions.Item>
       </Descriptions>
 
       {aiAssist.suggested_actions.length > 0 ? (
-        <Card size="small" title="Hành động gợi ý">
+        <div className="staff-conversation-ai-actions">
+          <Typography.Text strong>Hành động gợi ý</Typography.Text>
           <div className="staff-mini-list">
             {aiAssist.suggested_actions.map((action) => (
-              <div key={action.code} className="staff-mini-list-item">
+              <div key={action.code} className="staff-mini-list-item staff-conversation-ai-action-item">
                 <Typography.Text strong>{action.label}</Typography.Text>
                 <Typography.Text type="secondary">{action.reason ?? humanizeCode(action.code)}</Typography.Text>
               </div>
             ))}
           </div>
-        </Card>
+        </div>
       ) : null}
 
       {aiAssist.risk_flags.length > 0 ? (
-        <Card size="small" title="Cờ rủi ro">
+        <div className="staff-conversation-ai-risks">
+          <Typography.Text strong>Cờ rủi ro</Typography.Text>
           <Space wrap size={6}>
             {aiAssist.risk_flags.map((risk) => (
-              <StatusChip key={risk.code} label={`${risk.label} (${humanizeCode(risk.severity)})`} tone={riskTone(risk.severity)} />
+              <StatusChip key={risk.code} label={`${risk.label} (${humanizeCode(risk.severity)})`} tone={riskTone(risk.severity)} variant="severity" />
             ))}
           </Space>
-        </Card>
+        </div>
       ) : null}
 
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+      <Typography.Paragraph type="secondary" className="staff-conversation-ai-disclaimer">
         {aiAssist.disclaimer}
       </Typography.Paragraph>
-    </Space>
+    </div>
   );
 }
 
@@ -127,16 +146,23 @@ export function HistoryPanel({
   events: Array<StaffConversationEvent>;
 }) {
   if (assignments.length === 0 && events.length === 0) {
-    return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có lịch sử phân công hoặc sự kiện trong cửa sổ chi tiết hiện tại." />;
+    return (
+      <EmptyBlock
+        title="Chưa có lịch sử phân công hoặc sự kiện"
+        description="Khi ownership hoặc sự kiện hệ thống thay đổi, timeline này sẽ giúp staff nhìn lại ngữ cảnh bàn giao."
+      />
+    );
   }
 
   return (
-    <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+    <div className="staff-conversation-history-panel">
       {assignments.length > 0 ? (
-        <Card size="small" title="Lịch sử phân công">
-          <div className="staff-mini-list">
+        <div className="staff-conversation-history-section">
+          <Typography.Text strong>Lịch sử phân công</Typography.Text>
+          <div className="staff-conversation-timeline">
             {assignments.map((assignment) => (
-              <div key={assignment.assignment_id} className="staff-mini-list-item">
+              <div key={assignment.assignment_id} className="staff-conversation-timeline-item">
+                <span className="staff-conversation-timeline-marker" aria-hidden="true" />
                 <Typography.Text strong>{assignmentAgentLabel(assignment)}</Typography.Text>
                 <Typography.Text type="secondary">
                   {`${assignment.is_active ? 'Đang hiệu lực' : 'Đã nhả'} • ${formatDateTime(assignment.assigned_at)}${assignment.released_at ? ` -> ${formatDateTime(assignment.released_at)}` : ''}`}
@@ -144,23 +170,42 @@ export function HistoryPanel({
               </div>
             ))}
           </div>
-        </Card>
+        </div>
       ) : null}
 
       {events.length > 0 ? (
-        <Card size="small" title="Sự kiện">
-          <div className="staff-mini-list">
+        <div className="staff-conversation-history-section">
+          <Typography.Text strong>Sự kiện</Typography.Text>
+          <div className="staff-conversation-timeline">
             {events.map((event) => (
-              <div key={event.event_id} className="staff-mini-list-item">
+              <div key={event.event_id} className="staff-conversation-timeline-item">
+                <span className="staff-conversation-timeline-marker" aria-hidden="true" />
                 <Typography.Text strong>{humanizeCode(event.event_type)}</Typography.Text>
                 <Typography.Text type="secondary">{`${eventActorLabel(event)} • ${formatDateTime(event.created_at)}`}</Typography.Text>
               </div>
             ))}
           </div>
-        </Card>
+        </div>
       ) : null}
-    </Space>
+    </div>
   );
+}
+
+function messageType(message: StaffConversationMessage): 'internal' | 'customer' | 'staff' | 'system' {
+  if (message.is_internal_note) {
+    return 'internal';
+  }
+
+  switch ((message.sender ?? '').toLowerCase()) {
+    case 'customer':
+    case 'guest':
+      return 'customer';
+    case 'staff':
+    case 'agent':
+      return 'staff';
+    default:
+      return 'system';
+  }
 }
 
 function messageSenderLabel(message: StaffConversationMessage): string {

@@ -255,7 +255,7 @@ export async function loadKitchenChanges(
 }
 
 export async function loadKitchenStations(): Promise<StaffKitchenStationCollectionEnvelope> {
-  return staffClient.getV1StaffKitchenStations();
+  return staffClient.getV1StaffKitchenStations({});
 }
 
 export async function loadDailySalesReporting(
@@ -380,7 +380,7 @@ export async function refundAndCancelReservation(
 }
 
 export async function loadCurrentCashierShift(): Promise<CashierShiftEnvelope> {
-  return staffClient.getV1StaffCashierShiftsCurrent();
+  return staffClient.getV1StaffCashierShiftsCurrent({});
 }
 
 export async function loadCashierShifts(

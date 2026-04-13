@@ -275,12 +275,31 @@ class StaffServiceSessionService
             ]);
         }
 
+        $phone = $this->normalizeNullableString($payload['phone'] ?? null);
+        if ($phone !== null) {
+            /** @var User|null $existingCustomer */
+            $existingCustomer = User::query()
+                ->with('role')
+                ->where('phone', $phone)
+                ->first();
+
+            if ($existingCustomer instanceof User) {
+                if ((bool) $existingCustomer->is_deleted || ! $this->isAllowedWalkInCustomer($existingCustomer)) {
+                    throw ValidationException::withMessages([
+                        'phone' => ['This phone number is already linked to a non-customer account.'],
+                    ]);
+                }
+
+                return [$existingCustomer, false];
+            }
+        }
+
         $customer = new User;
         $customer->username = $this->generateWalkInUsername();
         $customer->password_hash = null;
         $customer->full_name = $guestName;
         $customer->email = null;
-        $customer->phone = $this->normalizeNullableString($payload['phone'] ?? null);
+        $customer->phone = $phone;
         $customer->role_id = $this->ensureCustomerRoleId();
         $customer->language_pref = 'vn';
         $customer->is_deleted = false;

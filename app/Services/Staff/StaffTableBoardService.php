@@ -314,7 +314,7 @@ class StaffTableBoardService
         }
         usort($zoneRows, static fn (array $left, array $right): int => strcmp((string) $left['zone'], (string) $right['zone']));
 
-        $unassignedRows = array_map(function (array $row) use ($fromUtc, $toUtc, $zone): array {
+        $unassignedRows = array_map(function (array $row) use ($fromUtc, $toUtc, $resolvedBranchId, $zone): array {
             /** @var Reservation $reservation */
             $reservation = $row['reservation'];
             $deposit = $row['deposit'];
@@ -330,6 +330,8 @@ class StaffTableBoardService
                 'guest_count' => (int) $reservation->guest_count,
                 'start_time' => $this->iso($reservation->start_time),
                 'end_time' => $this->iso($reservation->end_time),
+                'user' => $this->presentVisibleCustomer($reservation, ['user_id', 'full_name', 'phone', 'email']),
+                'guest' => $this->presentGuestSnapshot($reservation),
                 'flags' => array_merge($flags, [
                     'deposit_self_service_follow_up' => (bool) data_get($deposit, 'follow_up.needs_staff_follow_up', false),
                 ]),
@@ -489,7 +491,8 @@ class StaffTableBoardService
             'end_time' => $this->iso($reservation->end_time),
             'guest_count' => (int) $reservation->guest_count,
             'checked_in_at' => $this->iso($reservation->checked_in_at),
-            'user' => $reservation->relationLoaded('user') && $reservation->user ? Arr::only($reservation->user->toArray(), $visibleUserFields) : null,
+            'user' => $this->presentVisibleCustomer($reservation, $visibleUserFields),
+            'guest' => $this->presentGuestSnapshot($reservation),
             'deposit' => [
                 'status' => (string) ($reservation->deposit_status?->value ?? $reservation->deposit_status ?? ''),
                 'required_amount' => number_format($required, 2, '.', ''),
@@ -532,6 +535,8 @@ class StaffTableBoardService
             'reservation_code' => (string) $reservation->reservation_code,
             'row_version' => (int) ($reservation->row_version ?? 1),
             'guest_count' => (int) $reservation->guest_count,
+            'user' => $this->presentVisibleCustomer($reservation, ['user_id', 'full_name', 'phone', 'email']),
+            'guest' => $this->presentGuestSnapshot($reservation),
             'flags' => $flags,
             'policy_flags' => (array) ($candidate['policy_flags'] ?? []),
             'deposit' => [
@@ -1154,6 +1159,37 @@ class StaffTableBoardService
             'zone' => $zone,
             'include_slot_only_candidates' => $includeSlotOnlyCandidates,
         ];
+    }
+
+    /**
+     * @param  array<int,string>  $visibleUserFields
+     * @return array<string,mixed>|null
+     */
+    private function presentVisibleCustomer(Reservation $reservation, array $visibleUserFields): ?array
+    {
+        $customer = [
+            'user_id' => $reservation->user_id !== null ? (int) $reservation->user_id : null,
+            'full_name' => $reservation->customerDisplayName(),
+            'phone' => $reservation->customerPhone(),
+            'email' => $reservation->customerEmail(),
+        ];
+
+        $visible = Arr::only($customer, $visibleUserFields);
+        foreach ($visible as $value) {
+            if ($value !== null && $value !== '') {
+                return $visible;
+            }
+        }
+
+        return array_key_exists('user_id', $visible) ? $visible : null;
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function presentGuestSnapshot(Reservation $reservation): ?array
+    {
+        return $reservation->guestSnapshot();
     }
 
     private function resolveBranchId(mixed $branchId): ?int

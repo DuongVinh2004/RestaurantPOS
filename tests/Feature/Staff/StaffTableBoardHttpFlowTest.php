@@ -64,6 +64,57 @@ class StaffTableBoardHttpFlowTest extends TestCase
         self::assertSame([$tableId], $row['actions']['check_in']['preferred_payload']['table_ids']);
     }
 
+    public function test_staff_table_board_surfaces_guest_snapshot_identity_for_assigned_and_unassigned_reservations(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->staffAuthHeaders($staffId, 'board-guest-snapshot-key');
+
+        $tableId = $this->createRestaurantTable(['zone' => 'Main']);
+        $now = Carbon::now('UTC')->startOfMinute();
+        $assignedReservationId = $this->createReservation([
+            'user_id' => null,
+            'guest_name' => 'Board Guest',
+            'guest_phone' => '0906677889',
+            'guest_email' => 'board.guest@example.test',
+            'status' => 'Confirmed',
+            'start_time' => $now->copy()->subMinutes(5),
+            'end_time' => $now->copy()->addHour(),
+            'guest_count' => 4,
+            'source' => 'Offline',
+        ]);
+        $this->attachReservationTable($assignedReservationId, $tableId);
+
+        $unassignedReservationId = $this->createReservation([
+            'user_id' => null,
+            'guest_name' => 'Unassigned Caller',
+            'guest_phone' => '0908899001',
+            'guest_email' => 'unassigned.caller@example.test',
+            'status' => 'Confirmed',
+            'start_time' => $now->copy()->addMinutes(20),
+            'end_time' => $now->copy()->addMinutes(80),
+            'guest_count' => 2,
+            'source' => 'Offline',
+        ]);
+
+        $response = $this->withHeaders($headers)->getJson(
+            '/api/v1/staff/tables/board?from='.urlencode($now->copy()->subHour()->toIso8601String()).'&to='.urlencode($now->copy()->addHour()->toIso8601String())
+        );
+
+        $response->assertOk();
+
+        $row = collect($response->json('data'))->firstWhere('table_id', $tableId);
+        self::assertIsArray($row);
+        self::assertSame('Board Guest', data_get($row, 'reservation.user.full_name'));
+        self::assertSame('0906677889', data_get($row, 'reservation.user.phone'));
+        self::assertSame('Board Guest', data_get($row, 'reservation.guest.full_name'));
+
+        $unassigned = collect($response->json('unassigned_reservations'))->firstWhere('reservation_id', $unassignedReservationId);
+        self::assertIsArray($unassigned);
+        self::assertSame('Unassigned Caller', data_get($unassigned, 'user.full_name'));
+        self::assertSame('0908899001', data_get($unassigned, 'user.phone'));
+        self::assertSame('Unassigned Caller', data_get($unassigned, 'guest.full_name'));
+    }
+
     public function test_staff_table_board_legacy_alias_still_works_and_zone_filter_is_preserved(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);

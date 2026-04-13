@@ -28,6 +28,13 @@ pwsh -File .\scripts\uat\Reset-UatPack.ps1
 
 Bootstrap sẽ tạo manifest tại `storage/app/uat/scenario-pack.json` trừ khi override bằng `-ManifestPath`.
 
+## Smoke Evidence Status
+
+- `storage/app/uat/scenario-pack.json` is the current scenario manifest and source of seeded IDs, auth material, and branch/table/order inputs for smoke.
+- Current smoke truth lives under `storage/app/booking_release/staff_web_smoke/latest-<target>.*` plus the exact timestamped smoke file cited by the release ticket.
+- Timestamped smoke files that are not cited by the release ticket are historical only. Keep them for audit context, but do not treat old failures or old passes as current release evidence.
+- If a historical smoke file is reused for investigation, re-bootstrap the scenario pack and re-run smoke before using the result for release decisions.
+
 ## Canonical Data
 
 Branch canonical:

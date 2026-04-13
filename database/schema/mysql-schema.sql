@@ -268,10 +268,15 @@ CREATE TABLE `conversations` (
   `session_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `channel` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'WebChat',
   `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Open',
+  `workflow_state` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Open',
+  `workflow_state_reason` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `intent_detected` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `linked_reservation_id` int unsigned DEFAULT NULL,
   `linked_waiting_list_id` int unsigned DEFAULT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `workflow_state_changed_at` datetime(6) DEFAULT NULL,
+  `first_triaged_at` datetime(6) DEFAULT NULL,
+  `resolved_at` datetime(6) DEFAULT NULL,
   `closed_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`conversation_id`),
   KEY `idx_conversations__user_id__status` (`user_id`,`status`),
@@ -279,6 +284,7 @@ CREATE TABLE `conversations` (
   KEY `fk_conversations__linked_reservation_id__reservations` (`linked_reservation_id`),
   KEY `fk_conversations__linked_waiting_list_id__waiting_list` (`linked_waiting_list_id`),
   KEY `idx_conversations__branch_id__status__created_at` (`branch_id`,`status`,`created_at`),
+  KEY `idx_conversations__branch_id__workflow_state__created_at` (`branch_id`,`workflow_state`,`created_at`),
   KEY `idx_conversations__channel__created_at` (`channel`,`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -503,7 +509,7 @@ CREATE TABLE `ingredient_stock_movements` (
   PRIMARY KEY (`movement_id`),
   KEY `idx_ingredient_stock_movements__branch_id__ingredient_i_55caca95` (`branch_id`,`ingredient_id`,`created_at`),
   KEY `idx_ingredient_stock_movements__ingredient_id__created_at` (`ingredient_id`,`created_at`),
-  KEY `idx_ingredient_stock_movements__reference` (`reference_type`,`reference_id`),
+  UNIQUE KEY `uq_ingredient_stock_movements__reference` (`reference_type`,`reference_id`),
   CONSTRAINT `chk_ingredient_stock_movements__quantity_delta_nonzero` CHECK ((`quantity_delta` <> 0)),
   CONSTRAINT `chk_ingredient_stock_movements__sign_matches_type` CHECK (((`movement_type` in ('StockIn','AdjustmentIncrease')) and (`quantity_delta` > 0)) or ((`movement_type` in ('StockOut','AdjustmentDecrease','Wastage')) and (`quantity_delta` < 0)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1064,7 +1070,10 @@ DROP TABLE IF EXISTS `reservations`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `reservations` (
   `reservation_id` int unsigned NOT NULL AUTO_INCREMENT,
-  `user_id` int unsigned NOT NULL,
+  `user_id` int unsigned DEFAULT NULL,
+  `guest_name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `guest_phone` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `guest_email` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `branch_id` int unsigned NOT NULL DEFAULT '1',
   `reservation_code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `reserved_at` datetime(6) DEFAULT NULL,

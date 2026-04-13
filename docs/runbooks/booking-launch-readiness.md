@@ -92,6 +92,7 @@ Manual checks tracked by the artifact:
 - `notification_provider_external_e2e`
   - staging: major warning if missing
   - limited-production: blocking if missing
+  - only the `Email` channel currently qualifies because it is the repo's `production_lean` + `real` delivery lane
 - `concurrency_rehearsal`
   - limited-production: blocking if missing
 

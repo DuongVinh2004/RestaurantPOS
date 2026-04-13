@@ -43,6 +43,8 @@ Legacy files such as `src/app/router.tsx`, `src/components/shell/StaffShell.tsx`
   - gate: `kitchen.manage`
 - `/checkout`
   - gate: `settlement.manage`
+  - hosts settlement plus reservation-linked refund actions; refund controls additionally require `payment.refund`
+  - no dedicated mounted `/refunds` route in the active shell
 - `/cashier-shift`
   - gate: `cashier.shift.manage`
 - `/finance-review`

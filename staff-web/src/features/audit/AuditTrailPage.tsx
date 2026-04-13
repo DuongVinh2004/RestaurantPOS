@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Alert,
   Button,
   Card,
   Col,
@@ -19,7 +18,7 @@ import type { AuditTrailEntry } from '../../core/api/staff-api';
 import { listAuditTrail } from '../../core/api/staff-api';
 import { formatApiError } from '../../core/api/errors';
 import { can } from '../../core/permissions/capabilities';
-import { formatDateTime } from '../../core/utils/format';
+import { formatDateTime, formatRelativeAge } from '../../core/utils/format';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { SplitWorkspace } from '../../components/layout/SplitWorkspace';
 import { EmptyBlock, InlineError, InlineLoading } from '../../components/states/StateBlocks';
@@ -29,10 +28,14 @@ import { useFlowStore } from '../../app/store/flow-store';
 import {
   auditActorDetail,
   auditActorLabel,
+  auditLinkedEntityTarget,
   auditRelatedSubjects,
+  auditRequestSummary,
   auditSubjectLabel,
   auditSummaryLine,
   buildAuditTrailQuery,
+  buildInitialAuditFilters,
+  type AuditBranchScope,
   type AuditFilterState,
   type AuditReferenceFilter,
 } from './audit-trail';
@@ -59,28 +62,26 @@ const referenceOptions = [
   { value: 'subject', label: 'Đối tượng tùy chỉnh' },
 ] satisfies Array<{ value: AuditReferenceFilter; label: string }>;
 
-const initialFilters: AuditFilterState = {
-  action: '',
-  actorType: '',
-  actorUserId: '',
-  referenceType: 'reservation',
-  referenceId: '',
-  subjectType: '',
-  dateFrom: '',
-  dateTo: '',
-};
-
 export function AuditTrailPage() {
   const navigate = useNavigate();
   const session = useAuthStore((state) => state.session);
   const branchId = useFlowStore((state) => state.branchId);
   const setReservationContext = useFlowStore((state) => state.setReservationContext);
   const setOrderContext = useFlowStore((state) => state.setOrderContext);
-  const [filters, setFilters] = useState<AuditFilterState>(initialFilters);
+  const [filters, setFilters] = useState<AuditFilterState>(() => buildInitialAuditFilters(branchId));
   const [page, setPage] = useState(1);
   const [selectedAuditId, setSelectedAuditId] = useState<number | null>(null);
 
-  const query = useMemo(() => buildAuditTrailQuery(filters, page, pageSize), [filters, page]);
+  useEffect(() => {
+    if (!branchId && filters.branchScope === 'shell') {
+      setFilters((current) => ({ ...current, branchScope: 'all' }));
+    }
+  }, [branchId, filters.branchScope]);
+
+  const defaultFilters = useMemo(() => buildInitialAuditFilters(branchId), [branchId]);
+  const filtersActive = JSON.stringify(filters) !== JSON.stringify(defaultFilters);
+
+  const query = useMemo(() => buildAuditTrailQuery(filters, branchId, page, pageSize), [branchId, filters, page]);
   const auditQuery = useQuery({
     queryKey: ['audit-trail', query],
     queryFn: () => listAuditTrail(query),
@@ -108,10 +109,32 @@ export function AuditTrailPage() {
 
   const subjectTags = selectedEntry ? auditRelatedSubjects(selectedEntry) : [];
   const actionStats = useMemo(() => countActions(auditQuery.data?.data ?? []), [auditQuery.data?.data]);
+  const branchScopeOptions = useMemo(
+    () => (
+      branchId
+        ? [
+          { value: 'shell', label: `Chi nhánh #${branchId}` },
+          { value: 'all', label: 'Toàn quyền audit' },
+        ]
+        : [
+          { value: 'all', label: 'Toàn quyền audit' },
+        ]
+    ) satisfies Array<{ value: AuditBranchScope; label: string }>,
+    [branchId],
+  );
+  const emptyDescription = filters.branchScope === 'shell' && branchId
+    ? `Không có sự kiện khớp bộ lọc trong chi nhánh #${branchId}.`
+    : 'Bộ lọc hiện tại không trả về sự kiện nào.';
 
   function updateFilter<K extends keyof AuditFilterState>(key: K, value: AuditFilterState[K]) {
     setFilters((current) => ({ ...current, [key]: value }));
     setPage(1);
+  }
+
+  function resetFilters() {
+    setFilters(buildInitialAuditFilters(branchId));
+    setPage(1);
+    setSelectedAuditId(null);
   }
 
   function openLinkedEntity() {
@@ -119,40 +142,45 @@ export function AuditTrailPage() {
       return;
     }
 
-    const reservationSubject = selectedEntry.subjects.find((subject) => subject.type === 'reservation') ?? (
-      selectedEntry.primary_subject.type === 'reservation' ? selectedEntry.primary_subject : null
-    );
-    const orderSubject = selectedEntry.subjects.find((subject) => subject.type === 'reservation_order') ?? (
-      selectedEntry.primary_subject.type === 'reservation_order' ? selectedEntry.primary_subject : null
-    );
+    const target = auditLinkedEntityTarget(selectedEntry, {
+      canManageReservations: can(session, 'reservation.manage'),
+      canManageOrders: can(session, 'order.manage'),
+    });
 
-    const reservationId = reservationSubject ? Number(reservationSubject.id) : null;
-    const orderId = orderSubject ? Number(orderSubject.id) : null;
-
-    if (reservationId && can(session, 'reservation.manage')) {
+    if (target?.kind === 'reservation') {
       setReservationContext({
-        reservationId,
-        source: 'reservation',
+        reservationId: target.id,
+        source: 'audit',
       });
-      navigate('/reservations');
+      navigate(target.path);
       return;
     }
 
-    if (orderId && can(session, 'order.manage')) {
+    if (target?.kind === 'order') {
       setOrderContext({
-        orderId,
-        source: 'order',
+        orderId: target.id,
+        source: 'audit',
       });
-      navigate('/orders');
+      navigate(target.path);
     }
   }
 
   const main = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <PageHeader
-        eyebrow="Nhật ký thao tác"
+        eyebrow="Điều tra audit trail"
         title="Rà soát nhật ký vận hành"
-        description="Màn hình này dùng để lần vết sự cố và soát luồng tài chính. Giao diện ưu tiên lọc và đọc chi tiết, không phải bảng điều khiển realtime."
+        description="Dùng màn này để lần vết sự cố, kiểm tra hành động nhạy cảm và nối lại ngữ cảnh giữa audit với luồng đặt bàn, đơn hàng hoặc tài chính."
+        context={(
+          <>
+            <StatusChip
+              label={filters.branchScope === 'shell' && branchId ? `Chi nhánh #${branchId}` : 'Toàn ph\u1ea1m vi audit'}
+              tone={filters.branchScope === 'shell' ? 'processing' : 'default'}
+            />
+            <StatusChip label={`${auditQuery.data?.meta?.total ?? 0} dòng khớp bộ lọc`} tone="processing" />
+            {selectedEntry ? <StatusChip label={`Sự kiện ${selectedEntry.audit_id}`} tone="warning" /> : null}
+          </>
+        )}
         extra={(
           <>
             <Button onClick={() => auditQuery.refetch()} loading={auditQuery.isFetching}>
@@ -162,85 +190,129 @@ export function AuditTrailPage() {
         )}
       />
 
-      {branchId ? (
-        <Alert
-          type="info"
-          showIcon
-          message="Nhật ký thao tác chưa lọc theo chi nhánh từ shell"
-          description="API audit hiện tại chưa nhận `branch_id`. Hãy dùng bộ lọc đặt bàn, đơn hàng, thanh toán hoặc bàn để thu hẹp phạm vi vận hành."
-        />
-      ) : null}
-
       <Row gutter={[16, 16]}>
         <Col xs={24} md={8}>
-          <Card><Statistic title="Số dòng trang hiện tại" value={auditQuery.data?.data.length ?? 0} /></Card>
+          <Card className="staff-workspace-summary-card"><Statistic title="Số dòng trang hiện tại" value={auditQuery.data?.data.length ?? 0} /></Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card><Statistic title="Tổng số khớp bộ lọc" value={auditQuery.data?.meta?.total ?? 0} /></Card>
+          <Card className="staff-workspace-summary-card"><Statistic title="Tổng số khớp bộ lọc" value={auditQuery.data?.meta?.total ?? 0} /></Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card><Statistic title="Số thao tác khác nhau" value={Object.keys(actionStats).length} /></Card>
+          <Card className="staff-workspace-summary-card"><Statistic title="Số thao tác khác nhau" value={Object.keys(actionStats).length} /></Card>
         </Col>
       </Row>
 
-      <Card title="Bộ lọc">
+      <Card
+        className="staff-workspace-filter-card"
+        title="Bộ lọc"
+        extra={filtersActive ? <Button size="small" onClick={resetFilters}>{'\u0110\u1eb7t l\u1ea1i b\u1ed9 l\u1ecdc'}</Button> : null}
+      >
         <Row gutter={[12, 12]}>
           <Col xs={24} md={8}>
             <Input
+              aria-label="Tìm kiếm trong nhật ký audit"
+              autoComplete="off"
+              name="auditSearch"
+              placeholder={'Action, request, actor hoặc subject…'}
+              spellCheck={false}
+              value={filters.searchText}
+              onChange={(event) => updateFilter('searchText', event.target.value)}
+            />
+          </Col>
+          <Col xs={24} md={6}>
+            <Input
+              aria-label="Lọc theo Request ID"
+              autoComplete="off"
+              name="requestId"
+              placeholder="Request ID…"
+              spellCheck={false}
+              value={filters.requestId}
+              onChange={(event) => updateFilter('requestId', event.target.value)}
+            />
+          </Col>
+          <Col xs={24} md={4}>
+            <Select
+              aria-label="Lọc theo phạm vi chi nhánh"
+              style={{ width: '100%' }}
+              value={filters.branchScope}
+              options={branchScopeOptions}
+              onChange={(value) => updateFilter('branchScope', value)}
+            />
+          </Col>
+          <Col xs={24} md={6}>
+            <Input
+              aria-label="Lọc theo tên thao tác"
+              autoComplete="off"
+              name="action"
+              placeholder="Ví dụ: reservation.checked_in…"
+              spellCheck={false}
               value={filters.action}
-              placeholder="Thao tác, ví dụ: reservation.checked_in"
               onChange={(event) => updateFilter('action', event.target.value)}
             />
           </Col>
-          <Col xs={24} md={8}>
+          <Col xs={24} md={6}>
             <Select
+              aria-label="Lọc theo loại tác nhân"
               style={{ width: '100%' }}
               value={filters.actorType}
               options={actorTypeOptions}
               onChange={(value) => updateFilter('actorType', value)}
             />
           </Col>
-          <Col xs={24} md={8}>
+          <Col xs={24} md={6}>
             <Input
+              aria-label="Lọc theo mã người thao tác"
+              autoComplete="off"
+              name="actorUserId"
+              placeholder="Mã người thao tác…"
               value={filters.actorUserId}
-              placeholder="Mã người thao tác"
               inputMode="numeric"
               onChange={(event) => updateFilter('actorUserId', event.target.value)}
             />
           </Col>
-          <Col xs={24} md={6}>
+          <Col xs={24} md={4}>
             <Select
+              aria-label="Lọc theo loại tham chiếu"
               style={{ width: '100%' }}
               value={filters.referenceType}
               options={referenceOptions}
               onChange={(value) => updateFilter('referenceType', value)}
             />
           </Col>
-          <Col xs={24} md={6}>
+          <Col xs={24} md={4}>
             <Input
+              aria-label="Lọc theo mã tham chiếu"
+              autoComplete="off"
+              name="referenceId"
+              placeholder="Mã tham chiếu…"
               value={filters.referenceId}
-              placeholder="Mã tham chiếu"
               inputMode={filters.referenceType === 'subject' ? 'text' : 'numeric'}
               onChange={(event) => updateFilter('referenceId', event.target.value)}
             />
           </Col>
-          <Col xs={24} md={6}>
+          <Col xs={24} md={4}>
             <Input
+              aria-label="Lọc theo loại đối tượng tùy chỉnh"
+              autoComplete="off"
+              name="subjectType"
+              placeholder="Loại đối tượng…"
+              spellCheck={false}
               value={filters.subjectType}
-              placeholder="Loại đối tượng tùy chỉnh"
               disabled={filters.referenceType !== 'subject'}
               onChange={(event) => updateFilter('subjectType', event.target.value)}
             />
           </Col>
-          <Col xs={24} md={3}>
+          <Col xs={24} md={5}>
             <Input
+              aria-label="Từ ngày audit"
               type="date"
               value={filters.dateFrom}
               onChange={(event) => updateFilter('dateFrom', event.target.value)}
             />
           </Col>
-          <Col xs={24} md={3}>
+          <Col xs={24} md={5}>
             <Input
+              aria-label="Đến ngày audit"
               type="date"
               value={filters.dateTo}
               onChange={(event) => updateFilter('dateTo', event.target.value)}
@@ -249,11 +321,11 @@ export function AuditTrailPage() {
         </Row>
       </Card>
 
-      <Card title="Dòng nhật ký">
+      <Card title="Dòng nhật ký" className="staff-workspace-table-card">
         {auditQuery.isLoading ? <InlineLoading tip="Đang tải nhật ký thao tác..." /> : null}
         {auditQuery.error ? <InlineError message={formatApiError(auditQuery.error, 'Không thể tải nhật ký thao tác.')} /> : null}
         {!auditQuery.isLoading && !auditQuery.error && (auditQuery.data?.data.length ?? 0) === 0 ? (
-          <EmptyBlock title="Không có dòng nhật ký" description="Bộ lọc hiện tại không trả về sự kiện nào." />
+          <EmptyBlock title="Không có dòng nhật ký" description={emptyDescription} />
         ) : null}
         {(auditQuery.data?.data.length ?? 0) > 0 ? (
           <Table<AuditTrailEntry>
@@ -272,12 +344,17 @@ export function AuditTrailPage() {
               {
                 title: 'Thời gian',
                 width: 150,
-                render: (_, entry) => formatDateTime(entry.occurred_at),
+                render: (_, entry) => (
+                  <Space orientation="vertical" size={2}>
+                    <Typography.Text>{formatDateTime(entry.occurred_at)}</Typography.Text>
+                    <Typography.Text type="secondary">{formatRelativeAge(entry.occurred_at)}</Typography.Text>
+                  </Space>
+                ),
               },
               {
                 title: 'Thao tác',
                 render: (_, entry) => (
-                  <Space direction="vertical" size={2}>
+                  <Space orientation="vertical" size={2}>
                     <Typography.Text strong>{entry.action}</Typography.Text>
                     <Typography.Text type="secondary">{auditSummaryLine(entry)}</Typography.Text>
                   </Space>
@@ -286,7 +363,7 @@ export function AuditTrailPage() {
               {
                 title: 'Đối tượng',
                 render: (_, entry) => (
-                  <Space direction="vertical" size={2}>
+                  <Space orientation="vertical" size={2}>
                     <Typography.Text>{auditSubjectLabel(entry)}</Typography.Text>
                     <Typography.Text type="secondary">{entry.subjects.length} liên kết</Typography.Text>
                   </Space>
@@ -295,7 +372,7 @@ export function AuditTrailPage() {
               {
                 title: 'Người thao tác',
                 render: (_, entry) => (
-                  <Space direction="vertical" size={2}>
+                  <Space orientation="vertical" size={2}>
                     <Typography.Text>{auditActorLabel(entry)}</Typography.Text>
                     <Typography.Text type="secondary">{auditActorDetail(entry)}</Typography.Text>
                   </Space>
@@ -309,12 +386,12 @@ export function AuditTrailPage() {
   );
 
   const side = (
-    <Card title="Chi tiết nhật ký">
+    <Card title="Chi tiết nhật ký" className="staff-workspace-detail-card">
       {!selectedEntry ? (
         <EmptyBlock title="Chưa chọn sự kiện" description="Chọn một dòng để xem người thao tác, đối tượng liên quan và dữ liệu trước/sau." />
       ) : (
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
-          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={4} style={{ width: '100%' }}>
             <Typography.Title level={4} style={{ margin: 0 }}>{selectedEntry.action}</Typography.Title>
             <Typography.Text type="secondary">{formatDateTime(selectedEntry.occurred_at)}</Typography.Text>
           </Space>
@@ -323,23 +400,18 @@ export function AuditTrailPage() {
             <StatusChip label={selectedEntry.primary_subject.type} />
             <StatusChip label={selectedEntry.actor.type ?? 'unknown'} tone="processing" />
             {selectedEntry.request?.method ? <StatusChip label={selectedEntry.request.method} tone="warning" /> : null}
+            {selectedEntry.request?.branch_id ? <StatusChip label={`Branch #${selectedEntry.request.branch_id}`} tone="default" /> : null}
           </Space>
 
           <Descriptions bordered size="small" column={1}>
             <Descriptions.Item label="Đối tượng chính">{auditSubjectLabel(selectedEntry)}</Descriptions.Item>
             <Descriptions.Item label="Người thao tác">{auditActorLabel(selectedEntry)}</Descriptions.Item>
             <Descriptions.Item label="Chi tiết tác nhân">{auditActorDetail(selectedEntry)}</Descriptions.Item>
-            <Descriptions.Item label="Yêu cầu">
-              {[
-                selectedEntry.request?.request_id,
-                selectedEntry.request?.method,
-                selectedEntry.request?.path,
-              ].filter(Boolean).join(' | ') || 'Chưa có dữ liệu request'}
-            </Descriptions.Item>
+            <Descriptions.Item label="Yêu cầu">{auditRequestSummary(selectedEntry)}</Descriptions.Item>
           </Descriptions>
 
           {subjectTags.length > 0 ? (
-            <Card size="small" title="Đối tượng liên quan">
+            <Card size="small" title="Đối tượng liên quan" className="staff-workspace-detail-subcard">
               <Space wrap size={6}>
                 {subjectTags.map((label) => <StatusChip key={label} label={label} tone="default" />)}
               </Space>
@@ -354,19 +426,19 @@ export function AuditTrailPage() {
             ) : null}
           </div>
 
-          <Card size="small" title="Tóm tắt">
+          <Card size="small" title="Tóm tắt" className="staff-workspace-detail-subcard">
             <JsonBlock value={selectedEntry.summary} />
           </Card>
 
-          <Card size="small" title="Trước thay đổi">
+          <Card size="small" title="Trước thay đổi" className="staff-workspace-detail-subcard">
             <JsonBlock value={selectedEntry.before} />
           </Card>
 
-          <Card size="small" title="Sau thay đổi">
+          <Card size="small" title="Sau thay đổi" className="staff-workspace-detail-subcard">
             <JsonBlock value={selectedEntry.after} />
           </Card>
 
-          <Card size="small" title="Siêu dữ liệu">
+          <Card size="small" title="Siêu dữ liệu" className="staff-workspace-detail-subcard">
             <JsonBlock value={selectedEntry.meta} />
           </Card>
         </Space>

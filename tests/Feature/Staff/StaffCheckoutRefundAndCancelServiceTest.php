@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
+use App\Services\LoyaltyPointsService;
+use App\Services\ReservationFinancialSyncService;
+use App\Services\RestaurantTableStateService;
+use App\Services\Staff\StaffCheckoutService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Validation\ValidationException;
 use Mockery;
@@ -113,5 +118,80 @@ class StaffCheckoutRefundAndCancelServiceTest extends TestCase
         $this->assertNull($reservation->checked_out_at);
         $this->assertNull($reservation->no_show_at);
         $this->assertNotNull($reservation->cancelled_at);
+    }
+
+    public function test_cancel_after_payment_release_audit_includes_actor_and_context(): void
+    {
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Reserved',
+            'deposit_required_amount' => '100000.00',
+            'deposit_paid_amount' => '100000.00',
+            'deposit_status' => 'Paid',
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+        $this->createPayment([
+            'reservation_id' => $reservationId,
+            'payment_type' => 'Deposit',
+            'status' => 'Success',
+            'amount' => '100000.00',
+            'transaction_code' => 'DEP-AUDIT-1',
+        ]);
+
+        $service = $this->makeCheckoutServiceWithRealTableState();
+        $service->refundAndCancelReservation(
+            reservationId: $reservationId,
+            paymentMethod: 'Cash',
+            refundScope: 'all',
+            refundAmount: null,
+            currency: 'VND',
+            transactionCode: 'RF-CANCEL-AUDIT-1',
+            paymentProvider: 'Cash',
+            notes: 'cancel with refund',
+            reason: 'customer_request',
+            cancelReason: 'customer_request',
+            expectedRowVersion: 1,
+            staffUserId: $staffId,
+            idempotencyKey: 'idem-refund-cancel-audit-1'
+        );
+
+        $auditRow = DB::table('audit_logs')
+            ->where('entity_type', 'restaurant_table')
+            ->where('entity_id', (string) $tableId)
+            ->where('action', 'table_state_released')
+            ->orderByDesc('audit_id')
+            ->first();
+
+        $this->assertNotNull($auditRow);
+        $this->assertSame($staffId, (int) ($auditRow->actor_user_id ?? 0));
+
+        $afterPayload = json_decode((string) ($auditRow->after_json ?? ''), true, 512, JSON_THROW_ON_ERROR);
+        $metaPayload = json_decode((string) ($auditRow->meta_json ?? ''), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertSame([
+            'reservation_id' => $reservationId,
+            'source' => 'staff_checkout_refund',
+            'reason' => 'refund_cancel_after_payment',
+        ], $afterPayload['context'] ?? null);
+        $this->assertSame($reservationId, $metaPayload['context']['reservation_id'] ?? null);
+        $this->assertSame('staff_checkout_refund', $metaPayload['context']['source'] ?? null);
+        $this->assertSame('Available', $afterPayload['status'] ?? null);
+    }
+
+    private function makeCheckoutServiceWithRealTableState(): StaffCheckoutService
+    {
+        $financialSync = new ReservationFinancialSyncService();
+        $loyalty = new LoyaltyPointsService($financialSync, $this->mockRuntimeSettings());
+
+        return new StaffCheckoutService(
+            $this->mockReservationLocks(),
+            $this->mockNotificationOutbox(),
+            $loyalty,
+            new RestaurantTableStateService(),
+            $financialSync,
+        );
     }
 }

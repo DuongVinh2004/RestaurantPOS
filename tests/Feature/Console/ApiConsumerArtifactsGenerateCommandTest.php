@@ -119,6 +119,7 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertStringContainsString('postV1StaffTablesTableIdOrders', $sdk);
         self::assertStringContainsString('postV1StaffOrdersOrderIdItems', $sdk);
         self::assertStringContainsString('getV1StaffOrdersOrderId', $sdk);
+        self::assertStringContainsString('getV1StaffAuditTrail', $sdk);
         self::assertStringContainsString('getV1StaffWaitingList', $sdk);
         self::assertStringContainsString('postV1StaffWaitingListIdNotify', $sdk);
         self::assertStringContainsString('postV1StaffWaitingListIdSeat', $sdk);
@@ -140,6 +141,7 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertStringContainsString('StaffTableBoardAssignedReservation', $sdk);
         self::assertStringContainsString('StaffOrderReadEnvelope', $sdk);
         self::assertStringContainsString('StaffOrderReadCustomer', $sdk);
+        self::assertStringContainsString('StaffAuditTrailEnvelope', $sdk);
         self::assertStringContainsString('StaffWaitingListCollectionEnvelope', $sdk);
         self::assertStringContainsString('RestaurantPosApiError', $sdk);
         self::assertStringContainsString('user?: (StaffAuthUser) | null;', $sdk);
@@ -205,6 +207,7 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertStringContainsString('- GET api/v1/staff/reservations/{reservation_id}/refund-preview', $sdkReadme);
         self::assertStringContainsString('- POST api/v1/staff/reservations/{reservation_id}/refund', $sdkReadme);
         self::assertStringContainsString('- POST api/v1/staff/reservations/{reservation_id}/refund-cancel', $sdkReadme);
+        self::assertStringContainsString('- GET api/v1/staff/audit-trail', $sdkReadme);
         self::assertStringContainsString('- GET api/v1/staff/waiting-list', $sdkReadme);
         self::assertStringContainsString('- GET api/v1/staff/waiting-list/changes', $sdkReadme);
         self::assertStringContainsString('- POST api/v1/staff/waiting-list/{id}/notify', $sdkReadme);

@@ -6,6 +6,12 @@ import { StatusChip } from '../../components/status/StatusChip';
 import { visibleNavigation } from '../../app/router/navigation';
 import { recommendedPathForSession, useAuthStore } from '../../app/store/auth-store';
 import { useFlowStore } from '../../app/store/flow-store';
+import {
+  hasStaffStartupAccess,
+  hasStaffStartupBranch,
+  isStaffCashierShiftActionRequired,
+  isStaffSessionOperatorReady,
+} from '../../core/auth/startup';
 import { buildJourneyResumeTarget } from '../../core/utils/journey';
 import { paymentTone } from '../../core/utils/status';
 
@@ -20,6 +26,7 @@ export function AccessGatePage() {
   const selectedOrderRowVersion = useFlowStore((state) => state.selectedOrderRowVersion);
   const selectedStationId = useFlowStore((state) => state.selectedStationId);
   const source = useFlowStore((state) => state.source);
+  const workItems = useFlowStore((state) => state.workItems);
 
   if (!session) {
     return (
@@ -50,13 +57,13 @@ export function AccessGatePage() {
       stationId: selectedStationId ?? undefined,
     })
     : null;
-  const financeBlocked = readiness.requires_cashier_shift && readiness.cashier_shift === 'action_required';
+  const financeBlocked = isStaffCashierShiftActionRequired(session);
   const blockers = [
-    readiness.access !== 'ready'
+    !hasStaffStartupAccess(session)
       ? 'Phiên này chưa có đủ capability để vào luồng vận hành chuẩn.'
       : null,
-    readiness.branch !== 'ready'
-      ? 'Chi nhánh mặc định chưa được backend xác nhận, nên ngữ cảnh bàn, đặt bàn và tài chính chưa đáng tin cậy.'
+    !hasStaffStartupBranch(session)
+      ? 'Chi nhánh mặc định chưa được phiên nhân viên xác nhận, nên ngữ cảnh bàn, đặt bàn và tài chính chưa đáng tin cậy.'
       : null,
     financeBlocked
       ? 'Thanh toán và đối soát vẫn khóa cho tới khi có ca thu ngân đang mở.'
@@ -69,6 +76,13 @@ export function AccessGatePage() {
         eyebrow="Trung tâm vận hành"
         title="Bắt đầu ca làm việc từ ngữ cảnh đáng tin cậy"
         description="Màn hình này là điểm vào mặc định của staff-web. Nó trả lời ba câu hỏi trước khi nhân viên đi tiếp: chi nhánh nào đang được tin cậy, ca có đủ điều kiện cho nghiệp vụ tài chính hay chưa, và bước nào nên làm ngay bây giờ."
+        context={(
+          <>
+            <StatusChip label={defaultBranch ? `${defaultBranch.branch_code} • ${defaultBranch.branch_name}` : 'Chưa có chi nhánh'} tone={readiness.branch === 'ready' ? 'success' : 'warning'} />
+            <StatusChip label={activeShift ? activeShift.shift_code : 'Chưa có ca thu ngân'} tone={paymentTone(readiness.cashier_shift)} />
+            <StatusChip label={isStaffSessionOperatorReady(session) ? 'Phiên đã sẵn sàng' : 'Phiên còn chặn'} tone={isStaffSessionOperatorReady(session) ? 'success' : 'warning'} />
+          </>
+        )}
       />
 
       <Alert
@@ -121,12 +135,12 @@ export function AccessGatePage() {
           <Card title="Độ sẵn sàng phiên">
             <Space orientation="vertical" size={8}>
               <Typography.Text strong>
-                {readiness.operator_ready ? 'Phiên đủ điều kiện vận hành' : 'Phiên còn thiếu điều kiện'}
+                {isStaffSessionOperatorReady(session) ? 'Phiên đủ điều kiện vận hành' : 'Phiên còn thiếu điều kiện'}
               </Typography.Text>
               <Typography.Text type="secondary">
                 Đã cấp {readiness.granted_capability_count} trên {readiness.known_capability_count} capability đã biết cho staff-web.
               </Typography.Text>
-              <StatusChip label={readiness.operator_ready ? 'ready' : 'action_required'} tone={readiness.operator_ready ? 'success' : 'warning'} />
+              <StatusChip label={isStaffSessionOperatorReady(session) ? 'ready' : 'action_required'} tone={isStaffSessionOperatorReady(session) ? 'success' : 'warning'} />
             </Space>
           </Card>
         </Col>
@@ -194,6 +208,30 @@ export function AccessGatePage() {
           </div>
         </Card>
       </div>
+
+      <Card title="Công việc có thể tiếp tục ngay">
+        {workItems.length === 0 ? (
+          <Typography.Text type="secondary">
+            Chưa có luồng nào được ghim hoặc chạm gần đây trong phiên hiện tại.
+          </Typography.Text>
+        ) : (
+          <div className="staff-task-list">
+            {workItems.slice(0, 4).map((item) => (
+              <div key={item.key} className="staff-task-list-item">
+                <div className="staff-task-list-copy">
+                  <Typography.Text strong>{item.label}</Typography.Text>
+                  <Typography.Text type="secondary">
+                    {item.subtitle ?? 'Luồng đang dở có thể mở lại ngay từ access gate.'}
+                  </Typography.Text>
+                </div>
+                <Button type={item.pinned ? 'primary' : 'default'} onClick={() => navigate(item.path)}>
+                  {item.pinned ? 'Mở việc ghim' : 'Tiếp tục'}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </Space>
   );
 }

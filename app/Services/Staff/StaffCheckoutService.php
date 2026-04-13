@@ -50,6 +50,8 @@ class StaffCheckoutService
     private SettlementFinalizerService $settlementFinalizerService;
     private CheckoutResponseFactory $checkoutResponseFactory;
     private BranchContextService $branchContextService;
+    private StaffBranchContextService $staffBranchContextService;
+    private StaffCashierShiftService $cashierShiftService;
 
     public function __construct(
         ReservationLockService $locks,
@@ -64,6 +66,8 @@ class StaffCheckoutService
         ?SettlementFinalizerService $settlementFinalizerService = null,
         ?CheckoutResponseFactory $checkoutResponseFactory = null,
         ?BranchContextService $branchContextService = null,
+        ?StaffCashierShiftService $cashierShiftService = null,
+        ?StaffBranchContextService $staffBranchContextService = null,
     ) {
         $this->locks = $locks;
         $this->notificationOutboxService = $notificationOutboxService;
@@ -77,6 +81,8 @@ class StaffCheckoutService
         $this->refundExecutionService = $refundExecutionService ?? app(RefundExecutionService::class);
         $this->settlementFinalizerService = $settlementFinalizerService ?? app(SettlementFinalizerService::class);
         $this->branchContextService = $branchContextService ?? app(BranchContextService::class);
+        $this->staffBranchContextService = $staffBranchContextService ?? app(StaffBranchContextService::class);
+        $this->cashierShiftService = $cashierShiftService ?? app(StaffCashierShiftService::class);
     }
 
     /**
@@ -157,7 +163,8 @@ class StaffCheckoutService
                     ->where('reservation_id', (int) $lockedOrder->reservation_id)
                     ->lockForUpdate()
                     ->firstOrFail();
-                $this->ensureReservationBranchScopeLocked($lockedReservation, $staffUserId);
+                $branchId = $this->ensureReservationBranchScopeLocked($lockedReservation, $staffUserId);
+                $this->assertOpenCashierShiftForBranch($staffUserId, $branchId);
 
                 $orderStatus = (string) ($lockedOrder->status?->value ?? $lockedOrder->status);
                 $reservationStatus = (string) ($lockedReservation->status?->value ?? $lockedReservation->status);
@@ -577,7 +584,8 @@ class StaffCheckoutService
             $this->assertExpectedOrderRowVersion($order, $expectedRowVersion);
             /** @var Reservation $reservation */
             $reservation = Reservation::query()->where('reservation_id', $order->reservation_id)->lockForUpdate()->firstOrFail();
-            $this->ensureReservationBranchScopeLocked($reservation, $staffUserId);
+            $branchId = $this->ensureReservationBranchScopeLocked($reservation, $staffUserId);
+            $this->assertOpenCashierShiftForBranch($staffUserId, $branchId);
 
             return $this->paymentCaptureService->executeLocked(
                 order: $order,
@@ -743,7 +751,8 @@ class StaffCheckoutService
                     ->get();
             }
 
-            $this->ensureReservationBranchScopeLocked($reservation, $staffUserId, $tableIds);
+            $branchId = $this->ensureReservationBranchScopeLocked($reservation, $staffUserId, $tableIds);
+            $this->assertOpenCashierShiftForBranch($staffUserId, $branchId);
 
             $result = $this->refundExecutionService->executeLocked(
                 reservation: $reservation,
@@ -916,24 +925,55 @@ class StaffCheckoutService
             );
 
             if ($reservation->branch_id === null || $reservation->branch_id === '') {
+                $this->assertOperationalBranchAccessible($tableBranchId, $staffUserId);
                 $reservation->branch_id = $tableBranchId;
                 $reservation->updated_by = $staffUserId;
 
                 return $tableBranchId;
             }
 
-            return $this->branchContextService->assertSameBranch(
+            $branchId = $this->branchContextService->assertSameBranch(
                 $reservation->branch_id,
                 $tableBranchId,
                 'Reservation branch does not match its assigned tables.',
                 'reservation_id',
                 false
             );
+            $this->assertOperationalBranchAccessible($branchId, $staffUserId);
+
+            return $branchId;
         }
 
-        return $reservation->branch_id !== null && $reservation->branch_id !== ''
+        $branchId = $reservation->branch_id !== null && $reservation->branch_id !== ''
             ? $this->branchContextService->resolveBranchId($reservation->branch_id, false)
             : $this->branchContextService->resolveBranchId(null, false);
+        $this->assertOperationalBranchAccessible($branchId, $staffUserId);
+
+        return $branchId;
+    }
+
+    private function assertOperationalBranchAccessible(int $branchId, ?int $staffUserId): void
+    {
+        if ($staffUserId === null || $staffUserId <= 0) {
+            return;
+        }
+
+        $this->staffBranchContextService->assertAccessibleBranch($staffUserId, $branchId);
+    }
+
+    private function assertOpenCashierShiftForBranch(?int $staffUserId, int $branchId): void
+    {
+        if ($staffUserId === null || $staffUserId <= 0) {
+            return;
+        }
+
+        if ($this->cashierShiftService->currentOpenShift($staffUserId, $branchId) !== null) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'cashier_shift' => ['Open a cashier shift for this branch before recording settlement or refund mutations.'],
+        ]);
     }
 
     private function computeReservationBillSnapshot(int $reservationId, float $discountAmount): array
@@ -1241,7 +1281,7 @@ class StaffCheckoutService
 
         $this->cancelActiveOrders($orders, $staffUserId, $now);
         if ($currentStatus === ReservationStatus::Reserved->value) {
-            $this->releaseTables($tableIds);
+            $this->releaseTables($tableIds, $staffUserId, (int) $reservation->reservation_id);
         }
 
         $reservation->status = ReservationStatus::Cancelled;
@@ -1284,9 +1324,13 @@ class StaffCheckoutService
     /**
      * @param array<int,int> $tableIds
      */
-    private function releaseTables(array $tableIds): void
+    private function releaseTables(array $tableIds, ?int $staffUserId = null, ?int $reservationId = null): void
     {
-        $this->tableStateService->releaseTablesSafely($tableIds, Carbon::now('UTC'));
+        $this->tableStateService->releaseTablesSafely($tableIds, Carbon::now('UTC'), $staffUserId, [
+            'reservation_id' => $reservationId,
+            'source' => 'staff_checkout_refund',
+            'reason' => 'refund_cancel_after_payment',
+        ]);
     }
 
     /**

@@ -5,7 +5,10 @@
 - Backend Laravel app running and seeded with staff users / staff API keys
 - Generated artifacts already up to date:
   - `../build/api-consumer/sdk/typescript/restaurantpos-sdk.ts`
+  - `../build/api-consumer/sdk/typescript/restaurantpos-enums.ts`
   - `../build/api-consumer/mutation-contracts.md`
+  - `../storage/app/booking_release/openapi-v1.json`
+  - `../storage/app/booking_release/release_manifest_snapshot.json`
 - Node.js + npm available
 
 ## Environment
@@ -21,13 +24,24 @@ The default Vite dev and preview hosts are `localhost` so they line up with the 
 
 ## Install + Run
 
+From the repo root, validate the overall snapshot shape first:
+
+```bash
+npm run verify:package
+```
+
+Then from `staff-web/`:
+
 ```bash
 npm install
+npm run integrity:check
 npm run lint
 npm run test
 npm run build
 npm run dev
 ```
+
+`npm run integrity:check` is the fail-fast guard for package handoff completeness. It blocks when required `staff-web` entrypoints or generated backend artifacts are missing, and it warns when handover-only notes such as setup docs or env examples are absent. That keeps brittle relative-import failures out of `tsc`, Vitest, or Vite while still surfacing snapshot-quality drift to reviewers.
 
 ## Login Expectations
 
@@ -109,9 +123,14 @@ Before claiming a live smoke result, make sure the backend really satisfies the 
 Recommended local prep:
 
 ```bash
+powershell -ExecutionPolicy Bypass -File ../scripts/ops/start-local-mysql.ps1 -Restart
+powershell -ExecutionPolicy Bypass -File ../scripts/ops/start-local-redis.ps1 -Restart
+php artisan schedule:work
+php artisan serve --host=127.0.0.1 --port=8000
+npm run preflight:local
+node ../scripts/release/check-package-integrity.mjs --staff-web-only --root-dir=..
 php artisan booking:doctor --json
 php artisan booking:uat-pack:bootstrap --base-url=http://127.0.0.1:8000 --json
-php artisan serve --host=127.0.0.1 --port=8000
 ```
 
 The UAT bootstrap creates `../storage/app/uat/scenario-pack.json`, and the smoke script now reuses that manifest by default for:
@@ -124,6 +143,7 @@ The UAT bootstrap creates `../storage/app/uat/scenario-pack.json`, and the smoke
 - `scenarios.conversation_inbox.conversation_id`
 
 If the manifest is missing or stale, the script exits with an actionable startup blocker instead of failing later in the flow.
+When a manifest-provided reservation or conversation id no longer matches runtime data, the smoke harness now reconciles against current list results before using it. If the canonical refund reservation cannot be resolved from runtime by its manifest reservation code, the step skips with an explicit UAT-pack refresh instruction instead of failing on a stale 404.
 
 ### Exact env vars
 
@@ -197,12 +217,19 @@ Harness behavior:
 
 - prefers `STAFF_WEB_SMOKE_*` env when provided, otherwise falls back to the canonical UAT manifest when present
 - fails early on startup blockers such as missing credentials/manifest parse errors
-- fails clearly on network/runtime issues, including the public `/api/v1/health` base checks for `db`, `redis`, `scheduler`, and `disk`, and points back to `php artisan booking:doctor --json`
+- fails clearly on network/runtime issues, including the public `/api/v1/health` base checks for `db`, `redis`, `scheduler`, and `disk`, and points back to `npm run preflight:local` plus `php artisan booking:doctor --json`
 - auto-derives reservation, order, board, waiting, menu, and conversation sources from backend responses or the UAT manifest where possible
 - when the canonical dine-in reservation is still `Confirmed`, auto-runs `POST /api/v1/staff/reservations/{id}/check-in` from board action metadata or the manifest table fallback before `order create`
 - reports `PASS`, `SKIP`, or `FAIL` per step
 - when `STAFF_WEB_SMOKE_EVIDENCE_DIR` is set, writes JSON/Markdown evidence plus `latest-<target>` pointers for preview/staging release bundles
+- local ad hoc runs also refresh `staff-web/tmp-smoke/latest-local.md` and `staff-web/tmp-smoke/latest-local.json` for quick inspection even when no release evidence dir is configured
 - only runs write paths such as create/add-item/finalize/refund/open/close when the corresponding mutation gates are enabled
+
+`npm run preflight:local` wraps three checks before live smoke:
+
+- backend HTTP reachability at `/api/v1/health`
+- raw TCP reachability for MySQL and Redis from the current `.env`
+- `php artisan booking:doctor --json` so scheduler and outbox blockers are called out before the smoke harness starts
 
 ## Canonical release loop
 
