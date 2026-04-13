@@ -90,6 +90,7 @@ Default API error payload:
 ```json
 {
   "error_code": "validation_error",
+  "category_code": "validation_error",
   "message": "Validation error.",
   "request_id": "req-123",
   "errors": {
@@ -100,6 +101,7 @@ Default API error payload:
 
 Canonical optional top-level fields:
 
+- `category_code`: canonical frontend branch key for important failure families such as `authentication_required`, `forbidden_capability`, `owner_scope_denied`, `policy_denied`, `resource_conflict`, `stale_write`, `domain_invariant_violation`, and `idempotency_conflict`
 - `errors`: validation-style field map when request or domain validation details exist
 - `conflict_type`: machine-readable conflict family such as `stale_write`, `state_conflict`, or `idempotency_payload_mismatch`
 - `replay_state`: idempotency replay state such as `in_progress` or `payload_mismatch`
@@ -127,8 +129,10 @@ Canonical conflict split:
 
 Legacy compatibility note:
 
+- `category_code` is now the canonical frontend branch key. Prefer it when deciding retry, reload, sign-in, or denied-surface flows.
 - Some idempotency errors still emit top-level `error` for backwards compatibility.
-- Treat `error_code` as canonical; `error` is deprecated and may be removed after consumers migrate.
+- `error_code` remains for backwards compatibility with older consumers and still describes the transport-level error family.
+- `error` is deprecated and may be removed after consumers migrate.
 
 ### Auth schemes
 

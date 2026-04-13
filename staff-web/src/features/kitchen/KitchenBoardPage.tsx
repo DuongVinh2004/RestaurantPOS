@@ -216,7 +216,7 @@ export function KitchenBoardPage() {
     onSuccess: async (dispatchEnvelope) => {
       const dispatchedTicket = dispatchEnvelope.data[0] ?? null;
       const dispatchedStationId = dispatchedTicket?.station?.station_id ?? null;
-      const unroutedCount = dispatchEnvelope.meta.unrouted_count ?? 0;
+      const unroutedCount = dispatchEnvelope.meta?.unrouted_count ?? 0;
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['kitchen-stations'] }),
@@ -560,4 +560,3 @@ export function KitchenBoardPage() {
     </div>
   );
 }
-

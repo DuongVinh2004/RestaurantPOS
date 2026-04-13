@@ -22,7 +22,9 @@ export function ReservationDetailDrawer({
   onAssignBestFit,
   onAssignCurrentTable,
   onCheckIn,
+  onCancelReservation,
   onOpenOrder,
+  onOpenCheckout,
 }: {
   open: boolean;
   reservation: ReservationDetail | null;
@@ -32,7 +34,9 @@ export function ReservationDetailDrawer({
   onAssignBestFit?: () => void;
   onAssignCurrentTable?: () => void;
   onCheckIn?: () => void;
+  onCancelReservation?: () => void;
   onOpenOrder?: () => void;
+  onOpenCheckout?: () => void;
 }) {
   const customerLabel = getReservationGuestLabel(reservation);
   const isSnapshotOnlyGuest = isReservationSnapshotOnlyGuest(reservation);
@@ -64,6 +68,9 @@ export function ReservationDetailDrawer({
           <Button type="primary" onClick={onCheckIn} loading={busy} disabled={!onCheckIn}>
             Nhận bàn ngay
           </Button>
+          <Button danger onClick={onCancelReservation} loading={busy} disabled={!onCancelReservation}>
+            Hủy đặt bàn
+          </Button>
         </div>
       ) : null}
     >
@@ -72,7 +79,7 @@ export function ReservationDetailDrawer({
           Chọn một đặt bàn để xem chi tiết.
         </Typography.Text>
       ) : (
-        <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+        <Space direction="vertical" size={16} style={{ width: '100%' }}>
           <StaffFacingAlert
             tone="info"
             eyebrow="Triage nhanh"
@@ -115,9 +122,16 @@ export function ReservationDetailDrawer({
               ? 'Có thể mở thẳng đơn đang chạy để tiếp tục món, bếp hoặc thanh toán.'
               : 'Nếu khách đã ngồi bàn, hãy mở màn hình đơn hàng để tạo flow phục vụ ngay từ đặt bàn này.'}
             actions={(
-              <Button type={activeOrder ? 'primary' : 'default'} onClick={onOpenOrder}>
-                {activeOrder ? 'Mở đơn đang phục vụ' : 'Mở màn hình đơn hàng'}
-              </Button>
+              <Space wrap>
+                <Button type={activeOrder ? 'primary' : 'default'} onClick={onOpenOrder}>
+                  {activeOrder ? 'Mở đơn đang phục vụ' : 'Mở màn hình đơn hàng'}
+                </Button>
+                {activeOrder && onOpenCheckout ? (
+                  <Button onClick={onOpenCheckout}>
+                    Mở thanh toán
+                  </Button>
+                ) : null}
+              </Space>
             )}
           />
 
@@ -132,7 +146,7 @@ export function ReservationDetailDrawer({
               </div>
               <div className="staff-mini-list-item">
                 <Typography.Text strong>Giữ đúng phiên bản thao tác</Typography.Text>
-                <Typography.Text type="secondary">Nếu detail này đã cũ, hãy tải lại trước khi nhận bàn hoặc gán bàn để tránh ghi đè thao tác mới hơn.</Typography.Text>
+                <Typography.Text type="secondary">Nếu detail này đã cũ, hãy tải lại trước khi nhận bàn, gán bàn hoặc hủy đặt bàn để tránh ghi đè thao tác mới hơn.</Typography.Text>
               </div>
             </div>
           </div>

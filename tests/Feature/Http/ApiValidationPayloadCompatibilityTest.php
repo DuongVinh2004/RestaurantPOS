@@ -24,6 +24,7 @@ final class ApiValidationPayloadCompatibilityTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonPath('category_code', 'validation_error')
             ->assertJsonPath('errors.session_id.0', 'session_id không hợp lệ.')
             ->assertJsonPath('details.errors.session_id.0', 'session_id không hợp lệ.');
     }

@@ -79,8 +79,8 @@ describe('FinanceReviewPage', () => {
       ...initialAuthState,
       status: 'authenticated',
       session: buildStaffSession({
-        capabilities: ['reservation.manage'],
-        known_capabilities: ['reservation.manage'],
+        capabilities: ['reservation.manage', 'payment.refund'],
+        known_capabilities: ['reservation.manage', 'payment.refund'],
       }),
       notice: null,
     });
@@ -141,6 +141,36 @@ describe('FinanceReviewPage', () => {
     await waitFor(() => expect(screen.getByTestId('reservations-destination')).toBeInTheDocument());
     expect(screen.getByTestId('location-search').textContent).toContain('reservation_id=77');
     expect(screen.getByTestId('location-search').textContent).toContain('reservation_row_version=9');
+  });
+
+  it('opens the refund workspace with the selected reservation context', async () => {
+    apiMocks.listFinancialReconciliation.mockResolvedValue({
+      data: [createFinanceRow()],
+      meta: {
+        page: 1,
+        per_page: 15,
+        total: 1,
+        last_page: 1,
+      },
+    });
+    apiMocks.getFinancialReconciliationDetail.mockResolvedValue({
+      data: createFinanceDetail(),
+      meta: {
+        action: 'financial_reconciliation_show',
+      },
+    });
+    apiMocks.getFinanceInvoice.mockRejectedValue(Object.assign(new Error('Not found'), { status: 404 }));
+
+    renderFinanceReviewPage('/finance-review?reservation_id=77&order_id=88&order_row_version=5');
+
+    await screen.findByText('Lệch cọc');
+    fireEvent.click(await screen.findByRole('button', { name: 'Mở bàn hoàn tiền' }));
+
+    await waitFor(() => expect(screen.getByTestId('refunds-destination')).toBeInTheDocument());
+    expect(screen.getByTestId('location-search').textContent).toContain('source=refund');
+    expect(screen.getByTestId('location-search').textContent).toContain('reservation_id=77');
+    expect(screen.getByTestId('location-search').textContent).toContain('reservation_row_version=9');
+    expect(screen.getByTestId('location-search').textContent).toContain('order_id=88');
   });
 });
 
@@ -238,6 +268,7 @@ function renderFinanceReviewPage(initialEntry = '/finance-review') {
           <Routes>
             <Route path="/finance-review" element={<FinanceReviewPage />} />
             <Route path="/reservations" element={<div data-testid="reservations-destination">reservations</div>} />
+            <Route path="/refunds" element={<div data-testid="refunds-destination">refunds</div>} />
           </Routes>
           <LocationProbe />
         </MemoryRouter>

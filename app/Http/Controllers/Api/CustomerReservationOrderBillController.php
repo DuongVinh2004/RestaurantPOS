@@ -96,10 +96,8 @@ class CustomerReservationOrderBillController extends Controller
         $actor = RequestActorContext::fromRequest($request);
 
         if ($actor->isStaff()) {
-            throw new HttpResponseException(ApiErrorResponse::json(
+            throw new HttpResponseException(ApiErrorResponse::policyDenied(
                 $request,
-                403,
-                'forbidden',
                 'Staff must use staff settlement endpoints for operational actions.',
             ));
         }

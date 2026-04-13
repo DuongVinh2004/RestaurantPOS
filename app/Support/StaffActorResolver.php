@@ -112,7 +112,7 @@ class StaffActorResolver
                 return [
                     'ok' => false,
                     'status' => 403,
-                    'error_code' => 'forbidden',
+                    'error_code' => 'policy_denied',
                     'message' => 'Resolved actor is not allowed to perform staff operations.',
                 ];
             }
@@ -146,7 +146,7 @@ class StaffActorResolver
                 return [
                     'ok' => false,
                     'status' => 403,
-                    'error_code' => 'forbidden',
+                    'error_code' => 'policy_denied',
                     'message' => 'Resolved actor is not allowed to perform staff operations.',
                 ];
             }

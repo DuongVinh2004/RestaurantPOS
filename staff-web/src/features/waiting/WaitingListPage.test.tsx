@@ -259,6 +259,12 @@ describe('WaitingListPage', () => {
     await waitFor(() => expect(searchInput).toHaveValue(''));
   });
 
+  it('shows the shared branch-context state in the create waiting form', async () => {
+    renderWithProviders('/waiting-list');
+
+    expect(await screen.findByText(/Đang dùng ngữ cảnh chi nhánh 1 từ shell nhân viên/i)).toBeInTheDocument();
+  });
+
   it('opens the board without stale shell table search params when no canonical table context exists', async () => {
     useFlowStore.setState({
       ...useFlowStore.getState(),

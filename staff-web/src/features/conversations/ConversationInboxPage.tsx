@@ -33,7 +33,12 @@ import { conversationTone } from '../../core/utils/status';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { SplitWorkspace } from '../../components/layout/SplitWorkspace';
 import { toast } from '../../components/feedback/toast';
-import { EmptyBlock, InlineError, InlineLoading } from '../../components/states/StateBlocks';
+import {
+  ApiStateBlock,
+  EmptyBlock,
+  InlineLoading,
+  InlineState,
+} from '../../components/states/StateBlocks';
 import { StatusChip } from '../../components/status/StatusChip';
 import { useAuthStore } from '../../app/store/auth-store';
 import { useFlowStore } from '../../app/store/flow-store';
@@ -472,10 +477,10 @@ export function ConversationInboxPage() {
         </Space>
       </Card>
 
-      <Alert
+      <InlineState
+        tone={branchId ? 'info' : 'warning'}
+        eyebrow="Phạm vi triage"
         className="staff-conversation-scope-alert"
-        type={branchId ? 'info' : 'warning'}
-        showIcon
         title={branchId ? `Đang triage theo chi nhánh #${branchId}` : 'Đang xem tất cả chi nhánh được phép'}
         description={branchId
           ? 'Danh sách hiện đang lấy theo branch context của shell. Nếu cần đổi phạm vi, hãy chuyển chi nhánh ở shell để URL và dữ liệu tiếp tục khớp nhau.'
@@ -540,7 +545,15 @@ export function ConversationInboxPage() {
         className="staff-conversation-inbox-card"
       >
         {inboxQuery.isLoading ? <InlineLoading tip="Đang tải hộp thư hội thoại..." /> : null}
-        {inboxQuery.error ? <InlineError message={formatApiError(inboxQuery.error, 'Không thể tải hộp thư hội thoại.')} /> : null}
+        {inboxQuery.error ? (
+          <ApiStateBlock
+            error={inboxQuery.error}
+            fallback="Không thể tải hộp thư hội thoại."
+            onRetry={() => {
+              void inboxQuery.refetch();
+            }}
+          />
+        ) : null}
         {!inboxQuery.isLoading && !inboxQuery.error && (inboxQuery.data?.data.length ?? 0) === 0 ? (
           <EmptyBlock title="Không có hội thoại" description="Bộ lọc hiện tại không trả về dòng hộp thư nào." />
         ) : null}
@@ -631,7 +644,14 @@ export function ConversationInboxPage() {
       ) : detailQuery.isLoading ? (
         <InlineLoading tip="Đang tải chi tiết hội thoại..." />
       ) : detailQuery.error ? (
-        <InlineError message={formatApiError(detailQuery.error, 'Không thể tải chi tiết hội thoại.')} extra={<Button onClick={() => detailQuery.refetch()}>Thử lại</Button>} />
+        <ApiStateBlock
+          error={detailQuery.error}
+          fallback="Không thể tải chi tiết hội thoại."
+          onRetry={() => {
+            void detailQuery.refetch();
+          }}
+          retryLabel="Thử lại"
+        />
       ) : detailConversation ? (
         <Space orientation="vertical" size={16} style={{ width: '100%' }} className="staff-conversation-detail-shell">
           <Space orientation="vertical" size={4} style={{ width: '100%' }} className="staff-conversation-detail-header">
@@ -652,10 +672,10 @@ export function ConversationInboxPage() {
             )}
           </Space>
 
-          <Alert
+          <InlineState
+            tone="info"
+            eyebrow="Cách dùng luồng hội thoại"
             className="staff-conversation-linkage-alert"
-            type="info"
-            showIcon
             title="Ownership, liên kết nghiệp vụ và phản hồi ra ngoài được tách riêng"
             description="Nhận xử lý và trả hàng chờ chỉ thay đổi ownership. Mở đặt bàn hoặc khách chờ chỉ điều hướng sang luồng liên quan. Phản hồi ra ngoài luôn phụ thuộc vào capability trong detail envelope của chính hội thoại này."
           />
@@ -683,10 +703,10 @@ export function ConversationInboxPage() {
             </Descriptions.Item>
           </Descriptions>
 
-          <Alert
+          <InlineState
+            tone={replyState.canSend ? 'success' : 'warning'}
+            eyebrow="Phản hồi ra ngoài"
             className="staff-conversation-outbound-alert"
-            type={replyState.canSend ? 'success' : 'warning'}
-            showIcon
             title={replyState.canSend ? 'Luồng phản hồi ra ngoài đang sẵn sàng cho hội thoại này.' : 'Phản hồi ra ngoài đang bị khóa.'}
             description={describeOutboundReplyState(replyState)}
           />

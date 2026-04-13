@@ -147,20 +147,16 @@ class CustomerReservationBenefitsActionController extends Controller
         $actor = RequestActorContext::fromRequest($request);
 
         if ($actor->isStaff()) {
-            throw new HttpResponseException(ApiErrorResponse::json(
+            throw new HttpResponseException(ApiErrorResponse::policyDenied(
                 $request,
-                403,
-                'forbidden',
                 'Staff must use staff reservation benefits endpoints for operational actions.',
             ));
         }
 
         $user = $request->user();
         if (! $actor->isCustomerOwner() || ! $user instanceof User) {
-            throw new HttpResponseException(ApiErrorResponse::json(
+            throw new HttpResponseException(ApiErrorResponse::authenticationRequired(
                 $request,
-                401,
-                'unauthorized',
                 'Customer authentication is required.',
             ));
         }
@@ -170,11 +166,6 @@ class CustomerReservationBenefitsActionController extends Controller
 
     private function notFoundReservationResponse(Request $request): JsonResponse
     {
-        return ApiErrorResponse::json(
-            $request,
-            404,
-            'not_found',
-            'Reservation data was not found.',
-        );
+        return ApiErrorResponse::notFound($request, 'Reservation data was not found.');
     }
 }

@@ -1,7 +1,7 @@
 import { Alert, Button, Card, Col, Row, Space, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/layout/PageHeader';
-import { FullPageState } from '../../components/states/StateBlocks';
+import { PermissionDeniedState } from '../../components/states/StateBlocks';
 import { StatusChip } from '../../components/status/StatusChip';
 import { visibleNavigation } from '../../app/router/navigation';
 import { recommendedPathForSession, useAuthStore } from '../../app/store/auth-store';
@@ -30,11 +30,11 @@ export function AccessGatePage() {
 
   if (!session) {
     return (
-      <FullPageState
-        status="403"
+      <PermissionDeniedState
+        variant="page"
         title="Không có phiên nhân viên đang hoạt động"
         description="Đăng nhập lại để khôi phục ngữ cảnh nhân viên."
-        extra={<Button onClick={() => navigate('/login', { replace: true })}>Đi tới đăng nhập</Button>}
+        primaryAction={<Button onClick={() => navigate('/login', { replace: true })}>Đi tới đăng nhập</Button>}
       />
     );
   }

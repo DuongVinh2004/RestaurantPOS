@@ -123,10 +123,8 @@ class CustomerReservationBillPaymentController extends Controller
         $actor = RequestActorContext::fromRequest($request);
 
         if ($actor->isStaff()) {
-            abort(ApiErrorResponse::json(
+            abort(ApiErrorResponse::policyDenied(
                 $request,
-                403,
-                'forbidden',
                 'Staff must use staff settlement endpoints for operational actions.',
             ));
         }
@@ -147,10 +145,8 @@ class CustomerReservationBillPaymentController extends Controller
             ];
         }
 
-        abort(ApiErrorResponse::json(
+        abort(ApiErrorResponse::authenticationRequired(
             $request,
-            401,
-            'unauthorized',
             'Customer authentication or a valid session_id is required for bill payment.',
         ));
     }

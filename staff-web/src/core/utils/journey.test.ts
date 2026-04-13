@@ -89,6 +89,19 @@ describe('journey helpers', () => {
     });
   });
 
+  it('builds a refund resume target when the route is already focused on refund work', () => {
+    expect(buildJourneyResumeTarget({
+      source: 'refund',
+      reservationId: 24,
+      reservationRowVersion: 7,
+      orderId: 33,
+      orderRowVersion: 5,
+    })).toEqual({
+      path: '/refunds?source=refund&reservation_id=24&reservation_row_version=7&order_id=33&order_row_version=5',
+      label: 'Tiếp tục hoàn tiền',
+    });
+  });
+
   it('falls back to a safe route when the source is absent but context remains', () => {
     expect(buildJourneyResumeTarget({
       reservationId: 24,

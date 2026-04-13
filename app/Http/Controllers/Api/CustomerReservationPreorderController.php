@@ -152,10 +152,8 @@ class CustomerReservationPreorderController extends Controller
         $actor = RequestActorContext::fromRequest($request);
 
         if ($actor->isStaff()) {
-            throw new HttpResponseException(ApiErrorResponse::json(
+            throw new HttpResponseException(ApiErrorResponse::policyDenied(
                 $request,
-                403,
-                'forbidden',
                 'Staff must use dedicated staff reservation endpoints for operational actions.',
             ));
         }
@@ -176,10 +174,8 @@ class CustomerReservationPreorderController extends Controller
             ];
         }
 
-        throw new HttpResponseException(ApiErrorResponse::json(
+        throw new HttpResponseException(ApiErrorResponse::authenticationRequired(
             $request,
-            401,
-            'unauthorized',
             'Customer authentication or a valid session_id is required.',
         ));
     }
@@ -202,11 +198,6 @@ class CustomerReservationPreorderController extends Controller
 
     private function notFoundReservationResponse(Request $request): JsonResponse
     {
-        return ApiErrorResponse::json(
-            $request,
-            404,
-            'not_found',
-            'Reservation data was not found.',
-        );
+        return ApiErrorResponse::notFound($request, 'Reservation data was not found.');
     }
 }

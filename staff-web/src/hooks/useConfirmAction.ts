@@ -1,9 +1,12 @@
+import type { ReactNode } from 'react';
+
 type ConfirmActionOptions = {
   title: string;
-  content: string;
+  content: ReactNode;
   okText?: string;
   cancelText?: string;
   danger?: boolean;
+  width?: number;
 };
 
 let modalModulePromise: Promise<typeof import('antd/es/modal')> | null = null;
@@ -25,6 +28,8 @@ export function useConfirmAction() {
           cancelText: options.cancelText ?? 'Hủy',
           okButtonProps: options.danger ? { danger: true } : undefined,
           centered: true,
+          maskClosable: false,
+          width: options.width ?? 520,
           onOk: () => {
             resolve(true);
             instance.destroy();

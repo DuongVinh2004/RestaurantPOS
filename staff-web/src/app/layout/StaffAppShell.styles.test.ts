@@ -61,6 +61,14 @@ describe('StaffAppShell layout styles', () => {
     expect(uiOverridesCss).toContain('.staff-shell-control-button');
   });
 
+  it('keeps the sidebar brand terse and improves navigation legibility', () => {
+    expect(uiOverridesCss).toMatch(/\.staff-sider-brand-copy\s*\{[^}]*display:\s*none !important;/s);
+    expect(uiOverridesCss).toMatch(/\.staff-shell-nav-item\s*\{[^}]*gap:\s*12px;[^}]*min-height:\s*42px;[^}]*padding:\s*10px 12px;/s);
+    expect(uiOverridesCss).toMatch(/\.staff-nav-item-icon\s*\{[^}]*flex:\s*0 0 20px;[^}]*width:\s*20px;/s);
+    expect(uiOverridesCss).toMatch(/\.staff-shell-sider::-webkit-scrollbar-thumb\s*\{[^}]*border-radius:\s*999px;/s);
+    expect(uiOverridesCss).toMatch(/\.staff-shell-sider\s*\{[^}]*scrollbar-width:\s*thin;/s);
+  });
+
   it('uses Drawer styles instead of the deprecated width prop on shell navigation', () => {
     expect(shellNavDrawerSource).toContain("styles={{ wrapper: { width: 280, maxWidth: '100vw' } }}");
     expect(shellNavDrawerSource).not.toContain('width={280}');

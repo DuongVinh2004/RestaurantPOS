@@ -15,9 +15,14 @@ import {
   moveReservationTable,
   releaseStaffTable,
 } from '../../core/api/staff-api';
-import { formatApiError, formatStaffFacingApiError } from '../../core/api/errors';
+import { formatStaffFacingApiError } from '../../core/api/errors';
 import { formatDateTime } from '../../core/utils/format';
 import { buildJourneySearch, mergeJourneySearch } from '../../core/utils/journey';
+import {
+  buildOrderContextLabel,
+  buildReservationContextLabel,
+  buildTableContextLabel,
+} from '../../core/utils/journey-labels';
 import {
   getReservationGuestLabel,
   isReservationSnapshotOnlyGuest,
@@ -27,13 +32,19 @@ import { reservationTone, tableTone } from '../../core/utils/status';
 import { translateUiCode } from '../../core/utils/translation';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { SplitWorkspace } from '../../components/layout/SplitWorkspace';
-import { toast } from '../../components/feedback/toast';
-import { EmptyBlock, InlineError, InlineLoading } from '../../components/states/StateBlocks';
+import { MutationStatusNotice } from '../../components/feedback/MutationStatusNotice';
+import {
+  ApiStateBlock,
+  EmptyBlock,
+  InlineLoading,
+  TransientFailureState,
+} from '../../components/states/StateBlocks';
 import { StatusChip } from '../../components/status/StatusChip';
 import { useAuthStore } from '../../app/store/auth-store';
 import { useFlowStore } from '../../app/store/flow-store';
 import { useConfirmAction } from '../../hooks/useConfirmAction';
 import { useJourneyContext } from '../../hooks/useJourneyContext';
+import { useStaffMutationFeedback } from '../../hooks/useStaffMutationFeedback';
 import { can } from '../../core/permissions/capabilities';
 import {
   buildReservationCreatePayload,
@@ -165,8 +176,8 @@ export function TableBoardPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const message = toast;
   const confirmAction = useConfirmAction();
+  const mutationFeedback = useStaffMutationFeedback('table-board');
   const journey = useJourneyContext();
   const session = useAuthStore((state) => state.session);
   const branchId = useFlowStore((state) => state.branchId);
@@ -259,6 +270,34 @@ export function TableBoardPage() {
     () => (selectedTable ? buildTableCardContext(selectedTable) : null),
     [selectedTable],
   );
+
+  useEffect(() => {
+    if (!selectedTable) {
+      return;
+    }
+
+    setTableContext({
+      tableId: selectedTable.table_id,
+      label: buildTableContextLabel(selectedTable.table_code, selectedTable.table_id),
+      source: 'board',
+    });
+    setReservationContext({
+      reservationId: selectedTable.reservation?.reservation_id ?? null,
+      reservationRowVersion: selectedTable.reservation?.row_version ?? null,
+      label: buildReservationContextLabel(
+        selectedTable.reservation?.reservation_code ?? null,
+        selectedTable.reservation?.reservation_id ?? null,
+      ),
+      source: 'board',
+    });
+    setOrderContext({
+      orderId: selectedTable.active_order?.order_id ?? null,
+      orderRowVersion: selectedTable.active_order?.row_version ?? null,
+      label: buildOrderContextLabel(selectedTable.active_order?.order_id ?? null),
+      source: 'board',
+    });
+  }, [selectedTable, setOrderContext, setReservationContext, setTableContext]);
+
   const selectedTableHasWalkInDraft = selectedTable ? Boolean(walkInDrafts[selectedTable.table_id]) : false;
   const moveTableTargetOptions = useMemo(
     () =>
@@ -354,6 +393,34 @@ export function TableBoardPage() {
     void queryClient.invalidateQueries({ queryKey: ['table-board'], refetchType: 'active' });
   }, [queryClient]);
 
+  const refreshBoardWorkspace = useCallback(async (options?: {
+    reservationId?: number | null;
+    tableIds?: Array<number | null | undefined>;
+  }) => {
+    const invalidations = [
+      queryClient.invalidateQueries({ queryKey: ['table-board'], refetchType: 'active' }),
+      queryClient.invalidateQueries({ queryKey: ['reservations'] }),
+    ];
+
+    const reservationId = options?.reservationId ?? null;
+    if (reservationId) {
+      invalidations.push(
+        queryClient.invalidateQueries({ queryKey: ['reservation-detail', reservationId] }),
+        queryClient.invalidateQueries({ queryKey: ['active-order-by-reservation', reservationId] }),
+      );
+    }
+
+    const uniqueTableIds = Array.from(
+      new Set((options?.tableIds ?? []).filter((tableId): tableId is number => typeof tableId === 'number')),
+    );
+
+    for (const tableId of uniqueTableIds) {
+      invalidations.push(queryClient.invalidateQueries({ queryKey: ['active-order-by-table', tableId] }));
+    }
+
+    await Promise.all(invalidations);
+  }, [queryClient]);
+
   useEffect(() => {
     const currentVersion = boardRealtimeVersion ?? null;
     const latestVersion = boardChangesQuery.data?.data.current_version ?? null;
@@ -383,6 +450,12 @@ export function TableBoardPage() {
   ]);
 
   const walkInMutation = useMutation({
+    onMutate: () => {
+      mutationFeedback.setSubmitting(
+        'Xếp khách vào bàn',
+        `Đang tạo phiên khách mới cho ${selectedTable?.table_code ?? 'bàn đang chọn'} và khóa thao tác gửi lặp.`,
+      );
+    },
     mutationFn: async (values: WalkInFormValues) => {
       if (!selectedTable) {
         throw new Error('Chọn bàn trước khi tạo phiên khách vãng lai.');
@@ -398,7 +471,7 @@ export function TableBoardPage() {
         notes: values.notes,
       });
     },
-    onSuccess: (reservationEnvelope) => {
+    onSuccess: async (reservationEnvelope) => {
       const reservation = reservationEnvelope.data;
       setWalkInOpen(false);
       if (selectedTable) {
@@ -409,14 +482,25 @@ export function TableBoardPage() {
           return nextDrafts;
         });
       }
-      refreshTableBoardInBackground();
+      await refreshBoardWorkspace({
+        reservationId: reservation.reservation_id,
+        tableIds: [selectedTable?.table_id ?? null],
+      });
       setReservationContext({
         reservationId: reservation.reservation_id,
         reservationRowVersion: reservation.row_version,
+        label: buildReservationContextLabel(reservation.reservation_code, reservation.reservation_id),
         source: 'board',
       });
-      setTableContext({ tableId: selectedTable?.table_id ?? null, source: 'board' });
-      message.success(`Đã tạo khách vãng lai ${reservation.reservation_code}.`);
+      setTableContext({
+        tableId: selectedTable?.table_id ?? null,
+        label: buildTableContextLabel(selectedTable?.table_code ?? null, selectedTable?.table_id ?? null),
+        source: 'board',
+      });
+      mutationFeedback.setSuccess(
+        'Xếp khách vào bàn',
+        `Đã tạo ${reservation.reservation_code} và mở tiếp luồng order cho bàn ${selectedTable?.table_code ?? 'đang chọn'}.`,
+      );
       navigate(`/orders?${buildJourneySearch({
         source: 'board',
         tableId: selectedTable?.table_id ?? undefined,
@@ -425,11 +509,20 @@ export function TableBoardPage() {
       })}`);
     },
     onError: (error) => {
-      message.error(formatWalkInCreationError(error));
+      mutationFeedback.setFailure(error, {
+        actionLabel: 'Xếp khách vào bàn',
+        fallbackMessage: formatWalkInCreationError(error),
+      });
     },
   });
 
   const createPhoneReservationMutation = useMutation({
+    onMutate: () => {
+      mutationFeedback.setSubmitting(
+        'Tạo đặt bàn hộ',
+        `Đang lưu guest snapshot và tạo đặt bàn mới cho ${selectedTable?.table_code ?? 'bàn đang chọn'}.`,
+      );
+    },
     mutationFn: async (values: ReservationCreateFormValues) => {
       if (!selectedTable) {
         throw new Error('Chọn bàn trước khi tạo đặt bàn hộ.');
@@ -440,19 +533,28 @@ export function TableBoardPage() {
         tableIds: [selectedTable.table_id],
       }));
     },
-    onSuccess: (reservationEnvelope) => {
+    onSuccess: async (reservationEnvelope) => {
       const reservation = reservationEnvelope.data;
       setPhoneReservationOpen(false);
-      refreshTableBoardInBackground();
-      void queryClient.invalidateQueries({ queryKey: ['reservations'] });
-      void queryClient.invalidateQueries({ queryKey: ['reservation-detail', reservation.reservation_id] });
+      await refreshBoardWorkspace({
+        reservationId: reservation.reservation_id,
+        tableIds: reservation.table_ids ?? (selectedTable ? [selectedTable.table_id] : []),
+      });
       setReservationContext({
         reservationId: reservation.reservation_id,
         reservationRowVersion: reservation.row_version,
+        label: buildReservationContextLabel(reservation.reservation_code, reservation.reservation_id),
         source: 'board',
       });
-      setTableContext({ tableId: selectedTable?.table_id ?? null, source: 'board' });
-      message.success(`Đã tạo đặt bàn hộ ${reservation.reservation_code}.`);
+      setTableContext({
+        tableId: selectedTable?.table_id ?? null,
+        label: buildTableContextLabel(selectedTable?.table_code ?? null, selectedTable?.table_id ?? null),
+        source: 'board',
+      });
+      mutationFeedback.setSuccess(
+        'Tạo đặt bàn hộ',
+        `Đã tạo ${reservation.reservation_code} và neo lại ngữ cảnh reservation mới.`,
+      );
       navigate(`/reservations?${buildJourneySearch({
         source: 'board',
         tableId: selectedTable?.table_id ?? undefined,
@@ -462,14 +564,23 @@ export function TableBoardPage() {
       })}`);
     },
     onError: (error) => {
-      message.error(formatStaffFacingApiError(
-        error,
-        'Không thể tạo đặt bàn hộ. Hãy kiểm tra tên khách, số điện thoại và khung giờ.',
-      ));
+      mutationFeedback.setFailure(error, {
+        actionLabel: 'Tạo đặt bàn hộ',
+        fallbackMessage: formatStaffFacingApiError(
+          error,
+          'Không thể tạo đặt bàn hộ. Hãy kiểm tra tên khách, số điện thoại và khung giờ.',
+        ),
+      });
     },
   });
 
   const checkInMutation = useMutation({
+    onMutate: (table) => {
+      mutationFeedback.setSubmitting(
+        'Nhận bàn',
+        `Đang chuyển ${table.reservation?.reservation_code ?? 'reservation đã chọn'} sang trạng thái đang phục vụ.`,
+      );
+    },
     mutationFn: async (table: StaffTableBoardRow) => {
       if (!table.reservation) {
         throw new Error('Bàn này không có đặt bàn để nhận bàn.');
@@ -480,19 +591,27 @@ export function TableBoardPage() {
         table_ids: table.actions.check_in?.preferred_payload.table_ids ?? table.reservation.table_ids,
       });
     },
-    onSuccess: (reservationEnvelope, table) => {
+    onSuccess: async (reservationEnvelope, table) => {
       const reservation = reservationEnvelope.data;
-      refreshTableBoardInBackground();
-      void queryClient.invalidateQueries({ queryKey: ['reservations'] });
-      void queryClient.invalidateQueries({ queryKey: ['active-order-by-table', table.table_id] });
-      void queryClient.invalidateQueries({ queryKey: ['active-order-by-reservation', reservation.reservation_id] });
+      await refreshBoardWorkspace({
+        reservationId: reservation.reservation_id,
+        tableIds: [table.table_id],
+      });
       setReservationContext({
         reservationId: reservation.reservation_id,
         reservationRowVersion: reservation.row_version,
+        label: buildReservationContextLabel(reservation.reservation_code, reservation.reservation_id),
         source: 'board',
       });
-      setTableContext({ tableId: table.table_id, source: 'board' });
-      message.success(`Đã nhận bàn cho đặt bàn ${table.reservation?.reservation_code}.`);
+      setTableContext({
+        tableId: table.table_id,
+        label: buildTableContextLabel(table.table_code, table.table_id),
+        source: 'board',
+      });
+      mutationFeedback.setSuccess(
+        'Nhận bàn',
+        `Đã nhận bàn cho ${table.reservation?.reservation_code ?? reservation.reservation_code} và mở luồng order hiện tại.`,
+      );
       navigate(`/orders?${buildJourneySearch({
         source: 'board',
         tableId: table.table_id,
@@ -501,11 +620,20 @@ export function TableBoardPage() {
       })}`);
     },
     onError: (error) => {
-      message.error(formatApiError(error, 'Không thể nhận bàn cho đặt bàn này.'));
+      mutationFeedback.setFailure(error, {
+        actionLabel: 'Nhận bàn',
+        fallbackMessage: 'Không thể nhận bàn cho đặt bàn này.',
+      });
     },
   });
 
   const assignCurrentTableMutation = useMutation({
+    onMutate: () => {
+      mutationFeedback.setSubmitting(
+        'Gán vào bàn đang chọn',
+        `Đang gán reservation vào ${selectedTable?.table_code ?? 'bàn hiện tại'} theo ngữ cảnh board.`,
+      );
+    },
     mutationFn: async (reservation: { reservationId: number; rowVersion: number }) => {
       if (!selectedTable) {
         throw new Error('Chọn bàn đích trước khi gán.');
@@ -519,23 +647,38 @@ export function TableBoardPage() {
         zone: selectedTable.zone,
       });
     },
-    onSuccess: (reservationEnvelope) => {
+    onSuccess: async (reservationEnvelope) => {
       const reservation = reservationEnvelope.data;
-      refreshTableBoardInBackground();
-      void queryClient.invalidateQueries({ queryKey: ['reservations'] });
+      await refreshBoardWorkspace({
+        reservationId: reservation.reservation_id,
+        tableIds: reservation.table_ids ?? [selectedTable?.table_id ?? null],
+      });
       setReservationContext({
         reservationId: reservation.reservation_id,
         reservationRowVersion: reservation.row_version,
+        label: buildReservationContextLabel(reservation.reservation_code, reservation.reservation_id),
         source: 'board',
       });
-      message.success(`Đã gán đặt bàn ${reservation.reservation_code} vào bàn hiện tại.`);
+      mutationFeedback.setSuccess(
+        'Gán vào bàn đang chọn',
+        `Đã gán ${reservation.reservation_code} vào ${selectedTable?.table_code ?? 'bàn hiện tại'}.`,
+      );
     },
     onError: (error) => {
-      message.error(formatApiError(error, 'Không thể gán đặt bàn vào bàn hiện tại.'));
+      mutationFeedback.setFailure(error, {
+        actionLabel: 'Gán vào bàn đang chọn',
+        fallbackMessage: 'Không thể gán đặt bàn vào bàn hiện tại.',
+      });
     },
   });
 
   const assignBestFitMutation = useMutation({
+    onMutate: (reservation) => {
+      mutationFeedback.setSubmitting(
+        'Gán bàn tốt nhất',
+        `Đang xin backend chọn bàn phù hợp nhất cho ${reservation.reservation_code}.`,
+      );
+    },
     mutationFn: async (reservation: StaffTableBoardUnassignedReservation) =>
       assignBestFitTable(reservation.reservation_id, {
         row_version: reservation.row_version,
@@ -543,23 +686,38 @@ export function TableBoardPage() {
         board_to: windowRange.to,
         zone,
       }),
-    onSuccess: (reservationEnvelope) => {
+    onSuccess: async (reservationEnvelope) => {
       const reservation = reservationEnvelope.data;
-      refreshTableBoardInBackground();
-      void queryClient.invalidateQueries({ queryKey: ['reservations'] });
+      await refreshBoardWorkspace({
+        reservationId: reservation.reservation_id,
+        tableIds: reservation.table_ids ?? [],
+      });
       setReservationContext({
         reservationId: reservation.reservation_id,
         reservationRowVersion: reservation.row_version,
+        label: buildReservationContextLabel(reservation.reservation_code, reservation.reservation_id),
         source: 'board',
       });
-      message.success(`Đã gán bàn phù hợp nhất cho ${reservation.reservation_code}.`);
+      mutationFeedback.setSuccess(
+        'Gán bàn tốt nhất',
+        `Đã cập nhật ${reservation.reservation_code} với phương án bàn tốt nhất hiện tại.`,
+      );
     },
     onError: (error) => {
-      message.error(formatApiError(error, 'Không thể gán bàn phù hợp nhất.'));
+      mutationFeedback.setFailure(error, {
+        actionLabel: 'Gán bàn tốt nhất',
+        fallbackMessage: 'Không thể gán bàn phù hợp nhất.',
+      });
     },
   });
 
   const moveTableMutation = useMutation({
+    onMutate: () => {
+      mutationFeedback.setSubmitting(
+        'Chuyển bàn',
+        `Đang khóa thao tác chuyển ${selectedTable?.reservation?.reservation_code ?? 'reservation đang chọn'} sang bàn mới.`,
+      );
+    },
     mutationFn: async (values: MoveTableFormValues) => {
       if (!selectedTable?.reservation || !selectedTable.actions.move_table?.preferred_payload.from_table_id) {
         throw new Error('Bàn này chưa sẵn sàng cho thao tác chuyển bàn.');
@@ -579,36 +737,39 @@ export function TableBoardPage() {
       const reservation = reservationEnvelope.data;
       const nextOrderId = selectedTable.active_order?.order_id;
       const nextOrderRowVersion = selectedTable.active_order?.row_version ?? null;
+      const nextTable = boardData?.data.find((row) => row.table_id === values.to_table_id) ?? null;
 
       setMoveTableOpen(false);
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['table-board'] }),
-        queryClient.invalidateQueries({ queryKey: ['reservations'] }),
-        queryClient.invalidateQueries({ queryKey: ['reservation-detail', reservation.reservation_id] }),
-        queryClient.invalidateQueries({ queryKey: ['active-order-by-table', selectedTable.table_id] }),
-        queryClient.invalidateQueries({ queryKey: ['active-order-by-table', values.to_table_id] }),
-        queryClient.invalidateQueries({ queryKey: ['active-order-by-reservation', reservation.reservation_id] }),
-      ]);
+      await refreshBoardWorkspace({
+        reservationId: reservation.reservation_id,
+        tableIds: [selectedTable.table_id, values.to_table_id],
+      });
 
       setReservationContext({
         reservationId: reservation.reservation_id,
         reservationRowVersion: reservation.row_version,
+        label: buildReservationContextLabel(reservation.reservation_code, reservation.reservation_id),
         source: 'board',
       });
       setTableContext({
         tableId: values.to_table_id,
+        label: buildTableContextLabel(nextTable?.table_code ?? null, values.to_table_id),
         source: 'board',
       });
       if (nextOrderId) {
         setOrderContext({
           orderId: nextOrderId,
           orderRowVersion: nextOrderRowVersion,
+          label: buildOrderContextLabel(nextOrderId),
           source: 'board',
         });
       }
 
-      message.success(`Đã chuyển ${selectedTable.reservation.reservation_code} sang bàn mới.`);
+      mutationFeedback.setSuccess(
+        'Chuyển bàn',
+        `Đã chuyển ${selectedTable.reservation.reservation_code} sang ${nextTable?.table_code ?? `bàn #${values.to_table_id}`}.`,
+      );
       navigate(`/orders?${buildJourneySearch({
         source: 'board',
         tableId: values.to_table_id,
@@ -620,17 +781,25 @@ export function TableBoardPage() {
       })}`);
     },
     onError: (error) => {
-      message.error(formatApiError(error, 'Không thể chuyển bàn cho lượt phục vụ này.'));
+      mutationFeedback.setFailure(error, {
+        actionLabel: 'Chuyển bàn',
+        fallbackMessage: 'Không thể chuyển bàn cho lượt phục vụ này.',
+      });
     },
   });
 
   const releaseTableMutation = useMutation({
+    onMutate: (table) => {
+      mutationFeedback.setSubmitting(
+        'Trả bàn',
+        `Đang trả ${table.table_code} về trạng thái sẵn sàng nhận khách.`,
+      );
+    },
     mutationFn: async (table: StaffTableBoardRow) => releaseStaffTable(table.table_id),
     onSuccess: async (response, table) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['table-board'] }),
-        queryClient.invalidateQueries({ queryKey: ['active-order-by-table', table.table_id] }),
-      ]);
+      await refreshBoardWorkspace({
+        tableIds: [table.table_id],
+      });
 
       setReservationContext({
         reservationId: null,
@@ -644,6 +813,7 @@ export function TableBoardPage() {
       });
       setTableContext({
         tableId: table.table_id,
+        label: buildTableContextLabel(table.table_code, table.table_id),
         source: 'board',
       });
       updateBoardSearch(
@@ -655,18 +825,47 @@ export function TableBoardPage() {
         { replace: true },
       );
 
-      message.success(`Đã trả bàn ${String(response.data?.table_code ?? table.table_code)} về trạng thái Available.`);
+      mutationFeedback.setSuccess(
+        'Trả bàn',
+        `Đã trả ${String(response.data?.table_code ?? table.table_code)} về trạng thái sẵn sàng nhận khách.`,
+      );
     },
     onError: (error) => {
-      message.error(formatApiError(error, 'Không thể trả bàn về trạng thái Available.'));
+      mutationFeedback.setFailure(error, {
+        actionLabel: 'Trả bàn',
+        fallbackMessage: 'Không thể trả bàn về trạng thái sẵn sàng nhận khách.',
+      });
     },
   });
 
   async function handleCheckIn(table: StaffTableBoardRow) {
     const confirmed = await confirmAction({
       title: `Nhận bàn ${table.reservation?.reservation_code ?? 'đặt bàn'}`,
-      content: 'Thao tác này đưa đặt bàn sang trạng thái đang phục vụ và giữ nguyên gán bàn hiện tại.',
+      content: (
+        <Space direction="vertical" size={10}>
+          <Typography.Text>
+            Thao tác này đưa reservation sang trạng thái <strong>đang phục vụ</strong> và giữ nguyên gán bàn hiện tại.
+          </Typography.Text>
+          <div className="staff-mini-list">
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Bàn hiện tại</Typography.Text>
+              <Typography.Text type="secondary">{table.table_code}</Typography.Text>
+            </div>
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Số khách</Typography.Text>
+              <Typography.Text type="secondary">{table.reservation?.guest_count ?? 'Không rõ'} khách</Typography.Text>
+            </div>
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Phiên bản gửi đi</Typography.Text>
+              <Typography.Text type="secondary">
+                RV {table.actions.check_in?.preferred_payload.row_version ?? table.reservation?.row_version ?? 'n/a'}
+              </Typography.Text>
+            </div>
+          </div>
+        </Space>
+      ),
       okText: 'Nhận bàn',
+      width: 560,
     });
 
     if (confirmed) {
@@ -677,8 +876,30 @@ export function TableBoardPage() {
   async function handleReleaseTable(table: StaffTableBoardRow) {
     const confirmed = await confirmAction({
       title: `Trả bàn ${table.table_code}`,
-      content: 'Chỉ dùng khi bàn đang Occupied nhưng không còn reservation hay order đang chạy. Bàn sẽ được trả về trạng thái Available.',
+      danger: true,
+      content: (
+        <Space direction="vertical" size={10}>
+          <Typography.Text>
+            Chỉ tiếp tục khi bàn đang bị kẹt ở trạng thái <strong>Occupied</strong> nhưng không còn reservation hay order đang chạy.
+          </Typography.Text>
+          <div className="staff-mini-list">
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Trạng thái board</Typography.Text>
+              <Typography.Text type="secondary">{translateUiCode(table.board_state)}</Typography.Text>
+            </div>
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Reservation gắn kèm</Typography.Text>
+              <Typography.Text type="secondary">{table.reservation?.reservation_code ?? 'Không có'}</Typography.Text>
+            </div>
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Đơn đang chạy</Typography.Text>
+              <Typography.Text type="secondary">{table.active_order?.order_id ? `#${table.active_order.order_id}` : 'Không có'}</Typography.Text>
+            </div>
+          </div>
+        </Space>
+      ),
       okText: 'Trả bàn',
+      width: 560,
     });
 
     if (confirmed) {
@@ -750,11 +971,21 @@ export function TableBoardPage() {
       </div>
 
       {isBoardColdLoading ? <InlineLoading tip="Đang tải sơ đồ bàn..." /> : null}
-      {boardQuery.error && !boardData ? <InlineError message={formatApiError(boardQuery.error, 'Không thể tải sơ đồ bàn.')} /> : null}
+      {boardQuery.error && !boardData ? (
+        <ApiStateBlock
+          error={boardQuery.error}
+          fallback="Không thể tải sơ đồ bàn."
+          onRetry={() => {
+            void boardQuery.refetch();
+          }}
+        />
+      ) : null}
       {boardQuery.error && boardData ? (
-        <div className="staff-table-board-refresh-strip staff-table-board-refresh-strip-warning" aria-live="polite">
-          Không đồng bộ được lượt mới nhất. Sơ đồ hiện tại vẫn được giữ để thao tác, hãy thử làm mới lại.
-        </div>
+        <TransientFailureState
+          title="Không đồng bộ được lượt mới nhất của sơ đồ bàn"
+          description="Sơ đồ hiện tại vẫn được giữ để staff tiếp tục thao tác. Hãy làm mới lại để lấy biến động mới nhất."
+          primaryAction={<Button onClick={() => void boardQuery.refetch()}>Làm mới sơ đồ</Button>}
+        />
       ) : null}
       {isBoardRefreshing ? (
         <div className="staff-table-board-refresh-strip" aria-live="polite">
@@ -845,6 +1076,16 @@ export function TableBoardPage() {
 
   const side = (
     <Space orientation="vertical" size={14} style={{ width: '100%' }} className="staff-table-board-side">
+      <MutationStatusNotice
+        feedback={mutationFeedback.feedback}
+        onDismiss={mutationFeedback.resetFeedback}
+        onRetry={() => {
+          void refreshBoardWorkspace({
+            reservationId: selectedTable?.reservation?.reservation_id ?? null,
+            tableIds: selectedTable ? [selectedTable.table_id] : [],
+          });
+        }}
+      />
       <Card className="staff-table-board-inspector" title="Ngữ cảnh bàn đang chọn">
         {!selectedTable ? (
           <div className="staff-table-board-inspector-empty">
@@ -1045,7 +1286,13 @@ export function TableBoardPage() {
         {boardChangesQuery.isLoading ? (
           <InlineLoading tip="Đang kiểm tra thay đổi sơ đồ..." />
         ) : boardChangesQuery.error ? (
-          <InlineError message={formatApiError(boardChangesQuery.error, 'Không thể đọc luồng thay đổi của sơ đồ.')} />
+          <ApiStateBlock
+            error={boardChangesQuery.error}
+            fallback="Không thể đọc luồng thay đổi của sơ đồ."
+            onRetry={() => {
+              void boardChangesQuery.refetch();
+            }}
+          />
         ) : (
           <Space orientation="vertical" size={10}>
             <Typography.Text type="secondary">
@@ -1078,6 +1325,7 @@ export function TableBoardPage() {
             moveTableSubmitting={moveTableMutation.isPending}
             selectedTableCode={selectedTable?.table_code ?? null}
             moveTableReservationCode={selectedTable?.reservation?.reservation_code ?? null}
+            moveTableSourceCode={selectedTable?.table_code ?? null}
             moveTableTargetOptions={moveTableTargetOptions}
             onWalkInCancel={closeWalkInForm}
             onWalkInSubmit={(values) => walkInMutation.mutate(values)}
@@ -1092,4 +1340,3 @@ export function TableBoardPage() {
     </div>
   );
 }
-

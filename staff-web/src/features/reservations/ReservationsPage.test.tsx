@@ -9,6 +9,7 @@ import { buildStaffSession } from '../../test/fixtures';
 import { ReservationsPage } from './ReservationsPage';
 import { shouldLookupActiveOrder } from './reservation-active-order';
 
+const confirmActionMock = vi.hoisted(() => vi.fn(async () => true));
 const apiMocks = vi.hoisted(() => ({
   assignBestFitTable: vi.fn(),
   assignSuggestedTable: vi.fn(),
@@ -18,26 +19,36 @@ const apiMocks = vi.hoisted(() => ({
   getReservationDetail: vi.fn(),
   getTableBoard: vi.fn(),
   listReservations: vi.fn(),
+  updateReservationStatus: vi.fn(),
 }));
 
 vi.mock('../../core/api/staff-api', () => apiMocks);
+vi.mock('../../hooks/useConfirmAction', () => ({
+  useConfirmAction: () => confirmActionMock,
+}));
 vi.mock('../../components/drawers/ReservationDetailDrawer', () => ({
   ReservationDetailDrawer: ({
     open,
     reservation,
     onCheckIn,
+    onCancelReservation,
     onOpenOrder,
+    onOpenCheckout,
   }: {
     open: boolean;
     reservation: { reservation_code: string; status: string } | null;
     onCheckIn?: () => void;
+    onCancelReservation?: () => void;
     onOpenOrder?: () => void;
+    onOpenCheckout?: () => void;
   }) => (open && reservation ? (
     <div data-testid="reservation-detail-drawer">
       <span>{reservation.reservation_code}</span>
       <span>{reservation.status}</span>
       {onCheckIn ? <button type="button" onClick={onCheckIn}>Check in now</button> : null}
+      {onCancelReservation ? <button type="button" onClick={onCancelReservation}>Cancel reservation now</button> : null}
       {onOpenOrder ? <button type="button" onClick={onOpenOrder}>Open order now</button> : null}
+      {onOpenCheckout ? <button type="button" onClick={onOpenCheckout}>Open checkout now</button> : null}
     </div>
   ) : null),
 }));
@@ -88,8 +99,8 @@ describe('ReservationsPage', () => {
       ...initialAuthState,
       status: 'authenticated',
       session: buildStaffSession({
-        capabilities: ['reservation.manage', 'table.board.view'],
-        known_capabilities: ['reservation.manage', 'table.board.view'],
+        capabilities: ['reservation.manage', 'table.board.view', 'settlement.manage'],
+        known_capabilities: ['reservation.manage', 'table.board.view', 'settlement.manage'],
       }),
       notice: null,
     }, true);
@@ -170,6 +181,23 @@ describe('ReservationsPage', () => {
         reservation_code: 'RSV-PHONE-002',
         row_version: 7,
       },
+    });
+    apiMocks.updateReservationStatus.mockResolvedValue({
+      data: createReservationLookupEntry({
+        status: 'Cancelled',
+        cancelled_at: '2026-04-11T12:05:00Z',
+        row_version: 8,
+        summary: {
+          table_count: 2,
+          is_active: false,
+          is_checked_in: false,
+          is_cancelled: true,
+          is_completed: false,
+          deposit_acknowledged: false,
+          deposit_intent_submitted: false,
+          deposit_self_service_follow_up: false,
+        },
+      }),
     });
 
     apiMocks.getReservationDetail.mockResolvedValue({
@@ -317,6 +345,59 @@ describe('ReservationsPage', () => {
     expect(apiMocks.getActiveOrderByReservation).not.toHaveBeenCalled();
   });
 
+  it('opens checkout directly from an active reservation without another navigation hop', async () => {
+    const activeReservation = createReservationLookupEntry({
+      checked_in_at: '2026-04-11T11:55:00Z',
+      status: 'CheckedIn',
+      summary: {
+        table_count: 2,
+        is_active: true,
+        is_checked_in: true,
+        is_cancelled: false,
+        is_completed: false,
+        deposit_acknowledged: false,
+        deposit_intent_submitted: false,
+        deposit_self_service_follow_up: false,
+      },
+    });
+
+    apiMocks.listReservations.mockResolvedValue({
+      data: [activeReservation],
+      meta: {},
+    });
+    apiMocks.getReservationDetail.mockResolvedValue({
+      data: activeReservation,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
+        mutations: { retry: false },
+      },
+    });
+
+    queryClient.setQueryData(['active-order-by-reservation', 91], {
+      data: {
+        order: {
+          order_id: 777,
+          row_version: 9,
+        },
+        table: {
+          table_id: 12,
+        },
+      },
+    });
+
+    renderWithProviders('/reservations?reservation=91', queryClient);
+
+    await screen.findByTestId('reservation-detail-drawer');
+    fireEvent.click(await screen.findByRole('button', { name: 'Open checkout now' }));
+
+    await waitFor(() => expect(screen.getByTestId('checkout-destination')).toBeInTheDocument());
+    expect(screen.getByTestId('location-search').textContent).toContain('order_id=777');
+    expect(screen.getByTestId('location-search').textContent).toContain('reservation_id=91');
+  });
+
   it('refetches reservation detail after checking in from the reservation workspace', async () => {
     const confirmedReservation = createReservationLookupEntry();
     const checkedInReservation = createReservationLookupEntry({
@@ -356,6 +437,20 @@ describe('ReservationsPage', () => {
       table_ids: [12, 14],
     }));
     await waitFor(() => expect(apiMocks.getReservationDetail).toHaveBeenCalledTimes(2));
+  });
+
+  it('cancels a confirmed reservation with explicit confirmation and success feedback', async () => {
+    renderWithProviders('/reservations?reservation=91');
+
+    await screen.findByTestId('reservation-detail-drawer');
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel reservation now' }));
+
+    await waitFor(() => expect(confirmActionMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.updateReservationStatus).toHaveBeenCalledWith(91, {
+      status: 'Cancelled',
+      row_version: 7,
+    }));
+    await waitFor(() => expect(screen.getByTestId('mutation-status-notice')).toHaveAttribute('data-phase', 'succeeded'));
   });
 });
 
@@ -486,6 +581,7 @@ function renderWithProviders(initialEntry: string, queryClient?: QueryClient) {
               )}
             />
             <Route path="/orders" element={<div data-testid="orders-destination">orders</div>} />
+            <Route path="/checkout" element={<div data-testid="checkout-destination">checkout</div>} />
           </Routes>
           <LocationProbe />
         </MemoryRouter>

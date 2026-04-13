@@ -208,6 +208,44 @@ describe('CheckoutPage', () => {
     })));
   }, 20000);
 
+  it('shows a conflict mutation notice when finalize hits a stale row version', async () => {
+    apiMocks.getOrderDetail.mockResolvedValue(createOrderEnvelope());
+    apiMocks.getSettlementPreview.mockResolvedValue(createSettlementPreview());
+    apiMocks.finalizeSettlement.mockRejectedValue(buildApiError(409, {
+      error_code: 'stale_row_version',
+      category_code: 'stale_write',
+      conflict_type: 'stale_write',
+      message: 'The resource was modified by another writer.',
+      request_id: 'req-finalize-stale',
+    }));
+
+    renderWithProviders('/checkout?source=order&reservation_id=34&reservation_row_version=5&table_ids=12,14&order_id=56&order_row_version=10');
+
+    const settlementAmountInput = await waitFor(() => {
+      const nextInput = screen.getAllByRole('spinbutton').find((input) => input.getAttribute('value') === '100000');
+      if (!nextInput) {
+        throw new Error('Settlement amount input was not hydrated.');
+      }
+
+      return nextInput;
+    });
+    const settlementForm = settlementAmountInput.closest('form');
+    if (!settlementForm) {
+      throw new Error('Settlement form was not rendered.');
+    }
+    fireEvent.submit(settlementForm);
+
+    await waitFor(() => expect(confirmActionMock).toHaveBeenCalled());
+    await waitFor(() => expect(apiMocks.finalizeSettlement).toHaveBeenCalledWith(56, expect.objectContaining({
+      row_version: 10,
+      payment_method: 'Cash',
+      payment_provider: 'Cash',
+      paid_amount: 100000,
+      currency: 'VND',
+    })));
+    await waitFor(() => expect(screen.getByTestId('mutation-status-notice')).toHaveAttribute('data-phase', 'conflict'));
+  });
+
   it('checks the active shell branch for cashier shift readiness before enabling checkout mutations', async () => {
     useFlowStore.setState({
       ...useFlowStore.getState(),
@@ -225,6 +263,25 @@ describe('CheckoutPage', () => {
     await waitFor(() => expect(apiMocks.getCurrentCashierShift).toHaveBeenCalledWith(7));
     expect(await screen.findByRole('button', { name: 'Hoàn tất thanh toán' })).toBeDisabled();
     expect(screen.getByText(/Chi nhánh hiện tại chưa có ca thu ngân đang mở/i)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Mở trung tâm ca thu ngân' }).length).toBeGreaterThan(0);
+  });
+
+  it('supports a refund-focused route and hydrates shell context labels from the loaded order', async () => {
+    useFlowStore.setState({
+      ...useFlowStore.getState(),
+      branchId: 3,
+    });
+    apiMocks.getOrderDetail.mockResolvedValue(createOrderEnvelope());
+    apiMocks.getSettlementPreview.mockResolvedValue(createSettlementPreview());
+
+    renderWithProviders('/refunds?source=refund&reservation_id=34&reservation_row_version=5&table_ids=12,14&order_id=56&order_row_version=10');
+
+    expect(await screen.findByText('Bàn hoàn tiền')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Quay lại thanh toán' })).toBeInTheDocument();
+
+    await waitFor(() => expect(useFlowStore.getState().selectedReservationLabel).toBe('RSV-34'));
+    expect(useFlowStore.getState().selectedTableLabel).toBe('T12, T14');
+    expect(useFlowStore.getState().selectedOrderLabel).toBe('Đơn #56');
   });
 });
 
@@ -436,6 +493,7 @@ function renderWithProviders(initialEntry: string) {
         <MemoryRouter initialEntries={[initialEntry]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/refunds" element={<CheckoutPage focusMode="refund" />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>

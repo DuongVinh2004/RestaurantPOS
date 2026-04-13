@@ -10,10 +10,11 @@ use App\Http\Requests\Customer\RespondOwnerWaitingListRequest;
 use App\Http\Requests\Customer\StoreOwnerWaitingListRequest;
 use App\Http\Resources\CustomerWaitingListResource;
 use App\Services\CustomerWaitingListService;
+use App\Support\ApiErrorResponse;
 use App\Support\RequestActorContext;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class CustomerWaitingListController extends Controller
 {
@@ -123,6 +124,60 @@ class CustomerWaitingListController extends Controller
             return $ownerUserId;
         }
 
-        throw new HttpException(401, 'Customer authentication is required for waiting-list owner actions.');
+        if ($request->user() !== null) {
+            throw new HttpResponseException(ApiErrorResponse::ownerScopeDenied(
+                $request,
+                'Waiting-list owner actions require an authenticated customer owner.',
+                [
+                    'state_reason' => 'owner_scope_required',
+                    'next_actions' => [
+                        'sign_in_as_owner',
+                    ],
+                ],
+            ));
+        }
+
+        if ($this->hasProvidedCustomerCredential($request) && (int) $request->attributes->get('customer_access_session_id', 0) <= 0) {
+            throw new HttpResponseException(ApiErrorResponse::authenticationRequired(
+                $request,
+                'Customer authentication is required for waiting-list owner actions.',
+            ));
+        }
+
+        if ($actor->isCustomerSession() || $actor->isStaff()) {
+            throw new HttpResponseException(ApiErrorResponse::ownerScopeDenied(
+                $request,
+                'Waiting-list owner actions require an authenticated customer owner.',
+                [
+                    'state_reason' => 'owner_scope_required',
+                    'next_actions' => [
+                        'sign_in_as_owner',
+                    ],
+                ],
+            ));
+        }
+
+        throw new HttpResponseException(ApiErrorResponse::authenticationRequired(
+            $request,
+            'Customer authentication is required for waiting-list owner actions.',
+        ));
+    }
+
+    private function hasProvidedCustomerCredential(Request $request): bool
+    {
+        $headerName = (string) config('customer_auth.header', 'X-Customer-Token');
+        $providedToken = trim((string) ($request->header($headerName) ?? ''));
+
+        if ($providedToken !== '') {
+            return true;
+        }
+
+        if ((bool) config('customer_auth.allow_bearer', false)) {
+            $authorization = trim((string) ($request->header('Authorization') ?? ''));
+
+            return str_starts_with($authorization, 'Bearer ') && trim(substr($authorization, 7)) !== '';
+        }
+
+        return false;
     }
 }

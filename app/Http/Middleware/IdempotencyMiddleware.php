@@ -41,6 +41,7 @@ class IdempotencyMiddleware
                 'Missing Idempotency-Key header.',
                 legacyErrorAlias: true,
                 extra: [
+                    'category_code' => 'validation_error',
                     'state_reason' => 'missing_idempotency_key',
                     'next_actions' => [
                         'provide_idempotency_key',
@@ -62,6 +63,7 @@ class IdempotencyMiddleware
                 'Invalid Idempotency-Key.',
                 legacyErrorAlias: true,
                 extra: [
+                    'category_code' => 'validation_error',
                     'state_reason' => 'invalid_idempotency_key',
                     'next_actions' => [
                         'retry_with_new_idempotency_key',
@@ -121,13 +123,11 @@ class IdempotencyMiddleware
                     'user_id' => $request->user()?->user_id,
                 ]);
 
-                return ApiErrorResponse::json(
+                return ApiErrorResponse::idempotencyConflict(
                     $request,
-                    409,
-                    'idempotency_in_progress',
                     'A request with this Idempotency-Key is already in progress.',
-                    legacyErrorAlias: true,
-                    extra: [
+                    [
+                        'error_code' => 'idempotency_in_progress',
                         'conflict_type' => 'idempotency_replay',
                         'replay_state' => 'in_progress',
                         'state_reason' => 'original_request_in_progress',
@@ -212,13 +212,10 @@ class IdempotencyMiddleware
                 'user_id' => $request->user()?->user_id,
             ]);
 
-            return ApiErrorResponse::json(
+            return ApiErrorResponse::idempotencyConflict(
                 $request,
-                409,
-                'idempotency_conflict',
                 'This Idempotency-Key was already used for a different payload.',
-                legacyErrorAlias: true,
-                extra: [
+                [
                     'conflict_type' => 'idempotency_payload_mismatch',
                     'replay_state' => 'payload_mismatch',
                     'state_reason' => 'key_reused_for_different_payload',
@@ -262,13 +259,11 @@ class IdempotencyMiddleware
             'started_at' => $pending['started_at'] ?? null,
         ]);
 
-        return ApiErrorResponse::json(
+        return ApiErrorResponse::idempotencyConflict(
             $request,
-            409,
-            'idempotency_in_progress',
             'A request with this Idempotency-Key is already in progress.',
-            legacyErrorAlias: true,
-            extra: [
+            [
+                'error_code' => 'idempotency_in_progress',
                 'conflict_type' => 'idempotency_replay',
                 'replay_state' => 'in_progress',
                 'state_reason' => $payloadMatches === false

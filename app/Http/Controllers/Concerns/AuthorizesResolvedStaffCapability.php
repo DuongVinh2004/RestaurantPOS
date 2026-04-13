@@ -35,6 +35,7 @@ trait AuthorizesResolvedStaffCapability
         if (! in_array('*', $capabilities, true) && ! in_array($capability, $capabilities, true)) {
             $this->throwStaffCapabilityResponse($request, 403, [
                 'error_code' => 'forbidden',
+                'category_code' => 'forbidden_capability',
                 'message' => (string) config('staff_capabilities.messages.default', 'Forbidden.'),
                 'required_capability' => $capability,
                 'staff_role_name' => $roleName !== '' ? $roleName : null,
@@ -56,15 +57,16 @@ trait AuthorizesResolvedStaffCapability
     {
         $code = (string) ($payload['error_code'] ?? 'unauthorized');
         $message = (string) ($payload['message'] ?? 'Unauthorized.');
+        $categoryCode = isset($payload['category_code']) ? (string) $payload['category_code'] : null;
 
-        unset($payload['error_code'], $payload['message']);
+        unset($payload['error_code'], $payload['message'], $payload['category_code']);
 
         throw new HttpResponseException(ApiErrorResponse::json(
             $request,
             $status,
             $code,
             $message,
-            extra: $payload,
+            extra: ($categoryCode !== null ? ['category_code' => $categoryCode] : []) + $payload,
         ));
     }
 }

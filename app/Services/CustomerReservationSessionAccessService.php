@@ -17,7 +17,7 @@ class CustomerReservationSessionAccessService
             return false;
         }
 
-        $hold = $this->findActiveOwnedHoldForReservationCreation($holdId, $sessionId);
+        $hold = $this->findOwnedHoldForReservationCreationAuthorization($holdId, $sessionId);
         if (! $hold) {
             return false;
         }
@@ -53,7 +53,7 @@ class CustomerReservationSessionAccessService
 
     public function resolveUserIdFromOwnedHold(string $holdId, string $sessionId): ?int
     {
-        $hold = $this->findActiveOwnedHoldForReservationCreation($holdId, $sessionId);
+        $hold = $this->findOwnedHoldForReservationCreationAuthorization($holdId, $sessionId);
 
         if (! $hold || $hold->user_id === null) {
             return null;
@@ -62,14 +62,11 @@ class CustomerReservationSessionAccessService
         return (int) $hold->user_id;
     }
 
-    private function findActiveOwnedHoldForReservationCreation(string $holdId, string $sessionId): ?object
+    private function findOwnedHoldForReservationCreationAuthorization(string $holdId, string $sessionId): ?object
     {
         return DB::table('table_holds')
             ->where('hold_id', $holdId)
             ->where('session_id', $sessionId)
-            ->whereIn('hold_status', ['Holding', 'Pending'])
-            ->whereNull('confirmed_reservation_id')
-            ->where('expire_at', '>', now('UTC'))
             ->orderByDesc('created_at')
             ->first(['hold_id', 'user_id']);
     }

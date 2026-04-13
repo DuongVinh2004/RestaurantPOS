@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../../app/store/auth-store';
 import { useFlowStore } from '../../app/store/flow-store';
-import { buildStaffSession } from '../../test/fixtures';
+import { buildApiError, buildStaffSession } from '../../test/fixtures';
 import { TableBoardPage } from './TableBoardPage';
 
 const confirmActionMock = vi.hoisted(() => vi.fn(async () => true));

@@ -67,6 +67,7 @@ use App\Http\Middleware\MetricsRequestMiddleware;
 use App\Http\Middleware\CustomerOrStaffMiddleware;
 use App\Http\Middleware\ResolveCustomerAuthMiddleware;
 use App\Http\Middleware\StaffApiKeyMiddleware;
+use App\Support\ApiErrorResponse;
 
 Route::middleware([
     'reqid',
@@ -101,7 +102,7 @@ Route::middleware([
         ]);
     }
 
-    return response()->json(['message' => 'Unauthorized.'], 401);
+    return ApiErrorResponse::authenticationRequired($request, 'Authentication is required.');
 });
 
 Route::prefix('v1')

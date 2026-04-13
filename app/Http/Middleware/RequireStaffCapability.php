@@ -39,14 +39,12 @@ class RequireStaffCapability
         $capabilities = array_values(array_filter(array_map('strval', (array) ($resolved['capabilities'] ?? []))));
 
         if (! in_array('*', $capabilities, true) && ! in_array($capability, $capabilities, true)) {
-            return ApiErrorResponse::json(
+            return ApiErrorResponse::forbiddenCapability(
                 $request,
-                403,
-                'forbidden',
                 (string) config('staff_capabilities.messages.default', 'Forbidden.'),
-                extra: [
-                    'required_capability' => $capability,
-                    'staff_role_name' => $roleName !== '' ? $roleName : null,
+                $capability,
+                $roleName !== '' ? $roleName : null,
+                [
                     'state_reason' => 'missing_required_capability',
                     'next_actions' => [
                         'request_capability_access',

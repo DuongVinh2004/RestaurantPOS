@@ -28,7 +28,7 @@ class StaffReservationRescheduleFlowTest extends TestCase
 
         $this->app->instance(NotificationOutboxService::class, $this->mockNotificationOutbox());
         $this->app->instance(ReservationLockService::class, $this->mockReservationLocks());
-        $this->app->instance(TableTimeConflictService::class, new TableTimeConflictService());
+        $this->app->instance(TableTimeConflictService::class, new TableTimeConflictService);
     }
 
     protected function tearDown(): void
@@ -279,7 +279,8 @@ class StaffReservationRescheduleFlowTest extends TestCase
             'notes' => 'Should fail because stale version',
         ]);
 
-        $response->assertStatus(422);
+        $response->assertStatus(409);
+        $response->assertJsonPath('error_code', 'stale_row_version');
         $response->assertJsonValidationErrors(['row_version']);
         self::assertNull(DB::table('reservations')->where('reservation_id', $reservationId)->value('notes'));
     }

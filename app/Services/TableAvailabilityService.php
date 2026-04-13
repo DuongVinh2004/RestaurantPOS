@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use App\Services\Branch\BranchSchedulingPolicyService;
 use App\Enums\ReservationStatus;
 use App\Enums\RestaurantTableStatus;
+use App\Services\Branch\BranchSchedulingPolicyService;
 use App\Support\AvailabilityCacheVersion;
 use App\Support\HoldConflictScope;
 use Carbon\CarbonInterface;
@@ -17,17 +17,16 @@ class TableAvailabilityService
     public function __construct(
         private readonly MetricsService $metrics,
         private readonly BranchSchedulingPolicyService $branchSchedulingPolicyService,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string,mixed> $filters
+     * @param  array<string,mixed>  $filters
      * @return array<int, array<string,mixed>>
      */
     public function getAvailable(CarbonInterface $fromUtc, CarbonInterface $toUtc, array $filters = []): array
     {
         $fromUtc = $fromUtc->copy()->utc()->second(0);
-        $toUtc   = $toUtc->copy()->utc()->second(0);
+        $toUtc = $toUtc->copy()->utc()->second(0);
 
         $zone = isset($filters['zone']) && is_string($filters['zone']) && trim($filters['zone']) !== ''
             ? trim((string) $filters['zone'])
@@ -58,12 +57,13 @@ class TableAvailabilityService
             'session_hash' => $sessionId !== null ? sha1($sessionId) : null,
             'buffer' => $buffer,
         ];
-        $cacheKey = 'avtbl:' . sha1(json_encode($cachePayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        $cacheKey = 'avtbl:'.sha1(json_encode($cachePayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
         $redis = Cache::store('redis');
         $cached = $redis->get($cacheKey);
         if (is_array($cached)) {
             $this->metrics->inc('booking_cache_hit_total', ['route' => 'v1/tables/available'], 1);
+
             return $cached;
         }
         $this->metrics->inc('booking_cache_miss_total', ['route' => 'v1/tables/available'], 1);
@@ -78,7 +78,9 @@ class TableAvailabilityService
 
         $busyByReservation = DB::table('reservation_tables as rt')
             ->join('reservations as r', 'r.reservation_id', '=', 'rt.reservation_id')
-            ->where('r.branch_id', $branchId)
+            ->join('restaurant_tables as busy_tables', 'busy_tables.table_id', '=', 'rt.table_id')
+            ->where('busy_tables.branch_id', $branchId)
+            ->where('busy_tables.is_deleted', 0)
             ->whereIn('r.status', ReservationStatus::activeDbValues())
             ->where('r.start_time', '<', $overlapTo)
             ->where('r.end_time', '>', $overlapFrom)
@@ -90,7 +92,9 @@ class TableAvailabilityService
 
         $holdQuery = DB::table('table_hold_details as thd')
             ->join('table_holds as th', 'th.hold_id', '=', 'thd.hold_id')
-            ->where('th.branch_id', $branchId)
+            ->join('restaurant_tables as busy_hold_tables', 'busy_hold_tables.table_id', '=', 'thd.table_id')
+            ->where('busy_hold_tables.branch_id', $branchId)
+            ->where('busy_hold_tables.is_deleted', 0)
             ->where('th.start_time', '<', $overlapTo)
             ->where('th.end_time', '>', $overlapFrom);
         HoldConflictScope::apply($holdQuery, 'th', $nowUtc);
@@ -140,14 +144,14 @@ class TableAvailabilityService
         }
 
         $rows = $query->select([
-                't.table_id',
-                't.table_code',
-                't.zone',
-                't.status',
-                't.price',
-                't.template_id',
-                DB::raw('tt.seats as seats'),
-            ])
+            't.table_id',
+            't.table_code',
+            't.zone',
+            't.status',
+            't.price',
+            't.template_id',
+            DB::raw('tt.seats as seats'),
+        ])
             ->orderByRaw("COALESCE(t.zone, '') ASC")
             ->orderBy('t.table_code')
             ->get();

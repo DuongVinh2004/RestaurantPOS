@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Support;
 
 use App\Support\TableReleaseGuard;
+use Illuminate\Support\Carbon;
 use PHPUnit\Framework\TestCase;
 
 final class TableReleaseGuardTest extends TestCase
@@ -24,14 +25,32 @@ final class TableReleaseGuardTest extends TestCase
         self::assertTrue(TableReleaseGuard::isReservationBlockingRelease('Confirmed', '2026-03-15 10:00:00'));
     }
 
+    public function test_current_window_confirmed_reservation_blocks_release_even_without_checkin_timestamp(): void
+    {
+        self::assertTrue(TableReleaseGuard::isReservationBlockingRelease(
+            'Confirmed',
+            null,
+            '2026-03-15 09:30:00',
+            '2026-03-15 10:30:00',
+            Carbon::parse('2026-03-15 10:00:00', 'UTC'),
+        ));
+    }
+
     public function test_it_extracts_only_blocking_reservation_ids(): void
     {
         $ids = TableReleaseGuard::blockingReservationIds([
             ['reservation_id' => 10, 'status' => 'Confirmed', 'checked_in_at' => null],
             ['reservation_id' => 11, 'status' => 'Reserved', 'checked_in_at' => null],
             ['reservation_id' => 12, 'status' => 'Confirmed', 'checked_in_at' => '2026-03-15 10:00:00'],
-        ]);
+            [
+                'reservation_id' => 13,
+                'status' => 'Confirmed',
+                'checked_in_at' => null,
+                'start_time' => '2026-03-15 09:30:00',
+                'end_time' => '2026-03-15 10:30:00',
+            ],
+        ], Carbon::parse('2026-03-15 10:00:00', 'UTC'));
 
-        self::assertSame([11, 12], $ids);
+        self::assertSame([11, 12, 13], $ids);
     }
 }

@@ -179,8 +179,45 @@ class TableHoldHttpFlowTest extends TestCase
                 'extend_minutes' => 5,
                 'row_version' => 1,
             ])
-            ->assertStatus(422)
+            ->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
             ->assertJsonValidationErrors(['row_version']);
+    }
+
+    public function test_confirmed_hold_artifact_does_not_block_new_live_hold_for_same_session(): void
+    {
+        $oldTableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available']);
+        $newTableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available']);
+        $start = $this->nowUtc()->copy()->addHours(4);
+        $end = $start->copy()->addHour();
+        $sessionId = 'sess-confirmed-hold-artifact';
+
+        $this->createTableHold([
+            'session_id' => $sessionId,
+            'start_time' => $start,
+            'end_time' => $end,
+            'expire_at' => $this->nowUtc()->copy()->addMinutes(30),
+            'hold_status' => 'Confirmed',
+            'confirmed_reservation_id' => $this->createReservation([
+                'status' => 'Confirmed',
+                'start_time' => $start,
+                'end_time' => $end,
+            ]),
+        ], [$oldTableId]);
+
+        $response = $this->postJson('/api/v1/table-holds', [
+            'session_id' => $sessionId,
+            'start_time' => $start->copy()->addDay()->toIso8601String(),
+            'end_time' => $end->copy()->addDay()->toIso8601String(),
+            'table_ids' => [$newTableId],
+            'hold_minutes' => 5,
+        ], $this->withIdempotencyKey('table-hold-ignore-confirmed-artifact'));
+
+        $response->assertCreated()
+            ->assertJsonPath('data.hold_status', 'Holding')
+            ->assertJsonPath('data.tables.0.table_id', $newTableId);
+
+        self::assertSame(2, DB::table('table_holds')->where('session_id', $sessionId)->count());
     }
 
     public function test_staff_without_reservation_manage_cannot_override_table_hold_routes_without_session_scope(): void

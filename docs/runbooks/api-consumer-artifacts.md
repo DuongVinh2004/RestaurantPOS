@@ -158,11 +158,13 @@ Use `build/api-consumer/mutation-contracts.md` when FE needs to know whether a m
 
 Frontend and QA consumers should rely on this error contract:
 
-- Always read `error_code`, `message`, and `request_id`.
+- Always read `category_code`, `message`, and `request_id`.
+- Treat `error_code` as a compatibility-oriented transport family. New frontend branching should prefer `category_code`.
 - Read `errors` for field-level validation or domain validation details.
-- Treat `409 stale_row_version` as a stale-write retry path, not as ordinary validation.
+- Treat `category_code=stale_write` with HTTP `409` as a stale-write retry path, not as ordinary validation.
 - Use `conflict_type`, `replay_state`, `state_reason`, `warnings`, and `next_actions` when present to drive retry, reload, or operator guidance.
-- On capability-denied staff/admin routes, `required_capability` and `staff_role_name` are the canonical machine-readable fields.
+- On capability-denied staff/admin routes, `category_code=forbidden_capability` plus `required_capability` and `staff_role_name` are the canonical machine-readable fields.
+- On owner-only customer routes, `category_code=owner_scope_denied` distinguishes an authenticated but wrong-scope actor from `category_code=authentication_required`.
 - If an idempotency error still includes top-level `error`, treat it as deprecated compatibility output and prefer `error_code`.
 
 If the route is not in that curated batch but already has a full-contract shape in the frozen OpenAPI artifact, generate your own client from `storage/app/booking_release/openapi-v1.json` instead of reading controllers/resources directly.

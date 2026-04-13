@@ -139,6 +139,41 @@ class ReservationHttpFlowTest extends TestCase
         $this->assertSame(0, DB::table('reservations')->where('user_id', $viewerUserId)->count());
     }
 
+    public function test_authenticated_customer_create_from_owned_expired_hold_returns_domain_validation_error(): void
+    {
+        $customerUserId = $this->createUser(['role_name' => 'Customer']);
+        $tableId = $this->createRestaurantTableWithSeats(4);
+        $customer = User::query()->findOrFail($customerUserId);
+        $start = $this->nowUtc()->copy()->addHours(3);
+        $end = $start->copy()->addHours(2);
+        $sessionId = 'sess-expired-owned-hold';
+
+        $holdId = $this->createTableHold([
+            'session_id' => $sessionId,
+            'user_id' => $customerUserId,
+            'start_time' => $start,
+            'end_time' => $end,
+            'duration_minutes' => (int) $start->diffInMinutes($end),
+            'expire_at' => $this->nowUtc()->copy()->subMinutes(5),
+            'hold_status' => 'Holding',
+        ], [$tableId]);
+
+        $response = $this->actingAs($customer)->postJson('/api/v1/reservations', [
+            'hold_id' => $holdId,
+            'session_id' => $sessionId,
+            'start_time' => $start->toIso8601String(),
+            'end_time' => $end->toIso8601String(),
+            'guest_count' => 2,
+        ], $this->withIdempotencyKey('reservation-expired-owned-hold'));
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonValidationErrors(['hold_id']);
+
+        $this->assertSame(0, DB::table('reservations')->where('user_id', $customerUserId)->count());
+        $this->assertNull(DB::table('table_holds')->where('hold_id', $holdId)->value('confirmed_reservation_id'));
+    }
+
     public function test_session_only_guest_hold_without_user_binding_still_cannot_create_reservation(): void
     {
         $tableId = $this->createRestaurantTableWithSeats(4);
@@ -448,6 +483,32 @@ class ReservationHttpFlowTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error')
             ->assertJsonPath('details.errors.start_time.0', 'Requested reservation window falls outside the configured branch business hours.');
+    }
+
+    public function test_authenticated_customer_create_rejects_requested_branch_that_does_not_match_selected_tables(): void
+    {
+        $customerUserId = $this->createUser(['role_name' => 'Customer']);
+        $annexBranchId = $this->createBranch([
+            'branch_code' => 'RSVANNEX',
+            'branch_name' => 'Reservation Annex',
+        ]);
+        $tableId = $this->createRestaurantTableWithSeats(4, ['branch_id' => 1]);
+        $start = $this->nowUtc()->copy()->addHours(5);
+        $end = $start->copy()->addHours(2);
+
+        $response = $this->actingAs($customer)->postJson('/api/v1/reservations', [
+            'branch_id' => $annexBranchId,
+            'start_time' => $start->toIso8601String(),
+            'end_time' => $end->toIso8601String(),
+            'guest_count' => 2,
+            'table_ids' => [$tableId],
+        ], $this->withIdempotencyKey('reservation-branch-mismatch'));
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonValidationErrors(['branch_id']);
+
+        $this->assertSame(0, DB::table('reservations')->where('user_id', $customerUserId)->count());
     }
 
     public function test_session_create_rejects_hold_owned_by_different_session(): void

@@ -175,9 +175,10 @@ class AdminMultiBranchFoundationHttpFlowTest extends TestCase
             'description' => 'This update should be rejected as stale.',
         ]);
 
-        $response->assertStatus(422)
+        $response->assertStatus(409)
             ->assertHeader('X-Request-Id', 'req-admin-branch-stale-row-version')
-            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonPath('error_code', 'stale_row_version')
+            ->assertJsonPath('category_code', 'stale_write')
             ->assertJsonPath('request_id', 'req-admin-branch-stale-row-version')
             ->assertJsonPath('details.errors.row_version.0', 'Branch has been modified by another operation. Please reload and retry.');
     }

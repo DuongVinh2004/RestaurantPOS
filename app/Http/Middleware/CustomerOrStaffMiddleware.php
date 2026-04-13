@@ -92,11 +92,22 @@ class CustomerOrStaffMiddleware
      */
     private function unauthorizedResponse(Request $request, array $resolved)
     {
+        $status = (int) ($resolved['status'] ?? 401);
+        $message = (string) ($resolved['message'] ?? 'Unauthorized.');
+
+        if ($status === 401) {
+            return ApiErrorResponse::authenticationRequired($request, $message);
+        }
+
+        if ($status === 403) {
+            return ApiErrorResponse::policyDenied($request, $message);
+        }
+
         return ApiErrorResponse::json(
             $request,
-            (int) ($resolved['status'] ?? 401),
+            $status,
             (string) ($resolved['error_code'] ?? 'unauthorized'),
-            (string) ($resolved['message'] ?? 'Unauthorized.'),
+            $message,
         );
     }
 }

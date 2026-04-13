@@ -13,7 +13,6 @@ use App\Services\RestaurantTableStateService;
 use App\Support\AuditEvent;
 use App\Support\StaffReservationOperationGuard;
 use App\Support\TableReleaseGuard;
-use App\Services\Staff\StaffOperationalRealtimeService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -48,7 +47,7 @@ class StaffTableReleaseService
                     ->join('reservations as r', 'r.reservation_id', '=', 'rt.reservation_id')
                     ->where('rt.table_id', $tableId)
                     ->whereIn('r.status', ReservationStatus::activeDbValues())
-                    ->select('r.reservation_id', 'r.status', 'r.checked_in_at', 'r.branch_id')
+                    ->select('r.reservation_id', 'r.status', 'r.checked_in_at', 'r.branch_id', 'r.start_time', 'r.end_time')
                     ->lockForUpdate()
                     ->get();
 
@@ -61,7 +60,7 @@ class StaffTableReleaseService
                     );
                 }
 
-                $blockingReservationIds = TableReleaseGuard::blockingReservationIds($activeReservations);
+                $blockingReservationIds = TableReleaseGuard::blockingReservationIds($activeReservations, now('UTC'));
 
                 $activeOrderExists = DB::table('reservation_orders as ro')
                     ->join('reservation_tables as rt', 'rt.reservation_id', '=', 'ro.reservation_id')
@@ -70,8 +69,20 @@ class StaffTableReleaseService
                     ->lockForUpdate()
                     ->exists();
 
-                if ($blockingReservationIds !== [] || $activeOrderExists) {
-                    throw ValidationException::withMessages(['table_id' => 'Cannot release table while an actively seated reservation or live order still exists. Use reservation/order flow to close it first.']);
+                if ($blockingReservationIds !== []) {
+                    throw ValidationException::withMessages([
+                        'table_id' => [
+                            'Cannot release table while reservations are still in an active service context: '
+                            .implode(',', $blockingReservationIds)
+                            .'. Complete check-in/checkout or close the reservation flow first.',
+                        ],
+                    ]);
+                }
+
+                if ($activeOrderExists) {
+                    throw ValidationException::withMessages([
+                        'table_id' => ['Cannot release table while a live order still exists for this table. Close or settle the order first.'],
+                    ]);
                 }
 
                 $table = $this->tableStateService->releaseModelSafely(

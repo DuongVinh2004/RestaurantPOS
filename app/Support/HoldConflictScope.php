@@ -14,18 +14,20 @@ final class HoldConflictScope
     {
         $now ??= Carbon::now('UTC');
 
-        $holdStatus = $holdAlias . '.hold_status';
-        $expireAt = $holdAlias . '.expire_at';
+        $holdStatus = $holdAlias.'.hold_status';
+        $expireAt = $holdAlias.'.expire_at';
 
+        // Confirmed holds are a linkage artifact after reservation creation.
+        // Runtime conflict checks must follow the reservation state and table assignment
+        // instead of the original hold row, otherwise stale confirmed holds can keep
+        // blocking tables after move/reschedule/cancel flows.
         return $query->where(function (Builder $subQuery) use ($holdStatus, $expireAt, $now) {
-            $subQuery->where(function (Builder $activePending) use ($holdStatus, $expireAt, $now) {
-                $activePending
-                    ->whereIn($holdStatus, [
-                        TableHoldStatus::Holding->value,
-                        TableHoldStatus::Pending->value,
-                    ])
-                    ->where($expireAt, '>', $now);
-            })->orWhere($holdStatus, TableHoldStatus::Confirmed->value);
+            $subQuery
+                ->whereIn($holdStatus, [
+                    TableHoldStatus::Holding->value,
+                    TableHoldStatus::Pending->value,
+                ])
+                ->where($expireAt, '>', $now);
         });
     }
 }

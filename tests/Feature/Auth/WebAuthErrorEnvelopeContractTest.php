@@ -31,7 +31,8 @@ final class WebAuthErrorEnvelopeContractTest extends TestCase
         $response->assertStatus(401)
             ->assertHeader('X-Request-Id', 'req-staff-auth-envelope')
             ->assertJsonPath('error_code', 'unauthorized')
-            ->assertJsonPath('message', 'Unauthorized.')
+            ->assertJsonPath('category_code', 'authentication_required')
+            ->assertJsonPath('message', 'Authentication is required.')
             ->assertJsonPath('request_id', 'req-staff-auth-envelope');
     }
 
@@ -46,7 +47,8 @@ final class WebAuthErrorEnvelopeContractTest extends TestCase
         $response->assertStatus(401)
             ->assertHeader('X-Request-Id', 'req-customer-or-staff-envelope')
             ->assertJsonPath('error_code', 'unauthorized')
-            ->assertJsonPath('message', 'Unauthorized.')
+            ->assertJsonPath('category_code', 'authentication_required')
+            ->assertJsonPath('message', 'Authentication is required.')
             ->assertJsonPath('request_id', 'req-customer-or-staff-envelope');
     }
 }

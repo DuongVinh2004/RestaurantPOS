@@ -1,7 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Alert,
   Button,
   Card,
   Descriptions,
@@ -24,11 +23,16 @@ import {
   refundAndCancelReservation,
   refundReservation,
 } from '../../core/api/staff-api';
-import { formatApiError, isApiStatus } from '../../core/api/errors';
+import { isApiStatus } from '../../core/api/errors';
 import { isStaffCashierShiftActionRequired, requiresStaffCashierShift } from '../../core/auth/startup';
 import { can } from '../../core/permissions/capabilities';
 import { formatMoney } from '../../core/utils/format';
 import { buildJourneySearch } from '../../core/utils/journey';
+import {
+  buildOrderContextLabel,
+  buildReservationContextLabel,
+  buildTableContextLabel,
+} from '../../core/utils/journey-labels';
 import {
   getReservationGuestLabel,
   isReservationSnapshotOnlyGuest,
@@ -43,13 +47,22 @@ import { orderTone, paymentTone } from '../../core/utils/status';
 import { translateUiCode } from '../../core/utils/translation';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { SplitWorkspace } from '../../components/layout/SplitWorkspace';
-import { toast } from '../../components/feedback/toast';
-import { EmptyBlock, InlineError, InlineLoading } from '../../components/states/StateBlocks';
+import { MutationStatusNotice } from '../../components/feedback/MutationStatusNotice';
+import {
+  ApiStateBlock,
+  BranchPolicyState,
+  ConflictState,
+  EmptyBlock,
+  InlineLoading,
+  InlineState,
+  PermissionDeniedState,
+} from '../../components/states/StateBlocks';
 import { StatusChip } from '../../components/status/StatusChip';
 import { useAuthStore } from '../../app/store/auth-store';
 import { useFlowStore } from '../../app/store/flow-store';
 import { useJourneyContext } from '../../hooks/useJourneyContext';
 import { useConfirmAction } from '../../hooks/useConfirmAction';
+import { useStaffMutationFeedback } from '../../hooks/useStaffMutationFeedback';
 
 const paymentMethodOptions = ['Cash', 'Card', 'BankTransfer', 'Other'].map((value) => ({
   value,
@@ -121,14 +134,20 @@ function buildRefundPreviewSignature(
   };
 }
 
-export function CheckoutPage() {
+export function CheckoutPage({
+  focusMode = 'checkout',
+}: {
+  focusMode?: 'checkout' | 'refund';
+}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const message = toast;
   const confirmAction = useConfirmAction();
+  const mutationFeedback = useStaffMutationFeedback('checkout-workspace');
   const journey = useJourneyContext();
   const session = useAuthStore((state) => state.session);
   const branchId = useFlowStore((state) => state.branchId);
+  const setTableContext = useFlowStore((state) => state.setTableContext);
+  const setReservationContext = useFlowStore((state) => state.setReservationContext);
   const setOrderContext = useFlowStore((state) => state.setOrderContext);
   const [snapshotForm] = Form.useForm<SnapshotFormValues>();
   const [settlementForm] = Form.useForm<SettlementFormValues>();
@@ -143,6 +162,7 @@ export function CheckoutPage() {
   const cashierShiftManage = !!session && can(session, 'cashier.shift.manage');
   const refundManage = !!session && can(session, 'payment.refund');
   const effectiveBranchId = branchId ?? session?.startup.default_branch?.branch_id ?? undefined;
+  const checkoutSource = focusMode === 'refund' ? 'refund' : 'checkout';
 
   const orderQuery = useQuery({
     queryKey: ['checkout-order-detail', orderId],
@@ -188,6 +208,12 @@ export function CheckoutPage() {
   });
 
   const snapshotMutation = useMutation({
+    onMutate: () => {
+      mutationFeedback.setSubmitting(
+        'Chụp số liệu hóa đơn',
+        'Đang lưu snapshot tài chính theo phiên bản đơn hiện tại.',
+      );
+    },
     mutationFn: async (values: SnapshotFormValues) => {
       const rowVersion = orderQuery.data?.data.order.row_version;
 
@@ -203,14 +229,26 @@ export function CheckoutPage() {
     },
     onSuccess: async () => {
       await invalidateCheckoutReadModels();
-      message.success('Đã chụp số liệu hóa đơn.');
+      mutationFeedback.setSuccess(
+        'Chụp số liệu hóa đơn',
+        'Đã lưu snapshot hóa đơn mới nhất cho workspace hiện tại.',
+      );
     },
     onError: (error) => {
-      message.error(formatApiError(error, 'Không thể chụp số liệu hóa đơn.'));
+      mutationFeedback.setFailure(error, {
+        actionLabel: 'Chụp số liệu hóa đơn',
+        fallbackMessage: 'Không thể chụp số liệu hóa đơn.',
+      });
     },
   });
 
   const finalizeMutation = useMutation({
+    onMutate: () => {
+      mutationFeedback.setSubmitting(
+        'Hoàn tất thanh toán',
+        'Đang ghi nhận thanh toán và quyết toán đơn hiện tại.',
+      );
+    },
     mutationFn: async (values: SettlementFormValues) => {
       const rowVersion = orderQuery.data?.data.order.row_version;
 
@@ -230,10 +268,16 @@ export function CheckoutPage() {
     },
     onSuccess: async () => {
       await invalidateCheckoutReadModels({ includeFinancial: true });
-      message.success('Đã hoàn tất thanh toán.');
+      mutationFeedback.setSuccess(
+        'Hoàn tất thanh toán',
+        `Đã hoàn tất thanh toán cho đơn #${orderId ?? ''}.`,
+      );
     },
     onError: (error) => {
-      message.error(formatApiError(error, 'Không thể hoàn tất thanh toán.'));
+      mutationFeedback.setFailure(error, {
+        actionLabel: 'Hoàn tất thanh toán',
+        fallbackMessage: 'Không thể hoàn tất thanh toán.',
+      });
     },
   });
 
@@ -284,9 +328,43 @@ export function CheckoutPage() {
     setOrderContext({
       orderId,
       orderRowVersion: currentOrder.order.row_version,
-      source: journey.source ?? 'checkout',
+      label: buildOrderContextLabel(orderId),
+      source: journey.source ?? checkoutSource,
     });
-  }, [currentOrder?.order.row_version, journey.source, orderId, setOrderContext]);
+  }, [checkoutSource, currentOrder?.order.row_version, journey.source, orderId, setOrderContext]);
+
+  useEffect(() => {
+    if (primaryTableId) {
+      setTableContext({
+        tableId: primaryTableId,
+        label: buildTableContextLabel(tableLabel, primaryTableId),
+        source: journey.source ?? checkoutSource,
+      });
+    }
+
+    if (refundReservationId) {
+      setReservationContext({
+        reservationId: refundReservationId,
+        reservationRowVersion: reservationSummary?.row_version ?? journey.reservationRowVersion,
+        label: buildReservationContextLabel(
+          reservationSummary?.reservation_code ?? null,
+          refundReservationId,
+        ),
+        source: journey.source ?? checkoutSource,
+      });
+    }
+  }, [
+    checkoutSource,
+    journey.reservationRowVersion,
+    journey.source,
+    primaryTableId,
+    refundReservationId,
+    reservationSummary?.reservation_code,
+    reservationSummary?.row_version,
+    setReservationContext,
+    setTableContext,
+    tableLabel,
+  ]);
 
   const refundMode = Form.useWatch('mode', refundForm) ?? 'refund';
   const refundScope = Form.useWatch('refund_scope', refundForm) ?? 'all';
@@ -354,7 +432,37 @@ export function CheckoutPage() {
     await Promise.all(invalidations);
   }
 
+  async function refreshCheckoutWorkspace() {
+    const refreshes = [
+      queryClient.invalidateQueries({ queryKey: ['table-board'] }),
+      queryClient.invalidateQueries({ queryKey: ['reservations'] }),
+    ];
+
+    if (orderId) {
+      refreshes.push(orderQuery.refetch(), previewQuery.refetch());
+    }
+
+    if (cashierShiftRequired && orderId) {
+      refreshes.push(currentCashierShiftQuery.refetch());
+    }
+
+    if (refundReservationId) {
+      refreshes.push(
+        queryClient.invalidateQueries({ queryKey: ['reservation-detail', refundReservationId] }),
+        queryClient.invalidateQueries({ queryKey: ['active-order-by-reservation', refundReservationId] }),
+      );
+    }
+
+    await Promise.all(refreshes);
+  }
+
   const refundPreviewMutation = useMutation({
+    onMutate: () => {
+      mutationFeedback.setSubmitting(
+        'Làm mới preview hoàn tiền',
+        'Đang tải preview hoàn tiền mới nhất theo dữ liệu form hiện tại.',
+      );
+    },
     mutationFn: async (values: RefundFormValues) => {
       if (!refundReservationId) {
         throw new Error('Đơn hàng hiện tại chưa gắn với đặt bàn để lấy preview hoàn tiền.');
@@ -374,14 +482,28 @@ export function CheckoutPage() {
 
       setRefundPreview(envelope);
       setRefundPreviewSignature(buildRefundPreviewSignature(refundReservationId, values));
-      message.success('Đã làm mới preview hoàn tiền.');
+      mutationFeedback.setSuccess(
+        'Làm mới preview hoàn tiền',
+        'Preview hoàn tiền đã được cập nhật theo dữ liệu form hiện tại.',
+      );
     },
     onError: (error) => {
-      message.error(formatApiError(error, 'Không thể tải preview hoàn tiền.'));
+      mutationFeedback.setFailure(error, {
+        actionLabel: 'Làm mới preview hoàn tiền',
+        fallbackMessage: 'Không thể tải preview hoàn tiền.',
+      });
     },
   });
 
   const refundMutation = useMutation({
+    onMutate: (values) => {
+      mutationFeedback.setSubmitting(
+        values.mode === 'refund_cancel' ? 'Hoàn tiền và hủy đặt bàn' : 'Hoàn tiền',
+        values.mode === 'refund_cancel'
+          ? 'Đang ghi nhận refund và chuyển reservation sang trạng thái hủy.'
+          : 'Đang ghi nhận giao dịch hoàn tiền dựa trên preview hiện tại.',
+      );
+    },
     mutationFn: async (values: RefundFormValues) => {
       if (!refundPreview || !refundPreview.data.reservation) {
         throw new Error('Hãy làm mới preview hoàn tiền trước khi thực hiện.');
@@ -410,23 +532,35 @@ export function CheckoutPage() {
       return refundReservation(reservationId, payload);
     },
     onSuccess: async (_, values) => {
+      const reservationCode = refundPreview?.data.reservation.reservation_code
+        ?? currentOrder?.reservation?.reservation_code
+        ?? (refundReservationId ? `đặt bàn #${refundReservationId}` : 'đặt bàn hiện tại');
+
       setRefundPreview(null);
       setRefundPreviewSignature(null);
       await invalidateCheckoutReadModels({ includeFinancial: true });
-      message.success(values.mode === 'refund_cancel' ? 'Đã hoàn tiền và hủy đặt bàn.' : 'Đã hoàn tiền.');
+      mutationFeedback.setSuccess(
+        values.mode === 'refund_cancel' ? 'Hoàn tiền và hủy đặt bàn' : 'Hoàn tiền',
+        values.mode === 'refund_cancel'
+          ? `Đã hoàn tiền và hủy ${reservationCode}.`
+          : `Đã tạo hoàn tiền cho ${reservationCode}.`,
+      );
     },
     onError: (error) => {
-      message.error(formatApiError(error, 'Không thể thực hiện hoàn tiền.'));
+      mutationFeedback.setFailure(error, {
+        actionLabel: 'Hoàn tiền',
+        fallbackMessage: 'Không thể thực hiện hoàn tiền.',
+      });
     },
   });
 
   const cashierShiftPath = useMemo(() => {
     const search = buildJourneySearch({
-      source: 'checkout',
+      source: checkoutSource,
       tableId: primaryTableId ?? undefined,
       tableIds: resolvedTableIds,
-      reservationId: journey.reservationId,
-      reservationRowVersion: journey.reservationRowVersion,
+      reservationId: refundReservationId ?? undefined,
+      reservationRowVersion: reservationSummary?.row_version ?? journey.reservationRowVersion,
       orderId: orderId ?? undefined,
       orderRowVersion: currentOrder?.order.row_version ?? journey.orderRowVersion,
       stationId: journey.stationId,
@@ -434,6 +568,7 @@ export function CheckoutPage() {
 
     return search ? `/cashier-shift?${search}` : '/cashier-shift';
   }, [
+    checkoutSource,
     currentOrder?.order.row_version,
     journey.orderRowVersion,
     journey.reservationId,
@@ -444,11 +579,96 @@ export function CheckoutPage() {
     resolvedTableIds,
   ]);
 
+  const checkoutJourneySearch = useMemo(
+    () => buildJourneySearch({
+      source: 'checkout',
+      tableId: primaryTableId ?? undefined,
+      tableIds: resolvedTableIds,
+      reservationId: refundReservationId ?? undefined,
+      reservationRowVersion: reservationSummary?.row_version ?? journey.reservationRowVersion,
+      orderId: orderId ?? undefined,
+      orderRowVersion: currentOrder?.order.row_version ?? journey.orderRowVersion,
+      stationId: journey.stationId,
+    }),
+    [
+      currentOrder?.order.row_version,
+      journey.orderRowVersion,
+      journey.reservationRowVersion,
+      journey.stationId,
+      orderId,
+      primaryTableId,
+      refundReservationId,
+      reservationSummary?.row_version,
+      resolvedTableIds,
+    ],
+  );
+
+  const refundJourneySearch = useMemo(
+    () => buildJourneySearch({
+      source: 'refund',
+      tableId: primaryTableId ?? undefined,
+      tableIds: resolvedTableIds,
+      reservationId: refundReservationId ?? undefined,
+      reservationRowVersion: reservationSummary?.row_version ?? journey.reservationRowVersion,
+      orderId: orderId ?? undefined,
+      orderRowVersion: currentOrder?.order.row_version ?? journey.orderRowVersion,
+      stationId: journey.stationId,
+    }),
+    [
+      currentOrder?.order.row_version,
+      journey.orderRowVersion,
+      journey.reservationRowVersion,
+      journey.stationId,
+      orderId,
+      primaryTableId,
+      refundReservationId,
+      reservationSummary?.row_version,
+      resolvedTableIds,
+    ],
+  );
+
   async function handleFinalize(values: SettlementFormValues) {
     const confirmed = await confirmAction({
       title: `Hoàn tất thanh toán cho đơn #${orderId ?? ''}`,
-      content: 'Thao tác này ghi nhận thanh toán và hoàn tất quyết toán ở backend. Chỉ tiếp tục sau khi đã kiểm tra số tiền thu và mã giao dịch.',
+      content: (
+        <Space direction="vertical" size={10}>
+          <Typography.Text>
+            Thao tác này ghi nhận thanh toán và hoàn tất quyết toán ở backend. Chỉ tiếp tục sau khi đã kiểm tra lại tiền thu thực tế và mã giao dịch.
+          </Typography.Text>
+          <div className="staff-mini-list">
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Đơn hàng</Typography.Text>
+              <Typography.Text type="secondary">#{orderId ?? 'n/a'}</Typography.Text>
+            </div>
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Còn phải thu</Typography.Text>
+              <Typography.Text type="secondary">{formatMoney(outstanding, values.currency)}</Typography.Text>
+            </div>
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Thu thực tế</Typography.Text>
+              <Typography.Text type="secondary">{formatMoney(values.paid_amount, values.currency)}</Typography.Text>
+            </div>
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Phương thức</Typography.Text>
+              <Typography.Text type="secondary">
+                {translateUiCode(values.payment_method)}
+                {' • '}
+                {translateUiCode(values.payment_provider ?? values.payment_method)}
+              </Typography.Text>
+            </div>
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Mã giao dịch</Typography.Text>
+              <Typography.Text type="secondary">{values.transaction_code?.trim() || 'Không có'}</Typography.Text>
+            </div>
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Phiên bản đơn</Typography.Text>
+              <Typography.Text type="secondary">RV {currentOrder?.order.row_version ?? 'n/a'}</Typography.Text>
+            </div>
+          </div>
+        </Space>
+      ),
       okText: 'Hoàn tất thanh toán',
+      width: 560,
     });
 
     if (confirmed) {
@@ -461,15 +681,61 @@ export function CheckoutPage() {
   }
 
   async function handleRefundAction(values: RefundFormValues) {
+    const reservationCode = refundPreview?.data.reservation.reservation_code
+      ?? currentOrder?.reservation?.reservation_code
+      ?? (refundReservationId ? `#${refundReservationId}` : 'đặt bàn hiện tại');
+
     const confirmed = await confirmAction({
       title: values.mode === 'refund_cancel'
         ? `Hoàn tiền và hủy đặt bàn #${refundReservationId ?? ''}`
         : `Hoàn tiền cho đặt bàn #${refundReservationId ?? ''}`,
-      content: values.mode === 'refund_cancel'
-        ? 'Thao tác này vừa tạo hoàn tiền vừa chuyển reservation sang trạng thái Cancelled. Chỉ tiếp tục khi preview hiện tại còn khớp với form.'
-        : 'Thao tác này tạo giao dịch hoàn tiền dựa trên preview hiện tại. Chỉ tiếp tục khi đã kiểm tra đúng số tiền, lý do và mã giao dịch.',
+      content: (
+        <Space direction="vertical" size={10}>
+          <Typography.Text>
+            {values.mode === 'refund_cancel'
+              ? 'Thao tác này vừa tạo hoàn tiền vừa chuyển reservation sang trạng thái Cancelled. Chỉ tiếp tục khi preview hiện tại còn khớp với form.'
+              : 'Thao tác này tạo giao dịch hoàn tiền dựa trên preview hiện tại. Chỉ tiếp tục khi đã kiểm tra đúng số tiền, lý do và mã giao dịch.'}
+          </Typography.Text>
+          <div className="staff-mini-list">
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Reservation</Typography.Text>
+              <Typography.Text type="secondary">{reservationCode}</Typography.Text>
+            </div>
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Phạm vi</Typography.Text>
+              <Typography.Text type="secondary">{translateUiCode(values.refund_scope)}</Typography.Text>
+            </div>
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Số tiền preview</Typography.Text>
+              <Typography.Text type="secondary">
+                {formatMoney(
+                  Number(refundPreview?.data.refund.refund_amount ?? values.refund_amount ?? 0),
+                  refundPreview?.data.refund.currency ?? values.currency,
+                )}
+              </Typography.Text>
+            </div>
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Phương thức</Typography.Text>
+              <Typography.Text type="secondary">
+                {translateUiCode(values.payment_method)}
+                {' • '}
+                {translateUiCode(values.payment_provider ?? values.payment_method)}
+              </Typography.Text>
+            </div>
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Mã giao dịch</Typography.Text>
+              <Typography.Text type="secondary">{values.transaction_code?.trim() || 'Không có'}</Typography.Text>
+            </div>
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Reservation RV</Typography.Text>
+              <Typography.Text type="secondary">RV {refundPreview?.data.reservation.row_version ?? 'n/a'}</Typography.Text>
+            </div>
+          </div>
+        </Space>
+      ),
       okText: values.mode === 'refund_cancel' ? 'Hoàn tiền và hủy đặt bàn' : 'Hoàn tiền',
       danger: values.mode === 'refund_cancel',
+      width: 560,
     });
 
     if (confirmed) {
@@ -480,14 +746,16 @@ export function CheckoutPage() {
   const main = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <PageHeader
-        eyebrow="Thanh toán / quyết toán"
-        title="Màn hình thanh toán"
-        description="Xem trước bill, chụp số liệu và hoàn tất thanh toán theo phiên bản đơn hàng hiện tại."
+        eyebrow={focusMode === 'refund' ? 'Hoàn tiền / hậu kiểm' : 'Thanh toán / quyết toán'}
+        title={focusMode === 'refund' ? 'Bàn hoàn tiền' : 'Màn hình thanh toán'}
+        description={focusMode === 'refund'
+          ? 'Giữ nguyên ngữ cảnh bàn, đơn và đặt bàn để làm mới preview hoàn tiền hoặc hủy đặt bàn mà không phải dò lại lịch sử giao dịch.'
+          : 'Xem trước bill, chụp số liệu và hoàn tất thanh toán theo phiên bản đơn hàng hiện tại.'}
         meta={currentOrder ? `Phiên bản đơn ${currentOrder.order.row_version}` : undefined}
         context={(
           <>
             <StatusChip label={orderId ? `Đơn #${orderId}` : 'Chưa có đơn'} tone={orderId ? 'processing' : 'warning'} />
-            <StatusChip label={journey.reservationId ? `Đặt bàn #${journey.reservationId}` : 'Khách vãng lai'} tone="default" />
+            <StatusChip label={refundReservationId ? `Đặt bàn #${refundReservationId}` : 'Khách vãng lai'} tone="default" />
             {resolvedTableIds.length > 1 ? (
               <StatusChip label={`${resolvedTableIds.length} bàn`} tone="processing" />
             ) : null}
@@ -506,6 +774,24 @@ export function CheckoutPage() {
         }
       />
 
+      {focusMode === 'refund' ? (
+        refundManage ? (
+          <InlineState
+            tone="info"
+            eyebrow="Hoàn tiền / hậu kiểm"
+            title="Workspace đang neo vào bước hoàn tiền"
+            description="Ưu tiên làm mới preview hoàn tiền trước, sau đó mới thực hiện refund hoặc refund-cancel để tránh thao tác sai phiên bản reservation."
+            className="staff-inline-note"
+          />
+        ) : (
+          <PermissionDeniedState
+            title="Phiên hiện tại chưa có quyền hoàn tiền"
+            description="Bạn vẫn có thể rà soát bill và ngữ cảnh giao dịch ở đây, nhưng thao tác hoàn tiền chỉ mở khi phiên có capability payment.refund."
+            className="staff-inline-note"
+          />
+        )
+      ) : null}
+
       {!orderId ? (
         <Card className="staff-workspace-detail-card">
           <EmptyBlock
@@ -516,7 +802,15 @@ export function CheckoutPage() {
       ) : null}
 
       {orderQuery.isLoading ? <InlineLoading tip="Đang tải đơn hàng cho thanh toán..." /> : null}
-      {orderQuery.error ? <InlineError message={formatApiError(orderQuery.error, 'Không thể tải đơn hàng cho thanh toán.')} /> : null}
+      {orderQuery.error ? (
+        <ApiStateBlock
+          error={orderQuery.error}
+          fallback="Không thể tải đơn hàng cho thanh toán."
+          onRetry={() => {
+            void orderQuery.refetch();
+          }}
+        />
+      ) : null}
 
       {currentOrder ? (
         <Card title={`Đơn hàng #${currentOrder.order.order_id}`} className="staff-workspace-detail-card">
@@ -552,11 +846,9 @@ export function CheckoutPage() {
       ) : null}
 
       {cashierShiftRequired ? (
-        <Alert
-          type="warning"
-          showIcon
+        <BranchPolicyState
           title="Cần có ca thu ngân"
-          description={(
+          body={(
             <Space orientation="vertical" size={12}>
               <Typography.Text>
                 {cashierShiftCheckPending
@@ -572,6 +864,7 @@ export function CheckoutPage() {
               ) : null}
             </Space>
           )}
+          className="staff-inline-note"
         />
       ) : null}
     </Space>
@@ -579,6 +872,13 @@ export function CheckoutPage() {
 
   const side = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+      <MutationStatusNotice
+        feedback={mutationFeedback.feedback}
+        onDismiss={mutationFeedback.resetFeedback}
+        onRetry={() => {
+          void refreshCheckoutWorkspace();
+        }}
+      />
       <Card title="Số liệu hóa đơn" className="staff-workspace-form-card">
         <Form<SnapshotFormValues> form={snapshotForm} layout="vertical" onFinish={(values) => snapshotMutation.mutate(values)}>
           <Form.Item name="discount_amount" label="Số tiền giảm giá">
@@ -598,7 +898,13 @@ export function CheckoutPage() {
           previewQuery.isLoading ? (
             <InlineLoading tip="Đang tải bản xem trước quyết toán..." />
           ) : previewQuery.error ? (
-            <InlineError message={formatApiError(previewQuery.error, 'Không thể tải bản xem trước quyết toán.')} />
+            <ApiStateBlock
+              error={previewQuery.error}
+              fallback="Không thể tải bản xem trước quyết toán."
+              onRetry={() => {
+                void previewQuery.refetch();
+              }}
+            />
           ) : (
             <EmptyBlock
               title="Chưa có bản xem trước"
@@ -627,17 +933,24 @@ export function CheckoutPage() {
       </Card>
 
       <Card title="Hoàn tất thanh toán" className="staff-workspace-form-card">
-        <Alert
-          type={cashierShiftBlocked || outstanding > 0 ? 'warning' : 'info'}
-          showIcon
-          style={{ marginBottom: 16 }}
-        title="Review trước khi chốt tiền"
-          description={cashierShiftBlocked
-            ? cashierShiftCheckPending
+        {cashierShiftBlocked ? (
+          <BranchPolicyState
+            title="Review trước khi chốt tiền"
+            description={cashierShiftCheckPending
               ? 'Đang kiểm tra ca thu ngân của chi nhánh hiện tại. Hãy chờ trạng thái này hoàn tất trước khi chốt thanh toán.'
-              : 'Chi nhánh hiện tại còn bị chặn bởi ca thu ngân. Hãy mở ca đúng chi nhánh trước rồi mới chốt thanh toán.'
-            : `Hãy xác nhận lại số tiền thu, loại tiền, mã giao dịch và phiên bản đơn hàng hiện tại trước khi bấm hoàn tất. Còn thiếu ${formatMoney(outstanding, previewCurrency)}.`}
-        />
+              : 'Chi nhánh hiện tại còn bị chặn bởi ca thu ngân. Hãy mở ca đúng chi nhánh trước rồi mới chốt thanh toán.'}
+            primaryAction={cashierShiftManage ? <Button onClick={() => navigate(cashierShiftPath)}>Mở trung tâm ca thu ngân</Button> : undefined}
+            className="staff-inline-note"
+          />
+        ) : (
+          <InlineState
+            tone={outstanding > 0 ? 'warning' : 'info'}
+            eyebrow="Review trước khi chốt tiền"
+            title="Xác nhận lại bill trước khi hoàn tất thanh toán"
+            description={`Hãy xác nhận lại số tiền thu, loại tiền, mã giao dịch và phiên bản đơn hàng hiện tại trước khi bấm hoàn tất. Còn thiếu ${formatMoney(outstanding, previewCurrency)}.`}
+            className="staff-inline-note"
+          />
+        )}
         <Form<SettlementFormValues>
           form={settlementForm}
           layout="vertical"
@@ -674,11 +987,11 @@ export function CheckoutPage() {
           <Form.Item name="notes" label="Ghi chú thanh toán">
             <Input.TextArea aria-label="Ghi chú thanh toán" autoComplete="off" rows={3} placeholder="Ghi chú thanh toán nếu cần…" />
           </Form.Item>
-          <Alert
-            type="info"
-            showIcon
+          <InlineState
+            tone="info"
+            eyebrow="Còn phải thu"
             title={`Số tiền còn thiếu hiện tại: ${formatMoney(outstanding, previewCurrency)}`}
-            style={{ marginBottom: 16 }}
+            className="staff-inline-note"
           />
           <Button type="primary" htmlType="submit" disabled={finalizeDisabled} loading={finalizeMutation.isPending} block>
             Hoàn tất thanh toán
@@ -759,22 +1072,42 @@ export function CheckoutPage() {
               >
                 Làm mới preview hoàn tiền
               </Button>
-              <Alert
-                type={refundMutationGuardReason ? 'warning' : 'info'}
-                showIcon
-                style={{ marginTop: 16 }}
-                title={refundMutationGuardReason ?? `Preview hợp lệ cho thao tác ${refundMode === 'refund_cancel' ? 'hoàn tiền + hủy đặt bàn' : 'hoàn tiền'}.`}
-                description={refundPreview ? (
-                  <Space orientation="vertical" size={4}>
-                    <Typography.Text>
-                      Reservation RV: {refundPreview.data.reservation.row_version}
-                    </Typography.Text>
-                    <Typography.Text>
-                      Số tiền sẽ hoàn: {formatMoney(Number(refundPreview.data.refund.refund_amount ?? 0), refundPreview.data.refund.currency ?? refundCurrency)}
-                    </Typography.Text>
-                  </Space>
-                ) : undefined}
-              />
+              {refundMutationGuardReason ? (
+                cashierShiftBlocked ? (
+                  <BranchPolicyState
+                    title="Hoàn tiền đang bị chặn bởi điều kiện vận hành"
+                    description={refundMutationGuardReason}
+                    primaryAction={cashierShiftManage ? <Button onClick={() => navigate(cashierShiftPath)}>Mở trung tâm ca thu ngân</Button> : undefined}
+                    className="staff-inline-note"
+                  />
+                ) : (
+                  <ConflictState
+                    title="Preview hoàn tiền chưa sẵn sàng cho mutation"
+                    description={refundMutationGuardReason}
+                    primaryAction={<Button onClick={() => {
+                      void refundForm.validateFields().then((values) => handleRefundPreview(values));
+                    }}>Làm mới preview</Button>}
+                    className="staff-inline-note"
+                  />
+                )
+              ) : (
+                <InlineState
+                  tone="success"
+                  eyebrow="Sẵn sàng hoàn tiền"
+                  title={`Preview hợp lệ cho thao tác ${refundMode === 'refund_cancel' ? 'hoàn tiền + hủy đặt bàn' : 'hoàn tiền'}.`}
+                  body={refundPreview ? (
+                    <Space orientation="vertical" size={4}>
+                      <Typography.Text>
+                        Reservation RV: {refundPreview.data.reservation.row_version}
+                      </Typography.Text>
+                      <Typography.Text>
+                        Số tiền sẽ hoàn: {formatMoney(Number(refundPreview.data.refund.refund_amount ?? 0), refundPreview.data.refund.currency ?? refundCurrency)}
+                      </Typography.Text>
+                    </Space>
+                  ) : undefined}
+                  className="staff-inline-note"
+                />
+              )}
               {refundPreview ? (
                 <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
                   <Descriptions.Item label="Phạm vi">
@@ -815,14 +1148,28 @@ export function CheckoutPage() {
 
       <Card title="Bước chuyển tiếp tiếp theo" className="staff-workspace-next-card">
         <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+          {refundManage && refundReservationId ? (
+            <Button
+              type={focusMode === 'refund' ? 'primary' : 'default'}
+              onClick={() => navigate(`/refunds?${refundJourneySearch}`)}
+              disabled={focusMode === 'refund' || !refundReservationId}
+            >
+              {focusMode === 'refund' ? 'Đang ở bàn hoàn tiền' : 'Mở bàn hoàn tiền'}
+            </Button>
+          ) : null}
+          {focusMode === 'refund' ? (
+            <Button onClick={() => navigate(`/checkout?${checkoutJourneySearch}`)}>
+              Quay lại thanh toán
+            </Button>
+          ) : null}
           <Button
             onClick={() =>
               navigate(`/kitchen?${buildJourneySearch({
-                source: 'checkout',
+                source: checkoutSource,
                 tableId: primaryTableId ?? undefined,
                 tableIds: resolvedTableIds,
-                reservationId: journey.reservationId,
-                reservationRowVersion: journey.reservationRowVersion,
+                reservationId: refundReservationId ?? undefined,
+                reservationRowVersion: reservationSummary?.row_version ?? journey.reservationRowVersion,
                 orderId: orderId ?? undefined,
                 orderRowVersion: currentOrder?.order.row_version ?? undefined,
                 stationId: journey.stationId,
@@ -835,11 +1182,11 @@ export function CheckoutPage() {
           <Button
             onClick={() =>
               navigate(`/finance-review?${buildJourneySearch({
-                source: 'checkout',
+                source: checkoutSource,
                 tableId: primaryTableId ?? undefined,
                 tableIds: resolvedTableIds,
-                reservationId: journey.reservationId,
-                reservationRowVersion: journey.reservationRowVersion,
+                reservationId: refundReservationId ?? undefined,
+                reservationRowVersion: reservationSummary?.row_version ?? journey.reservationRowVersion,
                 orderId: orderId ?? undefined,
                 orderRowVersion: currentOrder?.order.row_version ?? undefined,
                 stationId: journey.stationId,
@@ -855,8 +1202,8 @@ export function CheckoutPage() {
                 source: journey.source ?? 'checkout',
                 tableId: primaryTableId ?? undefined,
                 tableIds: resolvedTableIds,
-                reservationId: journey.reservationId,
-                reservationRowVersion: journey.reservationRowVersion,
+                reservationId: refundReservationId ?? undefined,
+                reservationRowVersion: reservationSummary?.row_version ?? journey.reservationRowVersion,
                 orderId: orderId ?? undefined,
                 orderRowVersion: currentOrder?.order.row_version ?? journey.orderRowVersion,
               })}`)
@@ -871,4 +1218,3 @@ export function CheckoutPage() {
 
   return <SplitWorkspace main={main} side={side} />;
 }
-

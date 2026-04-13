@@ -8,8 +8,12 @@ use App\Http\Middleware\RequestCorrelationIdMiddleware;
 use App\Http\Middleware\RequireRedisCacheMiddleware;
 use App\Http\Middleware\RequireStaffCapability;
 use App\Http\Middleware\TableHoldRateLimitMiddleware;
+use App\Support\ApiErrorCategory;
 use App\Support\ApiErrorResponse;
+use App\Support\ApiValidationErrorClassifier;
 use App\Support\DatabaseWriteConflictMapper;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
@@ -49,69 +53,118 @@ return Application::configure(basePath: dirname(__DIR__))
                 || $request->is('api/*');
         };
 
-        $makeError = static fn (Request $request, int $status, string $code, string $message, array $details = [], array $extra = []) => ApiErrorResponse::json(
-            $request,
-            $status,
-            $code,
-            $message,
-            $details,
-            extra: $extra,
-        );
-
-        $exceptions->render(function (ValidationException $e, Request $request) use ($isApi, $makeError) {
+        $exceptions->render(function (ValidationException $e, Request $request) use ($isApi) {
             if (! $isApi($request)) {
                 return null;
             }
 
-            return $makeError(
+            $classified = ApiValidationErrorClassifier::classify($e);
+            $errors = $e->errors();
+
+            if (($classified['category_code'] ?? null) === ApiErrorCategory::STALE_WRITE) {
+                return ApiErrorResponse::staleWrite(
+                    $request,
+                    $errors,
+                    (string) ($classified['message'] ?? 'The resource was modified by another writer. Reload data and try again.'),
+                    (array) ($classified['extra'] ?? []),
+                );
+            }
+
+            if (($classified['category_code'] ?? null) === ApiErrorCategory::IDEMPOTENCY_CONFLICT) {
+                return ApiErrorResponse::idempotencyConflict(
+                    $request,
+                    (string) ($classified['message'] ?? 'This idempotency key conflicts with an earlier request.'),
+                    ['errors' => $errors] + (array) ($classified['extra'] ?? []),
+                );
+            }
+
+            if (($classified['category_code'] ?? null) === ApiErrorCategory::DOMAIN_INVARIANT_VIOLATION) {
+                return ApiErrorResponse::domainInvariantViolation(
+                    $request,
+                    $errors,
+                    (string) ($classified['message'] ?? 'The requested action violates a business rule.'),
+                    (array) ($classified['extra'] ?? []),
+                );
+            }
+
+            return ApiErrorResponse::validation(
                 $request,
-                422,
-                'validation_error',
-                'Validation error.',
-                ['errors' => $e->errors()],
+                $errors,
+                (string) ($classified['message'] ?? 'Validation error.'),
+                (array) ($classified['extra'] ?? []),
             );
         });
 
-        $exceptions->render(function (ModelNotFoundException $e, Request $request) use ($isApi, $makeError) {
+        $exceptions->render(function (AuthenticationException $e, Request $request) use ($isApi) {
             if (! $isApi($request)) {
                 return null;
             }
 
-            return $makeError($request, 404, 'not_found', 'Resource not found.');
+            return ApiErrorResponse::authenticationRequired($request, 'Authentication is required.');
         });
 
-        $exceptions->render(function (HttpExceptionInterface $e, Request $request) use ($isApi, $makeError) {
+        $exceptions->render(function (AuthorizationException $e, Request $request) use ($isApi) {
+            if (! $isApi($request)) {
+                return null;
+            }
+
+            return ApiErrorResponse::policyDenied(
+                $request,
+                $e->getMessage() !== '' ? $e->getMessage() : 'Access to this API operation is denied by policy.',
+            );
+        });
+
+        $exceptions->render(function (ModelNotFoundException $e, Request $request) use ($isApi) {
+            if (! $isApi($request)) {
+                return null;
+            }
+
+            return ApiErrorResponse::notFound($request, 'Resource not found.');
+        });
+
+        $exceptions->render(function (HttpExceptionInterface $e, Request $request) use ($isApi) {
             if (! $isApi($request)) {
                 return null;
             }
 
             $status = (int) $e->getStatusCode();
-            $defaultMessage = match ($status) {
-                401 => 'Unauthorized.',
-                403 => 'Forbidden.',
-                404 => 'Endpoint not found.',
-                409 => 'The record changed or conflicts with the current state.',
-                429 => 'Too many requests.',
-                default => 'HTTP error.',
-            };
-            $code = match ($status) {
-                401 => 'unauthorized',
-                403 => 'forbidden',
-                404 => 'not_found',
-                409 => 'conflict',
-                429 => 'rate_limited',
-                default => 'http_error',
-            };
+            $message = $e->getMessage();
 
-            return $makeError(
-                $request,
-                $status,
-                $code,
-                $e->getMessage() !== '' ? $e->getMessage() : $defaultMessage,
-            );
+            return match ($status) {
+                401 => ApiErrorResponse::authenticationRequired(
+                    $request,
+                    $message !== '' ? $message : 'Authentication is required.',
+                ),
+                403 => ApiErrorResponse::policyDenied(
+                    $request,
+                    $message !== '' ? $message : 'Access to this API operation is denied by policy.',
+                ),
+                404 => ApiErrorResponse::notFound(
+                    $request,
+                    $message !== '' ? $message : 'Endpoint not found.',
+                ),
+                409 => ApiErrorResponse::resourceConflict(
+                    $request,
+                    $message !== '' ? $message : 'The record changed or conflicts with the current state.',
+                ),
+                429 => ApiErrorResponse::json(
+                    $request,
+                    429,
+                    'rate_limited',
+                    $message !== '' ? $message : 'Too many requests.',
+                    extra: ['category_code' => ApiErrorCategory::RATE_LIMITED],
+                ),
+                default => ApiErrorResponse::json(
+                    $request,
+                    $status,
+                    'http_error',
+                    $message !== '' ? $message : 'HTTP error.',
+                    extra: ['category_code' => ApiErrorCategory::HTTP_ERROR],
+                ),
+            };
         });
 
-        $exceptions->render(function (QueryException $e, Request $request) use ($isApi, $makeError) {
+        $exceptions->render(function (QueryException $e, Request $request) use ($isApi) {
             if (! $isApi($request)) {
                 return null;
             }
@@ -120,41 +173,56 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($mapped !== null) {
                 $errors = $mapped->errors();
 
-                return $makeError(
-                    $request,
-                    409,
-                    array_key_exists('row_version', $errors) ? 'stale_row_version' : 'conflict',
-                    'The record changed or conflicts with the current state.',
-                    ['errors' => $errors],
-                    array_key_exists('row_version', $errors)
-                        ? [
-                            'conflict_type' => 'stale_write',
-                            'state_reason' => 'row_version_mismatch',
+                if (array_key_exists('row_version', $errors)) {
+                    return ApiErrorResponse::staleWrite($request, $errors);
+                }
+
+                if (array_key_exists('idempotency_key', $errors)) {
+                    return ApiErrorResponse::idempotencyConflict(
+                        $request,
+                        'This idempotency key conflicts with an earlier request.',
+                        [
+                            'errors' => $errors,
+                            'conflict_type' => 'idempotency_replay',
+                            'replay_state' => 'already_used',
+                            'state_reason' => 'idempotency_key_already_used',
                             'next_actions' => [
-                                'reload_resource',
-                                'retry_with_latest_row_version',
-                            ],
-                        ]
-                        : [
-                            'conflict_type' => 'state_conflict',
-                            'state_reason' => 'constraint_violation',
-                            'next_actions' => [
-                                'reload_resource',
-                                'retry_with_current_state',
+                                'retry_with_new_idempotency_key',
                             ],
                         ],
+                    );
+                }
+
+                return ApiErrorResponse::resourceConflict(
+                    $request,
+                    'The record changed or conflicts with the current state.',
+                    ['errors' => $errors],
+                    [
+                        'conflict_type' => 'state_conflict',
+                        'state_reason' => 'constraint_violation',
+                        'next_actions' => [
+                            'reload_resource',
+                            'retry_with_current_state',
+                        ],
+                    ],
                 );
             }
 
-            return $makeError($request, 500, 'database_error', 'Database query error.');
+            return ApiErrorResponse::json(
+                $request,
+                500,
+                'database_error',
+                'Database query error.',
+                extra: ['category_code' => ApiErrorCategory::DATABASE_ERROR],
+            );
         });
 
-        $exceptions->render(function (Throwable $e, Request $request) use ($isApi, $makeError) {
+        $exceptions->render(function (Throwable $e, Request $request) use ($isApi) {
             if (! $isApi($request)) {
                 return null;
             }
 
-            return $makeError($request, 500, 'internal_error', 'Internal server error.');
+            return ApiErrorResponse::internalError($request);
         });
     })
     ->create();
