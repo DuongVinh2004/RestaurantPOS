@@ -39,6 +39,7 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
             'current_tier_id' => $tierId,
         ]);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 500, $staffId);
 
         $reservationId = $this->createReservation([
@@ -173,6 +174,7 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
             'current_tier_id' => $tierId,
         ]);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 500, $staffId);
 
         $reservationId = $this->createReservation([
@@ -299,6 +301,7 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
 
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
@@ -347,6 +350,7 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
 
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
@@ -454,6 +458,7 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
             'current_tier_id' => $tierId,
         ]);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 300, $staffId);
 
         $reservationId = $this->createReservation([
@@ -590,6 +595,7 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
             'current_tier_id' => $tierId,
         ]);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 300, $staffId);
 
         $reservationId = $this->createReservation([

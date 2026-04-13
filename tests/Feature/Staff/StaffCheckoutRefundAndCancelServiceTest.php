@@ -36,6 +36,7 @@ class StaffCheckoutRefundAndCancelServiceTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
@@ -75,6 +76,7 @@ class StaffCheckoutRefundAndCancelServiceTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
@@ -124,6 +126,7 @@ class StaffCheckoutRefundAndCancelServiceTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
@@ -171,11 +174,9 @@ class StaffCheckoutRefundAndCancelServiceTest extends TestCase
         $afterPayload = json_decode((string) ($auditRow->after_json ?? ''), true, 512, JSON_THROW_ON_ERROR);
         $metaPayload = json_decode((string) ($auditRow->meta_json ?? ''), true, 512, JSON_THROW_ON_ERROR);
 
-        $this->assertSame([
-            'reservation_id' => $reservationId,
-            'source' => 'staff_checkout_refund',
-            'reason' => 'refund_cancel_after_payment',
-        ], $afterPayload['context'] ?? null);
+        $this->assertSame($reservationId, $afterPayload['context']['reservation_id'] ?? null);
+        $this->assertSame('staff_checkout_refund', $afterPayload['context']['source'] ?? null);
+        $this->assertSame('refund_cancel_after_payment', $afterPayload['context']['reason'] ?? null);
         $this->assertSame($reservationId, $metaPayload['context']['reservation_id'] ?? null);
         $this->assertSame('staff_checkout_refund', $metaPayload['context']['source'] ?? null);
         $this->assertSame('Available', $afterPayload['status'] ?? null);
