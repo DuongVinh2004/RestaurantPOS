@@ -491,6 +491,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $tableId = $this->createRestaurantTable(['status' => 'Reserved']);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
@@ -808,6 +809,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',

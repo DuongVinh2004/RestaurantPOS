@@ -41,6 +41,7 @@ class StaffCheckoutIdempotencyReplayServiceTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
@@ -109,6 +110,7 @@ class StaffCheckoutIdempotencyReplayServiceTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
@@ -186,6 +188,7 @@ class StaffCheckoutIdempotencyReplayServiceTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
@@ -266,6 +269,7 @@ class StaffCheckoutIdempotencyReplayServiceTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Completed',
@@ -332,6 +336,7 @@ class StaffCheckoutIdempotencyReplayServiceTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Completed',

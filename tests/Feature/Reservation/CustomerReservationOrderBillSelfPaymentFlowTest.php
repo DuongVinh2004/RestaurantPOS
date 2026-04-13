@@ -644,6 +644,10 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
         $branchId ??= 1;
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift([
+            'branch_id' => $branchId,
+            'cashier_user_id' => $staffId,
+        ]);
         $tableId = $this->createRestaurantTable([
             'status' => 'Occupied',
             'branch_id' => $branchId,

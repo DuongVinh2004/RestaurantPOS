@@ -39,6 +39,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
             'current_tier_id' => $tierId,
         ]);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 500, $staffId);
 
         $reservationId = $this->createReservation([
@@ -130,6 +131,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 0, $staffId);
 
         $reservationId = $this->createReservation([
@@ -222,6 +224,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 0, $staffId);
 
         $reservationId = $this->createReservation([
@@ -339,6 +342,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
             'current_tier_id' => $tierId,
         ]);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 500, $staffId);
 
         $reservationId = $this->createReservation([
@@ -441,6 +445,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
             'current_tier_id' => $tierId,
         ]);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 500, $staffId);
 
         $reservationId = $this->createReservation([
@@ -542,6 +547,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
 
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
@@ -604,6 +610,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
@@ -672,6 +679,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 0, $staffId);
 
         $reservationId = $this->createReservation([
