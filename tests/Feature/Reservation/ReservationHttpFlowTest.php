@@ -488,6 +488,7 @@ class ReservationHttpFlowTest extends TestCase
     public function test_authenticated_customer_create_rejects_requested_branch_that_does_not_match_selected_tables(): void
     {
         $customerUserId = $this->createUser(['role_name' => 'Customer']);
+        $customer = User::query()->findOrFail($customerUserId);
         $annexBranchId = $this->createBranch([
             'branch_code' => 'RSVANNEX',
             'branch_name' => 'Reservation Annex',

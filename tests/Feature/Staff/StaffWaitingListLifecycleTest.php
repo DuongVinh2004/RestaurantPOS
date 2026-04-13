@@ -279,7 +279,9 @@ class StaffWaitingListLifecycleTest extends TestCase
                 'row_version' => 1,
             ]);
 
-        $response->assertStatus(422)->assertJsonValidationErrors(['row_version']);
+        $response->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
+            ->assertJsonPath('category_code', 'stale_write');
         self::assertSame('Waiting', DB::table('waiting_list')->where('waiting_id', $waitingId)->value('status'));
     }
 
@@ -309,7 +311,9 @@ class StaffWaitingListLifecycleTest extends TestCase
                 'row_version' => 1,
             ]);
 
-        $response->assertStatus(422)->assertJsonValidationErrors(['row_version']);
+        $response->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
+            ->assertJsonPath('category_code', 'stale_write');
         self::assertSame('Notified', DB::table('waiting_list')->where('waiting_id', $waitingId)->value('status'));
     }
 
