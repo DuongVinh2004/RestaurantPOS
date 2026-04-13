@@ -107,6 +107,13 @@ export function useStaffShellContext() {
       };
     }
 
+    if (location.pathname === '/refunds') {
+      return {
+        label: 'Hoàn tiền',
+        description: 'Tập trung xử lý preview hoàn tiền, hủy đặt bàn sau thanh toán và quay lại các bước tài chính liên quan mà không mất ngữ cảnh.',
+      };
+    }
+
     return activeNavigationItem ?? {
       label: 'Điều hành staff',
       description: 'Mở đúng workspace theo chi nhánh, flow đang dở và readiness hiện tại.',

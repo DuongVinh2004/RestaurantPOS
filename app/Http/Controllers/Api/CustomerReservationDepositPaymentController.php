@@ -124,10 +124,8 @@ class CustomerReservationDepositPaymentController extends Controller
         $actor = RequestActorContext::fromRequest($request);
 
         if ($actor->isStaff()) {
-            throw new HttpResponseException(ApiErrorResponse::json(
+            throw new HttpResponseException(ApiErrorResponse::policyDenied(
                 $request,
-                403,
-                'forbidden',
                 'Staff must use staff reservation deposit endpoints for operational actions.',
             ));
         }
@@ -148,10 +146,8 @@ class CustomerReservationDepositPaymentController extends Controller
             ];
         }
 
-        throw new HttpResponseException(ApiErrorResponse::json(
+        throw new HttpResponseException(ApiErrorResponse::authenticationRequired(
             $request,
-            401,
-            'unauthorized',
             'Customer authentication or a valid session_id is required for deposit payment.',
         ));
     }

@@ -159,6 +159,50 @@ class TableAvailabilityFeatureTest extends TestCase
         self::assertNotContains($occupiedTableId, $tableIds);
     }
 
+    public function test_available_endpoint_uses_table_branch_even_when_reservation_and_hold_branch_copies_drift(): void
+    {
+        $annexBranchId = $this->createBranch([
+            'branch_code' => 'AVDRIFT',
+            'branch_name' => 'Availability Drift',
+        ]);
+        $start = $this->nowUtc()->copy()->addHours(5)->startOfMinute();
+        $end = $start->copy()->addHours(2);
+
+        $freeTableId = $this->createRestaurantTableWithSeats(4, ['branch_id' => 1, 'zone' => 'DRIFT', 'table_code' => 'D-01']);
+        $reservedDriftTableId = $this->createRestaurantTableWithSeats(4, ['branch_id' => 1, 'zone' => 'DRIFT', 'table_code' => 'D-02']);
+        $heldDriftTableId = $this->createRestaurantTableWithSeats(4, ['branch_id' => 1, 'zone' => 'DRIFT', 'table_code' => 'D-03']);
+
+        $reservationId = $this->createReservation([
+            'branch_id' => $annexBranchId,
+            'start_time' => $start,
+            'end_time' => $end,
+            'status' => 'Confirmed',
+        ]);
+        $this->attachReservationTable($reservationId, $reservedDriftTableId);
+
+        $this->createTableHold([
+            'branch_id' => $annexBranchId,
+            'session_id' => 'availability-drift-hold',
+            'start_time' => $start,
+            'end_time' => $end,
+            'expire_at' => $this->nowUtc()->copy()->addMinutes(30),
+            'hold_status' => 'Holding',
+        ], [$heldDriftTableId]);
+
+        $response = $this->getJson(sprintf(
+            '/api/v1/tables/available?branch_id=1&from=%s&to=%s&zone=DRIFT&guest_count=2',
+            urlencode($start->toIso8601String()),
+            urlencode($end->toIso8601String()),
+        ));
+
+        $response->assertOk();
+
+        $tableIds = array_map('intval', array_column($response->json('data'), 'table_id'));
+        sort($tableIds);
+
+        self::assertSame([$freeTableId], $tableIds);
+    }
+
     public function test_available_endpoint_reports_branch_policy_rejection_for_closure_window(): void
     {
         $branchId = $this->createBranch([

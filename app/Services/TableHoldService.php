@@ -326,7 +326,9 @@ class TableHoldService
     {
         $query = DB::table('table_holds')
             ->where('session_id', $sessionId)
-            ->whereIn('hold_status', ['Holding', 'Pending', 'Confirmed'])
+            // Confirmed holds are historical linkage rows after reservation creation.
+            // They must not block new live holds for the same session.
+            ->whereIn('hold_status', ['Holding', 'Pending'])
             ->where('expire_at', '>', Carbon::now('UTC'))
             ->orderByDesc('created_at');
 

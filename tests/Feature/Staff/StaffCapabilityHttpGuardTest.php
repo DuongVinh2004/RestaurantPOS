@@ -52,6 +52,7 @@ class StaffCapabilityHttpGuardTest extends TestCase
             ->getJson('/api/v1/staff/reservations/'.$reservationId.'/refund-preview')
             ->assertStatus(403)
             ->assertJsonPath('error_code', 'forbidden')
+            ->assertJsonPath('category_code', 'forbidden_capability')
             ->assertJsonPath('required_capability', 'payment.refund');
 
         $this->withHeaders($this->staffHeaders('staff-capability-key'))
@@ -158,7 +159,8 @@ class StaffCapabilityHttpGuardTest extends TestCase
         $this->withHeaders($this->staffHeaders('unknown-key'))
             ->getJson('/api/v1/staff/reservations/'.$reservationId.'/vouchers')
             ->assertStatus(401)
-            ->assertJsonPath('error_code', 'unauthorized');
+            ->assertJsonPath('error_code', 'unauthorized')
+            ->assertJsonPath('category_code', 'authentication_required');
 
         $this->withHeaders($this->staffHeaders('unknown-key', 'idem-invalid-staff-waiting-list'))
             ->postJson('/api/v1/staff/waiting-list', [
@@ -168,6 +170,7 @@ class StaffCapabilityHttpGuardTest extends TestCase
             ])
             ->assertStatus(401)
             ->assertJsonPath('error_code', 'unauthorized')
+            ->assertJsonPath('category_code', 'authentication_required')
             ->assertJsonMissingPath('required_capability');
 
         $this->withHeaders($this->staffHeaders('unknown-key'))
@@ -264,6 +267,7 @@ class StaffCapabilityHttpGuardTest extends TestCase
             ->getJson('/api/v1/staff/conversations')
             ->assertStatus(403)
             ->assertJsonPath('error_code', 'forbidden')
+            ->assertJsonPath('category_code', 'policy_denied')
             ->assertJsonMissingPath('required_capability');
 
         $this->withHeaders($this->staffHeaders('customer-mapped-staff-key', 'idem-customer-mapped-waiting-list'))

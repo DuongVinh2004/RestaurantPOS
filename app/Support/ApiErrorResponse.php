@@ -43,9 +43,13 @@ final class ApiErrorResponse
         array $extra = [],
     ): JsonResponse {
         $requestId = trim((string) ($request->attributes->get('request_id') ?? ''));
+        $categoryCode = trim((string) ($extra['category_code'] ?? $code));
+        $categoryCode = $categoryCode !== '' ? $categoryCode : $code;
+        unset($extra['category_code']);
 
         $payload = [
             'error_code' => $code,
+            'category_code' => $categoryCode,
             'message' => $message,
             'request_id' => $requestId !== '' ? $requestId : null,
         ];
@@ -69,6 +73,233 @@ final class ApiErrorResponse
         return response()->json($payload, $status)->withHeaders([
             'X-Request-Id' => $requestId,
         ]);
+    }
+
+    /**
+     * @param  array<string, array<int, string>|string>  $errors
+     * @param  array<string, mixed>  $extra
+     */
+    public static function validation(
+        Request $request,
+        array $errors,
+        string $message = 'Validation error.',
+        array $extra = [],
+    ): JsonResponse {
+        return self::json(
+            $request,
+            422,
+            'validation_error',
+            $message,
+            ['errors' => $errors],
+            extra: ['category_code' => ApiErrorCategory::VALIDATION_ERROR] + $extra,
+        );
+    }
+
+    /**
+     * @param  array<string, array<int, string>|string>  $errors
+     * @param  array<string, mixed>  $extra
+     */
+    public static function domainInvariantViolation(
+        Request $request,
+        array $errors,
+        string $message = 'The requested action violates a business rule.',
+        array $extra = [],
+    ): JsonResponse {
+        return self::json(
+            $request,
+            422,
+            'validation_error',
+            $message,
+            ['errors' => $errors],
+            extra: ['category_code' => ApiErrorCategory::DOMAIN_INVARIANT_VIOLATION] + $extra,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public static function authenticationRequired(
+        Request $request,
+        string $message = 'Authentication is required.',
+        array $extra = [],
+    ): JsonResponse {
+        $normalizedMessage = trim($message);
+        if ($normalizedMessage === '' || $normalizedMessage === 'Unauthorized.') {
+            $normalizedMessage = 'Authentication is required.';
+        }
+
+        return self::json(
+            $request,
+            401,
+            'unauthorized',
+            $normalizedMessage,
+            extra: ['category_code' => ApiErrorCategory::AUTHENTICATION_REQUIRED] + $extra,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public static function forbiddenCapability(
+        Request $request,
+        string $message = 'Forbidden.',
+        ?string $requiredCapability = null,
+        ?string $staffRoleName = null,
+        array $extra = [],
+    ): JsonResponse {
+        return self::json(
+            $request,
+            403,
+            'forbidden',
+            $message,
+            extra: [
+                'category_code' => ApiErrorCategory::FORBIDDEN_CAPABILITY,
+                'required_capability' => $requiredCapability,
+                'staff_role_name' => $staffRoleName,
+            ] + $extra,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public static function ownerScopeDenied(
+        Request $request,
+        string $message = 'The authenticated actor is outside the required owner scope.',
+        array $extra = [],
+    ): JsonResponse {
+        return self::json(
+            $request,
+            403,
+            'forbidden',
+            $message,
+            extra: ['category_code' => ApiErrorCategory::OWNER_SCOPE_DENIED] + $extra,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public static function policyDenied(
+        Request $request,
+        string $message = 'Access to this API operation is denied by policy.',
+        array $extra = [],
+    ): JsonResponse {
+        return self::json(
+            $request,
+            403,
+            'forbidden',
+            $message,
+            extra: ['category_code' => ApiErrorCategory::POLICY_DENIED] + $extra,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public static function notFound(
+        Request $request,
+        string $message = 'Resource not found.',
+        array $extra = [],
+    ): JsonResponse {
+        return self::json(
+            $request,
+            404,
+            'not_found',
+            $message,
+            extra: ['category_code' => ApiErrorCategory::NOT_FOUND] + $extra,
+        );
+    }
+
+    /**
+     * @param  array<string, array<int, string>|string>  $errors
+     * @param  array<string, mixed>  $extra
+     */
+    public static function staleWrite(
+        Request $request,
+        array $errors = [],
+        string $message = 'The resource was modified by another writer. Reload data and try again.',
+        array $extra = [],
+    ): JsonResponse {
+        $details = $errors !== [] ? ['errors' => $errors] : [];
+
+        return self::json(
+            $request,
+            409,
+            'stale_row_version',
+            $message,
+            $details,
+            extra: [
+                'category_code' => ApiErrorCategory::STALE_WRITE,
+                'conflict_type' => 'stale_write',
+                'state_reason' => $extra['state_reason'] ?? 'row_version_mismatch',
+                'next_actions' => $extra['next_actions'] ?? [
+                    'reload_resource',
+                    'retry_with_latest_row_version',
+                ],
+            ] + $extra,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $details
+     * @param  array<string, mixed>  $extra
+     */
+    public static function resourceConflict(
+        Request $request,
+        string $message = 'The record changed or conflicts with the current state.',
+        array $details = [],
+        array $extra = [],
+        bool $legacyErrorAlias = false,
+    ): JsonResponse {
+        return self::json(
+            $request,
+            409,
+            'conflict',
+            $message,
+            $details,
+            legacyErrorAlias: $legacyErrorAlias,
+            extra: ['category_code' => ApiErrorCategory::RESOURCE_CONFLICT] + $extra,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public static function idempotencyConflict(
+        Request $request,
+        string $message,
+        array $extra = [],
+        bool $legacyErrorAlias = true,
+    ): JsonResponse {
+        $errorCode = trim((string) ($extra['error_code'] ?? 'idempotency_conflict'));
+        unset($extra['error_code']);
+
+        return self::json(
+            $request,
+            409,
+            $errorCode !== '' ? $errorCode : 'idempotency_conflict',
+            $message,
+            legacyErrorAlias: $legacyErrorAlias,
+            extra: ['category_code' => ApiErrorCategory::IDEMPOTENCY_CONFLICT] + $extra,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public static function internalError(
+        Request $request,
+        string $message = 'Internal server error.',
+        array $extra = [],
+    ): JsonResponse {
+        return self::json(
+            $request,
+            500,
+            'internal_error',
+            $message,
+            extra: ['category_code' => ApiErrorCategory::INTERNAL_ERROR] + $extra,
+        );
     }
 
     /**

@@ -38,6 +38,7 @@ class CustomerSelfServiceErrorEnvelopeContractTest extends TestCase
         $response->assertStatus(403)
             ->assertHeader('X-Request-Id', 'req-customer-benefits-staff')
             ->assertJsonPath('error_code', 'forbidden')
+            ->assertJsonPath('category_code', 'policy_denied')
             ->assertJsonPath('message', 'Staff must use dedicated staff loyalty and voucher endpoints for operational actions.')
             ->assertJsonPath('request_id', 'req-customer-benefits-staff');
     }
@@ -55,6 +56,7 @@ class CustomerSelfServiceErrorEnvelopeContractTest extends TestCase
         $response->assertStatus(403)
             ->assertHeader('X-Request-Id', 'req-customer-privacy-staff')
             ->assertJsonPath('error_code', 'forbidden')
+            ->assertJsonPath('category_code', 'policy_denied')
             ->assertJsonPath('message', 'Staff actors must use dedicated admin privacy endpoints.')
             ->assertJsonPath('request_id', 'req-customer-privacy-staff');
     }
@@ -87,6 +89,7 @@ class CustomerSelfServiceErrorEnvelopeContractTest extends TestCase
         $response->assertNotFound()
             ->assertHeader('X-Request-Id', 'req-customer-benefits-404')
             ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonPath('category_code', 'not_found')
             ->assertJsonPath('message', 'Reservation data was not found.')
             ->assertJsonPath('request_id', 'req-customer-benefits-404');
     }
@@ -105,6 +108,7 @@ class CustomerSelfServiceErrorEnvelopeContractTest extends TestCase
         $response->assertNotFound()
             ->assertHeader('X-Request-Id', 'req-customer-preorder-404')
             ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonPath('category_code', 'not_found')
             ->assertJsonPath('message', 'Reservation data was not found.')
             ->assertJsonPath('request_id', 'req-customer-preorder-404');
     }
@@ -135,6 +139,7 @@ class CustomerSelfServiceErrorEnvelopeContractTest extends TestCase
         $response->assertNotFound()
             ->assertHeader('X-Request-Id', 'req-customer-menu-404')
             ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonPath('category_code', 'not_found')
             ->assertJsonPath('message', 'Menu item is not available for the selected service time.')
             ->assertJsonPath('request_id', 'req-customer-menu-404');
     }

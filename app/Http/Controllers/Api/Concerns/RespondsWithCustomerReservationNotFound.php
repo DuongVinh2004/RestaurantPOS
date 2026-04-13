@@ -12,11 +12,6 @@ trait RespondsWithCustomerReservationNotFound
 {
     protected function notFoundReservationResponse(Request $request): JsonResponse
     {
-        return ApiErrorResponse::json(
-            $request,
-            404,
-            'not_found',
-            'Reservation not found.',
-        );
+        return ApiErrorResponse::notFound($request, 'Reservation not found.');
     }
 }

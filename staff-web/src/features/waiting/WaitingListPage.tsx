@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Alert,
   Button,
   Card,
   Col,
@@ -41,7 +40,13 @@ import { translateUiCode } from '../../core/utils/translation';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { SplitWorkspace } from '../../components/layout/SplitWorkspace';
 import { toast } from '../../components/feedback/toast';
-import { EmptyBlock, InlineError, InlineLoading } from '../../components/states/StateBlocks';
+import {
+  ApiStateBlock,
+  BranchPolicyState,
+  EmptyBlock,
+  InlineLoading,
+  InlineState,
+} from '../../components/states/StateBlocks';
 import { StatusChip } from '../../components/status/StatusChip';
 import { useAuthStore } from '../../app/store/auth-store';
 import { useFlowStore } from '../../app/store/flow-store';
@@ -566,7 +571,15 @@ export function WaitingListPage() {
 
       <Card title="Danh sách chờ">
         {waitingListQuery.isLoading ? <InlineLoading tip="Đang tải danh sách chờ..." /> : null}
-        {waitingListQuery.error ? <InlineError message={formatApiError(waitingListQuery.error, 'Không thể tải danh sách chờ.')} /> : null}
+        {waitingListQuery.error ? (
+          <ApiStateBlock
+            error={waitingListQuery.error}
+            fallback="Không thể tải danh sách chờ."
+            onRetry={() => {
+              void waitingListQuery.refetch();
+            }}
+          />
+        ) : null}
         {!waitingListQuery.isLoading && !waitingListQuery.error && (waitingListQuery.data?.data.length ?? 0) === 0 ? (
           <EmptyBlock
             title="Không có lượt chờ"
@@ -678,11 +691,12 @@ export function WaitingListPage() {
           <Form.Item name="notes" label="Ghi chú">
             <Input.TextArea autoComplete="off" rows={3} placeholder="Ghi chú tiếp đón nếu cần…" />
           </Form.Item>
-          <Alert
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
+          <InlineState
+            tone="info"
+            eyebrow="Ngữ cảnh chi nhánh"
             title={`Đang dùng ngữ cảnh chi nhánh ${branchId ?? session?.startup.default_branch?.branch_id ?? 'mặc định'} từ shell nhân viên.`}
+            description="Lượt chờ mới sẽ được tạo theo branch context đang neo ở shell để dữ liệu list, board và đơn hàng tiếp theo luôn khớp nhau."
+            className="staff-inline-note"
           />
           <Button type="primary" htmlType="submit" loading={createMutation.isPending} block>
             Thêm lượt chờ
@@ -744,12 +758,10 @@ export function WaitingListPage() {
                     </Form.Item>
                   ) : (
                     <>
-                      <Alert
-                        type="warning"
-                        showIcon
-                        style={{ marginBottom: 16 }}
+                      <BranchPolicyState
                         title="Không lấy được gợi ý từ sơ đồ bàn"
                         description="Phiên hiện tại không đọc được sơ đồ bàn hoặc chưa có bàn phù hợp. Hãy nhập thủ công mã bàn để giữ chỗ khi báo khách."
+                        className="staff-inline-note"
                       />
                       <Form.Item
                         name="table_id"
@@ -777,11 +789,12 @@ export function WaitingListPage() {
                     Gợi ý kết quả: {translateUiCode(selectedEntry.orchestration.advance_queue.resulting_action)}
                   </Typography.Text>
                   {selectedEntry.orchestration.advance_queue.next_candidate ? (
-                    <Alert
-                      type="info"
-                      showIcon
+                    <InlineState
+                      tone="info"
+                      eyebrow="Ứng viên kế tiếp"
                       title={`Ứng viên kế tiếp: ${selectedEntry.orchestration.advance_queue.next_candidate.guest_name ?? selectedEntry.orchestration.advance_queue.next_candidate.waiting_id}`}
                       description={`Độ lệch chỗ ngồi ${selectedEntry.orchestration.advance_queue.next_candidate.capacity_fit.seat_delta}`}
+                      className="staff-inline-note"
                     />
                   ) : null}
                   <Button
@@ -799,12 +812,12 @@ export function WaitingListPage() {
             {seatSupported ? (
               <Card size="small" title="Xếp bàn và mở đơn hàng">
                 {!selectedEntry.user_id ? (
-                  <Alert
-                    type="warning"
-                    showIcon
-                    style={{ marginBottom: 16 }}
+                  <InlineState
+                    tone="warning"
+                    eyebrow="Điều kiện vào bàn"
                     title="Cần có mã khách hàng trước khi xếp bàn"
                     description="Lượt chờ này chưa liên kết khách hàng. Hãy nhập mã khách hàng tại đây trước khi chuyển lượt chờ thành đặt bàn."
+                    className="staff-inline-note"
                   />
                 ) : null}
                 <Form<SeatWaitingValues> form={seatForm} layout="vertical" onFinish={(values) => seatMutation.mutate(values)}>
@@ -848,7 +861,13 @@ export function WaitingListPage() {
         {changesQuery.isLoading ? (
           <InlineLoading tip="Đang đọc thay đổi của danh sách chờ..." />
         ) : changesQuery.error ? (
-          <InlineError message={formatApiError(changesQuery.error, 'Không thể tải luồng thay đổi của danh sách chờ.')} />
+          <ApiStateBlock
+            error={changesQuery.error}
+            fallback="Không thể tải luồng thay đổi của danh sách chờ."
+            onRetry={() => {
+              void changesQuery.refetch();
+            }}
+          />
         ) : (
           <Space orientation="vertical" size={8}>
             <Typography.Text type="secondary">

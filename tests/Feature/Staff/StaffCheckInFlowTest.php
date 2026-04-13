@@ -31,8 +31,8 @@ class StaffCheckInFlowTest extends TestCase
         $this->app->instance(NotificationOutboxService::class, $this->mockNotificationOutbox());
         $this->app->instance(ReservationLockService::class, $this->mockReservationLocks());
         $this->app->instance(RuntimeSettingService::class, $this->mockRuntimeSettings());
-        $this->app->instance(RestaurantTableStateService::class, new RestaurantTableStateService());
-        $this->app->instance(TableTimeConflictService::class, new TableTimeConflictService());
+        $this->app->instance(RestaurantTableStateService::class, new RestaurantTableStateService);
+        $this->app->instance(TableTimeConflictService::class, new TableTimeConflictService);
     }
 
     protected function tearDown(): void
@@ -252,7 +252,8 @@ class StaffCheckInFlowTest extends TestCase
             'row_version' => 1,
         ]);
 
-        $response->assertStatus(422);
+        $response->assertStatus(409);
+        $response->assertJsonPath('error_code', 'stale_row_version');
         $response->assertJsonValidationErrors(['row_version']);
         self::assertSame('Confirmed', DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
         self::assertSame('Available', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));

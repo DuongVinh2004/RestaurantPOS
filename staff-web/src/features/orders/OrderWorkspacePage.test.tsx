@@ -122,6 +122,26 @@ describe('OrderWorkspacePage', () => {
     expect(screen.getByTestId('location-search').textContent).toContain('order_row_version=8');
   });
 
+  it('shows a conflict recovery state when order item row versions are missing', async () => {
+    apiMocks.getOrderDetail.mockResolvedValue(createOrderDetailEnvelope({
+      items: [
+        createOrderItem({
+          order_item_id: 201,
+          row_version: null,
+        }),
+      ],
+    }));
+    apiMocks.listMenuItems.mockResolvedValue(createMenuEnvelope());
+
+    renderWithProviders('/orders?source=board&table_id=12&reservation_id=34&reservation_row_version=5&order_id=56&order_row_version=10');
+
+    expect(await screen.findByText('Chi tiết dòng món đang thiếu phiên bản mới nhất')).toBeInTheDocument();
+    const reloadButton = screen.getByRole('button', { name: 'Tải lại chi tiết' });
+    fireEvent.click(reloadButton);
+
+    await waitFor(() => expect(apiMocks.getOrderDetail).toHaveBeenCalledTimes(2));
+  });
+
   it('adds quantity to an existing editable matching item instead of creating a duplicate line', async () => {
     apiMocks.getOrderDetail.mockResolvedValue(createOrderDetailEnvelope({
       items: [
@@ -323,7 +343,7 @@ function createOrderItem(overrides: Partial<{
     item_id: itemId,
     quantity: overrides.quantity ?? 1,
     status: overrides.status ?? 'Ordered',
-    row_version: overrides.row_version ?? 3,
+    row_version: overrides.row_version === undefined ? 3 : overrides.row_version,
     item_name_snapshot: 'House Water',
     unit_price: '10000',
     currency: 'VND',

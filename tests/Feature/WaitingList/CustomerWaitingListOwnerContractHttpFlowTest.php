@@ -117,7 +117,8 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
             'guest_name' => 'Guest Session Customer',
             'phone' => '0909888777',
             'guest_count' => 2,
-        ])->assertStatus(401);
+        ])->assertStatus(403)
+            ->assertJsonPath('category_code', 'owner_scope_denied');
     }
 
     public function test_pre_resolved_staff_user_is_rejected_under_owner_only_waiting_list_contract(): void
@@ -135,7 +136,8 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
                 'guest_count' => 2,
                 'notes' => 'Wrong-role should not pass owner contract',
             ])
-            ->assertStatus(401);
+            ->assertStatus(403)
+            ->assertJsonPath('category_code', 'owner_scope_denied');
     }
 
     public function test_owner_can_accept_notified_entry_within_open_window_using_canonical_owner_contract(): void
@@ -481,14 +483,16 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
 
         $this->withHeaders($ownerHeaders)
             ->getJson('/api/v1/waiting-list')
-            ->assertStatus(401);
+            ->assertStatus(401)
+            ->assertJsonPath('category_code', 'authentication_required');
 
         $this->withHeaders($this->withIdempotencyKey($ownerHeaders, 'cust-owner-contract-expired-access-create'))
             ->postJson('/api/v1/waiting-list', [
                 'guest_count' => 2,
                 'notes' => 'Expired owner auth must not downgrade into session flow.',
             ])
-            ->assertStatus(401);
+            ->assertStatus(401)
+            ->assertJsonPath('category_code', 'authentication_required');
     }
 
     public function test_unauthenticated_request_is_rejected(): void
@@ -499,7 +503,8 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
                 'guest_name' => 'Guest User',
                 'phone' => '0909001222',
             ])
-            ->assertStatus(401);
+            ->assertStatus(401)
+            ->assertJsonPath('category_code', 'authentication_required');
     }
 
     /**

@@ -142,7 +142,9 @@ class StaffReservationDepositFlowTest extends TestCase
                 'row_version' => 1,
             ]);
 
-        $response->assertStatus(422)
+        $response->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
+            ->assertJsonPath('category_code', 'stale_write')
             ->assertJsonValidationErrors(['row_version']);
     }
 
@@ -298,6 +300,7 @@ class StaffReservationDepositFlowTest extends TestCase
         $preview
             ->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonPath('category_code', 'domain_invariant_violation')
             ->assertJsonPath('errors.reservation.0', 'Only Completed reservations can be refunded without cancellation.');
     }
 

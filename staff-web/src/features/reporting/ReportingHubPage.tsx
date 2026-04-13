@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import {
-  Alert,
   Button,
   Card,
   Col,
@@ -26,11 +25,16 @@ import {
   listDailyOperationsReporting,
   listDailySalesReporting,
 } from '../../core/api/staff-api';
-import { formatApiError } from '../../core/api/errors';
 import { formatDateTime, formatFreshnessLabel, formatMoney } from '../../core/utils/format';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { SplitWorkspace } from '../../components/layout/SplitWorkspace';
-import { EmptyBlock, InlineError, InlineLoading } from '../../components/states/StateBlocks';
+import {
+  ApiStateBlock,
+  ConflictState,
+  EmptyBlock,
+  InlineLoading,
+  InlineState,
+} from '../../components/states/StateBlocks';
 import { StatusChip } from '../../components/status/StatusChip';
 import { useFlowStore } from '../../app/store/flow-store';
 import {
@@ -152,12 +156,22 @@ export function ReportingHubPage() {
         )}
       />
 
-      <Alert
-        type={activeMeta?.snapshot_health?.status === 'degraded' ? 'warning' : 'info'}
-        showIcon
-        title={branchId ? `Đang dùng ngữ cảnh chi nhánh #${branchId}` : 'Đang dùng toàn bộ chi nhánh được phép'}
-        description="Phạm vi chi nhánh lấy từ bộ chọn ở shell. Bộ lọc tiền tệ và nguyên liệu chỉ áp dụng cho từng nhóm báo cáo tương ứng. Khi snapshot bị degraded, hãy dùng panel chi tiết bên phải để khoanh vùng trước khi mở luồng khác."
-      />
+      {activeMeta?.snapshot_health?.status === 'degraded' ? (
+        <ConflictState
+          title={branchId ? `Snapshot chi nhánh #${branchId} đang degraded` : 'Snapshot báo cáo trong phạm vi hiện tại đang degraded'}
+          description="Phạm vi chi nhánh lấy từ bộ chọn ở shell. Bộ lọc tiền tệ và nguyên liệu chỉ áp dụng cho từng nhóm báo cáo tương ứng. Hãy dùng panel chi tiết bên phải để khoanh vùng trước khi mở luồng khác."
+          primaryAction={<Button onClick={() => void activeQuery.refetch()}>Tải lại tab hiện tại</Button>}
+          className="staff-inline-note"
+        />
+      ) : (
+        <InlineState
+          tone="info"
+          eyebrow="Phạm vi báo cáo"
+          title={branchId ? `Đang dùng ngữ cảnh chi nhánh #${branchId}` : 'Đang dùng toàn bộ chi nhánh được phép'}
+          description="Phạm vi chi nhánh lấy từ bộ chọn ở shell. Bộ lọc tiền tệ và nguyên liệu chỉ áp dụng cho từng nhóm báo cáo tương ứng."
+          className="staff-inline-note"
+        />
+      )}
 
       <Card title="Bộ lọc" className="staff-workspace-filter-card" extra={filtersActive ? <Button size="small" onClick={resetFilters}>Đặt lại bộ lọc</Button> : null}>
         <Row gutter={[12, 12]}>
@@ -209,13 +223,17 @@ export function ReportingHubPage() {
             children: (
               <ReportingTabTable
                 loading={salesQuery.isLoading}
-                error={salesQuery.error ? formatApiError(salesQuery.error, 'Không thể tải ảnh chụp bán hàng theo ngày.') : null}
+                error={salesQuery.error}
+                errorFallback="Không thể tải ảnh chụp bán hàng theo ngày."
                 emptyTitle="Không có dòng bán hàng"
                 emptyDescription="Phạm vi hiện tại chưa có dữ liệu bán hàng theo ngày."
                 rows={salesQuery.data?.data ?? []}
                 meta={salesQuery.data?.meta}
                 page={page}
                 onPageChange={setPage}
+                onRetry={() => {
+                  void salesQuery.refetch();
+                }}
                 selectedRowKey={selectedRowKey}
                 rowKeyFn={(row) => getRowKey('sales', row)}
                 onSelectRow={(row) => setSelectedRowKey(getRowKey('sales', row))}
@@ -235,13 +253,17 @@ export function ReportingHubPage() {
             children: (
               <ReportingTabTable
                 loading={operationsQuery.isLoading}
-                error={operationsQuery.error ? formatApiError(operationsQuery.error, 'Không thể tải ảnh chụp vận hành theo ngày.') : null}
+                error={operationsQuery.error}
+                errorFallback="Không thể tải ảnh chụp vận hành theo ngày."
                 emptyTitle="Không có dòng vận hành"
                 emptyDescription="Phạm vi hiện tại chưa có dữ liệu vận hành theo ngày."
                 rows={operationsQuery.data?.data ?? []}
                 meta={operationsQuery.data?.meta}
                 page={page}
                 onPageChange={setPage}
+                onRetry={() => {
+                  void operationsQuery.refetch();
+                }}
                 selectedRowKey={selectedRowKey}
                 rowKeyFn={(row) => getRowKey('operations', row)}
                 onSelectRow={(row) => setSelectedRowKey(getRowKey('operations', row))}
@@ -261,13 +283,17 @@ export function ReportingHubPage() {
             children: (
               <ReportingTabTable
                 loading={inventoryQuery.isLoading}
-                error={inventoryQuery.error ? formatApiError(inventoryQuery.error, 'Không thể tải ảnh chụp kho theo ngày.') : null}
+                error={inventoryQuery.error}
+                errorFallback="Không thể tải ảnh chụp kho theo ngày."
                 emptyTitle="Không có dòng kho"
                 emptyDescription="Phạm vi hiện tại chưa có dữ liệu kho theo ngày."
                 rows={inventoryQuery.data?.data ?? []}
                 meta={inventoryQuery.data?.meta}
                 page={page}
                 onPageChange={setPage}
+                onRetry={() => {
+                  void inventoryQuery.refetch();
+                }}
                 selectedRowKey={selectedRowKey}
                 rowKeyFn={(row) => getRowKey('inventory', row)}
                 onSelectRow={(row) => setSelectedRowKey(getRowKey('inventory', row))}
@@ -345,25 +371,29 @@ export function ReportingHubPage() {
 function ReportingTabTable<T extends object>({
   loading,
   error,
+  errorFallback,
   emptyTitle,
   emptyDescription,
   rows,
   meta,
   page,
   onPageChange,
+  onRetry,
   selectedRowKey,
   rowKeyFn,
   onSelectRow,
   columns,
 }: {
   loading: boolean;
-  error: string | null;
+  error: unknown;
+  errorFallback: string;
   emptyTitle: string;
   emptyDescription: string;
   rows: Array<T>;
   meta?: StaffReportingCollectionMeta | null;
   page: number;
   onPageChange: (page: number) => void;
+  onRetry: () => void;
   selectedRowKey: string | null;
   rowKeyFn: (row: T) => string;
   onSelectRow: (row: T) => void;
@@ -374,7 +404,7 @@ function ReportingTabTable<T extends object>({
   }
 
   if (error) {
-    return <InlineError message={error} />;
+    return <ApiStateBlock error={error} fallback={errorFallback} onRetry={onRetry} />;
   }
 
   if (rows.length === 0) {

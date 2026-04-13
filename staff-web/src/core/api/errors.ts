@@ -22,6 +22,11 @@ export type NormalizedApiError = {
   status: number | null;
   kind: ApiErrorKind;
   code: string | null;
+  categoryCode: string | null;
+  stateReason: string | null;
+  conflictType: string | null;
+  replayState: string | null;
+  nextActions: Array<string>;
   message: string;
   validation: ApiValidationErrors;
   requiredCapability: string | null;
@@ -42,6 +47,11 @@ export function normalizeApiError(error: unknown, fallback: string): NormalizedA
       status: error.status,
       kind: statusToKind(error.status),
       code: readString(payloadRecord, 'error_code'),
+      categoryCode: readString(payloadRecord, 'category_code'),
+      stateReason: readString(payloadRecord, 'state_reason'),
+      conflictType: readString(payloadRecord, 'conflict_type'),
+      replayState: readString(payloadRecord, 'replay_state'),
+      nextActions: readStringArray(payloadRecord, 'next_actions'),
       message: selectMessage(error.payload, validation, fallback),
       validation,
       requiredCapability: readString(payloadRecord, 'required_capability'),
@@ -55,6 +65,11 @@ export function normalizeApiError(error: unknown, fallback: string): NormalizedA
       status: null,
       kind: 'unknown',
       code: null,
+      categoryCode: null,
+      stateReason: null,
+      conflictType: null,
+      replayState: null,
+      nextActions: [],
       message: error.message.trim() !== '' ? error.message : fallback,
       validation: {},
       requiredCapability: null,
@@ -67,6 +82,11 @@ export function normalizeApiError(error: unknown, fallback: string): NormalizedA
     status: null,
     kind: 'unknown',
     code: null,
+    categoryCode: null,
+    stateReason: null,
+    conflictType: null,
+    replayState: null,
+    nextActions: [],
     message: fallback,
     validation: {},
     requiredCapability: null,
@@ -224,6 +244,16 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 function readString(source: Record<string, unknown> | null | undefined, key: string): string | null {
   const value = source?.[key];
   return typeof value === 'string' && value.trim() !== '' ? value : null;
+}
+
+function readStringArray(source: Record<string, unknown> | null | undefined, key: string): Array<string> {
+  const value = source?.[key];
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((entry): entry is string => typeof entry === 'string' && entry.trim() !== '');
 }
 
 function isGenericApiMessage(message: string): boolean {

@@ -26,8 +26,8 @@ class StaffMoveTableFlowTest extends TestCase
         $this->requireBookingSchema();
 
         $this->app->instance(ReservationLockService::class, $this->mockReservationLocks());
-        $this->app->instance(RestaurantTableStateService::class, new RestaurantTableStateService());
-        $this->app->instance(TableTimeConflictService::class, new TableTimeConflictService());
+        $this->app->instance(RestaurantTableStateService::class, new RestaurantTableStateService);
+        $this->app->instance(TableTimeConflictService::class, new TableTimeConflictService);
     }
 
     protected function tearDown(): void
@@ -203,9 +203,111 @@ class StaffMoveTableFlowTest extends TestCase
             'row_version' => 1,
         ]);
 
-        $response->assertStatus(422);
+        $response->assertStatus(409);
+        $response->assertJsonPath('error_code', 'stale_row_version');
         $response->assertJsonValidationErrors(['row_version']);
         self::assertSame([$fromTableId], DB::table('reservation_tables')->where('reservation_id', $reservationId)->pluck('table_id')->map(fn ($id) => (int) $id)->all());
+    }
+
+    public function test_move_table_frees_original_table_from_confirmed_hold_conflicts(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->withIdempotencyKey('move-table-confirmed-hold-shadow', $this->staffAuthHeaders($staffId));
+
+        $start = $this->nowUtc()->copy()->addHours(2)->startOfMinute();
+        $end = $start->copy()->addHours(2);
+        $fromTableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Occupied', 'zone' => 'MOVE', 'table_code' => 'MV-01']);
+        $toTableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available', 'zone' => 'MOVE', 'table_code' => 'MV-02']);
+        $reservationId = $this->createReservation([
+            'status' => 'Reserved',
+            'checked_in_at' => $this->nowUtc(),
+            'start_time' => $start,
+            'end_time' => $end,
+            'row_version' => 1,
+        ]);
+        $this->attachReservationTable($reservationId, $fromTableId);
+        $this->createTableHold([
+            'session_id' => 'move-confirmed-shadow',
+            'start_time' => $start,
+            'end_time' => $end,
+            'expire_at' => $this->nowUtc()->copy()->subMinutes(5),
+            'hold_status' => 'Confirmed',
+            'confirmed_reservation_id' => $reservationId,
+        ], [$fromTableId]);
+
+        $this->withHeaders($headers)->postJson("/api/v1/staff/reservations/{$reservationId}/move-table", [
+            'from_table_id' => $fromTableId,
+            'to_table_id' => $toTableId,
+            'row_version' => 1,
+        ])->assertOk();
+
+        $availability = $this->getJson(sprintf(
+            '/api/v1/tables/available?from=%s&to=%s&zone=MOVE&guest_count=2',
+            urlencode($start->toIso8601String()),
+            urlencode($end->toIso8601String()),
+        ));
+
+        $availability->assertOk();
+
+        $tableIds = array_map('intval', array_column($availability->json('data'), 'table_id'));
+        sort($tableIds);
+
+        self::assertSame([$fromTableId], $tableIds);
+    }
+
+    public function test_move_table_rejects_when_source_table_still_has_another_active_service_context(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->withIdempotencyKey('move-table-source-still-busy', $this->staffAuthHeaders($staffId));
+
+        $fromTableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Occupied']);
+        $toTableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available']);
+        $start = $this->nowUtc()->copy()->subMinutes(10);
+        $end = $this->nowUtc()->copy()->addHour();
+
+        $movingReservationId = $this->createReservation([
+            'status' => 'Reserved',
+            'checked_in_at' => $this->nowUtc()->copy()->subMinutes(5),
+            'start_time' => $start,
+            'end_time' => $end,
+            'row_version' => 1,
+        ]);
+        $blockingReservationId = $this->createReservation([
+            'status' => 'Reserved',
+            'checked_in_at' => $this->nowUtc()->copy()->subMinutes(2),
+            'start_time' => $start,
+            'end_time' => $end,
+            'row_version' => 1,
+        ]);
+
+        $this->attachReservationTable($movingReservationId, $fromTableId);
+        $this->attachReservationTable($blockingReservationId, $fromTableId);
+
+        $response = $this->withHeaders($headers)->postJson("/api/v1/staff/reservations/{$movingReservationId}/move-table", [
+            'from_table_id' => $fromTableId,
+            'to_table_id' => $toTableId,
+            'row_version' => 1,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['from_table_id'])
+            ->assertJsonPath(
+                'details.errors.from_table_id.0',
+                'Original table still has another active service context: '
+                .$blockingReservationId
+                .'. Resolve that reservation before retrying the move.'
+            );
+
+        self::assertSame(
+            [$fromTableId],
+            DB::table('reservation_tables')
+                ->where('reservation_id', $movingReservationId)
+                ->pluck('table_id')
+                ->map(fn ($id) => (int) $id)
+                ->all()
+        );
+        self::assertSame('Occupied', DB::table('restaurant_tables')->where('table_id', $fromTableId)->value('status'));
+        self::assertSame('Available', DB::table('restaurant_tables')->where('table_id', $toTableId)->value('status'));
     }
 
     public function test_move_table_rejects_blocked_target_table(): void

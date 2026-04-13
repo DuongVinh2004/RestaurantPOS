@@ -26,10 +26,8 @@ class CustomerReservationSelfServiceController extends Controller
         $actor = RequestActorContext::fromRequest($request);
 
         if ($actor->isStaff()) {
-            return ApiErrorResponse::json(
+            return ApiErrorResponse::policyDenied(
                 $request,
-                403,
-                'forbidden',
                 'Staff actors must use staff reservation endpoints.',
             );
         }
@@ -65,10 +63,8 @@ class CustomerReservationSelfServiceController extends Controller
         $actor = RequestActorContext::fromRequest($request);
 
         if ($actor->isStaff()) {
-            return ApiErrorResponse::json(
+            return ApiErrorResponse::policyDenied(
                 $request,
-                403,
-                'forbidden',
                 'Staff actors must use staff reservation endpoints.',
             );
         }
@@ -96,10 +92,8 @@ class CustomerReservationSelfServiceController extends Controller
         $actor = RequestActorContext::fromRequest($request);
 
         if ($actor->isStaff()) {
-            return ApiErrorResponse::json(
+            return ApiErrorResponse::policyDenied(
                 $request,
-                403,
-                'forbidden',
                 'Staff actors must use staff reservation endpoints.',
             );
         }

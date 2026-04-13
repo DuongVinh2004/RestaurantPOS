@@ -87,6 +87,13 @@ export type WalkInPayload = {
 
 export type CreateReservationPayload = StoreReservationRequest;
 
+export type UpdateReservationStatusPayload = {
+  status: 'Confirmed' | 'Cancelled' | 'Expired' | 'NoShow' | 'Reserved' | 'CheckedIn';
+  row_version?: number | null;
+  cancel_reason?: string | null;
+  force?: boolean;
+};
+
 export type AssignSuggestedTablePayload = {
   table_id: number;
   row_version: number;
@@ -535,6 +542,17 @@ export async function createReservation(payload: CreateReservationPayload): Prom
 
 export async function getReservationDetail(reservationId: number): Promise<ReservationEnvelope> {
   return apiRequest<ReservationEnvelope>(`/staff/reservations/${reservationId}`);
+}
+
+export async function updateReservationStatus(
+  reservationId: number,
+  payload: UpdateReservationStatusPayload,
+): Promise<ReservationEnvelope> {
+  return apiRequest<ReservationEnvelope>(`/reservations/${reservationId}/status`, {
+    method: 'PATCH',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`reservation-status-${reservationId}-${payload.status.toLowerCase()}`),
+  });
 }
 
 export async function listConversations(query: ConversationInboxQuery): Promise<StaffConversationCollectionEnvelope> {

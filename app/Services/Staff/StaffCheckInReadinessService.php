@@ -30,11 +30,11 @@ class StaffCheckInReadinessService
     }
 
     /**
-     * @param array<int,int> $assignedTableIds
-     * @param iterable<mixed> $tables
-     * @param array<int,int>|null $reservationConflictTableIds
-     * @param array<int,int>|null $holdConflictTableIds
-     * @param array<int,string> $ignoredHoldIds
+     * @param  array<int,int>  $assignedTableIds
+     * @param  iterable<mixed>  $tables
+     * @param  array<int,int>|null  $reservationConflictTableIds
+     * @param  array<int,int>|null  $holdConflictTableIds
+     * @param  array<int,string>  $ignoredHoldIds
      * @return array<string,mixed>
      */
     public function describe(
@@ -187,9 +187,9 @@ class StaffCheckInReadinessService
     }
 
     /**
-     * @param array<int,int> $assignedTableIds
-     * @param iterable<mixed> $tables
-     * @param array<int,string> $ignoredHoldIds
+     * @param  array<int,int>  $assignedTableIds
+     * @param  iterable<mixed>  $tables
+     * @param  array<int,string>  $ignoredHoldIds
      * @return array<string,mixed>
      */
     public function assertReadyForWrite(
@@ -215,7 +215,15 @@ class StaffCheckInReadinessService
         );
 
         if ($readiness['checks']['within_check_in_window'] !== true) {
-            throw ValidationException::withMessages(['checked_in_at' => 'Outside check-in grace window.']);
+            throw ValidationException::withMessages([
+                'checked_in_at' => [
+                    sprintf(
+                        'Outside check-in grace window. Allowed between %s and %s UTC.',
+                        $readiness['window']['start_utc']->toIso8601String(),
+                        $readiness['window']['end_utc']->toIso8601String(),
+                    ),
+                ],
+            ]);
         }
 
         if ($readiness['checks']['has_assigned_tables'] !== true) {
@@ -245,11 +253,22 @@ class StaffCheckInReadinessService
         }
 
         if ($readiness['reservation_conflict_table_ids'] !== []) {
-            throw ValidationException::withMessages(['table_ids' => 'Assigned tables have overlapping reservations at check-in time.']);
+            throw ValidationException::withMessages([
+                'table_ids' => [
+                    'Assigned tables have overlapping reservations at check-in time: '
+                    .implode(',', $readiness['reservation_conflict_table_ids']).'.',
+                ],
+            ]);
         }
 
         if ($readiness['hold_conflict_table_ids'] !== []) {
-            throw ValidationException::withMessages(['table_ids' => 'Assigned tables still have active overlapping holds.']);
+            throw ValidationException::withMessages([
+                'table_ids' => [
+                    'Assigned tables still have active overlapping holds: '
+                    .implode(',', $readiness['hold_conflict_table_ids'])
+                    .'. Release or wait for the hold to expire first.',
+                ],
+            ]);
         }
 
         return $readiness;
@@ -273,11 +292,11 @@ class StaffCheckInReadinessService
     }
 
     /**
-     * @param array<int,int> $assignedTableIds
-     * @param array<int,int> $missingAssignedTableIds
-     * @param array<int,int> $nonServiceReadyTableIds
-     * @param array<int,int> $reservationConflictTableIds
-     * @param array<int,int> $holdConflictTableIds
+     * @param  array<int,int>  $assignedTableIds
+     * @param  array<int,int>  $missingAssignedTableIds
+     * @param  array<int,int>  $nonServiceReadyTableIds
+     * @param  array<int,int>  $reservationConflictTableIds
+     * @param  array<int,int>  $holdConflictTableIds
      */
     private function resolveBlockedReason(
         string $status,
@@ -341,7 +360,7 @@ class StaffCheckInReadinessService
     }
 
     /**
-     * @param array<int,int> $ids
+     * @param  array<int,int>  $ids
      * @return array<int,int>
      */
     private function normalizeIds(array $ids): array

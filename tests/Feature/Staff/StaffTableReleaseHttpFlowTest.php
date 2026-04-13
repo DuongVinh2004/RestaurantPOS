@@ -26,7 +26,7 @@ class StaffTableReleaseHttpFlowTest extends TestCase
         config()->set('booking.require_redis_for_booking_api', false);
 
         $this->app->instance(ReservationLockService::class, $this->mockReservationLocks());
-        $this->app->instance(RestaurantTableStateService::class, new RestaurantTableStateService());
+        $this->app->instance(RestaurantTableStateService::class, new RestaurantTableStateService);
     }
 
     protected function tearDown(): void
@@ -41,7 +41,7 @@ class StaffTableReleaseHttpFlowTest extends TestCase
         $tableId = $this->createRestaurantTable(['status' => 'Occupied', 'row_version' => 1]);
 
         $response = $this->withHeaders($this->withIdempotencyKey('staff-table-release-success', $this->staffAuthHeaders($staffId)))
-            ->postJson('/api/v1/staff/tables/' . $tableId . '/release', [
+            ->postJson('/api/v1/staff/tables/'.$tableId.'/release', [
                 'row_version' => 1,
                 'notes' => 'Manual release after cleanup',
             ]);
@@ -72,7 +72,7 @@ class StaffTableReleaseHttpFlowTest extends TestCase
         $this->attachReservationTable($reservationId, $tableId);
 
         $this->withHeaders($this->withIdempotencyKey('staff-table-release-blocked', $this->staffAuthHeaders($staffId)))
-            ->postJson('/api/v1/staff/tables/' . $tableId . '/release', [
+            ->postJson('/api/v1/staff/tables/'.$tableId.'/release', [
                 'row_version' => 1,
             ])
             ->assertStatus(422)
@@ -102,11 +102,43 @@ class StaffTableReleaseHttpFlowTest extends TestCase
         $this->attachReservationTable($reservationId, $tableId);
 
         $this->withHeaders($this->withIdempotencyKey('staff-table-release-branch-drift', $this->staffAuthHeaders($staffId)))
-            ->postJson('/api/v1/staff/tables/' . $tableId . '/release', [
+            ->postJson('/api/v1/staff/tables/'.$tableId.'/release', [
                 'row_version' => 1,
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['table_id']);
+
+        self::assertSame('Occupied', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
+    }
+
+    public function test_release_rejects_current_window_confirmed_reservation_even_without_checkin_timestamp(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $tableId = $this->createRestaurantTable(['status' => 'Occupied', 'row_version' => 1]);
+        $start = $this->nowUtc()->copy()->subMinutes(15);
+        $end = $this->nowUtc()->copy()->addMinutes(45);
+        $reservationId = $this->createReservation([
+            'status' => 'Confirmed',
+            'checked_in_at' => null,
+            'start_time' => $start,
+            'end_time' => $end,
+            'row_version' => 1,
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+
+        $response = $this->withHeaders($this->withIdempotencyKey('staff-table-release-active-window', $this->staffAuthHeaders($staffId)))
+            ->postJson('/api/v1/staff/tables/'.$tableId.'/release', [
+                'row_version' => 1,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['table_id'])
+            ->assertJsonPath(
+                'details.errors.table_id.0',
+                'Cannot release table while reservations are still in an active service context: '
+                .$reservationId
+                .'. Complete check-in/checkout or close the reservation flow first.'
+            );
 
         self::assertSame('Occupied', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
     }
@@ -131,7 +163,7 @@ class StaffTableReleaseHttpFlowTest extends TestCase
         ]);
 
         $this->withHeaders($this->withIdempotencyKey('staff-table-release-live-order-confirmed', $this->staffAuthHeaders($staffId)))
-            ->postJson('/api/v1/staff/tables/' . $tableId . '/release', [
+            ->postJson('/api/v1/staff/tables/'.$tableId.'/release', [
                 'row_version' => 1,
             ])
             ->assertStatus(422)

@@ -66,8 +66,9 @@ class ReservationStatusHttpFlowTest extends TestCase
                 'row_version' => 1,
             ]);
 
-        $response->assertStatus(422)
-            ->assertJsonPath('error_code', 'validation_error')
+        $response->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
+            ->assertJsonPath('category_code', 'stale_write')
             ->assertJsonPath('details.errors.row_version.0', 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.');
     }
 

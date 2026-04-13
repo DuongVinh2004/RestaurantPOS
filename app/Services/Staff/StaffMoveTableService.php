@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Staff;
 
+use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationStatus;
 use App\Models\Reservation;
 use App\Models\RestaurantTable;
@@ -14,6 +15,7 @@ use App\Services\TableTimeConflictService;
 use App\Support\AuditEvent;
 use App\Support\AvailabilityCacheVersion;
 use App\Support\DatabaseWriteConflictMapper;
+use App\Support\TableReleaseGuard;
 use App\Services\Staff\StaffOperationalRealtimeService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
@@ -212,6 +214,12 @@ class StaffMoveTableService
                         ]);
                     }
 
+                    $this->assertFromTableSafeToRelease(
+                        tableId: $fromTableId,
+                        tableBranchId: (int) ($tables->get($fromTableId)?->branch_id ?? 0),
+                        currentReservationId: $reservationId,
+                    );
+
                     $this->tableStateService->releaseTablesSafely(
                         [$fromTableId],
                         null,
@@ -300,15 +308,61 @@ class StaffMoveTableService
     }
 
     private function isCheckedInReservation(Reservation $reservation): bool
-{
-    if ($reservation->checked_in_at !== null) {
-        return true;
+    {
+        if ($reservation->checked_in_at !== null) {
+            return true;
+        }
+
+        $rawStatus = $reservation->status instanceof ReservationStatus
+            ? $reservation->status->value
+            : (string) $reservation->getRawOriginal('status');
+
+        return ReservationStatus::isCheckedInDbValue($rawStatus);
     }
 
-    $rawStatus = $reservation->status instanceof ReservationStatus
-        ? $reservation->status->value
-        : (string) $reservation->getRawOriginal('status');
+    private function assertFromTableSafeToRelease(int $tableId, int $tableBranchId, int $currentReservationId): void
+    {
+        $remainingActiveReservations = DB::table('reservation_tables as rt')
+            ->join('reservations as r', 'r.reservation_id', '=', 'rt.reservation_id')
+            ->where('rt.table_id', $tableId)
+            ->where('rt.reservation_id', '!=', $currentReservationId)
+            ->whereIn('r.status', ReservationStatus::activeDbValues())
+            ->select('r.reservation_id', 'r.status', 'r.checked_in_at', 'r.branch_id', 'r.start_time', 'r.end_time')
+            ->lockForUpdate()
+            ->get();
 
-    return ReservationStatus::isCheckedInDbValue($rawStatus);
-}
+        foreach ($remainingActiveReservations as $reservation) {
+            $this->reservationBranchScopeService->assertReservationMatchesTableBranch(
+                $reservation->branch_id ?? null,
+                $tableBranchId,
+                'Reservation branch does not match the source table branch being released.',
+                'from_table_id',
+            );
+        }
+
+        $blockingReservationIds = TableReleaseGuard::blockingReservationIds($remainingActiveReservations, now('UTC'));
+        if ($blockingReservationIds !== []) {
+            throw ValidationException::withMessages([
+                'from_table_id' => [
+                    'Original table still has another active service context: '
+                    .implode(',', $blockingReservationIds)
+                    .'. Resolve that reservation before retrying the move.',
+                ],
+            ]);
+        }
+
+        $activeOrderExists = DB::table('reservation_orders as ro')
+            ->join('reservation_tables as rt', 'rt.reservation_id', '=', 'ro.reservation_id')
+            ->where('rt.table_id', $tableId)
+            ->where('rt.reservation_id', '!=', $currentReservationId)
+            ->where('ro.status', ReservationOrderStatus::Active->value)
+            ->lockForUpdate()
+            ->exists();
+
+        if ($activeOrderExists) {
+            throw ValidationException::withMessages([
+                'from_table_id' => ['Original table still has another live order context and cannot be released.'],
+            ]);
+        }
+    }
 }

@@ -1616,9 +1616,10 @@ class ApiContractMetadataRegistry
     {
         $genericError = [
             'type' => 'object',
-            'required' => ['error_code', 'message'],
+            'required' => ['error_code', 'category_code', 'message'],
             'properties' => [
                 'error_code' => ['type' => 'string'],
+                'category_code' => ['type' => 'string', 'description' => 'Canonical frontend branch key for the important API failure family.'],
                 'message' => ['type' => 'string'],
                 'request_id' => ['type' => 'string', 'nullable' => true],
                 'error' => ['type' => 'string', 'nullable' => true, 'description' => 'Legacy idempotency alias retained for compatibility.'],
@@ -4875,27 +4876,32 @@ class ApiContractMetadataRegistry
             'ApiError' => $genericError,
             'ValidationError' => array_replace_recursive($genericError, ['example' => [
                 'error_code' => 'validation_error',
+                'category_code' => 'validation_error',
                 'message' => 'Validation error.',
                 'request_id' => 'req-123',
                 'errors' => ['identifier' => ['Invalid credentials.']],
             ]]),
             'UnauthorizedError' => array_replace_recursive($genericError, ['example' => [
                 'error_code' => 'unauthorized',
-                'message' => 'Unauthorized.',
+                'category_code' => 'authentication_required',
+                'message' => 'Authentication is required.',
                 'request_id' => 'req-123',
             ]]),
             'ForbiddenError' => array_replace_recursive($genericError, ['example' => [
                 'error_code' => 'forbidden',
-                'message' => 'Forbidden.',
+                'category_code' => 'policy_denied',
+                'message' => 'Access to this API operation is denied by policy.',
                 'request_id' => 'req-123',
             ]]),
             'NotFoundError' => array_replace_recursive($genericError, ['example' => [
                 'error_code' => 'not_found',
+                'category_code' => 'not_found',
                 'message' => 'Reservation not found.',
                 'request_id' => 'req-123',
             ]]),
             'ConflictError' => array_replace_recursive($genericError, ['example' => [
                 'error_code' => 'conflict',
+                'category_code' => 'resource_conflict',
                 'message' => 'State conflict detected.',
                 'request_id' => 'req-123',
                 'conflict_type' => 'state_conflict',
@@ -4904,6 +4910,7 @@ class ApiContractMetadataRegistry
             ]]),
             'StaleRowVersionError' => array_replace_recursive($genericError, ['example' => [
                 'error_code' => 'stale_row_version',
+                'category_code' => 'stale_write',
                 'message' => 'The resource was modified by another writer. Reload data and try again.',
                 'request_id' => 'req-123',
                 'conflict_type' => 'stale_write',

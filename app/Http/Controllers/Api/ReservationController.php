@@ -81,10 +81,8 @@ class ReservationController extends Controller
 
     private function reservationCreateUnauthorizedResponse(Request $request): JsonResponse
     {
-        return ApiErrorResponse::json(
+        return ApiErrorResponse::authenticationRequired(
             $request,
-            401,
-            'unauthorized',
             'Customer authentication or a session-owned hold is required to create a reservation.',
         );
     }
@@ -218,12 +216,7 @@ class ReservationController extends Controller
 
     private function notFoundReservationResponse(Request $request): JsonResponse
     {
-        return ApiErrorResponse::json(
-            $request,
-            404,
-            'not_found',
-            'Reservation not found.',
-        );
+        return ApiErrorResponse::notFound($request, 'Reservation not found.');
     }
 
     /**

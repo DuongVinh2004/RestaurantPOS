@@ -112,6 +112,7 @@ class StaffTableBoardService
         $reservationsByTable = [];
         $assignedReservations = collect();
         $unassignedReservations = collect();
+        $assignedTableIdsByReservation = [];
 
         foreach ($activeReservations as $reservation) {
             if ($reservation->tables->isEmpty()) {
@@ -121,6 +122,10 @@ class StaffTableBoardService
             }
 
             $assignedReservations->push($reservation);
+            $assignedTableIdsByReservation[(int) $reservation->reservation_id] = $reservation->tables
+                ->pluck('table_id')
+                ->map(static fn ($tableId): int => (int) $tableId)
+                ->all();
             foreach ($reservation->tables as $table) {
                 $reservationsByTable[(int) $table->table_id][] = $reservation;
             }
@@ -144,6 +149,14 @@ class StaffTableBoardService
 
             foreach ($holds as $hold) {
                 foreach ($hold->tables as $table) {
+                    if (! $this->holdShouldRemainVisibleOnTable(
+                        $hold,
+                        (int) $table->table_id,
+                        $assignedTableIdsByReservation,
+                    )) {
+                        continue;
+                    }
+
                     $holdsByTable[(int) $table->table_id][] = $hold;
                 }
             }
@@ -1159,6 +1172,26 @@ class StaffTableBoardService
             'zone' => $zone,
             'include_slot_only_candidates' => $includeSlotOnlyCandidates,
         ];
+    }
+
+    /**
+     * @param  array<int,list<int>>  $assignedTableIdsByReservation
+     */
+    private function holdShouldRemainVisibleOnTable(
+        TableHold $hold,
+        int $tableId,
+        array $assignedTableIdsByReservation,
+    ): bool {
+        if (($hold->hold_status?->value ?? (string) $hold->hold_status) !== 'Confirmed') {
+            return true;
+        }
+
+        $reservationId = (int) ($hold->confirmed_reservation_id ?? 0);
+        if ($reservationId <= 0) {
+            return false;
+        }
+
+        return in_array($tableId, $assignedTableIdsByReservation[$reservationId] ?? [], true);
     }
 
     /**

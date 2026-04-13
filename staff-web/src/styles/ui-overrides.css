@@ -126,6 +126,11 @@
   border-color: rgba(53, 116, 74, 0.28);
 }
 
+.staff-state-surface-info {
+  background: linear-gradient(180deg, rgba(237, 245, 255, 0.94), rgba(255, 251, 245, 0.96));
+  border-color: rgba(86, 139, 214, 0.28);
+}
+
 .staff-state-surface-icon {
   align-items: center;
   background: rgba(157, 91, 41, 0.1);
@@ -142,6 +147,14 @@
   gap: 6px;
 }
 
+.staff-state-surface-eyebrow {
+  color: var(--staff-accent-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .staff-state-surface-title {
   color: var(--staff-text-primary);
   font-size: 16px;
@@ -155,7 +168,20 @@
   max-width: 54ch;
 }
 
-.staff-state-surface-action {
+.staff-state-surface-meta {
+  color: var(--staff-text-secondary) !important;
+  font-size: 13px;
+  margin: 0;
+}
+
+.staff-state-surface-body {
+  display: grid;
+  gap: var(--staff-space-2);
+  width: 100%;
+}
+
+.staff-state-surface-action,
+.staff-state-surface-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--staff-space-2);
@@ -291,13 +317,36 @@
   overflow: auto;
   position: sticky !important;
   top: 0;
+  scrollbar-color: rgba(246, 187, 96, 0.46) rgba(255, 255, 255, 0.04);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.staff-shell-sider::-webkit-scrollbar {
+  width: 10px;
+}
+
+.staff-shell-sider::-webkit-scrollbar-track {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
+  border-radius: 999px;
+  margin: 14px 0;
+}
+
+.staff-shell-sider::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(246, 187, 96, 0.54), rgba(207, 139, 62, 0.26));
+  border: 2px solid rgba(16, 24, 32, 0.82);
+  border-radius: 999px;
+}
+
+.staff-shell-sider::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(246, 187, 96, 0.68), rgba(207, 139, 62, 0.38));
 }
 
 .staff-sider-brand {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: grid;
-  gap: 6px;
-  padding: 18px 16px 16px;
+  gap: 4px;
+  padding: 18px 16px 12px;
 }
 
 .staff-sider-brand-title {
@@ -308,17 +357,34 @@
 
 .staff-sider-brand-copy {
   color: rgba(235, 241, 248, 0.7) !important;
-  display: block;
+  display: none !important;
   font-size: 12px;
   line-height: 1.55;
   margin: 0 !important;
   max-width: 220px;
 }
 
+.staff-shell-menu {
+  gap: 10px;
+  padding: 14px 10px 20px;
+}
+
+.staff-shell-nav-group {
+  gap: 8px;
+}
+
+.staff-shell-nav-group + .staff-shell-nav-group {
+  margin-top: 8px;
+}
+
+.staff-shell-nav-list {
+  gap: 6px;
+}
+
 .staff-shell-menu.ant-menu {
   background: transparent !important;
   border-inline-end: none !important;
-  padding: 14px 10px 18px;
+  padding: 14px 10px 20px;
 }
 
 .staff-shell-menu .ant-menu-item-group + .ant-menu-item-group {
@@ -335,6 +401,24 @@
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+
+.staff-shell-nav-item {
+  border-radius: 14px;
+  gap: 12px;
+  min-height: 42px;
+  padding: 10px 12px;
+}
+
+.staff-shell-nav-item:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.staff-shell-nav-item-selected {
+  background: linear-gradient(135deg, rgba(246, 187, 96, 0.22), rgba(255, 255, 255, 0.04)) !important;
+  border-color: rgba(246, 187, 96, 0.34) !important;
+  box-shadow: inset 0 0 0 1px rgba(246, 187, 96, 0.08);
 }
 
 .staff-shell-menu .ant-menu-item {
@@ -376,10 +460,12 @@
 
 .staff-nav-item-icon {
   color: rgba(246, 187, 96, 0.92);
+  flex: 0 0 20px;
+  width: 20px;
 }
 
 .staff-nav-item-row {
-  gap: 8px;
+  gap: 10px;
 }
 
 .staff-nav-item-title {

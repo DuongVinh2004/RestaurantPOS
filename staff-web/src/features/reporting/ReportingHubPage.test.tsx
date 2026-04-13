@@ -94,9 +94,25 @@ describe('ReportingHubPage', () => {
 
     await waitFor(() => expect(currencyInput).toHaveValue(''));
   });
+
+  it('shows a stale snapshot recovery state when the active reporting tab is degraded', async () => {
+    apiMocks.listDailySalesReporting.mockResolvedValue({
+      data: [],
+      meta: createReportingMeta({
+        status: 'degraded',
+        stale_scope_count: 1,
+        stale_scope_examples: ['BR-03'],
+      }),
+    });
+
+    renderReportingHubPage();
+
+    expect(await screen.findByText(/Snapshot chi nhánh #3 đang degraded/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tải lại tab hiện tại' })).toBeInTheDocument();
+  });
 });
 
-function createReportingMeta() {
+function createReportingMeta(overrides: Record<string, unknown> = {}) {
   return {
     current_page: 1,
     page: 1,
@@ -115,6 +131,7 @@ function createReportingMeta() {
       stale_scope_count: 0,
       stale_scope_examples: [],
       health_reference_refresh_age_seconds: 120,
+      ...overrides,
     },
   } as unknown as StaffReportingCollectionMeta;
 }

@@ -32,6 +32,7 @@ import { formatApiError, isApiStatus } from '../../core/api/errors';
 import { can } from '../../core/permissions/capabilities';
 import { formatDateTime, formatMoney } from '../../core/utils/format';
 import { buildJourneySearch, stripJourneySearch } from '../../core/utils/journey';
+import { buildReservationContextLabel } from '../../core/utils/journey-labels';
 import { paymentTone, reservationTone } from '../../core/utils/status';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { SplitWorkspace } from '../../components/layout/SplitWorkspace';
@@ -99,6 +100,7 @@ export function FinanceReviewPage() {
   const journey = useJourneyContext();
   const session = useAuthStore((state) => state.session);
   const branchId = useFlowStore((state) => state.branchId);
+  const setReservationContext = useFlowStore((state) => state.setReservationContext);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const urlState = useMemo(() => readFinanceReviewUrlState(searchParams), [searchParams]);
   const { page, selectedReservationId, ...filters } = urlState;
@@ -175,6 +177,20 @@ export function FinanceReviewPage() {
     [filters],
   );
 
+  useEffect(() => {
+    const reservation = currentDetail?.reservation ?? selectedRow?.reservation ?? null;
+    if (!reservation) {
+      return;
+    }
+
+    setReservationContext({
+      reservationId: reservation.reservation_id,
+      reservationRowVersion: reservation.row_version,
+      label: buildReservationContextLabel(reservation.reservation_code, reservation.reservation_id),
+      source: journey.source ?? 'checkout',
+    });
+  }, [currentDetail?.reservation, journey.source, selectedRow?.reservation, setReservationContext]);
+
   const issueInvoiceMutation = useMutation({
     mutationFn: async () => {
       if (!selectedReservationRowId) {
@@ -232,6 +248,23 @@ export function FinanceReviewPage() {
       source: 'reservation',
       reservationId: selectedReservationRowId,
       reservationRowVersion: selectedReservationRowVersion ?? undefined,
+    })}`);
+  }
+
+  function openRefundFlow() {
+    if (!selectedReservationRowId) {
+      return;
+    }
+
+    navigate(`/refunds?${buildJourneySearch({
+      source: 'refund',
+      tableId: journey.tableId,
+      tableIds: journey.tableIds,
+      reservationId: selectedReservationRowId,
+      reservationRowVersion: selectedReservationRowVersion ?? undefined,
+      orderId: journey.orderId,
+      orderRowVersion: journey.orderRowVersion,
+      stationId: journey.stationId,
     })}`);
   }
 
@@ -585,6 +618,11 @@ export function FinanceReviewPage() {
           <Typography.Text type="secondary">
             Dùng màn hình này sau thanh toán để soát chênh lệch và phát hành hóa đơn mà không cần rời khỏi không gian làm việc của nhân viên.
           </Typography.Text>
+          {selectedReservationRowId && can(session, 'payment.refund') ? (
+            <Button type="primary" onClick={openRefundFlow}>
+              Mở bàn hoàn tiền
+            </Button>
+          ) : null}
           {selectedReservationRowId && can(session, 'reservation.manage') ? (
             <Button onClick={openReservationFlow}>
               Mở đặt bàn
@@ -742,4 +780,3 @@ function flagTone(label: string): 'default' | 'processing' | 'success' | 'warnin
       return 'default';
   }
 }
-

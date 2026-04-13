@@ -5,6 +5,11 @@ const TOAST_CONFIG = {
 };
 
 type ToastTone = 'success' | 'error' | 'warning' | 'info';
+type ToastLoadingTone = ToastTone | 'loading';
+type ToastOptions = {
+  duration?: number;
+  key?: string;
+};
 
 let messageModulePromise: Promise<typeof import('antd/es/message')> | null = null;
 let messageConfigured = false;
@@ -20,10 +25,15 @@ async function loadMessageApi() {
   return messageApi;
 }
 
-function openToast(tone: ToastTone, content: string) {
+function openToast(tone: ToastLoadingTone, content: string, options: ToastOptions = {}) {
   void loadMessageApi()
     .then((messageApi) => {
-      messageApi[tone](content);
+      messageApi.open({
+        type: tone,
+        content,
+        key: options.key,
+        duration: options.duration ?? (tone === 'loading' ? 0 : undefined),
+      });
     })
     .catch((error) => {
       console.error(`Failed to open ${tone} toast.`, error);
@@ -31,16 +41,28 @@ function openToast(tone: ToastTone, content: string) {
 }
 
 export const toast = {
-  success(content: string) {
-    openToast('success', content);
+  success(content: string, options?: ToastOptions) {
+    openToast('success', content, options);
   },
-  error(content: string) {
-    openToast('error', content);
+  error(content: string, options?: ToastOptions) {
+    openToast('error', content, options);
   },
-  warning(content: string) {
-    openToast('warning', content);
+  warning(content: string, options?: ToastOptions) {
+    openToast('warning', content, options);
   },
-  info(content: string) {
-    openToast('info', content);
+  info(content: string, options?: ToastOptions) {
+    openToast('info', content, options);
+  },
+  loading(content: string, options?: ToastOptions) {
+    openToast('loading', content, options);
+  },
+  destroy(key?: string) {
+    void loadMessageApi()
+      .then((messageApi) => {
+        messageApi.destroy(key);
+      })
+      .catch((error) => {
+        console.error('Failed to destroy toast.', error);
+      });
   },
 };

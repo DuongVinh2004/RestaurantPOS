@@ -71,6 +71,6 @@ class StaffAuthController extends Controller
 
     private function unauthorized(Request $request): JsonResponse
     {
-        return ApiErrorResponse::json($request, 401, 'unauthorized', 'Unauthorized.');
+        return ApiErrorResponse::authenticationRequired($request, 'Authentication is required.');
     }
 }

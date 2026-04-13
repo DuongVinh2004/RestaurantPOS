@@ -1,4 +1,4 @@
-export type JourneySource = 'board' | 'reservation' | 'order' | 'kitchen' | 'checkout' | 'audit';
+export type JourneySource = 'board' | 'reservation' | 'order' | 'kitchen' | 'checkout' | 'refund' | 'audit';
 
 export type JourneyContext = {
   source?: JourneySource;
@@ -157,7 +157,13 @@ function normalizePositiveIntegerList(value: Array<number> | undefined): Array<n
 }
 
 function isJourneySource(value: string | null): value is JourneySource {
-  return value === 'board' || value === 'reservation' || value === 'order' || value === 'kitchen' || value === 'checkout' || value === 'audit';
+  return value === 'board'
+    || value === 'reservation'
+    || value === 'order'
+    || value === 'kitchen'
+    || value === 'checkout'
+    || value === 'refund'
+    || value === 'audit';
 }
 
 function toSearchParams(search: string | URLSearchParams): URLSearchParams {
@@ -169,6 +175,10 @@ function toSearchParams(search: string | URLSearchParams): URLSearchParams {
 }
 
 function resolveJourneyPath(context: JourneyContext): string | null {
+  if (context.source === 'refund' && (context.reservationId || context.orderId)) {
+    return '/refunds';
+  }
+
   if (context.source === 'checkout' && context.orderId) {
     return '/checkout';
   }
@@ -210,6 +220,8 @@ function resolveJourneyPath(context: JourneyContext): string | null {
 
 function resumeLabelForPath(path: string): string {
   switch (path) {
+    case '/refunds':
+      return 'Tiếp tục hoàn tiền';
     case '/checkout':
       return 'Tiếp tục thanh toán';
     case '/kitchen':

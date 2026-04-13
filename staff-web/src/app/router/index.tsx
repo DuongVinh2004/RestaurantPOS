@@ -1,8 +1,11 @@
 import { Suspense, lazy, useEffect } from 'react';
 import type { ComponentType } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
-import { Spin } from 'antd';
-import { FullPageState } from '../../components/states/StateBlocks';
+import { Button } from 'antd';
+import {
+  PageLoadingState,
+  PermissionDeniedState,
+} from '../../components/states/StateBlocks';
 import { can } from '../../core/permissions/capabilities';
 import { recommendedPathForSession, useAuthStore } from '../store/auth-store';
 import { resolveFallbackRedirectPath, resolveIndexRedirectPath } from './redirects';
@@ -26,6 +29,7 @@ const ReservationsPage = lazyRoute(() => import('../../features/reservations/Res
 const OrderWorkspacePage = lazyRoute(() => import('../../features/orders/OrderWorkspacePage'), 'OrderWorkspacePage');
 const KitchenBoardPage = lazyRoute(() => import('../../features/kitchen/KitchenBoardPage'), 'KitchenBoardPage');
 const CheckoutPage = lazyRoute(() => import('../../features/checkout/CheckoutPage'), 'CheckoutPage');
+const RefundWorkspacePage = lazyRoute(() => import('../../features/refunds/RefundWorkspacePage'), 'RefundWorkspacePage');
 const WaitingListPage = lazyRoute(() => import('../../features/waiting/WaitingListPage'), 'WaitingListPage');
 const CashierShiftPage = lazyRoute(() => import('../../features/cashier/CashierShiftPage'), 'CashierShiftPage');
 const FinanceReviewPage = lazyRoute(() => import('../../features/finance/FinanceReviewPage'), 'FinanceReviewPage');
@@ -89,6 +93,14 @@ export function AppRouter() {
                   )}
                 />
                 <Route
+                  path="/refunds"
+                  element={(
+                    <CapabilityRoute capability="payment.refund">
+                      <RefundWorkspacePage />
+                    </CapabilityRoute>
+                  )}
+                />
+                <Route
                   path="/waiting-list"
                   element={(
                     <CapabilityRoute capability="waiting_list.manage">
@@ -147,11 +159,7 @@ export function AppRouter() {
 }
 
 function RouteLoadingState() {
-  return (
-    <div className="staff-boot-screen">
-      <Spin description="Đang tải màn hình..." />
-    </div>
-  );
+  return <PageLoadingState title="Đang tải màn hình…" description="Staff-web đang dựng route và khôi phục module cần cho bước tiếp theo." />;
 }
 
 function BootstrapGate({ children }: { children: JSX.Element }) {
@@ -163,11 +171,7 @@ function BootstrapGate({ children }: { children: JSX.Element }) {
   }, [bootstrap]);
 
   if (status === 'booting') {
-    return (
-      <div className="staff-boot-screen">
-        <Spin description="Đang khởi tạo phiên nhân viên..." />
-      </div>
-    );
+    return <PageLoadingState title="Đang khởi tạo phiên nhân viên…" description="Hệ thống đang kiểm tra capability, branch mặc định và điều kiện vận hành của phiên hiện tại." />;
   }
 
   return children;
@@ -206,6 +210,7 @@ function CapabilityRoute({
   children: JSX.Element;
 }) {
   const session = useAuthStore((state) => state.session);
+  const nextPath = resolveFallbackRedirectPath(session);
 
   if (!session) {
     return <Navigate to="/login" replace />;
@@ -213,10 +218,12 @@ function CapabilityRoute({
 
   if (!can(session, capability)) {
     return (
-      <FullPageState
-        status="403"
+      <PermissionDeniedState
+        variant="page"
         title="Phiên hiện tại chưa có quyền"
-        description={`Màn hình này chỉ hiển thị khi phiên nhân viên có quyền ${capability}.`}
+        description={`Màn hình này chỉ mở khi phiên nhân viên có quyền ${capability}. Hãy quay về hub truy cập hoặc dùng màn hình đã được cấp cho phiên hiện tại.`}
+        primaryAction={<Button type="primary" href="/access">Mở access hub</Button>}
+        secondaryAction={nextPath !== '/access' ? <Button href={nextPath}>Mở màn hình được cấp</Button> : undefined}
       />
     );
   }

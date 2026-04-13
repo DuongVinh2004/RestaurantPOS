@@ -34,8 +34,15 @@ export function ReservationCreateModal({
   lockedTableLabel?: string | null;
 }) {
   return (
-    <Modal title={title} open={open} onCancel={onCancel} footer={null}>
-      <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+    <Modal
+      title={title}
+      open={open}
+      onCancel={submitting ? undefined : onCancel}
+      footer={null}
+      maskClosable={!submitting}
+      closable={!submitting}
+    >
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
         <Typography.Text type="secondary">{description}</Typography.Text>
         {lockedTableLabel ? (
           <Typography.Text type="secondary">
@@ -54,7 +61,7 @@ export function ReservationCreateModal({
                 mode="multiple"
                 showSearch
                 optionFilterProp="label"
-                placeholder="Chọn một hoặc nhiều bàn để gán…"
+                placeholder="Chọn một hoặc nhiều bàn để gán..."
                 options={tableOptions}
                 loading={tableLoading}
                 popupMatchSelectWidth={false}
@@ -73,7 +80,7 @@ export function ReservationCreateModal({
             label="Email"
             rules={[{ type: 'email', message: 'Email không hợp lệ.' }]}
           >
-            <Input autoComplete="email" placeholder="Không bắt buộc…" spellCheck={false} type="email" />
+            <Input autoComplete="email" placeholder="Không bắt buộc..." spellCheck={false} type="email" />
           </Form.Item>
           <Form.Item name="start_time_local" label="Bắt đầu lúc" rules={[{ required: true, message: 'Chọn giờ bắt đầu.' }]}>
             <Input autoComplete="off" type="datetime-local" />
@@ -89,10 +96,10 @@ export function ReservationCreateModal({
             <InputNumber min={30} max={480} step={15} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="notes" label="Ghi chú">
-            <Input.TextArea autoComplete="off" rows={3} placeholder="Ví dụ: khách gọi trước, cần ghế em bé…" />
+            <Input.TextArea autoComplete="off" rows={3} placeholder="Ví dụ: khách gọi trước, cần ghế em bé..." />
           </Form.Item>
           <div className="staff-modal-footer">
-            <Button onClick={onCancel}>Đóng</Button>
+            <Button onClick={onCancel} disabled={submitting}>Đóng</Button>
             <Button type="primary" htmlType="submit" loading={submitting}>
               {submitLabel}
             </Button>

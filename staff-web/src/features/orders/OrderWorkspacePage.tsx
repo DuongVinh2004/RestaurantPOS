@@ -1,7 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Alert,
   Button,
   Card,
   Descriptions,
@@ -28,6 +27,11 @@ import { formatApiError, isApiStatus } from '../../core/api/errors';
 import { formatMoney } from '../../core/utils/format';
 import { buildJourneySearch } from '../../core/utils/journey';
 import {
+  buildOrderContextLabel,
+  buildReservationContextLabel,
+  buildTableContextLabel,
+} from '../../core/utils/journey-labels';
+import {
   getReservationGuestLabel,
   isReservationSnapshotOnlyGuest,
   RESERVATION_SNAPSHOT_GUEST_LABEL,
@@ -42,7 +46,13 @@ import { translateUiCode } from '../../core/utils/translation';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { SplitWorkspace } from '../../components/layout/SplitWorkspace';
 import { toast } from '../../components/feedback/toast';
-import { EmptyBlock, InlineError, InlineLoading } from '../../components/states/StateBlocks';
+import {
+  ApiStateBlock,
+  ConflictState,
+  EmptyBlock,
+  InlineLoading,
+  InlineState,
+} from '../../components/states/StateBlocks';
 import { StatusChip } from '../../components/status/StatusChip';
 import { useFlowStore } from '../../app/store/flow-store';
 import { useJourneyContext } from '../../hooks/useJourneyContext';
@@ -137,6 +147,8 @@ export function OrderWorkspacePage() {
   const message = toast;
   const confirmAction = useConfirmAction();
   const journey = useJourneyContext();
+  const setTableContext = useFlowStore((state) => state.setTableContext);
+  const setReservationContext = useFlowStore((state) => state.setReservationContext);
   const setOrderContext = useFlowStore((state) => state.setOrderContext);
   const [menuSearch, setMenuSearch] = useState('');
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
@@ -209,6 +221,7 @@ export function OrderWorkspacePage() {
     setOrderContext({
       orderId: resolvedOrderId,
       orderRowVersion: resolvedOrderRowVersion ?? null,
+      label: buildOrderContextLabel(resolvedOrderId),
       source: journey.source ?? 'order',
     });
   }, [
@@ -278,6 +291,38 @@ export function OrderWorkspacePage() {
       ?? orderDetailQuery.data?.data.customer?.phone
       ?? 'Khách vãng lai';
   const isSnapshotOnlyGuest = isReservationSnapshotOnlyGuest(reservationSummary);
+
+  useEffect(() => {
+    if (primaryTableId) {
+      setTableContext({
+        tableId: primaryTableId,
+        label: buildTableContextLabel(reservationTableLabel, primaryTableId),
+        source: journey.source ?? 'order',
+      });
+    }
+
+    if (reservationId) {
+      setReservationContext({
+        reservationId,
+        reservationRowVersion: reservationSummary?.row_version ?? reservationRowVersion,
+        label: buildReservationContextLabel(
+          reservationSummary?.reservation_code ?? null,
+          reservationId,
+        ),
+        source: journey.source ?? 'order',
+      });
+    }
+  }, [
+    journey.source,
+    primaryTableId,
+    reservationId,
+    reservationRowVersion,
+    reservationSummary?.reservation_code,
+    reservationSummary?.row_version,
+    reservationTableLabel,
+    setReservationContext,
+    setTableContext,
+  ]);
 
   const orderItems = useMemo(
     () => orderDetailQuery.data?.data.items ?? [],
@@ -390,6 +435,7 @@ export function OrderWorkspacePage() {
       setOrderContext({
         orderId,
         orderRowVersion: orderEnvelope.data.row_version ?? null,
+        label: buildOrderContextLabel(orderId),
         source: 'order',
       });
       message.success(`Đã tạo đơn hàng #${orderId}.`);
@@ -631,15 +677,22 @@ export function OrderWorkspacePage() {
         <InlineLoading tip="Đang xác định đơn hàng hiện tại..." />
       ) : null}
       {orderDetailQuery.error && !(staleRouteOrderRecovered && isApiStatus(orderDetailQuery.error, 404)) ? (
-        <InlineError message={formatApiError(orderDetailQuery.error, 'Không thể tải chi tiết đơn hàng.')} />
+        <ApiStateBlock
+          error={orderDetailQuery.error}
+          fallback="Không thể tải chi tiết đơn hàng."
+          onRetry={() => {
+            void orderDetailQuery.refetch();
+          }}
+        />
       ) : null}
 
       {staleRouteOrderRecovered && resolvedOrderId && resolvedOrderId !== routeOrderId ? (
-        <Alert
-          type="info"
-          showIcon
+        <InlineState
+          tone="info"
+          eyebrow="Đã tự phục hồi ngữ cảnh"
           title={`Đã khôi phục sang đơn hàng đang phục vụ #${resolvedOrderId}`}
           description="Ngữ cảnh order cũ trên URL không còn hợp lệ. Workspace đã dò lại active order theo bàn hoặc đặt bàn hiện tại."
+          className="staff-inline-note"
         />
       ) : null}
 
@@ -658,7 +711,13 @@ export function OrderWorkspacePage() {
               </Descriptions.Item>
             </Descriptions>
             {reservationDetailQuery.error ? (
-              <InlineError message={formatApiError(reservationDetailQuery.error, 'Không thể tải chi tiết đặt bàn để tạo đơn hàng.')} />
+              <ApiStateBlock
+                error={reservationDetailQuery.error}
+                fallback="Không thể tải chi tiết đặt bàn để tạo đơn hàng."
+                onRetry={() => {
+                  void reservationDetailQuery.refetch();
+                }}
+              />
             ) : null}
             <Form<CreateOrderValues> layout="vertical" onFinish={(values) => createOrderMutation.mutate(values)}>
               <Form.Item name="notes" label="Ghi chú đơn hàng">
@@ -703,11 +762,11 @@ export function OrderWorkspacePage() {
               </Descriptions>
 
               {itemConcurrencyMissing ? (
-                <Alert
-                  type="warning"
-                  showIcon
-                  title="Cảnh báo phiên bản trên dòng món"
-                  description="Ít nhất một dòng món đang thiếu phiên bản mới nhất. Vẫn có thể thêm món và chuyển bếp, nhưng thao tác sửa hoặc đổi trạng thái theo từng dòng sẽ bị khóa cho tới khi tải lại chi tiết đơn hàng."
+                <ConflictState
+                  title="Chi tiết dòng món đang thiếu phiên bản mới nhất"
+                  description="Vẫn có thể thêm món và chuyển bếp, nhưng thao tác sửa hoặc đổi trạng thái theo từng dòng sẽ bị khóa cho tới khi tải lại chi tiết đơn hàng."
+                  primaryAction={<Button onClick={() => void orderDetailQuery.refetch()}>Tải lại chi tiết</Button>}
+                  className="staff-inline-note"
                 />
               ) : null}
 
@@ -804,7 +863,15 @@ export function OrderWorkspacePage() {
             </div>
           ) : null}
           {menuQuery.isLoading ? <InlineLoading tip="Đang tải danh mục món..." /> : null}
-          {menuQuery.error ? <InlineError message={formatApiError(menuQuery.error, 'Không thể tải danh mục món cho nhân viên.')} /> : null}
+          {menuQuery.error ? (
+            <ApiStateBlock
+              error={menuQuery.error}
+              fallback="Không thể tải danh mục món cho nhân viên."
+              onRetry={() => {
+                void menuQuery.refetch();
+              }}
+            />
+          ) : null}
           {!menuQuery.isLoading && !menuQuery.error && menuItems.length === 0 ? (
             <EmptyBlock
               title="Không tìm thấy món"
@@ -1000,4 +1067,3 @@ export function OrderWorkspacePage() {
 
   return <SplitWorkspace main={main} side={side} variant="detail-heavy" className="staff-order-split-workspace" />;
 }
-

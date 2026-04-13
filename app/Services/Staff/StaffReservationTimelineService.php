@@ -434,6 +434,15 @@ class StaffReservationTimelineService
             return [];
         }
 
+        $assignedTableIdsByReservation = $assignedReservations
+            ->mapWithKeys(static fn (Reservation $reservation): array => [
+                (int) $reservation->reservation_id => $reservation->tables
+                    ->pluck('table_id')
+                    ->map(static fn ($tableId): int => (int) $tableId)
+                    ->all(),
+            ])
+            ->all();
+
         $rangeStartUtc = $assignedReservations
             ->map(static fn (Reservation $reservation): int => $reservation->start_time->copy()->utc()->getTimestamp())
             ->min();
@@ -457,11 +466,36 @@ class StaffReservationTimelineService
         $holdsByTable = [];
         foreach ($holds as $hold) {
             foreach ($hold->tables as $table) {
+                if (! $this->holdShouldRemainVisibleOnTable(
+                    $hold,
+                    (int) $table->table_id,
+                    $assignedTableIdsByReservation,
+                )) {
+                    continue;
+                }
+
                 $holdsByTable[(int) $table->table_id][] = $hold;
             }
         }
 
         return $holdsByTable;
+    }
+
+    /**
+     * @param  array<int,list<int>>  $assignedTableIdsByReservation
+     */
+    private function holdShouldRemainVisibleOnTable(TableHold $hold, int $tableId, array $assignedTableIdsByReservation): bool
+    {
+        if (($hold->hold_status?->value ?? (string) $hold->hold_status) !== 'Confirmed') {
+            return true;
+        }
+
+        $reservationId = (int) ($hold->confirmed_reservation_id ?? 0);
+        if ($reservationId <= 0) {
+            return false;
+        }
+
+        return in_array($tableId, $assignedTableIdsByReservation[$reservationId] ?? [], true);
     }
 
     private function resolveCheckInGraceMinutes(): int
