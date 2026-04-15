@@ -116,6 +116,7 @@ return [
         'GET api/v1/admin/settings/branches/export' => 'settings.manage',
         'GET api/v1/admin/settings/branches/{id}' => 'settings.manage',
         'GET api/v1/admin/settings/finance/tax-profile' => 'settings.manage',
+        'GET api/v1/metrics' => 'ops.view',
         'GET api/v1/staff/audit-trail' => 'audit.view',
         'GET api/v1/staff/branches' => 'reservation.manage',
         'GET api/v1/staff/cashier/shifts' => 'cashier.shift.manage',

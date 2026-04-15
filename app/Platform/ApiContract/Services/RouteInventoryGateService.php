@@ -242,11 +242,6 @@ class RouteInventoryGateService
      */
     public function discoverPublicControllers(): array
     {
-        $apiControllerPath = app_path('Http/Controllers/Api');
-        if (! File::isDirectory($apiControllerPath)) {
-            return [];
-        }
-
         $prefixes = array_values(array_filter(array_map(
             static fn ($value) => is_scalar($value) ? trim((string) $value) : '',
             (array) config('booking_release.route_inventory_gate.public_controller_prefixes', ['Customer'])
@@ -262,26 +257,37 @@ class RouteInventoryGateService
             (array) config('booking_release.route_inventory_gate.public_controller_exclusions', [])
         ), static fn (string $value): bool => $value !== ''));
 
-        $controllers = collect(File::allFiles($apiControllerPath))
-            ->filter(function ($file) use ($prefixes, $exactNames): bool {
-                $basename = $file->getFilenameWithoutExtension();
+        $controllers = collect($this->publicControllerRoots())
+            ->flatMap(function (array $root) use ($prefixes, $exactNames): array {
+                $path = (string) ($root['path'] ?? '');
+                $namespace = (string) ($root['namespace'] ?? '');
 
-                if (in_array($basename, $exactNames, true)) {
-                    return true;
+                if ($path === '' || $namespace === '' || ! File::isDirectory($path)) {
+                    return [];
                 }
 
-                foreach ($prefixes as $prefix) {
-                    if (str_starts_with($basename, $prefix)) {
-                        return true;
-                    }
-                }
+                return collect(File::allFiles($path))
+                    ->filter(function ($file) use ($prefixes, $exactNames): bool {
+                        $basename = $file->getFilenameWithoutExtension();
 
-                return false;
-            })
-            ->map(static function ($file) use ($apiControllerPath): string {
-                $relativePath = trim(str_replace([$apiControllerPath, DIRECTORY_SEPARATOR], ['', '\\'], $file->getPathname()), '\\');
+                        if (in_array($basename, $exactNames, true)) {
+                            return true;
+                        }
 
-                return 'App\\Http\\Controllers\\Api\\'.preg_replace('/\\.php$/', '', $relativePath);
+                        foreach ($prefixes as $prefix) {
+                            if (str_starts_with($basename, $prefix)) {
+                                return true;
+                            }
+                        }
+
+                        return false;
+                    })
+                    ->map(static function ($file) use ($path, $namespace): string {
+                        $relativePath = trim(str_replace([$path, DIRECTORY_SEPARATOR], ['', '\\'], $file->getPathname()), '\\');
+
+                        return $namespace.'\\'.preg_replace('/\\.php$/', '', $relativePath);
+                    })
+                    ->all();
             })
             ->reject(static fn (string $fqcn): bool => in_array($fqcn, $exclusions, true))
             ->filter(static fn (string $fqcn): bool => class_exists($fqcn))
@@ -291,6 +297,70 @@ class RouteInventoryGateService
         sort($controllers);
 
         return array_values($controllers);
+    }
+
+    /**
+     * @return list<array{path: string, namespace: string}>
+     */
+    private function publicControllerRoots(): array
+    {
+        $roots = [
+            [
+                'path' => app_path('Http/Controllers/Api'),
+                'namespace' => 'App\\Http\\Controllers\\Api',
+            ],
+        ];
+
+        foreach (File::directories(app_path('Modules')) as $modulePath) {
+            $controllerPath = $modulePath.DIRECTORY_SEPARATOR.'Http'.DIRECTORY_SEPARATOR.'Controllers';
+
+            if (File::isDirectory($controllerPath)) {
+                $roots[] = [
+                    'path' => $controllerPath,
+                    'namespace' => 'App\\Modules\\'.basename($modulePath).'\\Http\\Controllers',
+                ];
+            }
+        }
+
+        foreach (File::directories(app_path('Platform')) as $platformPath) {
+            $controllerPath = $platformPath.DIRECTORY_SEPARATOR.'Http';
+
+            if (File::isDirectory($controllerPath)) {
+                $roots[] = [
+                    'path' => $controllerPath,
+                    'namespace' => 'App\\Platform\\'.basename($platformPath).'\\Http',
+                ];
+            }
+        }
+
+        return $roots;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function routeActionControllerPrefixes(): array
+    {
+        return [
+            'App\\Http\\Controllers\\Api\\',
+            'App\\Modules\\',
+            'App\\Platform\\',
+        ];
+    }
+
+    private function isApiControllerAction(string $action): bool
+    {
+        if ($action === 'Closure') {
+            return false;
+        }
+
+        foreach ($this->routeActionControllerPrefixes() as $prefix) {
+            if (str_starts_with($action, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -393,7 +463,7 @@ class RouteInventoryGateService
         foreach (Route::getRoutes()->getRoutes() as $route) {
             $action = $route->getActionName();
 
-            if (! is_string($action) || $action === 'Closure' || ! str_starts_with($action, 'App\\Http\\Controllers\\Api\\')) {
+            if (! is_string($action) || ! $this->isApiControllerAction($action)) {
                 continue;
             }
 

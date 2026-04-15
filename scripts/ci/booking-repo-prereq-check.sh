@@ -19,9 +19,9 @@ required_files=(
   bootstrap/app.php
   routes/api.php
   routes/console.php
-  app/Services/ReleaseArtifactManifestService.php
-  app/Services/ReleasePackageService.php
-  app/Services/BookingDeploySafetyService.php
+  app/Platform/Release/Services/ReleaseArtifactManifestService.php
+  app/Platform/Release/Services/ReleasePackageService.php
+  app/Platform/Release/Services/BookingDeploySafetyService.php
   scripts/ci/booking-full-gate.sh
   scripts/ci/booking-release-gate.sh
   scripts/release/package_release.sh
@@ -48,7 +48,7 @@ if [[ ${#missing[@]} -gt 0 ]]; then
   exit 1
 fi
 
-if ! grep -q "inspectFrozenSnapshot" app/Services/ReleaseArtifactManifestService.php; then
+if ! grep -q "inspectFrozenSnapshot" app/Platform/Release/Services/ReleaseArtifactManifestService.php; then
   echo "[booking-repo-prereq-check] patch 1 release manifest freeze support is missing." >&2
   echo "Apply patch 1 before running patch 2 CI/CD workflows." >&2
   exit 1
