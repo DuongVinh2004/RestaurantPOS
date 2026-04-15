@@ -13,7 +13,7 @@ use App\Models\PurchaseOrderLine;
 use App\Models\PurchaseReceipt;
 use App\Models\PurchaseReceiptLine;
 use App\Models\Supplier;
-use App\Services\Branch\BranchContextService;
+use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Services\Inventory\InventoryStockMovementService;
 use App\Services\Inventory\PurchaseOrderReconciliationService;
 use App\Support\AuditEvent;

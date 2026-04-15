@@ -13,29 +13,29 @@ final class StaffFinanceReportingRouteSurfaceTest extends TestCase
     public function test_staff_cashier_finance_reporting_kitchen_and_order_item_routes_are_registered(): void
     {
         $expected = [
-            ['GET', 'v1/staff/cashier/shifts/current', 'App\\Http\\Controllers\\Api\\Staff\\StaffCashierShiftController@current'],
-            ['POST', 'v1/staff/cashier/shifts/open', 'App\\Http\\Controllers\\Api\\Staff\\StaffCashierShiftController@open'],
-            ['GET', 'v1/staff/cashier/shifts/{shift_id}', 'App\\Http\\Controllers\\Api\\Staff\\StaffCashierShiftController@show'],
-            ['POST', 'v1/staff/cashier/shifts/{shift_id}/close', 'App\\Http\\Controllers\\Api\\Staff\\StaffCashierShiftController@close'],
-            ['GET', 'v1/staff/finance/invoices/{reservation_id}', 'App\\Http\\Controllers\\Api\\Staff\\StaffFinanceInvoiceController@show'],
-            ['POST', 'v1/staff/finance/invoices/{reservation_id}/issue', 'App\\Http\\Controllers\\Api\\Staff\\StaffFinanceInvoiceController@issue'],
-            ['GET', 'v1/staff/finance/accounting-export', 'App\\Http\\Controllers\\Api\\Staff\\StaffFinanceInvoiceController@accountingExport'],
-            ['GET', 'v1/staff/finance/reconciliation', 'App\\Http\\Controllers\\Api\\Staff\\StaffFinancialReconciliationController@index'],
-            ['GET', 'v1/staff/finance/reconciliation/export', 'App\\Http\\Controllers\\Api\\Staff\\StaffFinancialReconciliationController@export'],
-            ['GET', 'v1/staff/finance/reconciliation/{reservation_id}', 'App\\Http\\Controllers\\Api\\Staff\\StaffFinancialReconciliationController@show'],
-            ['GET', 'v1/staff/reporting/daily-sales', 'App\\Http\\Controllers\\Api\\Staff\\StaffReportingController@dailySales'],
-            ['GET', 'v1/staff/reporting/daily-operations', 'App\\Http\\Controllers\\Api\\Staff\\StaffReportingController@dailyOperations'],
-            ['GET', 'v1/staff/reporting/daily-inventory', 'App\\Http\\Controllers\\Api\\Staff\\StaffReportingController@dailyInventory'],
-            ['GET', 'v1/staff/kitchen/stations', 'App\\Http\\Controllers\\Api\\Staff\\StaffKitchenController@stations'],
-            ['GET', 'v1/staff/kitchen/stations/{station_id}/tickets', 'App\\Http\\Controllers\\Api\\Staff\\StaffKitchenController@stationTickets'],
-            ['POST', 'v1/staff/orders/{order_id}/kitchen/dispatch', 'App\\Http\\Controllers\\Api\\Staff\\StaffKitchenController@dispatchOrder'],
-            ['POST', 'v1/staff/kitchen/tickets/{ticket_id}/fire', 'App\\Http\\Controllers\\Api\\Staff\\StaffKitchenController@fire'],
-            ['POST', 'v1/staff/kitchen/tickets/{ticket_id}/bump', 'App\\Http\\Controllers\\Api\\Staff\\StaffKitchenController@bump'],
-            ['POST', 'v1/staff/kitchen/tickets/{ticket_id}/recall', 'App\\Http\\Controllers\\Api\\Staff\\StaffKitchenController@recall'],
-            ['GET', 'v1/staff/kitchen/changes', 'App\\Http\\Controllers\\Api\\Staff\\StaffKitchenController@changes'],
-            ['PATCH', 'v1/staff/orders/{order_id}/items/{order_item_id}', 'App\\Http\\Controllers\\Api\\Staff\\StaffOrderItemLifecycleController@update'],
-            ['POST', 'v1/staff/orders/{order_id}/items/{order_item_id}/status', 'App\\Http\\Controllers\\Api\\Staff\\StaffOrderItemLifecycleController@updateStatus'],
-            ['POST', 'v1/admin/settings/reporting/snapshots/rebuild', 'App\\Http\\Controllers\\Api\\Admin\\AdminReportingController@rebuild'],
+            ['GET', 'v1/staff/cashier/shifts/current', 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCashierShiftController@current'],
+            ['POST', 'v1/staff/cashier/shifts/open', 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCashierShiftController@open'],
+            ['GET', 'v1/staff/cashier/shifts/{shift_id}', 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCashierShiftController@show'],
+            ['POST', 'v1/staff/cashier/shifts/{shift_id}/close', 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCashierShiftController@close'],
+            ['GET', 'v1/staff/finance/invoices/{reservation_id}', 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinanceInvoiceController@show'],
+            ['POST', 'v1/staff/finance/invoices/{reservation_id}/issue', 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinanceInvoiceController@issue'],
+            ['GET', 'v1/staff/finance/accounting-export', 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinanceInvoiceController@accountingExport'],
+            ['GET', 'v1/staff/finance/reconciliation', 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinancialReconciliationController@index'],
+            ['GET', 'v1/staff/finance/reconciliation/export', 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinancialReconciliationController@export'],
+            ['GET', 'v1/staff/finance/reconciliation/{reservation_id}', 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinancialReconciliationController@show'],
+            ['GET', 'v1/staff/reporting/daily-sales', 'App\\Modules\\Reporting\\Http\\Controllers\\Staff\\StaffReportingController@dailySales'],
+            ['GET', 'v1/staff/reporting/daily-operations', 'App\\Modules\\Reporting\\Http\\Controllers\\Staff\\StaffReportingController@dailyOperations'],
+            ['GET', 'v1/staff/reporting/daily-inventory', 'App\\Modules\\Reporting\\Http\\Controllers\\Staff\\StaffReportingController@dailyInventory'],
+            ['GET', 'v1/staff/kitchen/stations', 'App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@stations'],
+            ['GET', 'v1/staff/kitchen/stations/{station_id}/tickets', 'App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@stationTickets'],
+            ['POST', 'v1/staff/orders/{order_id}/kitchen/dispatch', 'App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@dispatchOrder'],
+            ['POST', 'v1/staff/kitchen/tickets/{ticket_id}/fire', 'App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@fire'],
+            ['POST', 'v1/staff/kitchen/tickets/{ticket_id}/bump', 'App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@bump'],
+            ['POST', 'v1/staff/kitchen/tickets/{ticket_id}/recall', 'App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@recall'],
+            ['GET', 'v1/staff/kitchen/changes', 'App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@changes'],
+            ['PATCH', 'v1/staff/orders/{order_id}/items/{order_item_id}', 'App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffOrderItemLifecycleController@update'],
+            ['POST', 'v1/staff/orders/{order_id}/items/{order_item_id}/status', 'App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffOrderItemLifecycleController@updateStatus'],
+            ['POST', 'v1/admin/settings/reporting/snapshots/rebuild', 'App\\Modules\\Reporting\\Http\\Controllers\\Admin\\AdminReportingController@rebuild'],
         ];
 
         foreach ($expected as [$method, $uri, $action]) {
@@ -65,7 +65,7 @@ final class StaffFinanceReportingRouteSurfaceTest extends TestCase
         $candidates = [$normalized];
 
         if (! str_starts_with($normalized, 'api/')) {
-            $candidates[] = 'api/' . $normalized;
+            $candidates[] = 'api/'.$normalized;
         }
 
         return array_values(array_unique($candidates));

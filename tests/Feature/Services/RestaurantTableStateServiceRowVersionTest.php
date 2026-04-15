@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Services;
 
-use App\Services\RestaurantTableStateService;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;

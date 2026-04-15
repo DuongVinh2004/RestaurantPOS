@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Services\LoyaltyPointsService;
-use App\Services\ReservationFinancialSyncService;
-use App\Services\RestaurantTableStateService;
-use App\Services\Staff\StaffCheckoutService;
+use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyPointsService;
+use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncService;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Validation\ValidationException;

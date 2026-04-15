@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Infrastructure;
 
-use App\Services\ApiContract\OpenApiSpecService;
+use App\Platform\ApiContract\Services\OpenApiSpecService;
 use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 

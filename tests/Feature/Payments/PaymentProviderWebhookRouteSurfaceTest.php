@@ -21,7 +21,7 @@ final class PaymentProviderWebhookRouteSurfaceTest extends TestCase
 
         self::assertNotNull($route, 'Expected webhook route [POST v1/payments/providers/{provider_code}/webhooks] is not registered.');
         self::assertSame(
-            'App\\Http\\Controllers\\Api\\PaymentProviderWebhookController@handle',
+            'App\\Modules\\CheckoutPayments\\Http\\Controllers\\PaymentProviderWebhookController@handle',
             $route->getActionName(),
             'Webhook route drifted to an unexpected controller action.',
         );

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Services\RouteContractReconcilerService;
+use App\Platform\ApiContract\Services\RouteContractReconcilerService;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 

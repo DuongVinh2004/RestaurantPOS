@@ -1,5 +1,7 @@
 # Booking Legacy / Dead Path Cleanup Matrix
 
+This matrix is now complemented by `docs/runbooks/post-refactor-migration-residue-report.md`, which is the current stabilization-era reference for removed compatibility shims and canonical route wiring.
+
 This note documents the evidence-backed classification used by PATCH 6.
 
 | Path / area | Classification | Evidence summary | Action in patch |
@@ -14,8 +16,9 @@ This note documents the evidence-backed classification used by PATCH 6.
 
 ## Notes
 
-- Patch 6 intentionally avoids deleting PSR-4 classes that might still have out-of-repo consumers.
-- The cleanup now also removes the legacy waiting-list request residue after infrastructure coverage was upgraded to lock the canonical controller request signatures.
+- Earlier Patch 6 avoided deleting PSR-4 classes that might still have out-of-repo consumers.
+- The follow-up cleanup removes pure module/platform compatibility shims after internal callers were migrated to canonical classes.
+- The cleanup also removes the legacy waiting-list request residue after infrastructure coverage was upgraded to lock the canonical controller request signatures.
 - Anti-regression tests lock:
   - namespace/path parity under `app/`
   - canonical waiting-list owner controller wiring

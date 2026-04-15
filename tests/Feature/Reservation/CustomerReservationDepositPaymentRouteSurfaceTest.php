@@ -16,19 +16,19 @@ final class CustomerReservationDepositPaymentRouteSurfaceTest extends TestCase
             [
                 'method' => 'POST',
                 'uri' => 'v1/reservations/{reservation_id}/deposit/payment-sessions',
-                'action' => 'App\\Http\\Controllers\\Api\\CustomerReservationDepositPaymentController@store',
+                'action' => 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationDepositPaymentController@store',
                 'idempotency' => 'idempotency:customer.reservation-deposit-payment-sessions.create',
             ],
             [
                 'method' => 'POST',
                 'uri' => 'v1/reservations/{reservation_id}/deposit/payment-sessions/{session_id}/refresh',
-                'action' => 'App\\Http\\Controllers\\Api\\CustomerReservationDepositPaymentController@refresh',
+                'action' => 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationDepositPaymentController@refresh',
                 'idempotency' => 'idempotency:customer.reservation-deposit-payment-sessions.refresh',
             ],
             [
                 'method' => 'POST',
                 'uri' => 'v1/reservations/{reservation_id}/deposit/payment-sessions/{session_id}/confirm',
-                'action' => 'App\\Http\\Controllers\\Api\\CustomerReservationDepositPaymentController@confirm',
+                'action' => 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationDepositPaymentController@confirm',
                 'idempotency' => 'idempotency:customer.reservation-deposit-payment-sessions.confirm',
             ],
         ];
@@ -61,7 +61,7 @@ final class CustomerReservationDepositPaymentRouteSurfaceTest extends TestCase
         $candidates = [$normalized];
 
         if (! str_starts_with($normalized, 'api/')) {
-            $candidates[] = 'api/' . $normalized;
+            $candidates[] = 'api/'.$normalized;
         }
 
         return array_values(array_unique($candidates));

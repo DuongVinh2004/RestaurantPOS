@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Infrastructure;
 
-use App\Services\ApiContract\ApiContractMetadataRegistry;
-use App\Services\ApiContract\OpenApiSpecService;
+use App\Platform\ApiContract\Services\ApiContractMetadataRegistry;
+use App\Platform\ApiContract\Services\OpenApiSpecService;
 use Illuminate\Support\Collection;
 use Tests\TestCase;
 

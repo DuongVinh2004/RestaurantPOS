@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\Staff;
 
 use App\Enums\PaymentStatus;
-use App\Models\Payment;
-use App\Services\LoyaltyPointsService;
-use App\Services\ReservationFinancialSyncService;
-use App\Services\RuntimeSettingService;
-use App\Services\Branch\BranchContextService;
-use App\Services\Staff\RefundExecutionService;
-use App\Services\Staff\RefundPlannerService;
-use App\Services\Staff\SettlementAmountCalculator;
+use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyPointsService;
+use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncService;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
+use App\Modules\BranchScheduling\Application\Services\BranchContextService;
+use App\Modules\CheckoutPayments\Application\Services\RefundExecutionService;
+use App\Modules\CheckoutPayments\Application\Services\RefundPlannerService;
+use App\Modules\CheckoutPayments\Application\Services\SettlementAmountCalculator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -97,7 +97,7 @@ final class RefundExecutionServiceTest extends TestCase
             ]));
 
         $service = new RefundExecutionService($planner, new SettlementAmountCalculator(), $loyalty, $branchContext);
-        $reservation = new \App\Models\Reservation(['branch_id' => 1]);
+        $reservation = new \App\Modules\Reservations\Domain\Models\Reservation(['branch_id' => 1]);
         $payments = new Collection([new Payment(['branch_id' => 2])]);
 
         $method = new ReflectionMethod($service, 'resolveReservationBranchId');

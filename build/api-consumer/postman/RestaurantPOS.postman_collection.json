@@ -1798,7 +1798,7 @@
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/staff/kitchen/stations?branch_id={{branchId}}",
-                        "description": "Return the active kitchen station roster with route counts, queued or fired or ready ticket counts, and realtime metadata for staff KDS visibility. Branch reads are constrained to the authenticated actor operational branch scope and explicit inaccessible branch filters fail closed.\n\nSignature: `GET api/v1/staff/kitchen/stations`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                        "description": "Return the active kitchen station roster with route counts, queued or fired or ready ticket counts, and realtime metadata for staff KDS visibility. Branch reads are constrained to the authenticated actor explicit branch entitlement scope and inaccessible branch filters fail closed.\n\nSignature: `GET api/v1/staff/kitchen/stations`\nAuth mode: `staff_api_key`\nContract grade: `full`"
                     },
                     "response": []
                 },
@@ -1819,7 +1819,7 @@
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/staff/kitchen/stations/{{kitchenStationId}}/tickets?branch_id={{branchId}}&status={{kitchenTicketStatus}}&include_terminal={{kitchenIncludeTerminal}}",
-                        "description": "Return the kitchen tickets routed to the selected station, including order-item status snapshots, routing details, and optional terminal tickets for operator review. The station read is limited to the authenticated actor operational branch scope and returns not found outside that scope.\n\nSignature: `GET api/v1/staff/kitchen/stations/{station_id}/tickets`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                        "description": "Return the kitchen tickets routed to the selected station, including order-item status snapshots, routing details, and optional terminal tickets for operator review. The station read is limited to the authenticated actor explicit branch entitlement scope and returns not found outside that scope.\n\nSignature: `GET api/v1/staff/kitchen/stations/{station_id}/tickets`\nAuth mode: `staff_api_key`\nContract grade: `full`"
                     },
                     "response": []
                 },
@@ -3466,7 +3466,7 @@
                                     }
                                 ],
                                 "url": "{{baseUrl}}/api/v1/staff/branches",
-                                "description": "Return the active branch context list exposed to staff-web for branch switching and branch-aware filters. The list is limited to the authenticated actor operational scope: default branch plus branches where the actor currently has an open cashier shift.\n\nSignature: `GET api/v1/staff/branches`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                                "description": "Return the active branch context list exposed to staff-web for branch switching and branch-aware filters. The list is limited to the authenticated actor explicit branch entitlement scope and never expands from cashier shift state.\n\nSignature: `GET api/v1/staff/branches`\nAuth mode: `staff_api_key`\nContract grade: `full`"
                             },
                             "response": []
                         },
@@ -4146,7 +4146,7 @@
                                     }
                                 ],
                                 "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}",
-                                "description": "Return the staff-scoped reservation detail read model with tables, user context, order lines, and financial snapshots needed for operational drawers and linked order workflows. Reads fail closed outside the actor operational branch scope (default branch plus open cashier-shift branches).\n\nSignature: `GET api/v1/staff/reservations/{reservation_id}`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                                "description": "Return the staff-scoped reservation detail read model with tables, user context, order lines, and financial snapshots needed for operational drawers and linked order workflows. Reads fail closed outside the actor explicit branch entitlement scope.\n\nSignature: `GET api/v1/staff/reservations/{reservation_id}`\nAuth mode: `staff_api_key`\nContract grade: `full`"
                             },
                             "response": []
                         },

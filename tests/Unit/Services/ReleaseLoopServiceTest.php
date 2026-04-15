@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\OpsGateArtifactService;
-use App\Services\ReleaseBuildMetadataService;
-use App\Services\ReleaseLoopService;
+use App\Platform\ApiContract\Services\OpsGateArtifactService;
+use App\Platform\Release\Services\ReleaseBuildMetadataService;
+use App\Platform\Release\Services\ReleaseLoopService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use Symfony\Component\Process\Process;

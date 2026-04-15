@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Support;
 
 use App\Enums\WaitingListStatus;
-use App\Models\WaitingList;
-use App\Support\WaitingListStateMachine;
+use App\Modules\WaitingList\Domain\Models\WaitingList;
+use App\Modules\WaitingList\Domain\State\WaitingListStateMachine;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;

@@ -36,6 +36,11 @@ class AdminReportingReadModelsFoundationHttpFlowTest extends TestCase
             'branch_name' => 'Ho Chi Minh',
         ]);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId,
+            'status' => 'Open',
+        ]);
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $ingredientId = $this->createIngredient(['name' => 'Coffee Beans', 'unit_code' => 'kg']);
 
@@ -338,7 +343,10 @@ class AdminReportingReadModelsFoundationHttpFlowTest extends TestCase
                 'end_time' => $businessDay->copy()->setTime(12, 0),
                 'checked_in_at' => $businessDay->copy()->setTime(11, 0),
             ]);
-            $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
+            $tableId = $this->createRestaurantTable([
+                'branch_id' => $branchId,
+                'status' => 'Occupied',
+            ]);
             $this->attachReservationTable($reservationId, $tableId);
 
             $orderId = $this->createOrder([

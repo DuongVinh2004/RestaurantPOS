@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\ApiArtifacts\ApiConsumerArtifactService;
-use App\Services\ApiContract\OpenApiSpecService;
-use App\Services\Harness\HarnessSuiteService;
-use App\Services\ReleaseArtifactManifestService;
-use App\Services\ReleaseBuildService;
-use App\Services\ReleasePackageService;
+use App\Platform\ApiContract\ApiArtifacts\ApiConsumerArtifactService;
+use App\Platform\ApiContract\Services\OpenApiSpecService;
+use App\Platform\Harness\HarnessSuiteService;
+use App\Platform\Release\Services\ReleaseArtifactManifestService;
+use App\Platform\Release\Services\ReleaseBuildService;
+use App\Platform\Release\Services\ReleasePackageService;
 use Tests\TestCase;
 
 class ReleaseBuildServiceTest extends TestCase

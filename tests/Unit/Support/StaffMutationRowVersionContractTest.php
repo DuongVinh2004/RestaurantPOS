@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Http\Requests\Staff\CheckoutOrderRequest;
-use App\Http\Requests\Staff\FinalizeSettlementRequest;
+use App\Modules\CheckoutPayments\Http\Requests\Staff\CheckoutOrderRequest;
+use App\Modules\CheckoutPayments\Http\Requests\Staff\FinalizeSettlementRequest;
 use App\Support\StaffMutationRowVersionContract;
 use PHPUnit\Framework\TestCase;
 

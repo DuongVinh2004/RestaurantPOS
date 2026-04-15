@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Services\Reporting\ReportingSnapshotService;
+use App\Modules\Reporting\Application\Services\ReportingSnapshotService;
 use Illuminate\Support\Facades\Artisan;
 use Mockery;
 use PHPUnit\Framework\Attributes\Group;

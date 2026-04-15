@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\RouteInventoryGateService;
+use App\Platform\ApiContract\Services\RouteInventoryGateService;
 use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 
@@ -111,7 +111,7 @@ PHP
         $controllers = app(RouteInventoryGateService::class)->discoverPublicControllers();
 
         $this->assertContains('App\\Http\\Controllers\\Api\\CustomerMenuCatalogController', $controllers);
-        $this->assertContains('App\\Http\\Controllers\\Api\\CustomerReservationSelfServiceController', $controllers);
-        $this->assertContains('App\\Http\\Controllers\\Api\\PaymentProviderWebhookController', $controllers);
+        $this->assertContains('App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationSelfServiceController', $controllers);
+        $this->assertContains('App\\Modules\\CheckoutPayments\\Http\\Controllers\\PaymentProviderWebhookController', $controllers);
     }
 }

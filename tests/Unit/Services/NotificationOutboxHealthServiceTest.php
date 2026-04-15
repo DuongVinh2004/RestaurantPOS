@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use PHPUnit\Framework\Attributes\Group;
-use App\Models\NotificationDeliveryAttempt;
-use App\Models\NotificationOutbox;
-use App\Services\NotificationOutboxHealthService;
+use App\Modules\Notifications\Domain\Models\NotificationDeliveryAttempt;
+use App\Modules\Notifications\Domain\Models\NotificationOutbox;
+use App\Modules\Notifications\Application\Services\NotificationOutboxHealthService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;

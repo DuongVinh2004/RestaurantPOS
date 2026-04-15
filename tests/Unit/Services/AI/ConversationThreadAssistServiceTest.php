@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\AI;
 
-use App\Models\Conversation;
-use App\Models\ConversationAnalysis;
-use App\Models\ConversationMessage;
-use App\Models\Reservation;
-use App\Models\WaitingList;
+use App\Modules\Conversations\Domain\Models\Conversation;
+use App\Modules\Conversations\Domain\Models\ConversationAnalysis;
+use App\Modules\Conversations\Domain\Models\ConversationMessage;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\WaitingList\Domain\Models\WaitingList;
 use App\Services\AI\ConversationThreadAssistService;
-use App\Services\FeatureFlagService;
+use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Mockery;

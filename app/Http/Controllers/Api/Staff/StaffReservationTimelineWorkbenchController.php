@@ -6,12 +6,12 @@ namespace App\Http\Controllers\Api\Staff;
 
 use App\Http\Controllers\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Staff\AssignBestFitTableRequest;
-use App\Http\Requests\Staff\AssignSuggestedTableRequest;
-use App\Http\Requests\Staff\CheckInReservationRequest;
-use App\Http\Resources\ReservationResource;
-use App\Services\Staff\StaffCheckInService;
-use App\Services\Staff\StaffReservationBoardAssignmentService;
+use App\Modules\FloorOps\Http\Requests\AssignBestFitTableRequest;
+use App\Modules\FloorOps\Http\Requests\AssignSuggestedTableRequest;
+use App\Modules\FloorOps\Http\Requests\CheckInReservationRequest;
+use App\Modules\Reservations\Http\Resources\ReservationResource;
+use App\Modules\FloorOps\Application\Services\StaffCheckInService;
+use App\Modules\FloorOps\Application\Services\StaffReservationBoardAssignmentService;
 use Illuminate\Http\JsonResponse;
 
 class StaffReservationTimelineWorkbenchController extends Controller

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Reservation;
 
-use App\Models\Payment;
-use App\Models\Reservation;
-use App\Models\ReservationDepositPaymentSession;
-use App\Services\Reservation\ReservationDepositReadService;
+use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\CheckoutPayments\Domain\Models\ReservationDepositPaymentSession;
+use App\Modules\Reservations\Application\Services\ReservationDepositReadService;
 use Tests\TestCase;
 
 class ReservationDepositReadServiceTest extends TestCase

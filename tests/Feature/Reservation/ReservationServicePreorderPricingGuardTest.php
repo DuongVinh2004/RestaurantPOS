@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Reservation;
 
-use App\Services\LoyaltyPointsService;
+use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyPointsService;
 use App\Services\MenuPreorderPolicyService;
-use App\Services\NotificationOutboxService;
-use App\Services\ReservationCodeGenerator;
-use App\Services\ReservationFinancialSyncService;
-use App\Services\ReservationLockService;
-use App\Services\ReservationService;
-use App\Services\RestaurantTableStateService;
-use App\Services\TableHoldService;
-use App\Services\TableTimeConflictService;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
+use App\Modules\Reservations\Application\Services\ReservationCodeGenerator;
+use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncService;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
+use App\Modules\Reservations\Application\Services\ReservationService;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Modules\BranchScheduling\Application\Services\TableHoldService;
+use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -112,6 +112,9 @@ class ReservationServicePreorderPricingGuardTest extends TestCase
             $table->increments('reservation_id');
             $table->unsignedInteger('user_id');
             $table->unsignedInteger('branch_id')->nullable();
+            $table->string('guest_name')->nullable();
+            $table->string('guest_phone')->nullable();
+            $table->string('guest_email')->nullable();
             $table->string('reservation_code');
             $table->dateTime('reserved_at')->nullable();
             $table->dateTime('start_time');

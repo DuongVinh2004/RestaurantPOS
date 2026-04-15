@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use PHPUnit\Framework\Attributes\Group;
-use App\Services\BookingEnvironmentValidator;
+use App\Platform\Health\Services\BookingEnvironmentValidator;
 use Tests\TestCase;
 
 class BookingEnvironmentValidatorTest extends TestCase

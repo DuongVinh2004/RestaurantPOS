@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\PaymentIntegration;
 
 use App\Enums\PaymentSessionScope;
-use App\Models\Reservation;
-use App\Services\PaymentIntegration\GenericHttpHmacPaymentProviderAdapter;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\CheckoutPayments\Infrastructure\PaymentProviders\GenericHttpHmacPaymentProviderAdapter;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 

@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Api\Staff;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Staff\ReservationTimelineRequest;
 use App\Http\Resources\StaffReservationTimelineItemResource;
-use App\Services\Staff\StaffOperationalRealtimeService;
+use App\Modules\Reporting\Application\Services\StaffOperationalRealtimeService;
 use App\Services\Staff\StaffReservationTimelineService;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Http\JsonResponse;

@@ -6,10 +6,10 @@ namespace Tests\Unit\Support;
 
 use App\Enums\ReservationStatus;
 use App\Enums\RestaurantTableStatus;
-use App\Models\Reservation;
-use App\Models\RestaurantTable;
-use App\Services\RestaurantTableStateService;
-use App\Support\StaffReservationOperationGuard;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Modules\FloorOps\Domain\Guards\StaffReservationOperationGuard;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 

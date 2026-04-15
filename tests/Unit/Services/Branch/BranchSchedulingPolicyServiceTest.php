@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Branch;
 
-use App\Services\Branch\BranchSchedulingPolicyService;
+use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;

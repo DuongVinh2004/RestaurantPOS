@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Loyalty;
 
-use App\Models\Reservation;
-use App\Services\Loyalty\LoyaltyBalanceService;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyBalanceService;
 use Mockery;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;

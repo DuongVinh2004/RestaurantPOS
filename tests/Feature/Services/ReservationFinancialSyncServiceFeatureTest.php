@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Services;
 
-use App\Models\Reservation;
-use App\Services\ReservationFinancialSyncService;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Validation\ValidationException;
 use Tests\Support\BuildsBookingScenario;

@@ -165,21 +165,44 @@ class StaffCoreReadModelsHttpFlowTest extends TestCase
             'is_active' => 0,
             'is_default' => 0,
         ]);
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $activeBranchId,
-            'status' => 'Open',
-        ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $activeBranchId]);
 
         $response = $this->withHeaders($headers)->getJson('/api/v1/staff/branches');
 
         $response->assertOk()
-            ->assertJsonPath('meta.action', 'staff_branch_context');
+            ->assertJsonPath('meta.action', 'staff_branch_context')
+            ->assertJsonPath('meta.branch_access.default_branch_id', 1)
+            ->assertJsonPath('meta.branch_access.current_branch_id', 1)
+            ->assertJsonPath('meta.branch_access.has_default_branch_access', true)
+            ->assertJsonPath('meta.branch_access.has_multi_branch_access', true)
+            ->assertJsonPath('meta.branch_access.branch_selector_enabled', true)
+            ->assertJsonPath('meta.branch_access.access_source', 'role_branch_scopes')
+            ->assertJsonPath('meta.branch_access.branches_uri', '/api/v1/staff/branches')
+            ->assertJsonPath('meta.has_multi_branch_access', true);
 
         $branchIds = collect($response->json('data'))->pluck('branch_id')->all();
+        $accessibleBranchIds = (array) $response->json('meta.branch_access.accessible_branch_ids');
         self::assertContains(1, $branchIds);
         self::assertContains($activeBranchId, $branchIds);
+        self::assertContains(1, $accessibleBranchIds);
+        self::assertContains($activeBranchId, $accessibleBranchIds);
         self::assertCount(2, $branchIds);
+    }
+
+    public function test_staff_branch_context_requires_reservation_manage_capability(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+
+        config()->set('staff_capabilities.role_capabilities', [
+            'Admin' => ['*'],
+            'Staff' => [],
+        ]);
+
+        $this->withHeaders($this->staffAuthHeaders($staffId, 'staff-branches-capability'))
+            ->getJson('/api/v1/staff/branches')
+            ->assertStatus(403)
+            ->assertJsonPath('error_code', 'forbidden')
+            ->assertJsonPath('required_capability', 'reservation.manage');
     }
 
     public function test_staff_reservation_detail_returns_not_found_for_inaccessible_branch_scope(): void
@@ -198,11 +221,7 @@ class StaffCoreReadModelsHttpFlowTest extends TestCase
             'is_active' => 1,
             'is_default' => 0,
         ]);
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $accessibleBranchId,
-            'status' => 'Open',
-        ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $accessibleBranchId]);
 
         $reservationId = $this->createReservation([
             'branch_id' => $inaccessibleBranchId,

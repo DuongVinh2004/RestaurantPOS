@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Auth;
 
-use App\Models\Branch;
-use App\Models\CashierShift;
 use App\Models\CustomerAccessSession;
 use App\Models\StaffApiKey;
 use App\Models\User;
-use App\Services\Branch\BranchContextService;
+use App\Modules\BranchScheduling\Domain\Models\Branch;
+use App\Modules\CheckoutPayments\Domain\Models\CashierShift;
+use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Services\CustomerAccessSessionService;
-use App\Services\Staff\StaffCashierShiftService;
+use App\Modules\FloorOps\Application\Services\StaffBranchContextService;
+use App\Modules\CheckoutPayments\Application\Services\StaffCashierShiftService;
 use App\Services\StaffApiKeyGovernanceService;
 use App\Support\AuditEvent;
 use App\Support\StaffCapabilityResolver;
@@ -44,6 +45,7 @@ class OpaqueProductAuthService
         private readonly StaffApiKeyGovernanceService $staffApiKeyGovernanceService,
         private readonly StaffCapabilityResolver $staffCapabilityResolver,
         private readonly BranchContextService $branchContextService,
+        private readonly StaffBranchContextService $staffBranchContextService,
         private readonly StaffCashierShiftService $staffCashierShiftService,
     ) {}
 
@@ -435,28 +437,103 @@ class OpaqueProductAuthService
     private function formatStaffStartupContext(?User $user, array $capabilityContext): array
     {
         $defaultBranch = $this->resolveDefaultBranchContext();
+        $branchAccess = $this->resolveStaffBranchAccessContext($user);
         $activeCashierShift = $this->resolveActiveCashierShiftContext($user);
         $capabilities = array_values(array_map('strval', (array) ($capabilityContext['capabilities'] ?? [])));
         $knownCapabilities = array_values(array_map('strval', (array) ($capabilityContext['known_capabilities'] ?? [])));
         $hasStaffWebAccess = $this->hasStaffWebEntryCapability($capabilities);
+        $hasBranchAccess = $branchAccess['accessible_branch_ids'] !== [];
         $requiresCashierShift = $this->hasCapability($capabilities, 'settlement.manage')
             || $this->hasCapability($capabilities, 'cashier.shift.manage');
 
         return [
             'default_branch' => $defaultBranch,
+            'branch_access' => $branchAccess,
             'active_cashier_shift' => $activeCashierShift,
+            'navigation' => $this->formatStaffNavigationContext($capabilities),
             'readiness' => [
                 'access' => $hasStaffWebAccess ? 'ready' : 'capability_missing',
-                'branch' => $defaultBranch !== null ? 'ready' : 'missing',
+                'branch' => $hasBranchAccess ? 'ready' : 'missing',
                 'cashier_shift' => ! $requiresCashierShift
                     ? 'not_applicable'
                     : ($activeCashierShift !== null ? 'ready' : 'action_required'),
-                'operator_ready' => $hasStaffWebAccess && $defaultBranch !== null,
+                'operator_ready' => $hasStaffWebAccess && $hasBranchAccess,
                 'requires_cashier_shift' => $requiresCashierShift,
                 'granted_capability_count' => count($capabilities),
                 'known_capability_count' => count($knownCapabilities),
             ],
         ];
+    }
+
+    /**
+     * @return array{
+     *   accessible_branch_ids:list<int>,
+     *   default_branch_id:int|null,
+     *   current_branch_id:int|null,
+     *   has_default_branch_access:bool,
+     *   has_multi_branch_access:bool,
+     *   branch_selector_enabled:bool,
+     *   access_source:string,
+     *   branches_uri:string
+     * }
+     */
+    private function resolveStaffBranchAccessContext(?User $user): array
+    {
+        $fallback = [
+            'accessible_branch_ids' => [],
+            'default_branch_id' => null,
+            'current_branch_id' => null,
+            'has_default_branch_access' => false,
+            'has_multi_branch_access' => false,
+            'branch_selector_enabled' => false,
+            'access_source' => 'unavailable',
+            'branches_uri' => '/api/v1/staff/branches',
+        ];
+
+        if (! $user instanceof User || ! Schema::hasTable('branches')) {
+            return $fallback;
+        }
+
+        try {
+            return $this->staffBranchContextService->branchAccessContext((int) $user->user_id);
+        } catch (\Throwable) {
+            return $fallback;
+        }
+    }
+
+    /**
+     * @param  list<string>  $capabilities
+     * @return array<string,array{key:string,required_capabilities:list<string>,can_access:bool,primary_route:string}>
+     */
+    private function formatStaffNavigationContext(array $capabilities): array
+    {
+        $items = [
+            'branches' => [['reservation.manage'], '/api/v1/staff/branches'],
+            'floor' => [['table.board.view'], '/api/v1/staff/tables/board'],
+            'reservations' => [['reservation.manage'], '/api/v1/staff/reservations'],
+            'ordering' => [['order.manage'], '/api/v1/staff/orders'],
+            'kitchen' => [['kitchen.manage'], '/api/v1/staff/kitchen/stations'],
+            'cashier' => [['cashier.shift.manage'], '/api/v1/staff/cashier/shifts/current'],
+            'checkout' => [['settlement.manage'], '/api/v1/staff/orders/{order_id}/settlement-preview'],
+            'refunds' => [['payment.refund'], '/api/v1/staff/reservations/{reservation_id}/refund-preview'],
+            'conversations' => [['conversation.manage'], '/api/v1/staff/conversations'],
+            'audit' => [['audit.view'], '/api/v1/staff/audit-trail'],
+            'reporting' => [['reporting.view'], '/api/v1/staff/reporting/daily-sales'],
+            'waiting_list' => [['waiting_list.manage'], '/api/v1/staff/waiting-list'],
+        ];
+
+        $navigation = [];
+        foreach ($items as $key => [$requiredCapabilities, $primaryRoute]) {
+            $requiredCapabilities = array_values(array_map('strval', (array) $requiredCapabilities));
+            $navigation[(string) $key] = [
+                'key' => (string) $key,
+                'required_capabilities' => $requiredCapabilities,
+                'can_access' => $this->hasAnyCapability($capabilities, $requiredCapabilities),
+                'primary_route' => (string) $primaryRoute,
+            ];
+        }
+
+        return $navigation;
     }
 
     /**
@@ -541,6 +618,21 @@ class OpaqueProductAuthService
         }
 
         foreach (self::STAFF_WEB_ENTRY_CAPABILITIES as $capability) {
+            if ($this->hasCapability($capabilities, $capability)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  list<string>  $capabilities
+     * @param  list<string>  $requiredCapabilities
+     */
+    private function hasAnyCapability(array $capabilities, array $requiredCapabilities): bool
+    {
+        foreach ($requiredCapabilities as $capability) {
             if ($this->hasCapability($capabilities, $capability)) {
                 return true;
             }

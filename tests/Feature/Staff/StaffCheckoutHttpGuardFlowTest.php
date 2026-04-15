@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Models\Payment;
+use App\Modules\CheckoutPayments\Domain\Models\Payment;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -64,7 +64,7 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
             'line_total' => '100000.00',
         ]);
 
-        $response = $this->postJson('/api/v1/staff/orders/' . $orderId . '/pay', [
+        $response = $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'paid_amount' => 40000,
@@ -101,7 +101,7 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
             'line_total' => '50000.00',
         ]);
 
-        $response = $this->postJson('/api/v1/staff/orders/' . $orderId . '/pay', [
+        $response = $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'paid_amount' => 60000,
@@ -136,13 +136,13 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
             'line_total' => '80000.00',
         ]);
 
-        $response = $this->postJson('/api/v1/staff/orders/' . $orderId . '/bill-snapshot', [
+        $response = $this->postJson('/api/v1/staff/orders/'.$orderId.'/bill-snapshot', [
             'row_version' => 1,
             'notes' => 'lock current bill',
         ], $headers);
 
-        $response->assertStatus(422)
-            ->assertJsonPath('error_code', 'validation_error');
+        $response->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version');
         $this->assertNull(DB::table('reservations')->where('reservation_id', $reservationId)->value('billed_at'));
     }
 
@@ -176,13 +176,13 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
             'row_version' => 1,
         ];
 
-        $first = $this->postJson('/api/v1/staff/orders/' . $orderId . '/settlement/finalize', $payload, $headers);
+        $first = $this->postJson('/api/v1/staff/orders/'.$orderId.'/settlement/finalize', $payload, $headers);
         $first->assertOk()->assertHeader('Idempotency-Replayed', 'false');
 
-        $second = $this->postJson('/api/v1/staff/orders/' . $orderId . '/settlement/finalize', $payload, $headers);
+        $second = $this->postJson('/api/v1/staff/orders/'.$orderId.'/settlement/finalize', $payload, $headers);
         $second->assertOk()->assertHeader('Idempotency-Replayed', 'true');
 
-        $conflict = $this->postJson('/api/v1/staff/orders/' . $orderId . '/settlement/finalize', array_merge($payload, [
+        $conflict = $this->postJson('/api/v1/staff/orders/'.$orderId.'/settlement/finalize', array_merge($payload, [
             'paid_amount' => 90000,
         ]), $headers);
         $conflict->assertStatus(409)
@@ -215,7 +215,7 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
             'line_total' => '100000.00',
         ]);
 
-        $response = $this->postJson('/api/v1/staff/orders/' . $orderId . '/settlement/finalize', [
+        $response = $this->postJson('/api/v1/staff/orders/'.$orderId.'/settlement/finalize', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'paid_amount' => 100000,

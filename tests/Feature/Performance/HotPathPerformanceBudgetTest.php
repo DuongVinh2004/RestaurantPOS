@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Performance;
 
 use App\Models\User;
-use App\Services\Staff\StaffCheckoutService;
+use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;

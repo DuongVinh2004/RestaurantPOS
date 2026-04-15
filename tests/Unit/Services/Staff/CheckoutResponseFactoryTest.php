@@ -7,11 +7,11 @@ namespace Tests\Unit\Services\Staff;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
-use App\Models\Payment;
-use App\Models\Reservation;
-use App\Models\ReservationOrder;
-use App\Services\Staff\CheckoutResponseFactory;
-use App\Services\Staff\SettlementAmountCalculator;
+use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\CheckoutPayments\Application\Services\CheckoutResponseFactory;
+use App\Modules\CheckoutPayments\Application\Services\SettlementAmountCalculator;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
 

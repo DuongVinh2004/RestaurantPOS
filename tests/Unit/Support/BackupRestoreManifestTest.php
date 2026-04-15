@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Support\BackupRestoreManifest;
+use App\Platform\Backup\Support\BackupRestoreManifest;
 use PHPUnit\Framework\TestCase;
 
 class BackupRestoreManifestTest extends TestCase

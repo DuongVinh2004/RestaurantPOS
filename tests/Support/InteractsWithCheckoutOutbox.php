@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
-use App\Services\NotificationOutboxService;
-use App\Services\Staff\StaffCheckoutService;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
+use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
 use Illuminate\Support\Facades\DB;
 
 trait InteractsWithCheckoutOutbox

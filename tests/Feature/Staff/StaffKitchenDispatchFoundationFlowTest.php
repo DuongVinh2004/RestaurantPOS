@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Services\Kitchen\KitchenRoutingService;
-use App\Services\Kitchen\KitchenTicketReconciliationService;
+use App\Modules\KitchenDispatch\Application\Services\KitchenRoutingService;
+use App\Modules\KitchenDispatch\Application\Services\KitchenTicketReconciliationService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -429,11 +429,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-branch-scope-key');
         $branchA = $this->createBranch(['branch_code' => 'KITCHA', 'branch_name' => 'Kitchen A']);
         $branchB = $this->createBranch(['branch_code' => 'KITCHB', 'branch_name' => 'Kitchen B']);
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $branchA,
-            'status' => 'Open',
-        ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $branchA]);
 
         $categoryId = $this->ensureMenuCategory('Kitchen Branch Scope');
         $itemId = $this->createMenuItem([
@@ -493,7 +489,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             'ticket_status' => 'Queued',
             'first_dispatched_at' => $this->nowUtc(),
         ]);
-        $this->createKitchenOrderTicket([
+        $ticketB = $this->createKitchenOrderTicket([
             'station_id' => $stationId,
             'order_id' => $orderB,
             'reservation_id' => $reservationB,
@@ -510,6 +506,8 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             ->getJson('/api/v1/staff/kitchen/stations?branch_id='.$branchA)
             ->assertOk()
             ->assertJsonPath('meta.branch_id', $branchA)
+            ->assertJsonPath('meta.branch_scope.requested_branch_id', $branchA)
+            ->assertJsonPath('meta.branch_scope.uses_explicit_entitlement', true)
             ->assertJsonPath('data.0.ticket_counts.queued', 1)
             ->assertJsonPath('data.0.ticket_counts.ready', 0);
 
@@ -517,6 +515,8 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             ->getJson('/api/v1/staff/kitchen/stations/'.$stationId.'/tickets?branch_id='.$branchA.'&include_terminal=1')
             ->assertOk()
             ->assertJsonPath('meta.branch_id', $branchA)
+            ->assertJsonPath('meta.branch_scope.requested_branch_id', $branchA)
+            ->assertJsonPath('meta.branch_scope.uses_explicit_entitlement', true)
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.ticket_id', $ticketA);
 
@@ -533,6 +533,12 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             ->assertNotFound()
             ->assertJsonPath('error_code', 'not_found')
             ->assertJsonPath('message', 'Order not found.');
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-ticket-branch-scope-deny'))
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketB.'/fire')
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonPath('message', 'Kitchen ticket not found.');
     }
 
     public function test_branch_flag_can_disable_kitchen_dispatch_mutations(): void
@@ -551,11 +557,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-feature-flag-key');
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $branchId,
-            'status' => 'Open',
-        ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $branchId]);
         $categoryId = $this->ensureMenuCategory('Kitchen Disabled');
         $itemId = $this->createMenuItem([
             'category_id' => $categoryId,
@@ -611,11 +613,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-fire-flag-off-key');
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $branchId,
-            'status' => 'Open',
-        ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $branchId]);
 
         $categoryId = $this->ensureMenuCategory('Kitchen Fire Flagged');
         $itemId = $this->createMenuItem([

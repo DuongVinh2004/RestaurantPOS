@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Services\RuntimeSettingService;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;

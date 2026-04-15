@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Http\Controllers;
 
-use App\Http\Controllers\Api\Staff\StaffTableBoardController;
-use App\Http\Requests\Staff\TableBoardRequest;
-use App\Services\Staff\StaffOperationalRealtimeService;
-use App\Services\Staff\StaffTableBoardService;
+use App\Modules\FloorOps\Http\Controllers\Staff\StaffTableBoardController;
+use App\Modules\FloorOps\Http\Requests\TableBoardRequest;
+use App\Modules\Reporting\Application\Services\StaffOperationalRealtimeService;
+use App\Modules\FloorOps\Application\Services\StaffTableBoardService;
 use Mockery;
 use Tests\TestCase;
 

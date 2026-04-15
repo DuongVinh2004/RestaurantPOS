@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\PurchaseReceiptStatus;
+use App\Modules\BranchScheduling\Domain\Models\Branch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class PurchaseReceipt extends Model
 {
     protected $table = 'purchase_receipts';
+
     protected $primaryKey = 'receipt_id';
 
     public $timestamps = false;

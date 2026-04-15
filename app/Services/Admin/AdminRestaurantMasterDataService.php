@@ -6,10 +6,10 @@ namespace App\Services\Admin;
 
 use App\Enums\ReservationStatus;
 use App\Enums\RestaurantTableStatus;
-use App\Models\Reservation;
-use App\Models\RestaurantTable;
-use App\Models\TableHold;
-use App\Models\TableTemplate;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
+use App\Modules\BranchScheduling\Domain\Models\TableHold;
+use App\Modules\BranchScheduling\Domain\Models\TableTemplate;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;

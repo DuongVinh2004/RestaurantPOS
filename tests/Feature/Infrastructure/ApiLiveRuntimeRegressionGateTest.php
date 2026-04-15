@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature\Infrastructure;
 
 use App\Models\User;
-use App\Services\ReservationLockService;
-use App\Services\RestaurantTableStateService;
-use App\Services\RuntimeSettingService;
-use App\Services\Staff\StaffCheckoutService;
-use App\Services\TableTimeConflictService;
+use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
+use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;

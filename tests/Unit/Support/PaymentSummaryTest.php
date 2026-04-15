@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Support\PaymentSummary;
+use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
 use PHPUnit\Framework\TestCase;
 
 class PaymentSummaryTest extends TestCase

@@ -213,9 +213,9 @@ class CustomerReservationBenefitsMutationHttpFlowTest extends TestCase
                 'row_version' => 1,
             ]);
 
-        $response->assertStatus(422)
+        $response->assertStatus(409)
             ->assertHeader('X-Request-Id', 'req-customer-benefits-stale-row-version')
-            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonPath('error_code', 'stale_row_version')
             ->assertJsonPath('request_id', 'req-customer-benefits-stale-row-version')
             ->assertJsonPath('details.errors.row_version.0', 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.');
     }

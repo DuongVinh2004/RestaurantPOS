@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Support\TableStateAuditLogger;
+use App\Modules\FloorOps\Domain\Audit\TableStateAuditLogger;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
 

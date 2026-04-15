@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\NotificationOutboxService;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use ReflectionMethod;
 use Tests\TestCase;
 

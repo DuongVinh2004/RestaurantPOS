@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\DatabaseContractInspector;
+use App\Platform\ApiContract\Services\DatabaseContractInspector;
 use Tests\TestCase;
 
 class DatabaseContractInspectorTest extends TestCase

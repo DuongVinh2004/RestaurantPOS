@@ -22,9 +22,9 @@ class CustomerAuthConfigContractTest extends TestCase
         $this->assertIsBool(config('customer_auth.touch_last_used_at'));
 
         $contracts = (array) config('customer_auth.session_bound_route_contracts', []);
-        $this->assertArrayHasKey('App\Http\Controllers\Api\ReservationController@store', $contracts);
-        $this->assertTrue((bool) ($contracts['App\Http\Controllers\Api\ReservationController@store']['require_owned_hold'] ?? false));
-        $this->assertArrayHasKey('App\Http\Controllers\Api\CustomerReservationSelfServiceController@index', $contracts);
-        $this->assertArrayHasKey('App\Http\Controllers\Api\CustomerReservationBillPaymentController@confirm', $contracts);
+        $this->assertArrayHasKey('App\Modules\Reservations\Http\Controllers\ReservationController@store', $contracts);
+        $this->assertTrue((bool) ($contracts['App\Modules\Reservations\Http\Controllers\ReservationController@store']['require_owned_hold'] ?? false));
+        $this->assertArrayHasKey('App\Modules\Reservations\Http\Controllers\CustomerReservationSelfServiceController@index', $contracts);
+        $this->assertArrayHasKey('App\Modules\CheckoutPayments\Http\Controllers\Customer\CustomerReservationBillPaymentController@confirm', $contracts);
     }
 }

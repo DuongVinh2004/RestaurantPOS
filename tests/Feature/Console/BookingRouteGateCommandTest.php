@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Services\RouteInventoryGateService;
+use App\Platform\ApiContract\Services\RouteInventoryGateService;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 

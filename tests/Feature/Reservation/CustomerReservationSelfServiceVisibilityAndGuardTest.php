@@ -243,8 +243,8 @@ class CustomerReservationSelfServiceVisibilityAndGuardTest extends TestCase
             $this->withIdempotencyKey('customer-self-service-reschedule-stale-row-version')
         );
 
-        $response->assertStatus(422)
-            ->assertJsonPath('error_code', 'validation_error')
+        $response->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
             ->assertJsonPath('details.errors.row_version.0', 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.');
     }
 

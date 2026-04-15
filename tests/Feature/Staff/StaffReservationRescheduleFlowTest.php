@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Services\NotificationOutboxService;
-use App\Services\ReservationLockService;
-use App\Services\TableTimeConflictService;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
+use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;

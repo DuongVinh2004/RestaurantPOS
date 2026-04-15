@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\ReleaseArtifactManifestService;
-use App\Services\ReleasePackageService;
+use App\Platform\Release\Services\ReleaseArtifactManifestService;
+use App\Platform\Release\Services\ReleasePackageService;
 use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 

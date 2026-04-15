@@ -9,7 +9,7 @@ use App\Http\Requests\Admin\CreateAdminBranchRequest;
 use App\Http\Requests\Admin\ListAdminBranchesRequest;
 use App\Http\Requests\Admin\UpdateAdminBranchRequest;
 use App\Http\Resources\BranchResource;
-use App\Services\Branch\BranchManagementService;
+use App\Modules\BranchScheduling\Application\Services\BranchManagementService;
 use Illuminate\Http\JsonResponse;
 
 class AdminBranchController extends Controller

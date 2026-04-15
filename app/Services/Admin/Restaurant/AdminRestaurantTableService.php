@@ -6,11 +6,11 @@ namespace App\Services\Admin\Restaurant;
 
 use App\Enums\ReservationStatus;
 use App\Enums\RestaurantTableStatus;
-use App\Models\RestaurantTable;
-use App\Models\TableTemplate;
-use App\Services\Branch\BranchContextService;
+use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
+use App\Modules\BranchScheduling\Domain\Models\TableTemplate;
+use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Support\AuditEvent;
-use App\Support\HoldConflictScope;
+use App\Modules\BranchScheduling\Domain\Guards\HoldConflictScope;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;

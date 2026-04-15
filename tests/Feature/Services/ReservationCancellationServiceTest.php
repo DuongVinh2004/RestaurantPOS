@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Services;
 
-use App\Models\Reservation;
-use App\Models\ReservationOrder;
-use App\Models\ReservationOrderItem;
-use App\Services\ReservationCancellationService;
-use App\Services\RestaurantTableStateService;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
+use App\Modules\Reservations\Application\Services\ReservationCancellationService;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;

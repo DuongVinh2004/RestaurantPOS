@@ -163,7 +163,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_benefits_loyalty_tiers",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminLoyaltyTierController@index",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminLoyaltyTierController@index",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -227,7 +227,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_admin_benefits_loyalty_tiers",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminLoyaltyTierController@store",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminLoyaltyTierController@store",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -308,7 +308,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_benefits_loyalty_tiers_export",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminMasterDataBulkController@export",
+                "x-action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -352,7 +352,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_admin_benefits_loyalty_tiers_import",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminMasterDataBulkController@import",
+                "x-action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -422,7 +422,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_benefits_loyalty_tiers_id",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminLoyaltyTierController@show",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminLoyaltyTierController@show",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -494,7 +494,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "patch_v1_admin_benefits_loyalty_tiers_id",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminLoyaltyTierController@update",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminLoyaltyTierController@update",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -557,7 +557,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_benefits_vouchers",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminVoucherController@index",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminVoucherController@index",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -621,7 +621,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_admin_benefits_vouchers",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminVoucherController@store",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminVoucherController@store",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -709,7 +709,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_benefits_vouchers_export",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminMasterDataBulkController@export",
+                "x-action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -753,7 +753,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_admin_benefits_vouchers_import",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminMasterDataBulkController@import",
+                "x-action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -823,7 +823,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_benefits_vouchers_id",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminVoucherController@show",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminVoucherController@show",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -895,7 +895,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "patch_v1_admin_benefits_vouchers_id",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminVoucherController@update",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminVoucherController@update",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -3876,7 +3876,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_kitchen_stations",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminKitchenRoutingController@index",
+                "x-action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\AdminKitchenRoutingController@index",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -3940,7 +3940,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_admin_kitchen_stations",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminKitchenRoutingController@store",
+                "x-action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\AdminKitchenRoutingController@store",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -4012,7 +4012,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_kitchen_stations_station_id",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminKitchenRoutingController@show",
+                "x-action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\AdminKitchenRoutingController@show",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -4084,7 +4084,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "patch_v1_admin_kitchen_stations_station_id",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminKitchenRoutingController@update",
+                "x-action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\AdminKitchenRoutingController@update",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -4156,7 +4156,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_kitchen_stations_station_id_category_routes",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminKitchenRoutingController@routes",
+                "x-action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\AdminKitchenRoutingController@routes",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -4228,7 +4228,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "put_v1_admin_kitchen_stations_station_id_category_routes",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminKitchenRoutingController@syncRoutes",
+                "x-action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\AdminKitchenRoutingController@syncRoutes",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -4585,7 +4585,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_menu_categories_export",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminMasterDataBulkController@export",
+                "x-action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -4629,7 +4629,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_admin_menu_categories_import",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminMasterDataBulkController@import",
+                "x-action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -5123,7 +5123,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_menu_items_export",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminMasterDataBulkController@export",
+                "x-action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -5167,7 +5167,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_admin_menu_items_import",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminMasterDataBulkController@import",
+                "x-action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -5692,7 +5692,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_menu_prices_export",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminMasterDataBulkController@export",
+                "x-action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -5736,7 +5736,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_admin_menu_prices_import",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminMasterDataBulkController@import",
+                "x-action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -5948,7 +5948,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_privacy_customers_user_id_data_export",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminCustomerDataLifecycleController@exportCustomerData",
+                "x-action": "App\\Modules\\PrivacyAudit\\Http\\Controllers\\Admin\\AdminCustomerDataLifecycleController@exportCustomerData",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -6048,7 +6048,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_privacy_requests",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminCustomerDataLifecycleController@index",
+                "x-action": "App\\Modules\\PrivacyAudit\\Http\\Controllers\\Admin\\AdminCustomerDataLifecycleController@index",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -6122,7 +6122,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_admin_privacy_requests_request_id_review",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminCustomerDataLifecycleController@review",
+                "x-action": "App\\Modules\\PrivacyAudit\\Http\\Controllers\\Admin\\AdminCustomerDataLifecycleController@review",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -6479,7 +6479,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_restaurant_tables_export",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminMasterDataBulkController@export",
+                "x-action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -6523,7 +6523,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_admin_restaurant_tables_import",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminMasterDataBulkController@import",
+                "x-action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -6975,7 +6975,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_settings_benefits",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminBenefitSettingController@index",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminBenefitSettingController@index",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -7039,7 +7039,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_admin_settings_benefits",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminBenefitSettingController@upsert",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminBenefitSettingController@upsert",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -7306,7 +7306,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_admin_settings_branches_export",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminMasterDataBulkController@export",
+                "x-action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -7350,7 +7350,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_admin_settings_branches_import",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminMasterDataBulkController@import",
+                "x-action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -7793,7 +7793,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_admin_settings_reporting_snapshots_rebuild",
-                "x-action": "App\\Http\\Controllers\\Api\\Admin\\AdminReportingController@rebuild",
+                "x-action": "App\\Modules\\Reporting\\Http\\Controllers\\Admin\\AdminReportingController@rebuild",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -8276,7 +8276,7 @@
                 "security": [],
                 "deprecated": false,
                 "x-route-key": "health",
-                "x-action": "App\\Http\\Controllers\\Api\\HealthController@health",
+                "x-action": "App\\Platform\\Health\\Http\\HealthController@health",
                 "x-auth-mode": "public",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -8321,7 +8321,7 @@
                 "security": [],
                 "deprecated": false,
                 "x-route-key": "health_redis",
-                "x-action": "App\\Http\\Controllers\\Api\\HealthController@redis",
+                "x-action": "App\\Platform\\Health\\Http\\HealthController@redis",
                 "x-auth-mode": "public",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -8366,7 +8366,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_me_data_export",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerDataLifecycleController@export",
+                "x-action": "App\\Modules\\PrivacyAudit\\Http\\Controllers\\Customer\\CustomerDataLifecycleController@export",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -8456,7 +8456,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_me_loyalty",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerBenefitsController@loyalty",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Customer\\CustomerBenefitsController@loyalty",
                 "x-auth-mode": "customer_access_token",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -8544,7 +8544,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_me_privacy_requests",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerDataLifecycleController@index",
+                "x-action": "App\\Modules\\PrivacyAudit\\Http\\Controllers\\Customer\\CustomerDataLifecycleController@index",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -8612,7 +8612,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_me_privacy_requests",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerDataLifecycleController@store",
+                "x-action": "App\\Modules\\PrivacyAudit\\Http\\Controllers\\Customer\\CustomerDataLifecycleController@store",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -8743,7 +8743,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_me_vouchers",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerBenefitsController@vouchers",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Customer\\CustomerBenefitsController@vouchers",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -9115,14 +9115,15 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "metrics",
-                "x-action": "App\\Http\\Controllers\\Api\\MetricsController@index",
+                "x-action": "App\\Platform\\Metrics\\Http\\MetricsController@index",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
                     "audit.request",
-                    "App\\Http\\Middleware\\StaffApiKeyMiddleware"
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "staff.capability:ops.view"
                 ]
             }
         },
@@ -9197,7 +9198,7 @@
                 "security": [],
                 "deprecated": false,
                 "x-route-key": "post_v1_payments_providers_provider_code_webhooks",
-                "x-action": "App\\Http\\Controllers\\Api\\PaymentProviderWebhookController@handle",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\PaymentProviderWebhookController@handle",
                 "x-auth-mode": "public",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -9437,7 +9438,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_reservations",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationSelfServiceController@index",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationSelfServiceController@index",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -9545,7 +9546,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations",
-                "x-action": "App\\Http\\Controllers\\Api\\ReservationController@store",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\ReservationController@store",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -9632,7 +9633,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_reservations_id",
-                "x-action": "App\\Http\\Controllers\\Api\\ReservationController@show",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\ReservationController@show",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -9714,7 +9715,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_reservations_id_benefits_preview",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerBenefitsController@reservationBenefitsPreview",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Customer\\CustomerBenefitsController@reservationBenefitsPreview",
                 "x-auth-mode": "customer_access_token",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -9842,7 +9843,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_id_cancel",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationSelfServiceController@cancel",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationSelfServiceController@cancel",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -9945,7 +9946,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_reservations_id_deposit_preview",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationDepositController@show",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationDepositController@show",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -10073,7 +10074,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_id_deposit_acknowledge",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationDepositController@acknowledge",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationDepositController@acknowledge",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -10215,7 +10216,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_id_deposit_intent",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationDepositController@submitIntent",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationDepositController@submitIntent",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -10357,7 +10358,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_id_deposit_intent_revoke",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationDepositController@revokeIntent",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationDepositController@revokeIntent",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -10449,7 +10450,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_id_loyalty_redeem",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationBenefitsActionController@redeemLoyalty",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Customer\\CustomerReservationBenefitsActionController@redeemLoyalty",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -10543,7 +10544,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_id_loyalty_redeem_release",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationBenefitsActionController@releaseLoyalty",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Customer\\CustomerReservationBenefitsActionController@releaseLoyalty",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -10667,7 +10668,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "delete_v1_reservations_id_pre_order",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationPreorderController@clear",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@clear",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -10723,7 +10724,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_reservations_id_pre_order",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationPreorderController@show",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@show",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -10799,7 +10800,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "put_v1_reservations_id_pre_order",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationPreorderController@replace",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@replace",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -10872,7 +10873,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_id_pre_order_preview",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationPreorderController@preview",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@preview",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -11031,7 +11032,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "delete_v1_reservations_id_preorder",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationPreorderController@clear",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@clear",
                 "x-auth-mode": "customer_or_session",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -11114,7 +11115,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_reservations_id_preorder",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationPreorderController@show",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@show",
                 "x-auth-mode": "customer_or_session",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -11227,7 +11228,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "put_v1_reservations_id_preorder",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationPreorderController@replace",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@replace",
                 "x-auth-mode": "customer_or_session",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -11309,7 +11310,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_id_preorder_preview",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationPreorderController@preview",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@preview",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -11450,7 +11451,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_id_reschedule",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationSelfServiceController@reschedule",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationSelfServiceController@reschedule",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -11541,7 +11542,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "patch_v1_reservations_id_status",
-                "x-action": "App\\Http\\Controllers\\Api\\ReservationController@updateStatus",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\ReservationController@updateStatus",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -11638,7 +11639,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_id_voucher_apply",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationBenefitsActionController@applyVoucher",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Customer\\CustomerReservationBenefitsActionController@applyVoucher",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -11732,7 +11733,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_id_voucher_remove",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationBenefitsActionController@removeVoucher",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Customer\\CustomerReservationBenefitsActionController@removeVoucher",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -11823,7 +11824,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_reservations_reservation_id_active_order",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationOrderBillController@activeOrder",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationOrderBillController@activeOrder",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -11900,7 +11901,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_reservations_reservation_id_bill",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationOrderBillController@show",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationOrderBillController@show",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -11977,7 +11978,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_reservations_reservation_id_bill_preview",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationOrderBillController@billPreview",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationOrderBillController@billPreview",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -12105,7 +12106,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_reservation_id_bill_payment_sessions",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationBillPaymentController@store",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationBillPaymentController@store",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -12208,7 +12209,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_reservations_reservation_id_bill_payment_sessions_session_id",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationBillPaymentController@show",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationBillPaymentController@show",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -12334,7 +12335,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_reservation_id_bill_payment_sessions_session_id_confirm",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationBillPaymentController@confirm",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationBillPaymentController@confirm",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -12475,7 +12476,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_reservation_id_bill_payment_sessions_session_id_refresh",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationBillPaymentController@refresh",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationBillPaymentController@refresh",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -12618,7 +12619,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_reservation_id_deposit_payment_sessions",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationDepositPaymentController@store",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationDepositPaymentController@store",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -12721,7 +12722,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_reservations_reservation_id_deposit_payment_sessions_session_id",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationDepositPaymentController@show",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationDepositPaymentController@show",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -12847,7 +12848,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_reservation_id_deposit_payment_sessions_session_id_confirm",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationDepositPaymentController@confirm",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationDepositPaymentController@confirm",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -12988,7 +12989,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_reservations_reservation_id_deposit_payment_sessions_session_id_refresh",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerReservationDepositPaymentController@refresh",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationDepositPaymentController@refresh",
                 "x-auth-mode": "customer_or_staff",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -13377,7 +13378,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_audit_trail",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffAuditTrailController@index",
+                "x-action": "App\\Modules\\PrivacyAudit\\Http\\Controllers\\Staff\\StaffAuditTrailController@index",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -13397,7 +13398,7 @@
             "get": {
                 "operationId": "get_v1_staff_branches",
                 "summary": "List accessible staff branches",
-                "description": "Return the active branch context list exposed to staff-web for branch switching and branch-aware filters. The list is limited to the authenticated actor operational scope: default branch plus branches where the actor currently has an open cashier shift.",
+                "description": "Return the active branch context list exposed to staff-web for branch switching and branch-aware filters. The list is limited to the authenticated actor explicit branch entitlement scope and never expands from cashier shift state.",
                 "tags": [
                     "Admin Settings"
                 ],
@@ -13422,6 +13423,16 @@
                                 }
                             }
                         }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -13431,7 +13442,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_branches",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffBranchContextController@index",
+                "x-action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffBranchContextController@index",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -13442,7 +13453,8 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either"
+                    "redis.throttle:staff.ops,300,60,either",
+                    "staff.capability:reservation.manage"
                 ]
             }
         },
@@ -13714,7 +13726,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_cashier_shifts",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffCashierShiftController@index",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCashierShiftController@index",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -13806,7 +13818,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_cashier_shifts_current",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffCashierShiftController@current",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCashierShiftController@current",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -13912,7 +13924,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_cashier_shifts_open",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffCashierShiftController@open",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCashierShiftController@open",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -14012,7 +14024,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_cashier_shifts_shift_id",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffCashierShiftController@show",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCashierShiftController@show",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -14136,7 +14148,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_cashier_shifts_shift_id_close",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffCashierShiftController@close",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCashierShiftController@close",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -14543,7 +14555,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_conversations",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@index",
+                "x-action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@index",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -14676,7 +14688,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_conversations_conversation_id",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@show",
+                "x-action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@show",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -14800,7 +14812,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_conversations_conversation_id_assign",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@assign",
+                "x-action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@assign",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -14929,7 +14941,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_conversations_conversation_id_internal_notes",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@addInternalNote",
+                "x-action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@addInternalNote",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -15058,7 +15070,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_conversations_conversation_id_links",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@link",
+                "x-action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@link",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -15179,7 +15191,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "delete_v1_staff_conversations_conversation_id_links_reservation",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@unlinkReservation",
+                "x-action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@unlinkReservation",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -15284,7 +15296,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "delete_v1_staff_conversations_conversation_id_links_waiting_list",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@unlinkWaitingList",
+                "x-action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@unlinkWaitingList",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -15409,7 +15421,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_conversations_conversation_id_outbound_replies",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@sendOutboundReply",
+                "x-action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@sendOutboundReply",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -15548,7 +15560,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_conversations_conversation_id_take_over",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@takeOver",
+                "x-action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@takeOver",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -15666,7 +15678,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_conversations_conversation_id_unassign",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@unassign",
+                "x-action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@unassign",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -15804,7 +15816,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1staffconversationsconversation_idworkflow_state",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffConversationInboxController@updateWorkflowState",
+                "x-action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@updateWorkflowState",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -16241,7 +16253,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_finance_accounting_export",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffFinanceInvoiceController@accountingExport",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinanceInvoiceController@accountingExport",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -16311,7 +16323,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_finance_invoices_reservation_id",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffFinanceInvoiceController@show",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinanceInvoiceController@show",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -16385,7 +16397,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_finance_invoices_reservation_id_issue",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffFinanceInvoiceController@issue",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinanceInvoiceController@issue",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -16806,7 +16818,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_finance_reconciliation",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffFinancialReconciliationController@index",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinancialReconciliationController@index",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -17213,7 +17225,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_finance_reconciliation_export",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffFinancialReconciliationController@export",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinancialReconciliationController@export",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -17283,7 +17295,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_finance_reconciliation_reservation_id",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffFinancialReconciliationController@show",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinancialReconciliationController@show",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -17392,7 +17404,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_kitchen_changes",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffKitchenController@changes",
+                "x-action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@changes",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -17412,7 +17424,7 @@
             "get": {
                 "operationId": "get_v1_staff_kitchen_stations",
                 "summary": "List kitchen stations",
-                "description": "Return the active kitchen station roster with route counts, queued or fired or ready ticket counts, and realtime metadata for staff KDS visibility. Branch reads are constrained to the authenticated actor operational branch scope and explicit inaccessible branch filters fail closed.",
+                "description": "Return the active kitchen station roster with route counts, queued or fired or ready ticket counts, and realtime metadata for staff KDS visibility. Branch reads are constrained to the authenticated actor explicit branch entitlement scope and inaccessible branch filters fail closed.",
                 "tags": [
                     "Staff Kitchen"
                 ],
@@ -17474,7 +17486,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_kitchen_stations",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffKitchenController@stations",
+                "x-action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@stations",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -17494,7 +17506,7 @@
             "get": {
                 "operationId": "get_v1_staff_kitchen_stations_station_id_tickets",
                 "summary": "List kitchen station tickets",
-                "description": "Return the kitchen tickets routed to the selected station, including order-item status snapshots, routing details, and optional terminal tickets for operator review. The station read is limited to the authenticated actor operational branch scope and returns not found outside that scope.",
+                "description": "Return the kitchen tickets routed to the selected station, including order-item status snapshots, routing details, and optional terminal tickets for operator review. The station read is limited to the authenticated actor explicit branch entitlement scope and returns not found outside that scope.",
                 "tags": [
                     "Staff Kitchen"
                 ],
@@ -17620,7 +17632,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_kitchen_stations_station_id_tickets",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffKitchenController@stationTickets",
+                "x-action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@stationTickets",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -17744,7 +17756,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_kitchen_tickets_ticket_id_bump",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffKitchenController@bump",
+                "x-action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@bump",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -17869,7 +17881,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_kitchen_tickets_ticket_id_fire",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffKitchenController@fire",
+                "x-action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@fire",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -17994,7 +18006,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_kitchen_tickets_ticket_id_recall",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffKitchenController@recall",
+                "x-action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@recall",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -18248,7 +18260,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_orders_order_id",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffOrderReadController@show",
+                "x-action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffOrderReadController@show",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -18372,7 +18384,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_orders_order_id_bill_snapshot",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffCheckoutController@billSnapshot",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@billSnapshot",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -18512,7 +18524,7 @@
                 ],
                 "deprecated": true,
                 "x-route-key": "post_v1_staff_orders_order_id_checkout",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffCheckoutController@checkout",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@checkout",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -18657,7 +18669,7 @@
                 ],
                 "deprecated": true,
                 "x-route-key": "post_v1_staff_orders_order_id_close",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffCheckoutController@close",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@close",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -18798,7 +18810,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_orders_order_id_items",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffTableOrderController@addItems",
+                "x-action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffTableOrderController@addItems",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -18901,7 +18913,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "patch_v1_staff_orders_order_id_items_order_item_id",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffOrderItemLifecycleController@update",
+                "x-action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffOrderItemLifecycleController@update",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -19001,7 +19013,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_orders_order_id_items_order_item_id_status",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffOrderItemLifecycleController@updateStatus",
+                "x-action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffOrderItemLifecycleController@updateStatus",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -19142,7 +19154,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_orders_order_id_kitchen_dispatch",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffKitchenController@dispatchOrder",
+                "x-action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@dispatchOrder",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -19230,7 +19242,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_orders_order_id_pay",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffCheckoutController@pay",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@pay",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -19343,7 +19355,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_orders_order_id_settlement_preview",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffCheckoutController@settlementPreview",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@settlementPreview",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -19467,7 +19479,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_orders_order_id_settlement_finalize",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffCheckoutController@finalizeSettlement",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@finalizeSettlement",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -19758,7 +19770,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_reporting_daily_inventory",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffReportingController@dailyInventory",
+                "x-action": "App\\Modules\\Reporting\\Http\\Controllers\\Staff\\StaffReportingController@dailyInventory",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -20012,7 +20024,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_reporting_daily_operations",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffReportingController@dailyOperations",
+                "x-action": "App\\Modules\\Reporting\\Http\\Controllers\\Staff\\StaffReportingController@dailyOperations",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -20282,7 +20294,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_reporting_daily_sales",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffReportingController@dailySales",
+                "x-action": "App\\Modules\\Reporting\\Http\\Controllers\\Staff\\StaffReportingController@dailySales",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -20709,7 +20721,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_reservations",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationInboxController@index",
+                "x-action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffReservationInboxController@index",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -21104,7 +21116,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_reservations_id_assign_best_fit",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationBoardAssignmentController@assignBestFit",
+                "x-action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffReservationBoardAssignmentController@assignBestFit",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -21196,7 +21208,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_reservations_id_assign_table",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationBoardAssignmentController@assignSuggested",
+                "x-action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffReservationBoardAssignmentController@assignSuggested",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -21339,7 +21351,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_reservations_id_check_in",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationCheckInController@store",
+                "x-action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffReservationCheckInController@store",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -21431,7 +21443,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_reservations_id_move_table",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationMoveTableController@store",
+                "x-action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffReservationMoveTableController@store",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -21840,7 +21852,7 @@
             "get": {
                 "operationId": "get_v1_staff_reservations_reservation_id",
                 "summary": "Show staff reservation detail",
-                "description": "Return the staff-scoped reservation detail read model with tables, user context, order lines, and financial snapshots needed for operational drawers and linked order workflows. Reads fail closed outside the actor operational branch scope (default branch plus open cashier-shift branches).",
+                "description": "Return the staff-scoped reservation detail read model with tables, user context, order lines, and financial snapshots needed for operational drawers and linked order workflows. Reads fail closed outside the actor explicit branch entitlement scope.",
                 "tags": [
                     "Staff Tables"
                 ],
@@ -21903,7 +21915,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_reservations_reservation_id",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationInboxController@show",
+                "x-action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffReservationInboxController@show",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -21956,7 +21968,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_reservations_reservation_id_active_order",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffOrderReadController@showActiveByReservation",
+                "x-action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffOrderReadController@showActiveByReservation",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -22009,7 +22021,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_reservations_reservation_id_deposit_preview",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationDepositController@preview",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffReservationDepositController@preview",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -22083,7 +22095,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_reservations_reservation_id_deposit_pay",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationDepositController@pay",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffReservationDepositController@pay",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -22157,7 +22169,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_reservations_reservation_id_loyalty",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffLoyaltyController@showReservation",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffLoyaltyController@showReservation",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -22231,7 +22243,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_reservations_reservation_id_loyalty_redeem",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffLoyaltyController@redeemReservation",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffLoyaltyController@redeemReservation",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -22321,7 +22333,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_reservations_reservation_id_loyalty_redeem_release",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffLoyaltyController@releaseReservation",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffLoyaltyController@releaseReservation",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -22410,7 +22422,7 @@
                 ],
                 "deprecated": true,
                 "x-route-key": "post_v1_staff_reservations_reservation_id_loyalty_release",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffLoyaltyController@legacyReleaseReservation",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffLoyaltyController@legacyReleaseReservation",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -22519,7 +22531,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_reservations_reservation_id_orders",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffTableOrderController@indexByReservation",
+                "x-action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffTableOrderController@indexByReservation",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -22643,7 +22655,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_reservations_reservation_id_refund",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffCheckoutController@refund",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@refund",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -22788,7 +22800,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_reservations_reservation_id_refund_cancel",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffCheckoutController@refundAndCancel",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@refundAndCancel",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -22969,7 +22981,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_reservations_reservation_id_refund_preview",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffCheckoutController@refundPreview",
+                "x-action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@refundPreview",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -23043,7 +23055,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_reservations_reservation_id_voucher_apply",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationVoucherController@apply",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffReservationVoucherController@apply",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -23133,7 +23145,7 @@
                 ],
                 "deprecated": true,
                 "x-route-key": "post_v1_staff_reservations_reservation_id_voucher_release",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationVoucherController@release",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffReservationVoucherController@release",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -23222,7 +23234,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_reservations_reservation_id_voucher_remove",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationVoucherController@remove",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffReservationVoucherController@remove",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -23289,7 +23301,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_reservations_reservation_id_vouchers",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationVoucherController@index",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffReservationVoucherController@index",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -23375,7 +23387,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_service_sessions_walk_in",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffServiceSessionController@store",
+                "x-action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffServiceSessionController@store",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -23579,7 +23591,7 @@
                 ],
                 "deprecated": true,
                 "x-route-key": "get_v1_staff_table_board",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffTableBoardController@legacyIndex",
+                "x-action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffTableBoardController@legacyIndex",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -23793,7 +23805,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "staff_tables_board",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffTableBoardController@index",
+                "x-action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffTableBoardController@index",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -23903,7 +23915,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_tables_board_changes",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffOperationalRealtimeController@boardChanges",
+                "x-action": "App\\Modules\\Reporting\\Http\\Controllers\\Staff\\StaffOperationalRealtimeController@boardChanges",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -23956,7 +23968,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_tables_table_id_active_order",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffOrderReadController@showActiveByTable",
+                "x-action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffOrderReadController@showActiveByTable",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -24029,7 +24041,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_tables_table_id_active_service_session",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffServiceSessionController@showActiveByTable",
+                "x-action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffServiceSessionController@showActiveByTable",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -24153,7 +24165,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_tables_table_id_orders",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffTableOrderController@store",
+                "x-action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffTableOrderController@store",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -24250,7 +24262,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_tables_table_id_release",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffTableReleaseController@store",
+                "x-action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffTableReleaseController@store",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -24320,7 +24332,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_users_user_id_loyalty",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffLoyaltyController@showUser",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffLoyaltyController@showUser",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -24394,7 +24406,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_users_user_id_loyalty_adjust",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffLoyaltyController@adjustUser",
+                "x-action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffLoyaltyController@adjustUser",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -24699,7 +24711,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_waiting_list",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffWaitingListController@index",
+                "x-action": "App\\Modules\\WaitingList\\Http\\Controllers\\Staff\\StaffWaitingListController@index",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -24763,7 +24775,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_waiting_list",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffWaitingListController@store",
+                "x-action": "App\\Modules\\WaitingList\\Http\\Controllers\\Staff\\StaffWaitingListController@store",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -24892,7 +24904,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_staff_waiting_list_changes",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffOperationalRealtimeController@waitingListChanges",
+                "x-action": "App\\Modules\\Reporting\\Http\\Controllers\\Staff\\StaffOperationalRealtimeController@waitingListChanges",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -24966,7 +24978,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_waiting_list_id_advance",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffWaitingListController@advance",
+                "x-action": "App\\Modules\\WaitingList\\Http\\Controllers\\Staff\\StaffWaitingListController@advance",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -25055,7 +25067,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_waiting_list_id_cancel",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffWaitingListController@cancel",
+                "x-action": "App\\Modules\\WaitingList\\Http\\Controllers\\Staff\\StaffWaitingListController@cancel",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -25194,7 +25206,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_waiting_list_id_notify",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffWaitingListController@notify",
+                "x-action": "App\\Modules\\WaitingList\\Http\\Controllers\\Staff\\StaffWaitingListController@notify",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -25334,7 +25346,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_staff_waiting_list_id_seat",
-                "x-action": "App\\Http\\Controllers\\Api\\Staff\\StaffWaitingListController@seat",
+                "x-action": "App\\Modules\\WaitingList\\Http\\Controllers\\Staff\\StaffWaitingListController@seat",
                 "x-auth-mode": "staff_api_key",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -25417,7 +25429,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_table_holds",
-                "x-action": "App\\Http\\Controllers\\Api\\TableHoldController@store",
+                "x-action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\TableHoldController@store",
                 "x-auth-mode": "customer_access_token",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -25542,7 +25554,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "delete_v1_table_holds_hold_id",
-                "x-action": "App\\Http\\Controllers\\Api\\TableHoldController@cancel",
+                "x-action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\TableHoldController@cancel",
                 "x-auth-mode": "customer_access_token",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -25592,7 +25604,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_table_holds_hold_id",
-                "x-action": "App\\Http\\Controllers\\Api\\TableHoldController@show",
+                "x-action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\TableHoldController@show",
                 "x-auth-mode": "customer_access_token",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -25664,7 +25676,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "patch_v1_table_holds_hold_id_refresh",
-                "x-action": "App\\Http\\Controllers\\Api\\TableHoldController@refresh",
+                "x-action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\TableHoldController@refresh",
                 "x-auth-mode": "customer_access_token",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -25880,7 +25892,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_tables_available",
-                "x-action": "App\\Http\\Controllers\\Api\\TableController@available",
+                "x-action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\TableController@available",
                 "x-auth-mode": "customer_access_token",
                 "x-contract-grade": "fallback",
                 "x-runtime-middleware": [
@@ -25968,7 +25980,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_waiting_list",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerWaitingListController@index",
+                "x-action": "App\\Modules\\WaitingList\\Http\\Controllers\\Customer\\CustomerWaitingListController@index",
                 "x-auth-mode": "customer_access_token",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -26059,7 +26071,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_waiting_list",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerWaitingListController@store",
+                "x-action": "App\\Modules\\WaitingList\\Http\\Controllers\\Customer\\CustomerWaitingListController@store",
                 "x-auth-mode": "customer_access_token",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -26144,7 +26156,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "get_v1_waiting_list_id",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerWaitingListController@show",
+                "x-action": "App\\Modules\\WaitingList\\Http\\Controllers\\Customer\\CustomerWaitingListController@show",
                 "x-auth-mode": "customer_access_token",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -26255,7 +26267,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_waiting_list_id_accept",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerWaitingListController@accept",
+                "x-action": "App\\Modules\\WaitingList\\Http\\Controllers\\Customer\\CustomerWaitingListController@accept",
                 "x-auth-mode": "customer_access_token",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -26380,7 +26392,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_waiting_list_id_cancel",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerWaitingListController@cancel",
+                "x-action": "App\\Modules\\WaitingList\\Http\\Controllers\\Customer\\CustomerWaitingListController@cancel",
                 "x-auth-mode": "customer_access_token",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -26506,7 +26518,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_waiting_list_id_confirm_arrival",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerWaitingListController@confirmArrival",
+                "x-action": "App\\Modules\\WaitingList\\Http\\Controllers\\Customer\\CustomerWaitingListController@confirmArrival",
                 "x-auth-mode": "customer_access_token",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -26631,7 +26643,7 @@
                 ],
                 "deprecated": false,
                 "x-route-key": "post_v1_waiting_list_id_decline",
-                "x-action": "App\\Http\\Controllers\\Api\\CustomerWaitingListController@decline",
+                "x-action": "App\\Modules\\WaitingList\\Http\\Controllers\\Customer\\CustomerWaitingListController@decline",
                 "x-auth-mode": "customer_access_token",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
@@ -28608,6 +28620,26 @@
                             },
                             "count": {
                                 "type": "integer"
+                            },
+                            "branch_access": {
+                                "$ref": "#/components/schemas/StaffBranchAccessContext"
+                            },
+                            "accessible_branch_ids": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer"
+                                }
+                            },
+                            "default_branch_id": {
+                                "type": "integer",
+                                "nullable": true
+                            },
+                            "current_branch_id": {
+                                "type": "integer",
+                                "nullable": true
+                            },
+                            "has_multi_branch_access": {
+                                "type": "boolean"
                             }
                         },
                         "required": [
@@ -45920,10 +45952,17 @@
                 "required": [
                     "action",
                     "page",
+                    "filters",
+                    "sort",
+                    "pagination",
+                    "current_page",
                     "per_page",
+                    "from",
+                    "to",
                     "total",
                     "last_page",
-                    "filters"
+                    "has_more_pages",
+                    "query_contract"
                 ],
                 "properties": {
                     "action": {
@@ -45932,8 +45971,95 @@
                     "page": {
                         "type": "integer"
                     },
+                    "filters": {
+                        "type": "object",
+                        "additionalProperties": true
+                    },
+                    "sort": {
+                        "type": "object",
+                        "required": [
+                            "supported",
+                            "value",
+                            "by",
+                            "dir"
+                        ],
+                        "properties": {
+                            "supported": {
+                                "type": "boolean"
+                            },
+                            "value": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "by": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "dir": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "additionalProperties": false
+                    },
+                    "pagination": {
+                        "type": "object",
+                        "required": [
+                            "mode",
+                            "current_page",
+                            "per_page",
+                            "from",
+                            "to",
+                            "total",
+                            "last_page",
+                            "has_more_pages"
+                        ],
+                        "properties": {
+                            "mode": {
+                                "type": "string",
+                                "enum": [
+                                    "paged"
+                                ]
+                            },
+                            "current_page": {
+                                "type": "integer"
+                            },
+                            "per_page": {
+                                "type": "integer"
+                            },
+                            "from": {
+                                "type": "integer",
+                                "nullable": true
+                            },
+                            "to": {
+                                "type": "integer",
+                                "nullable": true
+                            },
+                            "total": {
+                                "type": "integer"
+                            },
+                            "last_page": {
+                                "type": "integer"
+                            },
+                            "has_more_pages": {
+                                "type": "boolean"
+                            }
+                        },
+                        "additionalProperties": false
+                    },
+                    "current_page": {
+                        "type": "integer"
+                    },
                     "per_page": {
                         "type": "integer"
+                    },
+                    "from": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "to": {
+                        "type": "integer",
+                        "nullable": true
                     },
                     "total": {
                         "type": "integer"
@@ -45941,9 +46067,11 @@
                     "last_page": {
                         "type": "integer"
                     },
-                    "filters": {
-                        "type": "object",
-                        "additionalProperties": true
+                    "has_more_pages": {
+                        "type": "boolean"
+                    },
+                    "query_contract": {
+                        "$ref": "#/components/schemas/ListingQueryContract"
                     }
                 },
                 "additionalProperties": false
@@ -46216,6 +46344,51 @@
                     "role_name": {
                         "type": "string",
                         "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "StaffBranchAccessContext": {
+                "type": "object",
+                "required": [
+                    "accessible_branch_ids",
+                    "default_branch_id",
+                    "current_branch_id",
+                    "has_default_branch_access",
+                    "has_multi_branch_access",
+                    "branch_selector_enabled",
+                    "access_source",
+                    "branches_uri"
+                ],
+                "properties": {
+                    "accessible_branch_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "default_branch_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "current_branch_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "has_default_branch_access": {
+                        "type": "boolean"
+                    },
+                    "has_multi_branch_access": {
+                        "type": "boolean"
+                    },
+                    "branch_selector_enabled": {
+                        "type": "boolean"
+                    },
+                    "access_source": {
+                        "type": "string"
+                    },
+                    "branches_uri": {
+                        "type": "string"
                     }
                 },
                 "additionalProperties": false
@@ -46806,6 +46979,86 @@
                     "meta": {
                         "type": "object",
                         "properties": {
+                            "action": {
+                                "type": "string"
+                            },
+                            "filters": {
+                                "type": "object",
+                                "additionalProperties": true
+                            },
+                            "sort": {
+                                "type": "object",
+                                "required": [
+                                    "supported",
+                                    "value",
+                                    "by",
+                                    "dir"
+                                ],
+                                "properties": {
+                                    "supported": {
+                                        "type": "boolean"
+                                    },
+                                    "value": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "by": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "dir": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "additionalProperties": false
+                            },
+                            "pagination": {
+                                "type": "object",
+                                "required": [
+                                    "mode",
+                                    "current_page",
+                                    "per_page",
+                                    "from",
+                                    "to",
+                                    "total",
+                                    "last_page",
+                                    "has_more_pages"
+                                ],
+                                "properties": {
+                                    "mode": {
+                                        "type": "string",
+                                        "enum": [
+                                            "paged",
+                                            "legacy_unbounded"
+                                        ]
+                                    },
+                                    "current_page": {
+                                        "type": "integer"
+                                    },
+                                    "per_page": {
+                                        "type": "integer"
+                                    },
+                                    "from": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "to": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "total": {
+                                        "type": "integer"
+                                    },
+                                    "last_page": {
+                                        "type": "integer"
+                                    },
+                                    "has_more_pages": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "additionalProperties": false
+                            },
                             "current_page": {
                                 "type": "integer"
                             },
@@ -46829,13 +47082,8 @@
                             "has_more_pages": {
                                 "type": "boolean"
                             },
-                            "filters": {
-                                "type": "object",
-                                "additionalProperties": true
-                            },
-                            "sort": {
-                                "type": "object",
-                                "additionalProperties": true
+                            "query_contract": {
+                                "$ref": "#/components/schemas/ListingQueryContract"
                             },
                             "summary": {
                                 "type": "object",
@@ -46843,13 +47091,18 @@
                             }
                         },
                         "required": [
+                            "action",
+                            "filters",
+                            "sort",
+                            "pagination",
                             "current_page",
                             "per_page",
+                            "from",
+                            "to",
                             "total",
                             "last_page",
                             "has_more_pages",
-                            "filters",
-                            "sort",
+                            "query_contract",
                             "summary"
                         ],
                         "additionalProperties": false
@@ -47464,11 +47717,41 @@
                         "type": "object",
                         "required": [
                             "count",
+                            "branch_id",
+                            "branch_scope",
                             "realtime"
                         ],
                         "properties": {
                             "count": {
                                 "type": "integer"
+                            },
+                            "branch_id": {
+                                "type": "integer",
+                                "nullable": true
+                            },
+                            "branch_scope": {
+                                "type": "object",
+                                "required": [
+                                    "requested_branch_id",
+                                    "accessible_branch_ids",
+                                    "uses_explicit_entitlement"
+                                ],
+                                "properties": {
+                                    "requested_branch_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "accessible_branch_ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "uses_explicit_entitlement": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "additionalProperties": false
                             },
                             "realtime": {
                                 "$ref": "#/components/schemas/StaffOperationalRealtimeDescriptor"
@@ -47495,14 +47778,44 @@
                         "type": "object",
                         "required": [
                             "station_id",
-                            "count"
+                            "branch_id",
+                            "count",
+                            "branch_scope"
                         ],
                         "properties": {
                             "station_id": {
                                 "type": "integer"
                             },
+                            "branch_id": {
+                                "type": "integer",
+                                "nullable": true
+                            },
                             "count": {
                                 "type": "integer"
+                            },
+                            "branch_scope": {
+                                "type": "object",
+                                "required": [
+                                    "requested_branch_id",
+                                    "accessible_branch_ids",
+                                    "uses_explicit_entitlement"
+                                ],
+                                "properties": {
+                                    "requested_branch_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "accessible_branch_ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "uses_explicit_entitlement": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "additionalProperties": false
                             }
                         },
                         "additionalProperties": false
@@ -47530,6 +47843,39 @@
                             }
                         },
                         "additionalProperties": false
+                    }
+                },
+                "additionalProperties": false
+            },
+            "StaffNavigationContext": {
+                "type": "object",
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/StaffNavigationItem"
+                }
+            },
+            "StaffNavigationItem": {
+                "type": "object",
+                "required": [
+                    "key",
+                    "required_capabilities",
+                    "can_access",
+                    "primary_route"
+                ],
+                "properties": {
+                    "key": {
+                        "type": "string"
+                    },
+                    "required_capabilities": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "can_access": {
+                        "type": "boolean"
+                    },
+                    "primary_route": {
+                        "type": "string"
                     }
                 },
                 "additionalProperties": false
@@ -49267,7 +49613,9 @@
                 "type": "object",
                 "required": [
                     "default_branch",
+                    "branch_access",
                     "active_cashier_shift",
+                    "navigation",
                     "readiness"
                 ],
                 "properties": {
@@ -49275,9 +49623,15 @@
                         "$ref": "#/components/schemas/StaffStartupBranch",
                         "nullable": true
                     },
+                    "branch_access": {
+                        "$ref": "#/components/schemas/StaffBranchAccessContext"
+                    },
                     "active_cashier_shift": {
                         "$ref": "#/components/schemas/StaffStartupCashierShift",
                         "nullable": true
+                    },
+                    "navigation": {
+                        "$ref": "#/components/schemas/StaffNavigationContext"
                     },
                     "readiness": {
                         "$ref": "#/components/schemas/StaffStartupReadiness"

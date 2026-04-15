@@ -205,7 +205,19 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('data.capability_source', 'role_capabilities')
             ->assertJsonPath('data.capabilities.0', 'audit.view')
             ->assertJsonPath('data.startup.default_branch.branch_code', 'MAIN')
+            ->assertJsonPath('data.startup.branch_access.accessible_branch_ids.0', 1)
+            ->assertJsonPath('data.startup.branch_access.default_branch_id', 1)
+            ->assertJsonPath('data.startup.branch_access.current_branch_id', 1)
+            ->assertJsonPath('data.startup.branch_access.has_default_branch_access', true)
+            ->assertJsonPath('data.startup.branch_access.has_multi_branch_access', false)
+            ->assertJsonPath('data.startup.branch_access.branch_selector_enabled', false)
+            ->assertJsonPath('data.startup.branch_access.access_source', 'role_branch_scopes')
+            ->assertJsonPath('data.startup.branch_access.branches_uri', '/api/v1/staff/branches')
             ->assertJsonPath('data.startup.active_cashier_shift.shift_code', 'SHIFT-STAFF-AUTH')
+            ->assertJsonPath('data.startup.navigation.kitchen.can_access', true)
+            ->assertJsonPath('data.startup.navigation.kitchen.primary_route', '/api/v1/staff/kitchen/stations')
+            ->assertJsonPath('data.startup.navigation.audit.can_access', true)
+            ->assertJsonPath('data.startup.navigation.reporting.can_access', true)
             ->assertJsonPath('data.startup.readiness.branch', 'ready')
             ->assertJsonPath('data.startup.readiness.cashier_shift', 'ready')
             ->assertJsonPath('data.startup.readiness.operator_ready', true)
@@ -231,6 +243,7 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('data.capability_source', 'role_capabilities')
             ->assertJsonPath('data.capabilities.0', 'audit.view')
             ->assertJsonPath('data.startup.default_branch.branch_name', 'Chi nhanh chinh')
+            ->assertJsonPath('data.startup.branch_access.current_branch_id', 1)
             ->assertJsonPath('data.startup.active_cashier_shift.cashier_shift_id', 44)
             ->assertJsonPath('data.startup.readiness.granted_capability_count', count($loginCapabilities));
 
@@ -244,6 +257,7 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('data.user.user_id', $staffId)
             ->assertJsonPath('data.capability_source', 'role_capabilities')
             ->assertJsonPath('data.startup.default_branch.timezone', 'Asia/Ho_Chi_Minh')
+            ->assertJsonPath('data.startup.branch_access.has_default_branch_access', true)
             ->assertJsonPath('data.startup.active_cashier_shift.branch.branch_code', 'MAIN')
             ->assertJsonPath('data.startup.readiness.access', 'ready');
 

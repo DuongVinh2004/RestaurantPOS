@@ -16,19 +16,19 @@ final class CustomerReservationOrderBillPaymentRouteSurfaceTest extends TestCase
             [
                 'method' => 'POST',
                 'uri' => 'v1/reservations/{reservation_id}/bill/payment-sessions',
-                'action' => 'App\\Http\\Controllers\\Api\\CustomerReservationBillPaymentController@store',
+                'action' => 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationBillPaymentController@store',
                 'idempotency' => 'idempotency:customer.reservation-bill-payment-sessions.create',
             ],
             [
                 'method' => 'POST',
                 'uri' => 'v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/refresh',
-                'action' => 'App\\Http\\Controllers\\Api\\CustomerReservationBillPaymentController@refresh',
+                'action' => 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationBillPaymentController@refresh',
                 'idempotency' => 'idempotency:customer.reservation-bill-payment-sessions.refresh',
             ],
             [
                 'method' => 'POST',
                 'uri' => 'v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/confirm',
-                'action' => 'App\\Http\\Controllers\\Api\\CustomerReservationBillPaymentController@confirm',
+                'action' => 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationBillPaymentController@confirm',
                 'idempotency' => 'idempotency:customer.reservation-bill-payment-sessions.confirm',
             ],
         ];
@@ -80,7 +80,7 @@ final class CustomerReservationOrderBillPaymentRouteSurfaceTest extends TestCase
         $candidates = [$normalized];
 
         if (! str_starts_with($normalized, 'api/')) {
-            $candidates[] = 'api/' . $normalized;
+            $candidates[] = 'api/'.$normalized;
         }
 
         return array_values(array_unique($candidates));

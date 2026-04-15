@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\ReleasePackageService;
+use App\Platform\Release\Services\ReleasePackageService;
 use Tests\TestCase;
 
 class ReleasePackageDefinitionContractTest extends TestCase

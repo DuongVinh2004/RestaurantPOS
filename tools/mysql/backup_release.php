@@ -5,7 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../app/Support/BackupArtifactManifest.php';
 require_once __DIR__ . '/../../app/Support/PortableSqlSanitizer.php';
 
-use App\Support\BackupArtifactManifest;
+use App\Platform\Backup\Support\BackupArtifactManifest;
 use App\Support\PortableSqlSanitizer;
 
 $rootDir = realpath(__DIR__ . '/../../');

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\ApiContract;
 
 use App\Http\Requests\Admin\ListAdminBranchesRequest;
-use App\Http\Requests\Reservation\CreateCustomerReservationDepositPaymentSessionRequest;
-use App\Http\Requests\Reservation\StoreReservationRequest;
-use App\Services\ApiContract\FormRequestSchemaFactory;
+use App\Modules\CheckoutPayments\Http\Requests\Customer\CreateCustomerReservationDepositPaymentSessionRequest;
+use App\Modules\Reservations\Http\Requests\StoreReservationRequest;
+use App\Platform\ApiContract\Services\FormRequestSchemaFactory;
 use Tests\TestCase;
 
 final class FormRequestSchemaFactoryTest extends TestCase

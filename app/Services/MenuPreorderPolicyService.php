@@ -9,7 +9,7 @@ use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
 use App\Models\MenuItem;
 use App\Models\MenuItemPrice;
-use App\Models\ReservationOrderItem;
+use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;

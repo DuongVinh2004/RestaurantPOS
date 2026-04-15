@@ -1,6 +1,6 @@
 <?php
 
-use App\Services\FeatureFlagManagementService;
+use App\Platform\FeatureFlags\Services\FeatureFlagManagementService;
 use Illuminate\Console\Command as ConsoleCommand;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Validation\ValidationException;

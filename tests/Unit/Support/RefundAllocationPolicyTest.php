@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Support\RefundAllocationPolicy;
+use App\Modules\CheckoutPayments\Domain\Policies\RefundAllocationPolicy;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\TestCase;
 

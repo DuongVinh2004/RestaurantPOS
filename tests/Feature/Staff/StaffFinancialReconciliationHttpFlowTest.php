@@ -184,11 +184,7 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
         $customerId = $this->createUser(['role_name' => 'Customer', 'full_name' => 'Branch Finance']);
         $branchA = $this->createBranch(['branch_code' => 'FINA', 'branch_name' => 'Finance A']);
         $branchB = $this->createBranch(['branch_code' => 'FINB', 'branch_name' => 'Finance B']);
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $branchA,
-            'status' => 'Open',
-        ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $branchA]);
 
         $reservationA = $this->createReservation([
             'branch_id' => $branchA,

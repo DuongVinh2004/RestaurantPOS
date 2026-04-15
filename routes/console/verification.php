@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Services\Verification\VerificationSelectorService;
+use App\Platform\Verification\VerificationSelectorService;
 use Illuminate\Console\Command as ConsoleCommand;
 
 use function Symfony\Component\String\u;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Support\VoucherUsageGuard;
+use App\Modules\BenefitsLoyalty\Domain\Guards\VoucherUsageGuard;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Tests\Support\BuildsBookingScenario;

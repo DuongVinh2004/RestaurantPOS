@@ -6,10 +6,13 @@ namespace App\Services\Staff;
 
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationStatus;
-use App\Models\Reservation;
-use App\Models\TableHold;
-use App\Services\Branch\BranchContextService;
-use App\Services\RuntimeSettingService;
+use App\Modules\BranchScheduling\Application\Services\BranchContextService;
+use App\Modules\BranchScheduling\Domain\Models\TableHold;
+use App\Modules\Conversations\Application\Services\StaffReservationInboxService;
+use App\Modules\FloorOps\Application\Services\StaffCheckInReadinessService;
+use App\Modules\FloorOps\Application\Services\StaffTableBoardService;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Models\Payment;
+use App\Modules\CheckoutPayments\Domain\Models\Payment;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;

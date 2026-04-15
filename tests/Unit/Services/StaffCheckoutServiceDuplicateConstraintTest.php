@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\LoyaltyPointsService;
-use App\Services\NotificationOutboxService;
-use App\Services\ReservationFinancialSyncService;
-use App\Services\ReservationLockService;
-use App\Services\RestaurantTableStateService;
-use App\Services\Staff\StaffCheckoutService;
+use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyPointsService;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
+use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncService;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
 use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 use Mockery;
