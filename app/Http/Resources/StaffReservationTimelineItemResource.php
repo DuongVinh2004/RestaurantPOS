@@ -6,8 +6,9 @@ namespace App\Http\Resources;
 
 use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
-use App\Models\Reservation;
-use App\Models\ReservationOrder;
+use App\Modules\Conversations\Http\Resources\StaffReservationInboxResource;
+use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Services\Staff\StaffReservationTimelineWorkbenchService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;

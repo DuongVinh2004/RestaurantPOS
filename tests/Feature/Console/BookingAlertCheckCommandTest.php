@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Services\OperationalAlertService;
+use App\Platform\Metrics\Services\OperationalAlertService;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 

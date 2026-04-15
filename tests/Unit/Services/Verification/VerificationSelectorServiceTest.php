@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Verification;
 
-use App\Services\Verification\VerificationSelectorService;
+use App\Platform\Verification\VerificationSelectorService;
 use Tests\TestCase;
 
 class VerificationSelectorServiceTest extends TestCase

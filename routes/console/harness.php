@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Services\Harness\HarnessSuiteService;
+use App\Platform\Harness\HarnessSuiteService;
 use Illuminate\Console\Command as ConsoleCommand;
 use Illuminate\Support\Facades\Artisan;
 

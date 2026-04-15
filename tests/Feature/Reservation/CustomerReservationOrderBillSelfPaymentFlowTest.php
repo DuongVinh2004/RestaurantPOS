@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Reservation;
 
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Models\User;
-use App\Services\Customer\BillPayment\CustomerBillPaymentProvider;
-use App\Services\Customer\BillPayment\CustomerBillPaymentProviderRegistry;
-use App\Services\Customer\CustomerReservationBillPaymentService;
-use App\Services\Staff\StaffCheckoutService;
+use App\Modules\CheckoutPayments\Domain\Models\ReservationBillPaymentSession;
+use App\Modules\CheckoutPayments\Infrastructure\CustomerBillPayment\CustomerBillPaymentProvider;
+use App\Modules\CheckoutPayments\Infrastructure\CustomerBillPayment\CustomerBillPaymentProviderRegistry;
+use App\Modules\CheckoutPayments\Application\Services\CustomerReservationBillPaymentService;
+use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -453,7 +455,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
                 return 'simulated';
             }
 
-            public function createSession(\App\Models\Reservation $reservation, int $customerUserId, array $payload): array
+            public function createSession(Reservation $reservation, int $customerUserId, array $payload): array
             {
                 return [
                     'provider_code' => 'simulated',
@@ -464,12 +466,12 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
                 ];
             }
 
-            public function refreshSession(\App\Models\Reservation $reservation, \App\Models\ReservationBillPaymentSession $session, array $payload): array
+            public function refreshSession(Reservation $reservation, ReservationBillPaymentSession $session, array $payload): array
             {
                 return [];
             }
 
-            public function confirmSession(\App\Models\Reservation $reservation, \App\Models\ReservationBillPaymentSession $session, array $payload): array
+            public function confirmSession(Reservation $reservation, ReservationBillPaymentSession $session, array $payload): array
             {
                 return [];
             }

@@ -7,9 +7,9 @@ namespace Tests\Unit\Services\Staff;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
-use App\Services\LoyaltyPointsService;
-use App\Services\RestaurantTableStateService;
-use App\Services\Staff\SettlementFinalizerService;
+use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyPointsService;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Modules\CheckoutPayments\Application\Services\SettlementFinalizerService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Mockery;
@@ -75,7 +75,7 @@ class SettlementFinalizerServiceTest extends TestCase
         $service = new SettlementFinalizerService($loyalty, $tableState);
 
         $voucherConsumed = false;
-        $reservation = \App\Models\Reservation::query()->findOrFail($reservationId);
+        $reservation = \App\Modules\Reservations\Domain\Models\Reservation::query()->findOrFail($reservationId);
 
         $service->completeReservationSettlement(
             reservation: $reservation,
@@ -88,9 +88,9 @@ class SettlementFinalizerServiceTest extends TestCase
             },
         );
 
-        $reservation = \App\Models\Reservation::query()->findOrFail($reservationId);
-        $activeOrder = \App\Models\ReservationOrder::query()->findOrFail($activeOrderId);
-        $completedOrder = \App\Models\ReservationOrder::query()->findOrFail($completedOrderId);
+        $reservation = \App\Modules\Reservations\Domain\Models\Reservation::query()->findOrFail($reservationId);
+        $activeOrder = \App\Modules\Ordering\Domain\Models\ReservationOrder::query()->findOrFail($activeOrderId);
+        $completedOrder = \App\Modules\Ordering\Domain\Models\ReservationOrder::query()->findOrFail($completedOrderId);
 
         $this->assertTrue($voucherConsumed);
         $this->assertSame(ReservationStatus::Completed->value, (string) ($reservation->status?->value ?? $reservation->status));

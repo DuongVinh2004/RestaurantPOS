@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Services\LaunchReadinessService;
+use App\Platform\Release\Services\LaunchReadinessService;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 

@@ -135,6 +135,11 @@ class StaffTableOrderConcurrencyGuardServiceTest extends TestCase
             'currency' => 'VND',
             'line_total' => '100000.00',
         ]);
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => 1,
+            'status' => 'Open',
+        ]);
 
         $checkoutService = $this->makeCheckoutService();
         $checkoutService->checkout(

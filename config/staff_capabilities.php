@@ -15,6 +15,7 @@ return [
         'loyalty.redeem',
         'loyalty.view',
         'menu.manage',
+        'ops.view',
         'order.manage',
         'payment.refund',
         'privacy.manage',
@@ -52,6 +53,24 @@ return [
             'loyalty.redeem',
             'waiting_list.manage',
             'table.release',
+        ],
+    ],
+
+    // Compatibility-first branch entitlement until staff-to-branch assignments land.
+    // Branch authorization must remain explicit and must not expand from cashier shifts.
+    'fallback_branch_scopes' => [
+        'default',
+    ],
+
+    'role_id_branch_scopes' => [
+    ],
+
+    'role_branch_scopes' => [
+        'Admin' => [
+            '*',
+        ],
+        'Staff' => [
+            'default',
         ],
     ],
 
@@ -98,6 +117,7 @@ return [
         'GET api/v1/admin/settings/branches/{id}' => 'settings.manage',
         'GET api/v1/admin/settings/finance/tax-profile' => 'settings.manage',
         'GET api/v1/staff/audit-trail' => 'audit.view',
+        'GET api/v1/staff/branches' => 'reservation.manage',
         'GET api/v1/staff/cashier/shifts' => 'cashier.shift.manage',
         'GET api/v1/staff/cashier/shifts/current' => 'cashier.shift.manage',
         'GET api/v1/staff/cashier/shifts/{shift_id}' => 'cashier.shift.manage',
@@ -243,6 +263,7 @@ return [
 
     'messages' => [
         'default' => 'Resolved staff actor is not allowed to perform this operation.',
+        'branch_scope_denied' => 'Resolved staff actor is not allowed to operate on the selected branch.',
         'unknown_capability' => 'Staff capability contract is not registered.',
     ],
 ];

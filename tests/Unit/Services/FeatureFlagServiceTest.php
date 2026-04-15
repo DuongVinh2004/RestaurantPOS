@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\FeatureFlagService;
+use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Schema;
 use Tests\Support\BuildsBookingScenario;

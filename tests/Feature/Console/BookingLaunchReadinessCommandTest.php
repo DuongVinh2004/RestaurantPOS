@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Services\BookingDeploySafetyService;
-use App\Services\BookingDoctorService;
-use App\Services\CoreOpsGateService;
-use App\Services\OperationalAlertService;
-use App\Services\ReleaseArtifactManifestService;
-use App\Services\ReleasePackageService;
-use App\Services\RoundFiveGateService;
-use App\Services\RouteInventoryGateService;
+use App\Platform\Release\Services\BookingDeploySafetyService;
+use App\Platform\Health\Services\BookingDoctorService;
+use App\Platform\Release\Services\CoreOpsGateService;
+use App\Platform\Metrics\Services\OperationalAlertService;
+use App\Platform\Release\Services\ReleaseArtifactManifestService;
+use App\Platform\Release\Services\ReleasePackageService;
+use App\Platform\Release\Services\RoundFiveGateService;
+use App\Platform\ApiContract\Services\RouteInventoryGateService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;

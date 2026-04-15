@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Http\Controllers;
 
-use App\Http\Controllers\Api\CustomerReservationPreorderController;
-use App\Models\Reservation;
+use App\Modules\Reservations\Http\Controllers\CustomerReservationPreorderController;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Models\User;
-use App\Services\Customer\CustomerReservationPreorderService;
+use App\Modules\Reservations\Application\Services\CustomerReservationPreorderService;
 use App\Services\CustomerReservationSessionAccessService;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;

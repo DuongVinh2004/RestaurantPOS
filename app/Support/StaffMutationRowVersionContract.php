@@ -4,24 +4,24 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-use App\Http\Requests\Staff\AddOrderItemsRequest;
-use App\Http\Requests\Staff\ApplyReservationVoucherRequest;
-use App\Http\Requests\Staff\CancelWaitingListRequest;
-use App\Http\Requests\Staff\CheckInReservationRequest;
-use App\Http\Requests\Staff\CheckoutOrderRequest;
-use App\Http\Requests\Staff\CloseOrderRequest;
-use App\Http\Requests\Staff\CreateTableOrderRequest;
-use App\Http\Requests\Staff\MoveTableRequest;
-use App\Http\Requests\Staff\NotifyWaitingListRequest;
-use App\Http\Requests\Staff\PayOrderRequest;
-use App\Http\Requests\Staff\RedeemReservationPointsRequest;
-use App\Http\Requests\Staff\RefundAndCancelReservationRequest;
-use App\Http\Requests\Staff\RefundReservationRequest;
-use App\Http\Requests\Staff\ReleaseReservationPointsRequest;
-use App\Http\Requests\Staff\ReleaseTableRequest;
-use App\Http\Requests\Staff\RemoveReservationVoucherRequest;
+use App\Modules\Ordering\Http\Requests\AddOrderItemsRequest;
+use App\Modules\BenefitsLoyalty\Http\Requests\Staff\ApplyReservationVoucherRequest;
+use App\Modules\WaitingList\Http\Requests\Staff\CancelWaitingListRequest;
+use App\Modules\FloorOps\Http\Requests\CheckInReservationRequest;
+use App\Modules\CheckoutPayments\Http\Requests\Staff\CheckoutOrderRequest;
+use App\Modules\CheckoutPayments\Http\Requests\Staff\CloseOrderRequest;
+use App\Modules\Ordering\Http\Requests\CreateTableOrderRequest;
+use App\Modules\FloorOps\Http\Requests\MoveTableRequest;
+use App\Modules\WaitingList\Http\Requests\Staff\NotifyWaitingListRequest;
+use App\Modules\CheckoutPayments\Http\Requests\Staff\PayOrderRequest;
+use App\Modules\BenefitsLoyalty\Http\Requests\Staff\RedeemReservationPointsRequest;
+use App\Modules\CheckoutPayments\Http\Requests\Staff\RefundAndCancelReservationRequest;
+use App\Modules\CheckoutPayments\Http\Requests\Staff\RefundReservationRequest;
+use App\Modules\BenefitsLoyalty\Http\Requests\Staff\ReleaseReservationPointsRequest;
+use App\Modules\FloorOps\Http\Requests\ReleaseTableRequest;
+use App\Modules\BenefitsLoyalty\Http\Requests\Staff\RemoveReservationVoucherRequest;
 use App\Http\Requests\Staff\RescheduleReservationRequest;
-use App\Http\Requests\Staff\SeatWaitingListRequest;
+use App\Modules\WaitingList\Http\Requests\Staff\SeatWaitingListRequest;
 
 final class StaffMutationRowVersionContract
 {

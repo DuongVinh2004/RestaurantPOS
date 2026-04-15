@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Staff;
 
-use App\Models\Payment;
-use App\Services\Staff\OrderSettlementService;
+use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Modules\CheckoutPayments\Application\Services\OrderSettlementService;
 use Illuminate\Support\Collection;
 use Tests\TestCase;
 

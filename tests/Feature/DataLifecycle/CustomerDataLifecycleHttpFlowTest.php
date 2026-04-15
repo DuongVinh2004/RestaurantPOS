@@ -47,6 +47,8 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
             'status' => 'Success',
             'payment_type' => 'Final',
             'transaction_code' => 'PAY-PRIV-001',
+            'idempotency_key' => 'payment-export-idem-001',
+            'provider_response_json' => ['provider_reference' => 'secret-ref-001'],
         ]);
         self::assertGreaterThan(0, $paymentId);
 
@@ -72,7 +74,7 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
         $this->createConversationFile(['message_id' => $messageId]);
         $this->createMessageEntity(['message_id' => $messageId, 'entity_text' => 'privacy@example.test']);
 
-        DB::table('notification_outbox')->insert([
+        $outboxId = (int) DB::table('notification_outbox')->insertGetId([
             'channel' => 'Email',
             'recipient' => 'privacy@example.test',
             'recipient_user_id' => $customerId,
@@ -81,9 +83,32 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
             'dedupe_key' => 'notif-privacy-export',
             'payload_json' => json_encode(['email' => 'privacy@example.test'], JSON_THROW_ON_ERROR),
             'status' => 'Sent',
+            'processing_token' => 'processing-token-export',
+            'locked_until' => $this->nowUtc()->copy()->addMinutes(5),
+            'locked_by' => 'worker-1',
             'attempt_count' => 1,
+            'last_attempted_at' => $this->nowUtc(),
+            'last_error' => 'transient-provider-error',
             'created_at' => $this->nowUtc(),
             'sent_at' => $this->nowUtc(),
+        ]);
+
+        DB::table('notification_delivery_attempts')->insert([
+            'outbox_id' => $outboxId,
+            'channel' => 'Email',
+            'provider_key' => 'smtp',
+            'attempt_number' => 1,
+            'status' => 'Succeeded',
+            'recipient' => 'privacy@example.test',
+            'provider_message_id' => 'msg-privacy-export-1',
+            'provider_status' => 'delivered',
+            'error_code' => null,
+            'error_message' => 'provider internal note',
+            'request_payload_json' => json_encode(['email' => 'privacy@example.test'], JSON_THROW_ON_ERROR),
+            'response_payload_json' => json_encode(['status' => 'queued'], JSON_THROW_ON_ERROR),
+            'attempted_at' => $this->nowUtc(),
+            'completed_at' => $this->nowUtc(),
+            'created_at' => $this->nowUtc(),
         ]);
 
         DB::table('bank_accounts')->insert([
@@ -96,6 +121,62 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
             'created_at' => $this->nowUtc(),
         ]);
 
+        DB::table('user_auth_tokens')->insert([
+            'user_id' => $customerId,
+            'purpose' => 'PasswordReset',
+            'channel' => 'Email',
+            'recipient' => 'privacy@example.test',
+            'token_hash' => hash('sha256', 'privacy-export-token'),
+            'otp_hash' => hash('sha256', '123456'),
+            'attempt_count' => 1,
+            'max_attempts' => 5,
+            'expires_at' => $this->nowUtc()->copy()->addHour(),
+            'used_at' => null,
+            'created_ip' => null,
+            'user_agent' => 'PHPUnit',
+            'created_at' => $this->nowUtc(),
+        ]);
+
+        DB::table('reservation_deposit_payment_sessions')->insert([
+            'reservation_id' => $reservationId,
+            'customer_user_id' => $customerId,
+            'linked_payment_id' => $paymentId,
+            'provider_code' => 'simulated',
+            'provider_session_code' => 'dep-export-session-001',
+            'provider_payment_code' => 'dep-export-payment-001',
+            'payment_method' => 'Card',
+            'amount' => '200000.00',
+            'currency' => 'VND',
+            'session_status' => 'Confirmed',
+            'settlement_status' => 'Applied',
+            'provider_payload_json' => json_encode(['checkout_url' => 'https://provider.test/secret'], JSON_THROW_ON_ERROR),
+            'idempotency_key' => 'dep-export-idem-001',
+            'provider_expires_at' => $this->nowUtc()->copy()->addMinutes(30),
+            'confirmed_at' => $this->nowUtc(),
+            'created_at' => $this->nowUtc(),
+            'updated_at' => $this->nowUtc(),
+        ]);
+
+        DB::table('reservation_bill_payment_sessions')->insert([
+            'reservation_id' => $reservationId,
+            'order_id' => null,
+            'customer_user_id' => $customerId,
+            'linked_payment_id' => $paymentId,
+            'provider_code' => 'simulated',
+            'provider_session_code' => 'bill-export-session-001',
+            'provider_payment_code' => 'bill-export-payment-001',
+            'payment_method' => 'Card',
+            'amount' => '250000.00',
+            'currency' => 'VND',
+            'session_status' => 'Created',
+            'settlement_status' => 'NotApplied',
+            'provider_payload_json' => json_encode(['checkout_url' => 'https://provider.test/bill-secret'], JSON_THROW_ON_ERROR),
+            'idempotency_key' => 'bill-export-idem-001',
+            'provider_expires_at' => $this->nowUtc()->copy()->addMinutes(30),
+            'created_at' => $this->nowUtc(),
+            'updated_at' => $this->nowUtc(),
+        ]);
+
         $export = $this->withHeaders($headers)->getJson('/api/v1/me/data-export');
 
         $export->assertOk()
@@ -106,6 +187,13 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
             ->assertJsonCount(1, 'data.tables.waiting_list')
             ->assertJsonCount(1, 'data.tables.conversations')
             ->assertJsonCount(1, 'data.tables.notification_outbox');
+
+        $exportedData = $export->json('data');
+        self::assertSame('PAY-PRIV-001', data_get($exportedData, 'tables.payments.0.transaction_code'));
+        self::assertSame('Confirmed', data_get($exportedData, 'tables.reservation_deposit_payment_sessions.0.session_status'));
+        self::assertSame('Need invoice support', data_get($exportedData, 'tables.conversation_messages.0.message_text'));
+        self::assertSame('ACB', data_get($exportedData, 'tables.bank_accounts.0.bank_name'));
+        $this->assertSanitizedCustomerExport($exportedData);
 
         $this->assertAuditLogRecorded('customer_data.exported', 'user', $customerId);
 
@@ -122,6 +210,112 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
 
         $requestId = (int) $request->json('data.request.customer_privacy_request_id');
         $this->assertAuditLogRecorded('customer_privacy_request.created', 'customer_privacy_request', $requestId);
+    }
+
+    public function test_admin_customer_export_uses_the_same_sanitized_shape(): void
+    {
+        $customerId = $this->createUser([
+            'role_name' => 'Customer',
+            'full_name' => 'Admin Export Customer',
+            'email' => 'admin-export@example.test',
+            'phone' => '0909555666',
+        ]);
+        $adminId = $this->createUser(['role_name' => 'Admin']);
+        $adminHeaders = $this->staffAuthHeaders($adminId, 'privacy-admin-export');
+
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Completed',
+            'checked_out_at' => $this->nowUtc(),
+            'notes' => 'Admin export reservation note',
+        ]);
+        $paymentId = $this->createPayment([
+            'reservation_id' => $reservationId,
+            'branch_id' => 1,
+            'amount' => '320000.00',
+            'status' => 'Success',
+            'payment_type' => 'Final',
+            'transaction_code' => 'PAY-PRIV-ADMIN-001',
+            'idempotency_key' => 'payment-admin-export-idem-001',
+            'provider_response_json' => ['provider_reference' => 'admin-secret-ref-001'],
+        ]);
+
+        DB::table('user_auth_tokens')->insert([
+            'user_id' => $customerId,
+            'purpose' => 'MagicLink',
+            'channel' => 'Email',
+            'recipient' => 'admin-export@example.test',
+            'token_hash' => hash('sha256', 'admin-export-token'),
+            'otp_hash' => hash('sha256', '654321'),
+            'attempt_count' => 0,
+            'max_attempts' => 5,
+            'expires_at' => $this->nowUtc()->copy()->addHour(),
+            'created_ip' => null,
+            'user_agent' => 'PHPUnit',
+            'created_at' => $this->nowUtc(),
+        ]);
+
+        $outboxId = (int) DB::table('notification_outbox')->insertGetId([
+            'channel' => 'Email',
+            'recipient' => 'admin-export@example.test',
+            'recipient_user_id' => $customerId,
+            'template_key' => 'reservation.receipt',
+            'idempotency_key' => 'notif-admin-export',
+            'dedupe_key' => 'notif-admin-export',
+            'payload_json' => json_encode(['email' => 'admin-export@example.test'], JSON_THROW_ON_ERROR),
+            'status' => 'Sent',
+            'processing_token' => 'processing-token-admin-export',
+            'attempt_count' => 1,
+            'created_at' => $this->nowUtc(),
+            'sent_at' => $this->nowUtc(),
+        ]);
+
+        DB::table('notification_delivery_attempts')->insert([
+            'outbox_id' => $outboxId,
+            'channel' => 'Email',
+            'provider_key' => 'smtp',
+            'attempt_number' => 1,
+            'status' => 'Succeeded',
+            'recipient' => 'admin-export@example.test',
+            'provider_message_id' => 'msg-admin-export-1',
+            'provider_status' => 'delivered',
+            'error_code' => null,
+            'error_message' => 'provider secret error',
+            'request_payload_json' => json_encode(['email' => 'admin-export@example.test'], JSON_THROW_ON_ERROR),
+            'response_payload_json' => json_encode(['status' => 'ok'], JSON_THROW_ON_ERROR),
+            'attempted_at' => $this->nowUtc(),
+            'completed_at' => $this->nowUtc(),
+            'created_at' => $this->nowUtc(),
+        ]);
+
+        DB::table('reservation_deposit_payment_sessions')->insert([
+            'reservation_id' => $reservationId,
+            'customer_user_id' => $customerId,
+            'linked_payment_id' => $paymentId,
+            'provider_code' => 'simulated',
+            'provider_session_code' => 'dep-admin-export-session-001',
+            'provider_payment_code' => 'dep-admin-export-payment-001',
+            'payment_method' => 'Card',
+            'amount' => '320000.00',
+            'currency' => 'VND',
+            'session_status' => 'Confirmed',
+            'settlement_status' => 'Applied',
+            'provider_payload_json' => json_encode(['checkout_url' => 'https://provider.test/admin-secret'], JSON_THROW_ON_ERROR),
+            'idempotency_key' => 'dep-admin-export-idem-001',
+            'confirmed_at' => $this->nowUtc(),
+            'created_at' => $this->nowUtc(),
+            'updated_at' => $this->nowUtc(),
+        ]);
+
+        $export = $this->withHeaders($adminHeaders)->getJson("/api/v1/admin/privacy/customers/{$customerId}/data-export");
+
+        $export->assertOk()
+            ->assertJsonPath('meta.action', 'admin_customer_data_export')
+            ->assertJsonPath('data.customer.user.user_id', $customerId)
+            ->assertJsonPath('data.tables.reservations.0.reservation_id', $reservationId)
+            ->assertJsonPath('data.tables.payments.0.transaction_code', 'PAY-PRIV-ADMIN-001');
+
+        $this->assertSanitizedCustomerExport($export->json('data'));
     }
 
     public function test_admin_dry_run_review_reports_blockers_for_active_customer_state(): void
@@ -332,5 +526,40 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
         self::assertSame(0, DB::table('notification_preferences')->where('user_id', $customerId)->count());
 
         $this->assertAuditLogRecorded('customer_privacy_request.completed', 'customer_privacy_request', $requestId);
+    }
+
+    /**
+     * @param  array<string,mixed>  $exportedData
+     */
+    private function assertSanitizedCustomerExport(array $exportedData): void
+    {
+        self::assertArrayNotHasKey('password_hash', (array) data_get($exportedData, 'customer.user', []));
+        self::assertArrayNotHasKey('bank_account_number', (array) data_get($exportedData, 'tables.bank_accounts.0', []));
+        self::assertArrayNotHasKey('session_id', (array) data_get($exportedData, 'tables.customer_access_sessions.0', []));
+        self::assertArrayNotHasKey('token_hash', (array) data_get($exportedData, 'tables.customer_access_sessions.0', []));
+        self::assertArrayNotHasKey('token_last_eight', (array) data_get($exportedData, 'tables.customer_access_sessions.0', []));
+        self::assertArrayNotHasKey('session_meta_json', (array) data_get($exportedData, 'tables.customer_access_sessions.0', []));
+        self::assertArrayNotHasKey('token_hash', (array) data_get($exportedData, 'tables.user_auth_tokens.0', []));
+        self::assertArrayNotHasKey('otp_hash', (array) data_get($exportedData, 'tables.user_auth_tokens.0', []));
+        self::assertArrayNotHasKey('created_ip', (array) data_get($exportedData, 'tables.user_auth_tokens.0', []));
+        self::assertArrayNotHasKey('user_agent', (array) data_get($exportedData, 'tables.user_auth_tokens.0', []));
+        self::assertArrayNotHasKey('provider_response_json', (array) data_get($exportedData, 'tables.payments.0', []));
+        self::assertArrayNotHasKey('idempotency_key', (array) data_get($exportedData, 'tables.payments.0', []));
+        self::assertArrayNotHasKey('provider_payload_json', (array) data_get($exportedData, 'tables.reservation_deposit_payment_sessions.0', []));
+        self::assertArrayNotHasKey('idempotency_key', (array) data_get($exportedData, 'tables.reservation_deposit_payment_sessions.0', []));
+        self::assertArrayNotHasKey('provider_payload_json', (array) data_get($exportedData, 'tables.reservation_bill_payment_sessions.0', []));
+        self::assertArrayNotHasKey('idempotency_key', (array) data_get($exportedData, 'tables.reservation_bill_payment_sessions.0', []));
+        self::assertArrayNotHasKey('payload_json', (array) data_get($exportedData, 'tables.notification_outbox.0', []));
+        self::assertArrayNotHasKey('processing_token', (array) data_get($exportedData, 'tables.notification_outbox.0', []));
+        self::assertArrayNotHasKey('locked_until', (array) data_get($exportedData, 'tables.notification_outbox.0', []));
+        self::assertArrayNotHasKey('locked_by', (array) data_get($exportedData, 'tables.notification_outbox.0', []));
+        self::assertArrayNotHasKey('last_error', (array) data_get($exportedData, 'tables.notification_outbox.0', []));
+        self::assertArrayNotHasKey('request_payload_json', (array) data_get($exportedData, 'tables.notification_delivery_attempts.0', []));
+        self::assertArrayNotHasKey('response_payload_json', (array) data_get($exportedData, 'tables.notification_delivery_attempts.0', []));
+        self::assertArrayNotHasKey('error_message', (array) data_get($exportedData, 'tables.notification_delivery_attempts.0', []));
+        self::assertArrayNotHasKey('session_id', (array) data_get($exportedData, 'tables.conversations.0', []));
+        self::assertArrayNotHasKey('customer_session_id', (array) data_get($exportedData, 'tables.conversations.0', []));
+        self::assertArrayNotHasKey('event_data', (array) data_get($exportedData, 'tables.conversation_events.0', []));
+        self::assertArrayNotHasKey('extracted_info', (array) data_get($exportedData, 'tables.conversation_analyses.0', []));
     }
 }

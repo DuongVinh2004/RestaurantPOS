@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\DatabaseContractInspector;
+use App\Platform\ApiContract\Services\DatabaseContractInspector;
 use App\Services\Inventory\PurchaseOrderReconciliationService;
-use App\Services\Kitchen\KitchenTicketReconciliationService;
-use App\Services\OperationalInsightsService;
+use App\Modules\KitchenDispatch\Application\Services\KitchenTicketReconciliationService;
+use App\Platform\Metrics\Services\OperationalInsightsService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;

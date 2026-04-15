@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Services\NotificationOutboxService;
-use App\Services\ReservationLockService;
-use App\Services\RestaurantTableStateService;
-use App\Services\RuntimeSettingService;
-use App\Services\TableTimeConflictService;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
+use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Mockery;
@@ -28,8 +28,8 @@ class StaffAuditTrailHttpFlowTest extends TestCase
         $this->app->instance(NotificationOutboxService::class, $this->mockNotificationOutbox());
         $this->app->instance(ReservationLockService::class, $this->mockReservationLocks());
         $this->app->instance(RuntimeSettingService::class, $this->mockRuntimeSettings());
-        $this->app->instance(RestaurantTableStateService::class, new RestaurantTableStateService());
-        $this->app->instance(TableTimeConflictService::class, new TableTimeConflictService());
+        $this->app->instance(RestaurantTableStateService::class, new RestaurantTableStateService);
+        $this->app->instance(TableTimeConflictService::class, new TableTimeConflictService);
     }
 
     protected function tearDown(): void
@@ -66,6 +66,12 @@ class StaffAuditTrailHttpFlowTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('meta.action', 'staff_audit_trail_index')
             ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('meta.pagination.mode', 'paged')
+            ->assertJsonPath('meta.query_contract.default_sort', '-occurred_at')
+            ->assertJsonPath('meta.query_contract.pagination.max_per_page', 100)
+            ->assertJsonPath('meta.sort.supported', false)
+            ->assertJsonPath('meta.filters.reservation_id', $reservationId)
+            ->assertJsonPath('meta.filters.action', 'reservation.checked_in')
             ->assertJsonPath('data.0.action', 'reservation.checked_in')
             ->assertJsonPath('data.0.primary_subject.type', 'reservation')
             ->assertJsonPath('data.0.primary_subject.id', (string) $reservationId)
@@ -92,11 +98,7 @@ class StaffAuditTrailHttpFlowTest extends TestCase
             'branch_code' => 'BR2',
             'branch_name' => 'Branch Two',
         ]);
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $branchTwoId,
-            'status' => 'Open',
-        ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $branchTwoId]);
 
         $branchOneReservationId = $this->createReservation([
             'branch_id' => 1,
@@ -242,11 +244,7 @@ class StaffAuditTrailHttpFlowTest extends TestCase
             'branch_code' => 'BR3',
             'branch_name' => 'Branch Three',
         ]);
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $branchTwoId,
-            'status' => 'Open',
-        ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $branchTwoId]);
 
         $branchOneReservationId = $this->createReservation([
             'branch_id' => 1,

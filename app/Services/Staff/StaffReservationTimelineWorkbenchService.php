@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Staff;
 
 use App\Enums\ReservationStatus;
-use App\Models\Reservation;
-use App\Services\RuntimeSettingService;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Support\Carbon;
 
 class StaffReservationTimelineWorkbenchService

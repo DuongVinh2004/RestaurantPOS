@@ -151,8 +151,17 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertStringContainsString('startup: StaffStartupContext;', $sdk);
         self::assertStringContainsString('export type StaffStartupContext = {', $sdk);
         self::assertStringContainsString('default_branch: (StaffStartupBranch) | null;', $sdk);
+        self::assertStringContainsString('branch_access: StaffBranchAccessContext;', $sdk);
         self::assertStringContainsString('active_cashier_shift: (StaffStartupCashierShift) | null;', $sdk);
+        self::assertStringContainsString('navigation: StaffNavigationContext;', $sdk);
         self::assertStringContainsString('readiness: StaffStartupReadiness;', $sdk);
+        self::assertStringContainsString('export type StaffBranchAccessContext = {', $sdk);
+        self::assertStringContainsString('accessible_branch_ids: Array<number>;', $sdk);
+        self::assertStringContainsString('has_multi_branch_access: boolean;', $sdk);
+        self::assertStringContainsString('export type StaffNavigationItem = {', $sdk);
+        self::assertStringContainsString('required_capabilities: Array<string>;', $sdk);
+        self::assertStringContainsString('primary_route: string;', $sdk);
+        self::assertStringContainsString('export type StaffNavigationContext = Record<string, StaffNavigationItem>;', $sdk);
         self::assertStringContainsString('export type StaffStartupReadiness = {', $sdk);
         self::assertStringContainsString('granted_capability_count: number;', $sdk);
         self::assertStringContainsString('known_capability_count: number;', $sdk);

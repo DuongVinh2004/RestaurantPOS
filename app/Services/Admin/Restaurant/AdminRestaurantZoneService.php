@@ -7,8 +7,8 @@ namespace App\Services\Admin\Restaurant;
 use App\Enums\ReservationStatus;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\RestaurantTableStatus;
-use App\Models\RestaurantTable;
-use App\Support\HoldConflictScope;
+use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
+use App\Modules\BranchScheduling\Domain\Guards\HoldConflictScope;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 

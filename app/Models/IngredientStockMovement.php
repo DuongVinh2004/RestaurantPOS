@@ -4,18 +4,24 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Modules\BranchScheduling\Domain\Models\Branch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class IngredientStockMovement extends Model
 {
     public const TYPE_STOCK_IN = 'StockIn';
+
     public const TYPE_STOCK_OUT = 'StockOut';
+
     public const TYPE_ADJUSTMENT_INCREASE = 'AdjustmentIncrease';
+
     public const TYPE_ADJUSTMENT_DECREASE = 'AdjustmentDecrease';
+
     public const TYPE_WASTAGE = 'Wastage';
 
     protected $table = 'ingredient_stock_movements';
+
     protected $primaryKey = 'movement_id';
 
     public $timestamps = false;

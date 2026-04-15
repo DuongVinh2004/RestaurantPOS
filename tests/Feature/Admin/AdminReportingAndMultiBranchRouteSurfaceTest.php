@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin;
 
 use App\Http\Controllers\Api\Admin\AdminBranchController;
-use App\Http\Controllers\Api\Admin\AdminReportingController;
-use App\Http\Controllers\Api\Staff\StaffReportingController;
+use App\Modules\Reporting\Http\Controllers\Admin\AdminReportingController;
+use App\Modules\Reporting\Http\Controllers\Staff\StaffReportingController;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;

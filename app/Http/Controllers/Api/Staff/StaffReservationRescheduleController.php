@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Api\Staff;
 use App\Http\Controllers\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Staff\RescheduleReservationRequest;
-use App\Http\Resources\ReservationResource;
+use App\Modules\Reservations\Http\Resources\ReservationResource;
 use App\Services\Staff\StaffReservationRescheduleService;
 use Illuminate\Http\JsonResponse;
 

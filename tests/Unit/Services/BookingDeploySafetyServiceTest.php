@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use PHPUnit\Framework\Attributes\Group;
-use App\Services\BookingDeploySafetyService;
+use App\Platform\Release\Services\BookingDeploySafetyService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -77,8 +77,8 @@ class BookingDeploySafetyServiceTest extends TestCase
     public function test_preflight_passes_when_guard_tables_are_clean(): void
     {
         $service = new class(
-            app(\App\Services\BookingEnvironmentValidator::class),
-            app(\App\Services\OperationalInsightsService::class),
+            app(\App\Platform\Health\Services\BookingEnvironmentValidator::class),
+            app(\App\Platform\Metrics\Services\OperationalInsightsService::class),
             app(\App\Services\Inventory\PurchaseOrderReconciliationService::class),
         ) extends BookingDeploySafetyService
         {
@@ -137,8 +137,8 @@ class BookingDeploySafetyServiceTest extends TestCase
     public function test_preflight_reports_structured_runtime_error_when_data_guards_throw(): void
     {
         $service = new class(
-            app(\App\Services\BookingEnvironmentValidator::class),
-            app(\App\Services\OperationalInsightsService::class),
+            app(\App\Platform\Health\Services\BookingEnvironmentValidator::class),
+            app(\App\Platform\Metrics\Services\OperationalInsightsService::class),
             app(\App\Services\Inventory\PurchaseOrderReconciliationService::class),
         ) extends BookingDeploySafetyService
         {
@@ -161,8 +161,8 @@ class BookingDeploySafetyServiceTest extends TestCase
     public function test_preflight_surfaces_runtime_incompatible_payment_refund_trigger_guard(): void
     {
         $service = new class(
-            app(\App\Services\BookingEnvironmentValidator::class),
-            app(\App\Services\OperationalInsightsService::class),
+            app(\App\Platform\Health\Services\BookingEnvironmentValidator::class),
+            app(\App\Platform\Metrics\Services\OperationalInsightsService::class),
             app(\App\Services\Inventory\PurchaseOrderReconciliationService::class),
         ) extends BookingDeploySafetyService
         {
@@ -288,8 +288,8 @@ class BookingDeploySafetyServiceTest extends TestCase
         ]);
 
         $service = new class(
-            app(\App\Services\BookingEnvironmentValidator::class),
-            app(\App\Services\OperationalInsightsService::class),
+            app(\App\Platform\Health\Services\BookingEnvironmentValidator::class),
+            app(\App\Platform\Metrics\Services\OperationalInsightsService::class),
             app(\App\Services\Inventory\PurchaseOrderReconciliationService::class),
         ) extends BookingDeploySafetyService
         {

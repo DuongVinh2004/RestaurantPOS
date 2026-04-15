@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Staff;
 
-use App\Models\ReservationOrder;
-use App\Services\Staff\BillLockService;
+use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\CheckoutPayments\Application\Services\BillLockService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Validation\ValidationException;
 use Mockery;

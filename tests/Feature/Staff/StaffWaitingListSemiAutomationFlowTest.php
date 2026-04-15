@@ -6,18 +6,18 @@ namespace Tests\Feature\Staff;
 
 use App\Enums\WaitingListStatus;
 use App\Models\User;
-use App\Services\LoyaltyPointsService;
-use App\Services\NotificationOutboxService;
-use App\Services\ReservationCodeGenerator;
-use App\Services\ReservationFinancialSyncService;
-use App\Services\ReservationLockService;
-use App\Services\ReservationService;
-use App\Services\RestaurantTableStateService;
-use App\Services\RuntimeSettingService;
-use App\Services\Staff\StaffCheckInService;
-use App\Services\Staff\StaffWaitingListService;
-use App\Services\TableHoldService;
-use App\Services\TableTimeConflictService;
+use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyPointsService;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
+use App\Modules\Reservations\Application\Services\ReservationCodeGenerator;
+use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncService;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
+use App\Modules\Reservations\Application\Services\ReservationService;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
+use App\Modules\FloorOps\Application\Services\StaffCheckInService;
+use App\Modules\WaitingList\Application\Services\StaffWaitingListService;
+use App\Modules\BranchScheduling\Application\Services\TableHoldService;
+use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -389,7 +389,9 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
             ->postJson('/api/v1/staff/waiting-list/' . $sourceWaitingId . '/advance', [
                 'row_version' => $staleRowVersion,
             ])
-            ->assertStatus(422)
+            ->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
+            ->assertJsonPath('category_code', 'stale_write')
             ->assertJsonValidationErrors(['row_version']);
     }
 }

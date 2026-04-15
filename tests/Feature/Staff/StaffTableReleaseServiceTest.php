@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Services\RestaurantTableStateService;
-use App\Services\Staff\StaffTableReleaseService;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Modules\FloorOps\Application\Services\StaffTableReleaseService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Mockery;
 use Tests\Support\BuildsBookingScenario;

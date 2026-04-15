@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Support\BackupArtifactManifest;
+use App\Platform\Backup\Support\BackupArtifactManifest;
 use PHPUnit\Framework\TestCase;
 
 final class BackupArtifactManifestTest extends TestCase

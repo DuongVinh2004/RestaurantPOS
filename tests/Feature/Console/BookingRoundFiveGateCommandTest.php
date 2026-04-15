@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Services\RoundFiveGateService;
+use App\Platform\Release\Services\RoundFiveGateService;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 

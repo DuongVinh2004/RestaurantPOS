@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Support\BackupRestoreManifest;
+use App\Platform\Backup\Support\BackupRestoreManifest;
 
 $repoRoot = dirname(__DIR__, 2);
 $autoload = $repoRoot . '/vendor/autoload.php';

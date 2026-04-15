@@ -2,7 +2,7 @@
 
 use App\Models\CustomerAccessSession;
 use App\Models\StaffApiKey;
-use App\Services\OpsGateArtifactService;
+use App\Platform\ApiContract\Services\OpsGateArtifactService;
 use Illuminate\Console\Command as ConsoleCommand;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Carbon;

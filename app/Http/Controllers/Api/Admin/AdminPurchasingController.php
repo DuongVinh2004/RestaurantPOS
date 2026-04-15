@@ -16,7 +16,7 @@ use App\Http\Resources\AdminPurchaseOrderResource;
 use App\Http\Resources\AdminPurchaseReceiptResource;
 use App\Http\Resources\AdminSupplierResource;
 use App\Services\Admin\AdminPurchasingService;
-use App\Services\FeatureFlagService;
+use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use App\Support\ApiErrorResponse;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Database\Eloquent\ModelNotFoundException;

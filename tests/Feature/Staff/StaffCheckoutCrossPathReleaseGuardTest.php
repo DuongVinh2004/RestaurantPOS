@@ -53,6 +53,8 @@ class StaffCheckoutCrossPathReleaseGuardTest extends TestCase
             checkedIn: true,
         );
 
+        $this->openCashierShiftForReservationBranch($staffId, $reservationId);
+
         $checkoutService = $this->makeCheckoutService();
         $checkoutService->checkout(
             orderId: $orderId,
@@ -258,8 +260,8 @@ class StaffCheckoutCrossPathReleaseGuardTest extends TestCase
                 'cancel_reason' => 'stale cancel should fail after bill lock',
             ]);
 
-        $response->assertStatus(422)
-            ->assertJsonPath('error_code', 'validation_error')
+        $response->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
             ->assertJsonPath('details.errors.row_version.0', 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.');
 
         self::assertSame(ReservationStatus::Reserved->value, (string) DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
@@ -339,5 +341,15 @@ class StaffCheckoutCrossPathReleaseGuardTest extends TestCase
             'order_id' => $orderId,
             'user_voucher_id' => $userVoucherId,
         ];
+    }
+
+    private function openCashierShiftForReservationBranch(int $staffId, int $reservationId): void
+    {
+        $branchId = (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('branch_id');
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId > 0 ? $branchId : 1,
+            'status' => 'Open',
+        ]);
     }
 }

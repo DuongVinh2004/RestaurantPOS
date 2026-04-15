@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Services;
 
-use App\Models\NotificationDeliveryAttempt;
-use App\Models\NotificationOutbox;
-use App\Models\NotificationPreference;
-use App\Services\NotificationOutboxService;
-use App\Services\Notifications\Contracts\NotificationChannelDriver;
-use App\Services\Notifications\NotificationChannelManager;
-use App\Services\Notifications\NotificationPreferenceService;
+use App\Modules\Notifications\Domain\Models\NotificationDeliveryAttempt;
+use App\Modules\Notifications\Domain\Models\NotificationOutbox;
+use App\Modules\Notifications\Domain\Models\NotificationPreference;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
+use App\Modules\Notifications\Infrastructure\Contracts\NotificationChannelDriver;
+use App\Modules\Notifications\Infrastructure\NotificationChannelManager;
+use App\Modules\Notifications\Application\Services\NotificationPreferenceService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -186,7 +186,7 @@ final class NotificationOutboxServiceRetryTest extends TestCase
                 return 'mail';
             }
 
-            public function send(NotificationOutbox $message, array $dispatchPayload): \App\Services\Notifications\NotificationDeliveryResult
+            public function send(NotificationOutbox $message, array $dispatchPayload): \App\Modules\Notifications\Infrastructure\NotificationDeliveryResult
             {
                 throw new RuntimeException('provider timeout');
             }

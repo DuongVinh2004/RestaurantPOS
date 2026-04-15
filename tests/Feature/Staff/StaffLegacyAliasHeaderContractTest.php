@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Http\Controllers\Api\Staff\StaffCheckoutController;
-use App\Http\Controllers\Api\Staff\StaffLoyaltyController;
-use App\Http\Controllers\Api\Staff\StaffReservationVoucherController;
-use App\Http\Requests\Staff\CheckoutOrderRequest;
-use App\Http\Requests\Staff\ReleaseReservationPointsRequest;
-use App\Http\Requests\Staff\RemoveReservationVoucherRequest;
+use App\Modules\CheckoutPayments\Http\Controllers\Staff\StaffCheckoutController;
+use App\Modules\BenefitsLoyalty\Http\Controllers\Staff\StaffLoyaltyController;
+use App\Modules\BenefitsLoyalty\Http\Controllers\Staff\StaffReservationVoucherController;
+use App\Modules\CheckoutPayments\Http\Requests\Staff\CheckoutOrderRequest;
+use App\Modules\BenefitsLoyalty\Http\Requests\Staff\ReleaseReservationPointsRequest;
+use App\Modules\BenefitsLoyalty\Http\Requests\Staff\RemoveReservationVoucherRequest;
 use Illuminate\Http\JsonResponse;
 use Tests\TestCase;
 

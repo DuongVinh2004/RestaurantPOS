@@ -65,7 +65,7 @@ These fields are additive and are intended for KDS clients, QA, and drift diagno
 Use the reconciliation service when kitchen state looks inconsistent:
 
 ```php
-app(App\Services\Kitchen\KitchenTicketReconciliationService::class)->scan([
+app(App\Modules\KitchenDispatch\Application\Services\KitchenTicketReconciliationService::class)->scan([
     'include_terminal' => true,
 ]);
 ```

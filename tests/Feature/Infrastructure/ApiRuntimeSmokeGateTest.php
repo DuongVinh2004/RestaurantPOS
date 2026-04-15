@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Infrastructure;
 
-use App\Services\RouteInventoryGateService;
+use App\Platform\ApiContract\Services\RouteInventoryGateService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Tests\Support\BuildsBookingScenario;

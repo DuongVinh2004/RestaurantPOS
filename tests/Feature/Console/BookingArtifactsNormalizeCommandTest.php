@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Services\ReleaseArtifactNormalizerService;
+use App\Platform\Release\Services\ReleaseArtifactNormalizerService;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 

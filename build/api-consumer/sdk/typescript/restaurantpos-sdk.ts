@@ -266,6 +266,11 @@ export type BranchCollectionEnvelope = {
   meta?: {
   action: string;
   count: number;
+  branch_access?: StaffBranchAccessContext;
+  accessible_branch_ids?: Array<number>;
+  default_branch_id?: (number) | null;
+  current_branch_id?: (number) | null;
+  has_multi_branch_access?: boolean;
 };
 };
 
@@ -2055,10 +2060,31 @@ export type StaffAuditTrailActorUser = {
 export type StaffAuditTrailCollectionMeta = {
   action: string;
   page: number;
+  filters: Record<string, unknown>;
+  sort: {
+  supported: boolean;
+  value: (string) | null;
+  by: (string) | null;
+  dir: (string) | null;
+};
+  pagination: {
+  mode: "paged";
+  current_page: number;
   per_page: number;
+  from: (number) | null;
+  to: (number) | null;
   total: number;
   last_page: number;
-  filters: Record<string, unknown>;
+  has_more_pages: boolean;
+};
+  current_page: number;
+  per_page: number;
+  from: (number) | null;
+  to: (number) | null;
+  total: number;
+  last_page: number;
+  has_more_pages: boolean;
+  query_contract: ListingQueryContract;
 };
 
 export type StaffAuditTrailEntry = {
@@ -2124,6 +2150,17 @@ export type StaffAuthUser = {
   phone: (string) | null;
   role_id: (number) | null;
   role_name: (string) | null;
+};
+
+export type StaffBranchAccessContext = {
+  accessible_branch_ids: Array<number>;
+  default_branch_id: (number) | null;
+  current_branch_id: (number) | null;
+  has_default_branch_access: boolean;
+  has_multi_branch_access: boolean;
+  branch_selector_enabled: boolean;
+  access_source: string;
+  branches_uri: string;
 };
 
 export type StaffCheckoutSettlementEnvelope = {
@@ -2245,15 +2282,32 @@ export type StaffConversationCollectionEnvelope = {
 };
 }>;
   meta?: {
+  action: string;
+  filters: Record<string, unknown>;
+  sort: {
+  supported: boolean;
+  value: (string) | null;
+  by: (string) | null;
+  dir: (string) | null;
+};
+  pagination: {
+  mode: "paged" | "legacy_unbounded";
   current_page: number;
   per_page: number;
-  from?: (number) | null;
-  to?: (number) | null;
+  from: (number) | null;
+  to: (number) | null;
   total: number;
   last_page: number;
   has_more_pages: boolean;
-  filters: Record<string, unknown>;
-  sort: Record<string, unknown>;
+};
+  current_page: number;
+  per_page: number;
+  from: (number) | null;
+  to: (number) | null;
+  total: number;
+  last_page: number;
+  has_more_pages: boolean;
+  query_contract: ListingQueryContract;
   summary: Record<string, unknown>;
 };
 };
@@ -2392,6 +2446,12 @@ export type StaffKitchenStationCollectionEnvelope = {
   data: Array<KitchenStation>;
   meta?: {
   count: number;
+  branch_id: (number) | null;
+  branch_scope: {
+  requested_branch_id: (number) | null;
+  accessible_branch_ids: Array<number>;
+  uses_explicit_entitlement: boolean;
+};
   realtime: StaffOperationalRealtimeDescriptor;
 };
 };
@@ -2400,7 +2460,13 @@ export type StaffKitchenTicketCollectionEnvelope = {
   data: Array<KitchenOrderItemTicket>;
   meta?: {
   station_id: number;
+  branch_id: (number) | null;
   count: number;
+  branch_scope: {
+  requested_branch_id: (number) | null;
+  accessible_branch_ids: Array<number>;
+  uses_explicit_entitlement: boolean;
+};
 };
 };
 
@@ -2409,6 +2475,15 @@ export type StaffKitchenTicketEnvelope = {
   meta?: {
   action: string;
 };
+};
+
+export type StaffNavigationContext = Record<string, StaffNavigationItem>;
+
+export type StaffNavigationItem = {
+  key: string;
+  required_capabilities: Array<string>;
+  can_access: boolean;
+  primary_route: string;
 };
 
 export type StaffOperationalRealtimeDescriptor = {
@@ -2817,7 +2892,9 @@ export type StaffStartupCashierShift = {
 
 export type StaffStartupContext = {
   default_branch: (StaffStartupBranch) | null;
+  branch_access: StaffBranchAccessContext;
   active_cashier_shift: (StaffStartupCashierShift) | null;
+  navigation: StaffNavigationContext;
   readiness: StaffStartupReadiness;
 };
 

@@ -119,6 +119,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
         $otherStaffId = $this->createUser(['role_name' => 'Staff']);
         $branchA = $this->createBranch(['branch_code' => 'SHIFTLOOKA', 'branch_name' => 'Shift Lookup A']);
         $branchB = $this->createBranch(['branch_code' => 'SHIFTLOOKB', 'branch_name' => 'Shift Lookup B']);
+        $this->allowStaffBranchScope($branchA, $branchB);
         $headers = $this->withIdempotencyKey('idem-cashier-shift-lookup-open-a', $this->staffAuthHeaders($staffId, 'staff-cashier-shift-lookup-a'));
 
         $firstOpen = $this->postJson('/api/v1/staff/cashier/shifts/open', [
@@ -179,6 +180,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
         [$staffId] = $this->seedActiveOrderScenario();
         $branchA = $this->createBranch(['branch_code' => 'CURRA', 'branch_name' => 'Current A']);
         $branchB = $this->createBranch(['branch_code' => 'CURRB', 'branch_name' => 'Current B']);
+        $this->allowStaffBranchScope($branchA);
         $headers = $this->withIdempotencyKey('idem-cashier-shift-current-branch-open', $this->staffAuthHeaders($staffId, 'staff-cashier-shift-current-branch'));
 
         $open = $this->postJson('/api/v1/staff/cashier/shifts/open', [
@@ -242,6 +244,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
         $headers = $this->withIdempotencyKey('idem-cashier-shift-open-scope', $this->staffAuthHeaders($staffId, 'staff-cashier-shift-scope'));
         $branchA = $this->createBranch(['branch_code' => 'A1', 'branch_name' => 'Branch A']);
         $branchB = $this->createBranch(['branch_code' => 'B1', 'branch_name' => 'Branch B']);
+        $this->allowStaffBranchScope($branchA);
 
         $open = $this->postJson('/api/v1/staff/cashier/shifts/open', [
             'branch_id' => $branchA,
@@ -395,5 +398,16 @@ class StaffCashierShiftHttpFlowTest extends TestCase
         ]);
 
         return [$staffId, $orderId, $reservationId];
+    }
+
+    private function allowStaffBranchScope(int ...$branchIds): void
+    {
+        $tokens = ['default'];
+
+        foreach ($branchIds as $branchId) {
+            $tokens[] = (string) $branchId;
+        }
+
+        config()->set('staff_capabilities.role_branch_scopes.Staff', array_values(array_unique($tokens)));
     }
 }

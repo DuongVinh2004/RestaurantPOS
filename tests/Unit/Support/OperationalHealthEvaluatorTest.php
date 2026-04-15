@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Support\OperationalHealthEvaluator;
+use App\Platform\Health\Support\OperationalHealthEvaluator;
 use PHPUnit\Framework\TestCase;
 
 class OperationalHealthEvaluatorTest extends TestCase

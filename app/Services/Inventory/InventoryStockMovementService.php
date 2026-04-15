@@ -6,7 +6,7 @@ namespace App\Services\Inventory;
 
 use App\Models\Ingredient;
 use App\Models\IngredientStockMovement;
-use App\Services\Branch\BranchContextService;
+use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;

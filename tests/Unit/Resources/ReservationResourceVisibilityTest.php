@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Resources;
 
-use App\Http\Resources\ReservationResource;
-use App\Models\Reservation;
+use App\Modules\Reservations\Http\Resources\ReservationResource;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Tests\TestCase;

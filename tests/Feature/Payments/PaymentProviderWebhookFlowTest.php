@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Payments;
 
-use App\Models\ReservationBillPaymentSession;
-use App\Models\ReservationDepositPaymentSession;
+use App\Modules\CheckoutPayments\Domain\Models\ReservationBillPaymentSession;
+use App\Modules\CheckoutPayments\Domain\Models\ReservationDepositPaymentSession;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;

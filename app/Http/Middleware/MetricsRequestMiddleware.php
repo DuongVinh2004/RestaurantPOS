@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Services\MetricsService;
+use App\Platform\Metrics\Services\MetricsService;
 use Closure;
 use Illuminate\Http\Request;
 

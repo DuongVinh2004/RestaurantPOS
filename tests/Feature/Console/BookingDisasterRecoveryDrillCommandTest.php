@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Services\DisasterRecovery\DisasterRecoveryDatabaseProbe;
-use App\Services\DisasterRecovery\DisasterRecoveryProcessRunner;
+use App\Platform\Backup\DisasterRecovery\DisasterRecoveryDatabaseProbe;
+use App\Platform\Backup\DisasterRecovery\DisasterRecoveryProcessRunner;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;

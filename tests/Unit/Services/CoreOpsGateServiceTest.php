@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\CoreOpsGateService;
+use App\Platform\Release\Services\CoreOpsGateService;
 use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 

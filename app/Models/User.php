@@ -5,6 +5,14 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Models\Concerns\HasRowVersion;
+use App\Modules\BenefitsLoyalty\Domain\Models\LoyaltyPointTransaction;
+use App\Modules\BenefitsLoyalty\Domain\Models\LoyaltyTier;
+use App\Modules\BenefitsLoyalty\Domain\Models\UserPoint;
+use App\Modules\BenefitsLoyalty\Domain\Models\UserTierHistory;
+use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Modules\Conversations\Domain\Models\Conversation;
+use App\Modules\PrivacyAudit\Domain\Models\CustomerPrivacyRequest;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -15,6 +23,7 @@ class User extends Authenticatable
     use HasRowVersion;
 
     protected $table = 'users';
+
     protected $primaryKey = 'user_id';
 
     protected $fillable = [

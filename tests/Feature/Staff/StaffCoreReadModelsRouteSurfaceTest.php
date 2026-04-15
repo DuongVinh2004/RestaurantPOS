@@ -13,9 +13,9 @@ final class StaffCoreReadModelsRouteSurfaceTest extends TestCase
     public function test_staff_core_read_model_routes_are_registered(): void
     {
         $expected = [
-            ['GET', 'v1/staff/branches', 'App\\Http\\Controllers\\Api\\Staff\\StaffBranchContextController@index'],
+            ['GET', 'v1/staff/branches', 'App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffBranchContextController@index'],
             ['GET', 'v1/staff/menu/items', 'App\\Http\\Controllers\\Api\\Staff\\StaffMenuCatalogController@index'],
-            ['GET', 'v1/staff/reservations/{reservation_id}', 'App\\Http\\Controllers\\Api\\Staff\\StaffReservationInboxController@show'],
+            ['GET', 'v1/staff/reservations/{reservation_id}', 'App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffReservationInboxController@show'],
         ];
 
         foreach ($expected as [$method, $uri, $action]) {

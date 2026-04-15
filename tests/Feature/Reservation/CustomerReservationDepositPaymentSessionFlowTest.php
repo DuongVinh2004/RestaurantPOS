@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Reservation;
 
-use App\Services\Customer\DepositPayment\CustomerDepositPaymentProvider;
-use App\Services\Customer\DepositPayment\CustomerDepositPaymentProviderRegistry;
-use App\Services\Customer\CustomerReservationDepositPaymentService;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Models\User;
+use App\Modules\CheckoutPayments\Domain\Models\ReservationDepositPaymentSession;
+use App\Modules\CheckoutPayments\Infrastructure\CustomerDepositPayment\CustomerDepositPaymentProvider;
+use App\Modules\CheckoutPayments\Infrastructure\CustomerDepositPayment\CustomerDepositPaymentProviderRegistry;
+use App\Modules\CheckoutPayments\Application\Services\CustomerReservationDepositPaymentService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -446,7 +448,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
                 return 'simulated';
             }
 
-            public function createSession(\App\Models\Reservation $reservation, int $customerUserId, array $payload): array
+            public function createSession(Reservation $reservation, int $customerUserId, array $payload): array
             {
                 return [
                     'provider_code' => 'simulated',
@@ -457,12 +459,12 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
                 ];
             }
 
-            public function refreshSession(\App\Models\Reservation $reservation, \App\Models\ReservationDepositPaymentSession $session, array $payload): array
+            public function refreshSession(Reservation $reservation, ReservationDepositPaymentSession $session, array $payload): array
             {
                 return [];
             }
 
-            public function confirmSession(\App\Models\Reservation $reservation, \App\Models\ReservationDepositPaymentSession $session, array $payload): array
+            public function confirmSession(Reservation $reservation, ReservationDepositPaymentSession $session, array $payload): array
             {
                 return [];
             }
@@ -543,7 +545,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $this->assertAuditSubjectRecorded($createdLog, 'deposit_payment_session', $sessionId, 'payment_session');
 
         $firstChanges = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $beforeVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$beforeVersion);
 
         $firstChanges->assertOk()->assertJsonPath('data.has_changes', true);
         $event = collect($firstChanges->json('data.events'))->firstWhere('type', 'reservation.deposit_paid');
@@ -577,7 +579,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
             ->assertJsonPath('data.payment_session.settlement_status', 'Applied');
 
         $replayChanges = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $afterFirstVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$afterFirstVersion);
 
         $replayChanges->assertOk()
             ->assertJsonPath('data.has_changes', false)

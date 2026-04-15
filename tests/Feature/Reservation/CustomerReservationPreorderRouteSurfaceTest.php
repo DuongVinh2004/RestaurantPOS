@@ -13,10 +13,10 @@ final class CustomerReservationPreorderRouteSurfaceTest extends TestCase
     public function test_customer_preorder_canonical_routes_are_registered(): void
     {
         $expected = [
-            ['GET', 'v1/reservations/{id}/preorder', 'App\\Http\\Controllers\\Api\\CustomerReservationPreorderController@show'],
-            ['POST', 'v1/reservations/{id}/preorder/preview', 'App\\Http\\Controllers\\Api\\CustomerReservationPreorderController@preview'],
-            ['PUT', 'v1/reservations/{id}/preorder', 'App\\Http\\Controllers\\Api\\CustomerReservationPreorderController@replace'],
-            ['DELETE', 'v1/reservations/{id}/preorder', 'App\\Http\\Controllers\\Api\\CustomerReservationPreorderController@clear'],
+            ['GET', 'v1/reservations/{id}/preorder', 'App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@show'],
+            ['POST', 'v1/reservations/{id}/preorder/preview', 'App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@preview'],
+            ['PUT', 'v1/reservations/{id}/preorder', 'App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@replace'],
+            ['DELETE', 'v1/reservations/{id}/preorder', 'App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@clear'],
         ];
 
         foreach ($expected as [$method, $uri, $action]) {
@@ -30,10 +30,10 @@ final class CustomerReservationPreorderRouteSurfaceTest extends TestCase
     public function test_customer_preorder_legacy_alias_routes_are_kept_for_backward_compatibility(): void
     {
         $expected = [
-            ['GET', 'v1/reservations/{id}/pre-order', 'App\\Http\\Controllers\\Api\\CustomerReservationPreorderController@show'],
-            ['POST', 'v1/reservations/{id}/pre-order/preview', 'App\\Http\\Controllers\\Api\\CustomerReservationPreorderController@preview'],
-            ['PUT', 'v1/reservations/{id}/pre-order', 'App\\Http\\Controllers\\Api\\CustomerReservationPreorderController@replace'],
-            ['DELETE', 'v1/reservations/{id}/pre-order', 'App\\Http\\Controllers\\Api\\CustomerReservationPreorderController@clear'],
+            ['GET', 'v1/reservations/{id}/pre-order', 'App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@show'],
+            ['POST', 'v1/reservations/{id}/pre-order/preview', 'App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@preview'],
+            ['PUT', 'v1/reservations/{id}/pre-order', 'App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@replace'],
+            ['DELETE', 'v1/reservations/{id}/pre-order', 'App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@clear'],
         ];
 
         foreach ($expected as [$method, $uri, $action]) {

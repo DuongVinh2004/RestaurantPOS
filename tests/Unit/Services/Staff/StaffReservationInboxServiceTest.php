@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Staff;
 
-use App\Services\Staff\StaffReservationInboxService;
+use App\Modules\Conversations\Application\Services\StaffReservationInboxService;
 use Tests\TestCase;
 
 class StaffReservationInboxServiceTest extends TestCase

@@ -13,12 +13,12 @@ final class DataLifecycleRouteSurfaceTest extends TestCase
     public function test_customer_and_admin_data_lifecycle_routes_are_registered(): void
     {
         $expected = [
-            ['GET', 'v1/me/data-export', 'App\\Http\\Controllers\\Api\\CustomerDataLifecycleController@export'],
-            ['GET', 'v1/me/privacy-requests', 'App\\Http\\Controllers\\Api\\CustomerDataLifecycleController@index'],
-            ['POST', 'v1/me/privacy-requests', 'App\\Http\\Controllers\\Api\\CustomerDataLifecycleController@store'],
-            ['GET', 'v1/admin/privacy/requests', 'App\\Http\\Controllers\\Api\\Admin\\AdminCustomerDataLifecycleController@index'],
-            ['GET', 'v1/admin/privacy/customers/{user_id}/data-export', 'App\\Http\\Controllers\\Api\\Admin\\AdminCustomerDataLifecycleController@exportCustomerData'],
-            ['POST', 'v1/admin/privacy/requests/{request_id}/review', 'App\\Http\\Controllers\\Api\\Admin\\AdminCustomerDataLifecycleController@review'],
+            ['GET', 'v1/me/data-export', 'App\\Modules\\PrivacyAudit\\Http\\Controllers\\Customer\\CustomerDataLifecycleController@export'],
+            ['GET', 'v1/me/privacy-requests', 'App\\Modules\\PrivacyAudit\\Http\\Controllers\\Customer\\CustomerDataLifecycleController@index'],
+            ['POST', 'v1/me/privacy-requests', 'App\\Modules\\PrivacyAudit\\Http\\Controllers\\Customer\\CustomerDataLifecycleController@store'],
+            ['GET', 'v1/admin/privacy/requests', 'App\\Modules\\PrivacyAudit\\Http\\Controllers\\Admin\\AdminCustomerDataLifecycleController@index'],
+            ['GET', 'v1/admin/privacy/customers/{user_id}/data-export', 'App\\Modules\\PrivacyAudit\\Http\\Controllers\\Admin\\AdminCustomerDataLifecycleController@exportCustomerData'],
+            ['POST', 'v1/admin/privacy/requests/{request_id}/review', 'App\\Modules\\PrivacyAudit\\Http\\Controllers\\Admin\\AdminCustomerDataLifecycleController@review'],
         ];
 
         foreach ($expected as [$method, $uri, $action]) {

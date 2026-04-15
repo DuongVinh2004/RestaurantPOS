@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\WaitingList;
 
-use App\Http\Controllers\Api\CustomerWaitingListController;
+use App\Modules\WaitingList\Http\Controllers\Customer\CustomerWaitingListController;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 

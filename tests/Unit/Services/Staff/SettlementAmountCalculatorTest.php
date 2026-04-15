@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Staff;
 
-use App\Models\Payment;
-use App\Services\Staff\SettlementAmountCalculator;
+use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Modules\CheckoutPayments\Application\Services\SettlementAmountCalculator;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 

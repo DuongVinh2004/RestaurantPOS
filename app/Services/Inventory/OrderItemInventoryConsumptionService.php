@@ -7,17 +7,16 @@ namespace App\Services\Inventory;
 use App\Enums\ReservationOrderItemStatus;
 use App\Models\IngredientStockMovement;
 use App\Models\MenuItemRecipe;
-use App\Models\Reservation;
-use App\Models\ReservationOrder;
-use App\Models\ReservationOrderItem;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 use Illuminate\Support\Carbon;
 
 class OrderItemInventoryConsumptionService
 {
     public function __construct(
         private readonly InventoryStockMovementService $stockMovementService,
-    ) {
-    }
+    ) {}
 
     public function consumeIfServed(
         Reservation $reservation,

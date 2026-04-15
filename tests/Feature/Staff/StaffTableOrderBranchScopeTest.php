@@ -6,9 +6,9 @@ namespace Tests\Feature\Staff;
 
 use App\Enums\ReservationStatus;
 use App\Enums\RestaurantTableStatus;
-use App\Services\Branch\BranchContextService;
-use App\Services\ReservationLockService;
-use App\Services\Staff\StaffTableOrderService;
+use App\Modules\BranchScheduling\Application\Services\BranchContextService;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
+use App\Modules\Ordering\Application\Services\StaffTableOrderService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;

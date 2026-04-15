@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Models\User;
+use App\Modules\Reservations\Domain\Policies\ReservationAccessScope;
 use Illuminate\Http\Request;
 
 final class RequestActorContext

@@ -31,12 +31,12 @@ final class AdminInventoryKitchenPurchasingRouteSurfaceTest extends TestCase
             ['PATCH', 'v1/admin/inventory/purchase-orders/{id}', 'App\Http\Controllers\Api\Admin\AdminPurchasingController@updatePurchaseOrder'],
             ['GET', 'v1/admin/inventory/purchase-orders/{id}/receipts', 'App\Http\Controllers\Api\Admin\AdminPurchasingController@listPurchaseOrderReceipts'],
             ['POST', 'v1/admin/inventory/purchase-orders/{id}/receipts', 'App\Http\Controllers\Api\Admin\AdminPurchasingController@createPurchaseOrderReceipt'],
-            ['GET', 'v1/admin/kitchen/stations', 'App\Http\Controllers\Api\Admin\AdminKitchenRoutingController@index'],
-            ['POST', 'v1/admin/kitchen/stations', 'App\Http\Controllers\Api\Admin\AdminKitchenRoutingController@store'],
-            ['GET', 'v1/admin/kitchen/stations/{station_id}', 'App\Http\Controllers\Api\Admin\AdminKitchenRoutingController@show'],
-            ['PATCH', 'v1/admin/kitchen/stations/{station_id}', 'App\Http\Controllers\Api\Admin\AdminKitchenRoutingController@update'],
-            ['GET', 'v1/admin/kitchen/stations/{station_id}/category-routes', 'App\Http\Controllers\Api\Admin\AdminKitchenRoutingController@routes'],
-            ['PUT', 'v1/admin/kitchen/stations/{station_id}/category-routes', 'App\Http\Controllers\Api\Admin\AdminKitchenRoutingController@syncRoutes'],
+            ['GET', 'v1/admin/kitchen/stations', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\AdminKitchenRoutingController@index'],
+            ['POST', 'v1/admin/kitchen/stations', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\AdminKitchenRoutingController@store'],
+            ['GET', 'v1/admin/kitchen/stations/{station_id}', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\AdminKitchenRoutingController@show'],
+            ['PATCH', 'v1/admin/kitchen/stations/{station_id}', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\AdminKitchenRoutingController@update'],
+            ['GET', 'v1/admin/kitchen/stations/{station_id}/category-routes', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\AdminKitchenRoutingController@routes'],
+            ['PUT', 'v1/admin/kitchen/stations/{station_id}/category-routes', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\AdminKitchenRoutingController@syncRoutes'],
         ];
 
         foreach ($expected as [$method, $uri, $action]) {

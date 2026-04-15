@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Infrastructure;
 
-use App\Http\Controllers\Api\CustomerWaitingListController;
-use App\Http\Controllers\Api\Staff\StaffTableBoardController;
-use App\Http\Requests\Customer\ListOwnerWaitingListRequest;
-use App\Http\Requests\Customer\RespondOwnerWaitingListRequest;
-use App\Http\Requests\Customer\StoreOwnerWaitingListRequest;
+use App\Modules\FloorOps\Http\Controllers\Staff\StaffTableBoardController;
+use App\Modules\WaitingList\Http\Controllers\Customer\CustomerWaitingListController;
+use App\Modules\WaitingList\Http\Requests\Customer\ListOwnerWaitingListRequest;
+use App\Modules\WaitingList\Http\Requests\Customer\RespondOwnerWaitingListRequest;
+use App\Modules\WaitingList\Http\Requests\Customer\StoreOwnerWaitingListRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
@@ -49,6 +49,34 @@ class LegacyPathCleanupEvidenceTest extends TestCase
         }
 
         self::assertSame([], $mismatches, 'Found namespace/path mismatches under app/.');
+    }
+
+    public function test_no_module_or_platform_compatibility_shims_remain_under_app(): void
+    {
+        $appPath = base_path('app');
+        $rii = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($appPath));
+        $violations = [];
+
+        foreach ($rii as $file) {
+            if (! $file->isFile() || $file->getExtension() !== 'php') {
+                continue;
+            }
+
+            $contents = file_get_contents($file->getPathname());
+            if (! is_string($contents)) {
+                continue;
+            }
+
+            if (preg_match('/class_alias\s*\(\s*\\\\App\\\\(?:Modules|Platform)\\\\/', $contents) === 1) {
+                $violations[] = $file->getPathname().' contains a module/platform class_alias shim.';
+            }
+
+            if (preg_match('/^\s*(?:final\s+|abstract\s+)?(?:class|interface)\s+\w+\s+extends\s+\\\\App\\\\(?:Modules|Platform)\\\\/m', $contents) === 1) {
+                $violations[] = $file->getPathname().' extends a module/platform class as a compatibility shim.';
+            }
+        }
+
+        self::assertSame([], $violations, implode(PHP_EOL, $violations));
     }
 
     public function test_customer_waiting_list_owner_flow_stays_on_canonical_controller_service_and_requests(): void
@@ -93,6 +121,17 @@ class LegacyPathCleanupEvidenceTest extends TestCase
             'app/Services/WaitingList/CustomerWaitingListSelfService.php',
             'app/Services/StaffOrderReadController.php',
             'app/Services/Staff/StaffOrderReadController.php',
+            'app/Services/PaymentIntegration/PaymentSessionStatusTransitionPolicy.php',
+            'app/Support/BackupArtifactManifest.php',
+            'app/Support/BackupRestoreManifest.php',
+            'app/Support/LoyaltyEarnReconciliation.php',
+            'app/Support/OperationalHealthEvaluator.php',
+            'app/Support/PaymentIntegrityGuard.php',
+            'app/Support/PaymentSummary.php',
+            'app/Support/RefundAllocationPolicy.php',
+            'app/Support/ReservationVoucherLifecycleSupport.php',
+            'app/Support/VoucherRedemptionSupport.php',
+            'app/Support/VoucherUsageGuard.php',
         ];
 
         foreach ($paths as $path) {

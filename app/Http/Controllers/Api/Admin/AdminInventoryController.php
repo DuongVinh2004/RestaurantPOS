@@ -15,7 +15,7 @@ use App\Http\Resources\AdminIngredientResource;
 use App\Http\Resources\AdminIngredientStockMovementResource;
 use App\Http\Resources\AdminMenuItemRecipeLineResource;
 use App\Services\Admin\AdminInventoryService;
-use App\Services\FeatureFlagService;
+use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use App\Support\ApiErrorResponse;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Database\Eloquent\ModelNotFoundException;

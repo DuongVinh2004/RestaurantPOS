@@ -3,10 +3,10 @@
 namespace App\Providers;
 
 use App\Http\Middleware\RequireStaffCapability;
-use App\Services\DatabaseContractInspector;
-use App\Services\ReservationCodeGenerator;
-use App\Services\ReservationLockService;
-use App\Services\RuntimeSettingService;
+use App\Platform\ApiContract\Services\DatabaseContractInspector;
+use App\Modules\Reservations\Application\Services\ReservationCodeGenerator;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use RuntimeException;

@@ -134,7 +134,8 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
 
         $second->assertStatus(409)
             ->assertJsonPath('error_code', 'stale_row_version')
-            ->assertJsonPath('category_code', 'stale_write');
+            ->assertJsonPath('category_code', 'stale_write')
+            ->assertJsonPath('details.errors.row_version.0', fn ($value) => is_string($value) && str_contains($value, 'row_version mismatch'));
 
         self::assertSame('Completed', (string) DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
         self::assertSame(1, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Final')->count());
@@ -186,7 +187,9 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         $stale->assertStatus(409)
             ->assertHeader('X-Request-Id', 'req-staff-refund-cancel-stale-row-version')
             ->assertJsonPath('error_code', 'stale_row_version')
-            ->assertJsonPath('request_id', 'req-staff-refund-cancel-stale-row-version');
+            ->assertJsonPath('category_code', 'stale_write')
+            ->assertJsonPath('request_id', 'req-staff-refund-cancel-stale-row-version')
+            ->assertJsonPath('details.errors.row_version.0', fn ($value) => is_string($value) && str_contains($value, 'row_version mismatch'));
 
         self::assertSame('Completed', (string) DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
         self::assertSame(1, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Final')->count());

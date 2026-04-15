@@ -30,11 +30,7 @@ class StaffConversationInboxFlowTest extends TestCase
         $branchA = $this->createBranch(['branch_code' => 'CONV-A', 'branch_name' => 'Conversation A']);
         $branchB = $this->createBranch(['branch_code' => 'CONV-B', 'branch_name' => 'Conversation B']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-conversation-list');
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $branchA,
-            'status' => 'Open',
-        ]);
+        $this->grantStaffBranchAccess($branchA);
 
         $reservationId = $this->createReservation([
             'branch_id' => $branchA,
@@ -102,7 +98,13 @@ class StaffConversationInboxFlowTest extends TestCase
         ));
 
         $response->assertOk()
+            ->assertJsonPath('meta.action', 'staff_conversation_inbox_index')
             ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('meta.pagination.mode', 'paged')
+            ->assertJsonPath('meta.query_contract.default_sort', '-latest_activity')
+            ->assertJsonPath('meta.query_contract.pagination.max_per_page', 100)
+            ->assertJsonPath('meta.sort.supported', true)
+            ->assertJsonPath('meta.sort.by', 'latest_activity')
             ->assertJsonPath('meta.summary.total', 1)
             ->assertJsonPath('meta.summary.assigned', 1)
             ->assertJsonPath('meta.summary.status_counts.Open', 1)
@@ -123,11 +125,7 @@ class StaffConversationInboxFlowTest extends TestCase
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $branchId = $this->createBranch(['branch_code' => 'CONV-D', 'branch_name' => 'Conversation Detail']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-conversation-detail');
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $branchId,
-            'status' => 'Open',
-        ]);
+        $this->grantStaffBranchAccess($branchId);
 
         $reservationId = $this->createReservation([
             'branch_id' => $branchId,
@@ -248,11 +246,7 @@ class StaffConversationInboxFlowTest extends TestCase
             'branch_name' => 'Conversation AI Off',
         ]);
         $headers = $this->staffAuthHeaders($staffId, 'staff-conversation-detail-ai-off');
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $branchId,
-            'status' => 'Open',
-        ]);
+        $this->grantStaffBranchAccess($branchId);
 
         $conversationId = $this->createConversation([
             'branch_id' => $branchId,
@@ -296,11 +290,7 @@ class StaffConversationInboxFlowTest extends TestCase
             'branch_code' => 'CONV-CAP',
             'branch_name' => 'Conversation Capability Branch',
         ]);
-        $this->createCashierShift([
-            'cashier_user_id' => $viewerStaffId,
-            'branch_id' => $branchId,
-            'status' => 'Open',
-        ]);
+        $this->grantStaffBranchAccess($branchId);
 
         $conversationId = $this->createConversation([
             'branch_id' => $branchId,
@@ -334,11 +324,7 @@ class StaffConversationInboxFlowTest extends TestCase
         $branchA = $this->createBranch(['branch_code' => 'CONV-SCOPE-A', 'branch_name' => 'Conversation Scope A']);
         $branchB = $this->createBranch(['branch_code' => 'CONV-SCOPE-B', 'branch_name' => 'Conversation Scope B']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-conversation-branch-scope');
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $branchA,
-            'status' => 'Open',
-        ]);
+        $this->grantStaffBranchAccess($branchA);
 
         $accessibleConversationId = $this->createConversation([
             'branch_id' => $branchA,
@@ -442,11 +428,7 @@ class StaffConversationInboxFlowTest extends TestCase
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $branchId = $this->createBranch(['branch_code' => 'CONV-L', 'branch_name' => 'Conversation Link']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-conversation-link');
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $branchId,
-            'status' => 'Open',
-        ]);
+        $this->grantStaffBranchAccess($branchId);
 
         $reservationId = $this->createReservation([
             'branch_id' => $branchId,
@@ -587,11 +569,7 @@ class StaffConversationInboxFlowTest extends TestCase
             'branch_name' => 'Conversation Reply Branch',
         ]);
         $headers = $this->withIdempotencyKey($this->staffAuthHeaders($staffId, 'staff-conversation-reply'), 'staff-conversation-reply-1');
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $branchId,
-            'status' => 'Open',
-        ]);
+        $this->grantStaffBranchAccess($branchId);
 
         $reservationId = $this->createReservation([
             'branch_id' => $branchId,
@@ -767,11 +745,7 @@ class StaffConversationInboxFlowTest extends TestCase
             'branch_code' => 'CONV-OFF',
             'branch_name' => 'Conversation Off',
         ]);
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $branchId,
-            'status' => 'Open',
-        ]);
+        $this->grantStaffBranchAccess($branchId);
         $conversationId = $this->createConversation([
             'branch_id' => $branchId,
             'status' => 'Open',
@@ -915,11 +889,7 @@ class StaffConversationInboxFlowTest extends TestCase
             'branch_code' => 'CONV-VIEW',
             'branch_name' => 'Conversation Views',
         ]);
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $branchId,
-            'status' => 'Open',
-        ]);
+        $this->grantStaffBranchAccess($branchId);
 
         $unassignedId = $this->createConversation([
             'branch_id' => $branchId,
@@ -1013,11 +983,7 @@ class StaffConversationInboxFlowTest extends TestCase
             'branch_name' => 'Conversation Relink',
         ]);
         $headers = $this->staffAuthHeaders($staffId, 'staff-conversation-relink');
-        $this->createCashierShift([
-            'cashier_user_id' => $staffId,
-            'branch_id' => $branchId,
-            'status' => 'Open',
-        ]);
+        $this->grantStaffBranchAccess($branchId);
 
         $reservationId = $this->createReservation([
             'branch_id' => $branchId,
@@ -1048,5 +1014,13 @@ class StaffConversationInboxFlowTest extends TestCase
             ->assertJsonPath('data.conversation.user.user_id', $customerId)
             ->assertJsonPath('data.conversation.linked_reservation', null)
             ->assertJsonPath('data.conversation.linked_waiting_list.waiting_id', $waitingListId);
+    }
+
+    private function grantStaffBranchAccess(int ...$branchIds): void
+    {
+        config()->set('staff_capabilities.role_branch_scopes.Staff', array_values(array_unique(array_merge(
+            ['default'],
+            array_map(static fn (int $branchId): string => (string) $branchId, $branchIds),
+        ))));
     }
 }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Support\TableReleaseGuard;
+use App\Modules\FloorOps\Domain\Guards\TableReleaseGuard;
 use Illuminate\Support\Carbon;
 use PHPUnit\Framework\TestCase;
 

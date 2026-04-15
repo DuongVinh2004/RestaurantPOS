@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Models\Reservation;
-use App\Services\LoyaltyPointsService;
-use App\Services\Staff\StaffCheckoutService;
-use App\Services\Staff\StaffReservationVoucherService;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyPointsService;
+use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
+use App\Modules\BenefitsLoyalty\Application\Services\StaffReservationVoucherService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Mockery;

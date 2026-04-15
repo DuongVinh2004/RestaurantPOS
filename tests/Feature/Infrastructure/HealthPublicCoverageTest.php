@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Infrastructure;
 
-use App\Services\OperationalInsightsService;
-use App\Services\OpsHeartbeatService;
+use App\Platform\Metrics\Services\OperationalInsightsService;
+use App\Platform\Health\Services\OpsHeartbeatService;
+use App\Support\StaffCapabilityResolver;
 use App\Support\StaffActorResolver;
 use Illuminate\Support\Carbon;
 use Mockery;
@@ -49,6 +50,10 @@ class HealthPublicCoverageTest extends TestCase
         $ops->shouldNotReceive('snapshot');
         $this->app->instance(OperationalInsightsService::class, $ops);
 
+        $capabilities = Mockery::mock(StaffCapabilityResolver::class);
+        $capabilities->shouldNotReceive('resolveForActor');
+        $this->app->instance(StaffCapabilityResolver::class, $capabilities);
+
         $response = $this->getJson('/api/v1/health');
 
         $response->assertOk()
@@ -60,6 +65,13 @@ class HealthPublicCoverageTest extends TestCase
             ->assertJsonPath('checks.scheduler.reason', null)
             ->assertJsonPath('checks.disk.ok', true)
             ->assertJsonMissingPath('checks.staff_api_keys')
+            ->assertJsonMissingPath('checks.db.latency_ms')
+            ->assertJsonMissingPath('checks.redis.set_get_ok')
+            ->assertJsonMissingPath('checks.redis.lock_ok')
+            ->assertJsonMissingPath('checks.scheduler.last_run_at_utc')
+            ->assertJsonMissingPath('checks.scheduler.age_seconds')
+            ->assertJsonMissingPath('checks.disk.free_bytes')
+            ->assertJsonMissingPath('checks.disk.total_bytes')
             ->assertJsonMissingPath('meta.app_env');
     }
 }

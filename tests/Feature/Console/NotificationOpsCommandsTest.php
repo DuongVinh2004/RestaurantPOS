@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Services\NotificationOutboxHealthService;
-use App\Services\NotificationOutboxService;
-use App\Services\OperationalInsightsService;
-use App\Services\Staff\StaffWaitingListService;
+use App\Modules\Notifications\Application\Services\NotificationOutboxHealthService;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
+use App\Platform\Metrics\Services\OperationalInsightsService;
+use App\Modules\WaitingList\Application\Services\StaffWaitingListService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Mockery;

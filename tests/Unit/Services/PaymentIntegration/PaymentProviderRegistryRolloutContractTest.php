@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\PaymentIntegration;
 
 use App\Enums\PaymentSessionScope;
-use App\Services\Customer\BillPayment\CustomerBillPaymentProviderRegistry;
-use App\Services\Customer\DepositPayment\CustomerDepositPaymentProviderRegistry;
-use App\Services\PaymentIntegration\PaymentProviderRegistry;
-use App\Services\PaymentIntegration\PaymentProviderRolloutConfig;
+use App\Modules\CheckoutPayments\Infrastructure\CustomerBillPayment\CustomerBillPaymentProviderRegistry;
+use App\Modules\CheckoutPayments\Infrastructure\CustomerDepositPayment\CustomerDepositPaymentProviderRegistry;
+use App\Modules\CheckoutPayments\Infrastructure\PaymentProviders\PaymentProviderRegistry;
+use App\Modules\CheckoutPayments\Infrastructure\PaymentProviders\PaymentProviderRolloutConfig;
 use Tests\TestCase;
 
 final class PaymentProviderRegistryRolloutContractTest extends TestCase

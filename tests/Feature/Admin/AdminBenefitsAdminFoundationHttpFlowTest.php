@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
-use App\Services\RuntimeSettingService;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -61,7 +61,7 @@ class AdminBenefitsAdminFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('data.0.code', 'ADM-VC-10');
 
         $updateResponse = $this->withHeaders($headers)
-            ->patchJson('/api/v1/admin/benefits/vouchers/' . $voucherId, [
+            ->patchJson('/api/v1/admin/benefits/vouchers/'.$voucherId, [
                 'row_version' => $rowVersion,
                 'description' => 'Admin voucher updated',
                 'expiry_date' => Carbon::now('UTC')->addDays(10)->toIso8601String(),
@@ -93,7 +93,7 @@ class AdminBenefitsAdminFoundationHttpFlowTest extends TestCase
         $freshVoucher = DB::table('vouchers')->where('voucher_id', $voucherId)->first();
 
         $guardedResponse = $this->withHeaders($headers)
-            ->patchJson('/api/v1/admin/benefits/vouchers/' . $voucherId, [
+            ->patchJson('/api/v1/admin/benefits/vouchers/'.$voucherId, [
                 'row_version' => (int) $freshVoucher->row_version,
                 'discount_value' => '99999.00',
             ]);
@@ -136,7 +136,7 @@ class AdminBenefitsAdminFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('meta.action', 'admin_loyalty_tiers');
 
         $updateResponse = $this->withHeaders($headers)
-            ->patchJson('/api/v1/admin/benefits/loyalty-tiers/' . $tierId, [
+            ->patchJson('/api/v1/admin/benefits/loyalty-tiers/'.$tierId, [
                 'row_version' => $rowVersion,
                 'tier_name' => 'Gold Elite',
                 'min_points' => 1500,
@@ -161,7 +161,7 @@ class AdminBenefitsAdminFoundationHttpFlowTest extends TestCase
 
         $freshTier = DB::table('loyalty_tiers')->where('tier_id', $tierId)->first();
         $guardedResponse = $this->withHeaders($headers)
-            ->patchJson('/api/v1/admin/benefits/loyalty-tiers/' . $tierId, [
+            ->patchJson('/api/v1/admin/benefits/loyalty-tiers/'.$tierId, [
                 'row_version' => (int) $freshTier->row_version,
                 'is_active' => false,
             ]);
@@ -206,7 +206,7 @@ class AdminBenefitsAdminFoundationHttpFlowTest extends TestCase
             ]);
 
         $guardedResponse
-            ->assertStatus(422)
+            ->assertStatus(409)
             ->assertJsonValidationErrors(['expected_updated_at']);
 
         $updateResponse = $this->withHeaders($headers)

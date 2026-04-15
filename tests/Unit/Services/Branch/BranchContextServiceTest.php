@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Branch;
 
-use App\Services\Branch\BranchContextService;
+use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
