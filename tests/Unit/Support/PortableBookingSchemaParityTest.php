@@ -46,6 +46,7 @@ class PortableBookingSchemaParityTest extends TestCase
         $this->assertIndexExists('table_holds', 'idx_table_holds__session_id__confirmed_reservation_id');
         $this->assertIndexExists('reservation_deposit_payment_sessions', 'uq_reservation_deposit_payment_sessions__linked_payment_id');
         $this->assertIndexExists('reservation_bill_payment_sessions', 'uq_reservation_bill_payment_sessions__linked_payment_id');
+        $this->assertIndexExists('finance_replay_records', 'uq_finance_replay_records__scope_aggregate_key');
         $this->assertIndexExists('waiting_list', 'idx_waiting_list__branch_id__status__priority__requested_at');
     }
 

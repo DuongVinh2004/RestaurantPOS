@@ -10,6 +10,7 @@ use App\Modules\Conversations\Http\Resources\StaffReservationInboxResource;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Services\Staff\StaffReservationTimelineWorkbenchService;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Arr;
@@ -53,8 +54,8 @@ class StaffReservationTimelineItemResource extends JsonResource
         $isUpcoming = ! $isTerminal && ! $isCheckedIn && $startUtc->greaterThan($dueSoonCutoffUtc);
 
         $activeOrder = $this->resolvePrimaryActiveOrder($reservation);
-        $depositRequired = round((float) ($reservation->deposit_required_amount ?? 0.0), 2);
-        $depositPaid = round((float) ($reservation->deposit_paid_amount ?? 0.0), 2);
+        $depositRequiredMinor = Money::minorUnits($reservation->deposit_required_amount ?? 0, true);
+        $depositPaidMinor = Money::minorUnits($reservation->deposit_paid_amount ?? 0, true);
         $hasAssignedTables = ! empty($base['tables']);
         $primaryTable = $this->resolvePrimaryTable($base['tables']);
         $primaryZone = $primaryTable !== null
@@ -117,9 +118,9 @@ class StaffReservationTimelineItemResource extends JsonResource
             ] : null,
             'deposit' => [
                 'status' => (string) ($reservation->deposit_status?->value ?? $reservation->deposit_status ?? ''),
-                'required_amount' => number_format($depositRequired, 2, '.', ''),
-                'paid_amount' => number_format($depositPaid, 2, '.', ''),
-                'outstanding_amount' => number_format(max(0.0, $depositRequired - $depositPaid), 2, '.', ''),
+                'required_amount' => Money::formatMinor($depositRequiredMinor),
+                'paid_amount' => Money::formatMinor($depositPaidMinor),
+                'outstanding_amount' => Money::formatMinor(max(0, $depositRequiredMinor - $depositPaidMinor)),
                 'currency' => (string) ($reservation->bill_currency ?? 'VND'),
                 'self_service' => $depositSelfService,
             ],

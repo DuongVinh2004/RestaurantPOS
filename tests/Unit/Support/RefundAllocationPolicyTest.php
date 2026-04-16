@@ -49,4 +49,27 @@ final class RefundAllocationPolicyTest extends TestCase
             ],
         ], 55.0, 'Refund exceeds lineage.');
     }
+
+    public function test_it_allocates_small_amounts_without_float_drift(): void
+    {
+        $allocations = RefundAllocationPolicy::allocate([
+            [
+                'source_key' => '1',
+                'captured_amount' => '0.10',
+                'already_refunded_amount' => '0.00',
+            ],
+            [
+                'source_key' => '2',
+                'captured_amount' => '0.30',
+                'already_refunded_amount' => '0.10',
+            ],
+        ], '0.30');
+
+        self::assertSame('1', $allocations[0]['source_key']);
+        self::assertSame(0.10, $allocations[0]['allocation_amount']);
+        self::assertSame(0.10, $allocations[0]['refundable_amount']);
+        self::assertSame('2', $allocations[1]['source_key']);
+        self::assertSame(0.20, $allocations[1]['allocation_amount']);
+        self::assertSame(0.20, $allocations[1]['refundable_amount']);
+    }
 }

@@ -13,6 +13,7 @@ use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 use App\Services\MenuPreorderPolicyService;
+use App\Support\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -66,9 +67,9 @@ class ReservationPreorderService
                 'order_item_id' => (int) $item->order_item_id,
                 'item_id' => (int) $item->item_id,
                 'quantity' => (int) $item->quantity,
-                'unit_price' => number_format((float) ($item->unit_price ?? 0), 2, '.', ''),
+                'unit_price' => Money::format($item->unit_price ?? 0, true),
                 'currency' => (string) ($item->currency ?? 'VND'),
-                'line_total' => number_format((float) ($item->line_total ?? 0), 2, '.', ''),
+                'line_total' => Money::format($item->line_total ?? 0, true),
                 'status' => $item->status?->value ?? (string) $item->status,
                 'item_name_snapshot' => $item->item_name_snapshot,
                 'item' => $item->relationLoaded('item') && $item->item
@@ -81,7 +82,7 @@ class ReservationPreorderService
             ];
         })->values();
 
-        $subtotal = round((float) $order->items->sum(fn (ReservationOrderItem $item): float => (float) ($item->line_total ?? 0)), 2);
+        $subtotalMinor = Money::sumMinor($order->items, fn (ReservationOrderItem $item): mixed => $item->line_total ?? 0, true);
         $currency = $order->items->first()?->currency;
 
         return [
@@ -92,7 +93,7 @@ class ReservationPreorderService
                 'status' => $order->status?->value ?? (string) $order->status,
                 'lines' => $lines->all(),
                 'totals' => [
-                    'subtotal' => number_format($subtotal, 2, '.', ''),
+                    'subtotal' => Money::formatMinor($subtotalMinor),
                     'currency' => $currency !== null ? (string) $currency : null,
                 ],
             ],
@@ -163,7 +164,13 @@ class ReservationPreorderService
                 $order->save();
             }
 
-            ReservationOrderItem::query()->where('order_id', (int) $order->order_id)->delete();
+            ReservationOrderItem::query()
+                ->where('order_id', (int) $order->order_id)
+                ->lockForUpdate()
+                ->get()
+                ->each(static function (ReservationOrderItem $item): void {
+                    $item->delete();
+                });
 
             foreach ($prepared['rows'] as $row) {
                 $itemId = (int) $row['item_id'];
@@ -175,10 +182,10 @@ class ReservationPreorderService
                 $item->order_id = (int) $order->order_id;
                 $item->item_id = $itemId;
                 $item->quantity = $quantity;
-                $unitPrice = round((float) $priceRow->price, 2);
-                $item->unit_price = number_format($unitPrice, 2, '.', '');
+                $unitPriceMinor = Money::minorUnits($priceRow->price, true);
+                $item->unit_price = Money::formatMinor($unitPriceMinor);
                 $item->currency = (string) $priceRow->currency;
-                $item->line_total = number_format($unitPrice * $quantity, 2, '.', '');
+                $item->line_total = Money::formatMinor($unitPriceMinor * $quantity);
                 $item->item_name_snapshot = $menuItem ? (string) $menuItem->name : null;
                 $item->status = ReservationOrderItemStatus::Ordered;
                 $item->notes = null;

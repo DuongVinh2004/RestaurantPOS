@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\BenefitsLoyalty\Http\Resources;
 
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
@@ -29,7 +30,7 @@ class LoyaltyPointTransactionResource extends JsonResource
             'reservation_id' => $reservationId !== null ? (int) $reservationId : null,
             'txn_type' => ($value = data_get($resource, 'txn_type')) !== null ? (string) $value : null,
             'points' => (int) (data_get($resource, 'points') ?? 0),
-            'amount_basis' => $amountBasis !== null ? number_format((float) $amountBasis, 2, '.', '') : null,
+            'amount_basis' => $amountBasis !== null ? Money::format($amountBasis, true) : null,
             'currency' => (string) (data_get($resource, 'currency') ?? 'VND'),
             'reason' => data_get($resource, 'reason'),
             'created_at' => $this->serializeDateTime(data_get($resource, 'created_at')),

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Reservations\Http\Resources;
 
 use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Collection;
@@ -27,7 +28,7 @@ class CustomerReservationDepositPreviewResource extends JsonResource
                 return [
                     'payment_id' => (int) $payment->payment_id,
                     'refund_of_payment_id' => $payment->refund_of_payment_id !== null ? (int) $payment->refund_of_payment_id : null,
-                    'amount' => number_format((float) ($payment->amount ?? 0.0), 2, '.', ''),
+                    'amount' => Money::format($payment->amount ?? 0, true),
                     'currency' => (string) ($payment->currency ?? 'VND'),
                     'payment_method' => $payment->payment_method,
                     'payment_provider' => $payment->payment_provider,
@@ -42,7 +43,7 @@ class CustomerReservationDepositPreviewResource extends JsonResource
             ->values()
             ->all();
 
-        $requiredAmount = number_format((float) ($deposit['required_amount'] ?? 0.0), 2, '.', '');
+        $requiredAmount = Money::format($deposit['required_amount'] ?? 0, true);
         $selfService = (array) ($deposit['self_service'] ?? []);
 
         return [
@@ -50,10 +51,10 @@ class CustomerReservationDepositPreviewResource extends JsonResource
             'deposit' => [
                 'status' => $deposit['status'] ?? null,
                 'required_amount' => $requiredAmount,
-                'paid_amount' => number_format((float) ($deposit['paid_amount'] ?? 0.0), 2, '.', ''),
-                'remaining_amount' => number_format((float) ($deposit['remaining_amount'] ?? $deposit['outstanding_amount'] ?? 0.0), 2, '.', ''),
-                'outstanding_amount' => number_format((float) ($deposit['outstanding_amount'] ?? 0.0), 2, '.', ''),
-                'deposit_required' => (float) $requiredAmount > 0.0001,
+                'paid_amount' => Money::format($deposit['paid_amount'] ?? 0, true),
+                'remaining_amount' => Money::format($deposit['remaining_amount'] ?? $deposit['outstanding_amount'] ?? 0, true),
+                'outstanding_amount' => Money::format($deposit['outstanding_amount'] ?? 0, true),
+                'deposit_required' => Money::minorUnits($requiredAmount, true) > 0,
                 'currency' => $deposit['currency'] ?? null,
                 'currencies' => array_values((array) ($deposit['currencies'] ?? [])),
                 'has_mixed_currencies' => (bool) ($deposit['has_mixed_currencies'] ?? false),
@@ -64,7 +65,7 @@ class CustomerReservationDepositPreviewResource extends JsonResource
                 'self_service' => [
                     'supported' => (bool) ($selfService['supported'] ?? false),
                     'deposit_required' => (bool) ($selfService['deposit_required'] ?? false),
-                    'outstanding_amount' => number_format((float) ($selfService['outstanding_amount'] ?? 0.0), 2, '.', ''),
+                    'outstanding_amount' => Money::format($selfService['outstanding_amount'] ?? 0, true),
                     'requirement_acknowledged' => (bool) ($selfService['requirement_acknowledged'] ?? false),
                     'acknowledged_at' => $selfService['acknowledged_at'] ?? null,
                     'intent_status' => $selfService['intent_status'] ?? 'None',

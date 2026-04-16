@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\WaitingList\Domain\State;
 
+use App\Enums\WaitingListCustomerResponseStatus;
 use App\Enums\WaitingListStatus;
 use App\Modules\WaitingList\Domain\Models\WaitingList;
 use Illuminate\Support\Carbon;
@@ -11,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 
 final class WaitingListStateMachine
 {
-    private const ROW_VERSION_MESSAGE = 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.';
+    private const ROW_VERSION_MESSAGE = 'Dá»¯ liá»‡u Ä‘Ã£ thay Ä‘á»•i (row_version mismatch). HÃ£y reload rá»“i thá»­ láº¡i.';
 
     public static function statusValue(WaitingList $entry): string
     {
@@ -44,50 +45,38 @@ final class WaitingListStateMachine
 
     public static function assertCanNotify(WaitingList $entry): void
     {
-        $status = self::statusValue($entry);
-        if (in_array($status, [WaitingListStatus::Cancelled->value, WaitingListStatus::Seated->value], true)) {
-            throw ValidationException::withMessages([
-                'status' => ['Waiting entry đã kết thúc, không thể notify.'],
-            ]);
-        }
+        self::assertTransitionAllowed($entry, WaitingListStatus::Notified);
     }
 
     public static function assertCanSeat(WaitingList $entry, ?Carbon $now = null): void
     {
-        $status = self::statusValue($entry);
-        if ($status !== WaitingListStatus::Notified->value) {
-            throw ValidationException::withMessages([
-                'status' => ['Chỉ có entry ở trạng thái Notified mới có thể seat.'],
-            ]);
-        }
+        self::assertTransitionAllowed($entry, WaitingListStatus::Seated);
 
         $now ??= Carbon::now('UTC');
         $expiresAt = self::parseUtc($entry->notify_expires_at);
 
         if (! $expiresAt instanceof Carbon) {
             throw ValidationException::withMessages([
-                'notify_window' => ['Notify window hiện không hợp lệ hoặc đã bị reset.'],
+                'notify_window' => ['Notify window hiá»‡n khÃ´ng há»£p lá»‡ hoáº·c Ä‘Ã£ bá»‹ reset.'],
             ]);
         }
 
         if ($expiresAt->lessThanOrEqualTo($now)) {
             throw ValidationException::withMessages([
-                'notify_window' => ['Notify window đã hết hạn. Hãy expire hoặc notify lại entry này trước khi seat.'],
+                'notify_window' => ['Notify window Ä‘Ã£ háº¿t háº¡n. HÃ£y expire hoáº·c notify láº¡i entry nÃ y trÆ°á»›c khi seat.'],
             ]);
         }
     }
 
     public static function assertCanCancel(WaitingList $entry): void
     {
-        if (self::statusValue($entry) === WaitingListStatus::Seated->value) {
-            throw ValidationException::withMessages([
-                'status' => ['Entry đã seated, không thể cancel.'],
-            ]);
-        }
+        self::assertTransitionAllowed($entry, WaitingListStatus::Cancelled);
     }
 
     public static function applyNotified(WaitingList $entry, Carbon $now, Carbon $expireAt, ?int $staffUserId): void
     {
+        self::assertTransitionAllowed($entry, WaitingListStatus::Notified);
+
         $entry->status = WaitingListStatus::Notified;
         $entry->notified_at = $now;
         $entry->notify_expires_at = $expireAt;
@@ -102,6 +91,8 @@ final class WaitingListStateMachine
 
     public static function applyExpiredToWaiting(WaitingList $entry, ?int $staffUserId = null): void
     {
+        self::assertTransitionAllowed($entry, WaitingListStatus::Waiting);
+
         $entry->status = WaitingListStatus::Waiting;
         $entry->notified_at = null;
         $entry->notify_expires_at = null;
@@ -114,6 +105,8 @@ final class WaitingListStateMachine
 
     public static function applyCancelled(WaitingList $entry, Carbon $now, string $cancelReason, ?int $staffUserId): void
     {
+        self::assertTransitionAllowed($entry, WaitingListStatus::Cancelled);
+
         $entry->status = WaitingListStatus::Cancelled;
         $entry->cancelled_at = $now;
         $entry->cancel_reason = trim($cancelReason) !== '' ? trim($cancelReason) : 'Cancelled by staff';
@@ -127,6 +120,8 @@ final class WaitingListStateMachine
 
     public static function applySeated(WaitingList $entry, Carbon $checkedInAt, ?int $staffUserId, int $userId, string $notes = ''): void
     {
+        self::assertTransitionAllowed($entry, WaitingListStatus::Seated);
+
         $entry->status = WaitingListStatus::Seated;
         $entry->seated_at = $checkedInAt;
         $entry->notify_expires_at = null;
@@ -139,6 +134,89 @@ final class WaitingListStateMachine
         if (trim($notes) !== '') {
             $entry->notes = $notes;
         }
+    }
+
+    public static function applyCustomerDeclined(WaitingList $entry, Carbon $now, ?int $actorUserId): void
+    {
+        self::assertTransitionAllowed($entry, WaitingListStatus::Cancelled);
+
+        $entry->status = WaitingListStatus::Cancelled;
+        $entry->cancelled_at = $now;
+        $entry->cancel_reason = 'Declined by customer';
+        $entry->notified_at = null;
+        $entry->notify_expires_at = null;
+        $entry->customer_response_status = WaitingListCustomerResponseStatus::Declined;
+        $entry->customer_responded_at = $now;
+        $entry->customer_confirmed_arrival_at = null;
+        $entry->notified_by = null;
+        $entry->updated_by = $actorUserId;
+    }
+
+    public static function applyCustomerCancelled(WaitingList $entry, Carbon $now, string $cancelReason, ?int $actorUserId): void
+    {
+        self::assertTransitionAllowed($entry, WaitingListStatus::Cancelled);
+
+        $entry->status = WaitingListStatus::Cancelled;
+        $entry->cancelled_at = $now;
+        $entry->cancel_reason = trim($cancelReason) !== '' ? trim($cancelReason) : 'Cancelled by customer';
+        $entry->notified_at = null;
+        $entry->notify_expires_at = null;
+        $entry->customer_response_status = null;
+        $entry->customer_responded_at = null;
+        $entry->customer_confirmed_arrival_at = null;
+        $entry->notified_by = null;
+        $entry->updated_by = $actorUserId;
+    }
+
+    public static function canTransition(WaitingList|WaitingListStatus|string $currentStatus, WaitingListStatus|string $targetStatus): bool
+    {
+        $current = self::normalizeStatus($currentStatus);
+        $target = self::normalizeStatus($targetStatus);
+
+        if ($current === $target) {
+            return true;
+        }
+
+        return in_array($target, self::allowedTargets($current), true);
+    }
+
+    public static function assertTransitionAllowed(
+        WaitingList|WaitingListStatus|string $currentStatus,
+        WaitingListStatus|string $targetStatus,
+        string $field = 'status'
+    ): void {
+        $current = self::normalizeStatus($currentStatus);
+        $target = self::normalizeStatus($targetStatus);
+
+        if (self::canTransition($current, $target)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            $field => [sprintf('Waiting list transition is not allowed: %s -> %s.', $current->value, $target->value)],
+        ]);
+    }
+
+    /**
+     * @return list<WaitingListStatus>
+     */
+    public static function allowedTargets(WaitingList|WaitingListStatus|string $currentStatus): array
+    {
+        $current = self::normalizeStatus($currentStatus);
+
+        return match ($current) {
+            WaitingListStatus::Waiting => [
+                WaitingListStatus::Notified,
+                WaitingListStatus::Cancelled,
+            ],
+            WaitingListStatus::Notified => [
+                WaitingListStatus::Waiting,
+                WaitingListStatus::Seated,
+                WaitingListStatus::Cancelled,
+            ],
+            WaitingListStatus::Seated,
+            WaitingListStatus::Cancelled => [],
+        };
     }
 
     private static function parseUtc(mixed $value): ?Carbon
@@ -161,5 +239,16 @@ final class WaitingListStateMachine
         }
 
         return Carbon::parse($raw)->utc();
+    }
+
+    private static function normalizeStatus(WaitingList|WaitingListStatus|string $status): WaitingListStatus
+    {
+        if ($status instanceof WaitingList) {
+            return WaitingListStatus::from(self::statusValue($status));
+        }
+
+        return $status instanceof WaitingListStatus
+            ? $status
+            : WaitingListStatus::from(trim((string) $status));
     }
 }

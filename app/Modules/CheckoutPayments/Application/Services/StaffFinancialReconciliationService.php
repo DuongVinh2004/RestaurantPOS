@@ -9,6 +9,7 @@ use App\Modules\CheckoutPayments\Domain\Models\Payment;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
 use App\Modules\FloorOps\Application\Services\StaffBranchContextService;
 use App\Support\Listing\SafeLike;
+use App\Support\Money;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator as LengthAwarePaginatorImpl;
@@ -383,16 +384,16 @@ class StaffFinancialReconciliationService
         $finalBillAmount = $row->final_bill_amount !== null ? $this->money($row->final_bill_amount) : null;
         $depositNet = $this->money($row->deposit_net_amount ?? 0.0);
         $netPaid = $this->money($row->net_paid_amount ?? 0.0);
-        $depositSyncGap = round($depositNet - $depositStoredPaid, 2);
-        $billBalance = $finalBillAmount !== null ? round($finalBillAmount - $netPaid, 2) : null;
-        $billOutstanding = $billBalance !== null ? round(max(0.0, $billBalance), 2) : null;
-        $billOverpaid = $billBalance !== null ? round(max(0.0, -1 * $billBalance), 2) : null;
+        $depositSyncGapMinor = Money::minorUnits($depositNet) - Money::minorUnits($depositStoredPaid);
+        $billBalanceMinor = $finalBillAmount !== null ? Money::minorUnits($finalBillAmount) - Money::minorUnits($netPaid) : null;
+        $billOutstanding = $billBalanceMinor !== null ? Money::minorToFloat(max(0, $billBalanceMinor)) : null;
+        $billOverpaid = $billBalanceMinor !== null ? Money::minorToFloat(max(0, -1 * $billBalanceMinor)) : null;
         $overRefundedAmount = $this->money($row->over_refunded_amount ?? 0.0);
         $hasMixedCurrencies = (int) ($row->payment_currency_count ?? 0) > 1;
-        $hasDepositSyncGap = abs($depositSyncGap) > 0.009;
-        $hasOverRefund = $overRefundedAmount > 0.009;
-        $hasBillOutstanding = $billOutstanding !== null && $billOutstanding > 0.009;
-        $hasBillOverpaid = $billOverpaid !== null && $billOverpaid > 0.009;
+        $hasDepositSyncGap = $depositSyncGapMinor !== 0;
+        $hasOverRefund = Money::minorUnits($overRefundedAmount, true) > 0;
+        $hasBillOutstanding = $billOutstanding !== null && Money::minorUnits($billOutstanding, true) > 0;
+        $hasBillOverpaid = $billOverpaid !== null && Money::minorUnits($billOverpaid, true) > 0;
         $hasDiscrepancy = $hasDepositSyncGap || $hasOverRefund || $hasMixedCurrencies;
 
         $discrepancyReasons = [];
@@ -455,7 +456,7 @@ class StaffFinancialReconciliationService
                 'deposit_required_amount' => $depositRequired,
                 'deposit_recorded_paid_amount' => $depositStoredPaid,
                 'deposit_computed_net_amount' => $depositNet,
-                'deposit_sync_gap_amount' => round($depositSyncGap, 2),
+                'deposit_sync_gap_amount' => Money::minorToFloat($depositSyncGapMinor),
                 'final_bill_amount' => $finalBillAmount,
                 'bill_outstanding_amount' => $billOutstanding,
                 'bill_overpaid_amount' => $billOverpaid,
@@ -470,7 +471,7 @@ class StaffFinancialReconciliationService
                 'has_bill_outstanding' => $hasBillOutstanding,
                 'has_bill_overpaid' => $hasBillOverpaid,
                 'discrepancy_reasons' => $discrepancyReasons,
-                'is_fully_settled' => $finalBillAmount !== null ? ($billOutstanding !== null && $billOutstanding <= 0.009) : false,
+                'is_fully_settled' => $finalBillAmount !== null ? ($billOutstanding !== null && Money::minorUnits($billOutstanding, true) <= 0) : false,
             ],
         ];
     }
@@ -492,36 +493,36 @@ class StaffFinancialReconciliationService
             if (! array_key_exists($method, $buckets)) {
                 $buckets[$method] = [
                     'payment_method' => $method,
-                    'captured_amount' => 0.0,
-                    'refunded_amount' => 0.0,
-                    'net_amount' => 0.0,
+                    'captured_amount_minor' => 0,
+                    'refunded_amount_minor' => 0,
+                    'net_amount_minor' => 0,
                     'currency' => trim((string) ($payment->currency ?? $fallbackCurrency)) ?: $fallbackCurrency,
                 ];
             }
 
-            $amount = round(max(0.0, (float) ($payment->amount ?? 0.0)), 2);
+            $amountMinor = Money::minorUnits($payment->amount ?? 0, true);
             $paymentType = (string) ($payment->payment_type ?? '');
             $status = (string) ($payment->status?->value ?? $payment->status ?? '');
 
             if (in_array($paymentType, ['Deposit', 'Final'], true) && PaymentSummary::isCapturedStatus($status)) {
-                $buckets[$method]['captured_amount'] += $amount;
-                $buckets[$method]['net_amount'] += $amount;
+                $buckets[$method]['captured_amount_minor'] += $amountMinor;
+                $buckets[$method]['net_amount_minor'] += $amountMinor;
 
                 continue;
             }
 
             if ($paymentType === 'Refund' && PaymentSummary::isRefundedStatus($status)) {
-                $buckets[$method]['refunded_amount'] += $amount;
-                $buckets[$method]['net_amount'] -= $amount;
+                $buckets[$method]['refunded_amount_minor'] += $amountMinor;
+                $buckets[$method]['net_amount_minor'] -= $amountMinor;
             }
         }
 
         return collect($buckets)
             ->map(static fn (array $bucket): array => [
                 'payment_method' => $bucket['payment_method'],
-                'captured_amount' => round((float) $bucket['captured_amount'], 2),
-                'refunded_amount' => round((float) $bucket['refunded_amount'], 2),
-                'net_amount' => round((float) $bucket['net_amount'], 2),
+                'captured_amount' => Money::minorToFloat((int) $bucket['captured_amount_minor']),
+                'refunded_amount' => Money::minorToFloat((int) $bucket['refunded_amount_minor']),
+                'net_amount' => Money::minorToFloat((int) $bucket['net_amount_minor']),
                 'currency' => $bucket['currency'],
             ])
             ->sortBy('payment_method')
@@ -618,12 +619,12 @@ class StaffFinancialReconciliationService
             return null;
         }
 
-        return number_format((float) $value, 2, '.', '');
+        return Money::format($value);
     }
 
     private function money(mixed $value): float
     {
-        return round((float) ($value ?? 0.0), 2);
+        return Money::toFloat($value ?? 0);
     }
 
     private function toIso8601String(mixed $value): ?string

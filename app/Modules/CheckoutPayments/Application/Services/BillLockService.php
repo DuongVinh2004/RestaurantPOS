@@ -9,8 +9,8 @@ use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Support\Money;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class BillLockService
@@ -48,12 +48,14 @@ class BillLockService
         }
 
         $reservationId = (int) $reservation->reservation_id;
-        $loyaltyDiscount = max(0.0, round((float) $currentLoyaltyDiscountAmount($reservationId), 2));
-        $voucherDiscount = max(0.0, round((float) $currentVoucherDiscountAmount($reservationId, true), 2));
-        $currentNonLoyaltyDiscount = max(0.0, round((float) ($reservation->discount_amount ?? 0.0) - $loyaltyDiscount, 2));
-        $requestedNonLoyaltyDiscount = $discountAmount !== null ? max(0.0, round($discountAmount, 2)) : $currentNonLoyaltyDiscount;
-        $effectiveNonLoyaltyDiscount = max($requestedNonLoyaltyDiscount, $voucherDiscount);
-        $effectiveDiscount = round($effectiveNonLoyaltyDiscount + $loyaltyDiscount, 2);
+        $loyaltyDiscountMinor = Money::minorUnits($currentLoyaltyDiscountAmount($reservationId), true);
+        $voucherDiscountMinor = Money::minorUnits($currentVoucherDiscountAmount($reservationId, true), true);
+        $currentNonLoyaltyDiscountMinor = max(0, Money::minorUnits($reservation->discount_amount ?? 0, true) - $loyaltyDiscountMinor);
+        $requestedNonLoyaltyDiscountMinor = $discountAmount !== null
+            ? Money::minorUnits($discountAmount, true)
+            : $currentNonLoyaltyDiscountMinor;
+        $effectiveNonLoyaltyDiscountMinor = max($requestedNonLoyaltyDiscountMinor, $voucherDiscountMinor);
+        $effectiveDiscount = Money::minorToFloat($effectiveNonLoyaltyDiscountMinor + $loyaltyDiscountMinor);
 
         $snapshot = $this->reservationFinancialSyncService->computeReservationBillSnapshot($reservationId, $effectiveDiscount, true);
         $subtotal = (float) ($snapshot['subtotal'] ?? 0.0);
@@ -70,16 +72,8 @@ class BillLockService
         if ($bumpReservationVersion) {
             $this->reservationFinancialSyncService->touchFinancialMutation($reservation, $staffUserId);
         } else {
-            DB::table('reservations')
-                ->where('reservation_id', (int) $reservation->reservation_id)
-                ->update([
-                    'discount_amount' => $reservation->discount_amount,
-                    'final_bill_amount' => $reservation->final_bill_amount,
-                    'bill_currency' => $reservation->bill_currency,
-                    'billed_at' => $reservation->billed_at,
-                    'updated_by' => $reservation->updated_by,
-                    'updated_at' => Carbon::now('UTC'),
-                ]);
+            $reservation->updated_at = Carbon::now('UTC');
+            $reservation->saveQuietly();
             $reservation->syncOriginal();
         }
 

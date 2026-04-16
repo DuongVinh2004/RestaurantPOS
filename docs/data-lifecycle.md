@@ -108,7 +108,7 @@ JSON-only là intentional cho phase đầu vì payload nhiều quan hệ lồng 
 | `notification_outbox` | keep row, redact recipient/payload/error | giữ delivery history tối thiểu |
 | `notification_delivery_attempts` | keep row, redact recipient/request/response payload | giữ delivery lineage tối thiểu |
 | `audit_logs` | keep unchanged | legal/ops audit trail |
-| `payment_provider_webhook_receipts` | keep unchanged | dispute / reconciliation support |
+| `payment_provider_webhook_receipts` | keep row, scrub verbose request/provider payload fields after retention | dispute / reconciliation support without long-lived raw payload retention |
 | reporting snapshots | keep unchanged | aggregated, không cần customer PII để vận hành |
 
 ## Redaction Scope
@@ -167,12 +167,13 @@ Current retention command prunes only categories có thể cắt an toàn:
   - closed conversation derived artifacts beyond retention
 - `message_entities`
   - closed conversation derived artifacts beyond retention
+- `payment_provider_webhook_receipts`
+  - keep the receipt row but scrub verbose request signature/header/body/provider payload fields after retention
 
 Current foundation does **not** prune:
 
 - `audit_logs`
 - `payments`
-- `payment_provider_webhook_receipts`
 - `billing_invoices`
 
 Lý do là production operations vẫn cần các bảng này cho audit, refund, dispute và accounting.

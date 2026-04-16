@@ -80,9 +80,24 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
             ->assertJsonPath('data.deposit.outstanding_amount', '150000.00')
             ->assertJsonPath('data.payment_session.amount', '100000.00')
             ->assertJsonPath('data.payment_session.currency', 'VND')
-            ->assertJsonPath('data.payment_session.session_status', 'Pending');
+            ->assertJsonPath('data.payment_session.session_status', 'Pending')
+            ->assertJsonPath('data.payment_session.provider_payload.mode', 'simulated');
 
         $sessionId = (int) $create->json('data.payment_session.deposit_payment_session_id');
+        self::assertStringStartsWith(
+            'simulated://deposit-payment/',
+            (string) $create->json('data.payment_session.provider_payload.payment_url')
+        );
+        self::assertNull(data_get($create->json(), 'data.payment_session.provider_payload._booking_request'));
+
+        $storedPayload = json_decode((string) DB::table('reservation_deposit_payment_sessions')
+            ->where('deposit_payment_session_id', $sessionId)
+            ->value('provider_payload_json'), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('simulated', (string) ($storedPayload['mode'] ?? ''));
+        self::assertSame('simulated://deposit-payment/'.(string) $create->json('data.payment_session.provider_session_code'), (string) ($storedPayload['payment_url'] ?? ''));
+        self::assertNotSame('', (string) data_get($storedPayload, '_booking_request.fingerprint'));
+        self::assertNull(data_get($storedPayload, '_booking_request.idempotency_key'));
+        self::assertArrayNotHasKey('customer_user_id', $storedPayload);
 
         $show = $this->actingAs($customer)
             ->withHeaders(['Accept' => 'application/json'])
@@ -91,6 +106,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $show->assertOk()
             ->assertJsonPath('data.payment_session.deposit_payment_session_id', $sessionId)
             ->assertJsonPath('data.payment_session.session_status', 'Pending');
+        self::assertNull(data_get($show->json(), 'data.payment_session.provider_payload._booking_request'));
     }
 
     public function test_session_linked_customer_can_create_show_and_confirm_deposit_payment_session(): void
@@ -752,6 +768,89 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         );
         $this->assertSame('Paid', (string) DB::table('reservations')->where('reservation_id', $reservationId)->value('deposit_status'));
         $this->assertSame(70000.0, (float) DB::table('reservations')->where('reservation_id', $reservationId)->value('deposit_paid_amount'));
+    }
+
+    public function test_terminal_succeeded_deposit_session_relinks_existing_payment_marker_without_duplicate(): void
+    {
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Confirmed',
+            'deposit_required_amount' => '70000.00',
+            'deposit_paid_amount' => '0.00',
+            'deposit_status' => 'Pending',
+            'bill_currency' => 'VND',
+        ]);
+        $customer = User::query()->findOrFail($customerId);
+
+        $sessionId = (int) DB::table('reservation_deposit_payment_sessions')->insertGetId([
+            'reservation_id' => $reservationId,
+            'customer_user_id' => $customerId,
+            'linked_payment_id' => null,
+            'provider_code' => 'simulated',
+            'provider_session_code' => 'sim-dep-existing-payment-1',
+            'provider_payment_code' => 'sim-pay-existing-payment-1',
+            'payment_method' => 'Online',
+            'amount' => '70000.00',
+            'currency' => 'VND',
+            'session_status' => 'Succeeded',
+            'settlement_status' => 'NotApplied',
+            'failure_code' => null,
+            'failure_message' => null,
+            'provider_payload_json' => json_encode(['payment_scope' => 'deposit'], JSON_THROW_ON_ERROR),
+            'idempotency_key' => null,
+            'provider_expires_at' => null,
+            'last_reconciled_at' => now('UTC'),
+            'confirmed_at' => now('UTC'),
+            'failed_at' => null,
+            'cancelled_at' => null,
+            'expired_at' => null,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+            'created_by' => $customerId,
+            'updated_by' => $customerId,
+            'row_version' => 4,
+        ], 'deposit_payment_session_id');
+
+        $paymentId = $this->createPayment([
+            'reservation_id' => $reservationId,
+            'payment_type' => 'Deposit',
+            'status' => 'Success',
+            'amount' => '70000.00',
+            'currency' => 'VND',
+            'payment_method' => 'Online',
+            'payment_provider' => 'simulated',
+            'transaction_code' => 'sim-pay-existing-payment-1',
+            'idempotency_key' => 'customer-deposit-session:'.$sessionId,
+            'provider_response_json' => [
+                'source' => 'customer_deposit_payment_session',
+                'deposit_payment_session_id' => $sessionId,
+                'provider_code' => 'simulated',
+                'provider_session_code' => 'sim-dep-existing-payment-1',
+                'provider_payment_code' => 'sim-pay-existing-payment-1',
+            ],
+        ]);
+
+        $registry = Mockery::mock(CustomerDepositPaymentProviderRegistry::class);
+        $registry->shouldReceive('resolve')->never();
+        $this->app->instance(CustomerDepositPaymentProviderRegistry::class, $registry);
+
+        $confirm = $this->actingAs($customer)->withHeaders([
+            'Idempotency-Key' => 'cust-dep-existing-payment-confirm-1',
+            'Accept' => 'application/json',
+        ])->postJson('/api/v1/reservations/'.$reservationId.'/deposit/payment-sessions/'.$sessionId.'/confirm', [
+            'row_version' => 4,
+            'simulation_outcome' => 'failed',
+        ]);
+
+        $confirm->assertOk()
+            ->assertJsonPath('data.payment_session.linked_payment_id', $paymentId)
+            ->assertJsonPath('data.payment_session.settlement_status', 'Applied')
+            ->assertJsonPath('data.deposit.paid_amount', '70000.00')
+            ->assertJsonPath('data.deposit.outstanding_amount', '0.00');
+
+        $this->assertSame(1, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Deposit')->count());
+        $this->assertSame($paymentId, (int) DB::table('reservation_deposit_payment_sessions')->where('deposit_payment_session_id', $sessionId)->value('linked_payment_id'));
     }
 
     public function test_pending_or_failed_confirmation_does_not_update_real_paid_state(): void

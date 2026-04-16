@@ -209,7 +209,6 @@ class StaffConversationInboxFlowTest extends TestCase
             ->assertJsonPath('data.conversation.conversation_id', $conversationId)
             ->assertJsonPath('data.conversation.linked_reservation.reservation_id', $reservationId)
             ->assertJsonPath('data.messages.0.message_id', $firstMessageId)
-            ->assertJsonPath('data.messages.0.files.0.file_url', 'https://example.test/conversations/arrival-note.png')
             ->assertJsonPath('data.messages.0.entities.0.entity_normalized', 'RSV-CONV-DETAIL-001')
             ->assertJsonPath('data.messages.1.message_id', $noteMessageId)
             ->assertJsonPath('data.messages.1.is_internal_note', true)
@@ -234,7 +233,74 @@ class StaffConversationInboxFlowTest extends TestCase
             ->assertJsonPath('data.capabilities.outbound_reply.delivery_mode', 'real')
             ->assertJsonPath('meta.returned_counts.messages', 2);
 
+        $fileAccessUrl = (string) $response->json('data.messages.0.files.0.file_url');
+        self::assertNotSame('https://example.test/conversations/arrival-note.png', $fileAccessUrl);
+        self::assertSame($fileAccessUrl, (string) $response->json('data.messages.0.attachment_url'));
+        self::assertStringContainsString('/api/v1/staff/conversations/'.$conversationId.'/files/', $fileAccessUrl);
+        self::assertNotEmpty($response->json('data.messages.0.files.0.access_expires_at'));
+        self::assertSame($firstMessageId, (int) $response->json('data.messages.0.attachment.message_id'));
+
         self::assertStringContainsString('Reservation RSV-CONV-DETAIL-001 needs follow-up.', (string) $response->json('data.ai_assist.summary'));
+    }
+
+    public function test_signed_conversation_file_access_requires_authorized_staff_scope(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $hostId = $this->createUser(['role_name' => 'Host']);
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $branchId = $this->createBranch(['branch_code' => 'CONV-FILE', 'branch_name' => 'Conversation File']);
+        $headers = $this->staffAuthHeaders($staffId, 'staff-conversation-file-access');
+        $hostHeaders = $this->staffAuthHeaders($hostId, 'staff-conversation-file-access-host');
+        $this->grantStaffBranchAccess($branchId);
+
+        $conversationId = $this->createConversation([
+            'branch_id' => $branchId,
+            'user_id' => $customerId,
+            'status' => 'Open',
+        ]);
+        $messageWithFileId = $this->createConversationMessage([
+            'conversation_id' => $conversationId,
+            'sender' => 'user',
+            'sender_id' => $customerId,
+            'message_text' => 'Shared file attachment',
+        ]);
+        $messageWithLegacyAttachmentId = $this->createConversationMessage([
+            'conversation_id' => $conversationId,
+            'sender' => 'user',
+            'sender_id' => $customerId,
+            'message_text' => 'Legacy attachment',
+            'attachment_url' => 'https://example.test/conversations/legacy-note.pdf',
+        ]);
+        $this->createConversationFile([
+            'message_id' => $messageWithFileId,
+            'file_url' => 'https://example.test/conversations/secure-note.png',
+            'mime_type' => 'image/png',
+        ]);
+
+        $detail = $this->withHeaders($headers)->getJson('/api/v1/staff/conversations/'.$conversationId);
+        $detail->assertOk();
+
+        $fileAccessUrl = $this->relativeUrl((string) $detail->json('data.messages.0.files.0.file_url'));
+        $legacyAttachmentAccessUrl = $this->relativeUrl((string) $detail->json('data.messages.1.attachment_url'));
+
+        self::assertStringContainsString('/api/v1/staff/conversations/'.$conversationId.'/files/', $fileAccessUrl);
+        self::assertStringContainsString('/api/v1/staff/conversations/'.$conversationId.'/messages/'.$messageWithLegacyAttachmentId.'/attachment', $legacyAttachmentAccessUrl);
+
+        $this->withHeaders($headers)
+            ->get($fileAccessUrl)
+            ->assertRedirect('https://example.test/conversations/secure-note.png');
+
+        $this->withHeaders($headers)
+            ->get($legacyAttachmentAccessUrl)
+            ->assertRedirect('https://example.test/conversations/legacy-note.pdf');
+
+        $this->withHeaders($hostHeaders)
+            ->get($fileAccessUrl)
+            ->assertStatus(403)
+            ->assertJsonPath('error_code', 'forbidden')
+            ->assertJsonPath('required_capability', 'conversation.manage');
+
+        self::assertNotSame($messageWithFileId, $messageWithLegacyAttachmentId);
     }
 
     public function test_conversation_detail_keeps_ai_assist_optional_when_branch_flag_disables_it(): void
@@ -1022,5 +1088,13 @@ class StaffConversationInboxFlowTest extends TestCase
             ['default'],
             array_map(static fn (int $branchId): string => (string) $branchId, $branchIds),
         ))));
+    }
+
+    private function relativeUrl(string $absoluteOrRelativeUrl): string
+    {
+        $path = (string) (parse_url($absoluteOrRelativeUrl, PHP_URL_PATH) ?? '');
+        $query = parse_url($absoluteOrRelativeUrl, PHP_URL_QUERY);
+
+        return $path . ($query !== null && $query !== '' ? '?'.$query : '');
     }
 }

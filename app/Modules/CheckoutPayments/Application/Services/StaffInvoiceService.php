@@ -9,6 +9,7 @@ use App\Modules\CheckoutPayments\Domain\Models\BillingInvoice;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Services\Finance\FinanceTaxProfileService;
 use App\Modules\FloorOps\Application\Services\StaffBranchContextService;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -73,9 +74,11 @@ class StaffInvoiceService
                 ]);
             }
 
-            $totalAmount = $this->money($reservation->final_bill_amount);
-            $discountAmount = $this->money($reservation->discount_amount ?? 0.0);
-            $subtotalAmount = $this->money($totalAmount + $discountAmount);
+            $totalAmountMinor = Money::minorUnits($reservation->final_bill_amount, true);
+            $discountAmountMinor = Money::minorUnits($reservation->discount_amount ?? 0, true);
+            $subtotalAmountMinor = $totalAmountMinor + $discountAmountMinor;
+            $totalAmount = Money::minorToFloat($totalAmountMinor);
+            $discountAmount = Money::minorToFloat($discountAmountMinor);
             $currency = trim((string) ($reservation->bill_currency ?? 'VND')) ?: 'VND';
             $rate = round((float) ($profile['tax_rate_percentage'] ?? 0.0), 3);
             [$taxableAmount, $taxAmount] = $this->splitInclusiveTax($totalAmount, $rate);
@@ -85,16 +88,16 @@ class StaffInvoiceService
                 'reservation_id' => (int) $reservation->reservation_id,
                 'invoice_number' => $this->generateInvoiceNumber((string) $profile['invoice_prefix'], (string) $reservation->reservation_code),
                 'invoice_status' => 'Issued',
-                'subtotal_amount' => number_format($subtotalAmount, 2, '.', ''),
-                'discount_amount' => number_format($discountAmount, 2, '.', ''),
-                'total_amount' => number_format($totalAmount, 2, '.', ''),
+                'subtotal_amount' => Money::formatMinor($subtotalAmountMinor),
+                'discount_amount' => Money::formatMinor($discountAmountMinor),
+                'total_amount' => Money::formatMinor($totalAmountMinor),
                 'currency' => $currency,
                 'tax_code' => $profile['tax_code'],
                 'tax_name' => $profile['tax_name'],
                 'tax_rate_percentage' => number_format($rate, 3, '.', ''),
                 'prices_include_tax' => true,
-                'taxable_amount' => number_format($taxableAmount, 2, '.', ''),
-                'tax_amount' => number_format($taxAmount, 2, '.', ''),
+                'taxable_amount' => Money::format($taxableAmount, true),
+                'tax_amount' => Money::format($taxAmount, true),
                 'seller_name' => $profile['seller_name'],
                 'seller_tax_id' => $profile['seller_tax_id'],
                 'seller_address' => $profile['seller_address'],
@@ -289,18 +292,18 @@ class StaffInvoiceService
      */
     private function splitInclusiveTax(float $totalAmount, float $taxRatePercentage): array
     {
-        $totalAmount = $this->money($totalAmount);
-        $taxRatePercentage = round(max(0.0, $taxRatePercentage), 3);
+        $totalMinor = Money::minorUnits($totalAmount, true);
+        $rateUnits = max(0, (int) round($taxRatePercentage * 1000));
 
-        if ($taxRatePercentage <= 0.0001) {
-            return [$totalAmount, 0.0];
+        if ($rateUnits <= 0) {
+            return [Money::minorToFloat($totalMinor), 0.0];
         }
 
-        $divisor = 1 + ($taxRatePercentage / 100);
-        $taxableAmount = round($totalAmount / $divisor, 2);
-        $taxAmount = round($totalAmount - $taxableAmount, 2);
+        $denominator = 100000 + $rateUnits;
+        $taxableMinor = intdiv(($totalMinor * 100000) + intdiv($denominator, 2), $denominator);
+        $taxAmountMinor = max(0, $totalMinor - $taxableMinor);
 
-        return [$taxableAmount, $taxAmount];
+        return [Money::minorToFloat($taxableMinor), Money::minorToFloat($taxAmountMinor)];
     }
 
     private function generateInvoiceNumber(string $prefix, string $reservationCode): string
@@ -315,7 +318,7 @@ class StaffInvoiceService
 
     private function money(mixed $value): float
     {
-        return round(max(0.0, (float) ($value ?? 0.0)), 2);
+        return Money::toFloat($value ?? 0, true);
     }
 
     private function formatMoney(mixed $value): ?string
@@ -324,7 +327,7 @@ class StaffInvoiceService
             return null;
         }
 
-        return number_format((float) $value, 2, '.', '');
+        return Money::format($value, true);
     }
 
     /**
@@ -337,7 +340,7 @@ class StaffInvoiceService
         $finalBillAmount = $this->money(data_get($summary, 'reconciliation.final_bill_amount'));
 
         if (
-            $finalBillAmount <= 0.0
+            Money::minorUnits($finalBillAmount, true) <= 0
             || ! (bool) ($flags['is_fully_settled'] ?? false)
             || (bool) ($flags['has_discrepancy'] ?? false)
             || (bool) ($flags['has_bill_outstanding'] ?? false)

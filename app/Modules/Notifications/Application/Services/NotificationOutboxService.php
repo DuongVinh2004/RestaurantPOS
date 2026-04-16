@@ -14,6 +14,7 @@ use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\WaitingList\Domain\Models\WaitingList;
 use App\Platform\Metrics\Services\MetricsService;
 use App\Support\AuditEvent;
+use App\Support\Money;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
 use DateTimeZone;
 use Illuminate\Support\Carbon;
@@ -43,7 +44,7 @@ class NotificationOutboxService
     private function buildRefundIdempotencyKey(
         int $reservationId,
         array $refundPaymentIds,
-        float $refundAmount,
+        mixed $refundAmount,
         string $refundScope
     ): string {
         $paymentIds = array_values(array_map('intval', $refundPaymentIds));
@@ -51,7 +52,7 @@ class NotificationOutboxService
 
         $payload = json_encode([
             'payment_ids' => $paymentIds,
-            'refund_amount' => round($refundAmount, 2),
+            'refund_amount' => Money::format($refundAmount, true),
             'refund_scope' => $refundScope,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]';
 
@@ -297,7 +298,7 @@ class NotificationOutboxService
         sort($refundPaymentIds);
 
         $payload = array_merge($this->buildReservationPayload($reservation), [
-            'refund_amount' => round((float) ($refundMeta['refund_amount'] ?? 0.0), 2),
+            'refund_amount' => Money::toFloat($refundMeta['refund_amount'] ?? 0, true),
             'refund_currency' => (string) ($refundMeta['currency'] ?? ($reservation->bill_currency ?: 'VND')),
             'refund_scope' => (string) ($refundMeta['refund_scope'] ?? 'all'),
         ]);
@@ -305,7 +306,7 @@ class NotificationOutboxService
         $idempotencyKey = $this->buildRefundIdempotencyKey(
             (int) $reservation->reservation_id,
             $refundPaymentIds,
-            (float) $payload['refund_amount'],
+            $payload['refund_amount'],
             (string) $payload['refund_scope'],
         );
 
@@ -945,8 +946,8 @@ class NotificationOutboxService
         $reservation->loadMissing('tables', 'user', 'payments');
 
         $summary = PaymentSummary::fromPayments($reservation->payments);
-        $paidAmount = round((float) ($summary['net_paid_amount'] ?? 0.0), 2);
-        $refundedAmount = round((float) ($summary['refunded_amount'] ?? 0.0), 2);
+        $paidAmount = Money::toFloat($summary['net_paid_amount'] ?? 0, true);
+        $refundedAmount = Money::toFloat($summary['refunded_amount'] ?? 0, true);
         $timezone = $this->resolveOperationalTimezone($reservation->branch_id !== null ? (int) $reservation->branch_id : null);
 
         return [
@@ -1151,7 +1152,7 @@ class NotificationOutboxService
                 "Đặt bàn {$reservationCode} của bạn đã được hủy.\n".
                 "Thời gian dự kiến: {$startTime} đến {$endTime}\n".
                 ($cancelReason !== '' ? "Lý do hủy: {$cancelReason}\n" : '').
-                ((float) ($payload['refunded_amount'] ?? 0) > 0.0001 ? "Tổng hoàn tiền đã ghi nhận: {$refundedAmount} {$currency}\n" : '').
+                (Money::isPositive($payload['refunded_amount'] ?? 0) ? "Tổng hoàn tiền đã ghi nhận: {$refundedAmount} {$currency}\n" : '').
                 "\nNếu đây là nhầm lẫn, vui lòng liên hệ nhà hàng để được hỗ trợ."),
             'reservation.updated' => trim("Xin chào {$customerName},\n\n".
                 "Thông tin đặt bàn {$reservationCode} của bạn đã được cập nhật.\n".

@@ -18,6 +18,7 @@ use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
 use App\Platform\Metrics\Services\MetricsService;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use App\Support\AuditEvent;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -146,7 +147,7 @@ class LoyaltyPointsService
                 ->get();
 
             $paymentSummary = PaymentSummary::fromPayments($payments);
-            if ((float) ($paymentSummary['final_net_amount'] ?? 0.0) > 0.0001) {
+            if (Money::isPositive($paymentSummary['final_net_amount'] ?? 0)) {
                 throw ValidationException::withMessages([
                     'reservation' => ['Cannot change loyalty redemption after final payment has been recorded.'],
                 ]);
@@ -172,8 +173,9 @@ class LoyaltyPointsService
                 ]);
             }
 
-            $redeemAmount = round($points * $this->redeemAmountPerPoint(), 2);
-            if ($redeemAmount <= 0.0001) {
+            $redeemAmountMinor = Money::minorUnits($this->redeemAmountPerPoint(), true) * $points;
+            $redeemAmount = Money::minorToFloat($redeemAmountMinor);
+            if ($redeemAmountMinor <= 0) {
                 throw ValidationException::withMessages([
                     'points' => ['The requested points do not convert into a valid discount amount.'],
                 ]);
@@ -204,7 +206,9 @@ class LoyaltyPointsService
 
             $this->reservationFinancialSyncService->syncReservationDiscountSnapshot(
                 reservation: $reservation,
-                totalDiscount: round(max(0.0, (float) ($reservation->discount_amount ?? 0.0) + $redeemAmount), 2),
+                totalDiscount: Money::minorToFloat(
+                    Money::minorUnits($reservation->discount_amount ?? 0, true) + $redeemAmountMinor
+                ),
                 lockOrders: true,
             );
             $reservation->updated_by = $staffUserId;
@@ -247,7 +251,7 @@ class LoyaltyPointsService
                 ->get();
 
             $paymentSummary = PaymentSummary::fromPayments($payments);
-            if ((float) ($paymentSummary['final_net_amount'] ?? 0.0) > 0.0001) {
+            if (Money::isPositive($paymentSummary['final_net_amount'] ?? 0)) {
                 throw ValidationException::withMessages([
                     'reservation' => ['Cannot release loyalty redemption after final payment has been recorded.'],
                 ]);
@@ -644,16 +648,16 @@ class LoyaltyPointsService
             : Payment::query()->where('reservation_id', (int) $reservation->reservation_id)->get();
 
         $billSnapshot ??= $this->computeReservationSubtotal((int) $reservation->reservation_id, true);
-        $subtotal = (float) ($billSnapshot['subtotal'] ?? 0.0);
+        $subtotalMinor = Money::minorUnits($billSnapshot['subtotal'] ?? 0, true);
         $currency = (string) ($billSnapshot['currency'] ?? 'VND');
         $loyaltyTransactionSummary ??= $this->summarizeReservationLoyaltyTransactions((int) $reservation->reservation_id);
-        $loyaltyDiscount = round((float) ($loyaltyTransactionSummary['redeemed_amount'] ?? 0.0), 2);
-        $manualDiscount = max(0.0, round((float) ($reservation->discount_amount ?? 0.0) - $loyaltyDiscount, 2));
-        $totalDiscount = round($manualDiscount + $loyaltyDiscount, 2);
-        $billTotal = max(0.0, round($subtotal - $totalDiscount, 2));
+        $loyaltyDiscountMinor = Money::minorUnits($loyaltyTransactionSummary['redeemed_amount'] ?? 0, true);
+        $manualDiscountMinor = max(0, Money::minorUnits($reservation->discount_amount ?? 0, true) - $loyaltyDiscountMinor);
+        $totalDiscountMinor = $manualDiscountMinor + $loyaltyDiscountMinor;
+        $billTotalMinor = max(0, $subtotalMinor - $totalDiscountMinor);
         $availablePoints = (int) ($pointLedger?->total_points ?? 0);
-        $remainingRedeemableAmount = max(0.0, round($subtotal - $manualDiscount - $loyaltyDiscount, 2));
-        $maxByBill = (int) floor($remainingRedeemableAmount / $this->redeemAmountPerPoint());
+        $remainingRedeemableMinor = max(0, $subtotalMinor - $manualDiscountMinor - $loyaltyDiscountMinor);
+        $maxByBill = intdiv($remainingRedeemableMinor, max(1, Money::minorUnits($this->redeemAmountPerPoint(), true)));
         $minRedeemPoints = $this->minRedeemPoints();
         $maxRedeemablePoints = min($availablePoints, max(0, $maxByBill));
         if ($maxRedeemablePoints > 0 && $maxRedeemablePoints < $minRedeemPoints) {
@@ -663,7 +667,8 @@ class LoyaltyPointsService
         $paymentSummary = PaymentSummary::fromPayments($payments);
         $currentRedeemedPoints = (int) ($loyaltyTransactionSummary['redeemed_points'] ?? 0);
         $currentEarnedPoints = (int) ($loyaltyTransactionSummary['earned_points_current'] ?? 0);
-        $earnPreviewBasis = max(0.0, min($billTotal, (float) ($paymentSummary['final_net_amount'] ?? 0.0) > 0.0001 ? (float) ($paymentSummary['final_net_amount'] ?? 0.0) : $billTotal));
+        $finalNetMinor = Money::minorUnits($paymentSummary['final_net_amount'] ?? 0, true);
+        $earnPreviewBasisMinor = min($billTotalMinor, $finalNetMinor > 0 ? $finalNetMinor : $billTotalMinor);
 
         return [
             'reservation_id' => (int) $reservation->reservation_id,
@@ -672,26 +677,26 @@ class LoyaltyPointsService
             'status' => (string) ($reservation->status?->value ?? $reservation->status),
             'row_version' => (int) ($reservation->row_version ?? 1),
             'bill' => [
-                'subtotal_amount' => number_format($subtotal, 2, '.', ''),
-                'manual_discount_amount' => number_format($manualDiscount, 2, '.', ''),
-                'loyalty_discount_amount' => number_format($loyaltyDiscount, 2, '.', ''),
-                'discount_amount' => number_format($totalDiscount, 2, '.', ''),
-                'payable_amount' => number_format($billTotal, 2, '.', ''),
+                'subtotal_amount' => Money::formatMinor($subtotalMinor),
+                'manual_discount_amount' => Money::formatMinor($manualDiscountMinor),
+                'loyalty_discount_amount' => Money::formatMinor($loyaltyDiscountMinor),
+                'discount_amount' => Money::formatMinor($totalDiscountMinor),
+                'payable_amount' => Money::formatMinor($billTotalMinor),
                 'currency' => $currency ?: 'VND',
             ],
             'loyalty' => [
                 'enabled' => $this->isEnabled(),
                 'available_points' => $availablePoints,
                 'redeemed_points' => $currentRedeemedPoints,
-                'discount_amount' => $loyaltyDiscount,
+                'discount_amount' => Money::minorToFloat($loyaltyDiscountMinor),
                 'redeem_amount_per_point' => number_format($this->redeemAmountPerPoint(), 2, '.', ''),
                 'earn_amount_per_point' => number_format($this->earnAmountPerPoint(), 2, '.', ''),
                 'min_redeem_points' => $minRedeemPoints,
                 'max_redeemable_points' => max(0, $maxRedeemablePoints),
-                'earn_preview_points' => (int) floor($earnPreviewBasis / $this->earnAmountPerPoint()),
+                'earn_preview_points' => intdiv($earnPreviewBasisMinor, max(1, Money::minorUnits($this->earnAmountPerPoint(), true))),
                 'earned_points_current' => $currentEarnedPoints,
-                'can_redeem' => $maxRedeemablePoints > 0 && (float) ($paymentSummary['final_net_amount'] ?? 0.0) <= 0.0001,
-                'can_release' => $currentRedeemedPoints > 0 && (float) ($paymentSummary['final_net_amount'] ?? 0.0) <= 0.0001,
+                'can_redeem' => $maxRedeemablePoints > 0 && $finalNetMinor <= 0,
+                'can_release' => $currentRedeemedPoints > 0 && $finalNetMinor <= 0,
             ],
             'user' => $user ? $this->buildUserSummary($user->loadMissing(['points', 'currentTier'])) : null,
         ];
@@ -709,7 +714,7 @@ class LoyaltyPointsService
         );
 
         return [
-            'subtotal' => round(max(0.0, (float) ($snapshot['subtotal'] ?? 0.0)), 2),
+            'subtotal' => Money::toFloat($snapshot['subtotal'] ?? 0, true),
             'currency' => (string) ($snapshot['currency'] ?? 'VND'),
         ];
     }
@@ -721,8 +726,8 @@ class LoyaltyPointsService
     {
         $summary = $this->summarizeReservationLoyaltyTransactions((int) $reservation->reservation_id, true);
         $currentRedeemedPoints = (int) ($summary['redeemed_points'] ?? 0);
-        $currentRedeemedAmount = round((float) ($summary['redeemed_amount'] ?? 0.0), 2);
-        if ($currentRedeemedPoints <= 0 || $currentRedeemedAmount <= 0.0001) {
+        $currentRedeemedAmount = Money::toFloat($summary['redeemed_amount'] ?? 0, true);
+        if ($currentRedeemedPoints <= 0 || Money::isZeroOrNegative($currentRedeemedAmount)) {
             return ['released_points' => 0, 'released_amount' => 0.0];
         }
 
@@ -744,7 +749,10 @@ class LoyaltyPointsService
 
         $this->reservationFinancialSyncService->syncReservationDiscountSnapshot(
             reservation: $reservation,
-            totalDiscount: max(0.0, round((float) ($reservation->discount_amount ?? 0.0) - $currentRedeemedAmount, 2)),
+            totalDiscount: Money::minorToFloat(max(
+                0,
+                Money::minorUnits($reservation->discount_amount ?? 0, true) - Money::minorUnits($currentRedeemedAmount, true)
+            )),
             lockOrders: true,
         );
         $reservation->updated_by = $staffUserId;
@@ -841,7 +849,7 @@ class LoyaltyPointsService
     {
         $basis = $this->earnBasisForReservation($reservation, $paymentSummary);
 
-        return (int) floor($basis / $this->earnAmountPerPoint());
+        return intdiv(Money::minorUnits($basis, true), max(1, Money::minorUnits($this->earnAmountPerPoint(), true)));
     }
 
     /**
@@ -849,16 +857,16 @@ class LoyaltyPointsService
      */
     private function earnBasisForReservation(Reservation $reservation, array $paymentSummary): float
     {
-        $finalNet = round(max(0.0, (float) ($paymentSummary['final_net_amount'] ?? 0.0)), 2);
-        $bill = $reservation->final_bill_amount !== null
-            ? round(max(0.0, (float) $reservation->final_bill_amount), 2)
-            : $finalNet;
+        $finalNetMinor = Money::minorUnits($paymentSummary['final_net_amount'] ?? 0, true);
+        $billMinor = $reservation->final_bill_amount !== null
+            ? Money::minorUnits($reservation->final_bill_amount, true)
+            : $finalNetMinor;
 
-        if ($bill <= 0.0001) {
-            return $finalNet;
+        if ($billMinor <= 0) {
+            return Money::minorToFloat($finalNetMinor);
         }
 
-        return min($bill, $finalNet);
+        return Money::minorToFloat(min($billMinor, $finalNetMinor));
     }
 
     private function currentEarnNetPointsForReservation(int $reservationId): int
@@ -922,23 +930,23 @@ class LoyaltyPointsService
             $query->lockForUpdate();
         }
 
-        $amount = 0.0;
+        $amountMinor = 0;
         foreach ($query->get(['txn_type', 'amount_basis', 'reason']) as $tx) {
-            $basis = round(max(0.0, (float) ($tx->amount_basis ?? 0.0)), 2);
-            if ($basis <= 0.0001) {
+            $basisMinor = Money::minorUnits($tx->amount_basis ?? 0, true);
+            if ($basisMinor <= 0) {
                 continue;
             }
 
             if ((string) $tx->txn_type === 'Redeem') {
-                $amount += $basis;
+                $amountMinor += $basisMinor;
 
                 continue;
             }
 
-            $amount -= $basis;
+            $amountMinor -= $basisMinor;
         }
 
-        return round(max(0.0, $amount), 2);
+        return Money::minorToFloat(max(0, $amountMinor));
     }
 
     private function resolveReservationPointLedger(Reservation $reservation): ?UserPoint
@@ -971,13 +979,13 @@ class LoyaltyPointsService
         $billSnapshot ??= $this->computeReservationSubtotal($reservationId, false);
         $loyaltyTransactionSummary ??= $this->summarizeReservationLoyaltyTransactions($reservationId);
 
-        $subtotal = round(max(0.0, (float) ($billSnapshot['subtotal'] ?? 0.0)), 2);
-        $loyaltyDiscount = round((float) ($loyaltyTransactionSummary['redeemed_amount'] ?? 0.0), 2);
-        $manualDiscount = max(0.0, round((float) ($reservation->discount_amount ?? 0.0) - $loyaltyDiscount, 2));
-        $billTotal = max(0.0, round($subtotal - $manualDiscount - $loyaltyDiscount, 2));
+        $subtotalMinor = Money::minorUnits($billSnapshot['subtotal'] ?? 0, true);
+        $loyaltyDiscountMinor = Money::minorUnits($loyaltyTransactionSummary['redeemed_amount'] ?? 0, true);
+        $manualDiscountMinor = max(0, Money::minorUnits($reservation->discount_amount ?? 0, true) - $loyaltyDiscountMinor);
+        $billTotalMinor = max(0, $subtotalMinor - $manualDiscountMinor - $loyaltyDiscountMinor);
         $availablePoints = (int) ($pointLedger?->total_points ?? 0);
-        $remainingRedeemableAmount = max(0.0, round($subtotal - $manualDiscount - $loyaltyDiscount, 2));
-        $maxByBill = (int) floor($remainingRedeemableAmount / $this->redeemAmountPerPoint());
+        $remainingRedeemableMinor = max(0, $subtotalMinor - $manualDiscountMinor - $loyaltyDiscountMinor);
+        $maxByBill = intdiv($remainingRedeemableMinor, max(1, Money::minorUnits($this->redeemAmountPerPoint(), true)));
         $minRedeemPoints = $this->minRedeemPoints();
         $maxRedeemablePoints = min($availablePoints, max(0, $maxByBill));
         if ($maxRedeemablePoints > 0 && $maxRedeemablePoints < $minRedeemPoints) {
@@ -987,21 +995,22 @@ class LoyaltyPointsService
         $paymentSummary = PaymentSummary::fromPayments($payments);
         $currentRedeemedPoints = (int) ($loyaltyTransactionSummary['redeemed_points'] ?? 0);
         $currentEarnedPoints = (int) ($loyaltyTransactionSummary['earned_points_current'] ?? 0);
-        $earnPreviewBasis = max(0.0, min($billTotal, (float) ($paymentSummary['final_net_amount'] ?? 0.0) > 0.0001 ? (float) ($paymentSummary['final_net_amount'] ?? 0.0) : $billTotal));
+        $finalNetMinor = Money::minorUnits($paymentSummary['final_net_amount'] ?? 0, true);
+        $earnPreviewBasisMinor = min($billTotalMinor, $finalNetMinor > 0 ? $finalNetMinor : $billTotalMinor);
 
         return [
             'enabled' => $this->isEnabled(),
             'available_points' => $availablePoints,
             'redeemed_points' => $currentRedeemedPoints,
-            'discount_amount' => $loyaltyDiscount,
+            'discount_amount' => Money::minorToFloat($loyaltyDiscountMinor),
             'redeem_amount_per_point' => number_format($this->redeemAmountPerPoint(), 2, '.', ''),
             'earn_amount_per_point' => number_format($this->earnAmountPerPoint(), 2, '.', ''),
             'min_redeem_points' => $minRedeemPoints,
             'max_redeemable_points' => max(0, $maxRedeemablePoints),
-            'earn_preview_points' => (int) floor($earnPreviewBasis / $this->earnAmountPerPoint()),
+            'earn_preview_points' => intdiv($earnPreviewBasisMinor, max(1, Money::minorUnits($this->earnAmountPerPoint(), true))),
             'earned_points_current' => $currentEarnedPoints,
-            'can_redeem' => $maxRedeemablePoints > 0 && (float) ($paymentSummary['final_net_amount'] ?? 0.0) <= 0.0001,
-            'can_release' => $currentRedeemedPoints > 0 && (float) ($paymentSummary['final_net_amount'] ?? 0.0) <= 0.0001,
+            'can_redeem' => $maxRedeemablePoints > 0 && $finalNetMinor <= 0,
+            'can_release' => $currentRedeemedPoints > 0 && $finalNetMinor <= 0,
         ];
     }
 
@@ -1019,25 +1028,25 @@ class LoyaltyPointsService
         }
 
         $redeemedPointsNet = 0;
-        $redeemedAmount = 0.0;
+        $redeemedAmountMinor = 0;
         $earnedPointsCurrent = 0;
 
         foreach ($query->get(['txn_type', 'points', 'amount_basis', 'reason']) as $tx) {
             $txnType = (string) ($tx->txn_type ?? '');
             $reason = (string) ($tx->reason ?? '');
             $points = (int) ($tx->points ?? 0);
-            $amountBasis = round(max(0.0, (float) ($tx->amount_basis ?? 0.0)), 2);
+            $amountBasisMinor = Money::minorUnits($tx->amount_basis ?? 0, true);
 
             if ($txnType === 'Redeem' && str_starts_with($reason, self::REASON_REDEEM_APPLY)) {
                 $redeemedPointsNet += $points;
-                $redeemedAmount += $amountBasis;
+                $redeemedAmountMinor += $amountBasisMinor;
 
                 continue;
             }
 
             if ($txnType === 'Adjust' && str_starts_with($reason, self::REASON_REDEEM_RELEASE)) {
                 $redeemedPointsNet += $points;
-                $redeemedAmount -= $amountBasis;
+                $redeemedAmountMinor -= $amountBasisMinor;
 
                 continue;
             }
@@ -1051,7 +1060,7 @@ class LoyaltyPointsService
 
         return [
             'redeemed_points' => max(0, -1 * $redeemedPointsNet),
-            'redeemed_amount' => round(max(0.0, $redeemedAmount), 2),
+            'redeemed_amount' => Money::minorToFloat(max(0, $redeemedAmountMinor)),
             'earned_points_current' => $earnedPointsCurrent,
         ];
     }

@@ -106,6 +106,117 @@ class StaffCheckoutIdempotencyReplayServiceTest extends TestCase
         );
     }
 
+    public function test_pay_order_replays_zero_amount_finalize_after_redis_marker_loss_from_finance_replay_record(): void
+    {
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
+        $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Reserved',
+            'deposit_required_amount' => '0.00',
+            'deposit_paid_amount' => '0.00',
+            'deposit_status' => 'NotRequired',
+            'bill_currency' => 'VND',
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+        $orderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'order_type' => 'OnSpot',
+            'status' => 'Active',
+        ]);
+        $this->createOrderItem([
+            'order_id' => $orderId,
+            'quantity' => 2,
+            'unit_price' => '50000.00',
+            'currency' => 'VND',
+            'line_total' => '100000.00',
+        ]);
+
+        $service = $this->makeCheckoutService();
+        $service->lockBill(
+            orderId: $orderId,
+            discountAmount: null,
+            notes: 'lock bill before external settlement',
+            expectedRowVersion: 1,
+            staffUserId: $staffId,
+        );
+
+        $this->createPayment([
+            'reservation_id' => $reservationId,
+            'payment_type' => 'Final',
+            'status' => 'Success',
+            'amount' => '100000.00',
+            'currency' => 'VND',
+            'payment_method' => 'Online',
+            'payment_provider' => 'simulated',
+            'transaction_code' => 'CUST-BILL-PAID-BEFORE-FINALIZE-1',
+            'idempotency_key' => 'customer-bill-session:replay-ledger-fixture-1',
+        ]);
+
+        $first = $service->payOrder(
+            orderId: $orderId,
+            paymentMethod: 'Cash',
+            paidAmount: 0.0,
+            currency: 'VND',
+            transactionCode: '',
+            paymentProvider: 'Cash',
+            notes: 'staff finalize after customer payment',
+            expectedRowVersion: null,
+            staffUserId: $staffId,
+            idempotencyKey: 'idem-zero-finalize-replay-1'
+        );
+
+        Cache::store('redis')->getStore()->flush();
+        Cache::store('array')->flush();
+
+        $second = $service->payOrder(
+            orderId: $orderId,
+            paymentMethod: 'Cash',
+            paidAmount: 0.0,
+            currency: 'VND',
+            transactionCode: '',
+            paymentProvider: 'Cash',
+            notes: 'staff finalize after customer payment',
+            expectedRowVersion: null,
+            staffUserId: $staffId,
+            idempotencyKey: 'idem-zero-finalize-replay-1'
+        );
+
+        $this->assertSame('Completed', (string) ($first->status->value ?? $first->status));
+        $this->assertSame('Completed', (string) ($second->status->value ?? $second->status));
+        $this->assertSame(1, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Final')->count());
+        $this->assertSame(1, (int) DB::table('finance_replay_records')
+            ->where('scope', 'staff.pay_order')
+            ->where('aggregate_type', 'reservation_order')
+            ->where('aggregate_id', $orderId)
+            ->where('idempotency_key', 'idem-zero-finalize-replay-1')
+            ->count());
+
+        try {
+            $service->payOrder(
+                orderId: $orderId,
+                paymentMethod: 'Cash',
+                paidAmount: 0.0,
+                currency: 'VND',
+                transactionCode: '',
+                paymentProvider: 'Cash',
+                notes: 'different finalize replay payload',
+                expectedRowVersion: null,
+                staffUserId: $staffId,
+                idempotencyKey: 'idem-zero-finalize-replay-1'
+            );
+
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $this->assertSame(
+                'This idempotency key is already bound to a different payment request payload.',
+                $e->errors()['idempotency_key'][0] ?? null
+            );
+        }
+    }
+
     public function test_pay_order_rejects_same_idempotency_key_when_payment_payload_differs(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
@@ -303,6 +414,9 @@ class StaffCheckoutIdempotencyReplayServiceTest extends TestCase
             staffUserId: $staffId,
             idempotencyKey: 'idem-refund-1'
         );
+
+        Cache::store('redis')->getStore()->flush();
+        Cache::store('array')->flush();
 
         $second = $service->refundReservation(
             reservationId: $reservationId,

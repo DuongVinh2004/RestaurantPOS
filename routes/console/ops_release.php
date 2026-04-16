@@ -1,31 +1,33 @@
 <?php
 
+use App\Modules\PrivacyAudit\Application\Services\DataRetentionService;
 use App\Platform\ApiContract\ApiArtifacts\ApiConsumerArtifactService;
 use App\Platform\ApiContract\Services\OpenApiSpecService;
-use App\Platform\Release\Services\BookingDeploySafetyService;
-use App\Platform\Health\Services\BookingDoctorService;
-use App\Platform\Release\Services\CoreOpsGateService;
-use App\Modules\PrivacyAudit\Application\Services\DataRetentionService;
+use App\Platform\ApiContract\Services\OpsGateArtifactService;
+use App\Platform\ApiContract\Services\RouteContractReconcilerService;
+use App\Platform\ApiContract\Services\RouteInventoryGateService;
 use App\Platform\Backup\DisasterRecovery\DisasterRecoveryDrillService;
-use App\Platform\Release\Services\LaunchReadinessService;
+use App\Platform\Health\Services\BookingDoctorService;
+use App\Platform\Health\Services\OpsHeartbeatService;
 use App\Platform\Metrics\Services\OperationalAlertService;
 use App\Platform\Metrics\Services\OperationalInsightsService;
-use App\Platform\ApiContract\Services\OpsGateArtifactService;
-use App\Platform\Health\Services\OpsHeartbeatService;
 use App\Platform\Performance\PerformanceVerificationService;
+use App\Platform\Release\Services\BookingDeploySafetyService;
+use App\Platform\Release\Services\CoreOpsGateService;
+use App\Platform\Release\Services\LaunchReadinessService;
 use App\Platform\Release\Services\ReleaseArtifactManifestService;
 use App\Platform\Release\Services\ReleaseArtifactNormalizerService;
 use App\Platform\Release\Services\ReleaseBuildService;
 use App\Platform\Release\Services\ReleaseLoopService;
 use App\Platform\Release\Services\ReleasePackageService;
 use App\Platform\Release\Services\RoundFiveGateService;
-use App\Platform\ApiContract\Services\RouteContractReconcilerService;
-use App\Platform\ApiContract\Services\RouteInventoryGateService;
 use Illuminate\Console\Command as ConsoleCommand;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Str;
 
+// Keep command registration here thin; new operator behavior belongs in
+// app/Platform services and should be invoked from a small command closure.
 $writeOpsGateArtifactReport = static function (
     string $artifactRoot,
     string $reportPrefix,

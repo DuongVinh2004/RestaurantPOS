@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Modules\Reservations\Http\Resources;
 
 use App\Enums\ReservationStatus;
+use App\Modules\CheckoutPayments\Support\PaymentProviderPayloadSanitizer;
 use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
 use App\Modules\BranchScheduling\Http\Resources\RestaurantTableResource;
 use App\Modules\Reservations\Application\Services\ReservationDepositReadService;
 use App\Modules\Reservations\Domain\Policies\ReservationAccessScope;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
@@ -30,20 +32,20 @@ class ReservationResource extends JsonResource
         $canViewFinancials = ReservationAccessScope::canViewFinancials($accessScope);
         $canViewVoucherDetails = ReservationAccessScope::canViewVoucherDetails($accessScope);
 
-        $tables = $this->whenLoaded('tables', function () {
-            return RestaurantTableResource::collection($this->tables)->values();
-        });
+        $tables = $this->relationLoaded('tables')
+            ? RestaurantTableResource::collection($this->tables)->resolve($request)
+            : [];
 
-        $tableIds = $this->whenLoaded('tables', function () {
-            return $this->tables->pluck('table_id')->map(fn ($id) => (int) $id)->values();
-        });
+        $tableIds = $this->relationLoaded('tables')
+            ? $this->tables->pluck('table_id')->map(fn ($id) => (int) $id)->values()->all()
+            : [];
 
         $tableSummary = $this->buildTableSummary();
-        $customerSelfService = $this->buildCustomerSelfServiceState($accessScope);
+        $customerSelfService = $this->buildCustomerSelfServiceState($request, $accessScope);
         $statusFlags = $this->buildStatusFlags();
 
-        $orders = $this->whenLoaded('orders', function () {
-            return $this->orders->map(function ($order) {
+        $orders = $this->relationLoaded('orders')
+            ? $this->orders->map(function ($order) {
                 return [
                     'order_id' => (int) $order->order_id,
                     'order_type' => $order->order_type?->value ?? (string) $order->order_type,
@@ -68,18 +70,18 @@ class ReservationResource extends JsonResource
                                     ]
                                     : null,
                             ];
-                        })->values()
+                        })->values()->all()
                         : [],
                 ];
-            })->values();
-        });
+            })->values()->all()
+            : [];
 
         $payments = null;
         $paymentSummary = null;
 
         if ($canViewFinancials) {
-            $payments = $this->whenLoaded('payments', function () use ($isStaff) {
-                return $this->payments->map(function ($p) use ($isStaff) {
+            $payments = $this->relationLoaded('payments')
+                ? $this->payments->map(function ($p) use ($isStaff) {
                     $data = [
                         'payment_id' => (int) $p->payment_id,
                         'refund_of_payment_id' => $p->refund_of_payment_id !== null ? (int) $p->refund_of_payment_id : null,
@@ -99,32 +101,16 @@ class ReservationResource extends JsonResource
                         $data['created_by'] = $p->created_by;
                         $data['notes'] = $p->notes;
                         $data['refund_target_payment_type'] = PaymentSummary::resolveRefundTargetPaymentType($p);
-                        $data['provider_response_json'] = $p->provider_response_json;
+                        $data['provider_response_json'] = PaymentProviderPayloadSanitizer::sanitizePaymentResponseForPresentation($p->provider_response_json);
                     }
 
                     return $data;
-                })->values();
-            });
+                })->values()->all()
+                : [];
 
-            $paymentSummary = $this->whenLoaded('payments', function () {
-                $summary = PaymentSummary::fromPayments($this->payments);
-                $currencyMeta = PaymentSummary::summarizeCurrencies($this->payments, (string) ($this->bill_currency ?: 'VND'));
-
-                return [
-                    'deposit_captured' => number_format((float) ($summary['deposit_captured_amount'] ?? 0.0), 2, '.', ''),
-                    'deposit_refunded' => number_format((float) ($summary['deposit_refunded_amount'] ?? 0.0), 2, '.', ''),
-                    'deposit_net' => number_format((float) ($summary['deposit_net_amount'] ?? 0.0), 2, '.', ''),
-                    'final_captured' => number_format((float) ($summary['final_captured_amount'] ?? 0.0), 2, '.', ''),
-                    'final_refunded' => number_format((float) ($summary['final_refunded_amount'] ?? 0.0), 2, '.', ''),
-                    'final_net' => number_format((float) ($summary['final_net_amount'] ?? 0.0), 2, '.', ''),
-                    'captured_total' => number_format((float) ($summary['captured_amount'] ?? 0.0), 2, '.', ''),
-                    'refunded_total' => number_format((float) ($summary['refunded_amount'] ?? 0.0), 2, '.', ''),
-                    'net_paid_total' => number_format((float) ($summary['net_paid_amount'] ?? 0.0), 2, '.', ''),
-                    'currency' => $currencyMeta['currency'] ?? null,
-                    'currencies' => $currencyMeta['currencies'],
-                    'has_mixed_currencies' => (bool) ($currencyMeta['has_mixed_currencies'] ?? false),
-                ];
-            });
+            $paymentSummary = $this->relationLoaded('payments')
+                ? $this->buildPaymentSummary()
+                : $this->emptyPaymentSummary();
         }
 
         $user = $this->buildCustomerUserPayload($canViewIdentity, $canViewDisplayName, $canViewContact, $canViewLoyalty);
@@ -132,26 +118,9 @@ class ReservationResource extends JsonResource
 
         $appliedVoucher = null;
         if ($canViewVoucherDetails) {
-            $appliedVoucher = $this->whenLoaded('appliedUserVoucher', function () {
-                if (! $this->appliedUserVoucher) {
-                    return null;
-                }
-
-                $voucher = $this->appliedUserVoucher->relationLoaded('voucher') ? $this->appliedUserVoucher->voucher : null;
-
-                return [
-                    'user_voucher_id' => (int) $this->appliedUserVoucher->user_voucher_id,
-                    'voucher_id' => (int) $this->appliedUserVoucher->voucher_id,
-                    'voucher_code' => $voucher?->code,
-                    'description' => $voucher?->description,
-                    'discount_type' => $voucher?->discount_type?->value ?? (string) ($voucher?->discount_type ?? ''),
-                    'discount_value' => $voucher?->discount_value !== null ? (string) $voucher->discount_value : null,
-                    'is_used' => (bool) ($this->appliedUserVoucher->is_used ?? false),
-                    'used_reservation_id' => $this->appliedUserVoucher->used_reservation_id !== null ? (int) $this->appliedUserVoucher->used_reservation_id : null,
-                    'used_amount' => $this->appliedUserVoucher->used_amount !== null ? (string) $this->appliedUserVoucher->used_amount : null,
-                    'locked_until' => $this->iso($this->appliedUserVoucher->locked_until),
-                ];
-            });
+            $appliedVoucher = $this->relationLoaded('appliedUserVoucher')
+                ? $this->buildAppliedVoucherPayload()
+                : null;
         }
 
         $depositSummary = $canViewFinancials ? $this->buildDepositSummary($accessScope) : null;
@@ -204,6 +173,76 @@ class ReservationResource extends JsonResource
         ];
     }
 
+    /**
+     * @return array<string,mixed>
+     */
+    private function buildPaymentSummary(): array
+    {
+        $summary = PaymentSummary::fromPayments($this->payments);
+        $currencyMeta = PaymentSummary::summarizeCurrencies($this->payments, (string) ($this->bill_currency ?: 'VND'));
+
+        return [
+            'deposit_captured' => Money::format($summary['deposit_captured_amount'] ?? 0, true),
+            'deposit_refunded' => Money::format($summary['deposit_refunded_amount'] ?? 0, true),
+            'deposit_net' => Money::format($summary['deposit_net_amount'] ?? 0, true),
+            'final_captured' => Money::format($summary['final_captured_amount'] ?? 0, true),
+            'final_refunded' => Money::format($summary['final_refunded_amount'] ?? 0, true),
+            'final_net' => Money::format($summary['final_net_amount'] ?? 0, true),
+            'captured_total' => Money::format($summary['captured_amount'] ?? 0, true),
+            'refunded_total' => Money::format($summary['refunded_amount'] ?? 0, true),
+            'net_paid_total' => Money::format($summary['net_paid_amount'] ?? 0, true),
+            'currency' => $currencyMeta['currency'] ?? null,
+            'currencies' => $currencyMeta['currencies'],
+            'has_mixed_currencies' => (bool) ($currencyMeta['has_mixed_currencies'] ?? false),
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function emptyPaymentSummary(): array
+    {
+        return [
+            'deposit_captured' => Money::format(0, true),
+            'deposit_refunded' => Money::format(0, true),
+            'deposit_net' => Money::format(0, true),
+            'final_captured' => Money::format(0, true),
+            'final_refunded' => Money::format(0, true),
+            'final_net' => Money::format(0, true),
+            'captured_total' => Money::format(0, true),
+            'refunded_total' => Money::format(0, true),
+            'net_paid_total' => Money::format(0, true),
+            'currency' => $this->bill_currency ?? null,
+            'currencies' => [],
+            'has_mixed_currencies' => false,
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function buildAppliedVoucherPayload(): ?array
+    {
+        if (! $this->appliedUserVoucher) {
+            return null;
+        }
+
+        $voucher = $this->appliedUserVoucher->relationLoaded('voucher') ? $this->appliedUserVoucher->voucher : null;
+
+        return [
+            'user_voucher_id' => (int) $this->appliedUserVoucher->user_voucher_id,
+            'voucher_id' => (int) $this->appliedUserVoucher->voucher_id,
+            'voucher_code' => $voucher?->code,
+            'description' => $voucher?->description,
+            'discount_type' => $voucher?->discount_type?->value ?? (string) ($voucher?->discount_type ?? ''),
+            'discount_value' => $voucher?->discount_value !== null ? (string) $voucher->discount_value : null,
+            'is_used' => (bool) ($this->appliedUserVoucher->is_used ?? false),
+            'used_reservation_id' => $this->appliedUserVoucher->used_reservation_id !== null ? (int) $this->appliedUserVoucher->used_reservation_id : null,
+            'used_amount' => $this->appliedUserVoucher->used_amount !== null ? (string) $this->appliedUserVoucher->used_amount : null,
+            'locked_until' => $this->iso($this->appliedUserVoucher->locked_until),
+        ];
+    }
+
 
     /**
      * @return array<string,mixed>
@@ -248,23 +287,23 @@ class ReservationResource extends JsonResource
     /**
      * @return array<string,mixed>
      */
-    private function buildCustomerSelfServiceState(string $accessScope): array
+    private function buildCustomerSelfServiceState(Request $request, string $accessScope): array
     {
         $status = (string) ($this->status?->value ?? $this->status ?? '');
         $startTime = $this->start_time instanceof \DateTimeInterface
             ? Carbon::instance($this->start_time)->utc()
             : ($this->start_time ? Carbon::parse((string) $this->start_time)->utc() : null);
         $now = Carbon::now('UTC');
-        $cancelCutoffMinutes = max(0, (int) config('booking.customer_reservation_cancellation_cutoff_minutes', 30));
-        $rescheduleCutoffMinutes = max(0, (int) config('booking.customer_reservation_reschedule_cutoff_minutes', 120));
-
-        try {
-            $branchSchedulingPolicyService = app(BranchSchedulingPolicyService::class);
-            $cancelCutoffMinutes = max(0, $branchSchedulingPolicyService->customerCancellationCutoffMinutes($this->branch_id, false));
-            $rescheduleCutoffMinutes = max(0, $branchSchedulingPolicyService->customerRescheduleCutoffMinutes($this->branch_id, false));
-        } catch (\Throwable) {
-            // Keep resource serialization resilient in unit tests that do not boot booking schema.
-        }
+        $cancelCutoffMinutes = $this->resolveBranchCutoffMinutes(
+            $request,
+            'cancellation',
+            max(0, (int) config('booking.customer_reservation_cancellation_cutoff_minutes', 30)),
+        );
+        $rescheduleCutoffMinutes = $this->resolveBranchCutoffMinutes(
+            $request,
+            'reschedule',
+            max(0, (int) config('booking.customer_reservation_reschedule_cutoff_minutes', 120)),
+        );
 
         $canAttemptCancel = $accessScope !== ReservationAccessScope::STAFF
             && $status === ReservationStatus::Confirmed->value
@@ -281,6 +320,35 @@ class ReservationResource extends JsonResource
             'can_attempt_cancel' => $canAttemptCancel,
             'can_attempt_reschedule' => $canAttemptReschedule,
         ];
+    }
+
+    private function resolveBranchCutoffMinutes(Request $request, string $action, int $defaultMinutes): int
+    {
+        $branchId = $this->branch_id !== null ? (int) $this->branch_id : 0;
+        if ($branchId <= 0) {
+            return $defaultMinutes;
+        }
+
+        $cacheKey = sprintf('reservation_resource.cutoff.%s.%d', $action, $branchId);
+        if ($request->attributes->has($cacheKey)) {
+            return (int) $request->attributes->get($cacheKey);
+        }
+
+        try {
+            $branchSchedulingPolicyService = app(BranchSchedulingPolicyService::class);
+            $resolvedMinutes = match ($action) {
+                'cancellation' => max(0, $branchSchedulingPolicyService->customerCancellationCutoffMinutes($branchId, false)),
+                'reschedule' => max(0, $branchSchedulingPolicyService->customerRescheduleCutoffMinutes($branchId, false)),
+                default => $defaultMinutes,
+            };
+        } catch (\Throwable) {
+            // Keep resource serialization resilient in unit tests that do not boot booking schema.
+            $resolvedMinutes = $defaultMinutes;
+        }
+
+        $request->attributes->set($cacheKey, $resolvedMinutes);
+
+        return $resolvedMinutes;
     }
 
     /**
@@ -332,10 +400,10 @@ class ReservationResource extends JsonResource
         }
 
         $status = (string) ($summary['status'] ?? '');
-        $requiredAmount = (float) ($summary['required_amount'] ?? 0.0);
-        $outstandingAmount = (float) ($summary['outstanding_amount'] ?? 0.0);
+        $requiredAmountMinor = Money::minorUnits($summary['required_amount'] ?? 0, true);
+        $outstandingAmountMinor = Money::minorUnits($summary['outstanding_amount'] ?? 0, true);
 
-        if ($status === 'Pending' && $requiredAmount > 0.0001 && $outstandingAmount > 0.0001) {
+        if ($status === 'Pending' && $requiredAmountMinor > 0 && $outstandingAmountMinor > 0) {
             $summary['status'] = 'Required';
         }
 
@@ -399,7 +467,7 @@ class ReservationResource extends JsonResource
             return null;
         }
 
-        return number_format((float) $value, 2, '.', '');
+        return Money::format($value, true);
     }
 
 

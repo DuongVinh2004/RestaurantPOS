@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\BenefitsLoyalty\Http\Resources\Admin;
 
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
@@ -33,7 +34,7 @@ class AdminVoucherResource extends JsonResource
             'limits' => [
                 'max_usage' => $this->max_usage !== null ? (int) $this->max_usage : null,
                 'max_usage_per_user' => $this->max_usage_per_user !== null ? (int) $this->max_usage_per_user : null,
-                'min_spend' => $this->min_spend !== null ? number_format((float) $this->min_spend, 2, '.', '') : null,
+                'min_spend' => $this->min_spend !== null ? Money::format($this->min_spend, true) : null,
             ],
             'availability' => [
                 'start_date' => $this->iso($this->start_date),

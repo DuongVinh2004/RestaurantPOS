@@ -446,6 +446,9 @@ class ReservationHttpFlowTest extends TestCase
             'table_ids' => [$tableId],
         ], $this->withIdempotencyKey('reservation-overlap-reject'));
 
+        $this->assertSame(1, (int) DB::table('reservations')->count());
+        $this->assertSame(1, (int) DB::table('reservation_tables')->where('table_id', $tableId)->count());
+
         $response->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error')
             ->assertJsonPath('details.errors.table_ids.0', 'Bàn bị trùng lịch (overlap reservation): ' . $tableId);

@@ -7,6 +7,7 @@ namespace App\Modules\BenefitsLoyalty\Domain\Policies;
 use App\Enums\ReservationOrderItemStatus;
 use App\Modules\BenefitsLoyalty\Domain\Models\Voucher;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Support\Money;
 use BackedEnum;
 use Illuminate\Validation\ValidationException;
 
@@ -14,14 +15,14 @@ final class VoucherRedemptionSupport
 {
     /**
      * @param  iterable<ReservationOrder>  $orders
-     * @return array{subtotal:float,currency:string,item_quantity_map:array<int,int>,item_unit_price_map:array<int,float>}
+     * @return array{subtotal:float,currency:string,item_quantity_map:array<int,int>,item_unit_price_minor_map:array<int,int>}
      */
     public static function summarizeOrders(iterable $orders): array
     {
-        $subtotal = 0.0;
+        $subtotalMinor = 0;
         $currency = null;
         $itemQuantityMap = [];
-        $itemUnitPriceMap = [];
+        $itemUnitPriceMinorMap = [];
 
         foreach ($orders as $order) {
             $items = $order->relationLoaded('items') ? $order->items : collect();
@@ -34,8 +35,8 @@ final class VoucherRedemptionSupport
                     continue;
                 }
 
-                $lineTotal = round(max(0.0, (float) ($item->line_total ?? 0.0)), 2);
-                $subtotal += $lineTotal;
+                $lineTotalMinor = Money::minorUnits($item->line_total ?? 0, true);
+                $subtotalMinor += $lineTotalMinor;
 
                 $itemCurrency = trim((string) ($item->currency ?? ''));
                 if ($itemCurrency !== '') {
@@ -54,21 +55,21 @@ final class VoucherRedemptionSupport
                     continue;
                 }
 
-                $unitPrice = round(max(0.0, (float) ($item->unit_price ?? 0.0)), 2);
-                if ($unitPrice <= 0.0001 && $lineTotal > 0.0001) {
-                    $unitPrice = round($lineTotal / $quantity, 2);
+                $unitPriceMinor = Money::minorUnits($item->unit_price ?? 0, true);
+                if ($unitPriceMinor <= 0 && $lineTotalMinor > 0) {
+                    $unitPriceMinor = intdiv($lineTotalMinor + intdiv($quantity, 2), $quantity);
                 }
 
                 $itemQuantityMap[$itemId] = ($itemQuantityMap[$itemId] ?? 0) + $quantity;
-                $itemUnitPriceMap[$itemId] = $unitPrice;
+                $itemUnitPriceMinorMap[$itemId] = $unitPriceMinor;
             }
         }
 
         return [
-            'subtotal' => round($subtotal, 2),
+            'subtotal' => Money::minorToFloat($subtotalMinor),
             'currency' => $currency ?: 'VND',
             'item_quantity_map' => $itemQuantityMap,
-            'item_unit_price_map' => $itemUnitPriceMap,
+            'item_unit_price_minor_map' => $itemUnitPriceMinorMap,
         ];
     }
 
@@ -79,35 +80,36 @@ final class VoucherRedemptionSupport
     public static function calculateDiscount(Voucher $voucher, iterable $orders): array
     {
         $summary = self::summarizeOrders($orders);
-        $subtotal = (float) ($summary['subtotal'] ?? 0.0);
+        $subtotalMinor = Money::minorUnits($summary['subtotal'] ?? 0, true);
         $currency = (string) ($summary['currency'] ?? 'VND');
         $discountType = $voucher->discount_type instanceof BackedEnum
             ? (string) $voucher->discount_type->value
             : (string) $voucher->discount_type;
 
-        $discount = 0.0;
+        $discountMinor = 0;
         $reason = $discountType;
 
         if ($discountType === 'Fixed') {
-            $discount = round(max(0.0, (float) ($voucher->discount_value ?? 0.0)), 2);
+            $discountMinor = Money::minorUnits($voucher->discount_value ?? 0, true);
         } elseif ($discountType === 'Percent') {
             $percent = max(0.0, min(100.0, (float) ($voucher->discount_value ?? 0.0)));
-            $discount = round($subtotal * $percent / 100, 2);
+            $basisPoints = max(0, min(10000, (int) round($percent * 100)));
+            $discountMinor = intdiv(($subtotalMinor * $basisPoints) + 5000, 10000);
             $reason = sprintf('Percent %.2f%%', $percent);
         } elseif ($discountType === 'FreeItem') {
             $freeItemId = (int) ($voucher->free_item_id ?? 0);
             $freeQty = max(1, (int) ($voucher->free_item_qty ?? 1));
             $availableQty = (int) (($summary['item_quantity_map'][$freeItemId] ?? 0));
-            $unitPrice = (float) (($summary['item_unit_price_map'][$freeItemId] ?? 0.0));
-            $discount = round(max(0.0, min($availableQty, $freeQty) * $unitPrice), 2);
+            $unitPriceMinor = (int) (($summary['item_unit_price_minor_map'][$freeItemId] ?? 0));
+            $discountMinor = max(0, min($availableQty, $freeQty) * $unitPriceMinor);
             $reason = sprintf('FreeItem #%d x%d', $freeItemId, min($availableQty, $freeQty));
         }
 
-        $discount = round(min(max(0.0, $discount), $subtotal), 2);
+        $discountMinor = min(max(0, $discountMinor), $subtotalMinor);
 
         return [
-            'discount_amount' => $discount,
-            'subtotal' => round($subtotal, 2),
+            'discount_amount' => Money::minorToFloat($discountMinor),
+            'subtotal' => Money::minorToFloat($subtotalMinor),
             'currency' => $currency ?: 'VND',
             'reason' => $reason,
         ];

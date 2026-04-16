@@ -25,7 +25,107 @@ $consoleTimestamp = static function (mixed $value): ?string {
     return Carbon::parse((string) $value)->utc()->toIso8601String();
 };
 
-$customerAccessSessionConsolePayload = static function (CustomerAccessSession $session) use ($consoleTimestamp): array {
+$consoleMaskString = static function (mixed $value, int $visiblePrefix = 2, int $visibleSuffix = 2, string $mask = '*'): ?string {
+    $normalized = trim((string) ($value ?? ''));
+    if ($normalized === '') {
+        return null;
+    }
+
+    $length = mb_strlen($normalized);
+    if ($length <= ($visiblePrefix + $visibleSuffix)) {
+        return str_repeat($mask, max(4, $length));
+    }
+
+    return mb_substr($normalized, 0, $visiblePrefix)
+        .str_repeat($mask, max(4, $length - ($visiblePrefix + $visibleSuffix)))
+        .mb_substr($normalized, -$visibleSuffix);
+};
+
+$consoleMaskPhone = static function (mixed $value) use ($consoleMaskString): ?string {
+    return $consoleMaskString($value, 3, 2);
+};
+
+$consoleMaskSessionId = static function (mixed $value) use ($consoleMaskString): ?string {
+    return $consoleMaskString($value, 6, 4);
+};
+
+$consoleMaskName = static function (mixed $value) use ($consoleMaskString): ?string {
+    return $consoleMaskString($value, 1, 1);
+};
+
+$consoleMaskIp = static function (mixed $value) use ($consoleMaskString): ?string {
+    $normalized = trim((string) ($value ?? ''));
+    if ($normalized === '') {
+        return null;
+    }
+
+    if (filter_var($normalized, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        $segments = explode('.', $normalized);
+        $segments[count($segments) - 1] = 'x';
+
+        return implode('.', $segments);
+    }
+
+    if (filter_var($normalized, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+        $segments = array_values(array_filter(explode(':', $normalized), static fn (string $segment): bool => $segment !== ''));
+        if (count($segments) >= 2) {
+            return implode(':', array_slice($segments, 0, 2)).':*:*';
+        }
+    }
+
+    return $consoleMaskString($normalized, 2, 2);
+};
+
+$consoleSummarizeUserAgent = static function (mixed $value, bool $verboseSensitive = false): ?string {
+    $normalized = trim((string) ($value ?? ''));
+    if ($normalized === '') {
+        return null;
+    }
+
+    if ($verboseSensitive || mb_strlen($normalized) <= 48) {
+        return $normalized;
+    }
+
+    return mb_substr($normalized, 0, 48).'...';
+};
+
+$consoleSessionMetadataPayload = static function (mixed $value, bool $verboseSensitive = false) use ($consoleMaskString): array {
+    if (! is_array($value)) {
+        return [];
+    }
+
+    if ($verboseSensitive) {
+        return $value;
+    }
+
+    $allowed = [];
+
+    foreach (['source', 'session_label', 'device_id'] as $key) {
+        if (! array_key_exists($key, $value) || $value[$key] === null || trim((string) $value[$key]) === '') {
+            continue;
+        }
+
+        $allowed[$key] = $key === 'device_id'
+            ? $consoleMaskString($value[$key], 4, 4)
+            : (string) $value[$key];
+    }
+
+    return $allowed;
+};
+
+$consoleSecretMask = static function (mixed $value) use ($consoleMaskString): ?string {
+    return $consoleMaskString($value, 8, 6);
+};
+
+$customerAccessSessionConsolePayload = static function (CustomerAccessSession $session, bool $verboseSensitive = false) use (
+    $consoleTimestamp,
+    $consoleMaskSessionId,
+    $consoleMaskName,
+    $consoleMaskPhone,
+    $consoleMaskIp,
+    $consoleSummarizeUserAgent,
+    $consoleSessionMetadataPayload,
+): array {
     $user = $session->relationLoaded('user') ? $session->user : null;
     $role = $user?->relationLoaded('role') ? $user->role : null;
     $expiresAt = $session->expires_at?->utc();
@@ -38,13 +138,13 @@ $customerAccessSessionConsolePayload = static function (CustomerAccessSession $s
         'full_name' => $user?->full_name,
         'role_id' => $user?->role_id !== null ? (int) $user->role_id : null,
         'role_name' => $role?->role_name,
-        'session_id' => $session->session_id,
-        'guest_name' => $session->guest_name,
-        'phone' => $session->phone,
+        'session_id' => $verboseSensitive ? $session->session_id : $consoleMaskSessionId($session->session_id),
+        'guest_name' => $verboseSensitive ? $session->guest_name : $consoleMaskName($session->guest_name),
+        'phone' => $verboseSensitive ? $session->phone : $consoleMaskPhone($session->phone),
         'token_last_eight' => $session->token_last_eight,
-        'session_meta' => $session->session_meta_json,
-        'created_ip' => $session->created_ip,
-        'user_agent' => $session->user_agent,
+        'session_meta' => $consoleSessionMetadataPayload($session->session_meta_json, $verboseSensitive),
+        'created_ip' => $verboseSensitive ? $session->created_ip : $consoleMaskIp($session->created_ip),
+        'user_agent' => $consoleSummarizeUserAgent($session->user_agent, $verboseSensitive),
         'expires_at_utc' => $consoleTimestamp($expiresAt),
         'last_used_at_utc' => $consoleTimestamp($session->last_used_at),
         'revoked_at_utc' => $consoleTimestamp($revokedAt),

@@ -165,6 +165,48 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         self::assertSame([4, 5, 6], array_map(static fn (array $row): int => (int) ($row['version'] ?? 0), (array) $snapshot['events']));
     }
 
+    public function test_testing_environment_can_use_explicit_array_store_for_realtime_backend(): void
+    {
+        $service = app(StaffOperationalRealtimeService::class);
+
+        $status = $service->backendStatus();
+        $topic = $service->describeTopic(StaffOperationalRealtimeService::TOPIC_BOARD, '/api/v1/staff/tables/board/changes');
+
+        self::assertTrue((bool) $status['usable']);
+        self::assertSame('ok', $status['status']);
+        self::assertSame('array', $status['store']);
+        self::assertSame('array', $status['driver']);
+        self::assertTrue((bool) $topic['enabled']);
+        self::assertSame('ok', $topic['backend_status']);
+        self::assertSame('array', $topic['backend_store']);
+    }
+
+    public function test_production_like_environment_disables_untrusted_array_realtime_backend_without_silent_fallback(): void
+    {
+        config()->set('app.env', 'production');
+        config()->set('booking.realtime.cache_store', 'array');
+        config()->set('booking.realtime.production_like_environments', ['production']);
+
+        $service = app(StaffOperationalRealtimeService::class);
+
+        $status = $service->backendStatus();
+        $topic = $service->describeTopic(StaffOperationalRealtimeService::TOPIC_BOARD, '/api/v1/staff/tables/board/changes');
+        $snapshot = $service->readTopic(StaffOperationalRealtimeService::TOPIC_BOARD, 0, 20);
+        $published = $service->publishBoardEvent('reservation.updated', ['reservation_id' => 10]);
+
+        self::assertFalse((bool) $status['usable']);
+        self::assertSame('degraded', $status['status']);
+        self::assertSame('unsafe_cache_store_driver', $status['reason']);
+        self::assertSame('array', $status['driver']);
+        self::assertFalse((bool) $topic['enabled']);
+        self::assertSame('degraded', $topic['backend_status']);
+        self::assertSame('unsafe_cache_store_driver', $topic['backend_reason']);
+        self::assertFalse((bool) $snapshot['enabled']);
+        self::assertSame('degraded', $snapshot['backend_status']);
+        self::assertSame('unsafe_cache_store_driver', $snapshot['backend_reason']);
+        self::assertNull($published);
+    }
+
     public function test_board_endpoint_exposes_realtime_meta_and_assignment_emits_board_change_event(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);

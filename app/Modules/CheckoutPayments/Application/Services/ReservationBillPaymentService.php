@@ -8,9 +8,14 @@ use App\Enums\PaymentStatus;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\CheckoutPayments\Domain\Models\Payment;
 use App\Modules\CheckoutPayments\Domain\Models\ReservationBillPaymentSession;
+use App\Modules\CheckoutPayments\Domain\Policies\PaymentStatusTransitionPolicy;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
+use App\Modules\CheckoutPayments\Support\PaymentProviderPayloadSanitizer;
+use App\Support\DatabaseWriteConflictMapper;
+use App\Support\Money;
 use App\Support\ValidationExceptionFactory;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -42,23 +47,30 @@ class ReservationBillPaymentService
             ]);
         }
 
-        $bill = $this->summarizeLockedBill($reservation, $lockedPayments, (string) $session->currency);
-        $outstanding = round(max(0.0, (float) ($bill['outstanding_amount'] ?? 0.0)), 2);
-        $amount = round(max(0.0, (float) ($session->amount ?? 0.0)), 2);
+        $existingPayment = $this->replaySucceededCustomerSession($reservation, $session, $lockedPayments, $actorUserId);
+        if ($existingPayment instanceof Payment) {
+            return $existingPayment;
+        }
 
-        if ($outstanding <= 0.0001) {
+        $bill = $this->summarizeLockedBill($reservation, $lockedPayments, (string) $session->currency);
+        $outstandingMinor = Money::minorUnits($bill['outstanding_amount'] ?? 0, true);
+        $amountMinor = Money::minorUnits($session->amount ?? 0, true);
+        $outstanding = Money::minorToFloat($outstandingMinor);
+        $amount = Money::minorToFloat($amountMinor);
+
+        if ($outstandingMinor <= 0) {
             throw ValidationExceptionFactory::make([
                 'bill' => ['Outstanding bill amount is already fully paid.'],
             ]);
         }
 
-        if ($amount <= 0.0001) {
+        if ($amountMinor <= 0) {
             throw ValidationExceptionFactory::make([
                 'amount' => ['Bill payment amount must be greater than 0.'],
             ]);
         }
 
-        if ($amount - $outstanding > 0.0001) {
+        if ($amountMinor > $outstandingMinor) {
             throw ValidationExceptionFactory::make([
                 'amount' => ['Bill payment amount exceeds the outstanding bill balance.'],
             ]);
@@ -91,33 +103,187 @@ class ReservationBillPaymentService
         $payment->branch_id = $reservationBranchId;
         $payment->reservation_id = (int) $reservation->reservation_id;
         $payment->refund_of_payment_id = null;
-        $payment->amount = $amount;
+        $payment->amount = Money::formatMinor($amountMinor);
         $payment->currency = (string) $bill['currency'];
         $payment->payment_method = trim((string) ($session->payment_method ?? 'Online')) ?: 'Online';
         $payment->payment_provider = trim((string) ($session->provider_code ?? 'simulated')) ?: 'simulated';
         $payment->payment_type = 'Final';
         $payment->status = $this->determinePaymentStatus($amount, $outstanding);
         $payment->transaction_code = trim((string) ($session->provider_payment_code ?? $session->provider_session_code));
-        $payment->idempotency_key = 'customer-bill-session:'.(int) $session->bill_payment_session_id;
+        $payment->idempotency_key = $this->sessionPaymentIdempotencyKey($session);
         $payment->paid_at = Carbon::now('UTC');
         $payment->created_by = $actorUserId;
         $payment->updated_by = $actorUserId;
         $payment->notes = 'Customer-facing bill payment session recorded; awaiting staff settlement finalization.';
-        $payment->provider_response_json = [
+        $payment->provider_response_json = PaymentProviderPayloadSanitizer::sanitizePaymentResponseForStorage([
             'source' => 'customer_bill_payment_session',
             'bill_payment_session_id' => (int) $session->bill_payment_session_id,
             'provider_code' => (string) $session->provider_code,
             'provider_session_code' => (string) $session->provider_session_code,
             'provider_payment_code' => $session->provider_payment_code,
             'provider_payload' => $session->provider_payload_json,
-        ];
-        $payment->save();
+        ]);
+        try {
+            $payment->save();
+        } catch (QueryException $exception) {
+            $existingPayment = $this->replaySucceededCustomerSession($reservation, $session, $lockedPayments, $actorUserId);
+            if ($existingPayment instanceof Payment && $this->isDuplicateSessionPaymentConstraint($exception)) {
+                return $existingPayment;
+            }
+
+            $mapped = DatabaseWriteConflictMapper::toValidationException($exception);
+            if ($mapped !== null) {
+                throw $mapped;
+            }
+
+            throw $exception;
+        }
 
         $lockedPayments->push($payment);
         $this->reservationFinancialSyncService->touchFinancialMutation($reservation, $actorUserId);
         $session->linked_payment_id = (int) $payment->payment_id;
 
         return $payment;
+    }
+
+    /**
+     * @param  Collection<int,Payment>  $lockedPayments
+     */
+    public function replaySucceededCustomerSession(
+        Reservation $reservation,
+        ReservationBillPaymentSession $session,
+        Collection $lockedPayments,
+        ?int $actorUserId = null,
+    ): ?Payment {
+        $existingPayment = $this->findExistingSessionPayment($reservation, $session);
+        if (! $existingPayment instanceof Payment) {
+            return null;
+        }
+
+        $reservationBranchId = $this->resolveReservationBranchId($reservation, $lockedPayments);
+        $reservation->branch_id = $reservationBranchId;
+        $this->assertExistingSessionPaymentMatches($existingPayment, $reservation, $session, $reservationBranchId);
+        $this->pushLockedPaymentIfMissing($lockedPayments, $existingPayment);
+        $this->reservationFinancialSyncService->touchFinancialMutation($reservation, $actorUserId);
+
+        $session->linked_payment_id = (int) $existingPayment->payment_id;
+
+        return $existingPayment;
+    }
+
+    private function findExistingSessionPayment(Reservation $reservation, ReservationBillPaymentSession $session): ?Payment
+    {
+        if ($session->linked_payment_id !== null) {
+            /** @var Payment|null $linked */
+            $linked = Payment::query()->whereKey((int) $session->linked_payment_id)->first();
+            if ($linked instanceof Payment) {
+                return $linked;
+            }
+        }
+
+        $idempotencyKey = $this->sessionPaymentIdempotencyKey($session);
+        /** @var Payment|null $byIdempotency */
+        $byIdempotency = Payment::query()
+            ->where('reservation_id', (int) $reservation->reservation_id)
+            ->where('payment_type', 'Final')
+            ->where('idempotency_key', $idempotencyKey)
+            ->first();
+        if ($byIdempotency instanceof Payment) {
+            return $byIdempotency;
+        }
+
+        $transactionCode = trim((string) ($session->provider_payment_code ?? $session->provider_session_code ?? ''));
+        $providerCode = trim((string) ($session->provider_code ?? ''));
+        if ($transactionCode === '' || $providerCode === '') {
+            return null;
+        }
+
+        /** @var Collection<int,Payment> $candidates */
+        $candidates = Payment::query()
+            ->where('reservation_id', (int) $reservation->reservation_id)
+            ->where('payment_type', 'Final')
+            ->where('payment_provider', $providerCode)
+            ->where('transaction_code', $transactionCode)
+            ->get();
+
+        return $candidates->first(function (Payment $payment) use ($session): bool {
+            $meta = is_array($payment->provider_response_json) ? $payment->provider_response_json : [];
+
+            return (int) ($meta['bill_payment_session_id'] ?? 0) === (int) $session->bill_payment_session_id;
+        });
+    }
+
+    private function assertExistingSessionPaymentMatches(
+        Payment $payment,
+        Reservation $reservation,
+        ReservationBillPaymentSession $session,
+        int $reservationBranchId
+    ): void {
+        if ((int) $payment->reservation_id !== (int) $reservation->reservation_id || (string) $payment->payment_type !== 'Final') {
+            throw ValidationExceptionFactory::make([
+                'payment_id' => ['Existing bill session payment does not belong to this reservation.'],
+            ]);
+        }
+
+        if (Money::minorUnits($payment->amount ?? 0, true) !== Money::minorUnits($session->amount ?? 0, true)) {
+            throw ValidationExceptionFactory::make([
+                'amount' => ['Existing bill session payment amount does not match the payment session amount.'],
+            ]);
+        }
+
+        $paymentCurrency = strtoupper(trim((string) ($payment->currency ?? '')));
+        $sessionCurrency = strtoupper(trim((string) ($session->currency ?? '')));
+        if ($paymentCurrency !== '' && $sessionCurrency !== '' && $paymentCurrency !== $sessionCurrency) {
+            throw ValidationExceptionFactory::make([
+                'currency' => ['Existing bill session payment currency does not match the payment session currency.'],
+            ]);
+        }
+
+        $meta = is_array($payment->provider_response_json) ? $payment->provider_response_json : [];
+        $recordedSessionId = (int) ($meta['bill_payment_session_id'] ?? 0);
+        if ($recordedSessionId > 0 && $recordedSessionId !== (int) $session->bill_payment_session_id) {
+            throw ValidationExceptionFactory::make([
+                'payment_id' => ['Existing bill session payment is linked to a different payment session.'],
+            ]);
+        }
+
+        if ($payment->branch_id === null || $payment->branch_id === '') {
+            $payment->branch_id = $reservationBranchId;
+            $payment->save();
+
+            return;
+        }
+
+        $this->branchContextService->assertSameBranch(
+            $reservationBranchId,
+            $payment->branch_id,
+            'Existing bill payment does not belong to the reservation branch.',
+            'payment_id',
+            false
+        );
+    }
+
+    /**
+     * @param  Collection<int,Payment>  $lockedPayments
+     */
+    private function pushLockedPaymentIfMissing(Collection $lockedPayments, Payment $payment): void
+    {
+        $paymentId = (int) $payment->payment_id;
+        $exists = $lockedPayments->contains(fn (Payment $lockedPayment): bool => (int) $lockedPayment->payment_id === $paymentId);
+        if (! $exists) {
+            $lockedPayments->push($payment);
+        }
+    }
+
+    private function sessionPaymentIdempotencyKey(ReservationBillPaymentSession $session): string
+    {
+        return 'customer-bill-session:'.(int) $session->bill_payment_session_id;
+    }
+
+    private function isDuplicateSessionPaymentConstraint(QueryException $exception): bool
+    {
+        return DatabaseWriteConflictMapper::isPaymentIdempotencyConflict($exception)
+            || DatabaseWriteConflictMapper::isPaymentProviderTransactionConflict($exception);
     }
 
     /**
@@ -132,8 +298,9 @@ class ReservationBillPaymentService
             ]);
         }
 
-        $totalDue = round(max(0.0, (float) ($reservation->final_bill_amount ?? 0.0)), 2);
-        if ($totalDue <= 0.0001) {
+        $totalDueMinor = Money::minorUnits($reservation->final_bill_amount ?? 0, true);
+        $totalDue = Money::minorToFloat($totalDueMinor);
+        if ($totalDueMinor <= 0) {
             throw ValidationExceptionFactory::make([
                 'bill' => ['Reservation does not have a payable final bill.'],
             ]);
@@ -141,11 +308,15 @@ class ReservationBillPaymentService
 
         $currency = $this->resolveCurrency($reservation, $payments, $requestedCurrency);
         $settlement = $this->settlementAmountCalculator->buildSettlementAmounts($payments, $totalDue);
-        $settledAmount = round((float) ($settlement['settled_amount'] ?? 0.0), 2);
-        $outstanding = round((float) ($settlement['remaining_due'] ?? max(0.0, $totalDue - $settledAmount)), 2);
-        $paymentStatus = $settledAmount + 0.0001 >= $totalDue
+        $settledMinor = Money::minorUnits($settlement['settled_amount'] ?? 0, true);
+        $outstandingMinor = array_key_exists('remaining_due', $settlement)
+            ? Money::minorUnits($settlement['remaining_due'], true)
+            : max(0, $totalDueMinor - $settledMinor);
+        $settledAmount = Money::minorToFloat($settledMinor);
+        $outstanding = Money::minorToFloat($outstandingMinor);
+        $paymentStatus = $settledMinor >= $totalDueMinor
             ? PaymentStatus::Success->value
-            : ($settledAmount > 0.0001 ? PaymentStatus::Partial->value : PaymentStatus::Failed->value);
+            : ($settledMinor > 0 ? PaymentStatus::Partial->value : PaymentStatus::Failed->value);
 
         return [
             'snapshot_mode' => 'locked',
@@ -202,9 +373,7 @@ class ReservationBillPaymentService
 
     private function determinePaymentStatus(float $amount, float $outstandingBefore): PaymentStatus
     {
-        return round($amount, 4) + 0.0001 >= round($outstandingBefore, 4)
-            ? PaymentStatus::Success
-            : PaymentStatus::Partial;
+        return PaymentStatusTransitionPolicy::captureStatusForAppliedAmount($amount, $outstandingBefore);
     }
 
     /**

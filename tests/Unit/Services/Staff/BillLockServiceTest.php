@@ -7,6 +7,7 @@ namespace Tests\Unit\Services\Staff;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\CheckoutPayments\Application\Services\BillLockService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Mockery;
 use Tests\Support\BuildsBookingScenario;
@@ -102,5 +103,56 @@ class BillLockServiceTest extends TestCase
         $this->assertSame('bill locked', (string) ($order->notes ?? ''));
         $this->assertSame(100000.0, (float) $order->getAttribute('total_due_amount'));
         $this->assertSame(100000.0, (float) $order->getAttribute('outstanding_amount'));
+    }
+
+    public function test_lock_bill_can_skip_reservation_row_version_bump_without_raw_direct_update(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
+        $reservationId = $this->createReservation(['status' => 'Reserved', 'row_version' => 3]);
+        $this->attachReservationTable($reservationId, $tableId);
+        $orderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'order_type' => 'OnSpot',
+            'status' => 'Active',
+            'row_version' => 1,
+        ]);
+        $this->createOrderItem([
+            'order_id' => $orderId,
+            'quantity' => 1,
+            'unit_price' => '50000.00',
+            'currency' => 'VND',
+            'line_total' => '50000.00',
+        ]);
+
+        $this->makeBillLockService()->lockBill(
+            orderId: $orderId,
+            discountAmount: 5000.0,
+            notes: 'bill locked without reservation version bump',
+            staffUserId: $staffId,
+            expectedRowVersion: 1,
+            assertExpectedOrderRowVersion: function (ReservationOrder $order, ?int $expectedRowVersion): void {
+                if ($expectedRowVersion === null) {
+                    return;
+                }
+
+                if ((int) ($order->row_version ?? 1) !== $expectedRowVersion) {
+                    throw ValidationException::withMessages([
+                        'row_version' => ['Dá»¯ liá»‡u Ä‘Ã£ thay Ä‘á»•i (row_version mismatch). HÃ£y reload rá»“i thá»­ láº¡i.'],
+                    ]);
+                }
+            },
+            currentLoyaltyDiscountAmount: fn (int $reservationId): float => 0.0,
+            currentVoucherDiscountAmount: fn (int $reservationId, bool $lock = false): float => 0.0,
+            attachTotals: fn (ReservationOrder $order, float $subtotal, float $discount, float $totalDue, string $currency): ReservationOrder => $order,
+            bumpReservationVersion: false,
+        );
+
+        $reservation = DB::table('reservations')->where('reservation_id', $reservationId)->first();
+
+        self::assertSame(3, (int) ($reservation->row_version ?? 0));
+        self::assertSame(45000.0, (float) ($reservation->final_bill_amount ?? 0.0));
+        self::assertSame(5000.0, (float) ($reservation->discount_amount ?? 0.0));
+        self::assertNotNull($reservation->billed_at);
     }
 }

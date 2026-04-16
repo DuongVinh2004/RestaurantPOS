@@ -19,12 +19,14 @@ class ReportingDailyOperationSnapshotResource extends JsonResource
             'snapshot_id' => (int) $this->snapshot_id,
             'business_date' => optional($this->business_date)?->format('Y-m-d'),
             'branch_id' => (int) $this->branch_id,
-            'branch' => $this->whenLoaded('branch', fn (): array => [
-                'branch_id' => (int) $this->branch->branch_id,
-                'branch_code' => (string) $this->branch->branch_code,
-                'branch_name' => (string) $this->branch->branch_name,
-                'is_default' => (bool) $this->branch->is_default,
-            ]),
+            'branch' => $this->relationLoaded('branch') && $this->branch !== null
+                ? [
+                    'branch_id' => (int) $this->branch->branch_id,
+                    'branch_code' => (string) $this->branch->branch_code,
+                    'branch_name' => (string) $this->branch->branch_name,
+                    'is_default' => (bool) $this->branch->is_default,
+                ]
+                : null,
             'reservations' => [
                 'scheduled_count' => (int) $this->scheduled_reservation_count,
                 'scheduled_guest_count' => (int) $this->scheduled_guest_count,

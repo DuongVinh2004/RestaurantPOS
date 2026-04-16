@@ -13,6 +13,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use Mockery;
 use Tests\TestCase;
 
@@ -102,6 +103,67 @@ final class TableHoldRefreshMonotonicTest extends TestCase
         $this->assertSame('hold-refresh-1', $result['hold_id']);
         $this->assertNotNull($result['expire_at']);
         $this->assertTrue($result['expire_at']->greaterThanOrEqualTo($now->copy()->addMinutes(10)));
+    }
+
+    public function test_refresh_rejects_when_hold_has_reached_max_total_lifetime(): void
+    {
+        config()->set('booking.hold_max_total_minutes', 15);
+
+        Carbon::setTestNow(Carbon::parse('2026-03-22 10:20:00', 'UTC'));
+        $now = Carbon::now('UTC');
+
+        $templateId = DB::table('table_templates')->insertGetId([
+            'template_code' => 'TPL-REFRESH-LIMIT',
+            'seats' => 4,
+            'description' => 'Refresh limit template',
+        ]);
+
+        $tableId = DB::table('restaurant_tables')->insertGetId([
+            'table_code' => 'TB-REFRESH-LIMIT',
+            'template_id' => $templateId,
+            'zone' => 'A',
+            'status' => 'Available',
+            'is_deleted' => 0,
+            'row_version' => 1,
+            'created_at' => $now,
+            'updated_at' => $now,
+            'price' => null,
+        ]);
+
+        DB::table('table_holds')->insert([
+            'hold_id' => 'hold-refresh-limit-1',
+            'session_id' => 'sess-refresh-limit',
+            'user_id' => null,
+            'confirmed_reservation_id' => null,
+            'start_time' => $now,
+            'end_time' => $now->copy()->addHour(),
+            'duration_minutes' => 60,
+            'hold_status' => 'Holding',
+            'row_version' => 1,
+            'created_at' => $now->copy()->subMinutes(20),
+            'updated_at' => $now->copy()->subMinutes(20),
+            'expire_at' => $now->copy()->addMinute(),
+            'updated_by' => null,
+        ]);
+
+        DB::table('table_hold_details')->insert([
+            'hold_id' => 'hold-refresh-limit-1',
+            'table_id' => $tableId,
+        ]);
+
+        $service = new TableHoldService(
+            $this->mockLockService(),
+            Mockery::mock(RestaurantTableStateService::class),
+            Mockery::mock(TableTimeConflictService::class),
+            Mockery::mock(RuntimeSettingService::class),
+        );
+
+        try {
+            $service->refreshHold('hold-refresh-limit-1', 'sess-refresh-limit', 5, false, null, null);
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('expire_at', $e->errors());
+        }
     }
 
     private function mockLockService(): ReservationLockService

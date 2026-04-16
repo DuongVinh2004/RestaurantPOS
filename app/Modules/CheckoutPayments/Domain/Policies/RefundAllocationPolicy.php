@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\CheckoutPayments\Domain\Policies;
 
+use App\Support\Money;
 use App\Support\ValidationExceptionFactory;
 
 final class RefundAllocationPolicy
@@ -14,44 +15,44 @@ final class RefundAllocationPolicy
      */
     public static function allocate(
         array $sources,
-        float $requestedAmount,
+        mixed $requestedAmount,
         ?string $errorMessage = null,
         string $field = 'refund_scope',
     ): array {
-        $requestedAmount = round(max(0.0, $requestedAmount), 2);
-        if ($requestedAmount <= 0.0001) {
+        $requestedMinor = Money::minorUnits($requestedAmount, true);
+        if ($requestedMinor <= 0) {
             return [];
         }
 
-        $remaining = $requestedAmount;
+        $remainingMinor = $requestedMinor;
         $allocations = [];
 
         foreach ($sources as $source) {
-            $capturedAmount = round(max(0.0, (float) ($source['captured_amount'] ?? 0.0)), 2);
-            $alreadyRefundedAmount = round(max(0.0, (float) ($source['already_refunded_amount'] ?? 0.0)), 2);
-            $refundableAmount = round(max(0.0, $capturedAmount - $alreadyRefundedAmount), 2);
+            $capturedMinor = Money::minorUnits($source['captured_amount'] ?? 0, true);
+            $alreadyRefundedMinor = Money::minorUnits($source['already_refunded_amount'] ?? 0, true);
+            $refundableMinor = max(0, $capturedMinor - $alreadyRefundedMinor);
 
-            if ($refundableAmount <= 0.0001) {
+            if ($refundableMinor <= 0) {
                 continue;
             }
 
-            $allocationAmount = round(min($remaining, $refundableAmount), 2);
-            if ($allocationAmount <= 0.0001) {
+            $allocationMinor = min($remainingMinor, $refundableMinor);
+            if ($allocationMinor <= 0) {
                 continue;
             }
 
             $allocations[] = $source + [
-                'allocation_amount' => $allocationAmount,
-                'refundable_amount' => $refundableAmount,
+                'allocation_amount' => Money::minorToFloat($allocationMinor),
+                'refundable_amount' => Money::minorToFloat($refundableMinor),
             ];
 
-            $remaining = round($remaining - $allocationAmount, 2);
-            if ($remaining <= 0.0001) {
+            $remainingMinor -= $allocationMinor;
+            if ($remainingMinor <= 0) {
                 break;
             }
         }
 
-        if ($remaining > 0.0001) {
+        if ($remainingMinor > 0) {
             throw ValidationExceptionFactory::make([
                 $field => [$errorMessage ?? 'Requested refund exceeds refundable payment lineage.'],
             ]);

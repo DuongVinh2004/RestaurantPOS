@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\CheckoutPayments\Domain\Guards;
 
+use App\Support\Money;
 use App\Support\ValidationExceptionFactory;
 
 final class PaymentIntegrityGuard
@@ -14,10 +15,10 @@ final class PaymentIntegrityGuard
     public static function assertNoOverRefund(array $summary, string $field = 'payments', string $message = 'Refunded amount exceeds captured amount.'): void
     {
         $hasOverRefund = (bool) ($summary['has_over_refund'] ?? false);
-        $overRefundTotal = round(max(0.0, (float) (($summary['over_refunded_amount'] ?? $summary['over_refunded_total']) ?? 0.0)), 2);
-        $rawNetPaidTotal = round((float) (($summary['raw_net_paid_amount'] ?? $summary['raw_net_paid_total']) ?? 0.0), 2);
+        $overRefundMinor = Money::minorUnits(($summary['over_refunded_amount'] ?? $summary['over_refunded_total']) ?? 0, true);
+        $rawNetPaidMinor = Money::minorUnits(($summary['raw_net_paid_amount'] ?? $summary['raw_net_paid_total']) ?? 0);
 
-        if (! $hasOverRefund && $overRefundTotal <= 0.0001 && $rawNetPaidTotal >= -0.0001) {
+        if (! $hasOverRefund && $overRefundMinor <= 0 && $rawNetPaidMinor >= 0) {
             return;
         }
 

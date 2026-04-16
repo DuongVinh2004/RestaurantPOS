@@ -11,6 +11,7 @@ use App\Modules\CheckoutPayments\Domain\Models\Payment;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
+use App\Modules\Reservations\Domain\Policies\ReservationStatusTransitionPolicy;
 use App\Modules\Reservations\Domain\Models\ReservationTable;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\BenefitsLoyalty\Domain\Models\UserVoucher;
@@ -22,6 +23,7 @@ use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateServic
 use App\Support\AuditEvent;
 use App\Support\AvailabilityCacheVersion;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
+use App\Support\Money;
 use App\Modules\BenefitsLoyalty\Domain\Policies\ReservationVoucherLifecycleSupport;
 use App\Modules\BenefitsLoyalty\Domain\Policies\VoucherRedemptionSupport;
 use Illuminate\Support\Carbon;
@@ -99,7 +101,7 @@ class ReservationStatusTransitionService
                         return;
                     }
 
-                    $this->assertStatusTransitionAllowed($current, $target, $force);
+                    ReservationStatusTransitionPolicy::assertTransitionAllowed($current, $targetEnum, $force);
 
                     $beforeVersion = (int) ($reservation->row_version ?? 1);
                     if ($expectedRowVersion !== null && $beforeVersion !== (int) $expectedRowVersion) {
@@ -132,7 +134,7 @@ class ReservationStatusTransitionService
                         }
 
                         $paymentSummary = PaymentSummary::fromPayments($payments);
-                        if ((float) ($paymentSummary['final_net_amount'] ?? 0.0) > 0.0001) {
+                        if (Money::isPositive($paymentSummary['final_net_amount'] ?? 0)) {
                             throw ValidationException::withMessages([
                                 'status' => ['Reservation still has unrefunded final payments. Use refund/cancel-after-payment flow before cancelling.'],
                             ]);
@@ -183,7 +185,7 @@ class ReservationStatusTransitionService
 
                     if ($target === ReservationStatus::Cancelled->value && $current === ReservationStatus::Confirmed->value) {
                         $paymentSummary = PaymentSummary::fromPayments($payments);
-                        if ((float) ($paymentSummary['final_net_amount'] ?? 0.0) > 0.0001) {
+                        if (Money::isPositive($paymentSummary['final_net_amount'] ?? 0)) {
                             throw ValidationException::withMessages([
                                 'status' => ['Reservation still has unrefunded final payments. Use refund/cancel-after-payment flow before cancelling.'],
                             ]);
@@ -354,14 +356,18 @@ class ReservationStatusTransitionService
                 continue;
             }
 
-            ReservationOrderItem::query()
+            $items = ReservationOrderItem::query()
                 ->where('order_id', $order->order_id)
                 ->whereNotIn('status', [ReservationOrderItemStatus::Cancelled->value, ReservationOrderItemStatus::Served->value])
-                ->update([
-                    'status' => ReservationOrderItemStatus::Cancelled->value,
-                    'updated_by' => $actorUserId,
-                    'updated_at' => $now,
-                ]);
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($items as $item) {
+                $item->status = ReservationOrderItemStatus::Cancelled;
+                $item->updated_by = $actorUserId;
+                $item->updated_at = $now;
+                $item->save();
+            }
 
             $order->status = ReservationOrderStatus::Cancelled;
             $order->updated_by = $actorUserId;

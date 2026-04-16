@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Conversations\Http\Resources;
 
+use App\Modules\Conversations\Application\Services\StaffConversationFileAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
@@ -15,6 +16,8 @@ class StaffConversationMessageResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $fileAccessService = app(StaffConversationFileAccessService::class);
+        $conversationId = (string) $this->conversation_id;
         $senderUser = null;
         if ($this->relationLoaded('senderUser') && $this->senderUser !== null) {
             $senderUser = [
@@ -28,16 +31,10 @@ class StaffConversationMessageResource extends JsonResource
             ];
         }
 
+        $attachment = $fileAccessService->preferredAttachmentPayload($this->resource);
         $files = $this->relationLoaded('files')
-            ? $this->files->map(static function ($file): array {
-                return [
-                    'file_id' => (int) $file->file_id,
-                    'file_url' => (string) $file->file_url,
-                    'mime_type' => $file->mime_type,
-                    'created_at' => $file->created_at instanceof \DateTimeInterface
-                        ? Carbon::instance($file->created_at)->utc()->toIso8601String()
-                        : ($file->created_at !== null ? Carbon::parse((string) $file->created_at)->utc()->toIso8601String() : null),
-                ];
+            ? $this->files->map(static function ($file) use ($fileAccessService, $conversationId): array {
+                return $fileAccessService->filePayload($file, $conversationId);
             })->values()->all()
             : [];
 
@@ -58,14 +55,15 @@ class StaffConversationMessageResource extends JsonResource
 
         return [
             'message_id' => (int) $this->message_id,
-            'conversation_id' => (string) $this->conversation_id,
+            'conversation_id' => $conversationId,
             'sender' => (string) $this->sender,
             'sender_id' => $this->sender_id !== null ? (int) $this->sender_id : null,
             'sender_user' => $senderUser,
             'message_text' => (string) $this->message_text,
             'message_type' => (string) $this->message_type,
             'is_internal_note' => (bool) $this->is_internal_note,
-            'attachment_url' => $this->preferredAttachmentUrl(),
+            'attachment_url' => $attachment['access_url'] ?? null,
+            'attachment' => $attachment,
             'is_processed' => (bool) $this->is_processed,
             'processing_status' => $this->processing_status,
             'confidence' => $this->confidence !== null ? (string) $this->confidence : null,

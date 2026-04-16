@@ -12,6 +12,7 @@ use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\BranchScheduling\Domain\Models\TableHold;
 use App\Modules\Reporting\Application\Services\StaffOperationalRealtimeService;
 use App\Modules\WaitingList\Domain\Models\WaitingList;
+use App\Modules\WaitingList\Domain\State\WaitingListStateMachine;
 use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
@@ -195,13 +196,7 @@ class WaitingListOperationalOrchestrationService
 
                 $sourceTransition = 'declined_entry_acknowledged';
                 if ($currentResponseState === 'invite_expired' && $source->status === WaitingListStatus::Notified) {
-                    $source->status = WaitingListStatus::Waiting;
-                    $source->notified_at = null;
-                    $source->notify_expires_at = null;
-                    $source->customer_response_status = null;
-                    $source->customer_responded_at = null;
-                    $source->customer_confirmed_arrival_at = null;
-                    $source->notified_by = null;
+                    WaitingListStateMachine::applyExpiredToWaiting($source, $staffUserId);
                     $sourceTransition = 'expired_entry_returned_to_waiting';
                 }
 

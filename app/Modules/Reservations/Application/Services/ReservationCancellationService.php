@@ -9,6 +9,7 @@ use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationStatus;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Reservations\Domain\Policies\ReservationStatusTransitionPolicy;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 use Illuminate\Support\Carbon;
@@ -44,19 +45,30 @@ class ReservationCancellationService
             ]);
         }
 
+        ReservationStatusTransitionPolicy::assertTransitionAllowed(
+            $currentStatus,
+            ReservationStatus::Cancelled,
+            ReservationStatus::isCheckedInDbValue($currentStatus),
+            'reservation'
+        );
+
         foreach ($orders as $order) {
             if ((string) ($order->status?->value ?? $order->status) !== ReservationOrderStatus::Active->value) {
                 continue;
             }
 
-            ReservationOrderItem::query()
+            $items = ReservationOrderItem::query()
                 ->where('order_id', $order->order_id)
                 ->whereNotIn('status', [ReservationOrderItemStatus::Cancelled->value, ReservationOrderItemStatus::Served->value])
-                ->update([
-                    'status' => ReservationOrderItemStatus::Cancelled->value,
-                    'updated_by' => $staffUserId,
-                    'updated_at' => $now,
-                ]);
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($items as $item) {
+                $item->status = ReservationOrderItemStatus::Cancelled;
+                $item->updated_by = $staffUserId;
+                $item->updated_at = $now;
+                $item->save();
+            }
 
             $order->status = ReservationOrderStatus::Cancelled;
             $order->updated_by = $staffUserId;

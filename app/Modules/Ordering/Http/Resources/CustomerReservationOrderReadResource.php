@@ -6,6 +6,7 @@ namespace App\Modules\Ordering\Http\Resources;
 
 use App\Enums\PaymentStatus;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -68,14 +69,14 @@ class CustomerReservationOrderReadResource extends JsonResource
             return null;
         }
 
-        $paid = round((float) $this->getAttribute('paid_amount'), 2);
-        $totalDue = round((float) $this->getAttribute('total_due_amount'), 2);
+        $paidMinor = Money::minorUnits($this->getAttribute('paid_amount'), true);
+        $totalDueMinor = Money::minorUnits($this->getAttribute('total_due_amount'), true);
 
-        if ($paid + 0.0001 >= $totalDue) {
+        if ($paidMinor >= $totalDueMinor) {
             return PaymentStatus::Success->value;
         }
 
-        if ($paid > 0.0001) {
+        if ($paidMinor > 0) {
             return PaymentStatus::Partial->value;
         }
 
@@ -89,7 +90,7 @@ class CustomerReservationOrderReadResource extends JsonResource
             return null;
         }
 
-        return number_format((float) $value, 2, '.', '');
+        return Money::format($value, true);
     }
 
     private function hasAnyComputedTotals(): bool

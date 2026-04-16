@@ -215,4 +215,48 @@ final class DataLifecycleRetentionConsoleTest extends TestCase
         self::assertSame(0, DB::table('message_entities')->where('message_entity_id', $oldEntityId)->count());
         self::assertSame(1, DB::table('message_entities')->where('message_entity_id', $recentEntityId)->count());
     }
+
+    public function test_retention_command_scrubs_old_payment_webhook_receipt_payload_artifacts_but_keeps_row(): void
+    {
+        $old = $this->nowUtc()->copy()->subDays(500);
+
+        $receiptId = (int) DB::table('payment_provider_webhook_receipts')->insertGetId([
+            'provider_code' => 'simulated',
+            'provider_event_code' => 'evt-retention-old-1',
+            'provider_session_code' => 'sim-retention-old-1',
+            'payment_scope' => 'deposit',
+            'event_type' => 'payment.session.updated',
+            'delivery_status' => 'Applied',
+            'request_signature' => 'raw-signature',
+            'request_headers_json' => json_encode(['x-payment-signature' => 'raw-signature'], JSON_THROW_ON_ERROR),
+            'request_body' => json_encode(['provider_event_code' => 'evt-retention-old-1', 'secret' => 'provider-secret'], JSON_THROW_ON_ERROR),
+            'provider_payload_json' => json_encode(['raw' => ['secret' => 'provider-secret']], JSON_THROW_ON_ERROR),
+            'processed_at' => $old,
+            'failure_message' => null,
+            'created_at' => $old,
+            'updated_at' => $old,
+            'created_by' => null,
+            'updated_by' => null,
+            'row_version' => 2,
+        ], 'payment_provider_webhook_receipt_id');
+
+        $this->artisan('data-lifecycle:enforce-retention --dry-run')->assertExitCode(0);
+
+        self::assertSame('raw-signature', (string) DB::table('payment_provider_webhook_receipts')
+            ->where('payment_provider_webhook_receipt_id', $receiptId)
+            ->value('request_signature'));
+
+        $this->artisan('data-lifecycle:enforce-retention')->assertExitCode(0);
+
+        $row = DB::table('payment_provider_webhook_receipts')
+            ->where('payment_provider_webhook_receipt_id', $receiptId)
+            ->first();
+
+        self::assertNotNull($row);
+        self::assertNull($row->request_signature);
+        self::assertNull($row->request_headers_json);
+        self::assertNull($row->request_body);
+        self::assertSame(true, data_get(json_decode((string) $row->provider_payload_json, true, 512, JSON_THROW_ON_ERROR), '_retention.verbose_payload_scrubbed'));
+        self::assertSame(3, (int) $row->row_version);
+    }
 }

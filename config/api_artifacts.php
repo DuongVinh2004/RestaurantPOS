@@ -173,6 +173,7 @@ return [
                 'name' => 'Health',
                 'signatures' => [
                     'GET api/v1/health',
+                    'GET api/v1/health/detailed',
                     'GET api/v1/health/redis',
                 ],
             ],

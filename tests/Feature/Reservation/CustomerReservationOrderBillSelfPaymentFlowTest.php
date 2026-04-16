@@ -111,9 +111,23 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
             'row_version' => (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version'),
             'provider_code' => 'simulated',
             'currency' => 'VND',
-        ])->assertCreated();
+        ])->assertCreated()
+            ->assertJsonPath('data.payment_session.provider_payload.mode', 'simulated');
 
         $sessionId = (int) $create->json('data.payment_session.bill_payment_session_id');
+        self::assertStringStartsWith(
+            'simulated://bill-payment/',
+            (string) $create->json('data.payment_session.provider_payload.payment_url')
+        );
+        self::assertNull(data_get($create->json(), 'data.payment_session.provider_payload._booking_request'));
+
+        $storedPayload = json_decode((string) DB::table('reservation_bill_payment_sessions')
+            ->where('bill_payment_session_id', $sessionId)
+            ->value('provider_payload_json'), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('simulated', (string) ($storedPayload['mode'] ?? ''));
+        self::assertNotSame('', (string) data_get($storedPayload, '_booking_request.fingerprint'));
+        self::assertNull(data_get($storedPayload, '_booking_request.idempotency_key'));
+        self::assertArrayNotHasKey('customer_user_id', $storedPayload);
 
         $this->actingAs($other)
             ->withHeaders(['Accept' => 'application/json'])
@@ -546,6 +560,81 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
                 ->where('payment_type', 'Final')
                 ->count()
         );
+    }
+
+    public function test_terminal_succeeded_bill_session_relinks_existing_payment_marker_without_duplicate(): void
+    {
+        [$customerId, , $reservationId] = $this->seedInServiceOrderScenario(lockBill: true);
+        $customer = User::query()->findOrFail($customerId);
+
+        $sessionId = (int) DB::table('reservation_bill_payment_sessions')->insertGetId([
+            'reservation_id' => $reservationId,
+            'order_id' => null,
+            'customer_user_id' => $customerId,
+            'linked_payment_id' => null,
+            'provider_code' => 'simulated',
+            'provider_session_code' => 'sim-bill-existing-payment-1',
+            'provider_payment_code' => 'sim-bill-pay-existing-payment-1',
+            'payment_method' => 'Online',
+            'amount' => '100000.00',
+            'currency' => 'VND',
+            'session_status' => 'Succeeded',
+            'settlement_status' => 'NotApplied',
+            'failure_code' => null,
+            'failure_message' => null,
+            'provider_payload_json' => json_encode(['payment_scope' => 'bill'], JSON_THROW_ON_ERROR),
+            'idempotency_key' => null,
+            'provider_expires_at' => null,
+            'last_reconciled_at' => now('UTC'),
+            'confirmed_at' => now('UTC'),
+            'failed_at' => null,
+            'cancelled_at' => null,
+            'expired_at' => null,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+            'created_by' => $customerId,
+            'updated_by' => $customerId,
+            'row_version' => 4,
+        ], 'bill_payment_session_id');
+
+        $paymentId = $this->createPayment([
+            'reservation_id' => $reservationId,
+            'payment_type' => 'Final',
+            'status' => 'Success',
+            'amount' => '100000.00',
+            'currency' => 'VND',
+            'payment_method' => 'Online',
+            'payment_provider' => 'simulated',
+            'transaction_code' => 'sim-bill-pay-existing-payment-1',
+            'idempotency_key' => 'customer-bill-session:'.$sessionId,
+            'provider_response_json' => [
+                'source' => 'customer_bill_payment_session',
+                'bill_payment_session_id' => $sessionId,
+                'provider_code' => 'simulated',
+                'provider_session_code' => 'sim-bill-existing-payment-1',
+                'provider_payment_code' => 'sim-bill-pay-existing-payment-1',
+            ],
+        ]);
+
+        $registry = Mockery::mock(CustomerBillPaymentProviderRegistry::class);
+        $registry->shouldReceive('resolve')->never();
+        $this->app->instance(CustomerBillPaymentProviderRegistry::class, $registry);
+
+        $confirm = $this->actingAs($customer)->withHeaders([
+            'Idempotency-Key' => 'cust-bill-existing-payment-confirm-1',
+            'Accept' => 'application/json',
+        ])->postJson('/api/v1/reservations/'.$reservationId.'/bill/payment-sessions/'.$sessionId.'/confirm', [
+            'row_version' => 4,
+            'simulation_outcome' => 'failed',
+        ]);
+
+        $confirm->assertOk()
+            ->assertJsonPath('data.payment_session.linked_payment_id', $paymentId)
+            ->assertJsonPath('data.payment_session.settlement_status', 'Applied')
+            ->assertJsonPath('data.bill.outstanding_amount', '0.00');
+
+        $this->assertSame(1, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Final')->count());
+        $this->assertSame($paymentId, (int) DB::table('reservation_bill_payment_sessions')->where('bill_payment_session_id', $sessionId)->value('linked_payment_id'));
     }
 
     public function test_pending_or_failed_confirmation_does_not_apply_real_final_payment(): void

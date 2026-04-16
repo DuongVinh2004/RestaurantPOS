@@ -11,6 +11,7 @@ use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
 use App\Modules\FloorOps\Application\Services\StaffBranchContextService;
 use App\Support\AuditEvent;
 use App\Support\Listing\SafeLike;
+use App\Support\Money;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -37,7 +38,7 @@ class StaffCashierShiftService
         $currency = $this->normalizeCurrency($currency);
         $terminalCode = $this->normalizeNullableString($terminalCode);
         $openingNote = $this->normalizeNullableString($openingNote) ?? '';
-        $openingFloatAmount = round(max(0.0, $openingFloatAmount), 2);
+        $openingFloatAmount = Money::toFloat($openingFloatAmount, true);
         $openedBy ??= $cashierUserId;
 
         return DB::transaction(function () use (
@@ -111,7 +112,7 @@ class StaffCashierShiftService
         ?int $closedBy = null,
         ?int $cashierUserId = null,
     ): CashierShift {
-        $actualCashAmount = round(max(0.0, $actualCashAmount), 2);
+        $actualCashAmount = Money::toFloat($actualCashAmount, true);
         $closingNote = $this->normalizeNullableString($closingNote) ?? '';
 
         return DB::transaction(function () use ($shiftId, $actualCashAmount, $expectedRowVersion, $closingNote, $closedBy, $cashierUserId): CashierShift {
@@ -126,8 +127,9 @@ class StaffCashierShiftService
 
             $closedAt = Carbon::now('UTC');
             $snapshot = $this->buildSnapshot($shift, $closedAt);
-            $expectedCashAmount = round((float) data_get($snapshot, 'cash.raw.expected_cash_amount', 0.0), 2);
-            $discrepancy = round($actualCashAmount - $expectedCashAmount, 2);
+            $expectedCashAmount = Money::toFloat(data_get($snapshot, 'cash.raw.expected_cash_amount', 0), true);
+            $discrepancyMinor = Money::minorUnits($actualCashAmount, true) - Money::minorUnits($expectedCashAmount, true);
+            $discrepancy = Money::minorToFloat($discrepancyMinor);
 
             $shift->status = 'Closed';
             $shift->closed_at = $closedAt;
@@ -301,7 +303,7 @@ class StaffCashierShiftService
         $paymentSummary = PaymentSummary::fromPayments($payments);
         $currencySummary = PaymentSummary::summarizeCurrencies($payments, (string) ($shift->currency ?? 'VND'));
         $methodSummary = $this->methodSummaries($payments, (string) ($shift->currency ?? 'VND'));
-        $cashSummary = $this->cashSummary($payments, (float) ($shift->opening_float_amount ?? 0.0), (string) ($shift->currency ?? 'VND'));
+        $cashSummary = $this->cashSummary($payments, $shift->opening_float_amount ?? 0, (string) ($shift->currency ?? 'VND'));
 
         return [
             'payment' => [
@@ -366,14 +368,14 @@ class StaffCashierShiftService
             $bucket = $buckets[$key] ?? [
                 'payment_method' => $method,
                 'currency' => $currency,
-                'captured_amount' => 0.0,
-                'refunded_amount' => 0.0,
+                'captured_amount_minor' => 0,
+                'refunded_amount_minor' => 0,
                 'payment_count' => 0,
                 'refund_count' => 0,
             ];
 
-            $amount = round(max(0.0, (float) ($payment->amount ?? 0.0)), 2);
-            if ($amount <= 0.0001) {
+            $amountMinor = Money::minorUnits($payment->amount ?? 0, true);
+            if ($amountMinor <= 0) {
                 $buckets[$key] = $bucket;
 
                 continue;
@@ -383,12 +385,12 @@ class StaffCashierShiftService
             $paymentType = (string) ($payment->payment_type ?? '');
 
             if (in_array($paymentType, ['Deposit', 'Final'], true) && PaymentSummary::isCapturedStatus($status)) {
-                $bucket['captured_amount'] += $amount;
+                $bucket['captured_amount_minor'] += $amountMinor;
                 $bucket['payment_count']++;
             }
 
             if ($paymentType === 'Refund' && PaymentSummary::isRefundedStatus($status)) {
-                $bucket['refunded_amount'] += $amount;
+                $bucket['refunded_amount_minor'] += $amountMinor;
                 $bucket['refund_count']++;
             }
 
@@ -397,14 +399,14 @@ class StaffCashierShiftService
 
         $rows = [];
         foreach ($buckets as $bucket) {
-            $captured = round((float) $bucket['captured_amount'], 2);
-            $refunded = round((float) $bucket['refunded_amount'], 2);
+            $capturedMinor = (int) $bucket['captured_amount_minor'];
+            $refundedMinor = (int) $bucket['refunded_amount_minor'];
             $rows[] = [
                 'payment_method' => $bucket['payment_method'],
                 'currency' => $bucket['currency'],
-                'captured_amount' => $this->money($captured),
-                'refunded_amount' => $this->money($refunded),
-                'net_amount' => $this->money($captured - $refunded),
+                'captured_amount' => Money::formatMinor($capturedMinor),
+                'refunded_amount' => Money::formatMinor($refundedMinor),
+                'net_amount' => Money::formatMinor($capturedMinor - $refundedMinor),
                 'payment_count' => (int) $bucket['payment_count'],
                 'refund_count' => (int) $bucket['refund_count'],
             ];
@@ -421,10 +423,10 @@ class StaffCashierShiftService
      * @param  Collection<int,Payment>  $payments
      * @return array<string,mixed>
      */
-    private function cashSummary(Collection $payments, float $openingFloatAmount, string $shiftCurrency): array
+    private function cashSummary(Collection $payments, float|int|string|null $openingFloatAmount, string $shiftCurrency): array
     {
-        $captured = 0.0;
-        $refunded = 0.0;
+        $capturedMinor = 0;
+        $refundedMinor = 0;
         $currencyMismatches = [];
 
         foreach ($payments as $payment) {
@@ -439,8 +441,8 @@ class StaffCashierShiftService
                 continue;
             }
 
-            $amount = round(max(0.0, (float) ($payment->amount ?? 0.0)), 2);
-            if ($amount <= 0.0001) {
+            $amountMinor = Money::minorUnits($payment->amount ?? 0, true);
+            if ($amountMinor <= 0) {
                 continue;
             }
 
@@ -448,36 +450,34 @@ class StaffCashierShiftService
             $paymentType = (string) ($payment->payment_type ?? '');
 
             if (in_array($paymentType, ['Deposit', 'Final'], true) && PaymentSummary::isCapturedStatus($status)) {
-                $captured += $amount;
+                $capturedMinor += $amountMinor;
 
                 continue;
             }
 
             if ($paymentType === 'Refund' && PaymentSummary::isRefundedStatus($status)) {
-                $refunded += $amount;
+                $refundedMinor += $amountMinor;
             }
         }
 
-        $openingFloatAmount = round(max(0.0, $openingFloatAmount), 2);
-        $captured = round($captured, 2);
-        $refunded = round($refunded, 2);
-        $expected = round($openingFloatAmount + $captured - $refunded, 2);
+        $openingFloatMinor = Money::minorUnits($openingFloatAmount, true);
+        $expectedMinor = $openingFloatMinor + $capturedMinor - $refundedMinor;
 
         return [
             'summary' => [
                 'currency' => $shiftCurrency,
-                'opening_float_amount' => $this->money($openingFloatAmount),
-                'captured_amount' => $this->money($captured),
-                'refunded_amount' => $this->money($refunded),
-                'expected_cash_amount' => $this->money($expected),
+                'opening_float_amount' => Money::formatMinor($openingFloatMinor),
+                'captured_amount' => Money::formatMinor($capturedMinor),
+                'refunded_amount' => Money::formatMinor($refundedMinor),
+                'expected_cash_amount' => Money::formatMinor($expectedMinor),
                 'excluded_cash_currencies' => array_values(array_keys($currencyMismatches)),
                 'has_excluded_cash_currencies' => $currencyMismatches !== [],
             ],
             'raw' => [
-                'opening_float_amount' => $openingFloatAmount,
-                'captured_amount' => $captured,
-                'refunded_amount' => $refunded,
-                'expected_cash_amount' => $expected,
+                'opening_float_amount' => Money::minorToFloat($openingFloatMinor),
+                'captured_amount' => Money::minorToFloat($capturedMinor),
+                'refunded_amount' => Money::minorToFloat($refundedMinor),
+                'expected_cash_amount' => Money::minorToFloat($expectedMinor),
             ],
         ];
     }
@@ -553,7 +553,7 @@ class StaffCashierShiftService
 
     private function money(float|int|string|null $value): string
     {
-        return number_format((float) ($value ?? 0.0), 2, '.', '');
+        return Money::format($value ?? 0, false);
     }
 
     private function moneyOrNull(float|int|string|null $value): ?string

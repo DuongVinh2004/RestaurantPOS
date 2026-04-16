@@ -64,6 +64,8 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
         $adminId = $this->createUser(['role_name' => 'Admin']);
         $firstTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'REN-01', 'zone' => 'Main']);
         $secondTableId = $this->createRestaurantTableWithSeats(6, ['table_code' => 'REN-02', 'zone' => 'Main']);
+        $firstBefore = (int) DB::table('restaurant_tables')->where('table_id', $firstTableId)->value('row_version');
+        $secondBefore = (int) DB::table('restaurant_tables')->where('table_id', $secondTableId)->value('row_version');
 
         $response = $this->withHeaders($this->staffHeaders($adminId, 'admin-zone-rename'))
             ->postJson('/api/v1/admin/restaurant/zones/rename', [
@@ -80,6 +82,8 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
 
         self::assertSame('VIP', DB::table('restaurant_tables')->where('table_id', $firstTableId)->value('zone'));
         self::assertSame('VIP', DB::table('restaurant_tables')->where('table_id', $secondTableId)->value('zone'));
+        self::assertGreaterThan($firstBefore, (int) DB::table('restaurant_tables')->where('table_id', $firstTableId)->value('row_version'));
+        self::assertGreaterThan($secondBefore, (int) DB::table('restaurant_tables')->where('table_id', $secondTableId)->value('row_version'));
     }
 
 

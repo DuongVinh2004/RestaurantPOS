@@ -13,6 +13,7 @@ use App\Modules\CheckoutPayments\Infrastructure\PaymentProviders\PaymentProvider
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use App\Modules\Ordering\Application\Services\StaffOrderReadService;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Collection;
 
@@ -103,7 +104,7 @@ class CustomerReservationOrderBillService
     {
         $computed = $this->reservationFinancialSyncService->computeReservationBillSnapshot(
             reservationId: (int) $reservation->reservation_id,
-            discountAmount: round(max(0.0, (float) ($reservation->discount_amount ?? 0.0)), 2),
+            discountAmount: Money::toFloat($reservation->discount_amount ?? 0, true),
             lockOrders: false,
         );
         $activeOrder = $this->staffOrderReadService->findActiveOrderForReservationModel($reservation, $computed);
@@ -199,19 +200,24 @@ class CustomerReservationOrderBillService
         $currencyMeta = PaymentSummary::summarizeCurrencies($payments, (string) ($computed['currency'] ?? $reservation->bill_currency ?? 'VND'));
 
         $snapshotMode = $reservation->billed_at !== null && $reservation->final_bill_amount !== null ? 'locked' : 'provisional';
-        $computedSubtotal = round(max(0.0, (float) ($computed['subtotal'] ?? 0.0)), 2);
-        $discountAmount = round(max(0.0, (float) ($computed['discount'] ?? $reservation->discount_amount ?? 0.0)), 2);
-        $computedTotalDue = round(max(0.0, (float) ($computed['total_due'] ?? 0.0)), 2);
+        $computedSubtotal = Money::toFloat($computed['subtotal'] ?? 0, true);
+        $discountAmount = Money::toFloat($computed['discount'] ?? $reservation->discount_amount ?? 0, true);
+        $computedTotalDue = Money::toFloat($computed['total_due'] ?? 0, true);
         $lockedTotalDue = $reservation->final_bill_amount !== null
-            ? round(max(0.0, (float) $reservation->final_bill_amount), 2)
+            ? Money::toFloat($reservation->final_bill_amount, true)
             : null;
         $effectiveTotalDue = $snapshotMode === 'locked' ? (float) $lockedTotalDue : $computedTotalDue;
+        $effectiveTotalDueMinor = Money::minorUnits($effectiveTotalDue, true);
         $settlement = $this->settlementAmountCalculator->buildSettlementAmounts($payments, $effectiveTotalDue);
-        $settledAmount = round((float) ($settlement['settled_amount'] ?? 0.0), 2);
-        $outstandingAmount = round((float) ($settlement['remaining_due'] ?? max(0.0, $effectiveTotalDue - $settledAmount)), 2);
-        $paymentStatus = $settledAmount + 0.0001 >= $effectiveTotalDue
+        $settledMinor = Money::minorUnits($settlement['settled_amount'] ?? 0, true);
+        $outstandingMinor = array_key_exists('remaining_due', $settlement)
+            ? Money::minorUnits($settlement['remaining_due'], true)
+            : max(0, $effectiveTotalDueMinor - $settledMinor);
+        $settledAmount = Money::minorToFloat($settledMinor);
+        $outstandingAmount = Money::minorToFloat($outstandingMinor);
+        $paymentStatus = $settledMinor >= $effectiveTotalDueMinor
             ? 'Success'
-            : ($settledAmount > 0.0001 ? 'Partial' : 'Failed');
+            : ($settledMinor > 0 ? 'Partial' : 'Failed');
 
         $reservationStatus = (string) ($reservation->status?->value ?? $reservation->status ?? '');
         $isActionableReservation = in_array($reservationStatus, ReservationStatus::activeDbValues(), true);
@@ -227,7 +233,7 @@ class CustomerReservationOrderBillService
             && $snapshotMode === 'locked'
             && $isActionableReservation
             && ! $hasMixedCurrencies
-            && $outstandingAmount > 0.0001;
+            && $outstandingMinor > 0;
         $selfPaymentDisabledReason = (bool) ($selfPaymentRollout['ok'] ?? false)
             ? ((bool) ($selfPaymentFeature['enabled'] ?? false) ? null : (string) ($selfPaymentFeature['message'] ?? ''))
             : (string) ($selfPaymentRollout['message'] ?? '');
@@ -236,29 +242,29 @@ class CustomerReservationOrderBillService
             'snapshot_mode' => $snapshotMode,
             'active_order_present' => $activeOrder instanceof ReservationOrder,
             'billed_at' => $reservation->billed_at?->utc()->toIso8601String(),
-            'computed_subtotal_amount' => number_format($computedSubtotal, 2, '.', ''),
-            'discount_amount' => number_format($discountAmount, 2, '.', ''),
-            'computed_total_due_amount' => number_format($computedTotalDue, 2, '.', ''),
-            'locked_total_due_amount' => $lockedTotalDue !== null ? number_format($lockedTotalDue, 2, '.', '') : null,
-            'total_due_amount' => number_format($effectiveTotalDue, 2, '.', ''),
-            'deposit_applied_amount' => number_format((float) ($settlement['deposit_applied_amount'] ?? 0.0), 2, '.', ''),
-            'deposit_net_amount' => number_format((float) ($settlement['deposit_net_amount'] ?? 0.0), 2, '.', ''),
-            'final_paid_amount' => number_format((float) ($settlement['final_paid_amount'] ?? 0.0), 2, '.', ''),
-            'settled_amount' => number_format($settledAmount, 2, '.', ''),
-            'outstanding_amount' => number_format($outstandingAmount, 2, '.', ''),
+            'computed_subtotal_amount' => Money::format($computedSubtotal, true),
+            'discount_amount' => Money::format($discountAmount, true),
+            'computed_total_due_amount' => Money::format($computedTotalDue, true),
+            'locked_total_due_amount' => $lockedTotalDue !== null ? Money::format($lockedTotalDue, true) : null,
+            'total_due_amount' => Money::format($effectiveTotalDue, true),
+            'deposit_applied_amount' => Money::format($settlement['deposit_applied_amount'] ?? 0, true),
+            'deposit_net_amount' => Money::format($settlement['deposit_net_amount'] ?? 0, true),
+            'final_paid_amount' => Money::format($settlement['final_paid_amount'] ?? 0, true),
+            'settled_amount' => Money::formatMinor($settledMinor),
+            'outstanding_amount' => Money::formatMinor($outstandingMinor),
             'currency' => (string) ($currencyMeta['currency'] ?? $computed['currency'] ?? $reservation->bill_currency ?? 'VND'),
             'payment_status' => $paymentStatus,
             'has_mixed_payment_currencies' => $hasMixedCurrencies,
             'payment_summary' => [
-                'deposit_captured' => number_format((float) ($paymentSummary['deposit_captured_amount'] ?? 0.0), 2, '.', ''),
-                'deposit_refunded' => number_format((float) ($paymentSummary['deposit_refunded_amount'] ?? 0.0), 2, '.', ''),
-                'deposit_net' => number_format((float) ($paymentSummary['deposit_net_amount'] ?? 0.0), 2, '.', ''),
-                'final_captured' => number_format((float) ($paymentSummary['final_captured_amount'] ?? 0.0), 2, '.', ''),
-                'final_refunded' => number_format((float) ($paymentSummary['final_refunded_amount'] ?? 0.0), 2, '.', ''),
-                'final_net' => number_format((float) ($paymentSummary['final_net_amount'] ?? 0.0), 2, '.', ''),
-                'captured_total' => number_format((float) ($paymentSummary['captured_amount'] ?? 0.0), 2, '.', ''),
-                'refunded_total' => number_format((float) ($paymentSummary['refunded_amount'] ?? 0.0), 2, '.', ''),
-                'net_paid_total' => number_format((float) ($paymentSummary['net_paid_amount'] ?? 0.0), 2, '.', ''),
+                'deposit_captured' => Money::format($paymentSummary['deposit_captured_amount'] ?? 0, true),
+                'deposit_refunded' => Money::format($paymentSummary['deposit_refunded_amount'] ?? 0, true),
+                'deposit_net' => Money::format($paymentSummary['deposit_net_amount'] ?? 0, true),
+                'final_captured' => Money::format($paymentSummary['final_captured_amount'] ?? 0, true),
+                'final_refunded' => Money::format($paymentSummary['final_refunded_amount'] ?? 0, true),
+                'final_net' => Money::format($paymentSummary['final_net_amount'] ?? 0, true),
+                'captured_total' => Money::format($paymentSummary['captured_amount'] ?? 0, true),
+                'refunded_total' => Money::format($paymentSummary['refunded_amount'] ?? 0, true),
+                'net_paid_total' => Money::format($paymentSummary['net_paid_amount'] ?? 0, true),
             ],
             'loyalty' => $this->loyaltyPointsService->getReservationLoyaltyPreview($reservation, $payments, $computed),
             'applied_voucher' => $reservation->appliedUserVoucher ? [
@@ -268,10 +274,10 @@ class CustomerReservationOrderBillService
                 'description' => $reservation->appliedUserVoucher->voucher?->description,
                 'discount_type' => $reservation->appliedUserVoucher->voucher?->discount_type?->value ?? (string) ($reservation->appliedUserVoucher->voucher?->discount_type ?? ''),
                 'discount_value' => $reservation->appliedUserVoucher->voucher?->discount_value !== null
-                    ? number_format((float) $reservation->appliedUserVoucher->voucher->discount_value, 2, '.', '')
+                    ? Money::format($reservation->appliedUserVoucher->voucher->discount_value, true)
                     : null,
                 'used_amount' => $reservation->appliedUserVoucher->used_amount !== null
-                    ? number_format((float) $reservation->appliedUserVoucher->used_amount, 2, '.', '')
+                    ? Money::format($reservation->appliedUserVoucher->used_amount, true)
                     : null,
             ] : null,
             'self_payment' => [
@@ -281,15 +287,15 @@ class CustomerReservationOrderBillService
                 'disabled_reason' => $selfPaymentSupported ? null : $selfPaymentDisabledReason,
                 'requires_locked_bill' => $snapshotMode !== 'locked',
                 'awaiting_staff_finalization' => $snapshotMode === 'locked'
-                    && $outstandingAmount <= 0.0001
-                    && (float) ($paymentSummary['final_net_amount'] ?? 0.0) > 0.0001,
+                    && $outstandingMinor <= 0
+                    && Money::minorUnits($paymentSummary['final_net_amount'] ?? 0, true) > 0,
                 'next_step' => $this->resolveNextStep(
                     selfPaymentSupported: $selfPaymentSupported,
                     isActionableReservation: $isActionableReservation,
                     snapshotMode: $snapshotMode,
                     hasMixedCurrencies: $hasMixedCurrencies,
                     outstandingAmount: $outstandingAmount,
-                    finalNetAmount: (float) ($paymentSummary['final_net_amount'] ?? 0.0),
+                    finalNetAmount: Money::toFloat($paymentSummary['final_net_amount'] ?? 0, true),
                 ),
             ],
         ];
@@ -311,7 +317,7 @@ class CustomerReservationOrderBillService
             return 'currency_reconciliation_required';
         }
 
-        if (! $selfPaymentSupported && $outstandingAmount > 0.0001) {
+        if (! $selfPaymentSupported && Money::minorUnits($outstandingAmount, true) > 0) {
             return 'staff_settlement_only';
         }
 
@@ -319,8 +325,8 @@ class CustomerReservationOrderBillService
             return 'awaiting_staff_bill_lock';
         }
 
-        if ($outstandingAmount <= 0.0001) {
-            return $finalNetAmount > 0.0001
+        if (Money::minorUnits($outstandingAmount, true) <= 0) {
+            return Money::minorUnits($finalNetAmount, true) > 0
                 ? 'payment_recorded_awaiting_staff_finalization'
                 : 'already_settled';
         }

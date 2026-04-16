@@ -103,7 +103,9 @@ class StaffApiKeyBootstrapCommandsTest extends TestCase
         $this->assertSame(0, $issueExitCode);
         $issued = $this->decodeArtisanOutput();
         $this->assertTrue($issued['ok']);
-        $this->assertStringStartsWith('spk_', (string) $issued['data']['plaintext_key']);
+        $this->assertNull($issued['data']['plaintext_key'] ?? null);
+        $this->assertFalse((bool) ($issued['data']['secret_revealed'] ?? true));
+        $this->assertStringStartsWith('spk_', (string) $issued['data']['plaintext_key_masked']);
 
         $firstKeyId = (int) $issued['data']['staff_api_key']['staff_api_key_id'];
         $firstKeyExpiry = (string) $issued['data']['staff_api_key']['expires_at_utc'];
@@ -124,7 +126,9 @@ class StaffApiKeyBootstrapCommandsTest extends TestCase
         ]);
         $this->assertSame(0, $rotateExitCode);
         $rotated = $this->decodeArtisanOutput();
-        $this->assertStringStartsWith('spk_', (string) $rotated['data']['plaintext_key']);
+        $this->assertNull($rotated['data']['plaintext_key'] ?? null);
+        $this->assertFalse((bool) ($rotated['data']['secret_revealed'] ?? true));
+        $this->assertStringStartsWith('spk_', (string) $rotated['data']['plaintext_key_masked']);
         $this->assertNotSame($firstKeyId, (int) $rotated['data']['replacement']['staff_api_key_id']);
         $this->assertSame($firstKeyExpiry, (string) $rotated['data']['replacement']['expires_at_utc']);
         $this->assertNotNull($rotated['data']['revoked']['revoked_at_utc']);
@@ -186,6 +190,45 @@ class StaffApiKeyBootstrapCommandsTest extends TestCase
             'Staff API keys can only be issued for configured staff/admin roles.',
             $payload['errors']['user_id'][0] ?? null
         );
+    }
+
+    #[Group('booking-ops')]
+    public function test_staff_api_key_console_bootstrap_reveals_plaintext_only_under_explicit_flag(): void
+    {
+        $staffUserId = $this->createUser('staff-secret-reveal', 2);
+
+        $issueExitCode = Artisan::call('staff-auth:api-keys:issue', [
+            'user_id' => $staffUserId,
+            'label' => 'Support terminal',
+            '--show-secret-once' => true,
+            '--json' => true,
+        ]);
+
+        $this->assertSame(0, $issueExitCode);
+
+        $issued = $this->decodeArtisanOutput();
+        $this->assertTrue($issued['ok']);
+        $this->assertTrue((bool) ($issued['data']['secret_revealed'] ?? false));
+        $this->assertStringStartsWith('spk_', (string) $issued['data']['plaintext_key']);
+        $this->assertStringStartsWith('spk_', (string) $issued['data']['plaintext_key_masked']);
+    }
+
+    #[Group('booking-ops')]
+    public function test_staff_api_key_console_text_output_masks_secret_by_default(): void
+    {
+        $staffUserId = $this->createUser('staff-text-output', 2);
+
+        $issueExitCode = Artisan::call('staff-auth:api-keys:issue', [
+            'user_id' => $staffUserId,
+            'label' => 'Back office terminal',
+        ]);
+
+        $this->assertSame(0, $issueExitCode);
+
+        $output = Artisan::output();
+        $this->assertStringContainsString('plaintext_key_masked', $output);
+        $this->assertStringContainsString('*', $output);
+        $this->assertDoesNotMatchRegularExpression('/\\|\\s*plaintext_key\\s*\\|/', $output);
     }
 
     private function createUser(string $username, int $roleId): int

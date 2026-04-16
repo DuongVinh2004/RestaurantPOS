@@ -6,6 +6,7 @@ namespace App\Modules\Conversations\Http\Controllers\Staff;
 
 use App\Http\Controllers\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
+use App\Modules\Conversations\Application\Services\StaffConversationFileAccessService;
 use App\Modules\Conversations\Application\Services\StaffConversationInboxService;
 use App\Modules\Conversations\Application\Services\StaffConversationWorkflowService;
 use App\Modules\Conversations\Http\Requests\Staff\AddConversationInternalNoteRequest;
@@ -33,6 +34,7 @@ class StaffConversationInboxController extends Controller
     public function __construct(
         private readonly StaffConversationInboxService $inboxService,
         private readonly StaffConversationWorkflowService $workflowService,
+        private readonly StaffConversationFileAccessService $fileAccessService,
     ) {}
 
     public function index(ListStaffConversationsRequest $request): JsonResponse
@@ -206,6 +208,22 @@ class StaffConversationInboxController extends Controller
         $result = $this->workflowService->sendOutboundReply($conversation_id, $request->validated(), $staffActorUserId);
 
         return $this->mutationResponse($request, $result, 201);
+    }
+
+    public function accessFile(string $conversation_id, int $file_id, Request $request)
+    {
+        $staffActorUserId = $this->resolveStaffActorUserId($request);
+        $downloadUrl = $this->fileAccessService->resolveFileDownloadUrl($conversation_id, $file_id, $staffActorUserId);
+
+        return redirect()->away($downloadUrl);
+    }
+
+    public function accessMessageAttachment(string $conversation_id, int $message_id, Request $request)
+    {
+        $staffActorUserId = $this->resolveStaffActorUserId($request);
+        $downloadUrl = $this->fileAccessService->resolveLegacyAttachmentDownloadUrl($conversation_id, $message_id, $staffActorUserId);
+
+        return redirect()->away($downloadUrl);
     }
 
     /**

@@ -24,6 +24,7 @@ use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateServic
 use App\Modules\FloorOps\Application\Services\StaffBranchContextService;
 use App\Modules\Reporting\Application\Services\StaffOperationalRealtimeService;
 use App\Support\DatabaseWriteConflictMapper;
+use App\Support\Money;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -66,6 +67,8 @@ class StaffCheckoutService
 
     private StaffCashierShiftService $cashierShiftService;
 
+    private FinanceReplayRecorder $financeReplayRecorder;
+
     public function __construct(
         ReservationLockService $locks,
         NotificationOutboxService $notificationOutboxService,
@@ -81,6 +84,7 @@ class StaffCheckoutService
         ?BranchContextService $branchContextService = null,
         ?StaffCashierShiftService $cashierShiftService = null,
         ?StaffBranchContextService $staffBranchContextService = null,
+        ?FinanceReplayRecorder $financeReplayRecorder = null,
     ) {
         $this->locks = $locks;
         $this->notificationOutboxService = $notificationOutboxService;
@@ -96,6 +100,7 @@ class StaffCheckoutService
         $this->branchContextService = $branchContextService ?? app(BranchContextService::class);
         $this->staffBranchContextService = $staffBranchContextService ?? app(StaffBranchContextService::class);
         $this->cashierShiftService = $cashierShiftService ?? app(StaffCashierShiftService::class);
+        $this->financeReplayRecorder = $financeReplayRecorder ?? app(FinanceReplayRecorder::class);
     }
 
     /**
@@ -117,6 +122,7 @@ class StaffCheckoutService
         string $idempotencyKey = ''
     ): array {
         $idempotencyKey = trim($idempotencyKey);
+        $financeReplayScope = FinanceReplayRecorder::SCOPE_STAFF_CHECKOUT;
         $settlementCompletedRealtimePayload = null;
         $requestFingerprint = $idempotencyKey !== ''
             ? $this->buildCheckoutRequestFingerprint(
@@ -130,8 +136,8 @@ class StaffCheckoutService
             )
             : null;
         if ($idempotencyKey !== '') {
-            $this->assertCheckoutReplayMatchesRequest($orderId, $idempotencyKey, $requestFingerprint ?? '');
-            $replayed = $this->findExistingCheckoutReplay($orderId, $idempotencyKey, $currency);
+            $this->assertCheckoutReplayMatchesRequest($orderId, $idempotencyKey, $requestFingerprint ?? '', $financeReplayScope);
+            $replayed = $this->findExistingCheckoutReplay($orderId, $idempotencyKey, $currency, $financeReplayScope);
             if ($replayed !== null) {
                 return $replayed;
             }
@@ -152,6 +158,7 @@ class StaffCheckoutService
             $staffUserId,
             $idempotencyKey,
             $requestFingerprint,
+            $financeReplayScope,
             &$settlementCompletedRealtimePayload,
         ) {
             return DB::transaction(function () use (
@@ -167,6 +174,7 @@ class StaffCheckoutService
                 $staffUserId,
                 $idempotencyKey,
                 $requestFingerprint,
+                $financeReplayScope,
                 &$settlementCompletedRealtimePayload,
             ) {
                 $lockedOrder = ReservationOrder::query()->where('order_id', $orderId)->lockForUpdate()->firstOrFail();
@@ -188,8 +196,8 @@ class StaffCheckoutService
                     || $orderType !== ReservationOrderType::OnSpot->value
                 ) {
                     if ($idempotencyKey !== '') {
-                        $this->assertCheckoutReplayMatchesRequest($orderId, $idempotencyKey, $requestFingerprint ?? '');
-                        $replayed = $this->findExistingCheckoutReplay($orderId, $idempotencyKey, $currency);
+                        $this->assertCheckoutReplayMatchesRequest($orderId, $idempotencyKey, $requestFingerprint ?? '', $financeReplayScope);
+                        $replayed = $this->findExistingCheckoutReplay($orderId, $idempotencyKey, $currency, $financeReplayScope);
                         if ($replayed !== null) {
                             return $replayed;
                         }
@@ -220,6 +228,13 @@ class StaffCheckoutService
                     paymentProvider: $paymentProvider,
                     notes: $notes,
                     staffUserId: $staffUserId,
+                    idempotencyKey: $idempotencyKey,
+                    requestFingerprint: $requestFingerprint,
+                );
+
+                $this->recordCheckoutFinanceReplay(
+                    scope: $financeReplayScope,
+                    orderId: $orderId,
                     idempotencyKey: $idempotencyKey,
                     requestFingerprint: $requestFingerprint,
                 );
@@ -328,9 +343,9 @@ class StaffCheckoutService
             cancelAfterPayment: $resolvedCancelAfterPayment,
         );
 
-        $plannedFinalRefund = round((float) ($refundPlan['final'] ?? 0.0), 2);
-        $finalNetAfter = max(0.0, round((float) ($summary['final_net_amount'] ?? 0.0) - $plannedFinalRefund, 2));
-        if ($resolvedCancelAfterPayment && $finalNetAfter > 0.0001) {
+        $plannedFinalRefundMinor = Money::minorUnits($refundPlan['final'] ?? 0, true);
+        $finalNetAfterMinor = max(0, Money::minorUnits($summary['final_net_amount'] ?? 0, true) - $plannedFinalRefundMinor);
+        if ($resolvedCancelAfterPayment && $finalNetAfterMinor > 0) {
             throw ValidationException::withMessages([
                 'refund_amount' => 'cancel-after-payment requires all remaining final payments to be refunded first.',
             ]);
@@ -340,7 +355,7 @@ class StaffCheckoutService
             reservation: $reservation,
             summary: $summary,
             refundPaymentIds: [],
-            refundAmountThisCall: round((float) ($refundPlan['total'] ?? 0.0), 2),
+            refundAmountThisCall: Money::toFloat($refundPlan['total'] ?? 0, true),
             refundScope: strtolower(trim($refundScope)),
             cancelled: $resolvedCancelAfterPayment,
             currency: $effectivePaymentCurrency,
@@ -361,6 +376,7 @@ class StaffCheckoutService
         bool $useTransaction = true
     ): ReservationOrder {
         $idempotencyKey = trim($idempotencyKey);
+        $financeReplayScope = FinanceReplayRecorder::SCOPE_STAFF_PAY_ORDER;
         $settlementCompletedRealtimePayload = null;
         $requestFingerprint = $idempotencyKey !== ''
             ? $this->buildCheckoutRequestFingerprint(
@@ -374,7 +390,7 @@ class StaffCheckoutService
             )
             : null;
         if ($idempotencyKey !== '') {
-            $this->assertCheckoutReplayMatchesRequest($orderId, $idempotencyKey, $requestFingerprint ?? '');
+            $this->assertCheckoutReplayMatchesRequest($orderId, $idempotencyKey, $requestFingerprint ?? '', $financeReplayScope);
             $hit = $this->paymentReplayCacheGet($orderId, $idempotencyKey);
             if (is_numeric($hit)) {
                 $existing = $this->findSettlementReadOrder((int) $hit);
@@ -386,6 +402,11 @@ class StaffCheckoutService
             $replayed = $this->findExistingOrderPaymentReplay($orderId, $idempotencyKey);
             if ($replayed !== null) {
                 return $replayed;
+            }
+
+            $financeReplayed = $this->findExistingOrderFinanceReplay($orderId, $idempotencyKey, $financeReplayScope);
+            if ($financeReplayed instanceof ReservationOrder) {
+                return $financeReplayed;
             }
         }
 
@@ -403,6 +424,7 @@ class StaffCheckoutService
             $staffUserId,
             $idempotencyKey,
             $requestFingerprint,
+            $financeReplayScope,
             &$settlementCompletedRealtimePayload,
         ) {
             return $this->payOrderLocked(
@@ -416,6 +438,7 @@ class StaffCheckoutService
                 $staffUserId,
                 $idempotencyKey,
                 $requestFingerprint,
+                $financeReplayScope,
                 $settlementCompletedRealtimePayload,
                 true,
                 $expectedRowVersion
@@ -554,12 +577,14 @@ class StaffCheckoutService
     private function prepareCheckoutBillStateLocked(Reservation $reservation, ?float $discountAmount = null, ?int $staffUserId = null): void
     {
         $reservationId = (int) $reservation->reservation_id;
-        $loyaltyDiscount = max(0.0, round($this->currentLoyaltyDiscountAmount($reservationId), 2));
-        $voucherDiscount = max(0.0, round($this->currentVoucherDiscountAmount($reservationId, true), 2));
-        $currentNonLoyaltyDiscount = max(0.0, round((float) ($reservation->discount_amount ?? 0.0) - $loyaltyDiscount, 2));
-        $requestedNonLoyaltyDiscount = $discountAmount !== null ? max(0.0, round($discountAmount, 2)) : $currentNonLoyaltyDiscount;
-        $effectiveNonLoyaltyDiscount = max($requestedNonLoyaltyDiscount, $voucherDiscount);
-        $effectiveDiscount = round($effectiveNonLoyaltyDiscount + $loyaltyDiscount, 2);
+        $loyaltyDiscountMinor = Money::minorUnits($this->currentLoyaltyDiscountAmount($reservationId), true);
+        $voucherDiscountMinor = Money::minorUnits($this->currentVoucherDiscountAmount($reservationId, true), true);
+        $currentNonLoyaltyDiscountMinor = max(0, Money::minorUnits($reservation->discount_amount ?? 0, true) - $loyaltyDiscountMinor);
+        $requestedNonLoyaltyDiscountMinor = $discountAmount !== null
+            ? Money::minorUnits($discountAmount, true)
+            : $currentNonLoyaltyDiscountMinor;
+        $effectiveNonLoyaltyDiscountMinor = max($requestedNonLoyaltyDiscountMinor, $voucherDiscountMinor);
+        $effectiveDiscount = Money::minorToFloat($effectiveNonLoyaltyDiscountMinor + $loyaltyDiscountMinor);
         [$subtotal, $discount, $totalDue, $currencyCode] = $this->computeReservationBillSnapshot($reservationId, $effectiveDiscount);
 
         $reservation->discount_amount = $discount;
@@ -580,6 +605,7 @@ class StaffCheckoutService
         ?int $staffUserId = null,
         string $idempotencyKey = '',
         ?string $requestFingerprint = null,
+        string $financeReplayScope = FinanceReplayRecorder::SCOPE_STAFF_PAY_ORDER,
         ?array &$settlementCompletedRealtimePayload = null,
         bool $useTransaction = true,
         ?int $expectedRowVersion = null
@@ -589,7 +615,7 @@ class StaffCheckoutService
             throw ValidationException::withMessages(['payment_method' => 'payment_method is required']);
         }
 
-        $runner = function () use ($orderId, $paymentMethod, $paidAmount, $currency, $transactionCode, $paymentProvider, $notes, $staffUserId, $idempotencyKey, $requestFingerprint, $expectedRowVersion, &$settlementCompletedRealtimePayload) {
+        $runner = function () use ($orderId, $paymentMethod, $paidAmount, $currency, $transactionCode, $paymentProvider, $notes, $staffUserId, $idempotencyKey, $requestFingerprint, $financeReplayScope, $expectedRowVersion, &$settlementCompletedRealtimePayload) {
             /** @var ReservationOrder $order */
             $order = ReservationOrder::query()->where('order_id', $orderId)->lockForUpdate()->firstOrFail();
             $this->assertExpectedOrderRowVersion($order, $expectedRowVersion);
@@ -598,7 +624,7 @@ class StaffCheckoutService
             $branchId = $this->ensureReservationBranchScopeLocked($reservation, $staffUserId);
             $this->assertOpenCashierShiftForBranch($staffUserId, $branchId);
 
-            return $this->paymentCaptureService->executeLocked(
+            $settlementOrder = $this->paymentCaptureService->executeLocked(
                 order: $order,
                 reservation: $reservation,
                 computeReservationBillSnapshot: fn (int $reservationId, float $discountAmount): array => $this->computeReservationBillSnapshot($reservationId, $discountAmount),
@@ -624,6 +650,15 @@ class StaffCheckoutService
                 idempotencyKey: $idempotencyKey,
                 requestFingerprint: $requestFingerprint,
             );
+
+            $this->recordCheckoutFinanceReplay(
+                scope: $financeReplayScope,
+                orderId: $orderId,
+                idempotencyKey: $idempotencyKey,
+                requestFingerprint: $requestFingerprint,
+            );
+
+            return $settlementOrder;
         };
 
         return $useTransaction ? DB::transaction($runner) : $runner();
@@ -829,7 +864,7 @@ class StaffCheckoutService
         } elseif (($result['refund_payment_ids'] ?? []) !== []) {
             $this->notificationOutboxService->enqueuePaymentRefunded($freshReservation, [
                 'refund_payment_ids' => $result['refund_payment_ids'],
-                'refund_amount' => (float) ($result['refund_amount_this_call'] ?? 0.0),
+                'refund_amount' => Money::toFloat($result['refund_amount_this_call'] ?? 0, true),
                 'refund_scope' => $normalizedScope,
                 'currency' => (string) ($result['currency'] ?? $baseCurrency),
             ]);
@@ -839,7 +874,7 @@ class StaffCheckoutService
             reservation: $freshReservation,
             summary: (array) ($result['summary'] ?? []),
             refundPaymentIds: (array) ($result['refund_payment_ids'] ?? []),
-            refundAmountThisCall: (float) ($result['refund_amount_this_call'] ?? 0.0),
+            refundAmountThisCall: Money::toFloat($result['refund_amount_this_call'] ?? 0, true),
             refundScope: $normalizedScope,
             cancelled: $cancelAfterPayment,
             currency: (string) ($result['currency'] ?? $baseCurrency)
@@ -1137,17 +1172,18 @@ class StaffCheckoutService
 
         $this->assertPaymentsSingleCurrency($payments, null, 'currency');
         $summary = PaymentSummary::fromPayments($payments);
-        $depositNet = round(max(0.0, (float) ($summary['deposit_net_amount'] ?? 0.0)), 2);
-        $finalPaid = round(max(0.0, (float) ($summary['final_net_amount'] ?? 0.0)), 2);
-        $depositApplied = round(min(max(0.0, $totalDue), $depositNet), 2);
-        $settled = round(min(max(0.0, $totalDue), $depositApplied + $finalPaid), 2);
+        $totalDueMinor = Money::minorUnits($totalDue, true);
+        $depositNetMinor = Money::minorUnits($summary['deposit_net_amount'] ?? 0, true);
+        $finalPaidMinor = Money::minorUnits($summary['final_net_amount'] ?? 0, true);
+        $depositAppliedMinor = min($totalDueMinor, $depositNetMinor);
+        $settledMinor = min($totalDueMinor, $depositAppliedMinor + $finalPaidMinor);
 
         return [
-            'deposit_net_amount' => $depositNet,
-            'deposit_applied_amount' => $depositApplied,
-            'final_paid_amount' => $finalPaid,
-            'settled_amount' => $settled,
-            'remaining_due' => round(max(0.0, $totalDue - $settled), 2),
+            'deposit_net_amount' => Money::minorToFloat($depositNetMinor),
+            'deposit_applied_amount' => Money::minorToFloat($depositAppliedMinor),
+            'final_paid_amount' => Money::minorToFloat($finalPaidMinor),
+            'settled_amount' => Money::minorToFloat($settledMinor),
+            'remaining_due' => Money::minorToFloat(max(0, $totalDueMinor - $settledMinor)),
         ];
     }
 
@@ -1169,22 +1205,22 @@ class StaffCheckoutService
             ? $reservation->payments
             : null;
         $settlement = $this->buildSettlementAmounts($payments, (float) $totalDue, $payments === null ? $reservationId : null);
-        $paid = (float) ($settlement['settled_amount'] ?? 0.0);
-        $depositApplied = (float) ($settlement['deposit_applied_amount'] ?? 0.0);
-        $depositNet = (float) ($settlement['deposit_net_amount'] ?? 0.0);
-        $finalPaid = (float) ($settlement['final_paid_amount'] ?? 0.0);
-        $outstanding = (float) ($settlement['remaining_due'] ?? max(0.0, (float) $totalDue - $paid));
+        $paidMinor = Money::minorUnits($settlement['settled_amount'] ?? 0, true);
+        $totalDueMinor = Money::minorUnits($totalDue, true);
+        $outstandingMinor = array_key_exists('remaining_due', $settlement)
+            ? Money::minorUnits($settlement['remaining_due'], true)
+            : max(0, $totalDueMinor - $paidMinor);
 
-        $order->setAttribute('subtotal_amount', round($subtotal, 2));
-        $order->setAttribute('discount_amount', round($discount, 2));
-        $order->setAttribute('total_due_amount', round($totalDue, 2));
-        $order->setAttribute('paid_amount', round($paid, 2));
-        $order->setAttribute('deposit_applied_amount', round($depositApplied, 2));
-        $order->setAttribute('deposit_net_amount', round($depositNet, 2));
-        $order->setAttribute('final_paid_amount', round($finalPaid, 2));
-        $order->setAttribute('outstanding_amount', round($outstanding, 2));
+        $order->setAttribute('subtotal_amount', Money::toFloat($subtotal, true));
+        $order->setAttribute('discount_amount', Money::toFloat($discount, true));
+        $order->setAttribute('total_due_amount', Money::toFloat($totalDue, true));
+        $order->setAttribute('paid_amount', Money::minorToFloat($paidMinor));
+        $order->setAttribute('deposit_applied_amount', Money::toFloat($settlement['deposit_applied_amount'] ?? 0, true));
+        $order->setAttribute('deposit_net_amount', Money::toFloat($settlement['deposit_net_amount'] ?? 0, true));
+        $order->setAttribute('final_paid_amount', Money::toFloat($settlement['final_paid_amount'] ?? 0, true));
+        $order->setAttribute('outstanding_amount', Money::minorToFloat($outstandingMinor));
         $order->setAttribute('currency', $currency ?: 'VND');
-        $order->setAttribute('payment_status', $paid + 0.0001 >= $totalDue ? PaymentStatus::Success->value : ($paid > 0 ? PaymentStatus::Partial->value : PaymentStatus::Failed->value));
+        $order->setAttribute('payment_status', $paidMinor >= $totalDueMinor ? PaymentStatus::Success->value : ($paidMinor > 0 ? PaymentStatus::Partial->value : PaymentStatus::Failed->value));
 
         return $order;
     }
@@ -1313,14 +1349,18 @@ class StaffCheckoutService
                 continue;
             }
 
-            ReservationOrderItem::query()
+            $items = ReservationOrderItem::query()
                 ->where('order_id', $order->order_id)
                 ->whereNotIn('status', ['Cancelled', 'Served'])
-                ->update([
-                    'status' => 'Cancelled',
-                    'updated_by' => $actorUserId,
-                    'updated_at' => $now,
-                ]);
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($items as $item) {
+                $item->status = 'Cancelled';
+                $item->updated_by = $actorUserId;
+                $item->updated_at = $now;
+                $item->save();
+            }
 
             $order->status = ReservationOrderStatus::Cancelled;
             $order->updated_by = $actorUserId;
@@ -1409,7 +1449,7 @@ class StaffCheckoutService
         }
 
         $usedAmount = $userVoucher->voucher
-            ? round((float) (VoucherRedemptionSupport::calculateDiscount($userVoucher->voucher, $orders)['discount_amount'] ?? 0.0), 2)
+            ? Money::toFloat(VoucherRedemptionSupport::calculateDiscount($userVoucher->voucher, $orders)['discount_amount'] ?? 0, true)
             : 0.0;
 
         $userVoucher->is_used = true;
@@ -1456,7 +1496,7 @@ class StaffCheckoutService
 
         $orders = $ordersQuery->get();
 
-        return round((float) (VoucherRedemptionSupport::calculateDiscount($reservation->appliedUserVoucher->voucher, $orders)['discount_amount'] ?? 0.0), 2);
+        return Money::toFloat(VoucherRedemptionSupport::calculateDiscount($reservation->appliedUserVoucher->voucher, $orders)['discount_amount'] ?? 0, true);
     }
 
     private function currentLoyaltyDiscountAmount(int $reservationId): float
@@ -1475,23 +1515,23 @@ class StaffCheckoutService
             ->orderBy('txn_id')
             ->get(['txn_type', 'amount_basis']);
 
-        $amount = 0.0;
+        $amountMinor = 0;
         foreach ($transactions as $tx) {
-            $basis = round(max(0.0, (float) ($tx->amount_basis ?? 0.0)), 2);
-            if ($basis <= 0.0001) {
+            $basisMinor = Money::minorUnits($tx->amount_basis ?? 0, true);
+            if ($basisMinor <= 0) {
                 continue;
             }
 
             if ((string) ($tx->txn_type ?? '') === 'Redeem') {
-                $amount += $basis;
+                $amountMinor += $basisMinor;
 
                 continue;
             }
 
-            $amount -= $basis;
+            $amountMinor -= $basisMinor;
         }
 
-        return round(max(0.0, $amount), 2);
+        return Money::minorToFloat(max(0, $amountMinor));
     }
 
     private function paymentReplayCacheKey(int $orderId, string $idempotencyKey): string
@@ -1540,9 +1580,14 @@ class StaffCheckoutService
     /**
      * @return array<string,mixed>|null
      */
-    private function findExistingCheckoutReplay(int $orderId, string $idempotencyKey, string $fallbackCurrency = 'VND'): ?array
-    {
-        $order = $this->findExistingOrderPaymentReplay($orderId, $idempotencyKey);
+    private function findExistingCheckoutReplay(
+        int $orderId,
+        string $idempotencyKey,
+        string $fallbackCurrency = 'VND',
+        string $financeReplayScope = FinanceReplayRecorder::SCOPE_STAFF_PAY_ORDER
+    ): ?array {
+        $order = $this->findExistingOrderPaymentReplay($orderId, $idempotencyKey)
+            ?? $this->findExistingOrderFinanceReplay($orderId, $idempotencyKey, $financeReplayScope);
         if (! $order) {
             return null;
         }
@@ -1583,6 +1628,47 @@ class StaffCheckoutService
             : null;
     }
 
+    private function findExistingOrderFinanceReplay(int $orderId, string $idempotencyKey, string $financeReplayScope): ?ReservationOrder
+    {
+        $record = $this->financeReplayRecorder->find(
+            scope: $financeReplayScope,
+            aggregateType: 'reservation_order',
+            aggregateId: $orderId,
+            idempotencyKey: $idempotencyKey,
+        );
+
+        if ($record === null || (string) ($record->result_type ?? '') !== 'reservation_order') {
+            return null;
+        }
+
+        $resultOrderId = (int) ($record->result_id ?? 0);
+        if ($resultOrderId <= 0) {
+            return null;
+        }
+
+        $hydrated = $this->findSettlementReadOrder($resultOrderId);
+
+        return $hydrated instanceof ReservationOrder
+            ? $this->attachTotals($hydrated)
+            : null;
+    }
+
+    private function recordCheckoutFinanceReplay(string $scope, int $orderId, string $idempotencyKey, ?string $requestFingerprint): void
+    {
+        $this->financeReplayRecorder->recordSuccess(
+            scope: $scope,
+            aggregateType: 'reservation_order',
+            aggregateId: $orderId,
+            idempotencyKey: $idempotencyKey,
+            requestFingerprint: $requestFingerprint,
+            resultType: 'reservation_order',
+            resultId: $orderId,
+            context: [
+                'order_id' => $orderId,
+            ],
+        );
+    }
+
     private function buildCheckoutRequestFingerprint(
         string $paymentMethod,
         float $paidAmount,
@@ -1594,22 +1680,38 @@ class StaffCheckoutService
     ): string {
         $payload = [
             'payment_method' => trim($paymentMethod),
-            'paid_amount' => round(max(0.0, $paidAmount), 2),
+            'paid_amount' => Money::toFloat($paidAmount, true),
             'currency' => trim($currency) !== '' ? trim($currency) : 'VND',
             'transaction_code' => trim($transactionCode),
             'payment_provider' => trim($paymentProvider) !== '' ? trim($paymentProvider) : 'Other',
             'notes' => trim($notes),
-            'discount_amount' => $discountAmount !== null ? round(max(0.0, $discountAmount), 2) : null,
+            'discount_amount' => $discountAmount !== null ? Money::toFloat($discountAmount, true) : null,
         ];
 
         return sha1((string) json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
-    private function assertCheckoutReplayMatchesRequest(int $orderId, string $idempotencyKey, string $requestFingerprint): void
+    private function assertCheckoutReplayMatchesRequest(
+        int $orderId,
+        string $idempotencyKey,
+        string $requestFingerprint,
+        ?string $financeReplayScope = null
+    ): void
     {
         $idempotencyKey = trim($idempotencyKey);
         if ($idempotencyKey === '') {
             return;
+        }
+
+        if ($financeReplayScope !== null) {
+            $this->financeReplayRecorder->assertReplayMatches(
+                scope: $financeReplayScope,
+                aggregateType: 'reservation_order',
+                aggregateId: $orderId,
+                idempotencyKey: $idempotencyKey,
+                requestFingerprint: $requestFingerprint,
+                message: 'This idempotency key is already bound to a different payment request payload.',
+            );
         }
 
         /** @var ReservationOrder|null $order */
@@ -1681,7 +1783,7 @@ class StaffCheckoutService
             reservation: $reservation,
             summary: $summary,
             refundPaymentIds: $refundPayments->pluck('payment_id')->map(fn ($id) => (int) $id)->all(),
-            refundAmountThisCall: round((float) $refundPayments->sum(fn (Payment $payment) => (float) ($payment->amount ?? 0.0)), 2),
+            refundAmountThisCall: Money::minorToFloat(Money::sumMinor($refundPayments, fn (Payment $payment): mixed => $payment->amount ?? 0, true)),
             refundScope: (string) ($firstMeta['requested_refund_scope'] ?? 'all'),
             cancelled: (bool) ($firstMeta['cancel_after_payment'] ?? false),
             currency: (string) ($firstRefund?->currency ?? $reservation->bill_currency ?? 'VND')
@@ -1703,7 +1805,7 @@ class StaffCheckoutService
         $payload = [
             'payment_method' => trim($paymentMethod),
             'refund_scope' => strtolower(trim($refundScope)),
-            'refund_amount' => $refundAmount !== null ? round(max(0.0, $refundAmount), 2) : null,
+            'refund_amount' => $refundAmount !== null ? Money::toFloat($refundAmount, true) : null,
             'currency' => trim($currency) !== '' ? trim($currency) : 'VND',
             'transaction_code' => trim($transactionCode),
             'payment_provider' => trim($paymentProvider) !== '' ? trim($paymentProvider) : 'Other',

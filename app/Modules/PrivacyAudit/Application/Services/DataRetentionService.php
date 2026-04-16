@@ -24,11 +24,12 @@ class DataRetentionService
                 $this->pruneUserAuthTokens($dryRun),
                 $this->pruneNotificationArtifacts($dryRun),
                 $this->pruneConversationDerivedArtifacts($dryRun),
+                $this->scrubPaymentWebhookReceipts($dryRun),
             ],
             'retained_only' => [
                 ['table' => 'audit_logs', 'reason' => 'audit and operational investigation retention'],
                 ['table' => 'payments', 'reason' => 'financial reconciliation integrity'],
-                ['table' => 'payment_provider_webhook_receipts', 'reason' => 'payment provider audit and dispute support'],
+                ['table' => 'payment_provider_webhook_receipts', 'reason' => 'payment provider audit and dispute support with verbose payload fields scrubbed after retention'],
             ],
         ];
 
@@ -150,6 +151,54 @@ class DataRetentionService
         }
 
         return ['table' => 'conversation_artifacts', 'action' => 'delete_derived_rows', 'analysis_cutoff_utc' => $analysisCutoff->toIso8601String(), 'entity_cutoff_utc' => $entityCutoff->toIso8601String(), 'eligible_analysis_count' => $analysisCount, 'deleted_analysis_count' => $dryRun ? 0 : $analysisCount, 'eligible_message_entity_count' => $entityCount, 'deleted_message_entity_count' => $dryRun ? 0 : $entityCount];
+    }
+
+    private function scrubPaymentWebhookReceipts(bool $dryRun): array
+    {
+        if (! Schema::hasTable('payment_provider_webhook_receipts')) {
+            return $this->skipped('payment_provider_webhook_receipts');
+        }
+
+        $cutoff = now('UTC')->subDays(max(1, (int) config('data_lifecycle.retention.payment_webhook_receipts_days', 365)));
+        $query = DB::table('payment_provider_webhook_receipts')
+            ->where(function ($q) use ($cutoff): void {
+                $q->whereNotNull('processed_at')->where('processed_at', '<', $cutoff)
+                    ->orWhere(function ($x) use ($cutoff): void {
+                        $x->whereNull('processed_at')->where('created_at', '<', $cutoff);
+                    });
+            })
+            ->where(function ($q): void {
+                $q->whereNotNull('request_signature')
+                    ->orWhereNotNull('request_headers_json')
+                    ->orWhereNotNull('request_body')
+                    ->orWhereNotNull('provider_payload_json');
+            });
+
+        $eligible = (int) $query->count();
+
+        if (! $dryRun && $eligible > 0) {
+            $query->update([
+                'request_signature' => null,
+                'request_headers_json' => null,
+                'request_body' => null,
+                'provider_payload_json' => json_encode([
+                    '_retention' => [
+                        'verbose_payload_scrubbed' => true,
+                        'applied_at' => now('UTC')->toIso8601String(),
+                    ],
+                ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+                'updated_at' => now('UTC'),
+                'row_version' => DB::raw('COALESCE(row_version, 1) + 1'),
+            ]);
+        }
+
+        return [
+            'table' => 'payment_provider_webhook_receipts',
+            'action' => 'scrub_verbose_fields',
+            'cutoff_utc' => $cutoff->toIso8601String(),
+            'eligible_count' => $eligible,
+            'scrubbed_count' => $dryRun ? 0 : $eligible,
+        ];
     }
 
     /**

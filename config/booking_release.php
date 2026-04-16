@@ -44,6 +44,8 @@ $canonicalReleaseContractFragments = [
     'CREATE TABLE `customer_privacy_requests` (',
     '`privacy_anonymized_at` datetime(6) DEFAULT NULL,',
     'CREATE TABLE `feature_flags` (',
+    'CREATE TABLE `finance_replay_records` (',
+    'uq_finance_replay_records__scope_aggregate_key',
 ];
 
 return [
@@ -256,6 +258,7 @@ return [
         '2026_04_11_000049_reservation_guest_snapshot_support.sql',
         '2026_04_12_000050_staff_conversation_workflow_hardening.sql',
         '2026_04_13_000051_inventory_stock_movement_reference_uniqueness.sql',
+        '2026_04_15_000052_finance_replay_records.sql',
     ],
     'release_manifest' => [
         'definition_path' => 'config/booking_release.php',

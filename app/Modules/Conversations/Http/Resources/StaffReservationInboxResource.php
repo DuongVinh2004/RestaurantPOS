@@ -62,11 +62,11 @@ class StaffReservationInboxResource extends JsonResource
                     'description' => $voucher->description,
                 ] : null,
                 'payment_summary' => $paymentSummary ? [
-                    'captured_total' => number_format((float) ($paymentSummary['captured_amount'] ?? 0.0), 2, '.', ''),
-                    'refunded_total' => number_format((float) ($paymentSummary['refunded_amount'] ?? 0.0), 2, '.', ''),
-                    'net_paid_total' => number_format((float) ($paymentSummary['net_paid_amount'] ?? 0.0), 2, '.', ''),
-                    'deposit_net' => number_format((float) ($paymentSummary['deposit_net_amount'] ?? 0.0), 2, '.', ''),
-                    'final_net' => number_format((float) ($paymentSummary['final_net_amount'] ?? 0.0), 2, '.', ''),
+                    'captured_total' => \App\Support\Money::format($paymentSummary['captured_amount'] ?? 0, true),
+                    'refunded_total' => \App\Support\Money::format($paymentSummary['refunded_amount'] ?? 0, true),
+                    'net_paid_total' => \App\Support\Money::format($paymentSummary['net_paid_amount'] ?? 0, true),
+                    'deposit_net' => \App\Support\Money::format($paymentSummary['deposit_net_amount'] ?? 0, true),
+                    'final_net' => \App\Support\Money::format($paymentSummary['final_net_amount'] ?? 0, true),
                 ] : null,
             ];
         }

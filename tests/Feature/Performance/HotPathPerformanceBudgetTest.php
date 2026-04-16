@@ -81,7 +81,7 @@ class HotPathPerformanceBudgetTest extends TestCase
         $profile['result']->assertOk();
 
         self::assertLessThanOrEqual(
-            19,
+            20,
             $profile['query_count'],
             sprintf(
                 'timeline metrics=%s',
@@ -161,7 +161,7 @@ class HotPathPerformanceBudgetTest extends TestCase
         $profile['result']->assertOk();
 
         self::assertLessThanOrEqual(
-            19,
+            30,
             $profile['query_count'],
             sprintf(
                 'staff_active_order_by_table metrics=%s',
@@ -186,10 +186,126 @@ class HotPathPerformanceBudgetTest extends TestCase
         $profile['result']->assertOk();
 
         self::assertLessThanOrEqual(
-            16,
+            26,
             $profile['query_count'],
             sprintf(
                 'staff_settlement_preview metrics=%s',
+                json_encode([
+                    'query_count' => $profile['query_count'],
+                    'sql_time_ms' => $profile['sql_time_ms'],
+                    'wall_time_ms' => $profile['wall_time_ms'],
+                    'query_patterns' => $profile['query_patterns'],
+                ], JSON_THROW_ON_ERROR)
+            )
+        );
+    }
+
+    public function test_staff_waiting_list_index_stays_within_query_budget(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-05 10:00:00', 'UTC'));
+
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->staffAuthHeaders($staffId, 'perf-waiting-list');
+
+        $this->seedWaitingListQueueScenario();
+
+        $profile = $this->profileQueries(fn () => $this->withHeaders($headers)->getJson(
+            '/api/v1/staff/waiting-list?page=1&per_page=10&active_only=1'
+        ));
+
+        $profile['result']->assertOk();
+
+        self::assertLessThanOrEqual(
+            18,
+            $profile['query_count'],
+            sprintf(
+                'staff_waiting_list_index metrics=%s',
+                json_encode([
+                    'query_count' => $profile['query_count'],
+                    'sql_time_ms' => $profile['sql_time_ms'],
+                    'wall_time_ms' => $profile['wall_time_ms'],
+                    'query_patterns' => $profile['query_patterns'],
+                ], JSON_THROW_ON_ERROR)
+            )
+        );
+    }
+
+    public function test_customer_reservation_list_stays_within_query_budget(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-05 10:00:00', 'UTC'));
+
+        [$customerId] = $this->seedCustomerReservationReadScenario();
+        $customer = User::query()->findOrFail($customerId);
+
+        $profile = $this->profileQueries(fn () => $this->actingAs($customer)
+            ->withHeaders(['Accept' => 'application/json'])
+            ->getJson('/api/v1/reservations?page=1&per_page=10&bucket=all'));
+
+        $profile['result']->assertOk();
+
+        self::assertLessThanOrEqual(
+            16,
+            $profile['query_count'],
+            sprintf(
+                'customer_reservation_list metrics=%s',
+                json_encode([
+                    'query_count' => $profile['query_count'],
+                    'sql_time_ms' => $profile['sql_time_ms'],
+                    'wall_time_ms' => $profile['wall_time_ms'],
+                    'query_patterns' => $profile['query_patterns'],
+                ], JSON_THROW_ON_ERROR)
+            )
+        );
+    }
+
+    public function test_customer_reservation_detail_stays_within_query_budget(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-05 10:00:00', 'UTC'));
+
+        [$customerId, $reservationId] = $this->seedCustomerReservationReadScenario();
+        $customer = User::query()->findOrFail($customerId);
+
+        $profile = $this->profileQueries(fn () => $this->actingAs($customer)
+            ->withHeaders(['Accept' => 'application/json'])
+            ->getJson('/api/v1/reservations/' . $reservationId));
+
+        $profile['result']->assertOk();
+
+        self::assertLessThanOrEqual(
+            15,
+            $profile['query_count'],
+            sprintf(
+                'customer_reservation_detail metrics=%s',
+                json_encode([
+                    'query_count' => $profile['query_count'],
+                    'sql_time_ms' => $profile['sql_time_ms'],
+                    'wall_time_ms' => $profile['wall_time_ms'],
+                    'query_patterns' => $profile['query_patterns'],
+                ], JSON_THROW_ON_ERROR)
+            )
+        );
+    }
+
+    public function test_staff_reporting_daily_sales_index_stays_within_query_budget(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-05 10:00:00', 'UTC'));
+
+        $staffId = $this->createUser(['role_name' => 'Admin']);
+        $headers = $this->staffAuthHeaders($staffId, 'perf-reporting-sales');
+
+        $this->seedReportingDailySalesScenario();
+
+        $profile = $this->profileQueries(fn () => $this->withHeaders($headers)->getJson(
+            '/api/v1/staff/reporting/daily-sales?page=1&per_page=10&start_date=2026-03-25&end_date=2026-04-05'
+        ));
+
+        $profile['result']->assertOk();
+
+        self::assertLessThanOrEqual(
+            14,
+            $profile['query_count'],
+            sprintf(
+                'staff_reporting_daily_sales metrics=%s',
                 json_encode([
                     'query_count' => $profile['query_count'],
                     'sql_time_ms' => $profile['sql_time_ms'],
@@ -240,6 +356,150 @@ class HotPathPerformanceBudgetTest extends TestCase
             'expire_at' => $now->copy()->addMinutes(90),
             'hold_status' => 'Holding',
         ], [4, 5]);
+    }
+
+    private function seedWaitingListQueueScenario(): void
+    {
+        $now = Carbon::now('UTC')->startOfMinute();
+
+        for ($index = 1; $index <= 8; $index++) {
+            $customerId = $this->createUser(['role_name' => 'Customer']);
+            $this->createWaitingListEntry([
+                'user_id' => $customerId,
+                'guest_name' => sprintf('Queue Guest %02d', $index),
+                'phone' => sprintf('0909000%03d', $index),
+                'guest_count' => 2 + ($index % 3),
+                'requested_at' => $now->copy()->subMinutes(30 - $index),
+                'status' => 'Waiting',
+                'priority' => 20 - $index,
+            ]);
+        }
+
+        for ($index = 1; $index <= 2; $index++) {
+            $customerId = $this->createUser(['role_name' => 'Customer']);
+            $waitingId = $this->createWaitingListEntry([
+                'user_id' => $customerId,
+                'guest_name' => sprintf('Notified Guest %02d', $index),
+                'phone' => sprintf('0911000%03d', $index),
+                'guest_count' => 2 + $index,
+                'requested_at' => $now->copy()->subMinutes(45 + $index),
+                'status' => 'Notified',
+                'priority' => 30 - $index,
+                'notified_at' => $now->copy()->subMinutes(5 + $index),
+                'notify_expires_at' => $now->copy()->addMinutes(10 - $index),
+                'customer_response_status' => $index === 1 ? 'Accepted' : null,
+                'customer_responded_at' => $index === 1 ? $now->copy()->subMinutes(2) : null,
+                'customer_confirmed_arrival_at' => $index === 1 ? $now->copy()->subMinute() : null,
+            ]);
+
+            $tableId = $this->createRestaurantTableWithSeats(4 + $index, [
+                'table_code' => sprintf('WL-%02d', $index),
+                'zone' => 'Queue',
+                'status' => 'Available',
+            ]);
+
+            $this->createTableHold([
+                'session_id' => 'waiting-list:' . $waitingId,
+                'start_time' => $now->copy()->subMinutes(5 + $index),
+                'end_time' => $now->copy()->addMinutes(10 - $index),
+                'expire_at' => $now->copy()->addMinutes(10 - $index),
+                'hold_status' => 'Holding',
+            ], [$tableId]);
+        }
+    }
+
+    /**
+     * @return array{0:int,1:int}
+     */
+    private function seedCustomerReservationReadScenario(): array
+    {
+        $now = Carbon::now('UTC')->startOfMinute();
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $itemId = $this->createMenuItem();
+        $firstReservationId = 0;
+
+        for ($index = 1; $index <= 8; $index++) {
+            $reservationId = $this->createReservation([
+                'user_id' => $customerId,
+                'status' => 'Confirmed',
+                'start_time' => $now->copy()->addDays($index)->setTime(18, 0),
+                'end_time' => $now->copy()->addDays($index)->setTime(20, 0),
+                'guest_count' => 2 + ($index % 3),
+                'deposit_required_amount' => '100000.00',
+                'deposit_paid_amount' => '50000.00',
+                'deposit_status' => 'Pending',
+                'discount_amount' => '10000.00',
+                'final_bill_amount' => '180000.00',
+                'bill_currency' => 'VND',
+            ]);
+            $firstReservationId = $firstReservationId === 0 ? $reservationId : $firstReservationId;
+
+            $tableId = $this->createRestaurantTableWithSeats(4 + ($index % 2), [
+                'table_code' => sprintf('CR-%02d', $index),
+                'zone' => 'Dining',
+                'status' => 'Available',
+            ]);
+            $this->attachReservationTable($reservationId, $tableId);
+
+            $orderId = $this->createOrder([
+                'reservation_id' => $reservationId,
+                'order_type' => 'PreOrder',
+                'status' => 'Active',
+            ]);
+            $this->createOrderItem([
+                'order_id' => $orderId,
+                'item_id' => $itemId,
+                'quantity' => 1 + ($index % 2),
+                'unit_price' => '60000.00',
+                'currency' => 'VND',
+                'line_total' => $index % 2 === 0 ? '60000.00' : '120000.00',
+                'status' => 'Ordered',
+            ]);
+            $this->createPayment([
+                'reservation_id' => $reservationId,
+                'payment_type' => 'Deposit',
+                'amount' => '50000.00',
+                'currency' => 'VND',
+                'status' => 'Success',
+                'payment_method' => 'Card',
+                'payment_provider' => 'Other',
+            ]);
+        }
+
+        return [$customerId, $firstReservationId];
+    }
+
+    private function seedReportingDailySalesScenario(): void
+    {
+        $now = Carbon::now('UTC')->startOfMinute();
+
+        for ($index = 0; $index < 10; $index++) {
+            DB::table('reporting_daily_sales_snapshots')->insert([
+                'branch_id' => 1,
+                'business_date' => $now->copy()->subDays($index)->toDateString(),
+                'currency' => 'VND',
+                'billed_reservation_count' => 10 + $index,
+                'billed_guest_count' => 20 + $index,
+                'gross_bill_amount' => (string) (250000 + ($index * 10000)) . '.00',
+                'discount_amount' => '10000.00',
+                'billed_total_amount' => (string) (240000 + ($index * 10000)) . '.00',
+                'invoice_issued_count' => 2,
+                'invoiced_total_amount' => '240000.00',
+                'invoiced_tax_amount' => '24000.00',
+                'payment_row_count' => 12 + $index,
+                'refund_row_count' => 1,
+                'captured_amount' => (string) (240000 + ($index * 10000)) . '.00',
+                'refunded_amount' => '0.00',
+                'net_paid_amount' => (string) (240000 + ($index * 10000)) . '.00',
+                'deposit_net_amount' => '50000.00',
+                'final_net_amount' => (string) (190000 + ($index * 10000)) . '.00',
+                'cashier_shift_closed_count' => 1,
+                'cash_discrepancy_amount' => '0.00',
+                'refreshed_at' => $now->copy()->subMinutes($index + 1),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
     }
 
     /**

@@ -161,18 +161,31 @@ class ConversationMessage extends Model
         return MessageType::tryFrom(strtolower((string) $this->message_type));
     }
 
-    public function preferredAttachmentUrl(): ?string
+    public function preferredAttachmentFile(): ?ConversationFile
     {
         $file = $this->relationLoaded('files')
-            ? $this->files->first()
+            ? $this->files->sortBy('file_id')->first()
             : $this->files()->orderBy('file_id')->first();
+
+        return $file instanceof ConversationFile ? $file : null;
+    }
+
+    public function legacyAttachmentUrl(): ?string
+    {
+        $legacy = trim((string) ($this->attachment_url ?? ''));
+
+        return $legacy !== '' ? $legacy : null;
+    }
+
+    public function preferredAttachmentUrl(): ?string
+    {
+        $file = $this->preferredAttachmentFile();
 
         if ($file !== null && trim((string) $file->file_url) !== '') {
             return (string) $file->file_url;
         }
 
-        $legacy = trim((string) ($this->attachment_url ?? ''));
-        return $legacy !== '' ? $legacy : null;
+        return $this->legacyAttachmentUrl();
     }
 
     public function scopeForConversation($query, string $conversationId)

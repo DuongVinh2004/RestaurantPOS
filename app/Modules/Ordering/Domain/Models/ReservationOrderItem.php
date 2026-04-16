@@ -7,6 +7,7 @@ namespace App\Modules\Ordering\Domain\Models;
 use App\Enums\ReservationOrderItemStatus;
 use App\Models\Concerns\HasRowVersion;
 use App\Models\MenuItem;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -52,8 +53,8 @@ class ReservationOrderItem extends Model
     {
         static::saving(function (self $model): void {
             $quantity = max(0, (int) $model->quantity);
-            $unitPrice = round((float) $model->unit_price, 2);
-            $model->line_total = round($quantity * $unitPrice, 2);
+            $unitPriceMinor = Money::minorUnits($model->unit_price, true);
+            $model->line_total = Money::formatMinor($quantity * $unitPriceMinor);
         });
     }
 

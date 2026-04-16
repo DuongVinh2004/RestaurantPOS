@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\CheckoutPayments\Domain\ValueObjects;
 
+use App\Support\Money;
 use BackedEnum;
 
 final class PaymentSummary
@@ -14,23 +15,22 @@ final class PaymentSummary
      */
     public static function fromPayments(iterable $payments): array
     {
-        $summary = [
-            'deposit_captured_amount' => 0.0,
-            'deposit_refunded_amount' => 0.0,
-            'deposit_raw_net_amount' => 0.0,
-            'deposit_net_amount' => 0.0,
-            'deposit_over_refunded_amount' => 0.0,
-            'final_captured_amount' => 0.0,
-            'final_refunded_amount' => 0.0,
-            'final_raw_net_amount' => 0.0,
-            'final_net_amount' => 0.0,
-            'final_over_refunded_amount' => 0.0,
-            'captured_amount' => 0.0,
-            'refunded_amount' => 0.0,
-            'raw_net_paid_amount' => 0.0,
-            'net_paid_amount' => 0.0,
-            'over_refunded_amount' => 0.0,
-            'has_over_refund' => 0.0,
+        $minor = [
+            'deposit_captured_amount' => 0,
+            'deposit_refunded_amount' => 0,
+            'deposit_raw_net_amount' => 0,
+            'deposit_net_amount' => 0,
+            'deposit_over_refunded_amount' => 0,
+            'final_captured_amount' => 0,
+            'final_refunded_amount' => 0,
+            'final_raw_net_amount' => 0,
+            'final_net_amount' => 0,
+            'final_over_refunded_amount' => 0,
+            'captured_amount' => 0,
+            'refunded_amount' => 0,
+            'raw_net_paid_amount' => 0,
+            'net_paid_amount' => 0,
+            'over_refunded_amount' => 0,
         ];
 
         $normalizedPayments = [];
@@ -50,20 +50,20 @@ final class PaymentSummary
         foreach ($normalizedPayments as $payment) {
             $paymentType = self::normalizeScalar(self::readValue($payment, 'payment_type'));
             $status = self::normalizeScalar(self::readValue($payment, 'status'));
-            $amount = round(max(0.0, (float) (self::readValue($payment, 'amount') ?? 0.0)), 2);
+            $amountMinor = Money::minorUnits(self::readValue($payment, 'amount') ?? 0, true);
 
-            if ($amount <= 0.0001 || $paymentType === null || $status === null) {
+            if ($amountMinor <= 0 || $paymentType === null || $status === null) {
                 continue;
             }
 
             if ($paymentType === 'Deposit' && self::isCapturedStatus($status)) {
-                $summary['deposit_captured_amount'] += $amount;
+                $minor['deposit_captured_amount'] += $amountMinor;
 
                 continue;
             }
 
             if ($paymentType === 'Final' && self::isCapturedStatus($status)) {
-                $summary['final_captured_amount'] += $amount;
+                $minor['final_captured_amount'] += $amountMinor;
 
                 continue;
             }
@@ -71,34 +71,36 @@ final class PaymentSummary
             if ($paymentType === 'Refund' && self::isRefundedStatus($status)) {
                 $target = self::resolveRefundTargetPaymentType($payment, $paymentTypeById);
                 if ($target === 'Deposit') {
-                    $summary['deposit_refunded_amount'] += $amount;
+                    $minor['deposit_refunded_amount'] += $amountMinor;
 
                     continue;
                 }
                 if ($target === 'Final') {
-                    $summary['final_refunded_amount'] += $amount;
+                    $minor['final_refunded_amount'] += $amountMinor;
 
                     continue;
                 }
             }
         }
 
-        $summary['deposit_captured_amount'] = round($summary['deposit_captured_amount'], 2);
-        $summary['deposit_refunded_amount'] = round($summary['deposit_refunded_amount'], 2);
-        $summary['final_captured_amount'] = round($summary['final_captured_amount'], 2);
-        $summary['final_refunded_amount'] = round($summary['final_refunded_amount'], 2);
-        $summary['deposit_raw_net_amount'] = round($summary['deposit_captured_amount'] - $summary['deposit_refunded_amount'], 2);
-        $summary['final_raw_net_amount'] = round($summary['final_captured_amount'] - $summary['final_refunded_amount'], 2);
-        $summary['deposit_over_refunded_amount'] = round(max(0.0, -1 * $summary['deposit_raw_net_amount']), 2);
-        $summary['final_over_refunded_amount'] = round(max(0.0, -1 * $summary['final_raw_net_amount']), 2);
-        $summary['deposit_net_amount'] = round(max(0.0, $summary['deposit_raw_net_amount']), 2);
-        $summary['final_net_amount'] = round(max(0.0, $summary['final_raw_net_amount']), 2);
-        $summary['captured_amount'] = round($summary['deposit_captured_amount'] + $summary['final_captured_amount'], 2);
-        $summary['refunded_amount'] = round($summary['deposit_refunded_amount'] + $summary['final_refunded_amount'], 2);
-        $summary['raw_net_paid_amount'] = round($summary['deposit_raw_net_amount'] + $summary['final_raw_net_amount'], 2);
-        $summary['net_paid_amount'] = round($summary['deposit_net_amount'] + $summary['final_net_amount'], 2);
-        $summary['over_refunded_amount'] = round($summary['deposit_over_refunded_amount'] + $summary['final_over_refunded_amount'], 2);
-        $summary['has_over_refund'] = $summary['over_refunded_amount'] > 0.0001 ? 1.0 : 0.0;
+        $minor['deposit_raw_net_amount'] = $minor['deposit_captured_amount'] - $minor['deposit_refunded_amount'];
+        $minor['final_raw_net_amount'] = $minor['final_captured_amount'] - $minor['final_refunded_amount'];
+        $minor['deposit_over_refunded_amount'] = max(0, -1 * $minor['deposit_raw_net_amount']);
+        $minor['final_over_refunded_amount'] = max(0, -1 * $minor['final_raw_net_amount']);
+        $minor['deposit_net_amount'] = max(0, $minor['deposit_raw_net_amount']);
+        $minor['final_net_amount'] = max(0, $minor['final_raw_net_amount']);
+        $minor['captured_amount'] = $minor['deposit_captured_amount'] + $minor['final_captured_amount'];
+        $minor['refunded_amount'] = $minor['deposit_refunded_amount'] + $minor['final_refunded_amount'];
+        $minor['raw_net_paid_amount'] = $minor['deposit_raw_net_amount'] + $minor['final_raw_net_amount'];
+        $minor['net_paid_amount'] = $minor['deposit_net_amount'] + $minor['final_net_amount'];
+        $minor['over_refunded_amount'] = $minor['deposit_over_refunded_amount'] + $minor['final_over_refunded_amount'];
+
+        $summary = [];
+        foreach ($minor as $key => $amountMinor) {
+            $summary[$key] = Money::minorToFloat($amountMinor);
+        }
+
+        $summary['has_over_refund'] = $minor['over_refunded_amount'] > 0 ? 1.0 : 0.0;
 
         return $summary;
     }
@@ -108,7 +110,7 @@ final class PaymentSummary
      */
     public static function hasOverRefund(array $summary): bool
     {
-        return (float) ($summary['over_refunded_amount'] ?? 0.0) > 0.0001
+        return Money::isPositive($summary['over_refunded_amount'] ?? 0)
             || (bool) ($summary['has_over_refund'] ?? false);
     }
 

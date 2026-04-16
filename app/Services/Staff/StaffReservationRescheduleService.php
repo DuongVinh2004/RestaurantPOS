@@ -20,6 +20,7 @@ use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use App\Support\AuditEvent;
 use App\Support\DatabaseWriteConflictMapper;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
@@ -106,7 +107,7 @@ class StaffReservationRescheduleService
                     ->lockForUpdate()
                     ->get();
                 $paymentSummary = PaymentSummary::fromPayments($payments);
-                if ((float) ($paymentSummary['final_net_amount'] ?? 0.0) > 0.0001) {
+                if (Money::isPositive($paymentSummary['final_net_amount'] ?? 0)) {
                     throw ValidationException::withMessages([
                         'reservation_id' => ['Reservation already has final payments. Reschedule after payment is not allowed.'],
                     ]);

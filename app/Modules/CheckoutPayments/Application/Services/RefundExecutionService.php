@@ -12,6 +12,7 @@ use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Support\AuditEvent;
+use App\Support\Money;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -34,7 +35,7 @@ class RefundExecutionService
      * @param  array{deposit:float,final:float}  $availableByScope
      * @return array{deposit:float,final:float,total:float}
      */
-    public function buildRefundPlan(string $refundScope, ?float $requestedRefundAmount, array $availableByScope, bool $cancelAfterPayment): array
+    public function buildRefundPlan(string $refundScope, mixed $requestedRefundAmount, array $availableByScope, bool $cancelAfterPayment): array
     {
         return $this->refundPlannerService->buildRefundPlan($refundScope, $requestedRefundAmount, $availableByScope, $cancelAfterPayment);
     }
@@ -43,7 +44,7 @@ class RefundExecutionService
      * @param  Collection<int,Payment>  $payments
      * @return array<int,array{payment:Payment,amount:float}>
      */
-    public function allocateRefundPaymentsBySource(Collection $payments, string $targetPaymentType, float $requestedAmount): array
+    public function allocateRefundPaymentsBySource(Collection $payments, string $targetPaymentType, mixed $requestedAmount): array
     {
         return $this->refundPlannerService->allocateRefundPaymentsBySource($payments, $targetPaymentType, $requestedAmount);
     }
@@ -108,7 +109,7 @@ class RefundExecutionService
             'final' => (float) ($summaryBefore['final_net_amount'] ?? 0.0),
         ];
 
-        if ($cancelAfterPayment && round(array_sum($availableByScope), 2) <= 0.0001) {
+        if ($cancelAfterPayment && Money::minorUnits($availableByScope['deposit'] ?? 0, true) + Money::minorUnits($availableByScope['final'] ?? 0, true) <= 0) {
             throw ValidationException::withMessages([
                 'refund_amount' => ['cancel-after-payment requires at least one refundable payment.'],
             ]);
@@ -121,9 +122,9 @@ class RefundExecutionService
             cancelAfterPayment: $cancelAfterPayment
         );
 
-        $plannedFinalRefund = round((float) ($refundPlan['final'] ?? 0.0), 2);
-        $finalNetAfter = max(0.0, round((float) ($summaryBefore['final_net_amount'] ?? 0.0) - $plannedFinalRefund, 2));
-        if ($cancelAfterPayment && $finalNetAfter > 0.0001) {
+        $plannedFinalRefundMinor = Money::minorUnits($refundPlan['final'] ?? 0, true);
+        $finalNetAfterMinor = max(0, Money::minorUnits($summaryBefore['final_net_amount'] ?? 0, true) - $plannedFinalRefundMinor);
+        if ($cancelAfterPayment && $finalNetAfterMinor > 0) {
             throw ValidationException::withMessages([
                 'refund_amount' => 'cancel-after-payment requires all remaining final payments to be refunded first.',
             ]);
@@ -132,17 +133,17 @@ class RefundExecutionService
         /** @var array<int,Payment> $refundPayments */
         $refundPayments = [];
         foreach (['deposit' => 'Deposit', 'final' => 'Final'] as $scopeKey => $targetType) {
-            $amount = round((float) ($refundPlan[$scopeKey] ?? 0.0), 2);
-            if ($amount <= 0.0001) {
+            $amountMinor = Money::minorUnits($refundPlan[$scopeKey] ?? 0, true);
+            if ($amountMinor <= 0) {
                 continue;
             }
 
-            $allocations = $this->refundPlannerService->allocateRefundPaymentsBySource($payments, $targetType, $amount);
+            $allocations = $this->refundPlannerService->allocateRefundPaymentsBySource($payments, $targetType, Money::minorToFloat($amountMinor));
             foreach ($allocations as $index => $allocation) {
                 /** @var Payment $sourcePayment */
                 $sourcePayment = $allocation['payment'];
-                $allocationAmount = round((float) ($allocation['amount'] ?? 0.0), 2);
-                if ($allocationAmount <= 0.0001) {
+                $allocationMinor = Money::minorUnits($allocation['amount'] ?? 0, true);
+                if ($allocationMinor <= 0) {
                     continue;
                 }
 
@@ -151,7 +152,7 @@ class RefundExecutionService
                 $refundPayment->branch_id = $reservationBranchId;
                 $refundPayment->reservation_id = $reservationId;
                 $refundPayment->refund_of_payment_id = (int) $sourcePayment->payment_id;
-                $refundPayment->amount = number_format($allocationAmount, 2, '.', '');
+                $refundPayment->amount = Money::formatMinor($allocationMinor);
                 $refundPayment->currency = trim((string) ($sourcePayment->currency ?? '')) !== ''
                     ? (string) $sourcePayment->currency
                     : $this->refundPlannerService->resolveRefundCurrency($payments, $targetType, $baseCurrency, $reservation);
@@ -221,7 +222,7 @@ class RefundExecutionService
             'reservation_id' => $reservationId,
             'refund_payment_ids' => array_map(fn (Payment $payment) => (int) $payment->payment_id, $refundPayments),
             'refund_scope' => $refundScope,
-            'refund_amount' => round(array_sum(array_map(fn (Payment $payment) => (float) ($payment->amount ?? 0.0), $refundPayments)), 2),
+            'refund_amount' => Money::minorToFloat(Money::sumMinor($refundPayments, fn (Payment $payment): mixed => $payment->amount ?? 0, true)),
             'deposit_refunded_total' => (float) ($summaryAfter['deposit_refunded_amount'] ?? 0.0),
             'final_refunded_total' => (float) ($summaryAfter['final_refunded_amount'] ?? 0.0),
             'deposit_net_total' => (float) ($summaryAfter['deposit_net_amount'] ?? 0.0),
@@ -236,7 +237,7 @@ class RefundExecutionService
         return [
             'refund_payment_ids' => array_map(fn (Payment $payment) => (int) $payment->payment_id, $refundPayments),
             'summary' => $summaryAfter,
-            'refund_amount_this_call' => round(array_sum(array_map(fn (Payment $payment) => (float) ($payment->amount ?? 0.0), $refundPayments)), 2),
+            'refund_amount_this_call' => Money::minorToFloat(Money::sumMinor($refundPayments, fn (Payment $payment): mixed => $payment->amount ?? 0, true)),
             'currency' => $effectivePaymentCurrency,
         ];
     }

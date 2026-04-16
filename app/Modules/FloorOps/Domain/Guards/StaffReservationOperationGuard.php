@@ -8,6 +8,7 @@ use App\Enums\ReservationStatus;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Reservations\Domain\Policies\ReservationStatusTransitionPolicy;
 use Illuminate\Validation\ValidationException;
 
 class StaffReservationOperationGuard
@@ -65,12 +66,10 @@ class StaffReservationOperationGuard
     public static function assertCheckInAllowed(Reservation $reservation, ?int $expectedRowVersion): void
     {
         self::assertExpectedReservationRowVersion($reservation, $expectedRowVersion);
-
-        if (self::reservationStatusValue($reservation) !== ReservationStatus::Confirmed->value) {
-            throw ValidationException::withMessages([
-                'status' => ['Reservation must be Confirmed to check-in.'],
-            ]);
-        }
+        ReservationStatusTransitionPolicy::assertTransitionAllowed(
+            self::reservationStatusValue($reservation),
+            ReservationStatus::checkedIn(),
+        );
     }
 
     public static function assertRescheduleAllowed(Reservation $reservation, int $expectedRowVersion): void

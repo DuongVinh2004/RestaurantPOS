@@ -8,6 +8,7 @@ use App\Modules\CheckoutPayments\Domain\Models\Payment;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\CheckoutPayments\Domain\Models\ReservationDepositPaymentSession;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
+use App\Support\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -35,9 +36,9 @@ class ReservationDepositReadService
         $sessionCollection = $this->normalizeSessions($paymentSessions);
         $summary = $paymentSummary ?? PaymentSummary::fromPayments($paymentCollection);
 
-        $requiredAmount = round(max(0.0, (float) ($reservation->deposit_required_amount ?? 0.0)), 2);
-        $paidAmount = round(max(0.0, (float) ($summary['deposit_net_amount'] ?? $reservation->deposit_paid_amount ?? 0.0)), 2);
-        $remainingAmount = round(max(0.0, $requiredAmount - $paidAmount), 2);
+        $requiredAmountMinor = Money::minorUnits($reservation->deposit_required_amount ?? 0, true);
+        $paidAmountMinor = Money::minorUnits($summary['deposit_net_amount'] ?? $reservation->deposit_paid_amount ?? 0, true);
+        $remainingAmountMinor = max(0, $requiredAmountMinor - $paidAmountMinor);
         $depositPayments = $paymentCollection
             ->filter(fn (Payment $payment): bool => $this->isDepositRelatedPayment($payment))
             ->values();
@@ -54,29 +55,29 @@ class ReservationDepositReadService
 
         return [
             'status' => (string) ($reservation->deposit_status?->value ?? $reservation->deposit_status ?? null),
-            'required_amount' => $this->money($requiredAmount),
-            'paid_amount' => $this->money($paidAmount),
-            'remaining_amount' => $this->money($remainingAmount),
-            'outstanding_amount' => $this->money($remainingAmount),
+            'required_amount' => $this->money($requiredAmountMinor),
+            'paid_amount' => $this->money($paidAmountMinor),
+            'remaining_amount' => $this->money($remainingAmountMinor),
+            'outstanding_amount' => $this->money($remainingAmountMinor),
             'currency' => $currencyMeta['currency'] ?? (string) ($reservation->bill_currency ?: $fallbackCurrency),
             'currencies' => array_values((array) ($currencyMeta['currencies'] ?? [])),
             'has_mixed_currencies' => (bool) ($currencyMeta['has_mixed_currencies'] ?? false),
             'status_flags' => [
-                'deposit_required' => $requiredAmount > 0.0001,
-                'payment_recorded' => $paidAmount > 0.0001,
-                'requires_collection' => $requiredAmount > 0.0001 && $remainingAmount > 0.0001,
-                'fully_paid' => $requiredAmount > 0.0001 && $remainingAmount <= 0.0001,
-                'has_refund' => (float) ($summary['deposit_refunded_amount'] ?? 0.0) > 0.0001,
+                'deposit_required' => $requiredAmountMinor > 0,
+                'payment_recorded' => $paidAmountMinor > 0,
+                'requires_collection' => $requiredAmountMinor > 0 && $remainingAmountMinor > 0,
+                'fully_paid' => $requiredAmountMinor > 0 && $remainingAmountMinor <= 0,
+                'has_refund' => Money::minorUnits($summary['deposit_refunded_amount'] ?? 0, true) > 0,
                 'is_refunded' => (string) ($reservation->deposit_status?->value ?? $reservation->deposit_status ?? '') === 'Refunded',
                 'is_partially_refunded' => (string) ($reservation->deposit_status?->value ?? $reservation->deposit_status ?? '') === 'PartiallyRefunded',
                 'is_forfeited' => (string) ($reservation->deposit_status?->value ?? $reservation->deposit_status ?? '') === 'Forfeited',
                 'has_open_payment_session' => (bool) ($sessionSummary['has_open_session'] ?? false),
             ],
             'payment_summary' => [
-                'deposit_captured' => $this->money((float) ($summary['deposit_captured_amount'] ?? 0.0)),
-                'deposit_refunded' => $this->money((float) ($summary['deposit_refunded_amount'] ?? 0.0)),
-                'deposit_net' => $this->money((float) ($summary['deposit_net_amount'] ?? 0.0)),
-                'remaining_amount' => $this->money($remainingAmount),
+                'deposit_captured' => Money::format($summary['deposit_captured_amount'] ?? 0, true),
+                'deposit_refunded' => Money::format($summary['deposit_refunded_amount'] ?? 0, true),
+                'deposit_net' => Money::format($summary['deposit_net_amount'] ?? 0, true),
+                'remaining_amount' => $this->money($remainingAmountMinor),
             ],
             'self_service' => $state,
             'payment_session_summary' => $sessionSummary,
@@ -126,7 +127,7 @@ class ReservationDepositReadService
                     'settlement_status' => (string) ($latest->settlement_status?->value ?? $latest->settlement_status),
                     'provider_code' => (string) ($latest->provider_code ?? ''),
                     'payment_method' => $latest->payment_method !== null ? (string) $latest->payment_method : null,
-                    'amount' => $latest->amount !== null ? $this->money((float) $latest->amount) : null,
+                    'amount' => $latest->amount !== null ? $this->money(Money::minorUnits($latest->amount, true)) : null,
                     'currency' => $latest->currency !== null ? (string) $latest->currency : null,
                     'provider_expires_at' => $this->iso($latest->provider_expires_at),
                     'confirmed_at' => $this->iso($latest->confirmed_at),
@@ -180,9 +181,9 @@ class ReservationDepositReadService
         return PaymentSummary::resolveRefundTargetPaymentType($payment) === 'Deposit';
     }
 
-    private function money(float $value): string
+    private function money(int $minorUnits): string
     {
-        return number_format($value, 2, '.', '');
+        return Money::formatMinor($minorUnits);
     }
 
     private function iso(mixed $value): ?string

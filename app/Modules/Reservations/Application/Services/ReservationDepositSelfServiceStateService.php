@@ -7,6 +7,7 @@ namespace App\Modules\Reservations\Application\Services;
 use App\Enums\ReservationDepositIntentStatus;
 use App\Enums\ReservationStatus;
 use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Support\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
@@ -18,21 +19,21 @@ class ReservationDepositSelfServiceStateService
      */
     public function buildState(Reservation $reservation, array $paymentSummary = []): array
     {
-        $requiredAmount = round(max(0.0, (float) ($reservation->deposit_required_amount ?? 0.0)), 2);
-        $depositNet = round(max(0.0, (float) ($paymentSummary['deposit_net_amount'] ?? $reservation->deposit_paid_amount ?? 0.0)), 2);
-        $finalNet = round(max(0.0, (float) ($paymentSummary['final_net_amount'] ?? 0.0)), 2);
-        $outstandingAmount = round(max(0.0, $requiredAmount - $depositNet), 2);
+        $requiredAmountMinor = Money::minorUnits($reservation->deposit_required_amount ?? 0, true);
+        $depositNetMinor = Money::minorUnits($paymentSummary['deposit_net_amount'] ?? $reservation->deposit_paid_amount ?? 0, true);
+        $finalNetMinor = Money::minorUnits($paymentSummary['final_net_amount'] ?? 0, true);
+        $outstandingAmountMinor = max(0, $requiredAmountMinor - $depositNetMinor);
         $status = (string) ($reservation->status?->value ?? $reservation->status ?? '');
         $intentStatus = $this->resolveIntentStatus($reservation);
         $acknowledgedAt = $this->normalizeDate($reservation->deposit_requirement_acknowledged_at ?? null);
         $intentSubmittedAt = $this->normalizeDate($reservation->deposit_intent_submitted_at ?? null);
         $intentRevokedAt = $this->normalizeDate($reservation->deposit_intent_revoked_at ?? null);
 
-        $depositRequired = $requiredAmount > 0.0001;
+        $depositRequired = $requiredAmountMinor > 0;
         $isActiveReservation = in_array($status, ReservationStatus::activeDbValues(), true);
-        $actualPaymentRecorded = $depositNet > 0.0001;
-        $finalPaymentRecorded = $finalNet > 0.0001;
-        $hasOutstandingAmount = $outstandingAmount > 0.0001;
+        $actualPaymentRecorded = $depositNetMinor > 0;
+        $finalPaymentRecorded = $finalNetMinor > 0;
+        $hasOutstandingAmount = $outstandingAmountMinor > 0;
         $actionable = $depositRequired && $isActiveReservation && ! $finalPaymentRecorded && $hasOutstandingAmount && ! $actualPaymentRecorded;
         $canAcknowledge = $actionable && $acknowledgedAt === null;
         $canSubmitIntent = $actionable && $acknowledgedAt !== null && $intentStatus !== ReservationDepositIntentStatus::Submitted;
@@ -41,7 +42,7 @@ class ReservationDepositSelfServiceStateService
         return [
             'supported' => true,
             'deposit_required' => $depositRequired,
-            'outstanding_amount' => number_format($outstandingAmount, 2, '.', ''),
+            'outstanding_amount' => Money::formatMinor($outstandingAmountMinor),
             'requirement_acknowledged' => $acknowledgedAt !== null,
             'acknowledged_at' => $this->iso($acknowledgedAt),
             'intent_status' => $intentStatus->value,

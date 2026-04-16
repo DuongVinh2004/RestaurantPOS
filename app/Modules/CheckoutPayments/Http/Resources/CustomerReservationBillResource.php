@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\CheckoutPayments\Http\Resources;
 
 use App\Modules\CheckoutPayments\Application\Services\CustomerReservationBillService;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
@@ -115,6 +116,6 @@ class CustomerReservationBillResource extends JsonResource
             return null;
         }
 
-        return number_format((float) $value, 2, '.', '');
+        return Money::format($value, true);
     }
 }

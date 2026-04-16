@@ -14,6 +14,7 @@ use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\WaitingList\Domain\Models\WaitingList;
 use App\Models\IngredientStockMovement;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
+use App\Support\Money;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\LengthAwarePaginator as LengthAwarePaginatorImpl;
 use Illuminate\Support\Carbon;
@@ -480,13 +481,13 @@ class ReportingSnapshotService
                 );
 
                 $row = $rows[$key] ?? $this->emptySalesRow((int) $reservation->branch_id, (string) $this->dateValue($reservation->billed_at), (string) ($reservation->bill_currency ?? 'VND'), $refreshedAt);
-                $discount = round((float) ($reservation->discount_amount ?? 0), 2);
-                $total = round((float) ($reservation->final_bill_amount ?? 0), 2);
+                $discountMinor = Money::minorUnits($reservation->discount_amount ?? 0, true);
+                $totalMinor = Money::minorUnits($reservation->final_bill_amount ?? 0, true);
                 $row['billed_reservation_count']++;
                 $row['billed_guest_count'] += (int) ($reservation->guest_count ?? 0);
-                $row['discount_amount'] += $discount;
-                $row['billed_total_amount'] += $total;
-                $row['gross_bill_amount'] += round($discount + $total, 2);
+                $row = $this->addMoneyAmount($row, 'discount_amount', Money::formatMinor($discountMinor));
+                $row = $this->addMoneyAmount($row, 'billed_total_amount', Money::formatMinor($totalMinor));
+                $row = $this->addMoneyAmount($row, 'gross_bill_amount', Money::formatMinor($discountMinor + $totalMinor));
                 $rows[$key] = $row;
             });
 
@@ -511,8 +512,8 @@ class ReportingSnapshotService
                 $key = $this->salesKey((int) $invoice->branch_id, $date, $currency);
                 $row = $rows[$key] ?? $this->emptySalesRow((int) $invoice->branch_id, $date, $currency, $refreshedAt);
                 $row['invoice_issued_count']++;
-                $row['invoiced_total_amount'] += round((float) ($invoice->total_amount ?? 0), 2);
-                $row['invoiced_tax_amount'] += round((float) ($invoice->tax_amount ?? 0), 2);
+                $row = $this->addMoneyAmount($row, 'invoiced_total_amount', $invoice->total_amount ?? 0);
+                $row = $this->addMoneyAmount($row, 'invoiced_tax_amount', $invoice->tax_amount ?? 0);
                 $rows[$key] = $row;
             });
 
@@ -553,11 +554,11 @@ class ReportingSnapshotService
             $summary = PaymentSummary::fromPayments($payments);
             $row['payment_row_count'] += count($payments);
             $row['refund_row_count'] += count(array_filter($payments, static fn (Payment $payment): bool => (string) $payment->payment_type === 'Refund'));
-            $row['captured_amount'] += round((float) ($summary['captured_amount'] ?? 0), 2);
-            $row['refunded_amount'] += round((float) ($summary['refunded_amount'] ?? 0), 2);
-            $row['net_paid_amount'] += round((float) ($summary['net_paid_amount'] ?? 0), 2);
-            $row['deposit_net_amount'] += round((float) ($summary['deposit_net_amount'] ?? 0), 2);
-            $row['final_net_amount'] += round((float) ($summary['final_net_amount'] ?? 0), 2);
+            $row = $this->addMoneyAmount($row, 'captured_amount', $summary['captured_amount'] ?? 0);
+            $row = $this->addMoneyAmount($row, 'refunded_amount', $summary['refunded_amount'] ?? 0);
+            $row = $this->addMoneyAmount($row, 'net_paid_amount', $summary['net_paid_amount'] ?? 0);
+            $row = $this->addMoneyAmount($row, 'deposit_net_amount', $summary['deposit_net_amount'] ?? 0);
+            $row = $this->addMoneyAmount($row, 'final_net_amount', $summary['final_net_amount'] ?? 0);
             $rows[$key] = $row;
         }
 
@@ -574,7 +575,7 @@ class ReportingSnapshotService
                 $key = $this->salesKey((int) $shift->branch_id, $date, $currency);
                 $row = $rows[$key] ?? $this->emptySalesRow((int) $shift->branch_id, $date, $currency, $refreshedAt);
                 $row['cashier_shift_closed_count']++;
-                $row['cash_discrepancy_amount'] += round((float) ($shift->cash_discrepancy_amount ?? 0), 2);
+                $row = $this->addMoneyAmount($row, 'cash_discrepancy_amount', $shift->cash_discrepancy_amount ?? 0);
                 $rows[$key] = $row;
             });
 
@@ -943,7 +944,9 @@ class ReportingSnapshotService
                     continue;
                 }
 
-                if (str_ends_with((string) $key, '_amount') || str_contains((string) $key, '_quantity') || $key === 'net_quantity_delta') {
+                if (str_ends_with((string) $key, '_amount')) {
+                    $row[$key] = Money::toFloat($value);
+                } elseif (str_contains((string) $key, '_quantity') || $key === 'net_quantity_delta') {
                     $row[$key] = round((float) $value, $precision);
                 }
             }
@@ -951,6 +954,19 @@ class ReportingSnapshotService
         unset($row);
 
         return $rows;
+    }
+
+    /**
+     * @param  array<string,mixed>  $row
+     * @return array<string,mixed>
+     */
+    private function addMoneyAmount(array $row, string $key, mixed $amount): array
+    {
+        $row[$key] = Money::formatMinor(
+            Money::minorUnits($row[$key] ?? 0) + Money::minorUnits($amount)
+        );
+
+        return $row;
     }
 
     /**

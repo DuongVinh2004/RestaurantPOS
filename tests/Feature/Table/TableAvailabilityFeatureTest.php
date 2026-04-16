@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Table;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
@@ -103,6 +104,18 @@ class TableAvailabilityFeatureTest extends TestCase
     public function test_available_endpoint_applies_turnover_buffer_and_filters_blocked_and_maintenance_tables(): void
     {
         config()->set('booking.service_buffer_minutes', 15);
+        DB::table('branches')
+            ->where('branch_id', 1)
+            ->update([
+                'booking_policy' => json_encode([
+                    'reservation' => [],
+                    'waiting_list' => [],
+                    'availability' => [
+                        'service_buffer_minutes' => 15,
+                    ],
+                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'updated_at' => now('UTC'),
+            ]);
 
         $start = $this->nowUtc()->copy()->addHours(6)->startOfMinute();
         $end = $start->copy()->addHours(2);
@@ -243,6 +256,34 @@ class TableAvailabilityFeatureTest extends TestCase
             ->assertJsonPath('meta.branch_timezone', 'Asia/Ho_Chi_Minh')
             ->assertJsonPath('meta.availability_policy.allowed', false)
             ->assertJsonPath('meta.availability_policy.reason', 'closure_window');
+
+        self::assertSame([], $response->json('data'));
+    }
+
+    public function test_available_endpoint_returns_no_tables_when_branch_scheduling_configuration_is_incomplete(): void
+    {
+        $branchId = $this->createBranch([
+            'branch_code' => 'CFG1',
+            'timezone' => null,
+            'business_hours' => null,
+            'booking_policy' => null,
+        ]);
+        $this->createRestaurantTableWithSeats(4, ['branch_id' => $branchId, 'zone' => 'SAFE']);
+
+        $start = $this->nowUtc()->copy()->addHours(2)->startOfMinute();
+        $end = $start->copy()->addHour();
+
+        $response = $this->getJson(sprintf(
+            '/api/v1/tables/available?branch_id=%d&from=%s&to=%s&zone=SAFE&guest_count=2',
+            $branchId,
+            urlencode($start->toIso8601String()),
+            urlencode($end->toIso8601String()),
+        ));
+
+        $response->assertOk()
+            ->assertJsonPath('meta.branch_id', $branchId)
+            ->assertJsonPath('meta.availability_policy.allowed', false)
+            ->assertJsonPath('meta.availability_policy.reason', 'branch_schedule_unavailable');
 
         self::assertSame([], $response->json('data'));
     }

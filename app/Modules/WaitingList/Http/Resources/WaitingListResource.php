@@ -93,14 +93,14 @@ class WaitingListResource extends JsonResource
                 'latest' => is_array($inviteHold['latest'] ?? null) ? $inviteHold['latest'] : null,
             ],
             'orchestration' => $orchestration,
-            'user' => $this->whenLoaded('user', function () {
-                return $this->user ? [
+            'user' => $this->relationLoaded('user') && $this->user
+                ? [
                     'user_id' => (int) $this->user->user_id,
                     'full_name' => $this->user->full_name,
                     'email' => $this->user->email,
                     'phone' => $this->user->phone,
-                ] : null;
-            }),
+                ]
+                : null,
         ];
     }
 

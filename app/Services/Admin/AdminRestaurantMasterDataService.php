@@ -90,18 +90,26 @@ class AdminRestaurantMasterDataService
             ]);
         }
 
-        $updated = RestaurantTable::query()
-            ->when($currentZone === null,
-                static fn ($query) => $query->whereNull('zone')->orWhere('zone', ''),
-                static fn ($query) => $query->where('zone', $currentZone)
-            )
-            ->update(['zone' => $newZone]);
+        return DB::transaction(function () use ($currentZone, $newZone): array {
+            $tables = RestaurantTable::query()
+                ->when($currentZone === null,
+                    static fn ($query) => $query->whereNull('zone')->orWhere('zone', ''),
+                    static fn ($query) => $query->where('zone', $currentZone)
+                )
+                ->lockForUpdate()
+                ->get();
 
-        if ($updated === 0) {
-            abort(404);
-        }
+            if ($tables->isEmpty()) {
+                abort(404);
+            }
 
-        return $this->showZone($newZone);
+            foreach ($tables as $table) {
+                $table->zone = $newZone;
+                $table->save();
+            }
+
+            return $this->showZone($newZone);
+        });
     }
 
     public function listTables(array $filters = []): Collection
