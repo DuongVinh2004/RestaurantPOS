@@ -249,8 +249,8 @@ class OperationalInsightsServiceTest extends TestCase
     {
         $branchId = $this->createBranch([
             'branch_code' => 'CFG2',
-            'timezone' => null,
-            'business_hours' => null,
+            'timezone' => 'UTC',
+            'business_hours' => [],
             'booking_policy' => null,
         ]);
 

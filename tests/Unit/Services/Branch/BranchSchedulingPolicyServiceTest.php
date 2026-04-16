@@ -185,10 +185,34 @@ final class BranchSchedulingPolicyServiceTest extends TestCase
         }
     }
 
-    public function test_incomplete_branch_scheduling_is_not_bookable_for_availability_waiting_list_and_service_sessions(): void
+    public function test_null_branch_policy_payloads_fall_back_to_defaults_for_readiness(): void
     {
         $branchId = $this->createBranch([
             'branch_code' => 'CFG0',
+            'timezone' => 'UTC',
+            'business_hours' => null,
+            'booking_policy' => null,
+        ]);
+
+        $service = app(BranchSchedulingPolicyService::class);
+        $startUtc = Carbon::parse('2026-08-01 12:00:00', 'UTC');
+        $endUtc = Carbon::parse('2026-08-01 13:00:00', 'UTC');
+
+        $readiness = $service->schedulingReadiness($branchId, false);
+
+        self::assertTrue($readiness['bookable']);
+        self::assertSame([], $readiness['reasons']);
+
+        $availability = $service->evaluateAvailabilityWindow($branchId, $startUtc, $endUtc, null, false);
+
+        self::assertTrue($availability['allowed']);
+        self::assertNull($availability['reason']);
+    }
+
+    public function test_incomplete_branch_scheduling_is_not_bookable_for_availability_waiting_list_and_service_sessions(): void
+    {
+        $branchId = $this->createBranch([
+            'branch_code' => 'CFG1',
             'timezone' => null,
             'business_hours' => null,
             'booking_policy' => null,
@@ -202,8 +226,8 @@ final class BranchSchedulingPolicyServiceTest extends TestCase
 
         self::assertFalse($readiness['bookable']);
         self::assertContains('branch_timezone_missing', $readiness['reasons']);
-        self::assertContains('business_hours_missing', $readiness['reasons']);
-        self::assertContains('booking_policy_missing', $readiness['reasons']);
+        self::assertNotContains('business_hours_missing', $readiness['reasons']);
+        self::assertNotContains('booking_policy_missing', $readiness['reasons']);
 
         $availability = $service->evaluateAvailabilityWindow($branchId, $startUtc, $endUtc, null, false);
 
@@ -229,6 +253,18 @@ final class BranchSchedulingPolicyServiceTest extends TestCase
                 $e->errors()['branch_id'][0] ?? null,
             );
         }
+
+        $emptyHoursBranchId = $this->createBranch([
+            'branch_code' => 'CFG2',
+            'timezone' => 'UTC',
+            'business_hours' => [],
+            'booking_policy' => null,
+        ]);
+        $emptyHoursReadiness = $service->schedulingReadiness($emptyHoursBranchId, false);
+
+        self::assertFalse($emptyHoursReadiness['bookable']);
+        self::assertContains('business_hours_missing', $emptyHoursReadiness['reasons']);
+        self::assertNotContains('booking_policy_missing', $emptyHoursReadiness['reasons']);
     }
 
     /**
