@@ -6,6 +6,8 @@ namespace App\Modules\CheckoutPayments\Application\Services;
 
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Modules\CheckoutPayments\Domain\Policies\PaymentStatusTransitionPolicy;
+use App\Support\Money;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
@@ -21,12 +23,12 @@ class RefundPlannerService
      */
     public function buildRefundPlan(
         string $refundScope,
-        ?float $requestedRefundAmount,
+        mixed $requestedRefundAmount,
         array $availableByScope,
         bool $cancelAfterPayment
     ): array {
-        $availableDeposit = round(max(0.0, (float) ($availableByScope['deposit'] ?? 0.0)), 2);
-        $availableFinal = round(max(0.0, (float) ($availableByScope['final'] ?? 0.0)), 2);
+        $availableDeposit = Money::minorUnits($availableByScope['deposit'] ?? 0, true);
+        $availableFinal = Money::minorUnits($availableByScope['final'] ?? 0, true);
 
         return match ($refundScope) {
             'deposit' => $this->buildSingleScopePlan('deposit', $requestedRefundAmount, $availableDeposit),
@@ -42,10 +44,10 @@ class RefundPlannerService
      * @param  Collection<int,Payment>  $payments
      * @return array<int,array{payment:Payment,amount:float}>
      */
-    public function allocateRefundPaymentsBySource(Collection $payments, string $targetPaymentType, float $requestedAmount): array
+    public function allocateRefundPaymentsBySource(Collection $payments, string $targetPaymentType, mixed $requestedAmount): array
     {
-        $requestedAmount = round($requestedAmount, 2);
-        if ($requestedAmount <= 0.0001) {
+        $requestedMinor = Money::minorUnits($requestedAmount, true);
+        if ($requestedMinor <= 0) {
             return [];
         }
 
@@ -54,7 +56,7 @@ class RefundPlannerService
                 $status = (string) ($payment->status?->value ?? $payment->status);
                 $type = (string) ($payment->payment_type?->value ?? $payment->payment_type);
 
-                return $type === $targetPaymentType && in_array($status, ['Success', 'Partial'], true);
+                return $type === $targetPaymentType && PaymentStatusTransitionPolicy::isRefundableSourceStatus($status);
             })
             ->sortByDesc(fn (Payment $payment) => (int) $payment->payment_id)
             ->values();
@@ -65,41 +67,41 @@ class RefundPlannerService
             $type = (string) ($payment->payment_type?->value ?? $payment->payment_type);
             $sourceId = $payment->refund_of_payment_id !== null ? (int) $payment->refund_of_payment_id : null;
 
-            if ($type !== 'Refund' || $status !== 'Refunded' || $sourceId === null) {
+            if ($type !== 'Refund' || ! PaymentStatusTransitionPolicy::isRefundedStatus($status) || $sourceId === null) {
                 continue;
             }
 
-            $refundedBySource[$sourceId] = round(($refundedBySource[$sourceId] ?? 0.0) + (float) ($payment->amount ?? 0.0), 2);
+            $refundedBySource[$sourceId] = ($refundedBySource[$sourceId] ?? 0) + Money::minorUnits($payment->amount ?? 0, true);
         }
 
-        $remaining = $requestedAmount;
+        $remainingMinor = $requestedMinor;
         $allocations = [];
 
         foreach ($captured as $sourcePayment) {
-            $sourceAmount = round((float) ($sourcePayment->amount ?? 0.0), 2);
-            $alreadyRefunded = round((float) ($refundedBySource[(int) $sourcePayment->payment_id] ?? 0.0), 2);
-            $available = round(max(0.0, $sourceAmount - $alreadyRefunded), 2);
-            if ($available <= 0.0001) {
+            $sourceMinor = Money::minorUnits($sourcePayment->amount ?? 0, true);
+            $alreadyRefundedMinor = (int) ($refundedBySource[(int) $sourcePayment->payment_id] ?? 0);
+            $availableMinor = max(0, $sourceMinor - $alreadyRefundedMinor);
+            if ($availableMinor <= 0) {
                 continue;
             }
 
-            $allocation = round(min($available, $remaining), 2);
-            if ($allocation <= 0.0001) {
+            $allocationMinor = min($availableMinor, $remainingMinor);
+            if ($allocationMinor <= 0) {
                 continue;
             }
 
             $allocations[] = [
                 'payment' => $sourcePayment,
-                'amount' => $allocation,
+                'amount' => Money::minorToFloat($allocationMinor),
             ];
-            $remaining = round($remaining - $allocation, 2);
+            $remainingMinor -= $allocationMinor;
 
-            if ($remaining <= 0.0001) {
+            if ($remainingMinor <= 0) {
                 break;
             }
         }
 
-        if ($remaining > 0.0001) {
+        if ($remainingMinor > 0) {
             throw ValidationException::withMessages([
                 'refund_amount' => ['Requested refund exceeds available refundable payments.'],
             ]);
@@ -153,58 +155,62 @@ class RefundPlannerService
     /**
      * @return array{deposit:float,final:float,total:float}
      */
-    private function buildSingleScopePlan(string $scopeKey, ?float $requestedRefundAmount, float $availableAmount): array
+    private function buildSingleScopePlan(string $scopeKey, mixed $requestedRefundAmount, int $availableMinor): array
     {
-        $requested = $requestedRefundAmount !== null ? round(max(0.0, $requestedRefundAmount), 2) : $availableAmount;
-        if ($requested <= 0.0001 || $requested - $availableAmount > 0.0001) {
+        $requestedMinor = $requestedRefundAmount !== null
+            ? Money::minorUnits($requestedRefundAmount, true)
+            : $availableMinor;
+        if ($requestedMinor <= 0 || $requestedMinor > $availableMinor) {
             throw ValidationException::withMessages([
                 'refund_amount' => ['Requested refund exceeds refundable balance for the selected scope.'],
             ]);
         }
 
         return [
-            'deposit' => $scopeKey === 'deposit' ? $requested : 0.0,
-            'final' => $scopeKey === 'final' ? $requested : 0.0,
-            'total' => $requested,
+            'deposit' => $scopeKey === 'deposit' ? Money::minorToFloat($requestedMinor) : 0.0,
+            'final' => $scopeKey === 'final' ? Money::minorToFloat($requestedMinor) : 0.0,
+            'total' => Money::minorToFloat($requestedMinor),
         ];
     }
 
     /**
      * @return array{deposit:float,final:float,total:float}
      */
-    private function buildAllScopePlan(?float $requestedRefundAmount, float $availableDeposit, float $availableFinal, bool $cancelAfterPayment): array
+    private function buildAllScopePlan(mixed $requestedRefundAmount, int $availableDepositMinor, int $availableFinalMinor, bool $cancelAfterPayment): array
     {
-        $availableTotal = round($availableDeposit + $availableFinal, 2);
-        if ($availableTotal <= 0.0001) {
+        $availableTotalMinor = $availableDepositMinor + $availableFinalMinor;
+        if ($availableTotalMinor <= 0) {
             throw ValidationException::withMessages([
                 'refund_amount' => ['There is no refundable payment to refund.'],
             ]);
         }
 
-        $requested = $requestedRefundAmount !== null ? round(max(0.0, $requestedRefundAmount), 2) : $availableTotal;
-        if ($requested <= 0.0001 || $requested - $availableTotal > 0.0001) {
+        $requestedMinor = $requestedRefundAmount !== null
+            ? Money::minorUnits($requestedRefundAmount, true)
+            : $availableTotalMinor;
+        if ($requestedMinor <= 0 || $requestedMinor > $availableTotalMinor) {
             throw ValidationException::withMessages([
                 'refund_amount' => ['Requested refund exceeds refundable balance.'],
             ]);
         }
 
         $plan = [
-            'deposit' => 0.0,
-            'final' => 0.0,
+            'deposit' => 0,
+            'final' => 0,
         ];
 
-        if ($cancelAfterPayment || $requested > $availableDeposit + 0.0001) {
-            $plan['deposit'] = $availableDeposit;
-            $plan['final'] = round($requested - $plan['deposit'], 2);
+        if ($cancelAfterPayment || $requestedMinor > $availableDepositMinor) {
+            $plan['deposit'] = $availableDepositMinor;
+            $plan['final'] = $requestedMinor - $plan['deposit'];
         } else {
-            $plan['deposit'] = $requested;
-            $plan['final'] = 0.0;
+            $plan['deposit'] = $requestedMinor;
+            $plan['final'] = 0;
         }
 
         return [
-            'deposit' => round($plan['deposit'], 2),
-            'final' => round($plan['final'], 2),
-            'total' => round($requested, 2),
+            'deposit' => Money::minorToFloat($plan['deposit']),
+            'final' => Money::minorToFloat($plan['final']),
+            'total' => Money::minorToFloat($requestedMinor),
         ];
     }
 }

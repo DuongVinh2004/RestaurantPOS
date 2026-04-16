@@ -185,6 +185,52 @@ final class BranchSchedulingPolicyServiceTest extends TestCase
         }
     }
 
+    public function test_incomplete_branch_scheduling_is_not_bookable_for_availability_waiting_list_and_service_sessions(): void
+    {
+        $branchId = $this->createBranch([
+            'branch_code' => 'CFG0',
+            'timezone' => null,
+            'business_hours' => null,
+            'booking_policy' => null,
+        ]);
+
+        $service = app(BranchSchedulingPolicyService::class);
+        $startUtc = Carbon::parse('2026-08-01 12:00:00', 'UTC');
+        $endUtc = Carbon::parse('2026-08-01 13:00:00', 'UTC');
+
+        $readiness = $service->schedulingReadiness($branchId, false);
+
+        self::assertFalse($readiness['bookable']);
+        self::assertContains('branch_timezone_missing', $readiness['reasons']);
+        self::assertContains('business_hours_missing', $readiness['reasons']);
+        self::assertContains('booking_policy_missing', $readiness['reasons']);
+
+        $availability = $service->evaluateAvailabilityWindow($branchId, $startUtc, $endUtc, null, false);
+
+        self::assertFalse($availability['allowed']);
+        self::assertSame('branch_schedule_unavailable', $availability['reason']);
+
+        try {
+            $service->assertWaitingListEligible($branchId, $startUtc, 'branch_id', false);
+            self::fail('Expected incomplete branch scheduling to reject waiting-list eligibility.');
+        } catch (ValidationException $e) {
+            self::assertSame(
+                'Branch booking is unavailable until scheduling configuration is completed.',
+                $e->errors()['branch_id'][0] ?? null,
+            );
+        }
+
+        try {
+            $service->assertOperationalServiceWindowOpen($branchId, $startUtc, $endUtc, 'branch_id', false);
+            self::fail('Expected incomplete branch scheduling to reject service sessions.');
+        } catch (ValidationException $e) {
+            self::assertSame(
+                'Branch booking is unavailable until scheduling configuration is completed.',
+                $e->errors()['branch_id'][0] ?? null,
+            );
+        }
+    }
+
     /**
      * @return array<int, array{day_of_week:int,periods:array<int, array{start_time:string,end_time:string}>>>
      */

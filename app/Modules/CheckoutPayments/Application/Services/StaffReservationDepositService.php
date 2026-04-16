@@ -8,6 +8,7 @@ use App\Enums\PaymentStatus;
 use App\Enums\ReservationStatus;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Modules\CheckoutPayments\Domain\Policies\PaymentStatusTransitionPolicy;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
 use App\Modules\Reservations\Application\Services\ReservationDepositReadService;
 use App\Modules\Reservations\Application\Services\ReservationDepositRealtimePublisher;
@@ -15,6 +16,7 @@ use App\Modules\Reservations\Application\Services\ReservationDepositSelfServiceS
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Support\AuditEvent;
 use App\Support\DatabaseWriteConflictMapper;
+use App\Support\Money;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -136,7 +138,7 @@ class StaffReservationDepositService
                         ->get();
 
                     $paymentSummary = PaymentSummary::fromPayments($payments);
-                    if ((float) ($paymentSummary['final_net_amount'] ?? 0.0) > 0.0001) {
+                    if (Money::minorUnits($paymentSummary['final_net_amount'] ?? 0, true) > 0) {
                         throw ValidationException::withMessages([
                             'reservation' => ['Cannot collect deposit after final payment has been recorded.'],
                         ]);
@@ -157,27 +159,30 @@ class StaffReservationDepositService
                         ]);
                     }
 
-                    $requiredAmount = round(max(0.0, (float) ($reservation->deposit_required_amount ?? 0.0)), 2);
-                    if ($requiredAmount <= 0.0001) {
+                    $requiredAmountMinor = Money::minorUnits($reservation->deposit_required_amount ?? 0, true);
+                    $requiredAmount = Money::minorToFloat($requiredAmountMinor);
+                    if ($requiredAmountMinor <= 0) {
                         throw ValidationException::withMessages([
                             'reservation' => ['This reservation does not require a deposit.'],
                         ]);
                     }
 
                     $outstandingAmount = $this->computeOutstandingDeposit($reservation, $paymentSummary);
-                    if ($outstandingAmount <= 0.0001) {
+                    $outstandingAmountMinor = Money::minorUnits($outstandingAmount, true);
+                    if ($outstandingAmountMinor <= 0) {
                         throw ValidationException::withMessages([
                             'amount' => ['Deposit has already been fully paid.'],
                         ]);
                     }
 
-                    $normalizedAmount = round($amount, 2);
-                    if ($normalizedAmount <= 0.0) {
+                    $normalizedAmountMinor = Money::minorUnits($amount, true);
+                    $normalizedAmount = Money::minorToFloat($normalizedAmountMinor);
+                    if ($normalizedAmountMinor <= 0) {
                         throw ValidationException::withMessages([
                             'amount' => ['amount must be greater than 0.'],
                         ]);
                     }
-                    if ($normalizedAmount - $outstandingAmount > 0.0001) {
+                    if ($normalizedAmountMinor > $outstandingAmountMinor) {
                         throw ValidationException::withMessages([
                             'amount' => ['amount cannot exceed outstanding deposit amount.'],
                         ]);
@@ -185,7 +190,7 @@ class StaffReservationDepositService
 
                     $payment = new Payment;
                     $payment->reservation_id = $reservationId;
-                    $payment->amount = $normalizedAmount;
+                    $payment->amount = Money::formatMinor($normalizedAmountMinor);
                     $payment->currency = $paymentCurrency;
                     $payment->payment_method = $paymentMethod;
                     $payment->payment_provider = trim($paymentProvider) !== '' ? trim($paymentProvider) : 'Other';
@@ -195,9 +200,10 @@ class StaffReservationDepositService
                     $payment->created_by = $staffUserId;
                     $payment->notes = $trimmedNotes !== '' ? $trimmedNotes : null;
                     $payment->paid_at = Carbon::now('UTC');
-                    $payment->status = $normalizedAmount + 0.0001 >= $outstandingAmount
-                        ? PaymentStatus::Success
-                        : PaymentStatus::Partial;
+                    $payment->status = PaymentStatusTransitionPolicy::captureStatusForAppliedAmount(
+                        Money::minorToFloat($normalizedAmountMinor),
+                        Money::minorToFloat($outstandingAmountMinor)
+                    );
                     $payment->provider_response_json = [
                         'action' => 'deposit_capture',
                         'request_idempotency_key' => $idempotencyKey !== '' ? $idempotencyKey : null,
@@ -315,10 +321,11 @@ class StaffReservationDepositService
 
         $summary = PaymentSummary::fromPayments($payments);
         $outstandingAmount = $this->computeOutstandingDeposit($reservation, $summary);
+        $outstandingAmountMinor = Money::minorUnits($outstandingAmount, true);
         $status = (string) ($reservation->status?->value ?? $reservation->status);
         $canAcceptPayment = in_array($status, ReservationStatus::activeDbValues(), true)
-            && $outstandingAmount > 0.0001
-            && (float) ($summary['final_net_amount'] ?? 0.0) <= 0.0001;
+            && $outstandingAmountMinor > 0
+            && Money::minorUnits($summary['final_net_amount'] ?? 0, true) <= 0;
         $paymentSessions = $reservation->relationLoaded('depositPaymentSessions')
             ? $reservation->depositPaymentSessions
             : $reservation->depositPaymentSessions()->orderByDesc('deposit_payment_session_id')->get();
@@ -345,10 +352,10 @@ class StaffReservationDepositService
      */
     private function computeOutstandingDeposit(Reservation $reservation, array $paymentSummary): float
     {
-        $required = round(max(0.0, (float) ($reservation->deposit_required_amount ?? 0.0)), 2);
-        $paid = round(max(0.0, (float) ($paymentSummary['deposit_net_amount'] ?? $reservation->deposit_paid_amount ?? 0.0)), 2);
+        $requiredMinor = Money::minorUnits($reservation->deposit_required_amount ?? 0, true);
+        $paidMinor = Money::minorUnits($paymentSummary['deposit_net_amount'] ?? $reservation->deposit_paid_amount ?? 0, true);
 
-        return round(max(0.0, $required - $paid), 2);
+        return Money::minorToFloat(max(0, $requiredMinor - $paidMinor));
     }
 
     private function assertReservationCanCollectDeposit(Reservation $reservation): void
@@ -410,7 +417,7 @@ class StaffReservationDepositService
     ): string {
         $payload = [
             'payment_method' => trim($paymentMethod),
-            'amount' => round($amount, 2),
+            'amount' => Money::toFloat($amount, true),
             'currency' => trim($currency) !== '' ? trim($currency) : 'VND',
             'transaction_code' => trim($transactionCode),
             'payment_provider' => trim($paymentProvider) !== '' ? trim($paymentProvider) : 'Other',

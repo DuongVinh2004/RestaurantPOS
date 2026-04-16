@@ -2,10 +2,8 @@
 
 namespace App\Platform\Health\Http;
 
-use App\Platform\Metrics\Services\OperationalInsightsService;
 use App\Platform\Health\Services\OpsHeartbeatService;
-use App\Support\StaffCapabilityResolver;
-use App\Support\StaffActorResolver;
+use App\Platform\Metrics\Services\OperationalInsightsService;
 use Illuminate\Cache\Repository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
@@ -18,14 +16,105 @@ class HealthController
 {
     public function __construct(
         private readonly OpsHeartbeatService $heartbeat,
-        private readonly StaffActorResolver $staffActorResolver,
-        private readonly StaffCapabilityResolver $staffCapabilityResolver,
         private readonly OperationalInsightsService $operationalInsights,
     ) {}
 
     public function health(): JsonResponse
     {
+        $snapshot = $this->runtimeSnapshot();
+
+        return response()->json(
+            [
+                'status' => $snapshot['status'],
+                'service' => (string) config('app.name', 'RestaurantPOS'),
+                'timestamp_utc' => (string) $snapshot['timestamp_utc'],
+            ],
+            $this->statusCode((string) $snapshot['status']),
+        );
+    }
+
+    public function detailed(): JsonResponse
+    {
+        $snapshot = $this->runtimeSnapshot();
+        $checks = (array) $snapshot['checks'];
+        $status = (string) $snapshot['status'];
+
+        try {
+            $ops = $this->operationalInsights->snapshot();
+            $checks['notification_outbox'] = $ops['notification_outbox'] ?? [];
+            $checks['payment_integrity'] = $ops['payment_integrity'] ?? [];
+            $checks['voucher_locks'] = $ops['voucher_locks'] ?? [];
+            $checks['session_linkage'] = $ops['session_linkage'] ?? [];
+            $checks['staff_api_keys'] = $ops['staff_api_keys'] ?? [];
+            $checks['table_state_audit'] = $ops['table_state_audit'] ?? [];
+            $checks['row_version_contract'] = $ops['row_version_contract'] ?? [];
+            $checks['reporting_snapshots'] = $ops['reporting_snapshots'] ?? [];
+            $checks['kitchen_kds'] = $ops['kitchen_kds'] ?? [];
+            $checks['staff_operational_realtime'] = $ops['staff_operational_realtime'] ?? [];
+            $checks['branch_defaults'] = $ops['branch_defaults'] ?? [];
+            $checks['database_contract'] = $ops['database_contract'] ?? [];
+            $status = $this->mergeOperationalStatus(
+                $status,
+                (string) ($checks['notification_outbox']['status'] ?? 'ok'),
+                (string) ($checks['payment_integrity']['status'] ?? 'ok'),
+                (string) ($checks['voucher_locks']['status'] ?? 'ok'),
+                (string) ($checks['session_linkage']['status'] ?? 'ok'),
+                (string) ($checks['staff_api_keys']['status'] ?? 'ok'),
+                (string) ($checks['table_state_audit']['status'] ?? 'ok'),
+                (string) ($checks['row_version_contract']['status'] ?? 'ok'),
+                (string) ($checks['reporting_snapshots']['status'] ?? 'ok'),
+                (string) ($checks['kitchen_kds']['status'] ?? 'ok'),
+                (string) ($checks['staff_operational_realtime']['status'] ?? 'ok'),
+                (string) ($checks['branch_defaults']['status'] ?? 'ok'),
+                (string) ($checks['database_contract']['status'] ?? 'ok'),
+            );
+        } catch (Throwable $e) {
+            $checks['ops'] = [
+                'ok' => false,
+                'error' => $e->getMessage(),
+            ];
+            $status = $status === 'fail' ? 'fail' : 'degraded';
+        }
+
+        return response()->json([
+            'status' => $status,
+            'checks' => $checks,
+            'meta' => [
+                'request_id' => (string) $snapshot['request_id'],
+                'timestamp_utc' => (string) $snapshot['timestamp_utc'],
+                'app_env' => (string) config('app.env'),
+            ],
+        ], $this->statusCode($status));
+    }
+
+    public function redis(): JsonResponse
+    {
+        $snapshot = $this->redisSnapshot();
+
+        return response()->json([
+            'status' => $snapshot['status'],
+            'checks' => [
+                'redis_store' => $snapshot['check'],
+            ],
+            'meta' => [
+                'request_id' => (string) $snapshot['request_id'],
+                'timestamp_utc' => (string) $snapshot['timestamp_utc'],
+            ],
+        ], $this->statusCode((string) $snapshot['status']));
+    }
+
+    /**
+     * @return array{
+     *   request_id:string,
+     *   status:string,
+     *   checks:array<string,mixed>,
+     *   timestamp_utc:string
+     * }
+     */
+    private function runtimeSnapshot(): array
+    {
         $requestId = (string) (request()->attributes->get('request_id') ?? Str::uuid());
+        $timestampUtc = now('UTC')->toIso8601String();
 
         $checks = [
             'db' => [
@@ -131,84 +220,45 @@ class HealthController
             $checks['disk']['error'] = $e->getMessage();
         }
 
-        $response = [
+        return [
+            'request_id' => $requestId,
             'status' => $status,
-            'checks' => $this->publicHealthChecks($checks),
-            'meta' => [
-                'request_id' => $requestId,
-                'timestamp_utc' => now('UTC')->toIso8601String(),
-            ],
+            'checks' => $checks,
+            'timestamp_utc' => $timestampUtc,
         ];
-
-        if ($this->hasDetailedOpsAccess()) {
-            try {
-                $ops = $this->operationalInsights->snapshot();
-                $checks['notification_outbox'] = $ops['notification_outbox'] ?? [];
-                $checks['payment_integrity'] = $ops['payment_integrity'] ?? [];
-                $checks['voucher_locks'] = $ops['voucher_locks'] ?? [];
-                $checks['session_linkage'] = $ops['session_linkage'] ?? [];
-                $checks['staff_api_keys'] = $ops['staff_api_keys'] ?? [];
-                $checks['table_state_audit'] = $ops['table_state_audit'] ?? [];
-                $checks['row_version_contract'] = $ops['row_version_contract'] ?? [];
-                $checks['reporting_snapshots'] = $ops['reporting_snapshots'] ?? [];
-                $checks['branch_defaults'] = $ops['branch_defaults'] ?? [];
-                $checks['database_contract'] = $ops['database_contract'] ?? [];
-                $status = $this->mergeOperationalStatus(
-                    $status,
-                    (string) ($checks['notification_outbox']['status'] ?? 'ok'),
-                    (string) ($checks['payment_integrity']['status'] ?? 'ok'),
-                    (string) ($checks['voucher_locks']['status'] ?? 'ok'),
-                    (string) ($checks['session_linkage']['status'] ?? 'ok'),
-                    (string) ($checks['staff_api_keys']['status'] ?? 'ok'),
-                    (string) ($checks['table_state_audit']['status'] ?? 'ok'),
-                    (string) ($checks['row_version_contract']['status'] ?? 'ok'),
-                    (string) ($checks['reporting_snapshots']['status'] ?? 'ok'),
-                    (string) ($checks['branch_defaults']['status'] ?? 'ok'),
-                    (string) ($checks['database_contract']['status'] ?? 'ok'),
-                );
-            } catch (Throwable $e) {
-                $checks['ops'] = [
-                    'ok' => false,
-                    'error' => $e->getMessage(),
-                ];
-                $status = $status === 'fail' ? 'fail' : 'degraded';
-            }
-            $response['checks'] = $checks;
-            $response['status'] = $status;
-            $response['meta']['app_env'] = (string) config('app.env');
-        }
-
-        $httpCode = ($status === 'fail') ? 503 : 200;
-
-        return response()->json($response, $httpCode);
     }
 
-    public function redis(): JsonResponse
+    /**
+     * @return array{
+     *   request_id:string,
+     *   status:string,
+     *   check:array<string,mixed>,
+     *   timestamp_utc:string
+     * }
+     */
+    private function redisSnapshot(): array
     {
         $requestId = (string) (request()->attributes->get('request_id') ?? Str::uuid());
+        $timestampUtc = now('UTC')->toIso8601String();
 
-        $result = [
-            'status' => 'ok',
-            'checks' => [
-                'redis_store' => [
-                    'ok' => false,
-                    'error' => null,
-                ],
-            ],
-            'meta' => [
-                'request_id' => $requestId,
-                'timestamp_utc' => now('UTC')->toIso8601String(),
-            ],
+        $check = [
+            'ok' => false,
+            'reason' => null,
+            'set_get_ok' => false,
+            'lock_ok' => false,
+            'error' => null,
         ];
+        $status = 'ok';
 
         try {
             /** @var Repository $redis */
             $redis = Cache::store('redis');
-            $result['checks']['redis_store']['ok'] = true;
+            $check['ok'] = true;
 
             $key = 'health:redis:'.$requestId;
             $redis->put($key, 'pong', 10);
             $setGetOk = ($redis->get($key) === 'pong');
+            $check['set_get_ok'] = $setGetOk;
 
             $lock = $redis->lock('health:redis-lock:'.$requestId, 3);
             $acquired = $lock->get();
@@ -216,46 +266,33 @@ class HealthController
                 $lock->release();
             }
             $lockOk = (bool) $acquired;
+            $check['lock_ok'] = $lockOk;
 
             if (! $setGetOk || ! $lockOk) {
-                $result['status'] = 'degraded';
+                $status = 'degraded';
             }
 
-            $result['checks']['redis_store'] = [
-                'ok' => $result['status'] === 'ok',
+            $check = array_merge($check, [
+                'ok' => $status === 'ok',
                 'reason' => $setGetOk ? ($lockOk ? null : 'redis_lock_failed') : 'redis_set_get_failed',
-            ];
-
-            return response()->json($result, 200);
+            ]);
         } catch (Throwable $e) {
-            $result['status'] = 'fail';
-            $result['checks']['redis_store'] = [
+            $status = 'fail';
+            $check = [
                 'ok' => false,
                 'reason' => 'redis_unavailable',
+                'set_get_ok' => false,
+                'lock_ok' => false,
+                'error' => $e->getMessage(),
             ];
-
-            return response()->json($result, 503);
-        }
-    }
-
-    private function hasDetailedOpsAccess(): bool
-    {
-        $resolved = $this->staffActorResolver->resolveFromRequest(request());
-        if (! (bool) ($resolved['ok'] ?? false)) {
-            return false;
         }
 
-        $user = $resolved['user'] ?? null;
-        if (! is_object($user)) {
-            return false;
-        }
-
-        $capabilities = (array) ($this->staffCapabilityResolver->resolveForActor(
-            (int) ($user->role_id ?? 0),
-            (string) ($user->role?->role_name ?? ''),
-        )['capabilities'] ?? []);
-
-        return in_array('*', $capabilities, true) || in_array('ops.view', $capabilities, true);
+        return [
+            'request_id' => $requestId,
+            'status' => $status,
+            'check' => $check,
+            'timestamp_utc' => $timestampUtc,
+        ];
     }
 
     private function mergeOperationalStatus(string $baseStatus, string ...$statuses): string
@@ -275,81 +312,8 @@ class HealthController
         return $status;
     }
 
-    /**
-     * @param  array<string,mixed>  $checks
-     * @return array<string,mixed>
-     */
-    private function publicHealthChecks(array $checks): array
+    private function statusCode(string $status): int
     {
-        return [
-            'db' => [
-                'ok' => (bool) ($checks['db']['ok'] ?? false),
-                'reason' => $this->dbReason($checks),
-            ],
-            'redis' => [
-                'ok' => (bool) ($checks['redis']['ok'] ?? false),
-                'reason' => $this->redisReason($checks),
-            ],
-            'scheduler' => [
-                'ok' => (bool) ($checks['scheduler']['ok'] ?? false),
-                'reason' => $this->schedulerReason($checks),
-            ],
-            'disk' => [
-                'ok' => (bool) ($checks['disk']['ok'] ?? false),
-                'reason' => $this->diskReason($checks),
-            ],
-        ];
-    }
-
-    /**
-     * @param  array<string,mixed>  $checks
-     */
-    private function dbReason(array $checks): ?string
-    {
-        return (bool) ($checks['db']['ok'] ?? false) ? null : 'db_unavailable';
-    }
-
-    /**
-     * @param  array<string,mixed>  $checks
-     */
-    private function redisReason(array $checks): ?string
-    {
-        if ((bool) ($checks['redis']['ok'] ?? false)) {
-            if (! (bool) ($checks['redis']['set_get_ok'] ?? false)) {
-                return 'redis_set_get_failed';
-            }
-
-            if (! (bool) ($checks['redis']['lock_ok'] ?? false)) {
-                return 'redis_lock_failed';
-            }
-
-            return null;
-        }
-
-        return 'redis_unavailable';
-    }
-
-    /**
-     * @param  array<string,mixed>  $checks
-     */
-    private function schedulerReason(array $checks): ?string
-    {
-        if ((bool) ($checks['scheduler']['ok'] ?? false)) {
-            return null;
-        }
-
-        if (($checks['scheduler']['last_run_at_utc'] ?? null) === null) {
-            return 'scheduler_heartbeat_missing';
-        }
-
-        return 'scheduler_heartbeat_stale';
-    }
-
-    /**
-     * @param  array<string,mixed>  $checks
-     */
-    private function diskReason(array $checks): ?string
-    {
-        return (bool) ($checks['disk']['ok'] ?? true) ? null : 'disk_probe_failed';
+        return $status === 'fail' ? 503 : 200;
     }
 }

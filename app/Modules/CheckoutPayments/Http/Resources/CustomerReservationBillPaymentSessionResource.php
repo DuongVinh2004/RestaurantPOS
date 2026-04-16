@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\CheckoutPayments\Http\Resources;
 
+use App\Modules\CheckoutPayments\Support\PaymentProviderPayloadSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
@@ -27,7 +28,7 @@ class CustomerReservationBillPaymentSessionResource extends JsonResource
             'linked_payment_id' => $this->linked_payment_id !== null ? (int) $this->linked_payment_id : null,
             'failure_code' => $this->failure_code !== null ? (string) $this->failure_code : null,
             'failure_message' => $this->failure_message !== null ? (string) $this->failure_message : null,
-            'provider_payload' => $this->provider_payload_json,
+            'provider_payload' => PaymentProviderPayloadSanitizer::sanitizeSessionPayloadForPresentation($this->provider_payload_json),
             'provider_expires_at' => $this->iso($this->provider_expires_at),
             'last_reconciled_at' => $this->iso($this->last_reconciled_at),
             'confirmed_at' => $this->iso($this->confirmed_at),

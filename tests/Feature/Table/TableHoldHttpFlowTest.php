@@ -129,6 +129,38 @@ class TableHoldHttpFlowTest extends TestCase
             ->assertJsonValidationErrors(['session_id']);
     }
 
+    public function test_second_session_cannot_create_conflicting_hold_for_same_table_window_once_first_hold_exists(): void
+    {
+        $tableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available']);
+        $start = $this->nowUtc()->copy()->addHours(3);
+        $end = $start->copy()->addHour();
+
+        $this->postJson('/api/v1/table-holds', [
+            'session_id' => 'sess-table-hold-first',
+            'start_time' => $start->toIso8601String(),
+            'end_time' => $end->toIso8601String(),
+            'table_ids' => [$tableId],
+            'hold_minutes' => 5,
+        ], $this->withIdempotencyKey('table-hold-first-conflict'))
+            ->assertCreated()
+            ->assertJsonPath('data.hold_status', 'Holding');
+
+        $response = $this->postJson('/api/v1/table-holds', [
+            'session_id' => 'sess-table-hold-second',
+            'start_time' => $start->toIso8601String(),
+            'end_time' => $end->toIso8601String(),
+            'table_ids' => [$tableId],
+            'hold_minutes' => 5,
+        ], $this->withIdempotencyKey('table-hold-second-conflict'));
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error');
+
+        self::assertStringContainsString((string) $tableId, (string) data_get($response->json(), 'details.errors.table_ids.0', ''));
+        self::assertSame(1, (int) DB::table('table_holds')->whereIn('hold_status', ['Holding', 'Pending'])->count());
+        self::assertSame(1, (int) DB::table('table_hold_details')->where('table_id', $tableId)->count());
+    }
+
     public function test_hold_create_rejects_branch_local_window_outside_business_hours(): void
     {
         $branchId = $this->createBranch([

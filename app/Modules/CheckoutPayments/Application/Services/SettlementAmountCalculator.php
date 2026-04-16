@@ -7,6 +7,7 @@ namespace App\Modules\CheckoutPayments\Application\Services;
 use App\Enums\PaymentStatus;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Support\Money;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
@@ -16,19 +17,21 @@ class SettlementAmountCalculator
      * @param  Collection<int,mixed>|null  $payments
      * @return array{deposit_net_amount:float,deposit_applied_amount:float,final_paid_amount:float,settled_amount:float,remaining_due:float}
      */
-    public function buildSettlementAmounts(?Collection $payments, float $totalDue): array
+    public function buildSettlementAmounts(?Collection $payments, mixed $totalDue): array
     {
         $summary = PaymentSummary::fromPayments($payments ?? collect());
-        $depositApplied = min((float) ($summary['deposit_net_amount'] ?? 0.0), $totalDue);
-        $finalPaid = (float) ($summary['final_net_amount'] ?? 0.0);
-        $settled = round($depositApplied + $finalPaid, 2);
+        $totalDueMinor = Money::minorUnits($totalDue, true);
+        $depositNetMinor = Money::minorUnits($summary['deposit_net_amount'] ?? 0, true);
+        $finalPaidMinor = Money::minorUnits($summary['final_net_amount'] ?? 0, true);
+        $depositAppliedMinor = min($depositNetMinor, $totalDueMinor);
+        $settledMinor = $depositAppliedMinor + $finalPaidMinor;
 
         return [
-            'deposit_net_amount' => round((float) ($summary['deposit_net_amount'] ?? 0.0), 2),
-            'deposit_applied_amount' => round($depositApplied, 2),
-            'final_paid_amount' => round($finalPaid, 2),
-            'settled_amount' => round($settled, 2),
-            'remaining_due' => round(max(0.0, $totalDue - $settled), 2),
+            'deposit_net_amount' => Money::minorToFloat($depositNetMinor),
+            'deposit_applied_amount' => Money::minorToFloat($depositAppliedMinor),
+            'final_paid_amount' => Money::minorToFloat($finalPaidMinor),
+            'settled_amount' => Money::minorToFloat($settledMinor),
+            'remaining_due' => Money::minorToFloat(max(0, $totalDueMinor - $settledMinor)),
         ];
     }
 
@@ -39,9 +42,14 @@ class SettlementAmountCalculator
         ?float $totalDue = null,
         ?string $currency = null
     ): ReservationOrder {
-        $computedSubtotal = round($subtotal ?? (float) $order->items()->sum('line_total'), 2);
-        $computedDiscount = round(max(0.0, $discount ?? 0.0), 2);
-        $computedTotalDue = round($totalDue ?? max(0.0, $computedSubtotal - $computedDiscount), 2);
+        $computedSubtotalMinor = Money::minorUnits($subtotal ?? $order->items()->sum('line_total'), true);
+        $computedDiscountMinor = Money::minorUnits($discount ?? 0, true);
+        $computedTotalDueMinor = $totalDue !== null
+            ? Money::minorUnits($totalDue, true)
+            : max(0, $computedSubtotalMinor - $computedDiscountMinor);
+        $computedSubtotal = Money::minorToFloat($computedSubtotalMinor);
+        $computedDiscount = Money::minorToFloat($computedDiscountMinor);
+        $computedTotalDue = Money::minorToFloat($computedTotalDueMinor);
         $currencyCode = $this->normalizeCurrencyCode($currency ?? (string) ($order->reservation?->bill_currency ?? ''), 'VND');
 
         /** @var Collection<int,mixed> $payments */
@@ -58,23 +66,27 @@ class SettlementAmountCalculator
         }
 
         $settlement = $this->buildSettlementAmounts($payments, $computedTotalDue);
-        $paidAmount = round((float) ($settlement['settled_amount'] ?? 0.0), 2);
-        $remaining = round((float) ($settlement['remaining_due'] ?? max(0.0, $computedTotalDue - $paidAmount)), 2);
+        $paidAmountMinor = Money::minorUnits($settlement['settled_amount'] ?? 0, true);
+        $remainingMinor = array_key_exists('remaining_due', $settlement)
+            ? Money::minorUnits($settlement['remaining_due'], true)
+            : max(0, $computedTotalDueMinor - $paidAmountMinor);
+        $paidAmount = Money::minorToFloat($paidAmountMinor);
+        $remaining = Money::minorToFloat($remainingMinor);
 
         $order->setAttribute('subtotal_amount', $computedSubtotal);
         $order->setAttribute('discount_amount', $computedDiscount);
         $order->setAttribute('total_due_amount', $computedTotalDue);
         $order->setAttribute('currency', $currencyCode);
         $order->setAttribute('paid_amount', $paidAmount);
-        $order->setAttribute('deposit_applied_amount', round((float) ($settlement['deposit_applied_amount'] ?? 0.0), 2));
-        $order->setAttribute('deposit_net_amount', round((float) ($settlement['deposit_net_amount'] ?? 0.0), 2));
-        $order->setAttribute('final_paid_amount', round((float) ($settlement['final_paid_amount'] ?? 0.0), 2));
+        $order->setAttribute('deposit_applied_amount', Money::toFloat($settlement['deposit_applied_amount'] ?? 0, true));
+        $order->setAttribute('deposit_net_amount', Money::toFloat($settlement['deposit_net_amount'] ?? 0, true));
+        $order->setAttribute('final_paid_amount', Money::toFloat($settlement['final_paid_amount'] ?? 0, true));
         $order->setAttribute('outstanding_amount', $remaining);
         $order->setAttribute(
             'payment_status',
-            $paidAmount + 0.0001 >= $computedTotalDue
+            $paidAmountMinor >= $computedTotalDueMinor
                 ? PaymentStatus::Success->value
-                : ($paidAmount > 0 ? PaymentStatus::Partial->value : PaymentStatus::Failed->value)
+                : ($paidAmountMinor > 0 ? PaymentStatus::Partial->value : PaymentStatus::Failed->value)
         );
 
         return $order;

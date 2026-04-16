@@ -17,6 +17,7 @@ use App\Services\CustomerReservationSessionAccessService;
 use App\Services\MenuPreorderPolicyService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Support\AuditEvent;
+use App\Support\Money;
 use App\Support\ValidationExceptionFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -341,14 +342,16 @@ class CustomerReservationPreorderService
             : collect();
 
         $currency = (string) ($reservation->bill_currency ?? 'VND');
-        $subtotal = 0.0;
+        $subtotalMinor = 0;
         $quantityTotal = 0;
         $lines = [];
 
         foreach ($activeItems as $item) {
-            $unitPrice = round((float) ($item->unit_price ?? 0.0), 2);
-            $lineTotal = round((float) ($item->line_total ?? ($unitPrice * (int) $item->quantity)), 2);
-            $subtotal += $lineTotal;
+            $unitPriceMinor = Money::minorUnits($item->unit_price ?? 0, true);
+            $lineTotalMinor = $item->line_total !== null
+                ? Money::minorUnits($item->line_total, true)
+                : $unitPriceMinor * (int) $item->quantity;
+            $subtotalMinor += $lineTotalMinor;
             $quantityTotal += (int) $item->quantity;
             $currency = (string) ($item->currency ?: $currency);
 
@@ -362,8 +365,8 @@ class CustomerReservationPreorderService
                 'status' => $item->status?->value ?? (string) $item->status,
                 'name' => (string) ($item->item_name_snapshot ?: ($menuItem?->name ?? '')),
                 'code' => $menuItem?->code,
-                'unit_price' => number_format($unitPrice, 2, '.', ''),
-                'line_total' => number_format($lineTotal, 2, '.', ''),
+                'unit_price' => Money::formatMinor($unitPriceMinor),
+                'line_total' => Money::formatMinor($lineTotalMinor),
                 'currency' => (string) ($item->currency ?: $currency),
                 'notes' => $item->notes,
                 'updated_at' => optional($item->updated_at)->utc()->toIso8601String(),
@@ -381,7 +384,7 @@ class CustomerReservationPreorderService
             'totals' => [
                 'item_count' => count($lines),
                 'quantity' => $quantityTotal,
-                'subtotal' => number_format($subtotal, 2, '.', ''),
+                'subtotal' => Money::formatMinor($subtotalMinor),
             ],
             'normalized_pre_order_items' => array_map(static fn (array $line): array => [
                 'item_id' => (int) $line['item_id'],
@@ -409,7 +412,7 @@ class CustomerReservationPreorderService
         $rows = $prepared['rows'];
 
         $currency = 'VND';
-        $subtotal = 0.0;
+        $subtotalMinor = 0;
         $quantityTotal = 0;
         $lines = [];
 
@@ -421,9 +424,9 @@ class CustomerReservationPreorderService
             /** @var MenuItemPrice $priceRow */
             $priceRow = $priceRows->get($itemId);
 
-            $unitPrice = round((float) $priceRow->price, 2);
-            $lineTotal = round($unitPrice * $quantity, 2);
-            $subtotal += $lineTotal;
+            $unitPriceMinor = Money::minorUnits($priceRow->price, true);
+            $lineTotalMinor = $unitPriceMinor * $quantity;
+            $subtotalMinor += $lineTotalMinor;
             $quantityTotal += $quantity;
             $currency = (string) ($priceRow->currency ?: $currency);
 
@@ -432,8 +435,8 @@ class CustomerReservationPreorderService
                 'code' => (string) ($menuItem->code ?? ''),
                 'name' => (string) $menuItem->name,
                 'quantity' => $quantity,
-                'unit_price' => number_format($unitPrice, 2, '.', ''),
-                'line_total' => number_format($lineTotal, 2, '.', ''),
+                'unit_price' => Money::formatMinor($unitPriceMinor),
+                'line_total' => Money::formatMinor($lineTotalMinor),
                 'currency' => (string) ($priceRow->currency ?: $currency),
                 'preorder_cutoff_minutes' => (int) ($menuItem->preorder_cutoff_minutes ?? 0),
                 'preorder_quota_per_day' => $menuItem->preorder_quota_per_day !== null
@@ -449,7 +452,7 @@ class CustomerReservationPreorderService
             'totals' => [
                 'item_count' => count($lines),
                 'quantity' => $quantityTotal,
-                'subtotal' => number_format($subtotal, 2, '.', ''),
+                'subtotal' => Money::formatMinor($subtotalMinor),
             ],
             'normalized_pre_order_items' => array_map(static fn (array $row): array => [
                 'item_id' => (int) $row['item_id'],
@@ -476,13 +479,13 @@ class CustomerReservationPreorderService
             /** @var MenuItemPrice $priceRow */
             $priceRow = $priceRows->get($itemId);
 
-            $unitPrice = round((float) $priceRow->price, 2);
+            $unitPriceMinor = Money::minorUnits($priceRow->price, true);
             $item = new ReservationOrderItem();
             $item->order_id = (int) $order->order_id;
             $item->item_id = $itemId;
             $item->quantity = $quantity;
-            $item->unit_price = $unitPrice;
-            $item->line_total = round($unitPrice * $quantity, 2);
+            $item->unit_price = Money::formatMinor($unitPriceMinor);
+            $item->line_total = Money::formatMinor($unitPriceMinor * $quantity);
             $item->currency = (string) ($priceRow->currency ?: 'VND');
             $item->item_name_snapshot = (string) $menuItem->name;
             $item->status = ReservationOrderItemStatus::Ordered;

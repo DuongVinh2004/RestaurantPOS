@@ -11,6 +11,7 @@ use App\Modules\BenefitsLoyalty\Domain\Models\UserVoucher;
 use App\Modules\BenefitsLoyalty\Domain\Models\Voucher;
 use App\Modules\BenefitsLoyalty\Domain\Policies\VoucherRedemptionSupport;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Support\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -61,7 +62,7 @@ class ReservationVoucherPreviewService
             'description' => (string) ($voucher?->description ?? ''),
             'discount_type' => $voucher?->discount_type?->value ?? (string) ($voucher?->discount_type ?? ''),
             'discount_value' => $voucher?->discount_value !== null ? number_format((float) $voucher->discount_value, 2, '.', '') : null,
-            'min_spend' => $voucher?->min_spend !== null ? number_format((float) $voucher->min_spend, 2, '.', '') : null,
+            'min_spend' => $voucher?->min_spend !== null ? Money::format($voucher->min_spend, true) : null,
             'free_item' => $voucher && (int) ($voucher->free_item_id ?? 0) > 0 ? [
                 'item_id' => (int) $voucher->free_item_id,
                 'quantity' => max(1, (int) ($voucher->free_item_qty ?? 1)),
@@ -75,8 +76,8 @@ class ReservationVoucherPreviewService
             'is_locked_by_other' => $isLockedByOther,
             'locked_until' => $userVoucher->locked_until?->utc()->toIso8601String(),
             'is_currently_applied' => (int) ($reservation->applied_user_voucher_id ?? 0) === (int) $userVoucher->user_voucher_id,
-            'preview_discount_amount' => number_format((float) ($applicability['discount_amount'] ?? 0.0), 2, '.', ''),
-            'preview_subtotal_amount' => number_format((float) ($applicability['subtotal'] ?? 0.0), 2, '.', ''),
+            'preview_discount_amount' => Money::format($applicability['discount_amount'] ?? 0, true),
+            'preview_subtotal_amount' => Money::format($applicability['subtotal'] ?? 0, true),
             'preview_currency' => (string) ($applicability['currency'] ?? 'VND'),
             'can_apply' => (bool) ($applicability['can_apply'] ?? false),
             'applicability_reason_codes' => array_values($applicability['reason_codes'] ?? []),
@@ -109,8 +110,8 @@ class ReservationVoucherPreviewService
         }
 
         $preview = VoucherRedemptionSupport::calculateDiscount($voucher, $orders);
-        $discountAmount = round((float) ($preview['discount_amount'] ?? 0.0), 2);
-        $subtotal = round((float) ($preview['subtotal'] ?? 0.0), 2);
+        $discountAmountMinor = Money::minorUnits($preview['discount_amount'] ?? 0, true);
+        $subtotalMinor = Money::minorUnits($preview['subtotal'] ?? 0, true);
         $currency = (string) ($preview['currency'] ?? 'VND');
 
         $reservationStatus = (string) ($reservation->status?->value ?? $reservation->status);
@@ -168,13 +169,13 @@ class ReservationVoucherPreviewService
             }
         }
 
-        $minSpend = round(max(0.0, (float) ($voucher->min_spend ?? 0.0)), 2);
-        if ($subtotal + 0.0001 < $minSpend) {
+        $minSpendMinor = Money::minorUnits($voucher->min_spend ?? 0, true);
+        if ($subtotalMinor < $minSpendMinor) {
             $reasonCodes[] = 'min_spend_not_met';
-            $reasons[] = sprintf('Voucher requires minimum spend %s.', number_format($minSpend, 2, '.', ''));
+            $reasons[] = sprintf('Voucher requires minimum spend %s.', Money::formatMinor($minSpendMinor));
         }
 
-        if ($discountAmount <= 0.0001) {
+        if ($discountAmountMinor <= 0) {
             $reasonCodes[] = 'not_applicable_to_items';
             $reasons[] = 'Voucher is not applicable to current reservation items.';
         }
@@ -183,8 +184,8 @@ class ReservationVoucherPreviewService
             'can_apply' => $reasonCodes === [],
             'reason_codes' => $reasonCodes,
             'reasons' => $reasons,
-            'discount_amount' => $discountAmount,
-            'subtotal' => $subtotal,
+            'discount_amount' => Money::minorToFloat($discountAmountMinor),
+            'subtotal' => Money::minorToFloat($subtotalMinor),
             'currency' => $currency,
             'other_active_reservation_id' => $otherActiveReservationId,
         ];

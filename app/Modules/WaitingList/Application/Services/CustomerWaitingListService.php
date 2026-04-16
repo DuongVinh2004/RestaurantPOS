@@ -12,6 +12,7 @@ use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyServ
 use App\Modules\BranchScheduling\Domain\Models\TableHold;
 use App\Modules\Reporting\Application\Services\StaffOperationalRealtimeService;
 use App\Modules\WaitingList\Domain\Models\WaitingList;
+use App\Modules\WaitingList\Domain\State\WaitingListStateMachine;
 use App\Support\AuditEvent;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\Collection;
@@ -184,16 +185,7 @@ class CustomerWaitingListService
 
                 $now = Carbon::now('UTC');
 
-                $entry->status = WaitingListStatus::Cancelled;
-                $entry->cancelled_at = $now;
-                $entry->cancel_reason = 'Declined by customer';
-                $entry->notified_at = null;
-                $entry->notify_expires_at = null;
-                $entry->customer_response_status = WaitingListCustomerResponseStatus::Declined;
-                $entry->customer_responded_at = $now;
-                $entry->customer_confirmed_arrival_at = null;
-                $entry->notified_by = null;
-                $entry->updated_by = $ownerUserId;
+                WaitingListStateMachine::applyCustomerDeclined($entry, $now, $ownerUserId);
                 $entry->save();
 
                 $this->cancelExistingNotifyHold($entry, $ownerUserId);
@@ -236,16 +228,12 @@ class CustomerWaitingListService
                     $this->assertOpenNotifiedWindow($entry);
                 }
 
-                $entry->status = WaitingListStatus::Cancelled;
-                $entry->cancelled_at = Carbon::now('UTC');
-                $entry->cancel_reason = $this->normalizedCancelReason($cancelReason);
-                $entry->notified_at = null;
-                $entry->notify_expires_at = null;
-                $entry->customer_response_status = null;
-                $entry->customer_responded_at = null;
-                $entry->customer_confirmed_arrival_at = null;
-                $entry->notified_by = null;
-                $entry->updated_by = $ownerUserId;
+                WaitingListStateMachine::applyCustomerCancelled(
+                    $entry,
+                    Carbon::now('UTC'),
+                    $this->normalizedCancelReason($cancelReason),
+                    $ownerUserId
+                );
                 $entry->save();
 
                 $this->cancelExistingNotifyHold($entry, $ownerUserId);
@@ -362,14 +350,19 @@ class CustomerWaitingListService
 
     private function cancelExistingNotifyHold(WaitingList $entry, ?int $ownerUserId = null): void
     {
+        $now = Carbon::now('UTC');
+
         TableHold::query()
             ->where('session_id', $this->buildWaitingSessionId((int) $entry->waiting_id))
             ->whereIn('hold_status', [TableHoldStatus::Holding->value, TableHoldStatus::Pending->value, TableHoldStatus::Confirmed->value])
-            ->update([
-                'hold_status' => TableHoldStatus::Cancelled->value,
-                'updated_by' => $ownerUserId,
-                'updated_at' => Carbon::now('UTC'),
-            ]);
+            ->lockForUpdate()
+            ->get()
+            ->each(function (TableHold $hold) use ($ownerUserId, $now): void {
+                $hold->hold_status = TableHoldStatus::Cancelled;
+                $hold->updated_by = $ownerUserId;
+                $hold->updated_at = $now;
+                $hold->save();
+            });
     }
 
     private function buildWaitingSessionId(int $waitingId): string

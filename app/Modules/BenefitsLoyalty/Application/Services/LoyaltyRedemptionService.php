@@ -11,6 +11,7 @@ use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncSe
 use App\Modules\CheckoutPayments\Domain\Models\Payment;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
 use App\Support\AuditEvent;
+use App\Support\Money;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
@@ -37,7 +38,7 @@ class LoyaltyRedemptionService
         callable $buildReservationSnapshot,
     ): void {
         $paymentSummary = PaymentSummary::fromPayments($payments);
-        if ((float) ($paymentSummary['final_net_amount'] ?? 0.0) > 0.0001) {
+        if (Money::isPositive($paymentSummary['final_net_amount'] ?? 0)) {
             throw ValidationException::withMessages([
                 'reservation' => ['Cannot change loyalty redemption after final payment has been recorded.'],
             ]);
@@ -63,8 +64,9 @@ class LoyaltyRedemptionService
             ]);
         }
 
-        $redeemAmount = round($points * $this->balanceService->redeemAmountPerPoint(), 2);
-        if ($redeemAmount <= 0.0001) {
+        $redeemAmountMinor = Money::minorUnits($this->balanceService->redeemAmountPerPoint(), true) * $points;
+        $redeemAmount = Money::minorToFloat($redeemAmountMinor);
+        if ($redeemAmountMinor <= 0) {
             throw ValidationException::withMessages([
                 'points' => ['The requested points do not convert into a valid discount amount.'],
             ]);
@@ -91,7 +93,9 @@ class LoyaltyRedemptionService
 
         $this->reservationFinancialSyncService->syncReservationDiscountSnapshot(
             reservation: $reservation,
-            totalDiscount: round(max(0.0, (float) ($reservation->discount_amount ?? 0.0) + $redeemAmount), 2),
+            totalDiscount: Money::minorToFloat(
+                Money::minorUnits($reservation->discount_amount ?? 0, true) + $redeemAmountMinor
+            ),
             lockOrders: true,
         );
         $reservation->updated_by = $staffUserId;
@@ -122,7 +126,7 @@ class LoyaltyRedemptionService
     ): array {
         $currentRedeemedPoints = $this->balanceService->currentRedeemedPointsForReservation((int) $reservation->reservation_id, true);
         $currentRedeemedAmount = $this->balanceService->currentRedeemedAmountForReservation((int) $reservation->reservation_id, true);
-        if ($currentRedeemedPoints <= 0 || $currentRedeemedAmount <= 0.0001) {
+        if ($currentRedeemedPoints <= 0 || Money::isZeroOrNegative($currentRedeemedAmount)) {
             return ['released_points' => 0, 'released_amount' => 0.0];
         }
 
@@ -140,7 +144,10 @@ class LoyaltyRedemptionService
 
         $this->reservationFinancialSyncService->syncReservationDiscountSnapshot(
             reservation: $reservation,
-            totalDiscount: max(0.0, round((float) ($reservation->discount_amount ?? 0.0) - $currentRedeemedAmount, 2)),
+            totalDiscount: Money::minorToFloat(max(
+                0,
+                Money::minorUnits($reservation->discount_amount ?? 0, true) - Money::minorUnits($currentRedeemedAmount, true)
+            )),
             lockOrders: true,
         );
         $reservation->updated_by = $staffUserId;

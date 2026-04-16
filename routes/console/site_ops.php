@@ -72,6 +72,21 @@ $staffApiKeyConsolePayload = static function (StaffApiKey $record): array {
     ];
 };
 
+$consoleSecretPayload = static function (?string $secret, bool $reveal = false) use ($consoleSecretMask): array {
+    return [
+        'plain' => $reveal ? $secret : null,
+        'masked' => $consoleSecretMask($secret),
+        'revealed' => $reveal && $secret !== null,
+    ];
+};
+
+$consoleWarnOnSecretReveal = static function (ConsoleCommand $command, string $secretLabel): void {
+    $command->warn(sprintf(
+        'Plaintext %s is being shown once. It may persist in shell history, logs, recordings, or shared terminals.',
+        $secretLabel
+    ));
+};
+
 Artisan::command('booking:bootstrap-site
     {--branch-code= : Branch code to ensure}
     {--branch-name= : Branch name to ensure}
@@ -87,7 +102,8 @@ Artisan::command('booking:bootstrap-site
     {--rotate-staff-key : Rotate the existing bootstrap staff API key}
     {--staff-key-label= : Staff API key label}
     {--staff-key-ttl-days=90 : Staff API key lifetime in days}
-    {--json : Output machine-readable JSON}', function () use ($staffApiKeyConsolePayload, $consoleValidationPayload) {
+    {--show-secret-once : Reveal the plaintext bootstrap staff API key once in this command output}
+    {--json : Output machine-readable JSON}', function () use ($staffApiKeyConsolePayload, $consoleValidationPayload, $consoleSecretPayload, $consoleWarnOnSecretReveal) {
     /** @var ConsoleCommand $command */
     // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
     $command = $this;
@@ -132,6 +148,17 @@ Artisan::command('booking:bootstrap-site
         $result['staff_api_key']['record'] = $staffApiKeyConsolePayload($result['staff_api_key']['record']);
     }
 
+    $revealSecret = (bool) $command->option('show-secret-once');
+    $bootstrapSecret = $consoleSecretPayload(
+        isset($result['staff_api_key']['plaintext_key']) && is_string($result['staff_api_key']['plaintext_key'])
+            ? $result['staff_api_key']['plaintext_key']
+            : null,
+        $revealSecret,
+    );
+    $result['staff_api_key']['plaintext_key'] = $bootstrapSecret['plain'];
+    $result['staff_api_key']['plaintext_key_masked'] = $bootstrapSecret['masked'];
+    $result['staff_api_key']['secret_revealed'] = $bootstrapSecret['revealed'];
+
     if ($command->option('json')) {
         $command->line(json_encode(['ok' => true, 'data' => $result], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
@@ -139,6 +166,9 @@ Artisan::command('booking:bootstrap-site
     }
 
     $command->info('Site bootstrap completed.');
+    if ($revealSecret && $bootstrapSecret['plain'] !== null) {
+        $consoleWarnOnSecretReveal($command, 'bootstrap staff API key');
+    }
     $command->table(['Field', 'Value'], [
         ['branch_code', (string) ($result['branch']['branch_code'] ?? '')],
         ['branch_name', (string) ($result['branch']['branch_name'] ?? '')],
@@ -149,7 +179,7 @@ Artisan::command('booking:bootstrap-site
         ['admin_username', (string) ($result['users']['admin']['username'] ?? '')],
         ['staff_username', (string) ($result['users']['staff']['username'] ?? '')],
         ['staff_api_key_action', (string) ($result['staff_api_key']['action'] ?? '')],
-        ['staff_api_key_plaintext', (string) ($result['staff_api_key']['plaintext_key'] ?? '')],
+        [$revealSecret ? 'staff_api_key_plaintext' : 'staff_api_key_plaintext_masked', (string) ($revealSecret ? ($result['staff_api_key']['plaintext_key'] ?? '') : ($result['staff_api_key']['plaintext_key_masked'] ?? ''))],
     ]);
 
     return 0;

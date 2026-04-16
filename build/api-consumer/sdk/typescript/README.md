@@ -158,6 +158,7 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 ### Health
 
 - GET api/v1/health
+- GET api/v1/health/detailed
 - GET api/v1/health/redis
 
 Usage sketch:

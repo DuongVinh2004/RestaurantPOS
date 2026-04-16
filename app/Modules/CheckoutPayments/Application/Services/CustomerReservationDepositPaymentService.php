@@ -21,7 +21,9 @@ use App\Modules\Reservations\Application\Services\ReservationDepositReadService;
 use App\Modules\Reservations\Application\Services\ReservationDepositRealtimePublisher;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Support\AuditEvent;
+use App\Support\Money;
 use App\Support\ValidationExceptionFactory;
+use App\Modules\CheckoutPayments\Support\PaymentProviderPayloadSanitizer;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -111,7 +113,6 @@ class CustomerReservationDepositPaymentService
                 $session->failure_message = Arr::get($providerSession, 'failure_message');
                 $session->provider_payload_json = $this->mergeRequestMetadata(
                     (array) ($providerSession['provider_payload'] ?? []),
-                    $idempotencyKey,
                     $requestFingerprint
                 );
                 $session->idempotency_key = $idempotencyKey !== '' ? $idempotencyKey : null;
@@ -266,23 +267,24 @@ class CustomerReservationDepositPaymentService
         $this->assertReservationSupportsCustomerDepositPayment($reservation, $paymentSummary);
 
         $outstanding = $this->calculateOutstandingDeposit($reservation, $paymentSummary);
-        $requested = array_key_exists('amount', $payload) && $payload['amount'] !== null
-            ? round(max(0.0, (float) $payload['amount']), 2)
-            : $outstanding;
+        $outstandingMinor = Money::minorUnits($outstanding, true);
+        $requestedMinor = array_key_exists('amount', $payload) && $payload['amount'] !== null
+            ? Money::minorUnits($payload['amount'], true)
+            : $outstandingMinor;
 
-        if ($requested <= 0.0001) {
+        if ($requestedMinor <= 0) {
             throw ValidationExceptionFactory::make([
                 'amount' => ['Deposit payment amount must be greater than 0.'],
             ]);
         }
 
-        if ($requested - $outstanding > 0.0001) {
+        if ($requestedMinor > $outstandingMinor) {
             throw ValidationExceptionFactory::make([
                 'amount' => ['Deposit payment amount exceeds the outstanding deposit balance.'],
             ]);
         }
 
-        return $requested;
+        return Money::minorToFloat($requestedMinor);
     }
 
     private function assertReservationSupportsCustomerDepositPayment(Reservation $reservation, array $paymentSummary): void
@@ -293,20 +295,20 @@ class CustomerReservationDepositPaymentService
             ]);
         }
 
-        $depositRequired = round(max(0.0, (float) ($reservation->deposit_required_amount ?? 0.0)), 2);
-        if ($depositRequired <= 0.0001) {
+        $depositRequiredMinor = Money::minorUnits($reservation->deposit_required_amount ?? 0, true);
+        if ($depositRequiredMinor <= 0) {
             throw ValidationExceptionFactory::make([
                 'deposit' => ['Reservation does not require a deposit payment.'],
             ]);
         }
 
-        if ((float) ($paymentSummary['final_captured_amount'] ?? 0.0) > 0.0001) {
+        if (Money::minorUnits($paymentSummary['final_captured_amount'] ?? 0, true) > 0) {
             throw ValidationExceptionFactory::make([
                 'deposit' => ['Reservation already has final settlement captured; deposit payment is not allowed.'],
             ]);
         }
 
-        if ($this->calculateOutstandingDeposit($reservation, $paymentSummary) <= 0.0001) {
+        if (Money::minorUnits($this->calculateOutstandingDeposit($reservation, $paymentSummary), true) <= 0) {
             throw ValidationExceptionFactory::make([
                 'deposit' => ['Deposit is already fully paid.'],
             ]);
@@ -315,10 +317,10 @@ class CustomerReservationDepositPaymentService
 
     private function calculateOutstandingDeposit(Reservation $reservation, array $paymentSummary): float
     {
-        $required = round(max(0.0, (float) ($reservation->deposit_required_amount ?? 0.0)), 2);
-        $paid = round(max(0.0, (float) ($paymentSummary['deposit_net_amount'] ?? 0.0)), 2);
+        $requiredMinor = Money::minorUnits($reservation->deposit_required_amount ?? 0, true);
+        $paidMinor = Money::minorUnits($paymentSummary['deposit_net_amount'] ?? 0, true);
 
-        return round(max(0.0, $required - $paid), 2);
+        return Money::minorToFloat(max(0, $requiredMinor - $paidMinor));
     }
 
     private function buildResponse(Reservation $reservation, ReservationDepositPaymentSession $session): array
@@ -348,7 +350,7 @@ class CustomerReservationDepositPaymentService
     {
         $normalized = [
             'amount' => array_key_exists('amount', $payload) && $payload['amount'] !== null
-                ? round(max(0.0, (float) $payload['amount']), 2)
+                ? Money::toFloat($payload['amount'], true)
                 : null,
             'currency' => trim((string) ($payload['currency'] ?? '')),
             'payment_method' => trim((string) ($payload['payment_method'] ?? 'Online')) ?: 'Online',
@@ -390,14 +392,13 @@ class CustomerReservationDepositPaymentService
      * @param  array<string,mixed>  $providerPayload
      * @return array<string,mixed>
      */
-    private function mergeRequestMetadata(array $providerPayload, string $idempotencyKey, ?string $requestFingerprint): array
+    private function mergeRequestMetadata(array $providerPayload, ?string $requestFingerprint): array
     {
         $providerPayload['_booking_request'] = [
-            'idempotency_key' => $idempotencyKey !== '' ? trim($idempotencyKey) : null,
             'fingerprint' => $requestFingerprint !== null && trim($requestFingerprint) !== '' ? trim($requestFingerprint) : null,
         ];
 
-        return $providerPayload;
+        return PaymentProviderPayloadSanitizer::sanitizeSessionPayloadForStorage($providerPayload);
     }
 
     /**
@@ -625,7 +626,7 @@ class CustomerReservationDepositPaymentService
             'summary' => [
                 'payment_scope' => PaymentSessionScope::Deposit->value,
                 'provider_code' => (string) $session->provider_code,
-                'amount' => round((float) $session->amount, 2),
+                'amount' => Money::toFloat($session->amount, true),
                 'currency' => (string) $session->currency,
             ],
             'actor' => $this->resolveCustomerAuditActor($customerUserId, $sessionId),
@@ -682,7 +683,7 @@ class CustomerReservationDepositPaymentService
             'session_status' => (string) ($session->session_status?->value ?? $session->session_status),
             'settlement_status' => (string) ($session->settlement_status?->value ?? $session->settlement_status),
             'linked_payment_id' => $session->linked_payment_id !== null ? (int) $session->linked_payment_id : null,
-            'amount' => round((float) $session->amount, 2),
+            'amount' => Money::toFloat($session->amount, true),
             'currency' => (string) $session->currency,
             'provider_code' => (string) $session->provider_code,
             'provider_session_code' => (string) $session->provider_session_code,

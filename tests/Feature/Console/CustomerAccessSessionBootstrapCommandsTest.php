@@ -99,14 +99,20 @@ class CustomerAccessSessionBootstrapCommandsTest extends TestCase
             '--guest-name' => 'Bootstrap Customer',
             '--phone' => '0900000001',
             '--source' => 'uat.bootstrap',
+            '--session-label' => 'Front desk kiosk',
+            '--device-id' => 'device-terminal-01',
+            '--created-ip' => '203.0.113.10',
+            '--user-agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
             '--json' => true,
         ]);
 
         $this->assertSame(0, $issueExitCode);
         $issued = $this->decodeArtisanOutput();
         $this->assertTrue($issued['ok']);
-        $this->assertStringStartsWith('cust-session-bootstrap-1', (string) ($issued['data']['access_session']['session_id'] ?? 'cust-session-bootstrap-1'));
-        $this->assertNotSame('', (string) ($issued['data']['plain_text_token'] ?? ''));
+        $this->assertNull($issued['data']['plain_text_token'] ?? null);
+        $this->assertFalse((bool) ($issued['data']['secret_revealed'] ?? true));
+        $this->assertNotSame('', (string) ($issued['data']['plain_text_token_masked'] ?? ''));
+        $this->assertNotSame('cust-session-bootstrap-1', (string) ($issued['data']['access_session']['session_id'] ?? ''));
 
         $accessSessionId = (int) $issued['data']['access_session']['access_session_id'];
 
@@ -117,8 +123,33 @@ class CustomerAccessSessionBootstrapCommandsTest extends TestCase
         $this->assertSame(0, $showExitCode);
         $shown = $this->decodeArtisanOutput();
         $this->assertSame($customerId, (int) $shown['data']['user_id']);
-        $this->assertSame('Bootstrap Customer', (string) $shown['data']['guest_name']);
+        $this->assertNotSame('Bootstrap Customer', (string) $shown['data']['guest_name']);
+        $this->assertNotSame('0900000001', (string) $shown['data']['phone']);
+        $this->assertNotSame('203.0.113.10', (string) $shown['data']['created_ip']);
+        $this->assertNotSame(
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
+            (string) $shown['data']['user_agent']
+        );
+        $this->assertSame('uat.bootstrap', $shown['data']['metadata']['source'] ?? null);
+        $this->assertSame('Front desk kiosk', $shown['data']['metadata']['session_label'] ?? null);
+        $this->assertNotSame('device-terminal-01', (string) ($shown['data']['metadata']['device_id'] ?? ''));
         $this->assertTrue((bool) $shown['data']['is_active']);
+
+        $showVerboseExitCode = Artisan::call('customer-auth:access-sessions:show', [
+            'access_session_id' => $accessSessionId,
+            '--verbose-sensitive' => true,
+            '--json' => true,
+        ]);
+        $this->assertSame(0, $showVerboseExitCode);
+        $shownVerbose = $this->decodeArtisanOutput();
+        $this->assertSame('Bootstrap Customer', (string) $shownVerbose['data']['guest_name']);
+        $this->assertSame('0900000001', (string) $shownVerbose['data']['phone']);
+        $this->assertSame('203.0.113.10', (string) $shownVerbose['data']['created_ip']);
+        $this->assertSame(
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
+            (string) $shownVerbose['data']['user_agent']
+        );
+        $this->assertSame('device-terminal-01', (string) ($shownVerbose['data']['metadata']['device_id'] ?? ''));
 
         $listExitCode = Artisan::call('customer-auth:access-sessions:list', [
             '--user-id' => $customerId,
@@ -155,6 +186,26 @@ class CustomerAccessSessionBootstrapCommandsTest extends TestCase
         $allList = $this->decodeArtisanOutput();
         $this->assertCount(1, $allList['data']);
         $this->assertSame($accessSessionId, (int) $allList['data'][0]['access_session_id']);
+    }
+
+    #[Group('booking-ops')]
+    public function test_customer_access_session_issue_reveals_plaintext_only_when_explicitly_requested(): void
+    {
+        $customerId = $this->createUser('customer-secret-reveal', 3);
+
+        $issueExitCode = Artisan::call('customer-auth:access-sessions:issue', [
+            'user_id' => $customerId,
+            '--show-secret-once' => true,
+            '--json' => true,
+        ]);
+
+        $this->assertSame(0, $issueExitCode);
+
+        $issued = $this->decodeArtisanOutput();
+        $this->assertTrue($issued['ok']);
+        $this->assertTrue((bool) ($issued['data']['secret_revealed'] ?? false));
+        $this->assertNotNull($issued['data']['plain_text_token'] ?? null);
+        $this->assertNotSame('', (string) ($issued['data']['plain_text_token_masked'] ?? ''));
     }
 
     #[Group('booking-ops')]

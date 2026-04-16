@@ -50,4 +50,29 @@ class SettlementAmountCalculatorTest extends TestCase
 
         $calculator->assertPaymentsSingleCurrency([$first, $second], null, 'currency');
     }
+
+    public function test_build_settlement_amounts_is_exact_for_small_values(): void
+    {
+        $calculator = new SettlementAmountCalculator();
+
+        $deposit = new Payment();
+        $deposit->payment_type = 'Deposit';
+        $deposit->status = 'Success';
+        $deposit->amount = '0.10';
+        $deposit->currency = 'VND';
+
+        $final = new Payment();
+        $final->payment_type = 'Final';
+        $final->status = 'Success';
+        $final->amount = '0.20';
+        $final->currency = 'VND';
+
+        $summary = $calculator->buildSettlementAmounts(collect([$deposit, $final]), '0.30');
+
+        self::assertSame(0.10, $summary['deposit_net_amount']);
+        self::assertSame(0.10, $summary['deposit_applied_amount']);
+        self::assertSame(0.20, $summary['final_paid_amount']);
+        self::assertSame(0.30, $summary['settled_amount']);
+        self::assertSame(0.0, $summary['remaining_due']);
+    }
 }

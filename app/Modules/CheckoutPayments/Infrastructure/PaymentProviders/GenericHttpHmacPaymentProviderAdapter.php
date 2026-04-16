@@ -352,6 +352,7 @@ class GenericHttpHmacPaymentProviderAdapter implements PaymentProviderAdapter
                 'mode' => 'generic_http_hmac',
                 'provider_mode' => $this->providerMode(),
                 'payment_scope' => $scope->value,
+                'payment_url' => $this->nullableString($this->firstString($payload, ['payment_url', 'checkout_url', 'redirect_url', 'links.checkout'])),
                 'raw' => $payload,
             ],
             'provider_expires_at' => $this->normalizeDateTime($this->firstString($payload, ['provider_expires_at', 'expires_at', 'session.expires_at'])),

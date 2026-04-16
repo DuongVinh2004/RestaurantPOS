@@ -7,11 +7,14 @@ namespace App\Platform\Metrics\Services;
 use App\Enums\KitchenTicketStatus;
 use App\Enums\PurchaseOrderStatus;
 use App\Enums\StaffConversationWorkflowState;
+use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
+use App\Modules\Reporting\Application\Services\StaffOperationalRealtimeService;
 use App\Platform\ApiContract\Services\DatabaseContractInspector;
 use App\Services\Inventory\PurchaseOrderReconciliationService;
 use App\Modules\KitchenDispatch\Application\Services\KitchenTicketReconciliationService;
 use App\Modules\Conversations\Application\Services\StaffConversationInboxService;
 use App\Platform\Health\Support\OperationalHealthEvaluator;
+use App\Support\Money;
 use App\Support\StaffMutationRowVersionContract;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +27,8 @@ class OperationalInsightsService
         private readonly DatabaseContractInspector $databaseContractInspector,
         private readonly KitchenTicketReconciliationService $kitchenTicketReconciliationService,
         private readonly PurchaseOrderReconciliationService $purchaseOrderReconciliationService,
+        private readonly StaffOperationalRealtimeService $staffOperationalRealtimeService,
+        private readonly BranchSchedulingPolicyService $branchSchedulingPolicyService,
     ) {
     }
 
@@ -46,6 +51,7 @@ class OperationalInsightsService
             'kitchen_kds' => $this->safeSectionSnapshot('kitchen_kds', fn () => $this->kitchenKdsSnapshot($now)),
             'inventory_purchasing' => $this->safeSectionSnapshot('inventory_purchasing', fn () => $this->inventoryPurchasingSnapshot($now)),
             'conversation_inbox' => $this->safeSectionSnapshot('conversation_inbox', fn () => $this->conversationInboxSnapshot($now)),
+            'staff_operational_realtime' => $this->safeSectionSnapshot('staff_operational_realtime', fn () => $this->staffOperationalRealtimeSnapshot()),
             'branch_defaults' => $this->safeSectionSnapshot('branch_defaults', fn () => $this->branchDefaultsSnapshot()),
             'database_contract' => $this->safeSectionSnapshot('database_contract', fn () => $this->databaseContractInspector->snapshot()),
         ];
@@ -208,9 +214,9 @@ class OperationalInsightsService
                     'payment_id' => (int) $row->payment_id,
                     'reservation_id' => (int) $row->reservation_id,
                     'payment_type' => (string) $row->payment_type,
-                    'captured_amount' => round((float) $row->captured_amount, 2),
-                    'refunded_amount' => round((float) $row->refunded_amount, 2),
-                    'over_refunded_amount' => round((float) $row->over_refunded_amount, 2),
+                    'captured_amount' => Money::toFloat($row->captured_amount ?? 0, true),
+                    'refunded_amount' => Money::toFloat($row->refunded_amount ?? 0, true),
+                    'over_refunded_amount' => Money::toFloat($row->over_refunded_amount ?? 0, true),
                 ];
             })
             ->values()
@@ -262,7 +268,7 @@ class OperationalInsightsService
             'cross_reservation_refund_count' => $crossReservationRefundCount,
             'currency_mismatch_refund_count' => $currencyMismatchRefundCount,
             'invalid_refund_target_count' => $invalidRefundTargetCount,
-            'max_over_refunded_amount' => round($maxOverRefundAmount, 2),
+            'max_over_refunded_amount' => Money::toFloat($maxOverRefundAmount, true),
             'samples' => $sampleRows,
         ];
 
@@ -674,6 +680,17 @@ class OperationalInsightsService
                 'queued_count' => 0,
                 'fired_count' => 0,
                 'ready_count' => 0,
+                'stuck_ticket_count' => 0,
+                'stuck_status_counts' => [
+                    'queued' => 0,
+                    'fired' => 0,
+                    'ready' => 0,
+                ],
+                'stuck_thresholds_seconds' => [
+                    'queued' => max(60, (int) config('booking.ops.kitchen_queued_backlog_warn_seconds', 900)),
+                    'fired' => max(60, (int) config('booking.ops.kitchen_fired_backlog_warn_seconds', 900)),
+                    'ready' => max(60, (int) config('booking.ops.kitchen_ready_backlog_warn_seconds', 600)),
+                ],
                 'checked_ticket_count' => 0,
                 'drift_count' => 0,
                 'status_drift_count' => 0,
@@ -682,6 +699,7 @@ class OperationalInsightsService
                 'oldest_ready_age_seconds' => null,
                 'drift_examples' => [],
                 'backlog_examples' => [],
+                'stuck_examples' => [],
                 'status' => 'fail',
                 'reasons' => ['kitchen_kds_tables_missing'],
             ];
@@ -696,6 +714,11 @@ class OperationalInsightsService
         $reconciliation = $this->kitchenTicketReconciliationService->scan([
             'include_terminal' => false,
         ]);
+        $stuckThresholds = [
+            KitchenTicketStatus::Queued->value => max(60, (int) config('booking.ops.kitchen_queued_backlog_warn_seconds', 900)),
+            KitchenTicketStatus::Fired->value => max(60, (int) config('booking.ops.kitchen_fired_backlog_warn_seconds', 900)),
+            KitchenTicketStatus::Ready->value => max(60, (int) config('booking.ops.kitchen_ready_backlog_warn_seconds', 600)),
+        ];
 
         $backlogTimestampSql = 'COALESCE(ready_at, fired_at, first_dispatched_at, created_at)';
 
@@ -722,6 +745,59 @@ class OperationalInsightsService
             })
             ->values()
             ->all();
+        $stuckCounts = [
+            'queued' => 0,
+            'fired' => 0,
+            'ready' => 0,
+        ];
+        $stuckExamples = $activeBaseQuery
+            ->select([
+                'ticket_id',
+                'station_id',
+                'ticket_status',
+                'dispatch_count',
+                'created_at',
+                'first_dispatched_at',
+                'fired_at',
+                'ready_at',
+            ])
+            ->whereIn('ticket_status', [
+                KitchenTicketStatus::Queued->value,
+                KitchenTicketStatus::Fired->value,
+                KitchenTicketStatus::Ready->value,
+            ])
+            ->get()
+            ->map(function (object $row) use ($now, $stuckThresholds, &$stuckCounts): ?array {
+                $status = (string) ($row->ticket_status ?? '');
+                $startedAt = $this->kitchenTicketStartedAt($row, $status);
+                $ageSeconds = $this->ageSeconds($startedAt, $now);
+                $thresholdSeconds = $stuckThresholds[$status] ?? null;
+                if ($thresholdSeconds === null || $ageSeconds === null || $ageSeconds < $thresholdSeconds) {
+                    return null;
+                }
+
+                $statusKey = strtolower($status);
+                if (array_key_exists($statusKey, $stuckCounts)) {
+                    $stuckCounts[$statusKey]++;
+                }
+
+                return [
+                    'ticket_id' => (int) ($row->ticket_id ?? 0),
+                    'station_id' => (int) ($row->station_id ?? 0),
+                    'ticket_status' => $status,
+                    'dispatch_count' => (int) ($row->dispatch_count ?? 0),
+                    'stuck_started_at_utc' => $startedAt !== null
+                        ? Carbon::parse((string) $startedAt)->utc()->toIso8601String()
+                        : null,
+                    'stuck_age_seconds' => $ageSeconds,
+                    'stuck_threshold_seconds' => $thresholdSeconds,
+                ];
+            })
+            ->filter()
+            ->sortByDesc('stuck_age_seconds')
+            ->take(3)
+            ->values()
+            ->all();
 
         $snapshot = [
             'table_present' => true,
@@ -736,6 +812,13 @@ class OperationalInsightsService
             'ready_count' => (int) (clone $activeBaseQuery)
                 ->where('ticket_status', KitchenTicketStatus::Ready->value)
                 ->count(),
+            'stuck_ticket_count' => array_sum($stuckCounts),
+            'stuck_status_counts' => $stuckCounts,
+            'stuck_thresholds_seconds' => [
+                'queued' => $stuckThresholds[KitchenTicketStatus::Queued->value],
+                'fired' => $stuckThresholds[KitchenTicketStatus::Fired->value],
+                'ready' => $stuckThresholds[KitchenTicketStatus::Ready->value],
+            ],
             'checked_ticket_count' => (int) ($reconciliation['checked_count'] ?? 0),
             'drift_count' => (int) ($reconciliation['drift_count'] ?? 0),
             'status_drift_count' => (int) ($reconciliation['status_drift_count'] ?? 0),
@@ -754,9 +837,11 @@ class OperationalInsightsService
             ),
             'drift_examples' => array_values(array_slice((array) ($reconciliation['tickets'] ?? []), 0, 3)),
             'backlog_examples' => $backlogExamples,
+            'stuck_examples' => $stuckExamples,
         ];
 
         $evaluation = OperationalHealthEvaluator::forKitchenKds($snapshot, [
+            'queued_backlog_warn_seconds' => (int) config('booking.ops.kitchen_queued_backlog_warn_seconds', 900),
             'fired_backlog_warn_seconds' => (int) config('booking.ops.kitchen_fired_backlog_warn_seconds', 900),
             'ready_backlog_warn_seconds' => (int) config('booking.ops.kitchen_ready_backlog_warn_seconds', 600),
         ]);
@@ -1163,6 +1248,30 @@ class OperationalInsightsService
 
         $totalCount = (int) DB::table('branches')->count();
         $activeCount = (int) DB::table('branches')->where('is_active', 1)->count();
+        $incompleteSchedulingExamples = [];
+        $activeIncompleteSchedulingCount = 0;
+
+        DB::table('branches')
+            ->where('is_active', 1)
+            ->orderBy('branch_id')
+            ->get(['branch_id', 'branch_code'])
+            ->each(function (object $branch) use (&$activeIncompleteSchedulingCount, &$incompleteSchedulingExamples): void {
+                $readiness = $this->branchSchedulingPolicyService->schedulingReadiness((int) $branch->branch_id, false);
+                if (($readiness['bookable'] ?? false) === true) {
+                    return;
+                }
+
+                $activeIncompleteSchedulingCount++;
+                if (count($incompleteSchedulingExamples) >= 3) {
+                    return;
+                }
+
+                $incompleteSchedulingExamples[] = [
+                    'branch_id' => (int) $branch->branch_id,
+                    'branch_code' => (string) ($branch->branch_code ?? ''),
+                    'reasons' => array_values(array_map('strval', (array) ($readiness['reasons'] ?? []))),
+                ];
+            });
 
         $snapshot = [
             'table_present' => true,
@@ -1178,6 +1287,8 @@ class OperationalInsightsService
                 ->count(),
             'default_branch_id' => $defaultBranch !== null ? (int) $defaultBranch->branch_id : null,
             'default_branch_code' => $defaultBranch !== null ? (string) $defaultBranch->branch_code : null,
+            'active_incomplete_scheduling_count' => $activeIncompleteSchedulingCount,
+            'active_incomplete_scheduling_examples' => $incompleteSchedulingExamples,
             'compatibility_bootstrap_available' => ($totalCount === 0) || ($totalCount > 0 && $activeCount > 0 && $defaultCount === 0),
         ];
 
@@ -1186,9 +1297,39 @@ class OperationalInsightsService
         return array_merge($snapshot, $evaluation);
     }
 
+    /**
+     * @return array<string,mixed>
+     */
+    public function staffOperationalRealtimeSnapshot(): array
+    {
+        $backend = $this->staffOperationalRealtimeService->backendStatus();
+
+        return [
+            'enabled' => (bool) ($backend['enabled'] ?? false),
+            'store' => $backend['store'] ?? null,
+            'driver' => $backend['driver'] ?? null,
+            'trusted' => (bool) ($backend['trusted'] ?? false),
+            'status' => (string) ($backend['status'] ?? 'degraded'),
+            'reasons' => array_values(array_filter([
+                is_string($backend['reason'] ?? null) ? $backend['reason'] : null,
+            ])),
+            'error' => $backend['error'] ?? null,
+        ];
+    }
+
     private function conversationLatestActivitySql(): string
     {
         return 'COALESCE((SELECT cm.created_at FROM conversation_messages cm WHERE cm.conversation_id = conversations.conversation_id ORDER BY cm.created_at DESC, cm.message_id DESC LIMIT 1), conversations.workflow_state_changed_at, conversations.created_at)';
+    }
+
+    private function kitchenTicketStartedAt(object $row, string $status): mixed
+    {
+        return match ($status) {
+            KitchenTicketStatus::Queued->value => $row->first_dispatched_at ?? $row->created_at ?? null,
+            KitchenTicketStatus::Fired->value => $row->fired_at ?? $row->first_dispatched_at ?? $row->created_at ?? null,
+            KitchenTicketStatus::Ready->value => $row->ready_at ?? $row->fired_at ?? $row->first_dispatched_at ?? $row->created_at ?? null,
+            default => $row->created_at ?? null,
+        };
     }
 
     private function ageSeconds(mixed $value, Carbon $now): ?int

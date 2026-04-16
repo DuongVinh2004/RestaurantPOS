@@ -222,6 +222,56 @@ class BranchSchedulingPolicyService
         return (string) $context['timezone'];
     }
 
+    /**
+     * @return array{
+     *   bookable:bool,
+     *   reasons:list<string>,
+     *   message:?string,
+     *   branch_id:int,
+     *   timezone:string
+     * }
+     */
+    public function schedulingReadiness(mixed $branchId = null, bool $activeOnly = true): array
+    {
+        $branch = $this->resolveBranch($branchId, $activeOnly);
+        $reasons = [];
+        $timezone = $this->defaultTimezone();
+
+        $configuredTimezone = trim((string) ($branch->timezone ?? ''));
+        if ($configuredTimezone === '') {
+            $reasons[] = 'branch_timezone_missing';
+        } elseif (! $this->isValidTimezone($configuredTimezone)) {
+            $reasons[] = 'branch_timezone_invalid';
+        } else {
+            $timezone = $configuredTimezone;
+        }
+
+        if (! $this->hasConfiguredBusinessHours($branch->business_hours)) {
+            $reasons[] = 'business_hours_missing';
+        }
+
+        if (! $this->hasConfiguredBookingPolicy($branch->booking_policy)) {
+            $reasons[] = 'booking_policy_missing';
+        }
+
+        try {
+            $context = $this->resolveContext($branchId, $activeOnly);
+            $timezone = (string) $context['timezone'];
+        } catch (ValidationException) {
+            $reasons[] = 'branch_scheduling_invalid';
+        }
+
+        return [
+            'bookable' => $reasons === [],
+            'reasons' => array_values(array_unique($reasons)),
+            'message' => $reasons === []
+                ? null
+                : $this->branchSchedulingUnavailableMessage(),
+            'branch_id' => (int) $branch->branch_id,
+            'timezone' => $timezone,
+        ];
+    }
+
     public function customerCancellationCutoffMinutes(mixed $branchId = null, bool $activeOnly = true): int
     {
         $context = $this->resolveContext($branchId, $activeOnly);
@@ -275,6 +325,17 @@ class BranchSchedulingPolicyService
         string $useCase = 'reservation',
         bool $activeOnly = true,
     ): array {
+        $readiness = $this->schedulingReadiness($branchId, $activeOnly);
+        if (($readiness['bookable'] ?? false) !== true) {
+            return [
+                'allowed' => false,
+                'reason' => 'branch_schedule_unavailable',
+                'message' => (string) ($readiness['message'] ?? $this->branchSchedulingUnavailableMessage()),
+                'branch_id' => (int) ($readiness['branch_id'] ?? 0),
+                'timezone' => (string) ($readiness['timezone'] ?? $this->defaultTimezone()),
+            ];
+        }
+
         $context = $this->resolveContext($branchId, $activeOnly);
         $timezone = (string) $context['timezone'];
         $startAtUtc = CarbonImmutable::instance($startUtc)->utc();
@@ -402,6 +463,13 @@ class BranchSchedulingPolicyService
         string $field = 'branch_id',
         bool $activeOnly = true,
     ): void {
+        $readiness = $this->schedulingReadiness($branchId, $activeOnly);
+        if (($readiness['bookable'] ?? false) !== true) {
+            throw ValidationException::withMessages([
+                $field => [(string) ($readiness['message'] ?? $this->branchSchedulingUnavailableMessage())],
+            ]);
+        }
+
         $context = $this->resolveContext($branchId, $activeOnly);
         if (! (bool) data_get($context, 'booking_policy.waiting_list.enabled', true)) {
             throw ValidationException::withMessages([
@@ -443,6 +511,13 @@ class BranchSchedulingPolicyService
         string $field = 'branch_id',
         bool $activeOnly = true,
     ): void {
+        $readiness = $this->schedulingReadiness($branchId, $activeOnly);
+        if (($readiness['bookable'] ?? false) !== true) {
+            throw ValidationException::withMessages([
+                $field => [(string) ($readiness['message'] ?? $this->branchSchedulingUnavailableMessage())],
+            ]);
+        }
+
         $context = $this->resolveContext($branchId, $activeOnly);
         $timezone = (string) $context['timezone'];
         $localStart = CarbonImmutable::instance($startUtc)->utc()->setTimezone($timezone);
@@ -755,6 +830,57 @@ class BranchSchedulingPolicyService
         }
 
         return $merged;
+    }
+
+    private function hasConfiguredBusinessHours(mixed $value): bool
+    {
+        if (! is_array($value) || $value === []) {
+            return false;
+        }
+
+        foreach ($value as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $periods = $row['periods'] ?? null;
+            if (! is_array($periods) || $periods === []) {
+                continue;
+            }
+
+            foreach ($periods as $period) {
+                if (
+                    is_array($period)
+                    && trim((string) ($period['start_time'] ?? '')) !== ''
+                    && trim((string) ($period['end_time'] ?? '')) !== ''
+                ) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function hasConfiguredBookingPolicy(mixed $value): bool
+    {
+        return is_array($value) && $value !== [];
+    }
+
+    private function isValidTimezone(string $timezone): bool
+    {
+        try {
+            new \DateTimeZone(trim($timezone));
+
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function branchSchedulingUnavailableMessage(): string
+    {
+        return 'Branch booking is unavailable until scheduling configuration is completed.';
     }
 
     /**

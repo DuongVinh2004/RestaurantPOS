@@ -6,6 +6,7 @@ namespace App\Modules\CheckoutPayments\Infrastructure\PaymentProviders;
 
 use App\Enums\PaymentProviderWebhookReceiptStatus;
 use App\Enums\PaymentSessionScope;
+use App\Modules\CheckoutPayments\Support\PaymentProviderPayloadSanitizer;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\CheckoutPayments\Domain\Models\Payment;
 use App\Modules\CheckoutPayments\Domain\Models\PaymentProviderWebhookReceipt;
@@ -128,10 +129,15 @@ class PaymentWebhookIngestionService
             $receipt->payment_scope = is_string($event['payment_scope'] ?? null) ? (string) $event['payment_scope'] : null;
             $receipt->event_type = (string) ($event['event_type'] ?? 'payment.session.updated');
             $receipt->delivery_status = PaymentProviderWebhookReceiptStatus::Received;
-            $receipt->request_signature = (string) ($event['request_signature'] ?? '');
-            $receipt->request_headers_json = $headers;
-            $receipt->request_body = $rawBody;
-            $receipt->provider_payload_json = (array) ($event['provider_payload'] ?? []);
+            $receipt->request_signature = PaymentProviderPayloadSanitizer::signatureDigest($event['request_signature'] ?? null);
+            $receipt->request_headers_json = PaymentProviderPayloadSanitizer::sanitizeWebhookHeaders($headers);
+            $receipt->request_body = PaymentProviderPayloadSanitizer::summarizeWebhookRequestBody($rawBody, $event);
+            $receipt->provider_payload_json = PaymentProviderPayloadSanitizer::sanitizeWebhookPayloadForStorage(
+                (array) ($event['provider_payload'] ?? []),
+                $headers,
+                $rawBody,
+                $event,
+            );
             $receipt->save();
 
             return ['duplicate' => false, 'receipt' => $receipt];
@@ -179,7 +185,13 @@ class PaymentWebhookIngestionService
             $messages[] = 'Webhook provider_event_code is already bound to a different event_type.';
         }
 
-        if (! $this->sameWebhookRequestBody($receipt->request_body, $rawBody)) {
+        $storedFingerprint = PaymentProviderPayloadSanitizer::storedWebhookBodyFingerprint($receipt->provider_payload_json);
+        $incomingFingerprint = PaymentProviderPayloadSanitizer::webhookBodyFingerprint($rawBody);
+        if ($storedFingerprint !== '') {
+            if (! hash_equals($storedFingerprint, $incomingFingerprint)) {
+                $messages[] = 'Webhook provider_event_code is already bound to a different webhook payload.';
+            }
+        } elseif (! $this->sameWebhookRequestBody($receipt->request_body, $rawBody)) {
             $messages[] = 'Webhook provider_event_code is already bound to a different webhook payload.';
         }
 
@@ -522,50 +534,8 @@ class PaymentWebhookIngestionService
 
     private function sameWebhookRequestBody(?string $storedRawBody, string $incomingRawBody): bool
     {
-        return $this->canonicalizeWebhookRequestBody($storedRawBody) === $this->canonicalizeWebhookRequestBody($incomingRawBody);
-    }
-
-    private function canonicalizeWebhookRequestBody(?string $rawBody): string
-    {
-        $normalized = trim((string) ($rawBody ?? ''));
-        if ($normalized === '') {
-            return '';
-        }
-
-        try {
-            /** @var mixed $decoded */
-            $decoded = json_decode($normalized, true, 512, JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return $normalized;
-        }
-
-        try {
-            return json_encode(
-                $this->sortWebhookPayloadRecursively($decoded),
-                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR
-            );
-        } catch (\JsonException) {
-            return $normalized;
-        }
-    }
-
-    private function sortWebhookPayloadRecursively(mixed $value): mixed
-    {
-        if (! is_array($value)) {
-            return $value;
-        }
-
-        if (array_is_list($value)) {
-            return array_map(fn (mixed $item): mixed => $this->sortWebhookPayloadRecursively($item), $value);
-        }
-
-        foreach ($value as $key => $item) {
-            $value[$key] = $this->sortWebhookPayloadRecursively($item);
-        }
-
-        ksort($value);
-
-        return $value;
+        return PaymentProviderPayloadSanitizer::webhookBodyFingerprint((string) ($storedRawBody ?? ''))
+            === PaymentProviderPayloadSanitizer::webhookBodyFingerprint($incomingRawBody);
     }
 
     private function normalizeNullableString(mixed $value): ?string

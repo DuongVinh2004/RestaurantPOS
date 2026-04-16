@@ -8,6 +8,7 @@ use App\Enums\ReservationOrderItemStatus;
 use App\Enums\ReservationOrderStatus;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
+use App\Support\Money;
 use App\Support\ValidationExceptionFactory;
 use Illuminate\Support\Facades\DB;
 
@@ -29,7 +30,7 @@ class ReservationFinancialSyncService
         }
 
         $items = $query->get();
-        $subtotal = 0.0;
+        $subtotalMinor = 0;
         $currency = null;
 
         foreach ($items as $item) {
@@ -37,7 +38,7 @@ class ReservationFinancialSyncService
                 continue;
             }
 
-            $subtotal += (float) ($item->line_total ?? 0.0);
+            $subtotalMinor += Money::minorUnits($item->line_total ?? 0, true);
             $itemCurrency = trim((string) ($item->currency ?? ''));
             if ($itemCurrency !== '') {
                 if ($currency === null) {
@@ -50,21 +51,20 @@ class ReservationFinancialSyncService
             }
         }
 
-        $discount = round(max(0.0, $discountAmount), 2);
-        $subtotal = round(max(0.0, $subtotal), 2);
-        $totalDue = round(max(0.0, $subtotal - $discount), 2);
+        $discountMinor = Money::minorUnits($discountAmount, true);
+        $totalDueMinor = max(0, $subtotalMinor - $discountMinor);
 
         return [
-            'subtotal' => $subtotal,
-            'discount' => $discount,
-            'total_due' => $totalDue,
+            'subtotal' => Money::minorToFloat($subtotalMinor),
+            'discount' => Money::minorToFloat($discountMinor),
+            'total_due' => Money::minorToFloat($totalDueMinor),
             'currency' => $currency ?: 'VND',
         ];
     }
 
     public function syncReservationDiscountSnapshot(Reservation $reservation, float $totalDiscount, bool $lockOrders = true): void
     {
-        $reservation->discount_amount = round(max(0.0, $totalDiscount), 2);
+        $reservation->discount_amount = Money::format($totalDiscount, true);
 
         if ($reservation->billed_at === null && $reservation->final_bill_amount === null) {
             return;
@@ -90,17 +90,17 @@ class ReservationFinancialSyncService
             ]);
         }
 
-        $depositRequired = round(max(0.0, (float) ($reservation->deposit_required_amount ?? 0.0)), 2);
-        $depositCaptured = round(max(0.0, (float) ($paymentSummary['deposit_captured_amount'] ?? 0.0)), 2);
-        $depositRefunded = round(max(0.0, (float) ($paymentSummary['deposit_refunded_amount'] ?? 0.0)), 2);
-        $depositNet = round(max(0.0, (float) ($paymentSummary['deposit_net_amount'] ?? 0.0)), 2);
+        $depositRequiredMinor = Money::minorUnits($reservation->deposit_required_amount ?? 0, true);
+        $depositCapturedMinor = Money::minorUnits($paymentSummary['deposit_captured_amount'] ?? 0, true);
+        $depositRefundedMinor = Money::minorUnits($paymentSummary['deposit_refunded_amount'] ?? 0, true);
+        $depositNetMinor = Money::minorUnits($paymentSummary['deposit_net_amount'] ?? 0, true);
 
-        $reservation->deposit_paid_amount = $depositNet;
+        $reservation->deposit_paid_amount = Money::formatMinor($depositNetMinor);
         $reservation->deposit_status = $this->resolveDepositStatus(
-            depositRequired: $depositRequired,
-            depositCaptured: $depositCaptured,
-            depositRefunded: $depositRefunded,
-            depositNet: $depositNet,
+            depositRequiredMinor: $depositRequiredMinor,
+            depositCapturedMinor: $depositCapturedMinor,
+            depositRefundedMinor: $depositRefundedMinor,
+            depositNetMinor: $depositNetMinor,
             terminalForfeit: $terminalForfeit,
         );
     }
@@ -121,33 +121,33 @@ class ReservationFinancialSyncService
         $reservation->save();
     }
 
-    private function resolveDepositStatus(float $depositRequired, float $depositCaptured, float $depositRefunded, float $depositNet, bool $terminalForfeit): string
+    private function resolveDepositStatus(int $depositRequiredMinor, int $depositCapturedMinor, int $depositRefundedMinor, int $depositNetMinor, bool $terminalForfeit): string
     {
-        if ($depositRequired <= 0.0001 && $depositCaptured <= 0.0001 && $depositNet <= 0.0001) {
+        if ($depositRequiredMinor <= 0 && $depositCapturedMinor <= 0 && $depositNetMinor <= 0) {
             return 'NotRequired';
         }
 
-        if ($terminalForfeit && $depositCaptured > 0.0001) {
-            if ($depositNet <= 0.0001) {
+        if ($terminalForfeit && $depositCapturedMinor > 0) {
+            if ($depositNetMinor <= 0) {
                 return 'Refunded';
             }
 
-            return $depositRefunded > 0.0001 ? 'PartiallyRefunded' : 'Forfeited';
+            return $depositRefundedMinor > 0 ? 'PartiallyRefunded' : 'Forfeited';
         }
 
-        if ($depositRefunded > 0.0001) {
-            if ($depositNet <= 0.0001) {
+        if ($depositRefundedMinor > 0) {
+            if ($depositNetMinor <= 0) {
                 return 'Refunded';
             }
 
             return 'PartiallyRefunded';
         }
 
-        if ($depositRequired <= 0.0001) {
-            return $depositNet > 0.0001 ? 'Paid' : 'NotRequired';
+        if ($depositRequiredMinor <= 0) {
+            return $depositNetMinor > 0 ? 'Paid' : 'NotRequired';
         }
 
-        if ($depositNet + 0.0001 >= $depositRequired) {
+        if ($depositNetMinor >= $depositRequiredMinor) {
             return 'Paid';
         }
 

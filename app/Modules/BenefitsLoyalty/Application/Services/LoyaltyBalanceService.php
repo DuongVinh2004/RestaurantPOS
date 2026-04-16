@@ -7,6 +7,7 @@ namespace App\Modules\BenefitsLoyalty\Application\Services;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\BenefitsLoyalty\Domain\Models\LoyaltyPointTransaction;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
+use App\Support\Money;
 
 class LoyaltyBalanceService
 {
@@ -75,23 +76,23 @@ class LoyaltyBalanceService
             $query->lockForUpdate();
         }
 
-        $amount = 0.0;
+        $amountMinor = 0;
         foreach ($query->get(['txn_type', 'amount_basis', 'reason']) as $tx) {
-            $basis = round(max(0.0, (float) ($tx->amount_basis ?? 0.0)), 2);
-            if ($basis <= 0.0001) {
+            $basisMinor = Money::minorUnits($tx->amount_basis ?? 0, true);
+            if ($basisMinor <= 0) {
                 continue;
             }
 
             if ((string) $tx->txn_type === 'Redeem') {
-                $amount += $basis;
+                $amountMinor += $basisMinor;
 
                 continue;
             }
 
-            $amount -= $basis;
+            $amountMinor -= $basisMinor;
         }
 
-        return round(max(0.0, $amount), 2);
+        return Money::minorToFloat(max(0, $amountMinor));
     }
 
     /**
@@ -101,7 +102,7 @@ class LoyaltyBalanceService
     {
         $basis = $this->earnBasisForReservation($reservation, $paymentSummary);
 
-        return (int) floor($basis / $this->earnAmountPerPoint());
+        return intdiv(Money::minorUnits($basis, true), max(1, Money::minorUnits($this->earnAmountPerPoint(), true)));
     }
 
     /**
@@ -115,16 +116,16 @@ class LoyaltyBalanceService
      */
     public function earnBasisForReservation(Reservation $reservation, array $paymentSummary): float
     {
-        $finalNet = round(max(0.0, (float) ($paymentSummary['final_net_amount'] ?? 0.0)), 2);
-        $bill = $reservation->final_bill_amount !== null
-            ? round(max(0.0, (float) $reservation->final_bill_amount), 2)
-            : $finalNet;
+        $finalNetMinor = Money::minorUnits($paymentSummary['final_net_amount'] ?? 0, true);
+        $billMinor = $reservation->final_bill_amount !== null
+            ? Money::minorUnits($reservation->final_bill_amount, true)
+            : $finalNetMinor;
 
-        if ($bill <= 0.0001) {
-            return $finalNet;
+        if ($billMinor <= 0) {
+            return Money::minorToFloat($finalNetMinor);
         }
 
-        return min($bill, $finalNet);
+        return Money::minorToFloat(min($billMinor, $finalNetMinor));
     }
 
     public function earnAmountPerPoint(): float

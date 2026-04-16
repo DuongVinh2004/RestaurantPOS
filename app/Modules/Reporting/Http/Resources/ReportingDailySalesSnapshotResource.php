@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Reporting\Http\Resources;
 
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -12,7 +13,7 @@ class ReportingDailySalesSnapshotResource extends JsonResource
     public function toArray(Request $request): array
     {
         $turn = function (mixed $value): float {
-            return round((float) ($value ?? 0), 2);
+            return Money::toFloat($value ?? 0);
         };
 
         return [
@@ -20,12 +21,14 @@ class ReportingDailySalesSnapshotResource extends JsonResource
             'business_date' => optional($this->business_date)?->format('Y-m-d'),
             'currency' => (string) $this->currency,
             'branch_id' => (int) $this->branch_id,
-            'branch' => $this->whenLoaded('branch', fn (): array => [
-                'branch_id' => (int) $this->branch->branch_id,
-                'branch_code' => (string) $this->branch->branch_code,
-                'branch_name' => (string) $this->branch->branch_name,
-                'is_default' => (bool) $this->branch->is_default,
-            ]),
+            'branch' => $this->relationLoaded('branch') && $this->branch !== null
+                ? [
+                    'branch_id' => (int) $this->branch->branch_id,
+                    'branch_code' => (string) $this->branch->branch_code,
+                    'branch_name' => (string) $this->branch->branch_name,
+                    'is_default' => (bool) $this->branch->is_default,
+                ]
+                : null,
             'billed' => [
                 'reservation_count' => (int) $this->billed_reservation_count,
                 'guest_count' => (int) $this->billed_guest_count,

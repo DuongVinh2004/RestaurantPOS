@@ -636,7 +636,7 @@ class ApiContractMetadataRegistry
             ],
             'GET api/v1/health' => [
                 'summary' => 'Health check',
-                'description' => 'Operational health endpoint. Base db, redis, scheduler, and disk checks are always included; detailed operational sections are added when a valid staff actor is resolved.',
+                'description' => 'Public minimal health endpoint exposing only service liveness status and timestamp.',
                 'tags' => ['Health'],
                 'responses' => [
                     200 => ['schema' => 'HealthStatusEnvelope'],
@@ -646,15 +646,31 @@ class ApiContractMetadataRegistry
                 'contract_grade' => 'full',
                 'envelope_exception' => true,
             ],
+            'GET api/v1/health/detailed' => [
+                'summary' => 'Detailed health check',
+                'description' => 'Privileged operational health endpoint with internal db, redis, scheduler, disk, and ops diagnostics.',
+                'tags' => ['Health'],
+                'responses' => [
+                    200 => ['schema' => 'HealthDetailedEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    503 => ['schema' => 'HealthDetailedEnvelope'],
+                ],
+                'security' => [['staffKey' => []]],
+                'contract_grade' => 'full',
+                'envelope_exception' => true,
+            ],
             'GET api/v1/health/redis' => [
                 'summary' => 'Redis health check',
-                'description' => 'Operational Redis readiness endpoint covering set/get and lock acquisition.',
+                'description' => 'Privileged Redis readiness endpoint covering set/get and lock acquisition.',
                 'tags' => ['Health'],
                 'responses' => [
                     200 => ['schema' => 'HealthRedisEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
                     503 => ['schema' => 'HealthRedisEnvelope'],
                 ],
-                'security' => [],
+                'security' => [['staffKey' => []]],
                 'contract_grade' => 'full',
                 'envelope_exception' => true,
             ],
@@ -1361,6 +1377,30 @@ class ApiContractMetadataRegistry
                 'tags' => ['Staff Conversations'],
                 'responses' => [
                     200 => ['schema' => 'StaffConversationDetailEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/staff/conversations/{conversation_id}/files/{file_id}/access' => [
+                'summary' => 'Access conversation file',
+                'description' => 'Redirect an authorized staff actor to a short-lived conversation file download target using a signed backend access handle.',
+                'tags' => ['Staff Conversations'],
+                'responses' => [
+                    302 => [],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/staff/conversations/{conversation_id}/messages/{message_id}/attachment' => [
+                'summary' => 'Access legacy conversation attachment',
+                'description' => 'Redirect an authorized staff actor to a short-lived legacy message attachment target using a signed backend access handle.',
+                'tags' => ['Staff Conversations'],
+                'responses' => [
+                    302 => [],
                     401 => ['schema' => 'UnauthorizedError'],
                     403 => ['schema' => 'ForbiddenError'],
                     404 => ['schema' => 'NotFoundError'],
@@ -3205,6 +3245,19 @@ class ApiContractMetadataRegistry
                 'message_type' => ['type' => 'string'],
                 'is_internal_note' => ['type' => 'boolean'],
                 'attachment_url' => ['type' => 'string', 'nullable' => true],
+                'attachment' => [
+                    'type' => 'object',
+                    'nullable' => true,
+                    'properties' => [
+                        'file_id' => ['type' => 'integer', 'nullable' => true],
+                        'message_id' => ['type' => 'integer'],
+                        'access_url' => ['type' => 'string'],
+                        'access_expires_at' => ['type' => 'string', 'format' => 'date-time'],
+                        'mime_type' => ['type' => 'string', 'nullable' => true],
+                    ],
+                    'required' => ['file_id', 'message_id', 'access_url', 'access_expires_at', 'mime_type'],
+                    'additionalProperties' => false,
+                ],
                 'is_processed' => ['type' => 'boolean'],
                 'processing_status' => ['type' => 'string', 'nullable' => true],
                 'confidence' => ['type' => 'string', 'nullable' => true],
@@ -3218,10 +3271,11 @@ class ApiContractMetadataRegistry
                         'properties' => [
                             'file_id' => ['type' => 'integer'],
                             'file_url' => ['type' => 'string'],
+                            'access_expires_at' => ['type' => 'string', 'format' => 'date-time'],
                             'mime_type' => ['type' => 'string', 'nullable' => true],
                             'created_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
                         ],
-                        'required' => ['file_id', 'file_url'],
+                        'required' => ['file_id', 'file_url', 'access_expires_at'],
                         'additionalProperties' => false,
                     ],
                 ],
@@ -5339,13 +5393,23 @@ class ApiContractMetadataRegistry
             ]),
             'HealthStatusEnvelope' => [
                 'type' => 'object',
+                'required' => ['status', 'service', 'timestamp_utc'],
+                'properties' => [
+                    'status' => ['type' => 'string', 'enum' => ['ok', 'degraded', 'fail']],
+                    'service' => ['type' => 'string'],
+                    'timestamp_utc' => ['type' => 'string', 'format' => 'date-time'],
+                ],
+                'additionalProperties' => false,
+            ],
+            'HealthDetailedEnvelope' => [
+                'type' => 'object',
                 'properties' => [
                     'status' => ['type' => 'string', 'enum' => ['ok', 'degraded', 'fail']],
                     'checks' => ['type' => 'object', 'additionalProperties' => true],
                     'meta' => ['type' => 'object', 'additionalProperties' => true],
                 ],
-                'required' => ['status', 'meta'],
-                'additionalProperties' => true,
+                'required' => ['status', 'checks', 'meta'],
+                'additionalProperties' => false,
             ],
             'HealthRedisEnvelope' => [
                 'type' => 'object',
@@ -5816,6 +5880,7 @@ class ApiContractMetadataRegistry
     {
         return [
             'GET api/v1/health',
+            'GET api/v1/health/detailed',
             'GET api/v1/health/redis',
             'GET api/v1/staff/tables/board',
         ];

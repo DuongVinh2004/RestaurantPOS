@@ -10,10 +10,12 @@ use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Modules\CheckoutPayments\Domain\Policies\PaymentStatusTransitionPolicy;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Support\AuditEvent;
+use App\Support\Money;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
@@ -33,12 +35,12 @@ class PaymentCaptureService
 
     public function determinePaymentStatus(float $paidAmount, float $remainingDue): PaymentStatus
     {
-        return $this->isSettled($paidAmount, $remainingDue) ? PaymentStatus::Success : PaymentStatus::Partial;
+        return PaymentStatusTransitionPolicy::captureStatusForAppliedAmount($paidAmount, $remainingDue);
     }
 
     public function isSettled(float $paidAmount, float $remainingDue): bool
     {
-        return round($paidAmount, 4) + 0.0001 >= round($remainingDue, 4);
+        return Money::minorUnits($paidAmount, true) >= Money::minorUnits($remainingDue, true);
     }
 
     /**
@@ -103,9 +105,11 @@ class PaymentCaptureService
         $reservation->branch_id = $reservationBranchId;
 
         $settlementBefore = $this->amountCalculator->buildSettlementAmounts($lockedPayments, $totalDue);
-        $remainingDue = (float) $settlementBefore['remaining_due'];
+        $remainingDueMinor = Money::minorUnits($settlementBefore['remaining_due'] ?? 0, true);
+        $paidAmountMinor = Money::minorUnits($paidAmount, true);
+        $remainingDue = Money::minorToFloat($remainingDueMinor);
 
-        if ($remainingDue <= 0.0001) {
+        if ($remainingDueMinor <= 0) {
             $completeReservationSettlement($reservation, $staffUserId);
             $order = $order->fresh() ?? $order;
             $reservation->refresh()->loadMissing('user', 'tables', 'payments');
@@ -114,17 +118,17 @@ class PaymentCaptureService
             return $this->checkoutResponseFactory->attachTotals($order, $subtotal, $discount, $totalDue, $currencyCode);
         }
 
-        if ($paidAmount - $remainingDue > 0.0001) {
+        if ($paidAmountMinor > $remainingDueMinor) {
             throw ValidationException::withMessages(['paid_amount' => 'paid_amount cannot exceed remaining_due.']);
         }
-        if ($paidAmount <= 0) {
+        if ($paidAmountMinor <= 0) {
             throw ValidationException::withMessages(['paid_amount' => 'paid_amount must be greater than 0 when there is remaining balance.']);
         }
 
         $payment = new Payment;
         $payment->branch_id = $reservationBranchId;
         $payment->reservation_id = $reservation->reservation_id;
-        $payment->amount = $paidAmount;
+        $payment->amount = Money::formatMinor($paidAmountMinor);
         $payment->currency = $paymentCurrency;
         $payment->payment_method = $paymentMethod;
         $payment->payment_provider = trim($paymentProvider) !== '' ? trim($paymentProvider) : 'Other';
@@ -134,7 +138,7 @@ class PaymentCaptureService
         $payment->created_by = $staffUserId;
         $payment->notes = trim($notes) !== '' ? trim($notes) : null;
         $payment->paid_at = Carbon::now('UTC');
-        $payment->status = $this->determinePaymentStatus($paidAmount, $remainingDue);
+        $payment->status = $this->determinePaymentStatus(Money::minorToFloat($paidAmountMinor), $remainingDue);
         $payment->provider_response_json = [
             'action' => 'capture',
             'request_idempotency_key' => $idempotencyKey !== '' ? $idempotencyKey : null,
@@ -200,7 +204,7 @@ class PaymentCaptureService
             'reservation_id' => (int) $reservation->reservation_id,
             'payment_id' => (int) $payment->payment_id,
             'payment_status' => (string) ($payment->status?->value ?? $payment->status),
-            'paid_amount' => $paidAmount,
+            'paid_amount' => Money::minorToFloat($paidAmountMinor),
             'total_due' => $totalDue,
             'deposit_applied_amount_before' => (float) ($settlementBefore['deposit_applied_amount'] ?? 0.0),
             'remaining_due_before' => $remainingDue,

@@ -1,47 +1,67 @@
-*.log
-*.pyc
-.DS_Store
+# Local environment and secrets
 .env
 .env.testing
 .env.backup
 .env.production
+/auth.json
+/storage/*.key
+
+# Editor, OS, and tool-local metadata
+.DS_Store
 .phpactor.json
-.phpunit.result.cache
 /.fleet
 /.idea
 /.nova
-/.phpunit.cache
 /.vscode
 /.zed
 /.codex/config.toml
-/auth.json
-/app.zip
-/README.txt
-/build/booking-ci
-/build/booking-release
-/dynamic-cutoff-phase1-prompt.txt
-/init-staff-web.bat
+Homestead.json
+Homestead.yaml
+Thumbs.db
+
+# Dependency directories
 /node_modules
 /staff-web/node_modules
-/staff-web/dist
-/lenh_chay_project.md
+/vendor
+
+# Build outputs and generated local bundles
+/app.zip
 /public/build
 /public/hot
 /public/storage
+/staff-web/dist
+/build/booking-ci
+/build/booking-release
+
+# Intentional generated contract artifacts stay tracked unless reviewed:
+# /build/api-consumer
+# /storage/app/booking_release
+
+# Runtime, cache, and smoke-test output
+*.log
+.phpunit.result.cache
+/.phpunit.cache
 /bootstrap/cache/*.php
-/reservation-inbox.json
+/staff-web/test-results
+/staff-web/tmp-smoke
+/staff-web/staff-web/tmp-smoke
 /storage/framework/cache/data
 /storage/framework/sessions
 /storage/framework/testing
 /storage/framework/views
 /storage/logs
 /storage/mysql-local
-/storage/redis
-/storage/*.key
+/storage/phpstan/cache
 /storage/pail
+/storage/redis
 /test-logs
+/tmp/phar-debug
+
+# Local scratch files
+*.pyc
 __pycache__/
-/vendor
-Homestead.json
-Homestead.yaml
-Thumbs.db
+/dynamic-cutoff-phase1-prompt.txt
+/init-staff-web.bat
+/lenh_chay_project.md
+/README.txt
+/reservation-inbox.json

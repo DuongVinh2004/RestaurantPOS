@@ -10,6 +10,7 @@ use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationStatus;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
+use App\Support\Money;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
@@ -66,15 +67,21 @@ class CustomerReservationBillService
         $paymentSummary = PaymentSummary::fromPayments($reservation->payments);
         $currencyMeta = PaymentSummary::summarizeCurrencies($reservation->payments, (string) ($snapshot['currency'] ?? 'VND'));
 
-        $totalDue = round((float) ($snapshot['total_due'] ?? 0.0), 2);
-        $depositNet = round(max(0.0, (float) ($paymentSummary['deposit_net_amount'] ?? 0.0)), 2);
-        $finalNet = round(max(0.0, (float) ($paymentSummary['final_net_amount'] ?? 0.0)), 2);
-        $depositApplied = round(min(max(0.0, $totalDue), $depositNet), 2);
-        $settled = round(min(max(0.0, $totalDue), $depositApplied + $finalNet), 2);
-        $remainingDue = round(max(0.0, $totalDue - $settled), 2);
-        $paymentStatus = $settled + 0.0001 >= $totalDue
+        $totalDueMinor = Money::minorUnits($snapshot['total_due'] ?? 0, true);
+        $depositNetMinor = Money::minorUnits($paymentSummary['deposit_net_amount'] ?? 0, true);
+        $finalNetMinor = Money::minorUnits($paymentSummary['final_net_amount'] ?? 0, true);
+        $depositAppliedMinor = min($totalDueMinor, $depositNetMinor);
+        $settledMinor = min($totalDueMinor, $depositAppliedMinor + $finalNetMinor);
+        $remainingDueMinor = max(0, $totalDueMinor - $settledMinor);
+        $totalDue = Money::minorToFloat($totalDueMinor);
+        $depositNet = Money::minorToFloat($depositNetMinor);
+        $finalNet = Money::minorToFloat($finalNetMinor);
+        $depositApplied = Money::minorToFloat($depositAppliedMinor);
+        $settled = Money::minorToFloat($settledMinor);
+        $remainingDue = Money::minorToFloat($remainingDueMinor);
+        $paymentStatus = $settledMinor >= $totalDueMinor
             ? PaymentStatus::Success->value
-            : ($settled > 0.0001 ? PaymentStatus::Partial->value : PaymentStatus::Failed->value);
+            : ($settledMinor > 0 ? PaymentStatus::Partial->value : PaymentStatus::Failed->value);
 
         return [
             'reservation' => $reservation,
@@ -83,14 +90,14 @@ class CustomerReservationBillService
                 'reservation_id' => (int) $reservation->reservation_id,
                 'reservation_status' => $status,
                 'scope' => 'reservation',
-                'subtotal' => round((float) ($snapshot['subtotal'] ?? 0.0), 2),
-                'discount' => round((float) ($snapshot['discount'] ?? 0.0), 2),
+                'subtotal' => Money::toFloat($snapshot['subtotal'] ?? 0, true),
+                'discount' => Money::toFloat($snapshot['discount'] ?? 0, true),
                 'total_due' => $totalDue,
                 'currency' => (string) ($snapshot['currency'] ?? 'VND'),
                 'billed_at' => $reservation->billed_at,
                 'is_locked' => $reservation->billed_at !== null && $reservation->final_bill_amount !== null,
                 'locked_total_due' => $reservation->final_bill_amount !== null
-                    ? round((float) $reservation->final_bill_amount, 2)
+                    ? Money::toFloat($reservation->final_bill_amount, true)
                     : null,
                 'locked_currency' => $reservation->bill_currency !== null ? (string) $reservation->bill_currency : null,
             ],
@@ -101,9 +108,9 @@ class CustomerReservationBillService
                 'final_paid' => $finalNet,
                 'paid_total' => $settled,
                 'remaining_due' => $remainingDue,
-                'captured_total' => round((float) ($paymentSummary['captured_amount'] ?? 0.0), 2),
-                'refunded_total' => round((float) ($paymentSummary['refunded_amount'] ?? 0.0), 2),
-                'net_paid_total' => round((float) ($paymentSummary['net_paid_amount'] ?? 0.0), 2),
+                'captured_total' => Money::toFloat($paymentSummary['captured_amount'] ?? 0, true),
+                'refunded_total' => Money::toFloat($paymentSummary['refunded_amount'] ?? 0, true),
+                'net_paid_total' => Money::toFloat($paymentSummary['net_paid_amount'] ?? 0, true),
                 'currency' => $currencyMeta['currency'] ?? (string) ($snapshot['currency'] ?? 'VND'),
                 'currencies' => $currencyMeta['currencies'] ?? [],
                 'has_mixed_currencies' => (bool) ($currencyMeta['has_mixed_currencies'] ?? false),

@@ -18,7 +18,14 @@ $consoleValidationPayload = static function (ValidationException $exception): ar
     ];
 };
 
-$customerAccessSessionConsolePayload = static function (CustomerAccessSession $session): array {
+$customerAccessSessionConsolePayload = static function (CustomerAccessSession $session, bool $verboseSensitive = false) use (
+    $consoleMaskSessionId,
+    $consoleMaskName,
+    $consoleMaskPhone,
+    $consoleMaskIp,
+    $consoleSummarizeUserAgent,
+    $consoleSessionMetadataPayload,
+): array {
     $expiresAt = $session->expires_at?->copy()->utc();
     $revokedAt = $session->revoked_at?->copy()->utc();
 
@@ -26,15 +33,17 @@ $customerAccessSessionConsolePayload = static function (CustomerAccessSession $s
         'access_session_id' => $session->getKey(),
         'user_id' => $session->user_id,
         'username' => $session->user?->username,
-        'session_id' => $session->session_id,
-        'guest_name' => $session->guest_name,
-        'phone' => $session->phone,
+        'session_id' => $verboseSensitive ? $session->session_id : $consoleMaskSessionId($session->session_id),
+        'guest_name' => $verboseSensitive ? $session->guest_name : $consoleMaskName($session->guest_name),
+        'phone' => $verboseSensitive ? $session->phone : $consoleMaskPhone($session->phone),
         'is_active' => $revokedAt === null && $expiresAt !== null && $expiresAt->isFuture(),
         'expires_at_utc' => $expiresAt?->toIso8601String(),
         'last_used_at_utc' => $session->last_used_at?->toIso8601String(),
         'revoked_at_utc' => $revokedAt?->toIso8601String(),
         'token_last_eight' => $session->token_last_eight,
-        'metadata' => $session->metadata,
+        'created_ip' => $verboseSensitive ? $session->created_ip : $consoleMaskIp($session->created_ip),
+        'user_agent' => $consoleSummarizeUserAgent($session->user_agent, $verboseSensitive),
+        'metadata' => $consoleSessionMetadataPayload($session->session_meta_json, $verboseSensitive),
     ];
 };
 
@@ -54,6 +63,21 @@ $staffApiKeyConsolePayload = static function (StaffApiKey $key): array {
     ];
 };
 
+$consoleSecretPayload = static function (?string $secret, bool $reveal = false) use ($consoleSecretMask): array {
+    return [
+        'plain' => $reveal ? $secret : null,
+        'masked' => $consoleSecretMask($secret),
+        'revealed' => $reveal && $secret !== null,
+    ];
+};
+
+$consoleWarnOnSecretReveal = static function (ConsoleCommand $command, string $secretLabel): void {
+    $command->warn(sprintf(
+        'Plaintext %s is being shown once. It may persist in shell history, logs, recordings, or shared terminals.',
+        $secretLabel
+    ));
+};
+
 Artisan::command('customer-auth:access-sessions:issue
     {user_id : Customer user id}
     {--expires-at= : Explicit UTC expiry timestamp}
@@ -66,7 +90,9 @@ Artisan::command('customer-auth:access-sessions:issue
     {--device-id= : Device identifier stored in metadata}
     {--created-ip= : Source IP address}
     {--user-agent= : Source user agent}
-    {--json : Output machine-readable JSON}', function () use ($customerAccessSessionConsolePayload, $consoleValidationPayload) {
+    {--show-secret-once : Reveal the plaintext token once in this command output}
+    {--verbose-sensitive : Show unmasked guest and session metadata fields}
+    {--json : Output machine-readable JSON}', function () use ($customerAccessSessionConsolePayload, $consoleValidationPayload, $consoleSecretPayload, $consoleWarnOnSecretReveal) {
     /** @var ConsoleCommand $command */
     // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
     $command = $this;
@@ -123,9 +149,13 @@ Artisan::command('customer-auth:access-sessions:issue
 
     /** @var CustomerAccessSession $session */
     $session = $issued['access_session']->loadMissing('user.role');
+    $revealSecret = (bool) $command->option('show-secret-once');
+    $secret = $consoleSecretPayload((string) $issued['plain_text_token'], $revealSecret);
     $payload = [
-        'plain_text_token' => $issued['plain_text_token'],
-        'access_session' => $customerAccessSessionConsolePayload($session),
+        'plain_text_token' => $secret['plain'],
+        'plain_text_token_masked' => $secret['masked'],
+        'secret_revealed' => $secret['revealed'],
+        'access_session' => $customerAccessSessionConsolePayload($session, (bool) $command->option('verbose-sensitive')),
     ];
 
     if ($command->option('json')) {
@@ -135,8 +165,11 @@ Artisan::command('customer-auth:access-sessions:issue
     }
 
     $command->info('Customer access session issued.');
+    if ($revealSecret) {
+        $consoleWarnOnSecretReveal($command, 'customer access session token');
+    }
     $command->table(['Field', 'Value'], [
-        ['plain_text_token', (string) $payload['plain_text_token']],
+        [$revealSecret ? 'plain_text_token' : 'plain_text_token_masked', (string) ($revealSecret ? $payload['plain_text_token'] : $payload['plain_text_token_masked'])],
         ['access_session_id', (string) $payload['access_session']['access_session_id']],
         ['user_id', (string) $payload['access_session']['user_id']],
         ['session_id', (string) ($payload['access_session']['session_id'] ?? '')],
@@ -150,6 +183,7 @@ Artisan::command('customer-auth:access-sessions:issue
 Artisan::command('customer-auth:access-sessions:list
     {--user-id= : Filter by customer user id}
     {--include-revoked : Include expired or revoked records}
+    {--verbose-sensitive : Show unmasked guest and session metadata fields}
     {--json : Output machine-readable JSON}', function () use ($customerAccessSessionConsolePayload) {
     /** @var ConsoleCommand $command */
     // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
@@ -159,7 +193,7 @@ Artisan::command('customer-auth:access-sessions:list
     $userId = $userIdOption !== null && $userIdOption !== '' ? (int) $userIdOption : null;
 
     $rows = array_map(
-        $customerAccessSessionConsolePayload,
+        fn (CustomerAccessSession $session): array => $customerAccessSessionConsolePayload($session, (bool) $command->option('verbose-sensitive')),
         app(CustomerAccessSessionService::class)->listSessions($userId, (bool) $command->option('include-revoked'))
     );
 
@@ -202,6 +236,7 @@ Artisan::command('customer-auth:access-sessions:list
 
 Artisan::command('customer-auth:access-sessions:show
     {access_session_id : Customer access session id}
+    {--verbose-sensitive : Show unmasked guest and session metadata fields}
     {--json : Output machine-readable JSON}', function () use ($customerAccessSessionConsolePayload) {
     /** @var ConsoleCommand $command */
     // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
@@ -222,7 +257,7 @@ Artisan::command('customer-auth:access-sessions:show
         return 1;
     }
 
-    $payload = $customerAccessSessionConsolePayload($session);
+    $payload = $customerAccessSessionConsolePayload($session, (bool) $command->option('verbose-sensitive'));
     if ($command->option('json')) {
         $command->line(json_encode(['ok' => true, 'data' => $payload], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
@@ -239,6 +274,7 @@ Artisan::command('customer-auth:access-sessions:show
 
 Artisan::command('customer-auth:access-sessions:revoke
     {access_session_id : Customer access session id}
+    {--verbose-sensitive : Show unmasked guest and session metadata fields}
     {--json : Output machine-readable JSON}', function () use ($customerAccessSessionConsolePayload) {
     /** @var ConsoleCommand $command */
     // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
@@ -263,7 +299,7 @@ Artisan::command('customer-auth:access-sessions:revoke
         return 1;
     }
 
-    $payload = $customerAccessSessionConsolePayload($record);
+    $payload = $customerAccessSessionConsolePayload($record, (bool) $command->option('verbose-sensitive'));
     if ($command->option('json')) {
         $command->line(json_encode(['ok' => true, 'data' => $payload], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
@@ -280,7 +316,8 @@ Artisan::command('staff-auth:api-keys:issue
     {label : Human-readable key label}
     {--expires-at= : Explicit UTC expiry timestamp}
     {--ttl-days= : Relative TTL in days}
-    {--json : Output machine-readable JSON}', function () use ($staffApiKeyConsolePayload, $consoleValidationPayload) {
+    {--show-secret-once : Reveal the plaintext API key once in this command output}
+    {--json : Output machine-readable JSON}', function () use ($staffApiKeyConsolePayload, $consoleValidationPayload, $consoleSecretPayload, $consoleWarnOnSecretReveal) {
     /** @var ConsoleCommand $command */
     // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
     $command = $this;
@@ -315,8 +352,12 @@ Artisan::command('staff-auth:api-keys:issue
 
     /** @var StaffApiKey $record */
     $record = $issued['record']->loadMissing('user.role');
+    $revealSecret = (bool) $command->option('show-secret-once');
+    $secret = $consoleSecretPayload((string) $issued['plaintext_key'], $revealSecret);
     $payload = [
-        'plaintext_key' => $issued['plaintext_key'],
+        'plaintext_key' => $secret['plain'],
+        'plaintext_key_masked' => $secret['masked'],
+        'secret_revealed' => $secret['revealed'],
         'staff_api_key' => $staffApiKeyConsolePayload($record),
     ];
 
@@ -327,8 +368,11 @@ Artisan::command('staff-auth:api-keys:issue
     }
 
     $command->info('Staff API key issued.');
+    if ($revealSecret) {
+        $consoleWarnOnSecretReveal($command, 'staff API key');
+    }
     $command->table(['Field', 'Value'], [
-        ['plaintext_key', (string) $payload['plaintext_key']],
+        [$revealSecret ? 'plaintext_key' : 'plaintext_key_masked', (string) ($revealSecret ? $payload['plaintext_key'] : $payload['plaintext_key_masked'])],
         ['staff_api_key_id', (string) $payload['staff_api_key']['staff_api_key_id']],
         ['user_id', (string) $payload['staff_api_key']['user_id']],
         ['label', (string) $payload['staff_api_key']['label']],
@@ -449,7 +493,8 @@ Artisan::command('staff-auth:api-keys:rotate
     {--label= : Replacement label}
     {--expires-at= : Explicit UTC expiry timestamp}
     {--ttl-days= : Relative replacement TTL in days}
-    {--json : Output machine-readable JSON}', function () use ($staffApiKeyConsolePayload, $consoleValidationPayload) {
+    {--show-secret-once : Reveal the plaintext replacement API key once in this command output}
+    {--json : Output machine-readable JSON}', function () use ($staffApiKeyConsolePayload, $consoleValidationPayload, $consoleSecretPayload, $consoleWarnOnSecretReveal) {
     /** @var ConsoleCommand $command */
     // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
     $command = $this;
@@ -495,8 +540,12 @@ Artisan::command('staff-auth:api-keys:rotate
         return 1;
     }
 
+    $revealSecret = (bool) $command->option('show-secret-once');
+    $secret = $consoleSecretPayload((string) $rotated['plaintext_key'], $revealSecret);
     $payload = [
-        'plaintext_key' => $rotated['plaintext_key'],
+        'plaintext_key' => $secret['plain'],
+        'plaintext_key_masked' => $secret['masked'],
+        'secret_revealed' => $secret['revealed'],
         'revoked' => $staffApiKeyConsolePayload($rotated['revoked']->loadMissing('user.role')),
         'replacement' => $staffApiKeyConsolePayload($rotated['record']->loadMissing('user.role')),
     ];
@@ -508,8 +557,11 @@ Artisan::command('staff-auth:api-keys:rotate
     }
 
     $command->info('Staff API key rotated.');
+    if ($revealSecret) {
+        $consoleWarnOnSecretReveal($command, 'replacement staff API key');
+    }
     $command->table(['Field', 'Value'], [
-        ['plaintext_key', (string) $payload['plaintext_key']],
+        [$revealSecret ? 'plaintext_key' : 'plaintext_key_masked', (string) ($revealSecret ? $payload['plaintext_key'] : $payload['plaintext_key_masked'])],
         ['revoked_staff_api_key_id', (string) $payload['revoked']['staff_api_key_id']],
         ['replacement_staff_api_key_id', (string) $payload['replacement']['staff_api_key_id']],
         ['user_id', (string) $payload['replacement']['user_id']],

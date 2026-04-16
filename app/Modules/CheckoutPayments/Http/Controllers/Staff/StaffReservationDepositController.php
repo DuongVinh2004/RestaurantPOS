@@ -11,6 +11,7 @@ use App\Modules\CheckoutPayments\Application\Services\StaffReservationDepositSer
 use App\Modules\CheckoutPayments\Domain\Models\Payment;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
 use App\Modules\CheckoutPayments\Http\Requests\Staff\PayReservationDepositRequest;
+use App\Modules\CheckoutPayments\Support\PaymentProviderPayloadSanitizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -126,7 +127,7 @@ class StaffReservationDepositController extends Controller
             'refund_target_payment_type' => $payment->payment_type === 'Refund'
                 ? PaymentSummary::resolveRefundTargetPaymentType($payment)
                 : null,
-            'provider_response_json' => $payment->provider_response_json,
+            'provider_response_json' => PaymentProviderPayloadSanitizer::sanitizePaymentResponseForPresentation($payment->provider_response_json),
         ];
     }
 

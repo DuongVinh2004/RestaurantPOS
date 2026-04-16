@@ -31,15 +31,17 @@ class MetricsAuthorizationCoverageTest extends TestCase
 
         $response->assertStatus(403)
             ->assertJsonPath('error_code', 'forbidden')
-            ->assertJsonPath('required_capability', 'ops.view');
+            ->assertJsonPath('required_capability', 'ops.metrics.view');
     }
 
     #[Group('booking-ops')]
-    public function test_metrics_endpoint_allows_admin_actor_with_global_capability_scope(): void
+    public function test_metrics_endpoint_allows_actor_with_explicit_ops_metrics_capability(): void
     {
-        $adminId = $this->createUser(['role_name' => 'Admin']);
+        config()->set('staff_capabilities.role_capabilities.Operator', ['ops.metrics.view']);
 
-        $response = $this->withHeaders($this->staffAuthHeaders($adminId, 'metrics-admin'))
+        $operatorId = $this->createUser(['role_name' => 'Operator']);
+
+        $response = $this->withHeaders($this->staffAuthHeaders($operatorId, 'metrics-operator'))
             ->get('/api/v1/metrics');
 
         $response->assertOk();

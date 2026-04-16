@@ -35,6 +35,7 @@ class TableHoldService
     {
         $nowUtc = Carbon::now('UTC');
 
+        // Scheduler-style expiry is an explicit maintenance path guarded by the direct-write contract test.
         $count = DB::table('table_holds')
             ->whereIn('hold_status', ['Holding', 'Pending'])
             ->where('expire_at', '<=', $nowUtc)
@@ -236,19 +237,19 @@ class TableHoldService
                 $holdId = (string) Str::uuid();
                 $nowUtc = Carbon::now('UTC');
 
-                DB::table('table_holds')->insert([
-                    'hold_id'          => $holdId,
-                    'branch_id'        => $tableBranchId,
-                    'session_id'       => $sessionId,
-                    'user_id'          => $userId,
-                    'start_time'       => $start,
-                    'end_time'         => $end,
-                    'duration_minutes' => $durationMinutes,
-                    'hold_status'      => 'Holding',
-                    'created_at'       => $nowUtc,
-                    'updated_at'       => $nowUtc,
-                    'expire_at'        => $nowUtc->copy()->addMinutes($holdMinutes),
-                ]);
+                $hold = new TableHold();
+                $hold->hold_id = $holdId;
+                $hold->branch_id = $tableBranchId;
+                $hold->session_id = $sessionId;
+                $hold->user_id = $userId;
+                $hold->start_time = $start;
+                $hold->end_time = $end;
+                $hold->duration_minutes = $durationMinutes;
+                $hold->hold_status = 'Holding';
+                $hold->created_at = $nowUtc;
+                $hold->updated_at = $nowUtc;
+                $hold->expire_at = $nowUtc->copy()->addMinutes($holdMinutes);
+                $hold->save();
 
                 $rows = [];
                 foreach ($tableIds as $tid) {

@@ -222,6 +222,130 @@ class PaymentProviderWebhookFlowTest extends TestCase
         self::assertSame(1, DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Deposit')->count());
     }
 
+    public function test_webhook_receipt_redacts_sensitive_request_artifacts_and_raw_provider_payloads(): void
+    {
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Confirmed',
+            'deposit_required_amount' => '91000.00',
+            'deposit_paid_amount' => '0.00',
+            'deposit_status' => 'Pending',
+            'bill_currency' => 'VND',
+        ]);
+
+        ReservationDepositPaymentSession::query()->create([
+            'reservation_id' => $reservationId,
+            'customer_user_id' => $customerId,
+            'provider_code' => 'simulated',
+            'provider_session_code' => 'sim-dep-redacted-receipt-1',
+            'payment_method' => 'Online',
+            'amount' => '91000.00',
+            'currency' => 'VND',
+            'session_status' => 'Pending',
+            'settlement_status' => 'NotApplied',
+            'provider_payload_json' => ['payment_scope' => 'deposit'],
+            'row_version' => 1,
+        ]);
+
+        $payload = [
+            'provider_event_code' => 'evt-dep-redacted-receipt-1',
+            'provider_session_code' => 'sim-dep-redacted-receipt-1',
+            'payment_scope' => 'deposit',
+            'simulation_outcome' => 'succeeded',
+        ];
+        $body = json_encode($payload, JSON_THROW_ON_ERROR);
+        $signature = hash_hmac('sha256', $body, 'simulated-webhook-secret');
+
+        $this->postJson('/api/v1/payments/providers/simulated/webhooks', $payload, $this->webhookHeaders($payload))
+            ->assertStatus(202)
+            ->assertJsonPath('data.delivery_status', 'Applied');
+
+        $receipt = DB::table('payment_provider_webhook_receipts')
+            ->where('provider_event_code', 'evt-dep-redacted-receipt-1')
+            ->first();
+
+        self::assertNotNull($receipt);
+
+        $storedHeaders = json_decode((string) $receipt->request_headers_json, true, 512, JSON_THROW_ON_ERROR);
+        $storedBody = json_decode((string) $receipt->request_body, true, 512, JSON_THROW_ON_ERROR);
+        $storedPayload = json_decode((string) $receipt->provider_payload_json, true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame('sha256:'.hash('sha256', $signature), (string) $receipt->request_signature);
+        self::assertSame('[redacted]', $storedHeaders['x-payment-signature']);
+        self::assertSame('evt-dep-redacted-receipt-1', $storedBody['provider_event_code']);
+        self::assertSame('sim-dep-redacted-receipt-1', $storedBody['provider_session_code']);
+        self::assertArrayHasKey('body_fingerprint', $storedBody);
+        self::assertStringNotContainsString('simulation_outcome', (string) $receipt->request_body);
+        self::assertSame('simulated', $storedPayload['mode']);
+        self::assertTrue((bool) $storedPayload['webhook']);
+        self::assertArrayNotHasKey('received_headers', $storedPayload);
+        self::assertArrayHasKey('_receipt', $storedPayload);
+        self::assertSame($storedBody['body_fingerprint'], $storedPayload['_receipt']['body_fingerprint']);
+    }
+
+    public function test_client_confirm_then_webhook_for_same_deposit_session_does_not_double_apply_payment(): void
+    {
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Confirmed',
+            'deposit_required_amount' => '85000.00',
+            'deposit_paid_amount' => '0.00',
+            'deposit_status' => 'Pending',
+            'bill_currency' => 'VND',
+        ]);
+
+        $session = ReservationDepositPaymentSession::query()->create([
+            'reservation_id' => $reservationId,
+            'customer_user_id' => $customerId,
+            'provider_code' => 'simulated',
+            'provider_session_code' => 'sim-dep-confirm-then-webhook-1',
+            'payment_method' => 'Online',
+            'amount' => '85000.00',
+            'currency' => 'VND',
+            'session_status' => 'Pending',
+            'settlement_status' => 'NotApplied',
+            'provider_payload_json' => ['payment_scope' => 'deposit'],
+            'row_version' => 1,
+        ]);
+
+        $customer = \App\Models\User::query()->findOrFail($customerId);
+        $confirm = $this->actingAs($customer)->withHeaders([
+            'Idempotency-Key' => 'cust-dep-confirm-then-webhook-1',
+            'Accept' => 'application/json',
+        ])->postJson('/api/v1/reservations/'.$reservationId.'/deposit/payment-sessions/'.$session->deposit_payment_session_id.'/confirm', [
+            'row_version' => 1,
+            'simulation_outcome' => 'succeeded',
+        ]);
+
+        $confirm->assertOk()
+            ->assertJsonPath('data.payment_session.session_status', 'Succeeded')
+            ->assertJsonPath('data.payment_session.settlement_status', 'Applied');
+
+        $linkedPaymentId = (int) $confirm->json('data.payment_session.linked_payment_id');
+
+        $payload = [
+            'provider_event_code' => 'evt-dep-confirm-then-webhook-1',
+            'provider_session_code' => 'sim-dep-confirm-then-webhook-1',
+            'payment_scope' => 'deposit',
+            'simulation_outcome' => 'succeeded',
+        ];
+
+        $webhook = $this->postJson('/api/v1/payments/providers/simulated/webhooks', $payload, $this->webhookHeaders($payload));
+
+        $webhook->assertStatus(202)
+            ->assertJsonPath('data.duplicate', false)
+            ->assertJsonPath('data.payment_scope', 'deposit')
+            ->assertJsonPath('data.delivery_status', 'Applied');
+
+        $session->refresh();
+        self::assertSame($linkedPaymentId, (int) $session->linked_payment_id);
+        self::assertSame('Applied', (string) ($session->settlement_status?->value ?? $session->settlement_status));
+        self::assertSame(1, DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Deposit')->count());
+        self::assertSame(1, DB::table('payment_provider_webhook_receipts')->where('provider_event_code', 'evt-dep-confirm-then-webhook-1')->count());
+    }
+
     public function test_duplicate_event_code_with_changed_payload_is_rejected_without_mutating_existing_receipt(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);

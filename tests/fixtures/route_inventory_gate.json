@@ -291,6 +291,12 @@
             "action": "App\\Platform\\Health\\Http\\HealthController@health"
         },
         {
+            "key": "get_v1healthdetailed",
+            "method": "GET",
+            "uri": "api/v1/health/detailed",
+            "action": "App\\Platform\\Health\\Http\\HealthController@detailed"
+        },
+        {
             "key": "health_redis",
             "method": "GET",
             "uri": "api/v1/health/redis",
@@ -454,6 +460,18 @@
             "method": "GET",
             "uri": "api/v1/staff/conversations/{conversation_id}",
             "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@show"
+        },
+        {
+            "key": "get_v1staffconversationsconversation_idfilesfile_idaccess",
+            "method": "GET",
+            "uri": "api/v1/staff/conversations/{conversation_id}/files/{file_id}/access",
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@accessFile"
+        },
+        {
+            "key": "get_v1staffconversationsconversation_idmessagesmessage_idattachment",
+            "method": "GET",
+            "uri": "api/v1/staff/conversations/{conversation_id}/messages/{message_id}/attachment",
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@accessMessageAttachment"
         },
         {
             "key": "get_v1_staff_finance_accounting_export",

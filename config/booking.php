@@ -8,6 +8,7 @@ $csvList = static function (string $value): array {
 };
 $appEnvironment = (string) env('APP_ENV', 'production');
 $isLocalLikeEnvironment = in_array($appEnvironment, ['local', 'testing'], true);
+$defaultRealtimeCacheStore = $isLocalLikeEnvironment ? 'file' : 'redis';
 $defaultPaymentProvider = (string) env(
     'PAYMENT_PROVIDER_DEFAULT',
     $isLocalLikeEnvironment ? 'simulated' : 'generic_http_hmac'
@@ -290,7 +291,11 @@ return [
     // Realtime operational feed contract.
     'realtime' => [
         'enabled' => (bool) env('BOOKING_REALTIME_ENABLED', true),
-        'cache_store' => (string) env('BOOKING_REALTIME_CACHE_STORE', 'file'),
+        'cache_store' => (string) env('BOOKING_REALTIME_CACHE_STORE', $defaultRealtimeCacheStore),
+        'production_like_environments' => $csvList((string) env('BOOKING_REALTIME_PRODUCTION_LIKE_ENVIRONMENTS', 'production,staging')),
+        'local_like_environments' => $csvList((string) env('BOOKING_REALTIME_LOCAL_LIKE_ENVIRONMENTS', 'local,development,testing')),
+        'distributed_store_drivers' => $csvList((string) env('BOOKING_REALTIME_DISTRIBUTED_STORE_DRIVERS', 'redis,memcached,database,dynamodb')),
+        'local_fallback_store_drivers' => $csvList((string) env('BOOKING_REALTIME_LOCAL_FALLBACK_STORE_DRIVERS', 'file,array')),
         'recent_event_limit' => (int) env('BOOKING_REALTIME_RECENT_EVENT_LIMIT', 50),
         'event_ttl_seconds' => (int) env('BOOKING_REALTIME_EVENT_TTL_SECONDS', 300),
         'poll_hint_ms' => (int) env('BOOKING_REALTIME_POLL_HINT_MS', 5000),
@@ -402,6 +407,7 @@ return [
         'table_state_audit_missing_context_warn_count' => (int) env('OPS_TABLE_STATE_AUDIT_MISSING_CONTEXT_WARN_COUNT', 3),
         'table_state_audit_recent_window_hours' => (int) env('OPS_TABLE_STATE_AUDIT_RECENT_WINDOW_HOURS', 24),
         'row_version_contract_missing_required_fail_count' => (int) env('OPS_ROW_VERSION_CONTRACT_MISSING_REQUIRED_FAIL_COUNT', 1),
+        'kitchen_queued_backlog_warn_seconds' => (int) env('OPS_KITCHEN_QUEUED_BACKLOG_WARN_SECONDS', 900),
         'kitchen_fired_backlog_warn_seconds' => (int) env('OPS_KITCHEN_FIRED_BACKLOG_WARN_SECONDS', 900),
         'kitchen_ready_backlog_warn_seconds' => (int) env('OPS_KITCHEN_READY_BACKLOG_WARN_SECONDS', 600),
         'inventory_purchase_scan_limit' => (int) env('OPS_INVENTORY_PURCHASE_SCAN_LIMIT', 50),

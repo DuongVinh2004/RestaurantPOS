@@ -12,10 +12,12 @@ use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyServ
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\BranchScheduling\Application\Services\TableHoldService;
 use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
+use App\Modules\BranchScheduling\Domain\Models\TableHold;
 use App\Models\MenuItem;
 use App\Models\MenuItemPrice;
 use App\Modules\CheckoutPayments\Domain\Models\Payment;
 use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Reservations\Domain\Policies\ReservationStatusTransitionPolicy;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 use App\Modules\Reservations\Domain\Models\ReservationTable;
@@ -29,6 +31,7 @@ use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncSe
 use App\Support\AuditEvent;
 use App\Support\AvailabilityCacheVersion;
 use App\Support\DatabaseWriteConflictMapper;
+use App\Support\Money;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
 use App\Modules\BenefitsLoyalty\Domain\Policies\VoucherRedemptionSupport;
 use Illuminate\Database\QueryException;
@@ -262,7 +265,7 @@ class ReservationService
                     foreach ($normalizedPreOrderItems as $row) {
                         $menuItem = $menuItems->get((int) $row['item_id']);
                         $priceRow = $priceRows->get((int) $row['item_id']);
-                        $unitPrice = round((float) $priceRow->price, 2);
+                        $unitPriceMinor = Money::minorUnits($priceRow->price, true);
                         $currency = (string) $priceRow->currency;
                         $quantity = (int) $row['quantity'];
 
@@ -270,9 +273,9 @@ class ReservationService
                         $item->order_id = $order->order_id;
                         $item->item_id = (int) $row['item_id'];
                         $item->quantity = $quantity;
-                        $item->unit_price = number_format($unitPrice, 2, '.', '');
+                        $item->unit_price = Money::formatMinor($unitPriceMinor);
                         $item->currency = $currency;
-                        $item->line_total = number_format($unitPrice * $quantity, 2, '.', '');
+                        $item->line_total = Money::formatMinor($unitPriceMinor * $quantity);
                         $item->item_name_snapshot = $menuItem ? (string) $menuItem->name : null;
                         $item->status = ReservationOrderItemStatus::Ordered;
                         $item->notes = null;
@@ -282,27 +285,28 @@ class ReservationService
                 }
 
                 if (is_string($holdId) && $holdId !== '' && is_string($sessionId) && $sessionId !== '') {
-                    $updated = DB::table('table_holds')
-                        ->where('hold_id', $holdId)
+                    $hold = TableHold::query()
+                        ->whereKey($holdId)
                         ->where('session_id', $sessionId)
                         ->where('branch_id', $tableBranchId)
                         ->whereIn('hold_status', [TableHoldStatus::Holding->value, TableHoldStatus::Pending->value])
-                        ->update([
-                            'branch_id' => $tableBranchId,
-                            'hold_status' => TableHoldStatus::Confirmed->value,
-                            'confirmed_reservation_id' => (int) $reservation->reservation_id,
-                            'user_id' => $userId,
-                            'expire_at' => $now,
-                            'updated_at' => $now,
-                            'updated_by' => $actorUserId,
-                            'row_version' => DB::raw('COALESCE(row_version, 1) + 1'),
-                        ]);
+                        ->lockForUpdate()
+                        ->first();
 
-                    if ($updated !== 1) {
+                    if (! $hold instanceof TableHold) {
                         throw ValidationException::withMessages([
                             'hold_id' => ['Hold đã thay đổi trạng thái trong lúc tạo reservation. Hãy reload rồi thử lại.'],
                         ]);
                     }
+
+                    $hold->branch_id = $tableBranchId;
+                    $hold->hold_status = TableHoldStatus::Confirmed;
+                    $hold->confirmed_reservation_id = (int) $reservation->reservation_id;
+                    $hold->user_id = $userId;
+                    $hold->expire_at = $now;
+                    $hold->updated_at = $now;
+                    $hold->updated_by = $actorUserId;
+                    $hold->save();
                 }
 
                 AuditEvent::info('reservation_created', [
@@ -486,7 +490,7 @@ class ReservationService
                         return;
                     }
 
-                    $this->assertStatusTransitionAllowed($current, $target, $force);
+                    ReservationStatusTransitionPolicy::assertTransitionAllowed($current, $target, $force);
 
                     $beforeVersion = (int) ($reservation->row_version ?? 1);
 
@@ -520,7 +524,7 @@ class ReservationService
                         }
 
                         $paymentSummary = PaymentSummary::fromPayments($payments);
-                        if ((float) ($paymentSummary['final_net_amount'] ?? 0.0) > 0.0001) {
+                        if (Money::isPositive($paymentSummary['final_net_amount'] ?? 0)) {
                             throw ValidationException::withMessages([
                                 'status' => ['Reservation still has unrefunded final payments. Use refund/cancel-after-payment flow before cancelling.'],
                             ]);
@@ -574,7 +578,7 @@ class ReservationService
 
                     if ($target === ReservationStatus::Cancelled->value && $current === ReservationStatus::Confirmed->value) {
                         $paymentSummary = PaymentSummary::fromPayments($payments);
-                        if ((float) ($paymentSummary['final_net_amount'] ?? 0.0) > 0.0001) {
+                        if (Money::isPositive($paymentSummary['final_net_amount'] ?? 0)) {
                             throw ValidationException::withMessages([
                                 'status' => ['Reservation still has unrefunded final payments. Use refund/cancel-after-payment flow before cancelling.'],
                             ]);
@@ -661,7 +665,7 @@ class ReservationService
             ->get();
 
         $voucherDiscount = $userVoucher->voucher
-            ? round((float) (VoucherRedemptionSupport::calculateDiscount($userVoucher->voucher, $orders)['discount_amount'] ?? 0.0), 2)
+            ? Money::toFloat(VoucherRedemptionSupport::calculateDiscount($userVoucher->voucher, $orders)['discount_amount'] ?? 0, true)
             : 0.0;
 
         if (! (bool) ($userVoucher->is_used ?? false)) {
@@ -675,7 +679,10 @@ class ReservationService
             $reservation->applied_user_voucher_id = null;
             $this->reservationFinancialSyncService->syncReservationDiscountSnapshot(
                 reservation: $reservation,
-                totalDiscount: max(0.0, round((float) ($reservation->discount_amount ?? 0.0) - $voucherDiscount, 2)),
+                totalDiscount: Money::minorToFloat(max(
+                    0,
+                    Money::minorUnits($reservation->discount_amount ?? 0, true) - Money::minorUnits($voucherDiscount, true)
+                )),
                 lockOrders: true,
             );
         }
@@ -688,14 +695,18 @@ class ReservationService
                 continue;
             }
 
-            ReservationOrderItem::query()
+            $items = ReservationOrderItem::query()
                 ->where('order_id', $order->order_id)
                 ->whereNotIn('status', [ReservationOrderItemStatus::Cancelled->value, ReservationOrderItemStatus::Served->value])
-                ->update([
-                    'status' => ReservationOrderItemStatus::Cancelled->value,
-                    'updated_by' => $actorUserId,
-                    'updated_at' => $now,
-                ]);
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($items as $item) {
+                $item->status = ReservationOrderItemStatus::Cancelled;
+                $item->updated_by = $actorUserId;
+                $item->updated_at = $now;
+                $item->save();
+            }
 
             $order->status = ReservationOrderStatus::Cancelled;
             $order->updated_by = $actorUserId;

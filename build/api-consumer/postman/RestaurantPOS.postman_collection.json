@@ -3381,7 +3381,23 @@
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/health",
-                        "description": "Operational health endpoint. Base db, redis, scheduler, and disk checks are always included; detailed operational sections are added when a valid staff actor is resolved.\n\nSignature: `GET api/v1/health`\nAuth mode: `public`\nContract grade: `full`"
+                        "description": "Public minimal health endpoint exposing only service liveness status and timestamp.\n\nSignature: `GET api/v1/health`\nAuth mode: `public`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Detailed health check",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/health/detailed",
+                        "description": "Privileged operational health endpoint with internal db, redis, scheduler, disk, and ops diagnostics.\n\nSignature: `GET api/v1/health/detailed`\nAuth mode: `public`\nContract grade: `full`"
                     },
                     "response": []
                 },
@@ -3397,7 +3413,7 @@
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/health/redis",
-                        "description": "Operational Redis readiness endpoint covering set/get and lock acquisition.\n\nSignature: `GET api/v1/health/redis`\nAuth mode: `public`\nContract grade: `full`"
+                        "description": "Privileged Redis readiness endpoint covering set/get and lock acquisition.\n\nSignature: `GET api/v1/health/redis`\nAuth mode: `public`\nContract grade: `full`"
                     },
                     "response": []
                 }
@@ -3891,6 +3907,48 @@
                 {
                     "name": "Staff Conversations",
                     "item": [
+                        {
+                            "name": "Access conversation file",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "key": "X-Staff-Key",
+                                        "value": "{{staffApiKey}}",
+                                        "type": "text"
+                                    }
+                                ],
+                                "url": "{{baseUrl}}/api/v1/staff/conversations/{{conversationId}}/files/{{fileId}}/access",
+                                "description": "Redirect an authorized staff actor to a short-lived conversation file download target using a signed backend access handle.\n\nSignature: `GET api/v1/staff/conversations/{conversation_id}/files/{file_id}/access`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                            },
+                            "response": []
+                        },
+                        {
+                            "name": "Access legacy conversation attachment",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "key": "X-Staff-Key",
+                                        "value": "{{staffApiKey}}",
+                                        "type": "text"
+                                    }
+                                ],
+                                "url": "{{baseUrl}}/api/v1/staff/conversations/{{conversationId}}/messages/{{messageId}}/attachment",
+                                "description": "Redirect an authorized staff actor to a short-lived legacy message attachment target using a signed backend access handle.\n\nSignature: `GET api/v1/staff/conversations/{conversation_id}/messages/{message_id}/attachment`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                            },
+                            "response": []
+                        },
                         {
                             "name": "Assign conversation",
                             "request": {

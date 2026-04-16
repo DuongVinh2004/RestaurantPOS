@@ -1,5 +1,8 @@
 # Refactored app Structure Guide
 
+See `docs/architecture/module-ownership.md` for the enforcement rules that
+decide where new code, tests, and artifacts belong.
+
 ## Top-level rule
 
 - New business code goes to `app/Modules/<Domain>/`.

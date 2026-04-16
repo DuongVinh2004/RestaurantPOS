@@ -1399,6 +1399,12 @@ export type GetV1WaitingListIdPathParams = {
   id: number;
 };
 
+export type HealthDetailedEnvelope = {
+  status: "ok" | "degraded" | "fail";
+  checks: Record<string, unknown>;
+  meta: Record<string, unknown>;
+};
+
 export type HealthRedisEnvelope = {
   status: "ok" | "degraded" | "fail";
   checks: Record<string, unknown>;
@@ -1407,9 +1413,8 @@ export type HealthRedisEnvelope = {
 
 export type HealthStatusEnvelope = {
   status: "ok" | "degraded" | "fail";
-  checks?: Record<string, unknown>;
-  meta: Record<string, unknown>;
-  [key: string]: unknown;
+  service: string;
+  timestamp_utc: string;
 };
 
 export type KitchenOrderItemTicket = {
@@ -2350,6 +2355,13 @@ export type StaffConversationMessage = {
   message_type: string;
   is_internal_note: boolean;
   attachment_url?: (string) | null;
+  attachment?: ({
+  file_id: (number) | null;
+  message_id: number;
+  access_url: string;
+  access_expires_at: string;
+  mime_type: (string) | null;
+}) | null;
   is_processed?: boolean;
   processing_status?: (string) | null;
   confidence?: (string) | null;
@@ -2359,6 +2371,7 @@ export type StaffConversationMessage = {
   files?: Array<{
   file_id: number;
   file_url: string;
+  access_expires_at: string;
   mime_type?: (string) | null;
   created_at?: (string) | null;
 }>;
@@ -4611,6 +4624,19 @@ export class RestaurantPosClient {
     return this.request<HealthStatusEnvelope>(
       'GET',
       '/api/v1/health',
+      'none',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1healthdetailed(options: RequestOptions = {}): Promise<HealthDetailedEnvelope> {
+    return this.request<HealthDetailedEnvelope>(
+      'GET',
+      '/api/v1/health/detailed',
       'none',
       false,
       false,

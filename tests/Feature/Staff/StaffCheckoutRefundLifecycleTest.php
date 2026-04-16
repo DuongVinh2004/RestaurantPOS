@@ -6,6 +6,7 @@ namespace Tests\Feature\Staff;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Mockery;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
@@ -77,5 +78,71 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
         $this->assertSame('Refund', (string) ($refundRow->payment_type ?? ''));
         $this->assertSame(40000.0, (float) ($refundRow->amount ?? 0.0));
         $this->assertSame('VND', (string) ($refundRow->currency ?? ''));
+    }
+
+    public function test_second_refund_attempt_after_full_refund_is_rejected_without_creating_new_refund_payment(): void
+    {
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Completed',
+            'deposit_required_amount' => '100000.00',
+            'deposit_paid_amount' => '100000.00',
+            'deposit_status' => 'Paid',
+            'bill_currency' => 'VND',
+        ]);
+
+        $this->createPayment([
+            'reservation_id' => $reservationId,
+            'payment_type' => 'Deposit',
+            'status' => 'Success',
+            'amount' => '100000.00',
+            'currency' => 'VND',
+            'transaction_code' => 'DEP-LIFECYCLE-FULL-1',
+        ]);
+
+        $service = $this->makeCheckoutService();
+
+        $service->refundReservation(
+            reservationId: $reservationId,
+            paymentMethod: 'Cash',
+            refundScope: 'deposit',
+            refundAmount: 100000.00,
+            currency: 'VND',
+            transactionCode: 'RF-LIFECYCLE-FULL-1',
+            paymentProvider: 'Cash',
+            notes: 'full deposit refund',
+            reason: 'customer_request',
+            expectedRowVersion: 1,
+            staffUserId: $staffId,
+            idempotencyKey: 'idem-rf-lifecycle-full-1'
+        );
+
+        try {
+            $service->refundReservation(
+                reservationId: $reservationId,
+                paymentMethod: 'Cash',
+                refundScope: 'deposit',
+                refundAmount: 1000.00,
+                currency: 'VND',
+                transactionCode: 'RF-LIFECYCLE-FULL-2',
+                paymentProvider: 'Cash',
+                notes: 'should be rejected',
+                reason: 'customer_request',
+                expectedRowVersion: null,
+                staffUserId: $staffId,
+                idempotencyKey: 'idem-rf-lifecycle-full-2'
+            );
+
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $errors = $e->errors();
+            $this->assertArrayHasKey('refund_amount', $errors);
+            $this->assertStringContainsString('exceeds refundable balance', $errors['refund_amount'][0]);
+        }
+
+        $this->assertSame(1, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Refund')->count());
     }
 }

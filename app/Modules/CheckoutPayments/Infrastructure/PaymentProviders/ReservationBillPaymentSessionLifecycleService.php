@@ -11,6 +11,8 @@ use App\Modules\CheckoutPayments\Application\Services\ReservationBillPaymentServ
 use App\Modules\CheckoutPayments\Domain\Models\Payment;
 use App\Modules\CheckoutPayments\Domain\Models\ReservationBillPaymentSession;
 use App\Modules\CheckoutPayments\Domain\Policies\PaymentSessionStatusTransitionPolicy;
+use App\Modules\CheckoutPayments\Support\PaymentProviderPayloadSanitizer;
+use App\Support\Money;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -41,7 +43,9 @@ class ReservationBillPaymentSessionLifecycleService
         $session->session_status = $status;
         $session->failure_code = Arr::get($providerResult, 'failure_code');
         $session->failure_message = Arr::get($providerResult, 'failure_message');
-        $session->provider_payload_json = (array) ($providerResult['provider_payload'] ?? $session->provider_payload_json ?? []);
+        $session->provider_payload_json = PaymentProviderPayloadSanitizer::sanitizeSessionPayloadForStorage(
+            (array) ($providerResult['provider_payload'] ?? $session->provider_payload_json ?? [])
+        );
         $session->provider_expires_at = $providerResult['provider_expires_at'] ?? $session->provider_expires_at;
         $session->last_reconciled_at = $providerResult['occurred_at'] ?? $now;
         $session->updated_by = $actorUserId;
@@ -83,12 +87,27 @@ class ReservationBillPaymentSessionLifecycleService
             return;
         }
 
+        $existingPayment = $this->billPaymentService->replaySucceededCustomerSession(
+            reservation: $reservation,
+            session: $session,
+            lockedPayments: $lockedPayments,
+            actorUserId: $actorUserId,
+        );
+        if ($existingPayment instanceof Payment) {
+            $session->linked_payment_id = (int) $existingPayment->payment_id;
+            $session->settlement_status = ReservationBillPaymentSettlementStatus::Applied;
+            $session->updated_by = $actorUserId;
+            $session->save();
+
+            return;
+        }
+
         $bill = $this->billPaymentService->summarizeLockedBill($reservation, $lockedPayments, (string) ($session->currency ?? ''));
-        if ((float) ($bill['outstanding_amount'] ?? 0.0) <= 0.0001) {
+        if (Money::minorUnits($bill['outstanding_amount'] ?? 0, true) <= 0) {
             $payload = (array) ($session->provider_payload_json ?? []);
             $payload['settlement_skip_reason'] = 'bill_already_satisfied';
             $session->settlement_status = ReservationBillPaymentSettlementStatus::Skipped;
-            $session->provider_payload_json = $payload;
+            $session->provider_payload_json = PaymentProviderPayloadSanitizer::sanitizeSessionPayloadForStorage($payload);
             $session->updated_by = $actorUserId;
             $session->save();
 

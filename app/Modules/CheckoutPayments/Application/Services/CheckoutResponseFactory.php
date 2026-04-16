@@ -7,6 +7,7 @@ namespace App\Modules\CheckoutPayments\Application\Services;
 use App\Enums\PaymentStatus;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Support\Money;
 
 class CheckoutResponseFactory
 {
@@ -46,21 +47,21 @@ class CheckoutResponseFactory
             'reservation' => $reservation,
             'refund' => [
                 'refund_payment_ids' => array_values(array_map('intval', $refundPaymentIds)),
-                'refund_amount' => number_format($refundAmountThisCall, 2, '.', ''),
+                'refund_amount' => Money::format($refundAmountThisCall, true),
                 'currency' => $this->amountCalculator->normalizeCurrencyCode($currency, (string) ($reservation->bill_currency ?? 'VND')),
                 'refund_scope' => $refundScope,
                 'cancelled' => $cancelled,
                 'reservation_status' => (string) ($reservation->status?->value ?? $reservation->status),
                 'payment_summary' => [
-                    'deposit_captured' => number_format((float) ($summary['deposit_captured_amount'] ?? 0.0), 2, '.', ''),
-                    'deposit_refunded' => number_format((float) ($summary['deposit_refunded_amount'] ?? 0.0), 2, '.', ''),
-                    'deposit_net' => number_format((float) ($summary['deposit_net_amount'] ?? 0.0), 2, '.', ''),
-                    'final_captured' => number_format((float) ($summary['final_captured_amount'] ?? 0.0), 2, '.', ''),
-                    'final_refunded' => number_format((float) ($summary['final_refunded_amount'] ?? 0.0), 2, '.', ''),
-                    'final_net' => number_format((float) ($summary['final_net_amount'] ?? 0.0), 2, '.', ''),
-                    'captured_total' => number_format((float) ($summary['captured_amount'] ?? 0.0), 2, '.', ''),
-                    'refunded_total' => number_format((float) ($summary['refunded_amount'] ?? 0.0), 2, '.', ''),
-                    'net_paid_total' => number_format((float) ($summary['net_paid_amount'] ?? 0.0), 2, '.', ''),
+                    'deposit_captured' => Money::format($summary['deposit_captured_amount'] ?? 0, true),
+                    'deposit_refunded' => Money::format($summary['deposit_refunded_amount'] ?? 0, true),
+                    'deposit_net' => Money::format($summary['deposit_net_amount'] ?? 0, true),
+                    'final_captured' => Money::format($summary['final_captured_amount'] ?? 0, true),
+                    'final_refunded' => Money::format($summary['final_refunded_amount'] ?? 0, true),
+                    'final_net' => Money::format($summary['final_net_amount'] ?? 0, true),
+                    'captured_total' => Money::format($summary['captured_amount'] ?? 0, true),
+                    'refunded_total' => Money::format($summary['refunded_amount'] ?? 0, true),
+                    'net_paid_total' => Money::format($summary['net_paid_amount'] ?? 0, true),
                 ],
             ],
         ];
@@ -68,11 +69,15 @@ class CheckoutResponseFactory
 
     public function buildCheckoutResponse(ReservationOrder $order, string $fallbackCurrency = 'VND'): array
     {
-        $totalDue = round((float) ($order->getAttribute('total_due_amount') ?? 0.0), 2);
-        $paid = round((float) ($order->getAttribute('paid_amount') ?? 0.0), 2);
-        $depositApplied = round((float) ($order->getAttribute('deposit_applied_amount') ?? 0.0), 2);
-        $finalPaid = round((float) ($order->getAttribute('final_paid_amount') ?? 0.0), 2);
-        $outstanding = round((float) ($order->getAttribute('outstanding_amount') ?? max(0.0, $totalDue - $paid)), 2);
+        $totalDueMinor = Money::minorUnits($order->getAttribute('total_due_amount') ?? 0, true);
+        $paidMinor = Money::minorUnits($order->getAttribute('paid_amount') ?? 0, true);
+        $totalDue = Money::minorToFloat($totalDueMinor);
+        $paid = Money::minorToFloat($paidMinor);
+        $depositApplied = Money::toFloat($order->getAttribute('deposit_applied_amount') ?? 0, true);
+        $finalPaid = Money::toFloat($order->getAttribute('final_paid_amount') ?? 0, true);
+        $outstanding = $order->getAttribute('outstanding_amount') !== null
+            ? Money::toFloat($order->getAttribute('outstanding_amount'), true)
+            : Money::minorToFloat(max(0, $totalDueMinor - $paidMinor));
 
         return [
             'order_id' => (int) $order->order_id,
@@ -84,9 +89,9 @@ class CheckoutResponseFactory
             'deposit_applied_amount' => $depositApplied,
             'final_paid_amount' => $finalPaid,
             'outstanding_amount' => $outstanding,
-            'payment_status' => $paid + 0.0001 >= $totalDue
+            'payment_status' => $paidMinor >= $totalDueMinor
                 ? PaymentStatus::Success->value
-                : ($paid > 0 ? PaymentStatus::Partial->value : PaymentStatus::Failed->value),
+                : ($paidMinor > 0 ? PaymentStatus::Partial->value : PaymentStatus::Failed->value),
             'order_status' => $order->status?->value ?? (string) $order->status,
             'reservation_status' => $this->resolveReservationStatus($order),
         ];

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
+use App\Enums\WaitingListCustomerResponseStatus;
 use App\Enums\WaitingListStatus;
 use App\Modules\WaitingList\Domain\Models\WaitingList;
 use App\Modules\WaitingList\Domain\State\WaitingListStateMachine;
@@ -13,6 +14,28 @@ use Tests\TestCase;
 
 class WaitingListStateMachineTest extends TestCase
 {
+    public function test_waiting_list_transition_matrix_rejects_terminal_backward_paths(): void
+    {
+        $cases = [
+            [WaitingListStatus::Waiting, WaitingListStatus::Notified, true],
+            [WaitingListStatus::Waiting, WaitingListStatus::Cancelled, true],
+            [WaitingListStatus::Waiting, WaitingListStatus::Seated, false],
+            [WaitingListStatus::Notified, WaitingListStatus::Waiting, true],
+            [WaitingListStatus::Notified, WaitingListStatus::Seated, true],
+            [WaitingListStatus::Notified, WaitingListStatus::Cancelled, true],
+            [WaitingListStatus::Seated, WaitingListStatus::Waiting, false],
+            [WaitingListStatus::Cancelled, WaitingListStatus::Notified, false],
+        ];
+
+        foreach ($cases as [$from, $to, $expected]) {
+            self::assertSame(
+                $expected,
+                WaitingListStateMachine::canTransition($from, $to),
+                sprintf('Unexpected waiting list transition result for %s -> %s.', $from->value, $to->value),
+            );
+        }
+    }
+
     public function test_apply_expired_to_waiting_clears_notify_and_customer_response_fields(): void
     {
         $entry = new WaitingList();
@@ -33,6 +56,22 @@ class WaitingListStateMachineTest extends TestCase
         self::assertNull($entry->customer_response_status);
         self::assertNull($entry->customer_responded_at);
         self::assertNull($entry->customer_confirmed_arrival_at);
+    }
+
+    public function test_apply_customer_declined_preserves_customer_response_context(): void
+    {
+        $entry = new WaitingList();
+        $entry->status = WaitingListStatus::Notified;
+        $entry->notify_expires_at = Carbon::parse('2026-03-21T10:10:00Z');
+
+        $now = Carbon::parse('2026-03-21T10:05:00Z');
+        WaitingListStateMachine::applyCustomerDeclined($entry, $now, 123);
+
+        self::assertSame(WaitingListStatus::Cancelled, $entry->status);
+        self::assertSame('Declined by customer', $entry->cancel_reason);
+        self::assertSame(WaitingListCustomerResponseStatus::Declined, $entry->customer_response_status);
+        self::assertSame('2026-03-21T10:05:00+00:00', $entry->customer_responded_at?->toIso8601String());
+        self::assertSame(123, $entry->updated_by);
     }
 
     public function test_assert_can_seat_rejects_expired_notify_window(): void

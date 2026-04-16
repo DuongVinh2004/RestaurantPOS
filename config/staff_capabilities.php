@@ -15,6 +15,9 @@ return [
         'loyalty.redeem',
         'loyalty.view',
         'menu.manage',
+        'ops.health.view',
+        'ops.metrics.view',
+        'ops.release.view',
         'ops.view',
         'order.manage',
         'payment.refund',
@@ -116,7 +119,9 @@ return [
         'GET api/v1/admin/settings/branches/export' => 'settings.manage',
         'GET api/v1/admin/settings/branches/{id}' => 'settings.manage',
         'GET api/v1/admin/settings/finance/tax-profile' => 'settings.manage',
-        'GET api/v1/metrics' => 'ops.view',
+        'GET api/v1/health/detailed' => 'ops.health.view',
+        'GET api/v1/health/redis' => 'ops.health.view',
+        'GET api/v1/metrics' => 'ops.metrics.view',
         'GET api/v1/staff/audit-trail' => 'audit.view',
         'GET api/v1/staff/branches' => 'reservation.manage',
         'GET api/v1/staff/cashier/shifts' => 'cashier.shift.manage',
@@ -124,6 +129,8 @@ return [
         'GET api/v1/staff/cashier/shifts/{shift_id}' => 'cashier.shift.manage',
         'GET api/v1/staff/conversations' => 'conversation.manage',
         'GET api/v1/staff/conversations/{conversation_id}' => 'conversation.manage',
+        'GET api/v1/staff/conversations/{conversation_id}/files/{file_id}/access' => 'conversation.manage',
+        'GET api/v1/staff/conversations/{conversation_id}/messages/{message_id}/attachment' => 'conversation.manage',
         'GET api/v1/staff/finance/accounting-export' => 'settlement.manage',
         'GET api/v1/staff/finance/invoices/{reservation_id}' => 'settlement.manage',
         'GET api/v1/staff/finance/reconciliation' => 'settlement.manage',
@@ -255,6 +262,11 @@ return [
     'capability_aliases' => [
         'order.manage' => [
             'kitchen.manage',
+        ],
+        'ops.view' => [
+            'ops.health.view',
+            'ops.metrics.view',
+            'ops.release.view',
         ],
         'settlement.manage' => [
             'cashier.shift.manage',

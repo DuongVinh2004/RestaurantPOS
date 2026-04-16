@@ -21,16 +21,22 @@ class StaffOperationalRealtimeService
     public function describeTopic(string $topic, string $changesUri, array $defaultRefreshTargets = []): array
     {
         $topic = $this->normalizeTopic($topic);
+        $backend = $this->backendStatus();
 
         return [
-            'enabled' => $this->isEnabled(),
+            'enabled' => (bool) $backend['usable'],
             'topic' => $topic,
             'channel' => $this->channelName($topic),
-            'current_version' => $this->currentVersion($topic),
+            'current_version' => (bool) $backend['usable'] ? $this->currentVersion($topic) : 0,
             'changes_uri' => $changesUri,
             'polling_compatible' => true,
             'default_refresh_targets' => array_values(array_unique(array_map('strval', $defaultRefreshTargets))),
             'poll_hint_ms' => $this->pollHintMs(),
+            'backend_status' => $backend['status'],
+            'backend_store' => $backend['store'],
+            'backend_driver' => $backend['driver'],
+            'backend_reason' => $backend['reason'],
+            'trusted_backend' => (bool) $backend['trusted'],
         ];
     }
 
@@ -42,9 +48,10 @@ class StaffOperationalRealtimeService
         $topic = $this->normalizeTopic($topic);
         $limit = max(1, min(100, $limit));
         $afterVersion = max(0, $afterVersion);
-        $currentVersion = $this->currentVersion($topic);
+        $backend = $this->backendStatus();
+        $currentVersion = (bool) $backend['usable'] ? $this->currentVersion($topic) : 0;
 
-        if (! $this->isEnabled()) {
+        if (! (bool) $backend['usable']) {
             return [
                 'enabled' => false,
                 'topic' => $topic,
@@ -56,6 +63,11 @@ class StaffOperationalRealtimeService
                 'has_changes' => false,
                 'stale_cursor' => false,
                 'poll_hint_ms' => $this->pollHintMs(),
+                'backend_status' => $backend['status'],
+                'backend_store' => $backend['store'],
+                'backend_driver' => $backend['driver'],
+                'backend_reason' => $backend['reason'],
+                'trusted_backend' => (bool) $backend['trusted'],
             ];
         }
 
@@ -84,6 +96,11 @@ class StaffOperationalRealtimeService
             'has_changes' => $currentVersion > $afterVersion,
             'stale_cursor' => $staleCursor,
             'poll_hint_ms' => $this->pollHintMs(),
+            'backend_status' => $backend['status'],
+            'backend_store' => $backend['store'],
+            'backend_driver' => $backend['driver'],
+            'backend_reason' => $backend['reason'],
+            'trusted_backend' => (bool) $backend['trusted'],
         ];
     }
 
@@ -120,6 +137,10 @@ class StaffOperationalRealtimeService
     public function currentVersion(string $topic): int
     {
         $topic = $this->normalizeTopic($topic);
+        if (! (bool) ($this->backendStatus()['usable'] ?? false)) {
+            return 0;
+        }
+
         $store = $this->store();
         $value = $store->get($this->versionKey($topic), 0);
         $version = is_numeric($value) ? (int) $value : 0;
@@ -139,6 +160,89 @@ class StaffOperationalRealtimeService
     }
 
     /**
+     * @return array{
+     *   enabled:bool,
+     *   usable:bool,
+     *   trusted:bool,
+     *   status:string,
+     *   store:?string,
+     *   driver:?string,
+     *   reason:?string,
+     *   error:?string
+     * }
+     */
+    public function backendStatus(): array
+    {
+        $store = $this->configuredStoreName();
+        $driver = $this->configuredStoreDriver($store);
+
+        if (! $this->isEnabled()) {
+            return [
+                'enabled' => false,
+                'usable' => false,
+                'trusted' => false,
+                'status' => 'disabled',
+                'store' => $store !== '' ? $store : null,
+                'driver' => $driver,
+                'reason' => 'realtime_disabled',
+                'error' => null,
+            ];
+        }
+
+        if ($store === '' || $driver === null) {
+            return [
+                'enabled' => true,
+                'usable' => false,
+                'trusted' => false,
+                'status' => 'degraded',
+                'store' => $store !== '' ? $store : null,
+                'driver' => $driver,
+                'reason' => 'cache_store_not_configured',
+                'error' => null,
+            ];
+        }
+
+        if (! $this->driverAllowed($driver)) {
+            return [
+                'enabled' => true,
+                'usable' => false,
+                'trusted' => false,
+                'status' => 'degraded',
+                'store' => $store,
+                'driver' => $driver,
+                'reason' => 'unsafe_cache_store_driver',
+                'error' => null,
+            ];
+        }
+
+        try {
+            Cache::store($store);
+        } catch (Throwable $exception) {
+            return [
+                'enabled' => true,
+                'usable' => false,
+                'trusted' => false,
+                'status' => 'degraded',
+                'store' => $store,
+                'driver' => $driver,
+                'reason' => 'cache_store_unavailable',
+                'error' => $exception->getMessage(),
+            ];
+        }
+
+        return [
+            'enabled' => true,
+            'usable' => true,
+            'trusted' => true,
+            'status' => 'ok',
+            'store' => $store,
+            'driver' => $driver,
+            'reason' => null,
+            'error' => null,
+        ];
+    }
+
+    /**
      * @param array<string,mixed> $payload
      * @param list<string> $refreshTargets
      * @return array<string,mixed>|null
@@ -148,7 +252,7 @@ class StaffOperationalRealtimeService
         $topic = $this->normalizeTopic($topic);
         $eventType = trim($eventType);
 
-        if (! $this->isEnabled() || $eventType === '') {
+        if (! (bool) ($this->backendStatus()['usable'] ?? false) || $eventType === '') {
             return null;
         }
 
@@ -338,16 +442,77 @@ class StaffOperationalRealtimeService
 
     private function store(): Repository
     {
-        $configured = trim((string) config('booking.realtime.cache_store', 'file'));
+        return Cache::store($this->configuredStoreName());
+    }
 
-        foreach (array_unique(array_filter([$configured, 'file', 'array'])) as $storeName) {
-            try {
-                return Cache::store($storeName);
-            } catch (Throwable) {
-                continue;
-            }
+    private function configuredStoreName(): string
+    {
+        return trim((string) config('booking.realtime.cache_store', ''));
+    }
+
+    private function configuredStoreDriver(string $store): ?string
+    {
+        if ($store === '') {
+            return null;
         }
 
-        return Cache::store(config('cache.default', 'array'));
+        $driver = trim((string) config('cache.stores.'.$store.'.driver', ''));
+
+        return $driver !== '' ? $driver : null;
+    }
+
+    private function driverAllowed(string $driver): bool
+    {
+        if ($this->isProductionLikeEnvironment()) {
+            return in_array($driver, $this->distributedStoreDrivers(), true);
+        }
+
+        return in_array($driver, array_values(array_unique(array_merge(
+            $this->distributedStoreDrivers(),
+            $this->localFallbackStoreDrivers(),
+        ))), true);
+    }
+
+    private function isProductionLikeEnvironment(): bool
+    {
+        $environment = trim((string) config('app.env', app()->environment()));
+        if ($environment === '') {
+            return false;
+        }
+
+        return in_array($environment, $this->productionLikeEnvironments(), true);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function productionLikeEnvironments(): array
+    {
+        return array_values(array_filter(array_map(
+            'strval',
+            (array) config('booking.realtime.production_like_environments', ['production', 'staging'])
+        )));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function distributedStoreDrivers(): array
+    {
+        return array_values(array_filter(array_map(
+            'strval',
+            (array) config('booking.realtime.distributed_store_drivers', ['redis', 'memcached', 'database', 'dynamodb'])
+        )));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function localFallbackStoreDrivers(): array
+    {
+        return array_values(array_filter(array_map(
+            'strval',
+            (array) config('booking.realtime.local_fallback_store_drivers', ['file', 'array'])
+        )));
     }
 }

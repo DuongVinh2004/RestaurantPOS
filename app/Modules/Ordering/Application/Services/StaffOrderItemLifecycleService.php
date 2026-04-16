@@ -13,6 +13,7 @@ use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\KitchenDispatch\Application\Services\KitchenRoutingService;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
+use App\Modules\Ordering\Domain\Policies\ReservationOrderItemStatusTransitionPolicy;
 use App\Modules\BranchScheduling\Application\Services\ReservationBranchScopeService;
 use App\Services\Inventory\OrderItemInventoryConsumptionService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
@@ -162,11 +163,7 @@ class StaffOrderItemLifecycleService
                             return $this->freshOrder($orderId);
                         }
 
-                        if (! $this->canTransition($current, $target)) {
-                            throw ValidationException::withMessages([
-                                'status' => [sprintf('Cannot transition order item from %s to %s.', $current->value, $target->value)],
-                            ]);
-                        }
+                        ReservationOrderItemStatusTransitionPolicy::assertTransitionAllowed($current, $target);
 
                         $item->status = $target;
                         $item->updated_by = $staffUserId;
@@ -353,23 +350,6 @@ class StaffOrderItemLifecycleService
                 'row_version' => ['Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.'],
             ]);
         }
-    }
-
-    private function canTransition(ReservationOrderItemStatus $current, ReservationOrderItemStatus $target): bool
-    {
-        return match ($current) {
-            ReservationOrderItemStatus::Ordered => in_array($target, [
-                ReservationOrderItemStatus::InProgress,
-                ReservationOrderItemStatus::Served,
-                ReservationOrderItemStatus::Cancelled,
-            ], true),
-            ReservationOrderItemStatus::InProgress => in_array($target, [
-                ReservationOrderItemStatus::Served,
-                ReservationOrderItemStatus::Cancelled,
-            ], true),
-            ReservationOrderItemStatus::Served,
-            ReservationOrderItemStatus::Cancelled => false,
-        };
     }
 
     private function normalizeItemStatus(ReservationOrderItem $item): string

@@ -7,6 +7,7 @@ namespace App\Modules\CheckoutPayments\Application\Services;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationStatus;
 use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Reservations\Domain\Policies\ReservationStatusTransitionPolicy;
 use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyPointsService;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
@@ -31,6 +32,13 @@ class SettlementFinalizerService
     ): void {
         $reservationId = (int) $reservation->reservation_id;
         $now = Carbon::now('UTC');
+
+        ReservationStatusTransitionPolicy::assertTransitionAllowed(
+            (string) ($reservation->status?->value ?? $reservation->status),
+            ReservationStatus::Completed,
+            false,
+            'reservation'
+        );
 
         $tableIds = DB::table('reservation_tables')
             ->where('reservation_id', $reservationId)

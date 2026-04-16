@@ -13,8 +13,10 @@ use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\KitchenDispatch\Domain\Models\KitchenOrderItemTicket;
 use App\Modules\KitchenDispatch\Domain\Models\KitchenStation;
 use App\Modules\KitchenDispatch\Domain\Models\KitchenStationCategoryRoute;
+use App\Modules\KitchenDispatch\Domain\Policies\KitchenTicketTransitionPolicy;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
+use App\Modules\Ordering\Domain\Policies\ReservationOrderItemStatusTransitionPolicy;
 use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use App\Modules\FloorOps\Application\Services\StaffBranchContextService;
 use App\Modules\Reporting\Application\Services\StaffOperationalRealtimeService;
@@ -428,8 +430,11 @@ class KitchenRoutingService
                 $ticket->printer_target = $effectivePrinterTarget;
                 $ticket->ticket_notes = $orderItem->notes;
                 $ticket->ticket_status = $isNew
-                    ? $this->ticketStatusFromOrderItemStatus($itemStatus)
-                    : $this->resolveRedispatchTicketStatus($currentTicketStatus, $this->ticketStatusFromOrderItemStatus($itemStatus));
+                    ? KitchenTicketTransitionPolicy::statusFromOrderItemStatus($itemStatus)
+                    : KitchenTicketTransitionPolicy::resolveRedispatchStatus(
+                        $currentTicketStatus,
+                        KitchenTicketTransitionPolicy::statusFromOrderItemStatus($itemStatus)
+                    );
                 $this->applyTicketLifecycleTimestamps($ticket, $ticket->ticket_status, $currentTicketStatus);
                 $ticket->updated_by = $actorUserId;
                 $ticket->dispatch_count = ((int) $ticket->dispatch_count) + 1;
@@ -500,16 +505,12 @@ class KitchenRoutingService
             $this->assertDispatchEnabledForReservation($ticket->reservation);
 
             $current = $this->normalizeTicketStatus($ticket);
-            if ($current !== KitchenTicketStatus::Queued) {
-                throw ValidationException::withMessages([
-                    'ticket_id' => 'Only queued kitchen tickets can be fired.',
-                ]);
-            }
+            KitchenTicketTransitionPolicy::assertActionAllowed($current, 'fire');
 
             $this->assertTicketOrderItemAllowsAction($ticket, 'fire');
 
             $now = Carbon::now('UTC');
-            $ticket->ticket_status = KitchenTicketStatus::Fired;
+            $ticket->ticket_status = KitchenTicketTransitionPolicy::nextStatusForAction($current, 'fire');
             $ticket->fired_at = $ticket->fired_at ?? $now;
             $ticket->ready_at = null;
             $ticket->updated_by = $actorUserId;
@@ -540,15 +541,12 @@ class KitchenRoutingService
 
             $this->assertDispatchEnabledForReservation($ticket->reservation);
 
-            if ($this->normalizeTicketStatus($ticket) !== KitchenTicketStatus::Fired) {
-                throw ValidationException::withMessages([
-                    'ticket_id' => 'Only fired kitchen tickets can be bumped to ready.',
-                ]);
-            }
+            $current = $this->normalizeTicketStatus($ticket);
+            KitchenTicketTransitionPolicy::assertActionAllowed($current, 'bump');
 
             $this->assertTicketOrderItemAllowsAction($ticket, 'bump');
 
-            $ticket->ticket_status = KitchenTicketStatus::Ready;
+            $ticket->ticket_status = KitchenTicketTransitionPolicy::nextStatusForAction($current, 'bump');
             $ticket->ready_at = Carbon::now('UTC');
             $ticket->updated_by = $actorUserId;
             $ticket->save();
@@ -577,15 +575,12 @@ class KitchenRoutingService
 
             $this->assertDispatchEnabledForReservation($ticket->reservation);
 
-            if ($this->normalizeTicketStatus($ticket) !== KitchenTicketStatus::Ready) {
-                throw ValidationException::withMessages([
-                    'ticket_id' => 'Only ready kitchen tickets can be recalled.',
-                ]);
-            }
+            $current = $this->normalizeTicketStatus($ticket);
+            KitchenTicketTransitionPolicy::assertActionAllowed($current, 'recall');
 
             $this->assertTicketOrderItemAllowsAction($ticket, 'recall');
 
-            $ticket->ticket_status = KitchenTicketStatus::Fired;
+            $ticket->ticket_status = KitchenTicketTransitionPolicy::nextStatusForAction($current, 'recall');
             $ticket->last_recalled_at = Carbon::now('UTC');
             $ticket->recall_count = ((int) $ticket->recall_count) + 1;
             $ticket->updated_by = $actorUserId;
@@ -609,8 +604,8 @@ class KitchenRoutingService
             }
 
             $currentStatus = $this->normalizeTicketStatus($ticket);
-            $targetStatus = $this->ticketStatusFromOrderItemStatus($this->normalizeOrderItemStatus($orderItem));
-            $nextStatus = $this->resolveSynchronizedTicketStatus($currentStatus, $targetStatus);
+            $targetStatus = KitchenTicketTransitionPolicy::statusFromOrderItemStatus($this->normalizeOrderItemStatus($orderItem));
+            $nextStatus = KitchenTicketTransitionPolicy::resolveSynchronizedStatus($currentStatus, $targetStatus);
             if ($currentStatus === $nextStatus) {
                 $ticket->setRelation('orderItem', $orderItem);
                 $inspection = $this->ticketConsistencyInspector->describe($ticket);
@@ -828,60 +823,6 @@ class KitchenRoutingService
         return $route;
     }
 
-    private function ticketStatusFromOrderItemStatus(ReservationOrderItemStatus $status): KitchenTicketStatus
-    {
-        return match ($status) {
-            ReservationOrderItemStatus::InProgress => KitchenTicketStatus::Fired,
-            ReservationOrderItemStatus::Served => KitchenTicketStatus::Completed,
-            ReservationOrderItemStatus::Cancelled => KitchenTicketStatus::Cancelled,
-            default => KitchenTicketStatus::Queued,
-        };
-    }
-
-    private function resolveRedispatchTicketStatus(KitchenTicketStatus $currentStatus, KitchenTicketStatus $derivedStatus): KitchenTicketStatus
-    {
-        if ($this->isTerminalTicketStatus($currentStatus)) {
-            return $currentStatus;
-        }
-
-        if ($this->isTerminalTicketStatus($derivedStatus)) {
-            return $derivedStatus;
-        }
-
-        $precedence = [
-            KitchenTicketStatus::Queued->value => 0,
-            KitchenTicketStatus::Fired->value => 1,
-            KitchenTicketStatus::Ready->value => 2,
-        ];
-
-        return ($precedence[$currentStatus->value] ?? 0) >= ($precedence[$derivedStatus->value] ?? 0)
-            ? $currentStatus
-            : $derivedStatus;
-    }
-
-    private function resolveSynchronizedTicketStatus(
-        KitchenTicketStatus $currentStatus,
-        KitchenTicketStatus $derivedStatus,
-    ): KitchenTicketStatus {
-        if ($this->isTerminalTicketStatus($currentStatus)) {
-            return $currentStatus;
-        }
-
-        if ($this->isTerminalTicketStatus($derivedStatus)) {
-            return $derivedStatus;
-        }
-
-        $precedence = [
-            KitchenTicketStatus::Queued->value => 0,
-            KitchenTicketStatus::Fired->value => 1,
-            KitchenTicketStatus::Ready->value => 2,
-        ];
-
-        return ($precedence[$currentStatus->value] ?? 0) >= ($precedence[$derivedStatus->value] ?? 0)
-            ? $currentStatus
-            : $derivedStatus;
-    }
-
     private function normalizeOrderItemStatus(ReservationOrderItem $orderItem): ReservationOrderItemStatus
     {
         return $orderItem->status instanceof ReservationOrderItemStatus
@@ -960,7 +901,7 @@ class KitchenRoutingService
         }
 
         $currentStatus = $this->normalizeOrderItemStatus($orderItem);
-        if ($currentStatus !== ReservationOrderItemStatus::Ordered) {
+        if (! ReservationOrderItemStatusTransitionPolicy::canTransition($currentStatus, ReservationOrderItemStatus::InProgress)) {
             return;
         }
 

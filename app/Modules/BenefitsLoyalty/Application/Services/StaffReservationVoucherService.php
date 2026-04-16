@@ -19,6 +19,7 @@ use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use App\Support\AuditEvent;
 use App\Support\DatabaseWriteConflictMapper;
+use App\Support\Money;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -87,7 +88,7 @@ class StaffReservationVoucherService
                         ->lockForUpdate()
                         ->get();
                     $paymentSummary = PaymentSummary::fromPayments($payments);
-                    if ((float) ($paymentSummary['final_net_amount'] ?? 0.0) > 0.0001) {
+                    if (Money::isPositive($paymentSummary['final_net_amount'] ?? 0)) {
                         throw ValidationException::withMessages([
                             'reservation' => ['Cannot apply voucher after final payment has been recorded.'],
                         ]);
@@ -96,17 +97,22 @@ class StaffReservationVoucherService
                     $orders = $this->loadOrdersForReservation($reservationId, true);
                     $currentVoucherDiscount = $this->currentAppliedVoucherDiscountAmount($reservation, $orders);
                     $currentLoyaltyDiscount = $this->currentLoyaltyDiscountAmount($reservationId, true);
-                    $manualDiscount = max(0.0, round((float) ($reservation->discount_amount ?? 0.0) - $currentVoucherDiscount - $currentLoyaltyDiscount, 2));
+                    $manualDiscountMinor = max(
+                        0,
+                        Money::minorUnits($reservation->discount_amount ?? 0, true)
+                            - Money::minorUnits($currentVoucherDiscount, true)
+                            - Money::minorUnits($currentLoyaltyDiscount, true)
+                    );
 
                     $candidate = $this->resolveCandidateUserVoucher($reservation, $userVoucherId, $voucherCode);
                     $discountMeta = $this->validateVoucherCandidate($reservation, $orders, $candidate);
 
                     $currentAppliedUserVoucherId = (int) ($reservation->applied_user_voucher_id ?? 0);
                     $candidateUserVoucherId = (int) $candidate->user_voucher_id;
-                    $candidateDiscountAmount = round((float) ($discountMeta['discount_amount'] ?? 0.0), 2);
+                    $candidateDiscountMinor = Money::minorUnits($discountMeta['discount_amount'] ?? 0, true);
                     if ($currentAppliedUserVoucherId > 0
                         && $currentAppliedUserVoucherId === $candidateUserVoucherId
-                        && abs(round($currentVoucherDiscount, 2) - $candidateDiscountAmount) <= 0.0001) {
+                        && Money::minorUnits($currentVoucherDiscount, true) === $candidateDiscountMinor) {
                         AuditEvent::info('staff.reservation.voucher_apply_noop', [
                             'reservation_id' => $reservationId,
                             'user_voucher_id' => $candidateUserVoucherId,
@@ -134,7 +140,15 @@ class StaffReservationVoucherService
 
                     $reservation->applied_user_voucher_id = (int) $candidate->user_voucher_id;
                     $reservation->updated_by = $staffUserId;
-                    $this->applyReservationDiscountSnapshot($reservation, $orders, $manualDiscount + $currentLoyaltyDiscount + (float) ($discountMeta['discount_amount'] ?? 0.0));
+                    $this->applyReservationDiscountSnapshot(
+                        $reservation,
+                        $orders,
+                        Money::minorToFloat(
+                            $manualDiscountMinor
+                            + Money::minorUnits($currentLoyaltyDiscount, true)
+                            + $candidateDiscountMinor
+                        )
+                    );
                     $this->reservationFinancialSyncService->touchFinancialMutation($reservation, $staffUserId);
 
                     AuditEvent::info('staff.reservation.voucher_applied', [
@@ -192,7 +206,7 @@ class StaffReservationVoucherService
                         ->lockForUpdate()
                         ->get();
                     $paymentSummary = PaymentSummary::fromPayments($payments);
-                    if ((float) ($paymentSummary['final_net_amount'] ?? 0.0) > 0.0001) {
+                    if (Money::isPositive($paymentSummary['final_net_amount'] ?? 0)) {
                         throw ValidationException::withMessages([
                             'reservation' => ['Cannot remove voucher after final payment has been recorded.'],
                         ]);
@@ -201,7 +215,12 @@ class StaffReservationVoucherService
                     $orders = $this->loadOrdersForReservation($reservationId, true);
                     $currentVoucherDiscount = $this->currentAppliedVoucherDiscountAmount($reservation, $orders);
                     $currentLoyaltyDiscount = $this->currentLoyaltyDiscountAmount($reservationId, true);
-                    $manualDiscount = max(0.0, round((float) ($reservation->discount_amount ?? 0.0) - $currentVoucherDiscount - $currentLoyaltyDiscount, 2));
+                    $manualDiscountMinor = max(
+                        0,
+                        Money::minorUnits($reservation->discount_amount ?? 0, true)
+                            - Money::minorUnits($currentVoucherDiscount, true)
+                            - Money::minorUnits($currentLoyaltyDiscount, true)
+                    );
 
                     if ((int) ($reservation->applied_user_voucher_id ?? 0) <= 0) {
                         AuditEvent::info('staff.reservation.voucher_remove_noop', [
@@ -220,7 +239,11 @@ class StaffReservationVoucherService
                     $removed = $this->releaseAppliedVoucherLock($reservation, $staffUserId, true);
                     $reservation->applied_user_voucher_id = null;
                     $reservation->updated_by = $staffUserId;
-                    $this->applyReservationDiscountSnapshot($reservation, $orders, $manualDiscount + $currentLoyaltyDiscount);
+                    $this->applyReservationDiscountSnapshot(
+                        $reservation,
+                        $orders,
+                        Money::minorToFloat($manualDiscountMinor + Money::minorUnits($currentLoyaltyDiscount, true))
+                    );
                     $this->reservationFinancialSyncService->touchFinancialMutation($reservation, $staffUserId);
 
                     AuditEvent::info('staff.reservation.voucher_removed', [
@@ -424,20 +447,20 @@ class StaffReservationVoucherService
         $userVoucher->setRelation('voucher', $voucher);
 
         $discountMeta = VoucherRedemptionSupport::calculateDiscount($voucher, $orders);
-        $subtotal = (float) ($discountMeta['subtotal'] ?? 0.0);
-        $minSpend = round(max(0.0, (float) ($voucher->min_spend ?? 0.0)), 2);
-        if ($subtotal + 0.0001 < $minSpend) {
+        $subtotalMinor = Money::minorUnits($discountMeta['subtotal'] ?? 0, true);
+        $minSpendMinor = Money::minorUnits($voucher->min_spend ?? 0, true);
+        if ($subtotalMinor < $minSpendMinor) {
             throw ValidationException::withMessages([
-                'voucher' => sprintf('Voucher requires minimum spend %.2f.', $minSpend),
+                'voucher' => sprintf('Voucher requires minimum spend %s.', Money::formatMinor($minSpendMinor)),
             ]);
         }
-        if ((float) ($discountMeta['discount_amount'] ?? 0.0) <= 0.0001) {
+        if (Money::isZeroOrNegative($discountMeta['discount_amount'] ?? 0)) {
             throw ValidationException::withMessages(['voucher' => 'Voucher is not applicable to current reservation items.']);
         }
 
         return [
-            'discount_amount' => round((float) ($discountMeta['discount_amount'] ?? 0.0), 2),
-            'subtotal' => round($subtotal, 2),
+            'discount_amount' => Money::toFloat($discountMeta['discount_amount'] ?? 0, true),
+            'subtotal' => Money::minorToFloat($subtotalMinor),
             'currency' => (string) ($discountMeta['currency'] ?? 'VND'),
         ];
     }
@@ -512,23 +535,23 @@ class StaffReservationVoucherService
         }
 
         $transactions = $query->get(['txn_type', 'amount_basis']);
-        $amount = 0.0;
+        $amountMinor = 0;
         foreach ($transactions as $tx) {
-            $basis = round(max(0.0, (float) ($tx->amount_basis ?? 0.0)), 2);
-            if ($basis <= 0.0001) {
+            $basisMinor = Money::minorUnits($tx->amount_basis ?? 0, true);
+            if ($basisMinor <= 0) {
                 continue;
             }
 
             if ((string) ($tx->txn_type ?? '') === 'Redeem') {
-                $amount += $basis;
+                $amountMinor += $basisMinor;
 
                 continue;
             }
 
-            $amount -= $basis;
+            $amountMinor -= $basisMinor;
         }
 
-        return round(max(0.0, $amount), 2);
+        return Money::minorToFloat(max(0, $amountMinor));
     }
 
     private function currentAppliedVoucherDiscountAmount(Reservation $reservation, Collection $orders): float
@@ -542,14 +565,14 @@ class StaffReservationVoucherService
             return 0.0;
         }
 
-        return round((float) (VoucherRedemptionSupport::calculateDiscount($userVoucher->voucher, $orders)['discount_amount'] ?? 0.0), 2);
+        return Money::toFloat(VoucherRedemptionSupport::calculateDiscount($userVoucher->voucher, $orders)['discount_amount'] ?? 0, true);
     }
 
-    private function applyReservationDiscountSnapshot(Reservation $reservation, Collection $orders, float $totalDiscount): void
+    private function applyReservationDiscountSnapshot(Reservation $reservation, Collection $orders, mixed $totalDiscount): void
     {
         $this->reservationFinancialSyncService->syncReservationDiscountSnapshot(
             reservation: $reservation,
-            totalDiscount: $totalDiscount,
+            totalDiscount: Money::toFloat($totalDiscount, true),
             lockOrders: true,
         );
     }
@@ -579,11 +602,11 @@ class StaffReservationVoucherService
             'description' => (string) ($voucher?->description ?? ''),
             'discount_type' => $voucher?->discount_type?->value ?? (string) ($voucher?->discount_type ?? ''),
             'discount_value' => $voucher?->discount_value !== null ? (string) $voucher->discount_value : null,
-            'min_spend' => $voucher?->min_spend !== null ? (string) $voucher->min_spend : null,
+            'min_spend' => $voucher?->min_spend !== null ? Money::format($voucher->min_spend, true) : null,
             'is_used' => (bool) ($userVoucher->is_used ?? false),
             'is_locked_by_other' => $isLockedByOther,
             'locked_until' => $userVoucher->locked_until?->utc()->toIso8601String(),
-            'preview_discount_amount' => number_format((float) ($preview['discount_amount'] ?? 0.0), 2, '.', ''),
+            'preview_discount_amount' => Money::format($preview['discount_amount'] ?? 0, true),
             'preview_currency' => (string) ($preview['currency'] ?? 'VND'),
             'is_currently_applied' => (int) ($reservation->applied_user_voucher_id ?? 0) === (int) $userVoucher->user_voucher_id,
         ];

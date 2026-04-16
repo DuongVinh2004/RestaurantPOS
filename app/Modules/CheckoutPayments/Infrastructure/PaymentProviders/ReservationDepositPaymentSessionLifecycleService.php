@@ -12,6 +12,8 @@ use App\Modules\CheckoutPayments\Domain\Models\Payment;
 use App\Modules\CheckoutPayments\Domain\Models\ReservationDepositPaymentSession;
 use App\Modules\CheckoutPayments\Domain\Policies\PaymentSessionStatusTransitionPolicy;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
+use App\Modules\CheckoutPayments\Support\PaymentProviderPayloadSanitizer;
+use App\Support\Money;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -42,7 +44,9 @@ class ReservationDepositPaymentSessionLifecycleService
         $session->session_status = $status;
         $session->failure_code = Arr::get($providerResult, 'failure_code');
         $session->failure_message = Arr::get($providerResult, 'failure_message');
-        $session->provider_payload_json = (array) ($providerResult['provider_payload'] ?? $session->provider_payload_json ?? []);
+        $session->provider_payload_json = PaymentProviderPayloadSanitizer::sanitizeSessionPayloadForStorage(
+            (array) ($providerResult['provider_payload'] ?? $session->provider_payload_json ?? [])
+        );
         $session->provider_expires_at = $providerResult['provider_expires_at'] ?? $session->provider_expires_at;
         $session->last_reconciled_at = $providerResult['occurred_at'] ?? $now;
         $session->updated_by = $actorUserId;
@@ -84,16 +88,32 @@ class ReservationDepositPaymentSessionLifecycleService
             return null;
         }
 
+        $existingPayment = $this->depositPaymentService->replaySucceededCustomerSession(
+            reservation: $reservation,
+            session: $session,
+            lockedPayments: $lockedPayments,
+            actorUserId: $actorUserId,
+        );
+        if ($existingPayment instanceof Payment) {
+            $session->linked_payment_id = (int) $existingPayment->payment_id;
+            $session->settlement_status = ReservationDepositPaymentSettlementStatus::Applied;
+            $session->updated_by = $actorUserId;
+            $session->save();
+
+            return $existingPayment;
+        }
+
         $summary = PaymentSummary::fromPayments($lockedPayments);
         $outstanding = $this->calculateOutstandingDeposit($reservation, $summary);
-        $finalCaptured = round(max(0.0, (float) ($summary['final_captured_amount'] ?? 0.0)), 2);
-        if ($outstanding <= 0.0001 || $finalCaptured > 0.0001) {
+        $outstandingMinor = Money::minorUnits($outstanding, true);
+        $finalCapturedMinor = Money::minorUnits($summary['final_captured_amount'] ?? 0, true);
+        if ($outstandingMinor <= 0 || $finalCapturedMinor > 0) {
             $payload = (array) ($session->provider_payload_json ?? []);
-            $payload['settlement_skip_reason'] = $finalCaptured > 0.0001
+            $payload['settlement_skip_reason'] = $finalCapturedMinor > 0
                 ? 'final_payment_already_captured'
                 : 'deposit_already_satisfied';
             $session->settlement_status = ReservationDepositPaymentSettlementStatus::Skipped;
-            $session->provider_payload_json = $payload;
+            $session->provider_payload_json = PaymentProviderPayloadSanitizer::sanitizeSessionPayloadForStorage($payload);
             $session->updated_by = $actorUserId;
             $session->save();
 
@@ -120,9 +140,9 @@ class ReservationDepositPaymentSessionLifecycleService
      */
     private function calculateOutstandingDeposit(Reservation $reservation, array $paymentSummary): float
     {
-        $required = round(max(0.0, (float) ($reservation->deposit_required_amount ?? 0.0)), 2);
-        $paid = round(max(0.0, (float) ($paymentSummary['deposit_net_amount'] ?? 0.0)), 2);
+        $requiredMinor = Money::minorUnits($reservation->deposit_required_amount ?? 0, true);
+        $paidMinor = Money::minorUnits($paymentSummary['deposit_net_amount'] ?? 0, true);
 
-        return round(max(0.0, $required - $paid), 2);
+        return Money::minorToFloat(max(0, $requiredMinor - $paidMinor));
     }
 }

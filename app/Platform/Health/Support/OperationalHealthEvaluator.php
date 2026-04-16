@@ -343,11 +343,13 @@ final class OperationalHealthEvaluator
         }
 
         $reasons = [];
+        $status = 'ok';
         $totalCount = (int) ($snapshot['total_count'] ?? 0);
         $activeCount = (int) ($snapshot['active_count'] ?? 0);
         $defaultCount = (int) ($snapshot['default_count'] ?? 0);
         $inactiveDefaultCount = (int) ($snapshot['inactive_default_count'] ?? 0);
         $duplicateCodeCount = (int) ($snapshot['duplicate_code_count'] ?? 0);
+        $activeIncompleteSchedulingCount = (int) ($snapshot['active_incomplete_scheduling_count'] ?? 0);
 
         $compatibilityBootstrapAvailable = (bool) ($snapshot['compatibility_bootstrap_available'] ?? false);
 
@@ -375,8 +377,17 @@ final class OperationalHealthEvaluator
             $reasons[] = 'branch_code_duplicate';
         }
 
+        if ($reasons !== []) {
+            $status = 'fail';
+        }
+
+        if ($activeIncompleteSchedulingCount > 0) {
+            $status = $status === 'fail' ? 'fail' : 'degraded';
+            $reasons[] = 'branch_scheduling_incomplete';
+        }
+
         return [
-            'status' => $reasons === [] ? 'ok' : 'fail',
+            'status' => $status,
             'reasons' => array_values(array_unique($reasons)),
         ];
     }
@@ -393,6 +404,7 @@ final class OperationalHealthEvaluator
 
         $statusDriftCount = (int) ($snapshot['status_drift_count'] ?? 0);
         $routingDriftCount = (int) ($snapshot['routing_drift_count'] ?? 0);
+        $stuckTicketCount = (int) ($snapshot['stuck_ticket_count'] ?? 0);
         $oldestFiredAgeSeconds = (int) ($snapshot['oldest_fired_age_seconds'] ?? 0);
         $oldestReadyAgeSeconds = (int) ($snapshot['oldest_ready_age_seconds'] ?? 0);
 
@@ -404,6 +416,11 @@ final class OperationalHealthEvaluator
         if ($routingDriftCount > 0) {
             $status = 'fail';
             $reasons[] = 'kitchen_ticket_routing_drift_detected';
+        }
+
+        if ($stuckTicketCount > 0) {
+            $status = $status === 'fail' ? 'fail' : 'degraded';
+            $reasons[] = 'kitchen_ticket_stuck_detected';
         }
 
         if ($status !== 'fail') {

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support\AuditTrail;
 
+use App\Support\Money;
+
 final class LegacyAuditPayloadFactory
 {
     /**
@@ -606,7 +608,7 @@ final class LegacyAuditPayloadFactory
         $remainingDueAfter = $this->floatOrNull($context['remaining_due_after'] ?? null);
 
         return [
-            'action' => $remainingDueAfter !== null && $remainingDueAfter <= 0.0001
+            'action' => $remainingDueAfter !== null && Money::isZeroOrNegative($remainingDueAfter)
                 ? 'checkout.finalized'
                 : 'payment.final_captured',
             'entity_type' => 'reservation',

@@ -55,7 +55,9 @@ class SiteBootstrapCommandTest extends TestCase
         $this->assertSame(3, (int) $first['data']['menu']['item_count']);
         $this->assertSame('created', $first['data']['finance']['action']);
         $this->assertSame('issued', $first['data']['staff_api_key']['action']);
-        $this->assertStringStartsWith('spk_', (string) $first['data']['staff_api_key']['plaintext_key']);
+        $this->assertNull($first['data']['staff_api_key']['plaintext_key'] ?? null);
+        $this->assertFalse((bool) ($first['data']['staff_api_key']['secret_revealed'] ?? true));
+        $this->assertStringStartsWith('spk_', (string) $first['data']['staff_api_key']['plaintext_key_masked']);
 
         $this->assertSame(3, (int) DB::table('roles')->count());
         $this->assertSame(1, (int) DB::table('branches')->count());
@@ -75,6 +77,7 @@ class SiteBootstrapCommandTest extends TestCase
         $this->assertSame('existing', $second['data']['finance']['action']);
         $this->assertSame('existing', $second['data']['staff_api_key']['action']);
         $this->assertNull($second['data']['staff_api_key']['plaintext_key']);
+        $this->assertNull($second['data']['staff_api_key']['plaintext_key_masked']);
 
         $this->assertSame(1, (int) DB::table('branches')->count());
         $this->assertSame(8, (int) DB::table('restaurant_tables')->count());
@@ -97,6 +100,23 @@ class SiteBootstrapCommandTest extends TestCase
         $this->assertSame('SITE01', $payload['data']['branch']['branch_code']);
         $this->assertSame(1, (int) DB::table('branches')->count());
         $this->assertSame('SITE01', (string) DB::table('branches')->value('branch_code'));
+    }
+
+    #[Group('booking-ops')]
+    public function test_bootstrap_site_command_reveals_bootstrap_staff_key_only_when_explicitly_requested(): void
+    {
+        $exitCode = Artisan::call('booking:bootstrap-site', [
+            '--show-secret-once' => true,
+            '--json' => true,
+        ]);
+
+        $this->assertSame(0, $exitCode);
+
+        $payload = $this->decodeArtisanOutput();
+        $this->assertTrue($payload['ok']);
+        $this->assertTrue((bool) ($payload['data']['staff_api_key']['secret_revealed'] ?? false));
+        $this->assertStringStartsWith('spk_', (string) $payload['data']['staff_api_key']['plaintext_key']);
+        $this->assertStringStartsWith('spk_', (string) $payload['data']['staff_api_key']['plaintext_key_masked']);
     }
 
     #[Group('booking-ops')]

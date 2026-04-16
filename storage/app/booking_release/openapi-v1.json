@@ -8246,7 +8246,7 @@
             "get": {
                 "operationId": "health",
                 "summary": "Health check",
-                "description": "Operational health endpoint. Base db, redis, scheduler, and disk checks are always included; detailed operational sections are added when a valid staff actor is resolved.",
+                "description": "Public minimal health endpoint exposing only service liveness status and timestamp.",
                 "tags": [
                     "Health"
                 ],
@@ -8287,11 +8287,82 @@
                 "x-envelope-exception": true
             }
         },
+        "/api/v1/health/detailed": {
+            "get": {
+                "operationId": "get_v1healthdetailed",
+                "summary": "Detailed health check",
+                "description": "Privileged operational health endpoint with internal db, redis, scheduler, disk, and ops diagnostics.",
+                "tags": [
+                    "Health"
+                ],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HealthDetailedEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Operational dependency check failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HealthDetailedEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "staffKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "get_v1healthdetailed",
+                "x-action": "App\\Platform\\Health\\Http\\HealthController@detailed",
+                "x-auth-mode": "public",
+                "x-contract-grade": "full",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "staff.capability:ops.health.view"
+                ],
+                "x-envelope-exception": true
+            }
+        },
         "/api/v1/health/redis": {
             "get": {
                 "operationId": "health_redis",
                 "summary": "Redis health check",
-                "description": "Operational Redis readiness endpoint covering set/get and lock acquisition.",
+                "description": "Privileged Redis readiness endpoint covering set/get and lock acquisition.",
                 "tags": [
                     "Health"
                 ],
@@ -8307,6 +8378,26 @@
                             }
                         }
                     },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
                     "503": {
                         "description": "Operational dependency check failed.",
                         "content": {
@@ -8318,7 +8409,11 @@
                         }
                     }
                 },
-                "security": [],
+                "security": [
+                    {
+                        "staffKey": []
+                    }
+                ],
                 "deprecated": false,
                 "x-route-key": "health_redis",
                 "x-action": "App\\Platform\\Health\\Http\\HealthController@redis",
@@ -8327,7 +8422,9 @@
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
-                    "audit.request"
+                    "audit.request",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "staff.capability:ops.health.view"
                 ],
                 "x-envelope-exception": true
             }
@@ -9123,7 +9220,7 @@
                     "reqid",
                     "audit.request",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "staff.capability:ops.view"
+                    "staff.capability:ops.metrics.view"
                 ]
             }
         },
@@ -14843,6 +14940,91 @@
                 }
             }
         },
+        "/api/v1/staff/conversations/{conversation_id}/files/{file_id}/access": {
+            "get": {
+                "operationId": "get_v1staffconversationsconversation_idfilesfile_idaccess",
+                "summary": "Access conversation file",
+                "description": "Redirect an authorized staff actor to a short-lived conversation file download target using a signed backend access handle.",
+                "tags": [
+                    "Staff Conversations"
+                ],
+                "parameters": [
+                    {
+                        "name": "conversation_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "file_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "HTTP response."
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "get_v1staffconversationsconversation_idfilesfile_idaccess",
+                "x-action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@accessFile",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "full",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,300,60,either",
+                    "staff.capability:conversation.manage",
+                    "signed"
+                ]
+            }
+        },
         "/api/v1/staff/conversations/{conversation_id}/internal-notes": {
             "post": {
                 "operationId": "post_v1_staff_conversations_conversation_id_internal_notes",
@@ -15310,6 +15492,91 @@
                     "redis.throttle:staff.ops,300,60,either",
                     "staff.capability:conversation.manage",
                     "idempotency:staff.conversation-unlink-waiting-list"
+                ]
+            }
+        },
+        "/api/v1/staff/conversations/{conversation_id}/messages/{message_id}/attachment": {
+            "get": {
+                "operationId": "get_v1staffconversationsconversation_idmessagesmessage_idattachment",
+                "summary": "Access legacy conversation attachment",
+                "description": "Redirect an authorized staff actor to a short-lived legacy message attachment target using a signed backend access handle.",
+                "tags": [
+                    "Staff Conversations"
+                ],
+                "parameters": [
+                    {
+                        "name": "conversation_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "message_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "HTTP response."
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "get_v1staffconversationsconversation_idmessagesmessage_idattachment",
+                "x-action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@accessMessageAttachment",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "full",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,300,60,either",
+                    "staff.capability:conversation.manage",
+                    "signed"
                 ]
             }
         },
@@ -35816,6 +36083,33 @@
                 },
                 "additionalProperties": false
             },
+            "HealthDetailedEnvelope": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "ok",
+                            "degraded",
+                            "fail"
+                        ]
+                    },
+                    "checks": {
+                        "type": "object",
+                        "additionalProperties": true
+                    },
+                    "meta": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
+                },
+                "required": [
+                    "status",
+                    "checks",
+                    "meta"
+                ],
+                "additionalProperties": false
+            },
             "HealthRedisEnvelope": {
                 "type": "object",
                 "properties": {
@@ -35845,6 +36139,11 @@
             },
             "HealthStatusEnvelope": {
                 "type": "object",
+                "required": [
+                    "status",
+                    "service",
+                    "timestamp_utc"
+                ],
                 "properties": {
                     "status": {
                         "type": "string",
@@ -35854,20 +36153,15 @@
                             "fail"
                         ]
                     },
-                    "checks": {
-                        "type": "object",
-                        "additionalProperties": true
+                    "service": {
+                        "type": "string"
                     },
-                    "meta": {
-                        "type": "object",
-                        "additionalProperties": true
+                    "timestamp_utc": {
+                        "type": "string",
+                        "format": "date-time"
                     }
                 },
-                "required": [
-                    "status",
-                    "meta"
-                ],
-                "additionalProperties": true
+                "additionalProperties": false
             },
             "ImportAdminMasterDataRequest": {
                 "type": "object",
@@ -47276,6 +47570,38 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "attachment": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                            "file_id": {
+                                "type": "integer",
+                                "nullable": true
+                            },
+                            "message_id": {
+                                "type": "integer"
+                            },
+                            "access_url": {
+                                "type": "string"
+                            },
+                            "access_expires_at": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "mime_type": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "file_id",
+                            "message_id",
+                            "access_url",
+                            "access_expires_at",
+                            "mime_type"
+                        ],
+                        "additionalProperties": false
+                    },
                     "is_processed": {
                         "type": "boolean"
                     },
@@ -47311,6 +47637,10 @@
                                 "file_url": {
                                     "type": "string"
                                 },
+                                "access_expires_at": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                },
                                 "mime_type": {
                                     "type": "string",
                                     "nullable": true
@@ -47323,7 +47653,8 @@
                             },
                             "required": [
                                 "file_id",
-                                "file_url"
+                                "file_url",
+                                "access_expires_at"
                             ],
                             "additionalProperties": false
                         }

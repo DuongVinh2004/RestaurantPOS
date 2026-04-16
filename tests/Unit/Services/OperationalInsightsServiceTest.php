@@ -6,7 +6,9 @@ namespace Tests\Unit\Services;
 
 use App\Platform\ApiContract\Services\DatabaseContractInspector;
 use App\Services\Inventory\PurchaseOrderReconciliationService;
+use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
 use App\Modules\KitchenDispatch\Application\Services\KitchenTicketReconciliationService;
+use App\Modules\Reporting\Application\Services\StaffOperationalRealtimeService;
 use App\Platform\Metrics\Services\OperationalInsightsService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
@@ -243,6 +245,25 @@ class OperationalInsightsServiceTest extends TestCase
     }
 
     #[Group('booking-ops')]
+    public function test_branch_defaults_health_degrades_when_active_branch_scheduling_is_incomplete(): void
+    {
+        $branchId = $this->createBranch([
+            'branch_code' => 'CFG2',
+            'timezone' => null,
+            'business_hours' => null,
+            'booking_policy' => null,
+        ]);
+
+        $snapshot = app(OperationalInsightsService::class)->branchDefaultsSnapshot();
+
+        $this->assertSame('degraded', $snapshot['status']);
+        $this->assertContains('branch_scheduling_incomplete', $snapshot['reasons']);
+        $this->assertSame(1, $snapshot['active_incomplete_scheduling_count']);
+        $this->assertSame($branchId, $snapshot['active_incomplete_scheduling_examples'][0]['branch_id'] ?? null);
+        $this->assertContains('business_hours_missing', $snapshot['active_incomplete_scheduling_examples'][0]['reasons'] ?? []);
+    }
+
+    #[Group('booking-ops')]
     public function test_staff_api_key_health_ignores_expiring_auth_sessions_when_governance_keys_are_healthy(): void
     {
         config()->set('staff_auth.database_store_enabled', true);
@@ -417,6 +438,9 @@ class OperationalInsightsServiceTest extends TestCase
         $this->assertSame('ok', $snapshot['kitchen_kds']['status']);
         $this->assertSame(1, $snapshot['kitchen_kds']['active_ticket_count']);
         $this->assertSame(0, $snapshot['kitchen_kds']['drift_count']);
+        $this->assertSame(0, $snapshot['kitchen_kds']['stuck_ticket_count']);
+        $this->assertSame(['queued' => 0, 'fired' => 0, 'ready' => 0], $snapshot['kitchen_kds']['stuck_status_counts']);
+        $this->assertSame([], $snapshot['kitchen_kds']['stuck_examples']);
         $this->assertSame('ok', $snapshot['inventory_purchasing']['status']);
         $this->assertSame(1, $snapshot['inventory_purchasing']['checked_order_count']);
         $this->assertSame(0, $snapshot['inventory_purchasing']['issue_order_count']);
@@ -507,6 +531,96 @@ class OperationalInsightsServiceTest extends TestCase
     }
 
     #[Group('booking-ops')]
+    public function test_kitchen_snapshot_surfaces_stuck_ticket_counts_and_examples_for_long_lived_active_states(): void
+    {
+        config()->set('booking.ops.kitchen_queued_backlog_warn_seconds', 120);
+        config()->set('booking.ops.kitchen_fired_backlog_warn_seconds', 180);
+        config()->set('booking.ops.kitchen_ready_backlog_warn_seconds', 90);
+
+        $now = Carbon::parse('2026-04-02T09:00:00Z')->utc();
+        $this->resetNonCoreOpsTables();
+
+        $categoryId = $this->ensureMenuCategory('Ops Stuck Kitchen');
+        $itemId = $this->createMenuItem([
+            'category_id' => $categoryId,
+            'code' => 'OPS-KDS-STUCK',
+        ]);
+        $stationId = $this->createKitchenStation([
+            'code' => 'OPS-KDS-STUCK',
+            'name' => 'Ops Stuck KDS',
+        ]);
+        $routeId = $this->createKitchenStationRoute([
+            'station_id' => $stationId,
+            'category_id' => $categoryId,
+        ]);
+
+        $queuedOrderItemId = $this->createOrderItem([
+            'item_id' => $itemId,
+            'status' => 'Ordered',
+        ]);
+        $this->createKitchenOrderTicket([
+            'station_id' => $stationId,
+            'route_id' => $routeId,
+            'order_item_id' => $queuedOrderItemId,
+            'item_id' => $itemId,
+            'category_id' => $categoryId,
+            'ticket_status' => 'Queued',
+            'dispatch_count' => 1,
+            'first_dispatched_at' => $now->copy()->subMinutes(5),
+            'created_at' => $now->copy()->subMinutes(5),
+            'updated_at' => $now->copy()->subMinutes(5),
+        ]);
+
+        $firedOrderItemId = $this->createOrderItem([
+            'item_id' => $itemId,
+            'status' => 'InProgress',
+        ]);
+        $this->createKitchenOrderTicket([
+            'station_id' => $stationId,
+            'route_id' => $routeId,
+            'order_item_id' => $firedOrderItemId,
+            'item_id' => $itemId,
+            'category_id' => $categoryId,
+            'ticket_status' => 'Fired',
+            'dispatch_count' => 1,
+            'first_dispatched_at' => $now->copy()->subMinutes(8),
+            'fired_at' => $now->copy()->subMinutes(6),
+            'created_at' => $now->copy()->subMinutes(8),
+            'updated_at' => $now->copy()->subMinutes(6),
+        ]);
+
+        $readyOrderItemId = $this->createOrderItem([
+            'item_id' => $itemId,
+            'status' => 'InProgress',
+        ]);
+        $this->createKitchenOrderTicket([
+            'station_id' => $stationId,
+            'route_id' => $routeId,
+            'order_item_id' => $readyOrderItemId,
+            'item_id' => $itemId,
+            'category_id' => $categoryId,
+            'ticket_status' => 'Ready',
+            'dispatch_count' => 1,
+            'first_dispatched_at' => $now->copy()->subMinutes(7),
+            'fired_at' => $now->copy()->subMinutes(5),
+            'ready_at' => $now->copy()->subMinutes(3),
+            'created_at' => $now->copy()->subMinutes(7),
+            'updated_at' => $now->copy()->subMinutes(3),
+        ]);
+
+        $snapshot = app(OperationalInsightsService::class)->kitchenKdsSnapshot($now);
+
+        $this->assertSame('degraded', $snapshot['status']);
+        $this->assertContains('kitchen_ticket_stuck_detected', $snapshot['reasons']);
+        $this->assertSame(3, $snapshot['stuck_ticket_count']);
+        $this->assertSame(['queued' => 1, 'fired' => 1, 'ready' => 1], $snapshot['stuck_status_counts']);
+        $this->assertSame(['queued' => 120, 'fired' => 180, 'ready' => 90], $snapshot['stuck_thresholds_seconds']);
+        $this->assertCount(3, $snapshot['stuck_examples']);
+        $this->assertSame('Fired', $snapshot['stuck_examples'][0]['ticket_status']);
+        $this->assertGreaterThanOrEqual(360, (int) $snapshot['stuck_examples'][0]['stuck_age_seconds']);
+    }
+
+    #[Group('booking-ops')]
     public function test_inventory_snapshot_fails_when_duplicate_purchase_receipt_references_are_reported(): void
     {
         $service = new OperationalInsightsService(
@@ -529,6 +643,8 @@ class OperationalInsightsServiceTest extends TestCase
                     ];
                 }
             },
+            app(StaffOperationalRealtimeService::class),
+            app(BranchSchedulingPolicyService::class),
         );
 
         $snapshot = $service->inventoryPurchasingSnapshot(Carbon::parse('2026-04-02T09:00:00Z')->utc());

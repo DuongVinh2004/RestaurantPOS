@@ -18,6 +18,7 @@ use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use App\Modules\CheckoutPayments\Application\Services\StaffReservationDepositOperationalReadService;
 use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
+use App\Support\Money;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -338,6 +339,8 @@ class StaffTableBoardService
             $flags = $row['flags'];
             $candidateTables = $row['candidate_tables'];
             $assignmentRequestContext = $this->buildAssignmentRequestContext($fromUtc, $toUtc, $resolvedBranchId, $zone, true);
+            $requiredMinor = Money::minorUnits($reservation->deposit_required_amount ?? 0, true);
+            $paidMinor = Money::minorUnits($reservation->deposit_paid_amount ?? 0, true);
 
             return [
                 'reservation_id' => (int) $reservation->reservation_id,
@@ -354,9 +357,9 @@ class StaffTableBoardService
                 ]),
                 'deposit' => [
                     'status' => (string) ($reservation->deposit_status?->value ?? $reservation->deposit_status ?? ''),
-                    'required_amount' => number_format((float) ($reservation->deposit_required_amount ?? 0), 2, '.', ''),
-                    'paid_amount' => number_format((float) ($reservation->deposit_paid_amount ?? 0), 2, '.', ''),
-                    'outstanding_amount' => number_format(max(0.0, round((float) ($reservation->deposit_required_amount ?? 0) - (float) ($reservation->deposit_paid_amount ?? 0), 2)), 2, '.', ''),
+                    'required_amount' => Money::formatMinor($requiredMinor),
+                    'paid_amount' => Money::formatMinor($paidMinor),
+                    'outstanding_amount' => Money::formatMinor(max(0, $requiredMinor - $paidMinor)),
                     'currency' => (string) ($reservation->bill_currency ?? 'VND'),
                     'self_service' => $deposit,
                 ],
@@ -493,8 +496,8 @@ class StaffTableBoardService
     {
         $paymentSummary = $reservation->relationLoaded('payments') ? PaymentSummary::fromPayments($reservation->payments) : [];
         $deposit = $this->depositRead($reservation, $paymentSummary);
-        $required = round((float) ($reservation->deposit_required_amount ?? 0.0), 2);
-        $paid = round((float) ($reservation->deposit_paid_amount ?? 0.0), 2);
+        $requiredMinor = Money::minorUnits($reservation->deposit_required_amount ?? 0, true);
+        $paidMinor = Money::minorUnits($reservation->deposit_paid_amount ?? 0, true);
 
         return [
             'reservation_id' => (int) $reservation->reservation_id,
@@ -512,9 +515,9 @@ class StaffTableBoardService
             'guest' => $this->presentGuestSnapshot($reservation),
             'deposit' => [
                 'status' => (string) ($reservation->deposit_status?->value ?? $reservation->deposit_status ?? ''),
-                'required_amount' => number_format($required, 2, '.', ''),
-                'paid_amount' => number_format($paid, 2, '.', ''),
-                'outstanding_amount' => number_format(max(0.0, round($required - $paid, 2)), 2, '.', ''),
+                'required_amount' => Money::formatMinor($requiredMinor),
+                'paid_amount' => Money::formatMinor($paidMinor),
+                'outstanding_amount' => Money::formatMinor(max(0, $requiredMinor - $paidMinor)),
                 'currency' => (string) ($reservation->bill_currency ?? 'VND'),
                 'self_service' => $deposit,
             ],

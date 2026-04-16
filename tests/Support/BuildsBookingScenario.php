@@ -89,6 +89,7 @@ trait BuildsBookingScenario
             'reservation_orders',
             'reservation_order_items',
             'payments',
+            'finance_replay_records',
             'vouchers',
             'user_vouchers',
             'user_points',
@@ -279,15 +280,26 @@ trait BuildsBookingScenario
                 'description' => 'Single-site compatibility default branch.',
                 'timezone' => 'UTC',
                 'currency' => 'VND',
-                'business_hours' => null,
+                'business_hours' => json_encode($this->defaultBranchFixtureBusinessHours(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 'closure_windows' => null,
-                'booking_policy' => null,
+                'booking_policy' => json_encode($this->defaultBranchFixtureBookingPolicy(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 'is_active' => true,
                 'is_default' => true,
                 'row_version' => 1,
                 'created_at' => now('UTC'),
                 'updated_at' => now('UTC'),
             ]);
+        }
+
+        if (Schema::hasTable('branches')) {
+            DB::table('branches')
+                ->where('branch_id', 1)
+                ->update([
+                    'timezone' => 'UTC',
+                    'business_hours' => json_encode($this->defaultBranchFixtureBusinessHours(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    'booking_policy' => json_encode($this->defaultBranchFixtureBookingPolicy(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    'updated_at' => now('UTC'),
+                ]);
         }
 
         if (! Schema::hasTable('feature_flags')) {
@@ -1064,6 +1076,25 @@ trait BuildsBookingScenario
             });
         }
 
+        if (! Schema::hasTable('finance_replay_records')) {
+            Schema::create('finance_replay_records', function (Blueprint $table): void {
+                $table->bigIncrements('finance_replay_record_id');
+                $table->string('scope', 80);
+                $table->string('aggregate_type', 80);
+                $table->unsignedBigInteger('aggregate_id');
+                $table->string('idempotency_key', 120);
+                $table->string('request_fingerprint', 64)->nullable();
+                $table->string('result_type', 80)->nullable();
+                $table->unsignedBigInteger('result_id')->nullable();
+                $table->text('context_json')->nullable();
+                $table->dateTime('created_at')->nullable();
+                $table->dateTime('updated_at')->nullable();
+                $table->unique(['scope', 'aggregate_type', 'aggregate_id', 'idempotency_key'], 'uq_finance_replay_records__scope_aggregate_key');
+                $table->index(['idempotency_key'], 'idx_finance_replay_records__idempotency_key');
+                $table->index(['result_type', 'result_id'], 'idx_finance_replay_records__result');
+            });
+        }
+
         if (! Schema::hasTable('user_vouchers')) {
             Schema::create('user_vouchers', function (Blueprint $table): void {
                 $table->increments('user_voucher_id');
@@ -1688,6 +1719,9 @@ trait BuildsBookingScenario
         $this->ensureIndexIfMissing('payments', 'idx_payments__reservation_id__payment_type__status', ['reservation_id', 'payment_type', 'status']);
         $this->ensureIndexIfMissing('payments', 'idx_payments__branch_id__reservation_id__payment_type__status', ['branch_id', 'reservation_id', 'payment_type', 'status']);
         $this->ensureIndexIfMissing('payments', 'idx_payments__refund_of_payment_id', ['refund_of_payment_id']);
+        $this->ensureIndexIfMissing('finance_replay_records', 'uq_finance_replay_records__scope_aggregate_key', ['scope', 'aggregate_type', 'aggregate_id', 'idempotency_key'], true);
+        $this->ensureIndexIfMissing('finance_replay_records', 'idx_finance_replay_records__idempotency_key', ['idempotency_key']);
+        $this->ensureIndexIfMissing('finance_replay_records', 'idx_finance_replay_records__result', ['result_type', 'result_id']);
         $this->ensureIndexIfMissing('table_holds', 'idx_table_holds__status__expire_at__start_time', ['hold_status', 'expire_at', 'start_time']);
         $this->ensureIndexIfMissing('table_holds', 'idx_table_holds__branch_id__status__expire_at__start_time', ['branch_id', 'hold_status', 'expire_at', 'start_time']);
         $this->ensureIndexIfMissing('table_holds', 'idx_table_holds__session_id__start_time__created_at', ['session_id', 'start_time', 'created_at']);
@@ -1810,9 +1844,9 @@ SQL);
             'description' => null,
             'timezone' => 'UTC',
             'currency' => 'VND',
-            'business_hours' => null,
+            'business_hours' => $this->defaultBranchFixtureBusinessHours(),
             'closure_windows' => null,
-            'booking_policy' => null,
+            'booking_policy' => $this->defaultBranchFixtureBookingPolicy(),
             'is_active' => true,
             'is_default' => false,
             'row_version' => 1,
@@ -1827,6 +1861,35 @@ SQL);
         }
 
         return (int) DB::table('branches')->insertGetId($payload);
+    }
+
+    /**
+     * @return list<array{day_of_week:int,periods:list<array{start_time:string,end_time:string}>}>
+     */
+    protected function defaultBranchFixtureBusinessHours(): array
+    {
+        return array_map(
+            static fn (int $day): array => [
+                'day_of_week' => $day,
+                'periods' => [[
+                    'start_time' => '00:00',
+                    'end_time' => '24:00',
+                ]],
+            ],
+            range(0, 6),
+        );
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    protected function defaultBranchFixtureBookingPolicy(): array
+    {
+        return [
+            'reservation' => [],
+            'waiting_list' => [],
+            'availability' => [],
+        ];
     }
 
     protected function upsertFeatureFlagOverride(

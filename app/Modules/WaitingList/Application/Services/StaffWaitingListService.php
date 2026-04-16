@@ -292,14 +292,10 @@ class StaffWaitingListService
                         skipLocking: true,
                     );
 
-                    TableHold::query()
-                        ->whereKey((string) $hold->hold_id)
-                        ->whereIn('hold_status', [TableHoldStatus::Holding->value, TableHoldStatus::Pending->value, TableHoldStatus::Confirmed->value])
-                        ->update([
-                            'hold_status' => TableHoldStatus::Cancelled->value,
-                            'updated_by' => $staffUserId,
-                            'updated_at' => Carbon::now('UTC'),
-                        ]);
+                    $hold->hold_status = TableHoldStatus::Cancelled;
+                    $hold->updated_by = $staffUserId;
+                    $hold->updated_at = Carbon::now('UTC');
+                    $hold->save();
 
                     WaitingListStateMachine::applySeated($entry, $checkedInAt, $staffUserId, $userId, $notes);
                     $entry->save();
@@ -546,14 +542,19 @@ class StaffWaitingListService
 
     private function cancelExistingNotifyHold(WaitingList $entry, ?int $staffUserId = null): void
     {
+        $now = Carbon::now('UTC');
+
         TableHold::query()
             ->where('session_id', $this->buildWaitingSessionId((int) $entry->waiting_id))
             ->whereIn('hold_status', [TableHoldStatus::Holding->value, TableHoldStatus::Pending->value, TableHoldStatus::Confirmed->value])
-            ->update([
-                'hold_status' => TableHoldStatus::Cancelled->value,
-                'updated_by' => $staffUserId,
-                'updated_at' => Carbon::now('UTC'),
-            ]);
+            ->lockForUpdate()
+            ->get()
+            ->each(function (TableHold $hold) use ($staffUserId, $now): void {
+                $hold->hold_status = TableHoldStatus::Cancelled;
+                $hold->updated_by = $staffUserId;
+                $hold->updated_at = $now;
+                $hold->save();
+            });
     }
 
     private function findActiveNotifyHoldForUpdate(int $waitingId): ?TableHold

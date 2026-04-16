@@ -6,6 +6,7 @@ namespace App\Modules\BenefitsLoyalty\Application\Services;
 
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\BenefitsLoyalty\Domain\Models\UserVoucher;
+use App\Support\Money;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class CustomerBenefitsService
@@ -138,7 +139,7 @@ class CustomerBenefitsService
             'description' => (string) ($voucher?->description ?? ''),
             'discount_type' => $voucher?->discount_type?->value ?? (string) ($voucher?->discount_type ?? ''),
             'discount_value' => $voucher?->discount_value !== null ? number_format((float) $voucher->discount_value, 2, '.', '') : null,
-            'min_spend' => $voucher?->min_spend !== null ? number_format((float) $voucher->min_spend, 2, '.', '') : null,
+            'min_spend' => $voucher?->min_spend !== null ? Money::format($voucher->min_spend, true) : null,
             'free_item' => $voucher && (int) ($voucher->free_item_id ?? 0) > 0 ? [
                 'item_id' => (int) $voucher->free_item_id,
                 'quantity' => max(1, (int) ($voucher->free_item_qty ?? 1)),

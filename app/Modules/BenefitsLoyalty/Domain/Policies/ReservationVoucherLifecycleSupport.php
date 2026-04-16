@@ -8,6 +8,7 @@ use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\BenefitsLoyalty\Domain\Models\UserVoucher;
 use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncService;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Support\Money;
 
 final class ReservationVoucherLifecycleSupport
 {
@@ -57,7 +58,10 @@ final class ReservationVoucherLifecycleSupport
 
         $reservationFinancialSyncService->syncReservationDiscountSnapshot(
             reservation: $reservation,
-            totalDiscount: max(0.0, round((float) ($reservation->discount_amount ?? 0.0) - $voucherDiscount, 2)),
+            totalDiscount: Money::minorToFloat(max(
+                0,
+                Money::minorUnits($reservation->discount_amount ?? 0, true) - Money::minorUnits($voucherDiscount, true)
+            )),
             lockOrders: true,
         );
 
@@ -74,15 +78,15 @@ final class ReservationVoucherLifecycleSupport
      */
     private static function resolveAppliedVoucherDiscount(UserVoucher $userVoucher, iterable $orders): float
     {
-        $usedAmount = round(max(0.0, (float) ($userVoucher->used_amount ?? 0.0)), 2);
-        if ($usedAmount > 0.0001) {
-            return $usedAmount;
+        $usedAmountMinor = Money::minorUnits($userVoucher->used_amount ?? 0, true);
+        if ($usedAmountMinor > 0) {
+            return Money::minorToFloat($usedAmountMinor);
         }
 
         if (! $userVoucher->voucher) {
             return 0.0;
         }
 
-        return round((float) (VoucherRedemptionSupport::calculateDiscount($userVoucher->voucher, $orders)['discount_amount'] ?? 0.0), 2);
+        return Money::toFloat(VoucherRedemptionSupport::calculateDiscount($userVoucher->voucher, $orders)['discount_amount'] ?? 0, true);
     }
 }
