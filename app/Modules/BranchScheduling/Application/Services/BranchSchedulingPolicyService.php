@@ -246,17 +246,17 @@ class BranchSchedulingPolicyService
             $timezone = $configuredTimezone;
         }
 
-        if (! $this->hasConfiguredBusinessHours($branch->business_hours)) {
-            $reasons[] = 'business_hours_missing';
-        }
-
-        if (! $this->hasConfiguredBookingPolicy($branch->booking_policy)) {
-            $reasons[] = 'booking_policy_missing';
-        }
-
         try {
             $context = $this->resolveContext($branchId, $activeOnly);
             $timezone = (string) $context['timezone'];
+
+            if (! $this->hasConfiguredBusinessHours($context['business_hours'] ?? null)) {
+                $reasons[] = 'business_hours_missing';
+            }
+
+            if (! $this->hasConfiguredBookingPolicy($context['booking_policy'] ?? null)) {
+                $reasons[] = 'booking_policy_missing';
+            }
         } catch (ValidationException) {
             $reasons[] = 'branch_scheduling_invalid';
         }
@@ -864,7 +864,10 @@ class BranchSchedulingPolicyService
 
     private function hasConfiguredBookingPolicy(mixed $value): bool
     {
-        return is_array($value) && $value !== [];
+        return is_array($value)
+            && is_array($value['reservation'] ?? null)
+            && is_array($value['waiting_list'] ?? null)
+            && is_array($value['availability'] ?? null);
     }
 
     private function isValidTimezone(string $timezone): bool
