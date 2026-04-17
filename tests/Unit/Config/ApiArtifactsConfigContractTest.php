@@ -31,6 +31,7 @@ class ApiArtifactsConfigContractTest extends TestCase
             'Refunds',
             'Waiting List',
             'Benefits',
+            'Customer Privacy',
             'Admin Master Data',
             'Conversation Inbox',
             'Payment Webhooks',
@@ -68,6 +69,10 @@ class ApiArtifactsConfigContractTest extends TestCase
         self::assertContains('GET api/v1/staff/waiting-list', $groupsByName['Waiting List']['signatures']);
         self::assertContains('GET api/v1/staff/waiting-list/changes', $groupsByName['Waiting List']['signatures']);
         self::assertContains('GET api/v1/me/loyalty', $groupsByName['Benefits']['signatures']);
+        self::assertContains('GET api/v1/me/data-export', $groupsByName['Customer Privacy']['signatures']);
+        self::assertContains('GET api/v1/me/privacy-requests', $groupsByName['Customer Privacy']['signatures']);
+        self::assertContains('POST api/v1/me/privacy-requests', $groupsByName['Customer Privacy']['signatures']);
+        self::assertContains('POST api/v1/me/privacy-requests', $mutationGroupsByName['Customer privacy']['signatures']);
         self::assertSame('boardZone', config('api_artifacts.postman.parameter_aliases.GET api/v1/staff/tables/board.query.zone'));
         self::assertSame('boardAfterVersion', config('api_artifacts.postman.parameter_aliases.GET api/v1/staff/tables/board/changes.query.after_version'));
         self::assertSame('waitingListStatus', config('api_artifacts.postman.parameter_aliases.GET api/v1/staff/waiting-list.query.status'));

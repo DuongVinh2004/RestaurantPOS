@@ -101,6 +101,7 @@ The generated collection prioritizes:
 - refund flows
 - waiting-list customer + staff actions
 - benefits apply/remove/redeem/release
+- customer privacy self-service
 - admin master-data create flow
 - conversation inbox
 - payment webhook intake
