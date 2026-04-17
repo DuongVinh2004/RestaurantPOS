@@ -1,0 +1,134 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+
+hide empty methods
+skinparam classAttributeIconSize 0
+left to right direction
+title CD-11 - Reporting và Read Model
+caption Mô tả các lớp snapshot/read model phục vụ báo cáo doanh thu, vận hành và biến động tồn kho theo\nbranch/ngày.
+skinparam class {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+  HeaderBackgroundColor #E5EEF9
+}
+
+class "Branch" as Branch <<entity>> {
+  {static} table = branches
+  --
+  branch_id
+  row_version
+  branch_code
+  business_hours
+  closure_windows
+  booking_policy
+  currency
+}
+
+class "Ingredient" as Ingredient <<entity>> {
+  {static} table = ingredients
+  --
+  ingredient_id
+  unit_code
+  name
+  created_at
+  updated_at
+  code
+  description
+}
+
+class "Reservation" as Reservation <<entity>> {
+  {static} table = reservations
+  --
+  reservation_id
+  user_id
+  applied_user_voucher_id
+  row_version
+  status
+  deposit_status
+  deposit_intent_status
+}
+
+class "WaitingList" as WaitingList <<entity>> {
+  {static} table = waiting_list
+  --
+  waiting_id
+  user_id
+  customer_session_id
+  row_version
+  status
+  customer_response_status
+  branch_id
+}
+
+class "ConversationAggregate" as ConversationAggregate <<snapshot>> {
+  {static} table = conversation_aggregates
+  --
+  agg_id
+  channel
+  created_at
+  agg_date
+  hour
+  total_conversations
+  total_messages
+}
+
+class "ReportingDailySalesSnapshot" as ReportingDailySalesSnapshot <<snapshot>> {
+  {static} table = reporting_daily_sales_snapshots
+  --
+  snapshot_id
+  branch_id
+  gross_bill_amount
+  discount_amount
+  billed_total_amount
+  invoiced_total_amount
+  invoiced_tax_amount
+}
+
+class "ReportingDailyOperationSnapshot" as ReportingDailyOperationSnapshot <<snapshot>> {
+  {static} table = reporting_daily_operation_snapshots
+  --
+  snapshot_id
+  branch_id
+  business_date
+  refreshed_at
+  created_at
+  updated_at
+  scheduled_reservation_count
+}
+
+class "ReportingDailyInventoryMovementSnapshot" as ReportingDailyInventoryMovementSnapshot <<snapshot>> {
+  {static} table = reporting_daily_inventory_movement_snapshots
+  --
+  snapshot_id
+  branch_id
+  ingredient_id
+  unit_code
+  business_date
+  last_movement_at
+  refreshed_at
+}
+
+class "ReportingSnapshotService" as ReportingSnapshotService <<control>> {
+  orchestrates flow
+}
+
+class "NotificationOutboxHealthService" as NotificationOutboxHealthService <<control>> {
+  orchestrates flow
+}
+
+class "RouteInventoryGateService" as RouteInventoryGateService <<control>> {
+  orchestrates flow
+}
+
+ReportingDailySalesSnapshot "0..*" --> "1" Branch : branch\nFK: branch_id
+ReportingDailyOperationSnapshot "0..*" --> "1" Branch : branch\nFK: branch_id
+ReportingDailyInventoryMovementSnapshot "0..*" --> "1" Branch : branch\nFK: branch_id
+ReportingDailyInventoryMovementSnapshot "0..*" --> "1" Ingredient : ingredient\nFK: ingredient_id
+ReportingSnapshotService ..> Branch : uses
+NotificationOutboxHealthService ..> Branch : uses
+RouteInventoryGateService ..> Branch : uses
+@enduml

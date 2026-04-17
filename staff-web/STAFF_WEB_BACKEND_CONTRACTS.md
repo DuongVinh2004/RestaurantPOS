@@ -25,16 +25,24 @@
   - `capabilities`
   - `known_capabilities`
   - `capability_source`
+  - `startup.primary_workspace`
+  - `startup.available_workspaces`
+  - `startup.default_branch_id`
+  - `startup.allowed_branch_ids`
+  - `startup.assigned_station_ids`
   - `startup.default_branch`
   - `startup.active_cashier_shift`
   - `startup.readiness`
 - Runtime `capability_source` for the current staff auth pipeline is `role_capabilities`
 - FE route guards/nav chi duoc gate bang granted `capabilities`
 - `known_capabilities` chi la metadata ve capability catalog, khong phai grant runtime
+- Staff-web must prefer the startup workspace contract for persona landing and switcher state. Capability-derived workspace mapping is only a compatibility fallback when older payloads do not include `startup.available_workspaces`.
+- `startup.default_branch_id` and `startup.allowed_branch_ids` are the lightweight branch bootstrap contract; the nested `startup.default_branch` and `startup.branch_access` objects remain for labels, readiness, and branch selector metadata.
+- `startup.assigned_station_ids` is the lightweight kitchen bootstrap contract. Until a dedicated per-staff kitchen identity model exists, backend may return all active station ids visible to kitchen-capable staff or an empty list when station context is unavailable.
 - Post-login redirect, access gate, cashier-shift gating, shell notices, va startup-driven warnings phai doc tu `startup.readiness`; khong duoc tu suy doan lai bang hard-coded raw strings rai rac
 - FE source of truth hien tai:
-  - `src/core/permissions/capabilities.ts` cho granted capability checks
-  - `src/core/auth/startup.ts` cho startup/readiness predicates
+  - `src/shared/auth/capabilities.ts` cho granted capability checks
+  - `src/app/auth/startup.ts` cho startup/readiness predicates
 - Error envelope quan trong cho staff-web:
   - top-level `error_code`
   - top-level `request_id`
@@ -83,7 +91,7 @@
 
 - Active FOH handoff phai giu `source`, `table_id`, `table_ids`, `reservation_id`, `reservation_row_version`, va `order_id`/`order_row_version` neu da co order.
 - `board -> reservation`, `reservation -> check-in`, `waiting -> seat`, va `move-table -> order workspace` deu phai merge URL journey params voi flow-store thay vi tu suy lai context.
-- `conversation -> waiting-list` phai mo `/waiting-list?focus=<waiting_id>` de khoa dung dong hang cho da lien ket thay vi nhay ve dong dau tien trong danh sach.
+- `conversation -> waiting-list` phai mo `/ops/waiting-list?focus=<waiting_id>` de khoa dung dong hang cho da lien ket thay vi nhay ve dong dau tien trong danh sach.
 - FE duoc phep dung realtime change feeds (`/board/changes`, `/waiting-list/changes`) de trigger refetch full slice; feed do khong phai source of truth thay the payload board/waiting canonical.
 
 ### Deprecated alias to avoid
@@ -216,7 +224,7 @@
 ### Contract notes
 
 - Reconciliation list/detail va finance invoice envelopes hien tai deu tra `reservation.row_version`
-- staff-web phai mang `reservation_row_version` khi mo lai `/reservations` tu finance review
+- staff-web phai mang `reservation_row_version` khi mo lai `/ops/reservations` tu finance review
 - Finance review la lane hau-kiem tra sau thanh toan; no khong thay the settlement/refund guards tren mutation path
 - Reconciliation list/detail, finance invoice show, va accounting export hien tai mac dinh fail closed theo operational branch scope cua actor xac thuc
 - Explicit `branch_id` ngoai operational scope tra `404 not_found` thay vi list rong

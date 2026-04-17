@@ -1,0 +1,35 @@
+﻿@startuml
+left to right direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultTextAlignment left
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+  FontColor black
+}
+skinparam actor {
+  BorderColor #374151
+  FontColor black
+}
+
+title UC-04 - Tạo / làm mới / hủy table hold
+actor "Khách hàng" as Customer
+actor "Nhân viên" as Staff
+rectangle "RestaurantPOS Backend" as SYS {
+  usecase "UC-04\nTạo / làm mới / hủy table hold" as MAIN
+  usecase "Tạo table hold mới" as S01
+  usecase "Xem hold đang hiệu lực" as S02
+  usecase "Làm mới hold trước khi hết hạn" as S03
+  usecase "Hủy hold" as S04
+}
+MAIN ..> S01 : <<include>>
+MAIN ..> S02 : <<include>>
+S03 ..> MAIN : <<extend>>
+S04 ..> MAIN : <<extend>>
+Customer --> MAIN
+Staff --> MAIN
+
+@enduml

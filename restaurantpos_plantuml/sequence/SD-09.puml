@@ -1,0 +1,69 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam SequenceMessageAlign center
+skinparam maxMessageSize 140
+autonumber
+
+title SD-09 - Quản lý waiting list
+
+actor "Khách hàng" as Customer
+actor "Nhân viên" as Staff
+boundary "CustomerWaitingListController" as CustomerApi
+boundary "StaffWaitingListController" as StaffApi
+control "CustomerWaitingListService" as CustomerSvc
+control "StaffWaitingListService" as StaffSvc
+control "WaitingListOperationalOrchestrationService" as OpsSvc
+database "waiting_list + reservations + branches + restaurant_tables" as WaitStore
+
+alt customer create / view / respond
+  Customer -> CustomerApi : POST /api/v1/waiting-list\nGET /api/v1/waiting-list\nPOST /api/v1/waiting-list/:id/accept|confirm-arrival|decline|cancel
+  CustomerApi -> CustomerSvc : createEntry / listOwnerEntries / mutateOwnerEntry(...)
+  CustomerSvc -> WaitStore : validate owner scope, branch eligibility và row_version
+  alt owner scope denied / stale row_version / notify window expired
+    WaitStore --> CustomerSvc : reject
+    CustomerSvc --> CustomerApi : denied
+    CustomerApi --> Customer : 401 / 403 / business rule error
+  else valid customer action
+    WaitStore --> CustomerSvc : waiting entry context
+    CustomerSvc -> WaitStore : insert hoặc update waiting_list state
+    WaitStore --> CustomerSvc : updated entry
+    CustomerSvc --> CustomerApi : waiting-list payload
+    CustomerApi --> Customer : created / current state
+  end
+else staff queue operations
+  Staff -> StaffApi : POST /api/v1/staff/waiting-list\nPOST /api/v1/staff/waiting-list/:id/notify|seat|advance|cancel
+  alt create / notify / seat / cancel
+    StaffApi -> StaffSvc : createEntry / notifyEntry / seatEntry / cancelEntry(...)
+    StaffSvc -> WaitStore : validate branch scope, queue status và row_version
+    alt invalid state / stale row_version / branch denied
+      WaitStore --> StaffSvc : reject
+      StaffSvc --> StaffApi : denied
+      StaffApi --> Staff : business rule error
+    else valid operation
+      WaitStore --> StaffSvc : waiting entry context
+      StaffSvc -> WaitStore : update waiting_list hoặc create reservation for seating
+      WaitStore --> StaffSvc : updated entry / reservation
+      StaffSvc --> StaffApi : operation payload
+      StaffApi --> Staff : success
+    end
+  else advance queue after response
+    StaffApi -> OpsSvc : advanceQueueAfterResponse(waiting_id, row_version, hold_minutes?)
+    OpsSvc -> WaitStore : load source entry + next eligible queue context
+    alt cannot advance
+      WaitStore --> OpsSvc : reject
+      OpsSvc --> StaffApi : denied
+      StaffApi --> Staff : advance denied
+    else advanced
+      WaitStore --> OpsSvc : queue context
+      OpsSvc -> WaitStore : update source entry + next eligible automation state
+      WaitStore --> OpsSvc : source + advanced entry
+      OpsSvc --> StaffApi : automation payload
+      StaffApi --> Staff : advanced outcome
+    end
+  end
+end
+
+@enduml

@@ -1,0 +1,38 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam activity {
+  BackgroundColor white
+  BorderColor #374151
+  DiamondBackgroundColor #EEF2FF
+  DiamondBorderColor #4B5563
+}
+title AD-18 - Tạo order / thêm món
+start
+partition "Nhân viên" {
+  :Tạo active order hoặc thêm món;
+}
+partition "StaffOrderController" {
+  :Nhận create / add item / update item / close / bill snapshot;
+  :Áp capability order.manage + idempotency;
+}
+partition "Ordering + bill engine" {
+  :Load active order / service context;
+  :Kiểm tra menu item / quantity / trạng thái order;
+  :Persist order/item mutation;
+  :Cập nhật bill draft / snapshot nếu cần;
+}
+if (Order còn mutable?) then (yes)
+partition "Ordering + bill engine" {
+  :Trả active order đã cập nhật;
+}
+  stop
+else (no)
+partition "StaffOrderController" {
+  :Trả mutation denied;
+}
+  stop
+endif
+@enduml

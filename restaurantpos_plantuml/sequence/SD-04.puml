@@ -1,0 +1,78 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam SequenceMessageAlign center
+skinparam maxMessageSize 140
+autonumber
+
+title SD-04 - Tạo / làm mới / hủy table hold
+
+actor "Khách hàng / Nhân viên" as User
+boundary "Booking Client" as Client
+boundary "TableHoldController\nPOST /table-holds\nGET /table-holds/:id\nrefresh hold\ncancel hold" as HoldApi
+control "redis.throttle + hold.ratelimit" as Throttle
+control "Idempotency middleware" as Idempotency
+control "TableHoldService" as HoldSvc
+control "Branch/Table validator" as Validator
+database "table_holds + table_hold_details\n+ restaurant_tables" as HoldStore
+
+alt create hold
+  User -> Client : chọn 1..n tables + hold window
+  Client -> HoldApi : POST /table-holds
+  HoldApi -> Throttle : throttle + hold rate limit
+  HoldApi -> Idempotency : check idempotency:table-holds
+  alt replayed request
+    Idempotency --> HoldApi : previous response
+    HoldApi --> Client : replay existing hold payload
+  else new request
+    Idempotency --> HoldApi : continue
+    HoldApi -> HoldSvc : create hold request
+    HoldSvc -> Validator : validate branch consistency + table state + window
+    Validator -> HoldStore : read current holds / reservation conflicts
+    alt table conflict / invalid branch / expired slot
+      HoldStore --> Validator : deny
+      Validator --> HoldSvc : reject
+      HoldSvc --> HoldApi : error
+      HoldApi --> Client : hold denied
+    else valid hold
+      HoldStore --> Validator : available
+      Validator --> HoldSvc : ok
+      HoldSvc -> HoldStore : insert table_holds + table_hold_details
+      HoldStore --> HoldSvc : active hold + expiry
+      HoldSvc --> HoldApi : hold payload
+      HoldApi --> Client : active hold
+    end
+  end
+else refresh hold
+  User -> Client : refresh active hold
+  Client -> HoldApi : refresh hold
+  HoldApi -> Throttle : refresh throttle
+  HoldApi -> Idempotency : check idempotency:table-holds.refresh
+  HoldApi -> HoldSvc : refresh hold
+  HoldSvc -> HoldStore : load hold + validate row_version/expiry
+  alt expired / stale / ownership mismatch
+    HoldStore --> HoldSvc : reject
+    HoldSvc --> HoldApi : error
+    HoldApi --> Client : refresh denied
+  else refreshable
+    HoldStore --> HoldSvc : active hold
+    HoldSvc -> HoldStore : extend expiry
+    HoldStore --> HoldSvc : refreshed hold
+    HoldSvc --> HoldApi : refreshed payload
+    HoldApi --> Client : hold refreshed
+  end
+else cancel hold
+  User -> Client : cancel hold
+  Client -> HoldApi : cancel hold
+  HoldApi -> Throttle : cancel throttle
+  HoldApi -> Idempotency : check idempotency:table-holds.cancel
+  HoldApi -> HoldSvc : cancel hold
+  HoldSvc -> HoldStore : mark hold cancelled / release detail rows
+  HoldStore --> HoldSvc : cancelled
+  HoldSvc --> HoldApi : cancel payload
+  HoldApi --> Client : hold cancelled
+end
+
+@enduml

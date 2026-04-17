@@ -1,0 +1,4 @@
+interface:
+  display_name: "Customer Web Form State Patterns"
+  short_description: "Standardize forms, query states, and mutation UX."
+  default_prompt: "Use $restaurantpos-customer-web-form-state-patterns when implementing forms, TanStack Query hooks, and async states."

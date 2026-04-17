@@ -1,0 +1,4 @@
+interface:
+  display_name: "Customer Web UI Flow"
+  short_description: "Compose mobile-first RestaurantPOS customer flows."
+  default_prompt: "Use $restaurantpos-customer-web-ui-flow when building customer-web pages, forms, states, navigation, and shadcn UI."

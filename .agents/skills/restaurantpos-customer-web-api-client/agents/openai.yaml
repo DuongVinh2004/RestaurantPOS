@@ -1,0 +1,4 @@
+interface:
+  display_name: "Customer Web API Client"
+  short_description: "Build the header-based customer-web API boundary."
+  default_prompt: "Use $restaurantpos-customer-web-api-client when adding or changing customer-web API adapters and HTTP helpers."

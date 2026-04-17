@@ -1,0 +1,45 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam SequenceMessageAlign center
+skinparam maxMessageSize 140
+autonumber
+
+title SD-21 - Audit / reporting / reconciliation
+
+actor "Backoffice user" as User
+boundary "Backoffice Client" as Client
+boundary "staff/admin reporting route-controller" as Api
+control "Reporting read-model services" as ReportingSvc
+control "Reconciliation / audit reader" as ReconSvc
+database "reporting_daily_*_snapshots\n+ conversation_aggregates + audit_logs\n+ payments / billing context" as ReportStore
+
+alt read reporting snapshot
+  User -> Client : open reporting dashboard / report
+  Client -> Api : reporting endpoint
+  Api -> ReportingSvc : resolve requested snapshot/report
+  ReportingSvc -> ReportStore : read reporting snapshot tables
+  ReportStore --> ReportingSvc : snapshot rows
+  ReportingSvc --> Api : report payload
+  Api --> Client : reporting response
+else rebuild / refresh read model
+  User -> Client : request rebuild or refresh
+  Client -> Api : reporting maintenance endpoint
+  Api -> ReportingSvc : trigger rebuild job/service
+  ReportingSvc -> ReportStore : recompute and persist read-model snapshot
+  ReportStore --> ReportingSvc : rebuild result
+  ReportingSvc --> Api : payload
+  Api --> Client : rebuild status
+else reconciliation / audit read
+  User -> Client : inspect audit / reconciliation
+  Client -> Api : audit or reconciliation endpoint
+  Api -> ReconSvc : load lineage / ledger / audit trail
+  ReconSvc -> ReportStore : read audit logs + finance/reporting context
+  ReportStore --> ReconSvc : audit/recon data
+  ReconSvc --> Api : payload
+  Api --> Client : reconciliation response
+end
+
+@enduml

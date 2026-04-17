@@ -1,0 +1,143 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+
+hide empty methods
+skinparam classAttributeIconSize 0
+left to right direction
+title CD-05 - Benefits, Voucher và Loyalty
+caption Mô tả các lớp quyền lợi gắn với khách hàng và reservation: voucher, loyalty tier, điểm và lịch sử\nthay đổi hạng.
+skinparam class {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+  HeaderBackgroundColor #E5EEF9
+}
+
+class "User" as User <<entity>> {
+  {static} table = users
+  --
+  user_id
+  role_id
+  current_tier_id
+  row_version
+  privacy_anonymized_at
+  username
+  full_name
+}
+
+class "Reservation" as Reservation <<entity>> {
+  {static} table = reservations
+  --
+  reservation_id
+  user_id
+  applied_user_voucher_id
+  row_version
+  status
+  deposit_status
+  deposit_intent_status
+}
+
+class "Voucher" as Voucher <<entity>> {
+  {static} table = vouchers
+  --
+  voucher_id
+  free_item_id
+  row_version
+  created_at
+  updated_at
+  code
+  description
+}
+
+class "UserVoucher" as UserVoucher <<pivot>> {
+  {static} table = user_vouchers
+  --
+  user_voucher_id
+  user_id
+  voucher_id
+  used_reservation_id
+  row_version
+  used_amount
+  created_at
+}
+
+class "LoyaltyTier" as LoyaltyTier <<entity>> {
+  {static} table = loyalty_tiers
+  --
+  tier_id
+  row_version
+  tier_code
+  benefits_json
+  created_at
+  updated_at
+  tier_name
+}
+
+class "UserPoint" as UserPoint <<entity>> {
+  {static} table = user_points
+  --
+  user_id
+  row_version
+  total_points
+  last_updated
+  updated_by
+}
+
+class "UserTierHistory" as UserTierHistory <<entity>> {
+  {static} table = user_tier_history
+  --
+  history_id
+  user_id
+  from_tier_id
+  to_tier_id
+  created_by
+  effective_at
+  created_at
+}
+
+class "LoyaltyPointTransaction" as LoyaltyPointTransaction <<ledger>> {
+  {static} table = loyalty_point_transactions
+  --
+  txn_id
+  user_id
+  reservation_id
+  created_by
+  currency
+  created_at
+  txn_type
+}
+
+class "CustomerReservationBenefitsSelfService" as CustomerReservationBenefitsSelfService <<control>> {
+  orchestrates flow
+}
+
+class "StaffReservationVoucherService" as StaffReservationVoucherService <<control>> {
+  orchestrates flow
+}
+
+class "ReservationVoucherPreviewService" as ReservationVoucherPreviewService <<control>> {
+  orchestrates flow
+}
+
+User "1" --> "0..1" UserPoint : points\nFK: user_id
+User "1" --> "0..*" LoyaltyPointTransaction : pointTransactions\nFK: user_id
+User "1" --> "0..*" UserTierHistory : tierHistory\nFK: user_id
+User "1" --> "0..*" Reservation : reservations\nFK: user_id
+Reservation "0..*" --> "1" UserVoucher : appliedUserVoucher\nFK: applied_user_voucher_id
+Reservation "1" --> "0..*" LoyaltyPointTransaction : pointTransactions\nFK: reservation_id
+Voucher "1" --> "0..*" UserVoucher : userVouchers\nFK: voucher_id
+Voucher "0..*" -- "0..*" User : via user_vouchers\nassociation: UserVoucher
+UserVoucher "0..*" --> "1" User : user\nFK: user_id
+UserVoucher "0..*" --> "1" Reservation : usedReservation\nFK: used_reservation_id
+LoyaltyTier "1" --> "0..*" User : users\nFK: current_tier_id
+UserTierHistory "0..*" --> "1" LoyaltyTier : fromTier\nFK: from_tier_id
+UserTierHistory "0..*" --> "1" LoyaltyTier : toTier\nFK: to_tier_id
+UserTierHistory "0..*" --> "1" User : createdByUser\nFK: created_by
+LoyaltyPointTransaction "0..*" --> "1" User : createdByUser\nFK: created_by
+CustomerReservationBenefitsSelfService ..> User : uses
+StaffReservationVoucherService ..> User : uses
+ReservationVoucherPreviewService ..> User : uses
+@enduml

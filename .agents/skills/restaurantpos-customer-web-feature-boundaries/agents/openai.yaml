@@ -1,0 +1,4 @@
+interface:
+  display_name: "Customer Web Feature Boundaries"
+  short_description: "Gate unstable customer-web surfaces behind explicit flags."
+  default_prompt: "Use $restaurantpos-customer-web-feature-boundaries when adding customer-web features whose backend support may be partial or unstable."

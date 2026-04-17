@@ -1,0 +1,122 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam ArrowFontSize 9
+skinparam nodesep 110
+skinparam ranksep 130
+
+top to bottom direction
+hide circle
+title ERD-08 - Kitchen routing và dispatch
+caption Mô tả dữ liệu station, route theo category và ticket KDS nối từ order item runtime.
+skinparam linetype ortho
+skinparam entity {
+  BackgroundColor white
+  BorderColor #374151
+}
+
+entity "kitchen_stations" as kitchen_stations {
+  * station_id
+    code
+    created_at
+    updated_at
+    name
+    description
+    output_mode
+}
+
+entity "kitchen_station_category_routes" as kitchen_station_category_routes {
+  * route_id
+    station_id
+    category_id
+    created_at
+    updated_at
+    sort_order
+    is_active
+}
+
+entity "kitchen_order_item_tickets" as kitchen_order_item_tickets {
+  * ticket_id
+    station_id
+    route_id
+    order_id
+    reservation_id
+    order_item_id
+    item_id
+    category_id
+}
+
+entity "menu_categories" as menu_categories {
+  * category_id
+    name
+    description
+    sort_order
+    is_deleted
+}
+
+entity "menu_items" as menu_items {
+  * item_id
+    category_id
+    code
+    name
+}
+
+entity "reservation_orders" as reservation_orders {
+  * order_id
+    reservation_id
+    created_by
+    status
+}
+
+entity "reservation_order_items" as reservation_order_items {
+  * order_item_id
+    order_id
+    item_id
+    updated_by
+    status
+    unit_price
+    line_total
+}
+
+entity "reservations" as reservations {
+  * reservation_id
+    status
+    deposit_status
+    deposit_paid_amount
+}
+
+menu_categories ||--o| kitchen_station_category_routes : category_id
+kitchen_stations ||--o{ kitchen_station_category_routes : station_id
+menu_items ||--o{ reservation_order_items : item_id
+reservation_orders ||--o{ reservation_order_items : order_id
+menu_categories |o--o{ kitchen_order_item_tickets : category_id
+menu_items ||--o{ kitchen_order_item_tickets : item_id
+reservation_orders ||--o{ kitchen_order_item_tickets : order_id
+reservation_order_items ||--o| kitchen_order_item_tickets : order_item_id
+reservations ||--o{ kitchen_order_item_tickets : reservation_id
+kitchen_station_category_routes |o--o{ kitchen_order_item_tickets : route_id
+kitchen_stations ||--o{ kitchen_order_item_tickets : station_id
+menu_categories |o--o{ menu_items : category_id
+reservations ||--o{ reservation_orders : reservation_id
+
+menu_categories -[hidden]right- menu_items
+menu_items -[hidden]right- kitchen_stations
+kitchen_stations -[hidden]right- kitchen_station_category_routes
+
+reservations -[hidden]right- reservation_orders
+reservation_orders -[hidden]right- reservation_order_items
+
+menu_items -[hidden]down- kitchen_order_item_tickets
+reservation_order_items -[hidden]down- kitchen_order_item_tickets
+
+menu_categories -[hidden]down- menu_items
+kitchen_station_category_routes -[hidden]down- kitchen_order_item_tickets
+reservation_orders -[hidden]down- kitchen_order_item_tickets
+@enduml
+
+
+
+
+

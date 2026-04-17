@@ -1,0 +1,34 @@
+﻿@startuml
+left to right direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultTextAlignment left
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+  FontColor black
+}
+skinparam actor {
+  BorderColor #374151
+  FontColor black
+}
+
+title UC-14 - Khóa bill và hoàn tất checkout
+actor "Nhân viên / Thu ngân" as A1
+rectangle "RestaurantPOS Backend" as SYS {
+  usecase "UC-14\nKhóa bill và hoàn tất checkout" as MAIN
+  usecase "Khóa bill / bill snapshot" as S01
+  usecase "Xem settlement preview" as S02
+  usecase "Ghi nhận payment cho order" as S03
+  usecase "Checkout / finalize settlement" as S04
+  usecase "Đồng bộ reservation / order financial state" as S05
+}
+S01 ..> MAIN : <<extend>>
+MAIN ..> S02 : <<include>>
+S03 ..> MAIN : <<extend>>
+S04 ..> MAIN : <<extend>>
+MAIN ..> S05 : <<include>>
+A1 --> MAIN
+@enduml

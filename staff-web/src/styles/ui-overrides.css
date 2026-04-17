@@ -533,6 +533,14 @@
   min-width: 0;
 }
 
+.staff-shell-header-note {
+  color: var(--staff-text-secondary) !important;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 !important;
+  max-width: 64ch;
+}
+
 .staff-shell-header-description {
   color: var(--staff-text-secondary) !important;
   display: -webkit-box;
@@ -628,6 +636,14 @@
   justify-items: end;
   align-content: start;
   min-width: 260px;
+}
+
+.staff-shell-header-controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--staff-space-2);
+  justify-content: flex-end;
+  width: 100%;
 }
 
 .staff-shell-header-select {
@@ -730,6 +746,18 @@
   border-radius: var(--staff-radius-md);
   margin-bottom: var(--staff-space-5);
   padding: 10px 12px;
+}
+
+.staff-shell-nav-empty {
+  padding: 14px 12px 20px;
+}
+
+.staff-state-surface-compact {
+  padding: 14px;
+}
+
+.staff-state-surface-compact .staff-state-surface-title {
+  font-size: 15px;
 }
 
 .staff-shell-content {
@@ -848,6 +876,94 @@
 
 .staff-shell-nav-drawer .ant-drawer-body {
   padding: 0;
+}
+
+.staff-shell-layout-kitchen .staff-shell-sider,
+.staff-shell-layout-kitchen .staff-shell-nav-drawer .ant-drawer-content,
+.staff-shell-layout-kitchen .staff-shell-nav-drawer .ant-drawer-header {
+  background: linear-gradient(180deg, #20282c 0%, #12191d 100%) !important;
+}
+
+.staff-shell-layout-kitchen .staff-shell-header {
+  background: rgba(241, 239, 232, 0.94) !important;
+  border-bottom-color: rgba(214, 209, 197, 0.92);
+}
+
+.staff-shell-layout-kitchen .staff-shell-header-note-kitchen {
+  color: #5a5f58 !important;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.staff-shell-layout-kitchen .staff-shell-header-context-kitchen .staff-shell-context-card {
+  background: rgba(250, 249, 246, 0.9);
+  border-color: rgba(207, 203, 194, 0.82);
+}
+
+.staff-shell-layout-kitchen .staff-shell-header-controls-kitchen {
+  gap: var(--staff-space-3);
+  justify-items: stretch;
+}
+
+.staff-shell-layout-kitchen .staff-shell-header-controls-kitchen .staff-shell-header-controls-row {
+  align-items: start;
+  display: grid;
+  gap: var(--staff-space-2);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.staff-shell-layout-kitchen .staff-shell-action-row {
+  justify-content: flex-start;
+}
+
+.staff-shell-layout-kitchen .staff-shell-control-button,
+.staff-shell-layout-kitchen .staff-shell-branch-select {
+  background: rgba(252, 251, 248, 0.98);
+  border-color: rgba(211, 206, 196, 0.88);
+}
+
+.staff-shell-layout-kitchen .staff-shell-nav-item-selected {
+  background: linear-gradient(135deg, rgba(194, 221, 201, 0.18), rgba(255, 255, 255, 0.04)) !important;
+  border-color: rgba(122, 172, 136, 0.3) !important;
+}
+
+.staff-shell-layout-admin .staff-shell-sider,
+.staff-shell-layout-admin .staff-shell-nav-drawer .ant-drawer-content,
+.staff-shell-layout-admin .staff-shell-nav-drawer .ant-drawer-header {
+  background: linear-gradient(180deg, #21303a 0%, #151f26 100%) !important;
+}
+
+.staff-shell-layout-admin .staff-shell-header {
+  background: rgba(242, 239, 234, 0.96) !important;
+}
+
+.staff-shell-layout-admin .staff-shell-header-note-admin {
+  max-width: 58ch;
+}
+
+.staff-shell-layout-admin .staff-shell-header-context-admin .staff-shell-context-card {
+  background: rgba(247, 245, 241, 0.92);
+  border-color: rgba(211, 206, 198, 0.84);
+}
+
+.staff-shell-layout-admin .staff-shell-header-controls-admin {
+  gap: var(--staff-space-3);
+  justify-items: stretch;
+}
+
+.staff-shell-layout-admin .staff-shell-header-controls-admin .staff-shell-header-controls-row {
+  align-items: center;
+}
+
+.staff-shell-layout-admin .staff-shell-nav-item-selected {
+  background: linear-gradient(135deg, rgba(171, 197, 217, 0.2), rgba(255, 255, 255, 0.04)) !important;
+  border-color: rgba(120, 156, 187, 0.34) !important;
+}
+
+.staff-shell-layout-ops .staff-shell-header-note {
+  max-width: 60ch;
 }
 
 .staff-dashboard-page {
@@ -1750,6 +1866,10 @@
     min-width: 0;
   }
 
+  .staff-shell-header-controls-row {
+    justify-content: stretch;
+  }
+
   .staff-shell-header-context,
   .staff-dashboard-alert-strip,
   .staff-dashboard-kpi-grid,
@@ -1807,6 +1927,11 @@
 
   .staff-shell-header-description {
     -webkit-line-clamp: 2;
+  }
+
+  .staff-shell-layout-kitchen .staff-shell-action-row,
+  .staff-shell-layout-admin .staff-shell-action-row {
+    justify-content: stretch;
   }
 }
 

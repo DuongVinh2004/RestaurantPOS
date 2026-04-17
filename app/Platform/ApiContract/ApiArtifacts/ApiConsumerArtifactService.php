@@ -976,12 +976,13 @@ class ApiConsumerArtifactService
         $absolutePath = base_path($relativeOutputPath);
 
         File::ensureDirectoryExists(dirname($absolutePath));
-        File::put(
-            $absolutePath,
-            is_array($payload)
-                ? json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
-                : $payload
-        );
+        $contents = is_array($payload)
+            ? json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+            : $payload;
+
+        if (! File::exists($absolutePath) || (string) File::get($absolutePath) !== $contents) {
+            File::put($absolutePath, $contents);
+        }
 
         return $relativeOutputPath;
     }

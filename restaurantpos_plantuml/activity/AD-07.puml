@@ -1,0 +1,35 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam activity {
+  BackgroundColor white
+  BorderColor #374151
+  DiamondBackgroundColor #EEF2FF
+  DiamondBorderColor #4B5563
+}
+title AD-07 - Khách xem danh sách / chi tiết reservation
+start
+partition "Khách hàng" {
+  :Mở self-service reservation list hoặc detail;
+}
+partition "CustomerReservationSelfServiceController" {
+  :Nhận list/show reservation;
+}
+partition "Owner scope guard + Reservations" {
+  :Resolve owner scope từ customer token/session;
+  :Đọc danh sách hoặc chi tiết reservation thuộc owner;
+}
+if (Reservation thuộc owner scope?) then (yes)
+partition "Owner scope guard + Reservations" {
+  :Trả dữ liệu reservation;
+}
+  stop
+else (no)
+partition "CustomerReservationSelfServiceController" {
+  :Trả access denied / not found;
+}
+  stop
+endif
+@enduml

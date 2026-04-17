@@ -126,6 +126,79 @@ final class ApiOpenApiContractCoverageTest extends TestCase
         );
     }
 
+    public function test_customer_web_minimum_surface_is_full_contract_and_curated_for_sdk(): void
+    {
+        $operations = $this->specOperations(app(OpenApiSpecService::class)->build());
+        $curatedSignatures = $this->curatedApiConsumerSignatures();
+
+        $minimumSurface = [
+            'POST api/v1/auth/customer/login',
+            'GET api/v1/auth/customer/me',
+            'POST api/v1/auth/customer/refresh',
+            'POST api/v1/auth/customer/logout',
+            'GET api/v1/menu/categories',
+            'GET api/v1/menu/items',
+            'GET api/v1/menu/items/{id}',
+            'POST api/v1/menu/preorder/preview',
+            'GET api/v1/tables/available',
+            'POST api/v1/table-holds',
+            'GET api/v1/table-holds/{hold_id}',
+            'PATCH api/v1/table-holds/{hold_id}/refresh',
+            'DELETE api/v1/table-holds/{hold_id}',
+            'POST api/v1/reservations',
+            'GET api/v1/reservations',
+            'GET api/v1/reservations/{id}',
+            'POST api/v1/reservations/{id}/cancel',
+            'POST api/v1/reservations/{id}/reschedule',
+            'GET api/v1/reservations/{id}/preorder',
+            'POST api/v1/reservations/{id}/preorder/preview',
+            'PUT api/v1/reservations/{id}/preorder',
+            'DELETE api/v1/reservations/{id}/preorder',
+            'GET api/v1/reservations/{id}/deposit-preview',
+            'POST api/v1/reservations/{id}/deposit/acknowledge',
+            'POST api/v1/reservations/{id}/deposit/intent',
+            'POST api/v1/reservations/{id}/deposit/intent/revoke',
+            'POST api/v1/reservations/{reservation_id}/deposit/payment-sessions',
+            'GET api/v1/reservations/{reservation_id}/deposit/payment-sessions/{session_id}',
+            'POST api/v1/reservations/{reservation_id}/deposit/payment-sessions/{session_id}/refresh',
+            'POST api/v1/reservations/{reservation_id}/deposit/payment-sessions/{session_id}/confirm',
+            'GET api/v1/reservations/{id}/benefits-preview',
+            'POST api/v1/reservations/{id}/voucher/apply',
+            'POST api/v1/reservations/{id}/voucher/remove',
+            'POST api/v1/reservations/{id}/loyalty/redeem',
+            'POST api/v1/reservations/{id}/loyalty/redeem/release',
+            'GET api/v1/reservations/{reservation_id}/bill',
+            'GET api/v1/reservations/{reservation_id}/active-order',
+            'GET api/v1/reservations/{reservation_id}/bill-preview',
+            'POST api/v1/reservations/{reservation_id}/bill/payment-sessions',
+            'GET api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}',
+            'POST api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/refresh',
+            'POST api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/confirm',
+            'GET api/v1/waiting-list',
+            'POST api/v1/waiting-list',
+            'GET api/v1/waiting-list/{id}',
+            'POST api/v1/waiting-list/{id}/accept',
+            'POST api/v1/waiting-list/{id}/confirm-arrival',
+            'POST api/v1/waiting-list/{id}/decline',
+            'POST api/v1/waiting-list/{id}/cancel',
+            'GET api/v1/me/loyalty',
+            'GET api/v1/me/vouchers',
+            'GET api/v1/me/data-export',
+            'GET api/v1/me/privacy-requests',
+            'POST api/v1/me/privacy-requests',
+        ];
+
+        foreach ($minimumSurface as $signature) {
+            $this->assertArrayHasKey($signature, $operations, sprintf('Customer-web route [%s] is missing from OpenAPI.', $signature));
+            $this->assertSame('full', $operations[$signature]['x-contract-grade'] ?? null, sprintf('Customer-web route [%s] is fallback-only.', $signature));
+            $this->assertContains($signature, $curatedSignatures, sprintf('Customer-web route [%s] is missing from curated SDK/Postman scope.', $signature));
+
+            $schemaRef = $this->firstSuccessSchemaRef($operations[$signature]);
+            $this->assertNotNull($schemaRef, sprintf('Customer-web route [%s] must expose a typed success envelope.', $signature));
+            $this->assertNotSame('#/components/schemas/GenericDataEnvelope', $schemaRef, sprintf('Customer-web route [%s] must not use the generic fallback envelope.', $signature));
+        }
+    }
+
     public function test_staff_batch_one_routes_are_full_contract_and_typed(): void
     {
         $spec = app(OpenApiSpecService::class)->build();
@@ -225,6 +298,26 @@ final class ApiOpenApiContractCoverageTest extends TestCase
         $this->assertSame(
             '#/components/schemas/StaffStartupContext',
             data_get($spec, 'components.schemas.StaffAuthSessionEnvelope.properties.data.properties.startup.$ref')
+        );
+        $this->assertSame(
+            ['ops', 'kitchen', 'admin'],
+            data_get($spec, 'components.schemas.StaffStartupContext.properties.primary_workspace.enum')
+        );
+        $this->assertSame(
+            ['ops', 'kitchen', 'admin'],
+            data_get($spec, 'components.schemas.StaffStartupContext.properties.available_workspaces.items.enum')
+        );
+        $this->assertSame(
+            'integer',
+            data_get($spec, 'components.schemas.StaffStartupContext.properties.default_branch_id.type')
+        );
+        $this->assertSame(
+            'array',
+            data_get($spec, 'components.schemas.StaffStartupContext.properties.allowed_branch_ids.type')
+        );
+        $this->assertSame(
+            'array',
+            data_get($spec, 'components.schemas.StaffStartupContext.properties.assigned_station_ids.type')
         );
         $this->assertSame(
             '#/components/schemas/StaffStartupBranch',
@@ -495,6 +588,37 @@ final class ApiOpenApiContractCoverageTest extends TestCase
         ksort($operations);
 
         return $operations;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function curatedApiConsumerSignatures(): array
+    {
+        $signatures = [];
+
+        foreach ((array) config('api_artifacts.postman.groups', []) as $group) {
+            foreach ((array) ($group['signatures'] ?? []) as $signature) {
+                $signatures[] = (string) $signature;
+            }
+        }
+
+        return array_values(array_unique($signatures));
+    }
+
+    /**
+     * @param  array<string,mixed>  $operation
+     */
+    private function firstSuccessSchemaRef(array $operation): ?string
+    {
+        foreach (['200', '201', '202', '204'] as $status) {
+            $ref = data_get($operation, 'responses.'.$status.'.content.application/json.schema.$ref');
+            if (is_string($ref) && trim($ref) !== '') {
+                return $ref;
+            }
+        }
+
+        return null;
     }
 
     /**

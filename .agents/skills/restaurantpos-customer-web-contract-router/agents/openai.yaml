@@ -1,0 +1,4 @@
+interface:
+  display_name: "Customer Web Contract Router"
+  short_description: "Classify customer-web API surfaces before integration."
+  default_prompt: "Use $restaurantpos-customer-web-contract-router before wiring customer-web routes to Laravel API contracts."

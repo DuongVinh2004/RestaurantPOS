@@ -1,0 +1,38 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam activity {
+  BackgroundColor white
+  BorderColor #374151
+  DiamondBackgroundColor #EEF2FF
+  DiamondBorderColor #4B5563
+}
+title AD-01 - Đăng nhập khách hàng
+start
+partition "Khách hàng" {
+  :Nhập identifier + password;
+}
+partition "CustomerAuthController" {
+  :Nhận yêu cầu login customer;
+  :Áp throttle login customer;
+  :Gọi login service;
+}
+partition "Customer auth services" {
+  :Kiểm tra credential + role customer;
+  :Tạo / lưu customer access session;
+  :Trả token + session payload;
+}
+if (Credential hợp lệ và đúng role?) then (yes)
+partition "Customer auth services" {
+  :Trả X-Customer-Token + session payload;
+}
+  stop
+else (no)
+partition "CustomerAuthController" {
+  :Trả unauthorized / forbidden;
+}
+  stop
+endif
+@enduml

@@ -1,0 +1,121 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+
+hide empty methods
+skinparam classAttributeIconSize 0
+left to right direction
+title CD-02 - Branch, Table Topology và Scheduling
+caption Tập trung vào cấu trúc chi nhánh, bàn, template bàn, table hold và các association class giữ quan hệ\nvới bàn.
+skinparam class {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+  HeaderBackgroundColor #E5EEF9
+}
+
+class "Branch" as Branch <<entity>> {
+  {static} table = branches
+  --
+  branch_id
+  row_version
+  branch_code
+  business_hours
+  closure_windows
+  booking_policy
+  currency
+}
+
+class "RestaurantTable" as RestaurantTable <<entity>> {
+  {static} table = restaurant_tables
+  --
+  table_id
+  branch_id
+  template_id
+  row_version
+  status
+  price
+  table_code
+}
+
+class "TableTemplate" as TableTemplate <<entity>> {
+  {static} table = table_templates
+  --
+  template_id
+  template_code
+  seats
+  description
+}
+
+class "TableHold" as TableHold <<entity>> {
+  {static} table = table_holds
+  --
+  hold_id
+  user_id
+  confirmed_reservation_id
+  session_id
+  row_version
+  hold_status
+  branch_id
+}
+
+class "TableHoldDetail" as TableHoldDetail <<pivot>> {
+  {static} table = table_hold_details
+  --
+  hold_detail_id
+  hold_id
+  table_id
+}
+
+class "Reservation" as Reservation <<entity>> {
+  {static} table = reservations
+  --
+  reservation_id
+  user_id
+  applied_user_voucher_id
+  row_version
+  status
+  deposit_status
+  deposit_intent_status
+}
+
+class "ReservationTable" as ReservationTable <<pivot>> {
+  {static} table = reservation_tables
+  --
+  reservation_table_id
+  reservation_id
+  table_id
+}
+
+class "BranchSchedulingPolicyService" as BranchSchedulingPolicyService <<control>> {
+  orchestrates flow
+}
+
+class "TableAvailabilityService" as TableAvailabilityService <<control>> {
+  orchestrates flow
+}
+
+class "TableHoldService" as TableHoldService <<control>> {
+  orchestrates flow
+}
+
+class "ReservationTableAssignmentService" as ReservationTableAssignmentService <<control>> {
+  orchestrates flow
+}
+
+RestaurantTable "0..*" --> "1" Branch : branch\nFK: branch_id
+RestaurantTable "1" --> "0..*" TableHoldDetail : holdDetails\nFK: table_id
+RestaurantTable "0..*" -- "0..*" TableHold : via table_hold_details
+TableTemplate "1" --> "0..*" RestaurantTable : tables\nFK: template_id
+TableHold "0..*" --> "1" Reservation : confirmedReservation\nFK: confirmed_reservation_id
+TableHold "1" --> "0..*" TableHoldDetail : details\nFK: hold_id
+Reservation "0..*" -- "0..*" RestaurantTable : via reservation_tables\nassociation: ReservationTable
+ReservationTable "0..*" --> "1" Reservation : reservation\nFK: reservation_id
+ReservationTable "0..*" --> "1" RestaurantTable : table\nFK: table_id
+BranchSchedulingPolicyService ..> Branch : uses
+TableAvailabilityService ..> Branch : uses
+TableHoldService ..> Branch : uses
+ReservationTableAssignmentService ..> Branch : uses
+@enduml

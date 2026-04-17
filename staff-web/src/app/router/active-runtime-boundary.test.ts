@@ -4,18 +4,27 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const runtimeRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const activeRoots = ['app', 'components', 'core', 'features', 'hooks', 'lib'];
+const activeRoots = ['app', 'domains', 'shared', 'workspaces'];
 const sourceFilePattern = /\.(ts|tsx)$/;
-const legacyImportPattern = /\bfrom\s*['"][^'"]*_legacy\/[^'"]*['"]|import\(\s*['"][^'"]*_legacy\/[^'"]*['"]\s*\)/;
+const deprecatedImportPattern = /\bfrom\s*['"](?:\.\.\/){2,}(?:_legacy|components|core|features|hooks|lib)\/[^'"]*['"]|import\(\s*['"](?:\.\.\/){2,}(?:_legacy|components|core|features|hooks|lib)\/[^'"]*['"]\s*\)/;
 
 describe('active runtime boundary', () => {
-  it('keeps mounted source files free of imports from src/_legacy', () => {
+  it('keeps mounted source files free of imports from deprecated pre-workspace roots', () => {
     const offenders = activeRoots
       .flatMap((root) => collectSourceFiles(path.join(runtimeRoot, root)))
-      .filter((filePath) => legacyImportPattern.test(fs.readFileSync(filePath, 'utf8')))
+      .filter((filePath) => deprecatedImportPattern.test(fs.readFileSync(filePath, 'utf8')))
       .map((filePath) => path.relative(runtimeRoot, filePath));
 
     expect(offenders).toEqual([]);
+  });
+
+  it('keeps the top-level source tree aligned with the workspace architecture', () => {
+    const directories = fs.readdirSync(runtimeRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+
+    expect(directories).toEqual(['app', 'domains', 'shared', 'styles', 'test', 'workspaces']);
   });
 });
 
@@ -28,7 +37,7 @@ function collectSourceFiles(root: string): Array<string> {
     const entryPath = path.join(root, entry.name);
 
     if (entry.isDirectory()) {
-      if (entry.name === '_legacy' || entry.name === 'test') {
+      if (entry.name === 'test') {
         return [];
       }
 

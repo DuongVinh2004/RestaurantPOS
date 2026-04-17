@@ -262,7 +262,7 @@
             "name": "Availability + Reservation",
             "item": [
                 {
-                    "name": "GET Tables Available",
+                    "name": "List available tables",
                     "request": {
                         "method": "GET",
                         "header": [
@@ -270,25 +270,15 @@
                                 "key": "Accept",
                                 "value": "application/json",
                                 "type": "text"
-                            },
-                            {
-                                "key": "X-Customer-Token",
-                                "value": "{{customerToken}}",
-                                "type": "text"
-                            },
-                            {
-                                "key": "X-Session-Id",
-                                "value": "{{customerSessionId}}",
-                                "type": "text"
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/tables/available?from={{availabilityFromUtc}}&to={{availabilityToUtc}}&branch_id={{branchId}}&zone={{zone}}&template_id={{templateId}}&min_seats={{minSeats}}&guest_count={{guestCount}}&session_id={{customerSessionId}}&suggest={{suggestAvailability}}&max_suggestions={{maxSuggestions}}",
-                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `GET api/v1/tables/available`\nAuth mode: `customer_access_token`\nContract grade: `fallback`"
+                        "description": "Return customer-visible table availability for a requested time window, branch, guest count, and optional suggestion filters.\n\nSignature: `GET api/v1/tables/available`\nAuth mode: `public`\nContract grade: `full`"
                     },
                     "response": []
                 },
                 {
-                    "name": "POST Table Holds",
+                    "name": "Create table hold",
                     "request": {
                         "method": "POST",
                         "header": [
@@ -303,26 +293,16 @@
                                 "type": "text"
                             },
                             {
-                                "key": "X-Customer-Token",
-                                "value": "{{customerToken}}",
-                                "type": "text"
-                            },
-                            {
-                                "key": "X-Session-Id",
-                                "value": "{{customerSessionId}}",
-                                "type": "text"
-                            },
-                            {
                                 "key": "Idempotency-Key",
                                 "value": "restaurantpos-{{$guid}}",
                                 "type": "text"
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/table-holds",
-                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `POST api/v1/table-holds`\nAuth mode: `customer_access_token`\nContract grade: `fallback`",
+                        "description": "Create an idempotent session-bound hold for one or more tables before reservation creation.\n\nSignature: `POST api/v1/table-holds`\nAuth mode: `customer_session`\nContract grade: `full`",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"session_id\": \"{{customerSessionId}}\",\n    \"user_id\": 101,\n    \"branch_id\": \"{{branchId}}\",\n    \"start_time\": \"{{availabilityFromUtc}}\",\n    \"end_time\": \"{{availabilityToUtc}}\",\n    \"table_ids\": [\n        \"{{preferredTableId}}\"\n    ],\n    \"hold_minutes\": 5\n}",
+                            "raw": "{\n    \"session_id\": \"{{customerSessionId}}\",\n    \"start_time\": \"{{availabilityFromUtc}}\",\n    \"end_time\": \"{{availabilityToUtc}}\",\n    \"table_ids\": [\n        \"{{preferredTableId}}\"\n    ],\n    \"guest_count\": 2,\n    \"branch_id\": \"{{branchId}}\",\n    \"hold_minutes\": 5\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -347,7 +327,7 @@
                                     "  return;",
                                     "}",
                                     "const readPath = (source, path) => path.split(\".\").reduce((carry, segment) => carry == null ? undefined : carry[segment], source);",
-                                    "const captures = {\"holdId\":\"data.hold_id\"};",
+                                    "const captures = {\"holdId\":\"data.hold_id\",\"tableHoldRowVersion\":\"data.row_version\"};",
                                     "Object.entries(captures).forEach(([key, path]) => {",
                                     "  const value = readPath(json, path);",
                                     "  if (value !== undefined && value !== null) {",
@@ -360,7 +340,7 @@
                     ]
                 },
                 {
-                    "name": "GET Table Holds Hold Id",
+                    "name": "Show table hold",
                     "request": {
                         "method": "GET",
                         "header": [
@@ -373,15 +353,26 @@
                                 "key": "X-Customer-Token",
                                 "value": "{{customerToken}}",
                                 "type": "text"
+                            },
+                            {
+                                "key": "X-Session-Id",
+                                "value": "{{customerSessionId}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text",
+                                "disabled": true
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/table-holds/{{holdId}}",
-                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `GET api/v1/table-holds/{hold_id}`\nAuth mode: `customer_access_token`\nContract grade: `fallback`"
+                        "description": "Return a session-bound table hold by hold id. The caller must provide the matching session id unless using staff access.\n\nSignature: `GET api/v1/table-holds/{hold_id}`\nAuth mode: `customer_or_staff`\nContract grade: `full`"
                     },
                     "response": []
                 },
                 {
-                    "name": "PATCH Hold Id Refresh",
+                    "name": "Refresh table hold",
                     "request": {
                         "method": "PATCH",
                         "header": [
@@ -406,16 +397,22 @@
                                 "type": "text"
                             },
                             {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text",
+                                "disabled": true
+                            },
+                            {
                                 "key": "Idempotency-Key",
                                 "value": "restaurantpos-{{$guid}}",
                                 "type": "text"
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/table-holds/{{holdId}}/refresh",
-                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `PATCH api/v1/table-holds/{hold_id}/refresh`\nAuth mode: `customer_access_token`\nContract grade: `fallback`",
+                        "description": "Refresh an active table hold for the matching session id using row-version stale-write protection when supplied.\n\nSignature: `PATCH api/v1/table-holds/{hold_id}/refresh`\nAuth mode: `customer_or_staff`\nContract grade: `full`",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"session_id\": \"sess-demo-001\",\n    \"extend_minutes\": 1,\n    \"row_version\": 1\n}",
+                            "raw": "{\n    \"session_id\": \"{{customerSessionId}}\",\n    \"extend_minutes\": 5,\n    \"row_version\": \"{{tableHoldRowVersion}}\"\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -423,10 +420,37 @@
                             }
                         }
                     },
-                    "response": []
+                    "response": [],
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "let json = null;",
+                                    "try {",
+                                    "  json = pm.response.json();",
+                                    "} catch (error) {",
+                                    "  console.warn(\"Response is not JSON; skipping capture.\", error);",
+                                    "}",
+                                    "if (!json) {",
+                                    "  return;",
+                                    "}",
+                                    "const readPath = (source, path) => path.split(\".\").reduce((carry, segment) => carry == null ? undefined : carry[segment], source);",
+                                    "const captures = {\"tableHoldRowVersion\":\"data.row_version\"};",
+                                    "Object.entries(captures).forEach(([key, path]) => {",
+                                    "  const value = readPath(json, path);",
+                                    "  if (value !== undefined && value !== null) {",
+                                    "    pm.environment.set(key, String(value));",
+                                    "  }",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ]
                 },
                 {
-                    "name": "DELETE Table Holds Hold Id",
+                    "name": "Cancel table hold",
                     "request": {
                         "method": "DELETE",
                         "header": [
@@ -446,13 +470,35 @@
                                 "type": "text"
                             },
                             {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text",
+                                "disabled": true
+                            },
+                            {
                                 "key": "Idempotency-Key",
                                 "value": "restaurantpos-{{$guid}}",
                                 "type": "text"
                             }
                         ],
-                        "url": "{{baseUrl}}/api/v1/table-holds/{{holdId}}?session_id={{sessionId}}&row_version={{rowVersion}}",
-                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `DELETE api/v1/table-holds/{hold_id}`\nAuth mode: `customer_access_token`\nContract grade: `fallback`"
+                        "url": "{{baseUrl}}/api/v1/table-holds/{{holdId}}?session_id={{customerSessionId}}&row_version={{tableHoldRowVersion}}",
+                        "description": "Cancel a table hold for the matching session id using row-version stale-write protection when supplied.\n\nSignature: `DELETE api/v1/table-holds/{hold_id}`\nAuth mode: `customer_or_staff`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List visible customer menu categories",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/menu/categories?service_time={{availabilityFromUtc}}&preorder_only={{menuPreorderOnly}}",
+                        "description": "Return customer-facing menu categories and their visible items for the selected service time and preorder filter.\n\nSignature: `GET api/v1/menu/categories`\nAuth mode: `public`\nContract grade: `full`"
                     },
                     "response": []
                 },
@@ -469,6 +515,52 @@
                         ],
                         "url": "{{baseUrl}}/api/v1/menu/items?service_time={{availabilityFromUtc}}&category_id={{menuCategoryId}}&preorder_only={{preorderOnly}}&q={{q}}&page={{page}}&per_page={{perPage}}",
                         "description": "Return the customer-facing menu catalog slice that is valid for the selected service time, category filter, and preorder visibility filter.\n\nSignature: `GET api/v1/menu/items`\nAuth mode: `public`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show visible customer menu item",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/menu/items/{{menuItemId}}?service_time={{availabilityFromUtc}}",
+                        "description": "Return one customer-facing menu item including effective price and preorder policy for the selected service time.\n\nSignature: `GET api/v1/menu/items/{id}`\nAuth mode: `public`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Preview menu preorder",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/menu/preorder/preview",
+                        "description": "Validate customer pre-order item quantities and service-time constraints before reservation creation.\n\nSignature: `POST api/v1/menu/preorder/preview`\nAuth mode: `public`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"start_time\": \"{{availabilityFromUtc}}\",\n    \"pre_order_items\": [\n        {\n            \"item_id\": \"{{menuItemIdPrimary}}\",\n            \"quantity\": 1\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
                     },
                     "response": []
                 },
@@ -551,6 +643,38 @@
                     ]
                 },
                 {
+                    "name": "List accessible reservations",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Customer-Token",
+                                "value": "{{customerToken}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Session-Id",
+                                "value": "{{customerSessionId}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text",
+                                "disabled": true
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/reservations?bucket={{bucket}}&status={{reservationStatus}}&from={{from}}&to={{to}}&per_page={{perPage}}&page={{page}}&session_id={{sessionId}}",
+                        "description": "Return customer-owned or session-owned reservations visible to customer self-service. Staff actors must use staff reservation endpoints instead.\n\nSignature: `GET api/v1/reservations`\nAuth mode: `customer_or_staff`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
                     "name": "Show reservation",
                     "request": {
                         "method": "GET",
@@ -579,6 +703,108 @@
                         ],
                         "url": "{{baseUrl}}/api/v1/reservations/{{reservationId}}",
                         "description": "Return the reservation contract view for staff, customer owner, or session-scoped self-service access.\n\nSignature: `GET api/v1/reservations/{id}`\nAuth mode: `customer_or_staff`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Cancel accessible reservation",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Customer-Token",
+                                "value": "{{customerToken}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Session-Id",
+                                "value": "{{customerSessionId}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text",
+                                "disabled": true
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/reservations/{{reservationId}}/cancel",
+                        "description": "Cancel a customer-owned or session-owned reservation using row_version concurrency protection.\n\nSignature: `POST api/v1/reservations/{id}/cancel`\nAuth mode: `customer_or_staff`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": \"{{reservationRowVersion}}\",\n    \"cancel_reason\": \"Postman customer cancel\",\n    \"session_id\": \"sess-demo-001\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Reschedule accessible reservation",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Customer-Token",
+                                "value": "{{customerToken}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Session-Id",
+                                "value": "{{customerSessionId}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text",
+                                "disabled": true
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/reservations/{{reservationId}}/reschedule",
+                        "description": "Reschedule a customer-owned or session-owned reservation. At least one reschedulable field must change.\n\nSignature: `POST api/v1/reservations/{id}/reschedule`\nAuth mode: `customer_or_staff`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": \"{{reservationRowVersion}}\",\n    \"start_time\": \"{{availabilityFromUtc}}\",\n    \"end_time\": \"{{availabilityToUtc}}\",\n    \"guest_count\": 5,\n    \"reason\": \"Arriving later\",\n    \"session_id\": \"sess-demo-001\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
                     },
                     "response": []
                 },
@@ -634,6 +860,46 @@
                             }
                         }
                     ]
+                },
+                {
+                    "name": "Preview customer reservation pre-order",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Customer-Token",
+                                "value": "{{customerToken}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Session-Id",
+                                "value": "{{customerSessionId}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/reservations/{{reservationIdPreorder}}/preorder/preview",
+                        "description": "Validate proposed customer-managed pre-order lines against reservation service time and item preorder policy without persisting changes.\n\nSignature: `POST api/v1/reservations/{id}/preorder/preview`\nAuth mode: `customer_or_session`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"pre_order_items\": [\n        {\n            \"item_id\": \"{{menuItemIdPrimary}}\",\n            \"quantity\": 1\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
                 },
                 {
                     "name": "Replace customer reservation pre-order",
@@ -1498,6 +1764,245 @@
                     "response": []
                 },
                 {
+                    "name": "Create bill payment session",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Customer-Token",
+                                "value": "{{customerToken}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Session-Id",
+                                "value": "{{customerSessionId}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text",
+                                "disabled": true
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/reservations/{{reservationIdDineIn}}/bill/payment-sessions",
+                        "description": "Create a customer-facing bill payment session for final settlement.\n\nSignature: `POST api/v1/reservations/{reservation_id}/bill/payment-sessions`\nAuth mode: `customer_or_staff`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": \"{{reservationRowVersionDineIn}}\",\n    \"amount\": \"{{paymentAmount}}\",\n    \"payment_method\": \"Online\",\n    \"provider_code\": \"{{providerCode}}\",\n    \"currency\": \"{{currency}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": [],
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "let json = null;",
+                                    "try {",
+                                    "  json = pm.response.json();",
+                                    "} catch (error) {",
+                                    "  console.warn(\"Response is not JSON; skipping capture.\", error);",
+                                    "}",
+                                    "if (!json) {",
+                                    "  return;",
+                                    "}",
+                                    "const readPath = (source, path) => path.split(\".\").reduce((carry, segment) => carry == null ? undefined : carry[segment], source);",
+                                    "const captures = {\"billPaymentSessionId\":\"data.payment_session.bill_payment_session_id\",\"billPaymentSessionRowVersion\":\"data.payment_session.row_version\"};",
+                                    "Object.entries(captures).forEach(([key, path]) => {",
+                                    "  const value = readPath(json, path);",
+                                    "  if (value !== undefined && value !== null) {",
+                                    "    pm.environment.set(key, String(value));",
+                                    "  }",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Show bill payment session",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Customer-Token",
+                                "value": "{{customerToken}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Session-Id",
+                                "value": "{{customerSessionId}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text",
+                                "disabled": true
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/reservations/{{reservationIdDineIn}}/bill/payment-sessions/{{billPaymentSessionId}}",
+                        "description": "Return a previously created bill payment session and current bill snapshot.\n\nSignature: `GET api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}`\nAuth mode: `customer_or_staff`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Refresh bill payment session",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Customer-Token",
+                                "value": "{{customerToken}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Session-Id",
+                                "value": "{{customerSessionId}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text",
+                                "disabled": true
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/reservations/{{reservationIdDineIn}}/bill/payment-sessions/{{billPaymentSessionId}}/refresh",
+                        "description": "Refresh a customer bill payment session using provider polling or simulated outcomes.\n\nSignature: `POST api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/refresh`\nAuth mode: `customer_or_staff`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": \"{{billPaymentSessionRowVersion}}\",\n    \"simulation_outcome\": \"succeeded\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": [],
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "let json = null;",
+                                    "try {",
+                                    "  json = pm.response.json();",
+                                    "} catch (error) {",
+                                    "  console.warn(\"Response is not JSON; skipping capture.\", error);",
+                                    "}",
+                                    "if (!json) {",
+                                    "  return;",
+                                    "}",
+                                    "const readPath = (source, path) => path.split(\".\").reduce((carry, segment) => carry == null ? undefined : carry[segment], source);",
+                                    "const captures = {\"billPaymentSessionRowVersion\":\"data.payment_session.row_version\"};",
+                                    "Object.entries(captures).forEach(([key, path]) => {",
+                                    "  const value = readPath(json, path);",
+                                    "  if (value !== undefined && value !== null) {",
+                                    "    pm.environment.set(key, String(value));",
+                                    "  }",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Confirm bill payment session",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Customer-Token",
+                                "value": "{{customerToken}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Session-Id",
+                                "value": "{{customerSessionId}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text",
+                                "disabled": true
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/reservations/{{reservationIdDineIn}}/bill/payment-sessions/{{billPaymentSessionId}}/confirm",
+                        "description": "Confirm or reconcile a customer bill payment session after provider completion.\n\nSignature: `POST api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/confirm`\nAuth mode: `customer_or_staff`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": \"{{billPaymentSessionRowVersion}}\",\n    \"simulation_outcome\": \"succeeded\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
                     "name": "Show staff order detail",
                     "request": {
                         "method": "GET",
@@ -2294,6 +2799,27 @@
             "name": "Waiting List",
             "item": [
                 {
+                    "name": "List customer waiting-list entries",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Customer-Token",
+                                "value": "{{customerToken}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/waiting-list?status={{status}}&active_only={{activeOnly}}",
+                        "description": "Return the authenticated customer owner waiting-list entries.\n\nSignature: `GET api/v1/waiting-list`\nAuth mode: `customer_access_token`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
                     "name": "Create customer waiting-list entry",
                     "request": {
                         "method": "POST",
@@ -2544,6 +3070,86 @@
                     "response": []
                 },
                 {
+                    "name": "Decline notified waiting-list entry",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Customer-Token",
+                                "value": "{{customerToken}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/waiting-list/{{waitingListId}}/decline",
+                        "description": "Decline a notified waiting-list invitation and release the associated notify hold.\n\nSignature: `POST api/v1/waiting-list/{id}/decline`\nAuth mode: `customer_access_token`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": 3\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Cancel customer waiting-list entry",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Customer-Token",
+                                "value": "{{customerToken}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/waiting-list/{{waitingListId}}/cancel",
+                        "description": "Cancel an owner-scoped waiting-list entry and optionally record a customer cancel reason.\n\nSignature: `POST api/v1/waiting-list/{id}/cancel`\nAuth mode: `customer_access_token`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": 2,\n    \"cancel_reason\": \"Plans changed\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
                     "name": "Seat waiting list party",
                     "request": {
                         "method": "POST",
@@ -2610,6 +3216,27 @@
                     "response": []
                 },
                 {
+                    "name": "List customer vouchers",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Customer-Token",
+                                "value": "{{customerToken}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/me/vouchers?bucket={{bucket}}&q={{q}}&per_page={{perPage}}&page={{page}}",
+                        "description": "Return the authenticated customer owner voucher wallet with applicability filters for customer-web.\n\nSignature: `GET api/v1/me/vouchers`\nAuth mode: `customer_access_token`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
                     "name": "Preview reservation loyalty and voucher benefits",
                     "request": {
                         "method": "GET",
@@ -2631,7 +3258,7 @@
                     "response": []
                 },
                 {
-                    "name": "POST Voucher Apply",
+                    "name": "Apply reservation voucher",
                     "request": {
                         "method": "POST",
                         "header": [
@@ -2651,27 +3278,16 @@
                                 "type": "text"
                             },
                             {
-                                "key": "X-Session-Id",
-                                "value": "{{customerSessionId}}",
-                                "type": "text"
-                            },
-                            {
-                                "key": "X-Staff-Key",
-                                "value": "{{staffApiKey}}",
-                                "type": "text",
-                                "disabled": true
-                            },
-                            {
                                 "key": "Idempotency-Key",
                                 "value": "restaurantpos-{{$guid}}",
                                 "type": "text"
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/reservations/{{reservationIdBenefits}}/voucher/apply",
-                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `POST api/v1/reservations/{id}/voucher/apply`\nAuth mode: `customer_or_staff`\nContract grade: `fallback`",
+                        "description": "Apply an owned voucher to a customer-owned reservation with row-version protection.\n\nSignature: `POST api/v1/reservations/{id}/voucher/apply`\nAuth mode: `customer_access_token`\nContract grade: `full`",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"user_voucher_id\": \"{{userVoucherId}}\",\n    \"voucher_code\": \"example\",\n    \"row_version\": \"{{reservationRowVersionBenefits}}\"\n}",
+                            "raw": "{\n    \"user_voucher_id\": \"{{userVoucherId}}\",\n    \"row_version\": \"{{reservationRowVersionBenefits}}\"\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -2682,7 +3298,7 @@
                     "response": []
                 },
                 {
-                    "name": "POST Voucher Remove",
+                    "name": "Remove reservation voucher",
                     "request": {
                         "method": "POST",
                         "header": [
@@ -2702,24 +3318,13 @@
                                 "type": "text"
                             },
                             {
-                                "key": "X-Session-Id",
-                                "value": "{{customerSessionId}}",
-                                "type": "text"
-                            },
-                            {
-                                "key": "X-Staff-Key",
-                                "value": "{{staffApiKey}}",
-                                "type": "text",
-                                "disabled": true
-                            },
-                            {
                                 "key": "Idempotency-Key",
                                 "value": "restaurantpos-{{$guid}}",
                                 "type": "text"
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/reservations/{{reservationIdBenefits}}/voucher/remove",
-                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `POST api/v1/reservations/{id}/voucher/remove`\nAuth mode: `customer_or_staff`\nContract grade: `fallback`",
+                        "description": "Remove the currently applied voucher from a customer-owned reservation with row-version protection.\n\nSignature: `POST api/v1/reservations/{id}/voucher/remove`\nAuth mode: `customer_access_token`\nContract grade: `full`",
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"row_version\": \"{{reservationRowVersionBenefits}}\"\n}",
@@ -2733,7 +3338,7 @@
                     "response": []
                 },
                 {
-                    "name": "POST Loyalty Redeem",
+                    "name": "Redeem reservation loyalty points",
                     "request": {
                         "method": "POST",
                         "header": [
@@ -2753,24 +3358,13 @@
                                 "type": "text"
                             },
                             {
-                                "key": "X-Session-Id",
-                                "value": "{{customerSessionId}}",
-                                "type": "text"
-                            },
-                            {
-                                "key": "X-Staff-Key",
-                                "value": "{{staffApiKey}}",
-                                "type": "text",
-                                "disabled": true
-                            },
-                            {
                                 "key": "Idempotency-Key",
                                 "value": "restaurantpos-{{$guid}}",
                                 "type": "text"
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/reservations/{{reservationIdBenefits}}/loyalty/redeem",
-                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `POST api/v1/reservations/{id}/loyalty/redeem`\nAuth mode: `customer_or_staff`\nContract grade: `fallback`",
+                        "description": "Redeem customer loyalty points against a customer-owned reservation with row-version protection.\n\nSignature: `POST api/v1/reservations/{id}/loyalty/redeem`\nAuth mode: `customer_access_token`\nContract grade: `full`",
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"points\": \"{{loyaltyPoints}}\",\n    \"reason\": \"Postman loyalty redeem\",\n    \"row_version\": \"{{reservationRowVersionBenefits}}\"\n}",
@@ -2784,7 +3378,7 @@
                     "response": []
                 },
                 {
-                    "name": "POST Redeem Release",
+                    "name": "Release reservation loyalty redemption",
                     "request": {
                         "method": "POST",
                         "header": [
@@ -2804,15 +3398,91 @@
                                 "type": "text"
                             },
                             {
-                                "key": "X-Session-Id",
-                                "value": "{{customerSessionId}}",
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/reservations/{{reservationIdBenefits}}/loyalty/redeem/release",
+                        "description": "Release a customer loyalty redemption from a customer-owned reservation with row-version protection.\n\nSignature: `POST api/v1/reservations/{id}/loyalty/redeem/release`\nAuth mode: `customer_access_token`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"reason\": \"Postman loyalty release\",\n    \"row_version\": \"{{reservationRowVersionBenefits}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Customer Privacy",
+            "item": [
+                {
+                    "name": "Export customer data",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
                                 "type": "text"
                             },
                             {
-                                "key": "X-Staff-Key",
-                                "value": "{{staffApiKey}}",
-                                "type": "text",
-                                "disabled": true
+                                "key": "X-Customer-Token",
+                                "value": "{{customerToken}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/me/data-export",
+                        "description": "Return a customer-owner-scoped data export payload for account privacy self-service.\n\nSignature: `GET api/v1/me/data-export`\nAuth mode: `customer_access_token`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List customer privacy requests",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Customer-Token",
+                                "value": "{{customerToken}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/me/privacy-requests?status={{privacyRequestStatus}}&per_page={{perPage}}",
+                        "description": "Return the authenticated customer owner privacy request history.\n\nSignature: `GET api/v1/me/privacy-requests`\nAuth mode: `customer_access_token`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create customer privacy request",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Customer-Token",
+                                "value": "{{customerToken}}",
+                                "type": "text"
                             },
                             {
                                 "key": "Idempotency-Key",
@@ -2820,11 +3490,11 @@
                                 "type": "text"
                             }
                         ],
-                        "url": "{{baseUrl}}/api/v1/reservations/{{reservationIdBenefits}}/loyalty/redeem/release",
-                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `POST api/v1/reservations/{id}/loyalty/redeem/release`\nAuth mode: `customer_or_staff`\nContract grade: `fallback`",
+                        "url": "{{baseUrl}}/api/v1/me/privacy-requests",
+                        "description": "Create or return the current customer privacy request for account lifecycle self-service.\n\nSignature: `POST api/v1/me/privacy-requests`\nAuth mode: `customer_access_token`\nContract grade: `full`",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"reason\": \"Postman loyalty release\",\n    \"row_version\": \"{{reservationRowVersionBenefits}}\"\n}",
+                            "raw": "{\n    \"request_type\": \"anonymize\",\n    \"reason\": \"Postman privacy request\"\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -3576,335 +4246,6 @@
                     ]
                 },
                 {
-                    "name": "Reservation Billing",
-                    "item": [
-                        {
-                            "name": "Confirm bill payment session",
-                            "request": {
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Customer-Token",
-                                        "value": "{{customerToken}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Session-Id",
-                                        "value": "{{customerSessionId}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text",
-                                        "disabled": true
-                                    },
-                                    {
-                                        "key": "Idempotency-Key",
-                                        "value": "restaurantpos-{{$guid}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/reservations/{{reservationId}}/bill/payment-sessions/{{sessionId}}/confirm",
-                                "description": "Confirm or reconcile a customer bill payment session after provider completion.\n\nSignature: `POST api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/confirm`\nAuth mode: `customer_or_staff`\nContract grade: `full`",
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n    \"row_version\": 1,\n    \"simulation_outcome\": \"succeeded\"\n}",
-                                    "options": {
-                                        "raw": {
-                                            "language": "json"
-                                        }
-                                    }
-                                }
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "Create bill payment session",
-                            "request": {
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Customer-Token",
-                                        "value": "{{customerToken}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Session-Id",
-                                        "value": "{{customerSessionId}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text",
-                                        "disabled": true
-                                    },
-                                    {
-                                        "key": "Idempotency-Key",
-                                        "value": "restaurantpos-{{$guid}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/reservations/{{reservationId}}/bill/payment-sessions",
-                                "description": "Create a customer-facing bill payment session for final settlement.\n\nSignature: `POST api/v1/reservations/{reservation_id}/bill/payment-sessions`\nAuth mode: `customer_or_staff`\nContract grade: `full`",
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n    \"row_version\": 1,\n    \"amount\": 250000,\n    \"payment_method\": \"Online\",\n    \"provider_code\": \"simulated\",\n    \"currency\": \"VND\"\n}",
-                                    "options": {
-                                        "raw": {
-                                            "language": "json"
-                                        }
-                                    }
-                                }
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "Refresh bill payment session",
-                            "request": {
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Customer-Token",
-                                        "value": "{{customerToken}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Session-Id",
-                                        "value": "{{customerSessionId}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text",
-                                        "disabled": true
-                                    },
-                                    {
-                                        "key": "Idempotency-Key",
-                                        "value": "restaurantpos-{{$guid}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/reservations/{{reservationId}}/bill/payment-sessions/{{sessionId}}/refresh",
-                                "description": "Refresh a customer bill payment session using provider polling or simulated outcomes.\n\nSignature: `POST api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/refresh`\nAuth mode: `customer_or_staff`\nContract grade: `full`",
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n    \"row_version\": 1,\n    \"simulation_outcome\": \"succeeded\"\n}",
-                                    "options": {
-                                        "raw": {
-                                            "language": "json"
-                                        }
-                                    }
-                                }
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "Show bill payment session",
-                            "request": {
-                                "method": "GET",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Customer-Token",
-                                        "value": "{{customerToken}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Session-Id",
-                                        "value": "{{customerSessionId}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text",
-                                        "disabled": true
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/reservations/{{reservationId}}/bill/payment-sessions/{{sessionId}}",
-                                "description": "Return a previously created bill payment session and current bill snapshot.\n\nSignature: `GET api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}`\nAuth mode: `customer_or_staff`\nContract grade: `full`"
-                            },
-                            "response": []
-                        }
-                    ]
-                },
-                {
-                    "name": "Reservations",
-                    "item": [
-                        {
-                            "name": "Cancel accessible reservation",
-                            "request": {
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Customer-Token",
-                                        "value": "{{customerToken}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Session-Id",
-                                        "value": "{{customerSessionId}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text",
-                                        "disabled": true
-                                    },
-                                    {
-                                        "key": "Idempotency-Key",
-                                        "value": "restaurantpos-{{$guid}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/reservations/{{reservationId}}/cancel",
-                                "description": "Cancel a customer-owned or session-owned reservation using row_version concurrency protection.\n\nSignature: `POST api/v1/reservations/{id}/cancel`\nAuth mode: `customer_or_staff`\nContract grade: `full`",
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n    \"row_version\": 3,\n    \"cancel_reason\": \"Plans changed\",\n    \"session_id\": \"sess-demo-001\"\n}",
-                                    "options": {
-                                        "raw": {
-                                            "language": "json"
-                                        }
-                                    }
-                                }
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "List accessible reservations",
-                            "request": {
-                                "method": "GET",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Customer-Token",
-                                        "value": "{{customerToken}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Session-Id",
-                                        "value": "{{customerSessionId}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text",
-                                        "disabled": true
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/reservations?bucket={{bucket}}&status={{status}}&from={{from}}&to={{to}}&per_page={{perPage}}&page={{page}}&session_id={{sessionId}}",
-                                "description": "Return customer-owned or session-owned reservations visible to customer self-service. Staff actors must use staff reservation endpoints instead.\n\nSignature: `GET api/v1/reservations`\nAuth mode: `customer_or_staff`\nContract grade: `full`"
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "Reschedule accessible reservation",
-                            "request": {
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Customer-Token",
-                                        "value": "{{customerToken}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Session-Id",
-                                        "value": "{{customerSessionId}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text",
-                                        "disabled": true
-                                    },
-                                    {
-                                        "key": "Idempotency-Key",
-                                        "value": "restaurantpos-{{$guid}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/reservations/{{reservationId}}/reschedule",
-                                "description": "Reschedule a customer-owned or session-owned reservation. At least one reschedulable field must change.\n\nSignature: `POST api/v1/reservations/{id}/reschedule`\nAuth mode: `customer_or_staff`\nContract grade: `full`",
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n    \"row_version\": 4,\n    \"start_time\": \"2026-04-05T13:00:00Z\",\n    \"end_time\": \"2026-04-05T15:00:00Z\",\n    \"guest_count\": 5,\n    \"reason\": \"Arriving later\",\n    \"session_id\": \"sess-demo-001\"\n}",
-                                    "options": {
-                                        "raw": {
-                                            "language": "json"
-                                        }
-                                    }
-                                }
-                            },
-                            "response": []
-                        }
-                    ]
-                },
-                {
                     "name": "Staff Conversations",
                     "item": [
                         {
@@ -4245,112 +4586,6 @@
                                         }
                                     }
                                 }
-                            },
-                            "response": []
-                        }
-                    ]
-                },
-                {
-                    "name": "Waiting List",
-                    "item": [
-                        {
-                            "name": "Cancel customer waiting-list entry",
-                            "request": {
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Customer-Token",
-                                        "value": "{{customerToken}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Idempotency-Key",
-                                        "value": "restaurantpos-{{$guid}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/waiting-list/{{waitingListId}}/cancel",
-                                "description": "Cancel an owner-scoped waiting-list entry and optionally record a customer cancel reason.\n\nSignature: `POST api/v1/waiting-list/{id}/cancel`\nAuth mode: `customer_access_token`\nContract grade: `full`",
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n    \"row_version\": 2,\n    \"cancel_reason\": \"Plans changed\"\n}",
-                                    "options": {
-                                        "raw": {
-                                            "language": "json"
-                                        }
-                                    }
-                                }
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "Decline notified waiting-list entry",
-                            "request": {
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Customer-Token",
-                                        "value": "{{customerToken}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Idempotency-Key",
-                                        "value": "restaurantpos-{{$guid}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/waiting-list/{{waitingListId}}/decline",
-                                "description": "Decline a notified waiting-list invitation and release the associated notify hold.\n\nSignature: `POST api/v1/waiting-list/{id}/decline`\nAuth mode: `customer_access_token`\nContract grade: `full`",
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n    \"row_version\": 3\n}",
-                                    "options": {
-                                        "raw": {
-                                            "language": "json"
-                                        }
-                                    }
-                                }
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "List customer waiting-list entries",
-                            "request": {
-                                "method": "GET",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Customer-Token",
-                                        "value": "{{customerToken}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/waiting-list?status={{status}}&active_only={{activeOnly}}",
-                                "description": "Return the authenticated customer owner waiting-list entries.\n\nSignature: `GET api/v1/waiting-list`\nAuth mode: `customer_access_token`\nContract grade: `full`"
                             },
                             "response": []
                         }

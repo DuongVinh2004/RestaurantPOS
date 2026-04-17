@@ -116,11 +116,11 @@ describe('package integrity report', () => {
       expect.arrayContaining([
         expect.objectContaining({
           path: 'build/api-consumer/sdk/typescript/restaurantpos-sdk.ts',
-          failure: 'stale: older than storage/app/booking_release/openapi-v1.json',
+          failure: expect.stringContaining('older than storage/app/booking_release/openapi-v1.json'),
         }),
         expect.objectContaining({
           path: 'storage/app/booking_release/release_manifest_snapshot.json',
-          failure: 'stale: older than storage/app/booking_release/openapi-v1.json',
+          failure: expect.stringContaining('older than storage/app/booking_release/openapi-v1.json'),
         }),
       ]),
     );
@@ -167,8 +167,7 @@ function seedCanonicalFixture(
   createFile(rootDir, 'staff-web/tsconfig.json', '{}');
   createFile(rootDir, 'staff-web/vitest.config.ts', 'export default {};');
   createFile(rootDir, 'staff-web/scripts/live-smoke.mjs', 'export default true;');
-  createFile(rootDir, 'staff-web/src/api/sdk.ts', 'export * from "../../../build/api-consumer/sdk/typescript/restaurantpos-sdk.ts";');
-  createFile(rootDir, 'staff-web/src/core/api/sdk.ts', 'export * from "../../../../build/api-consumer/sdk/typescript/restaurantpos-sdk.ts";');
+  createFile(rootDir, 'staff-web/src/shared/api/sdk.ts', 'export * from "../../../../build/api-consumer/sdk/typescript/restaurantpos-sdk.ts";');
   createDirectory(rootDir, 'build/api-consumer');
 
   createFile(rootDir, 'storage/app/booking_release/openapi-v1.json', '{}');

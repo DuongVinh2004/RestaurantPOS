@@ -1,0 +1,4 @@
+interface:
+  display_name: "Customer Web Screen Recipes"
+  short_description: "Reuse proven customer-web page and section patterns."
+  default_prompt: "Use $restaurantpos-customer-web-screen-recipes when building customer-web screens quickly and consistently."

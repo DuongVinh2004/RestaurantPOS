@@ -1,0 +1,33 @@
+﻿@startuml
+left to right direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultTextAlignment left
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+  FontColor black
+}
+skinparam actor {
+  BorderColor #374151
+  FontColor black
+}
+
+title UC-22 - Vận hành health, metrics và release readiness
+actor "Operator" as Operator
+actor "Quản trị viên" as Admin
+rectangle "RestaurantPOS Backend" as SYS {
+  usecase "UC-22\nVận hành health, metrics và release readiness" as MAIN
+  usecase "Xem health basic / detailed / redis" as S01
+  usecase "Xem metrics" as S02
+  usecase "Chạy release / contract checks" as S03
+}
+S01 ..> MAIN : <<extend>>
+S02 ..> MAIN : <<extend>>
+S03 ..> MAIN : <<extend>>
+Operator --> MAIN
+Admin --> MAIN
+
+@enduml

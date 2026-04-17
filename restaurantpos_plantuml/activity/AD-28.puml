@@ -1,0 +1,55 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam activity {
+  BackgroundColor white
+  BorderColor #374151
+  DiamondBackgroundColor #EEF2FF
+  DiamondBorderColor #4B5563
+}
+title AD-28 - Inventory / purchasing / kitchen config
+start
+partition "Quản trị viên" {
+  :Chọn inventory master data, purchase order/receipt, hoặc kitchen route config;
+}
+partition "Admin inventory / purchasing / kitchen controllers" {
+  :Nhận admin mutation;
+  :Áp capability inventory.manage, purchasing và kitchen.manage;
+}
+if (Inventory master data?) then (yes)
+  partition "Inventory services" {
+    :Persist ingredient, supplier, recipe và stock rule nền;
+  }
+  stop
+else (no)
+  if (Purchase order / receipt?) then (yes)
+    partition "Purchasing services" {
+      :Persist PO, receipt và stock movements;
+      :Kiểm tra unit consistency, over-receive guard và branch scope;
+    }
+    if (Receipt hợp lệ?) then (yes)
+      stop
+    else (no)
+      partition "Admin inventory / purchasing / kitchen controllers" {
+        :Trả PO/receipt denied;
+      }
+      stop
+    endif
+  else (kitchen route config)
+    partition "KitchenRoutingService" {
+      :Persist kitchen station và category route config;
+      :Kiểm tra category chưa bị bind sang station khác;
+    }
+    if (Route hợp lệ?) then (yes)
+      stop
+    else (no)
+      partition "Admin inventory / purchasing / kitchen controllers" {
+        :Trả kitchen config denied;
+      }
+      stop
+    endif
+  endif
+endif
+@enduml

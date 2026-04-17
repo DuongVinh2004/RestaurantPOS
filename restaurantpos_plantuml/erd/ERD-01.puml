@@ -1,0 +1,84 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam ArrowFontSize 9
+skinparam nodesep 110
+skinparam ranksep 130
+
+left to right direction
+hide circle
+title ERD-01 - Identity, access và customer/staff session
+caption Mô tả dữ liệu định danh người dùng, role, session truy cập khách hàng, staff API key và preference\nliên quan.
+skinparam linetype ortho
+skinparam entity {
+  BackgroundColor white
+  BorderColor #374151
+}
+
+entity "users" as users {
+  * user_id
+    role_id
+    current_tier_id
+    privacy_anonymized_at
+    created_at
+    updated_at
+    full_name
+}
+
+entity "roles" as roles {
+  * role_id
+    role_name
+}
+
+entity "customer_access_sessions" as customer_access_sessions {
+  * access_session_id
+    user_id
+    session_id
+    session_meta_json
+    expires_at
+    last_used_at
+    revoked_at
+}
+
+entity "staff_api_keys" as staff_api_keys {
+  * staff_api_key_id
+    user_id
+    last_used_at
+    expires_at
+    revoked_at
+    created_at
+    updated_at
+}
+
+entity "bank_accounts" as bank_accounts {
+  * bank_account_id
+    user_id
+    default_user_id
+    created_at
+    bank_account_number
+    bank_name
+    account_holder_name
+}
+
+entity "notification_preferences" as notification_preferences {
+  * notification_preference_id
+    user_id
+    created_at
+    updated_at
+    channel
+    is_enabled
+    quiet_hours_start_minute
+}
+
+roles ||--o{ users : role_id
+users ||--o{ customer_access_sessions : user_id
+users ||--o{ notification_preferences : user_id
+users ||--o{ staff_api_keys : user_id
+@enduml
+
+
+
+
+

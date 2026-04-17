@@ -1,0 +1,36 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam activity {
+  BackgroundColor white
+  BorderColor #374151
+  DiamondBackgroundColor #EEF2FF
+  DiamondBorderColor #4B5563
+}
+title AD-05 - Làm mới / hủy hold
+start
+partition "Khách hàng / Nhân viên" {
+  :Chọn refresh hoặc cancel hold;
+}
+partition "TableHoldController" {
+  :Nhận refresh / cancel;
+  :Áp throttle + idempotency tương ứng;
+}
+partition "TableHoldService" {
+  :Load hold hiện tại;
+  :Kiểm tra expiry / ownership / row version;
+}
+if (Operation hợp lệ?) then (yes)
+partition "TableHoldService" {
+  :Refresh expiry hoặc cancel hold;
+}
+  stop
+else (no)
+partition "TableHoldController" {
+  :Trả request denied;
+}
+  stop
+endif
+@enduml

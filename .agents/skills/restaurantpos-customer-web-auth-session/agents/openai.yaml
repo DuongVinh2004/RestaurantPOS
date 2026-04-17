@@ -1,0 +1,4 @@
+interface:
+  display_name: "Customer Web Auth Session"
+  short_description: "Protect customer token and session flows in Next.js."
+  default_prompt: "Use $restaurantpos-customer-web-auth-session when implementing customer-web login, bootstrap, refresh, logout, and protected routes."

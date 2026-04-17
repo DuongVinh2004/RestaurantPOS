@@ -1,0 +1,37 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam activity {
+  BackgroundColor white
+  BorderColor #374151
+  DiamondBackgroundColor #EEF2FF
+  DiamondBorderColor #4B5563
+}
+title AD-08 - Khách hủy reservation
+start
+partition "Khách hàng" {
+  :Chọn hủy reservation;
+}
+partition "CustomerReservationSelfServiceController" {
+  :Nhận cancel;
+  :Áp idempotency customer.reservations.cancel;
+}
+partition "Owner scope + Reservations" {
+  :Kiểm tra owner scope;
+  :Kiểm tra cutoff và trạng thái có thể hủy;
+  :Cập nhật reservation state;
+}
+if (Được phép hủy?) then (yes)
+partition "Owner scope + Reservations" {
+  :Persist cancel state;
+}
+  stop
+else (no)
+partition "CustomerReservationSelfServiceController" {
+  :Trả cancel denied;
+}
+  stop
+endif
+@enduml

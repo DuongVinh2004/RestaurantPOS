@@ -1,0 +1,4 @@
+interface:
+  display_name: "Customer Web Design System"
+  short_description: "Keep customer-web visuals consistent and polished."
+  default_prompt: "Use $restaurantpos-customer-web-design-system when defining or applying customer-web visual language."

@@ -1,0 +1,78 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam SequenceMessageAlign center
+skinparam maxMessageSize 140
+autonumber
+
+title SD-07 - Preorder và deposit intent
+
+actor "Khách hàng" as Customer
+boundary "Customer Client" as Client
+boundary "CustomerReservationPreorderController\nCustomerReservationDepositController" as Api
+control "Owner scope guard" as OwnerGuard
+control "Menu/Deposit policy service" as Policy
+control "ReservationService" as ReservationSvc
+database "reservations + menu_items\n+ preorder/deposit state store" as Store
+
+alt preorder show / preview / replace / clear
+  Customer -> Client : mở preorder của reservation
+  Client -> Api : GET / PUT / DELETE / preview preorder
+  Api -> OwnerGuard : verify reservation ownership
+  OwnerGuard -> Store : load reservation in owner scope
+  alt owner scope denied
+    Store --> OwnerGuard : deny
+    OwnerGuard --> Api : forbidden
+    Api --> Client : 403 / 404
+  else owner ok
+    Store --> OwnerGuard : reservation
+    OwnerGuard --> Api : continue
+    Api -> Policy : validate menu items + preorder cutoff + quota + service time
+    Policy -> Store : read reservation state + visible menu/pricing
+    alt invalid item / cutoff denied / invalid state
+      Store --> Policy : reject
+      Policy --> Api : preorder denied
+      Api --> Client : business rule error
+    else valid preorder mutation
+      Store --> Policy : ok
+      Policy --> Api : continue
+      Api -> ReservationSvc : replace / clear preorder
+      ReservationSvc -> Store : write preorder state
+      Store --> ReservationSvc : updated preorder
+      ReservationSvc --> Api : payload
+      Api --> Client : preorder response
+    end
+  end
+else deposit preview / acknowledge / intent / revoke
+  Customer -> Client : mở deposit preview hoặc gửi deposit intent
+  Client -> Api : GET / POST deposit endpoints
+  Api -> OwnerGuard : verify reservation ownership
+  OwnerGuard -> Store : load reservation in owner scope
+  alt owner scope denied
+    Store --> OwnerGuard : deny
+    OwnerGuard --> Api : forbidden
+    Api --> Client : 403 / 404
+  else owner ok
+    Store --> OwnerGuard : reservation
+    OwnerGuard --> Api : continue
+    Api -> Policy : validate deposit-required state + cutoff
+    Policy -> Store : read reservation deposit context
+    alt deposit not allowed in current state
+      Store --> Policy : reject
+      Policy --> Api : deposit action denied
+      Api --> Client : business rule error
+    else deposit action allowed
+      Store --> Policy : ok
+      Policy --> Api : continue
+      Api -> ReservationSvc : acknowledge / submit intent / revoke intent
+      ReservationSvc -> Store : update deposit intent state
+      Store --> ReservationSvc : updated deposit state
+      ReservationSvc --> Api : payload
+      Api --> Client : deposit response
+    end
+  end
+end
+
+@enduml

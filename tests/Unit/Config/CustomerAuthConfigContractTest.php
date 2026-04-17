@@ -27,4 +27,21 @@ class CustomerAuthConfigContractTest extends TestCase
         $this->assertArrayHasKey('App\Modules\Reservations\Http\Controllers\CustomerReservationSelfServiceController@index', $contracts);
         $this->assertArrayHasKey('App\Modules\CheckoutPayments\Http\Controllers\Customer\CustomerReservationBillPaymentController@confirm', $contracts);
     }
+
+    public function test_customer_auth_session_bound_route_contracts_have_no_raw_duplicate_keys(): void
+    {
+        $source = (string) file_get_contents(config_path('customer_auth.php'));
+
+        preg_match_all("/^\\s*'([^']+@[^']+)'\\s*=>/m", $source, $matches);
+
+        $keys = $matches[1] ?? [];
+        $this->assertNotEmpty($keys, 'Expected raw route contract keys in config/customer_auth.php.');
+
+        $duplicates = array_keys(array_filter(
+            array_count_values($keys),
+            static fn (int $count): bool => $count > 1,
+        ));
+
+        $this->assertSame([], $duplicates, 'Duplicate raw customer_auth route contract key(s): '.implode(', ', $duplicates));
+    }
 }

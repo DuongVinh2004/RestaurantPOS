@@ -1,10 +1,11 @@
 import { create } from 'zustand';
-import { formatStaffFacingApiError, isApiStatus } from '../../core/api/errors';
-import { getCurrentStaffSession, loginStaff, logoutStaff, refreshStaffSession } from '../../core/api/staff-auth-api';
-import { registerStaffAuthFailureHandler } from '../../core/auth/session-events';
-import { readStoredStaffToken, writeStoredStaffToken, type StaffSession } from '../../core/auth/storage';
-import { requiresStaffAccessGate, shouldRedirectToStaffCashierShift } from '../../core/auth/startup';
+import { formatStaffFacingApiError, isApiStatus } from '../../shared/api/errors';
+import { getCurrentStaffSession, loginStaff, logoutStaff, refreshStaffSession } from '../../shared/api/staff-auth-api';
+import { registerStaffAuthFailureHandler } from '../../shared/auth/session-events';
+import { readStoredStaffToken, writeStoredStaffToken, type StaffSession } from '../../shared/auth/storage';
+import { resolveDefaultStaffPath, resolveRecommendedStaffPath } from '../router/session-paths';
 import { useFlowStore } from './flow-store';
+import { useWorkspaceStore } from './workspace-store';
 
 export type AuthNotice = {
   tone: 'success' | 'error' | 'warning';
@@ -42,6 +43,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     bootstrapPromise = (async () => {
       if (!readStoredStaffToken()) {
         useFlowStore.getState().syncSessionContext(null);
+        useWorkspaceStore.getState().syncSession(null);
         set({
           session: null,
           lastSessionSyncAt: null,
@@ -61,6 +63,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
 
         useFlowStore.getState().syncSessionContext(null);
+        useWorkspaceStore.getState().syncSession(null);
         set({
           session: null,
           lastSessionSyncAt: null,
@@ -107,6 +110,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     await logoutStaff();
     useFlowStore.getState().syncSessionContext(null);
+    useWorkspaceStore.getState().syncSession(null);
     set({
       session: null,
       lastSessionSyncAt: null,
@@ -116,6 +120,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   setSession: (session) => {
     useFlowStore.getState().syncSessionContext(session);
+    useWorkspaceStore.getState().syncSession(session);
     set({
       session,
       lastSessionSyncAt: session ? Date.now() : null,
@@ -126,6 +131,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   expire: (message) => {
     writeStoredStaffToken(null);
     useFlowStore.getState().syncSessionContext(null);
+    useWorkspaceStore.getState().syncSession(null);
     set({
       session: null,
       lastSessionSyncAt: null,
@@ -154,25 +160,9 @@ registerStaffAuthFailureHandler((failure) => {
 });
 
 export function defaultPathForSession(session: StaffSession | null): string {
-  if (!session) {
-    return '/login';
-  }
-
-  return '/access';
+  return resolveDefaultStaffPath(session);
 }
 
 export function recommendedPathForSession(session: StaffSession | null): string {
-  if (!session) {
-    return '/login';
-  }
-
-  if (requiresStaffAccessGate(session)) {
-    return '/access';
-  }
-
-  if (shouldRedirectToStaffCashierShift(session)) {
-    return '/cashier-shift';
-  }
-
-  return '/dashboard';
+  return resolveRecommendedStaffPath(session);
 }

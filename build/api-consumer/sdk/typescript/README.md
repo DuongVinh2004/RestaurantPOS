@@ -45,10 +45,17 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 - GET api/v1/table-holds/{hold_id}
 - PATCH api/v1/table-holds/{hold_id}/refresh
 - DELETE api/v1/table-holds/{hold_id}
+- GET api/v1/menu/categories
 - GET api/v1/menu/items
+- GET api/v1/menu/items/{id}
+- POST api/v1/menu/preorder/preview
 - POST api/v1/reservations
+- GET api/v1/reservations
 - GET api/v1/reservations/{id}
+- POST api/v1/reservations/{id}/cancel
+- POST api/v1/reservations/{id}/reschedule
 - GET api/v1/reservations/{id}/preorder
+- POST api/v1/reservations/{id}/preorder/preview
 - PUT api/v1/reservations/{id}/preorder
 - DELETE api/v1/reservations/{id}/preorder
 
@@ -74,6 +81,10 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 - POST api/v1/staff/orders/{order_id}/bill-snapshot
 - GET api/v1/reservations/{reservation_id}/bill-preview
 - GET api/v1/reservations/{reservation_id}/bill
+- POST api/v1/reservations/{reservation_id}/bill/payment-sessions
+- GET api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}
+- POST api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/refresh
+- POST api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/confirm
 - GET api/v1/staff/orders/{order_id}
 - GET api/v1/staff/cashier/shifts/current
 - POST api/v1/staff/cashier/shifts/open
@@ -117,6 +128,7 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 
 ### Waiting List
 
+- GET api/v1/waiting-list
 - POST api/v1/waiting-list
 - GET api/v1/waiting-list/{id}
 - GET api/v1/staff/waiting-list
@@ -124,16 +136,25 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 - POST api/v1/staff/waiting-list/{id}/notify
 - POST api/v1/waiting-list/{id}/accept
 - POST api/v1/waiting-list/{id}/confirm-arrival
+- POST api/v1/waiting-list/{id}/decline
+- POST api/v1/waiting-list/{id}/cancel
 - POST api/v1/staff/waiting-list/{id}/seat
 
 ### Benefits
 
 - GET api/v1/me/loyalty
+- GET api/v1/me/vouchers
 - GET api/v1/reservations/{id}/benefits-preview
 - POST api/v1/reservations/{id}/voucher/apply
 - POST api/v1/reservations/{id}/voucher/remove
 - POST api/v1/reservations/{id}/loyalty/redeem
 - POST api/v1/reservations/{id}/loyalty/redeem/release
+
+### Customer Privacy
+
+- GET api/v1/me/data-export
+- GET api/v1/me/privacy-requests
+- POST api/v1/me/privacy-requests
 
 ### Admin Master Data
 

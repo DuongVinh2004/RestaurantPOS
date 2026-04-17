@@ -1,0 +1,43 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+
+left to right direction
+title UCD-02 - Staff POS Journey
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+}
+
+actor "Nhân viên sảnh / Thu ngân" as StaffCashier
+actor "Nhân viên bếp" as KitchenStaff
+
+package "Staff POS" {
+  usecase "UC-02\nĐăng nhập nhân viên / quản trị" as UC_02
+  usecase "UC-10\nCheck-in reservation hoặc mở service session walk-in" as UC_10
+  usecase "UC-11\nGán bàn / đổi bàn / giải phóng bàn" as UC_11
+  usecase "UC-12\nTạo order và cập nhật món" as UC_12
+  usecase "UC-13\nDispatch bếp và cập nhật vòng đời món" as UC_13
+  usecase "UC-14\nKhóa bill và hoàn tất checkout" as UC_14
+  usecase "UC-15\nRefund hoặc refund kèm hủy reservation" as UC_15
+  usecase "UC-21\nTheo dõi audit, báo cáo và đối soát" as UC_21
+  usecase "UC-23\nMở / xem / đóng cashier shift" as UC_23
+}
+
+StaffCashier --> UC_02
+StaffCashier --> UC_10
+StaffCashier --> UC_11
+StaffCashier --> UC_12
+StaffCashier --> UC_13
+StaffCashier --> UC_14
+StaffCashier --> UC_15
+StaffCashier --> UC_21
+StaffCashier --> UC_23
+KitchenStaff --> UC_13
+
+UC_10 ..> UC_11 : <<include>>
+@enduml

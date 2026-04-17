@@ -1,0 +1,55 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam SequenceMessageAlign center
+skinparam maxMessageSize 140
+autonumber
+
+title SD-15 - Refund hoặc refund kèm hủy reservation
+
+actor "Thu ngân / Nhân viên" as Cashier
+boundary "Staff Client" as Client
+boundary "staff_pos refund route/controller" as Api
+control "Refund planner" as Planner
+control "Refund apply service" as RefundSvc
+control "ReservationService" as ReservationSvc
+database "payments + reservations\n+ finance_replay_records" as RefundStore
+
+Cashier -> Client : mở refund preview
+Client -> Api : request refund / refund-cancel
+
+Api -> Planner : plan refundable payment lineage
+Planner -> RefundStore : read original payments + prior refunds + reservation state
+alt payment not refundable / over-refund / invalid state
+  RefundStore --> Planner : reject
+  Planner --> Api : refund denied
+  Api --> Client : business rule error
+else refundable
+  RefundStore --> Planner : refund plan
+  Planner --> Api : preview payload
+  Api --> Client : refundable amount + target payment
+  Client -> Api : confirm refund
+  Api -> RefundSvc : execute refund command
+  RefundSvc -> RefundStore : check finance_replay_records / idempotency
+  alt duplicate refund request
+    RefundStore --> RefundSvc : duplicate
+    RefundSvc --> Api : replay/ignore
+    Api --> Client : no new refund created
+  else first request
+    RefundStore --> RefundSvc : continue
+    RefundSvc -> RefundStore : create refund payment linked by refund_of_payment_id
+    RefundStore --> RefundSvc : refund payment created
+    alt refund + cancel reservation
+      RefundSvc -> ReservationSvc : cancel reservation after refund
+      ReservationSvc -> RefundStore : update reservation status
+      RefundStore --> ReservationSvc : cancelled reservation
+      ReservationSvc --> RefundSvc : updated aggregate
+    end
+    RefundSvc --> Api : refund outcome
+    Api --> Client : refund success
+  end
+end
+
+@enduml

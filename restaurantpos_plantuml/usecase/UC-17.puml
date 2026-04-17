@@ -1,0 +1,35 @@
+﻿@startuml
+left to right direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultTextAlignment left
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+  FontColor black
+}
+skinparam actor {
+  BorderColor #374151
+  FontColor black
+}
+
+title UC-17 - Quản trị dữ liệu nền và branch policy
+actor "Quản trị viên" as Admin
+rectangle "RestaurantPOS Backend" as SYS {
+  usecase "UC-17\nQuản trị dữ liệu nền và branch policy" as MAIN
+  usecase "Quản lý branch, table và booking policy" as S01
+  usecase "Quản lý menu, voucher, loyalty và settings nền" as S02
+  usecase "Export master data" as S03
+  usecase "Import master data dry-run" as S04
+  usecase "Import master data commit" as S05
+}
+MAIN ..> S01 : <<include>>
+MAIN ..> S02 : <<include>>
+S03 ..> MAIN : <<extend>>
+S04 ..> MAIN : <<extend>>
+S05 ..> MAIN : <<extend>>
+Admin --> MAIN
+
+@enduml

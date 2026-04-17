@@ -102,6 +102,112 @@ class ApiContractMetadataRegistry
                 ],
                 'contract_grade' => 'full',
             ],
+            'GET api/v1/tables/available' => [
+                'summary' => 'List available tables',
+                'description' => 'Return customer-visible table availability for a requested time window, branch, guest count, and optional suggestion filters.',
+                'tags' => ['Availability'],
+                'responses' => [
+                    200 => ['schema' => 'AvailableTablesCollectionEnvelope'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'auth_mode' => 'public',
+                'security' => [],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/table-holds' => [
+                'summary' => 'Create table hold',
+                'description' => 'Create an idempotent session-bound hold for one or more tables before reservation creation.',
+                'tags' => ['Availability'],
+                'responses' => [
+                    201 => ['schema' => 'TableHoldEnvelope'],
+                    409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'session_id' => 'sess-demo-001',
+                    'start_time' => '2026-04-05T12:00:00Z',
+                    'end_time' => '2026-04-05T14:00:00Z',
+                    'table_ids' => [11],
+                    'guest_count' => 2,
+                    'branch_id' => 10,
+                ],
+                'auth_mode' => 'customer_session',
+                'security' => [['CustomerSessionId' => []]],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/table-holds/{hold_id}' => [
+                'summary' => 'Show table hold',
+                'description' => 'Return a session-bound table hold by hold id. The caller must provide the matching session id unless using staff access.',
+                'tags' => ['Availability'],
+                'responses' => [
+                    200 => ['schema' => 'TableHoldEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'auth_mode' => 'customer_or_staff',
+                'security' => [
+                    ['CustomerSessionId' => []],
+                    ['StaffApiKey' => []],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'PATCH api/v1/table-holds/{hold_id}/refresh' => [
+                'summary' => 'Refresh table hold',
+                'description' => 'Refresh an active table hold for the matching session id using row-version stale-write protection when supplied.',
+                'tags' => ['Availability'],
+                'responses' => [
+                    200 => ['schema' => 'TableHoldEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'session_id' => 'sess-demo-001',
+                    'extend_minutes' => 5,
+                    'row_version' => 1,
+                ],
+                'auth_mode' => 'customer_or_staff',
+                'security' => [
+                    ['CustomerSessionId' => []],
+                    ['StaffApiKey' => []],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'DELETE api/v1/table-holds/{hold_id}' => [
+                'summary' => 'Cancel table hold',
+                'description' => 'Cancel a table hold for the matching session id using row-version stale-write protection when supplied.',
+                'tags' => ['Availability'],
+                'responses' => [
+                    200 => ['schema' => 'TableHoldEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'auth_mode' => 'customer_or_staff',
+                'security' => [
+                    ['CustomerSessionId' => []],
+                    ['StaffApiKey' => []],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/menu/categories' => [
+                'summary' => 'List visible customer menu categories',
+                'description' => 'Return customer-facing menu categories and their visible items for the selected service time and preorder filter.',
+                'tags' => ['Menu Catalog'],
+                'responses' => [
+                    200 => ['schema' => 'CustomerMenuCategoriesCollectionEnvelope'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'auth_mode' => 'public',
+                'security' => [],
+                'contract_grade' => 'full',
+            ],
             'GET api/v1/menu/items' => [
                 'summary' => 'List visible customer menu items',
                 'description' => 'Return the customer-facing menu catalog slice that is valid for the selected service time, category filter, and preorder visibility filter.',
@@ -109,6 +215,37 @@ class ApiContractMetadataRegistry
                 'responses' => [
                     200 => ['schema' => 'CustomerMenuItemsCollectionEnvelope'],
                     422 => ['schema' => 'ValidationError'],
+                ],
+                'auth_mode' => 'public',
+                'security' => [],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/menu/items/{id}' => [
+                'summary' => 'Show visible customer menu item',
+                'description' => 'Return one customer-facing menu item including effective price and preorder policy for the selected service time.',
+                'tags' => ['Menu Catalog'],
+                'responses' => [
+                    200 => ['schema' => 'CustomerMenuItemEnvelope'],
+                    404 => ['schema' => 'NotFoundError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'auth_mode' => 'public',
+                'security' => [],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/menu/preorder/preview' => [
+                'summary' => 'Preview menu preorder',
+                'description' => 'Validate customer pre-order item quantities and service-time constraints before reservation creation.',
+                'tags' => ['Menu Catalog'],
+                'responses' => [
+                    200 => ['schema' => 'CustomerMenuPreorderPreviewEnvelope'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'start_time' => '2026-04-05T12:00:00Z',
+                    'pre_order_items' => [
+                        ['item_id' => 201, 'quantity' => 2],
+                    ],
                 ],
                 'auth_mode' => 'public',
                 'security' => [],
@@ -166,6 +303,29 @@ class ApiContractMetadataRegistry
                     401 => ['schema' => 'UnauthorizedError'],
                     403 => ['schema' => 'ForbiddenError'],
                     404 => ['schema' => 'NotFoundError'],
+                ],
+                'auth_mode' => 'customer_or_session',
+                'security' => [
+                    ['CustomerAccessToken' => []],
+                    ['CustomerSessionId' => []],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/reservations/{id}/preorder/preview' => [
+                'summary' => 'Preview customer reservation pre-order',
+                'description' => 'Validate proposed customer-managed pre-order lines against reservation service time and item preorder policy without persisting changes.',
+                'tags' => ['Reservations'],
+                'responses' => [
+                    200 => ['schema' => 'CustomerReservationPreorderEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'pre_order_items' => [
+                        ['item_id' => 201, 'quantity' => 2],
+                    ],
                 ],
                 'auth_mode' => 'customer_or_session',
                 'security' => [
@@ -232,6 +392,66 @@ class ApiContractMetadataRegistry
                 'security' => [['CustomerAccessToken' => []]],
                 'contract_grade' => 'full',
             ],
+            'GET api/v1/me/vouchers' => [
+                'summary' => 'List customer vouchers',
+                'description' => 'Return the authenticated customer owner voucher wallet with applicability filters for customer-web.',
+                'tags' => ['Customer Benefits'],
+                'responses' => [
+                    200 => ['schema' => 'CustomerVoucherCollectionEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'auth_mode' => 'customer_access_token',
+                'security' => [['CustomerAccessToken' => []]],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/me/data-export' => [
+                'summary' => 'Export customer data',
+                'description' => 'Return a customer-owner-scoped data export payload for account privacy self-service.',
+                'tags' => ['Customer Privacy'],
+                'responses' => [
+                    200 => ['schema' => 'CustomerDataExportEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                ],
+                'auth_mode' => 'customer_access_token',
+                'security' => [['CustomerAccessToken' => []]],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/me/privacy-requests' => [
+                'summary' => 'List customer privacy requests',
+                'description' => 'Return the authenticated customer owner privacy request history.',
+                'tags' => ['Customer Privacy'],
+                'responses' => [
+                    200 => ['schema' => 'CustomerPrivacyRequestCollectionEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'auth_mode' => 'customer_access_token',
+                'security' => [['CustomerAccessToken' => []]],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/me/privacy-requests' => [
+                'summary' => 'Create customer privacy request',
+                'description' => 'Create or return the current customer privacy request for account lifecycle self-service.',
+                'tags' => ['Customer Privacy'],
+                'responses' => [
+                    200 => ['schema' => 'CustomerPrivacyRequestEnvelope'],
+                    201 => ['schema' => 'CustomerPrivacyRequestEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'request_type' => 'anonymize',
+                    'reason' => 'Customer requested account deletion.',
+                ],
+                'auth_mode' => 'customer_access_token',
+                'security' => [['CustomerAccessToken' => []]],
+                'contract_grade' => 'full',
+            ],
             'GET api/v1/reservations/{id}/benefits-preview' => [
                 'summary' => 'Preview reservation loyalty and voucher benefits',
                 'description' => 'Return the owner-scoped reservation loyalty snapshot together with voucher applicability preview rows for customer self-service.',
@@ -241,6 +461,86 @@ class ApiContractMetadataRegistry
                     401 => ['schema' => 'UnauthorizedError'],
                     403 => ['schema' => 'ForbiddenError'],
                     404 => ['schema' => 'NotFoundError'],
+                ],
+                'auth_mode' => 'customer_access_token',
+                'security' => [['CustomerAccessToken' => []]],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/reservations/{id}/voucher/apply' => [
+                'summary' => 'Apply reservation voucher',
+                'description' => 'Apply an owned voucher to a customer-owned reservation with row-version protection.',
+                'tags' => ['Customer Benefits'],
+                'responses' => [
+                    200 => ['schema' => 'CustomerReservationVoucherActionEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'user_voucher_id' => 301,
+                    'row_version' => 3,
+                ],
+                'auth_mode' => 'customer_access_token',
+                'security' => [['CustomerAccessToken' => []]],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/reservations/{id}/voucher/remove' => [
+                'summary' => 'Remove reservation voucher',
+                'description' => 'Remove the currently applied voucher from a customer-owned reservation with row-version protection.',
+                'tags' => ['Customer Benefits'],
+                'responses' => [
+                    200 => ['schema' => 'CustomerReservationVoucherActionEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'row_version' => 4,
+                ],
+                'auth_mode' => 'customer_access_token',
+                'security' => [['CustomerAccessToken' => []]],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/reservations/{id}/loyalty/redeem' => [
+                'summary' => 'Redeem reservation loyalty points',
+                'description' => 'Redeem customer loyalty points against a customer-owned reservation with row-version protection.',
+                'tags' => ['Customer Benefits'],
+                'responses' => [
+                    200 => ['schema' => 'CustomerReservationLoyaltyActionEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'points' => 100,
+                    'reason' => 'Customer redemption',
+                    'row_version' => 5,
+                ],
+                'auth_mode' => 'customer_access_token',
+                'security' => [['CustomerAccessToken' => []]],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/reservations/{id}/loyalty/redeem/release' => [
+                'summary' => 'Release reservation loyalty redemption',
+                'description' => 'Release a customer loyalty redemption from a customer-owned reservation with row-version protection.',
+                'tags' => ['Customer Benefits'],
+                'responses' => [
+                    200 => ['schema' => 'CustomerReservationLoyaltyActionEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'reason' => 'Customer changed plan',
+                    'row_version' => 6,
                 ],
                 'auth_mode' => 'customer_access_token',
                 'security' => [['CustomerAccessToken' => []]],
@@ -3667,6 +3967,11 @@ class ApiContractMetadataRegistry
             'additionalProperties' => false,
         ];
 
+        $staffWorkspaceIdSchema = [
+            'type' => 'string',
+            'enum' => ['ops', 'kitchen', 'admin'],
+        ];
+
         $staffBranchAccessContextSchema = [
             'type' => 'object',
             'required' => [
@@ -3745,8 +4050,24 @@ class ApiContractMetadataRegistry
 
         $staffStartupContextSchema = [
             'type' => 'object',
-            'required' => ['default_branch', 'branch_access', 'active_cashier_shift', 'navigation', 'readiness'],
+            'required' => [
+                'primary_workspace',
+                'available_workspaces',
+                'default_branch_id',
+                'allowed_branch_ids',
+                'assigned_station_ids',
+                'default_branch',
+                'branch_access',
+                'active_cashier_shift',
+                'navigation',
+                'readiness',
+            ],
             'properties' => [
+                'primary_workspace' => $staffWorkspaceIdSchema,
+                'available_workspaces' => ['type' => 'array', 'items' => $staffWorkspaceIdSchema],
+                'default_branch_id' => ['type' => 'integer', 'nullable' => true],
+                'allowed_branch_ids' => ['type' => 'array', 'items' => ['type' => 'integer']],
+                'assigned_station_ids' => ['type' => 'array', 'items' => ['type' => 'integer']],
                 'default_branch' => ['$ref' => '#/components/schemas/StaffStartupBranch', 'nullable' => true],
                 'branch_access' => ['$ref' => '#/components/schemas/StaffBranchAccessContext'],
                 'active_cashier_shift' => ['$ref' => '#/components/schemas/StaffStartupCashierShift', 'nullable' => true],
@@ -5238,8 +5559,172 @@ class ApiContractMetadataRegistry
                 ],
                 'additionalProperties' => false,
             ],
+            'CustomerMenuCategory' => [
+                'type' => 'object',
+                'required' => ['category_id', 'name', 'description', 'sort_order', 'items'],
+                'properties' => [
+                    'category_id' => ['type' => 'integer'],
+                    'name' => ['type' => 'string'],
+                    'description' => ['type' => 'string', 'nullable' => true],
+                    'sort_order' => ['type' => 'integer', 'nullable' => true],
+                    'items' => [
+                        'type' => 'array',
+                        'items' => ['$ref' => '#/components/schemas/CustomerMenuItem'],
+                    ],
+                ],
+                'additionalProperties' => true,
+            ],
+            'CustomerMenuCategoriesCollectionEnvelope' => [
+                'type' => 'object',
+                'required' => ['data', 'meta'],
+                'properties' => [
+                    'data' => [
+                        'type' => 'array',
+                        'items' => ['$ref' => '#/components/schemas/CustomerMenuCategory'],
+                    ],
+                    'meta' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'service_time' => ['type' => 'string', 'nullable' => true],
+                            'preorder_only' => ['type' => 'boolean'],
+                            'count' => ['type' => 'integer'],
+                        ],
+                        'additionalProperties' => true,
+                    ],
+                ],
+                'additionalProperties' => false,
+            ],
+            'CustomerMenuItemEnvelope' => $this->dataEnvelope([
+                '$ref' => '#/components/schemas/CustomerMenuItem',
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'service_time' => ['type' => 'string', 'nullable' => true],
+                ],
+                'additionalProperties' => true,
+            ]),
+            'CustomerMenuPreorderPreviewEnvelope' => $this->dataEnvelope([
+                'type' => 'object',
+                'properties' => [
+                    'items' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => true]],
+                    'totals' => ['type' => 'object', 'additionalProperties' => true],
+                    'warnings' => ['type' => 'array', 'items' => ['type' => 'string']],
+                    'policy' => ['type' => 'object', 'additionalProperties' => true],
+                ],
+                'additionalProperties' => true,
+            ]),
+            'AvailableTablesCollectionEnvelope' => $this->collectionEnvelope([
+                '$ref' => '#/components/schemas/RestaurantTable',
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'timezone' => ['type' => 'string'],
+                    'branch_id' => ['type' => 'integer', 'nullable' => true],
+                    'branch_timezone' => ['type' => 'string', 'nullable' => true],
+                    'from_utc' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                    'to_utc' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                    'filters' => ['type' => 'object', 'additionalProperties' => true],
+                    'availability_policy' => ['type' => 'object', 'additionalProperties' => true],
+                    'count' => ['type' => 'integer'],
+                    'suggestions' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => true]],
+                ],
+                'additionalProperties' => true,
+            ]),
+            'TableHold' => [
+                'type' => 'object',
+                'required' => ['hold_id', 'session_hash', 'start_time', 'end_time', 'duration_minutes', 'hold_status', 'confirmed_reservation_id', 'row_version', 'tables'],
+                'properties' => [
+                    'hold_id' => ['type' => 'string'],
+                    'session_hash' => ['type' => 'string', 'nullable' => true],
+                    'start_time' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                    'end_time' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                    'duration_minutes' => ['type' => 'integer', 'nullable' => true],
+                    'hold_status' => ['type' => 'string'],
+                    'confirmed_reservation_id' => ['type' => 'integer', 'nullable' => true],
+                    'row_version' => ['type' => 'integer'],
+                    'created_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                    'updated_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                    'expire_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                    'tables' => [
+                        'type' => 'array',
+                        'items' => ['$ref' => '#/components/schemas/RestaurantTable'],
+                    ],
+                ],
+                'additionalProperties' => true,
+            ],
+            'TableHoldEnvelope' => $this->dataEnvelope([
+                '$ref' => '#/components/schemas/TableHold',
+            ]),
             'CustomerLoyaltySummaryEnvelope' => $this->dataEnvelope([
                 '$ref' => '#/components/schemas/CustomerLoyaltySummary',
+            ]),
+            'CustomerVoucherCollectionEnvelope' => $this->collectionEnvelope([
+                '$ref' => '#/components/schemas/CustomerVoucher',
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'current_page' => ['type' => 'integer'],
+                    'per_page' => ['type' => 'integer'],
+                    'total' => ['type' => 'integer'],
+                    'last_page' => ['type' => 'integer'],
+                    'filters' => ['type' => 'object', 'additionalProperties' => true],
+                ],
+                'additionalProperties' => true,
+            ]),
+            'CustomerDataExportEnvelope' => $this->dataEnvelope([
+                'type' => 'object',
+                'additionalProperties' => true,
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'action' => ['type' => 'string'],
+                ],
+                'additionalProperties' => true,
+            ]),
+            'CustomerPrivacyRequest' => [
+                'type' => 'object',
+                'required' => ['customer_privacy_request_id', 'request_type', 'status', 'requested_at'],
+                'properties' => [
+                    'customer_privacy_request_id' => ['type' => 'integer'],
+                    'request_type' => ['type' => 'string'],
+                    'status' => ['type' => 'string'],
+                    'reason' => ['type' => 'string', 'nullable' => true],
+                    'requested_via' => ['type' => 'string', 'nullable' => true],
+                    'requested_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                    'reviewed_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                    'processed_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                    'resolution_notes' => ['type' => 'string', 'nullable' => true],
+                    'result_summary' => ['type' => 'string', 'nullable' => true],
+                ],
+                'additionalProperties' => true,
+            ],
+            'CustomerPrivacyRequestCollectionEnvelope' => $this->collectionEnvelope([
+                '$ref' => '#/components/schemas/CustomerPrivacyRequest',
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'action' => ['type' => 'string'],
+                    'current_page' => ['type' => 'integer'],
+                    'per_page' => ['type' => 'integer'],
+                    'total' => ['type' => 'integer'],
+                    'last_page' => ['type' => 'integer'],
+                ],
+                'additionalProperties' => true,
+            ]),
+            'CustomerPrivacyRequestEnvelope' => $this->dataEnvelope([
+                'type' => 'object',
+                'properties' => [
+                    'request' => ['$ref' => '#/components/schemas/CustomerPrivacyRequest'],
+                    'created' => ['type' => 'boolean'],
+                ],
+                'required' => ['request', 'created'],
+                'additionalProperties' => true,
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'action' => ['type' => 'string'],
+                ],
+                'additionalProperties' => true,
             ]),
             'ReservationEnvelope' => $this->dataEnvelope($reservationSummary),
             'ReservationCollectionEnvelope' => $this->collectionEnvelope($reservationSummary),
@@ -5295,6 +5780,42 @@ class ApiContractMetadataRegistry
             ],
             'CustomerReservationBenefitsPreviewEnvelope' => $this->dataEnvelope([
                 '$ref' => '#/components/schemas/CustomerReservationBenefitsPreview',
+            ]),
+            'CustomerReservationVoucherActionEnvelope' => $this->dataEnvelope([
+                'type' => 'object',
+                'properties' => [
+                    'reservation' => ['$ref' => '#/components/schemas/CustomerReservationBenefitsReservation'],
+                    'available_vouchers' => [
+                        'type' => 'array',
+                        'items' => ['$ref' => '#/components/schemas/CustomerVoucher'],
+                    ],
+                    'voucher' => [
+                        'anyOf' => [
+                            ['$ref' => '#/components/schemas/CustomerVoucher'],
+                            ['type' => 'null'],
+                        ],
+                    ],
+                    'removed_voucher' => [
+                        'anyOf' => [
+                            ['$ref' => '#/components/schemas/CustomerVoucher'],
+                            ['type' => 'null'],
+                        ],
+                    ],
+                ],
+                'required' => ['reservation', 'available_vouchers'],
+                'additionalProperties' => true,
+            ]),
+            'CustomerReservationLoyaltyActionEnvelope' => $this->dataEnvelope([
+                'type' => 'object',
+                'properties' => [
+                    'reservation' => ['$ref' => '#/components/schemas/CustomerReservationBenefitsReservation'],
+                    'transactions' => [
+                        'type' => 'array',
+                        'items' => ['$ref' => '#/components/schemas/LoyaltyPointTransaction'],
+                    ],
+                ],
+                'required' => ['reservation', 'transactions'],
+                'additionalProperties' => true,
             ]),
             'CustomerReservationPreorderEnvelope' => [
                 'type' => 'object',
@@ -5856,9 +6377,11 @@ class ApiContractMetadataRegistry
         return [
             'Auth' => 'Opaque customer and staff authentication sessions.',
             'Health' => 'Operational health and readiness endpoints.',
+            'Availability' => 'Customer-facing table availability and session-bound table hold flows.',
             'Menu Catalog' => 'Customer-visible menu browsing and service-time-aware item availability.',
             'Reservations' => 'Reservation lifecycle and self-service access.',
             'Customer Benefits' => 'Customer loyalty summaries plus reservation-scoped loyalty and voucher applicability previews.',
+            'Customer Privacy' => 'Customer account data export and privacy request self-service.',
             'Reservation Deposit' => 'Deposit preview, acknowledgement, intent, and payment session flows.',
             'Reservation Billing' => 'Customer-visible bill, active order, and bill payment session flows.',
             'Waiting List' => 'Customer owner self-service plus staff operational queue, notify, seat, and realtime waiting-list flows.',

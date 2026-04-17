@@ -1,0 +1,40 @@
+﻿@startuml
+left to right direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultTextAlignment left
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+  FontColor black
+}
+skinparam actor {
+  BorderColor #374151
+  FontColor black
+}
+
+title UC-07 - Quản lý preorder và deposit
+actor "Khách hàng" as A1
+rectangle "RestaurantPOS Backend" as SYS {
+  usecase "UC-07\nQuản lý preorder và deposit" as MAIN
+  usecase "Xem preorder hiện tại" as S01
+  usecase "Preview preorder" as S02
+  usecase "Thay thế preorder" as S03
+  usecase "Xóa preorder" as S04
+  usecase "Xem deposit preview" as S05
+  usecase "Acknowledge deposit" as S06
+  usecase "Gửi deposit intent" as S07
+  usecase "Thu hồi deposit intent" as S08
+}
+MAIN ..> S01 : <<include>>
+MAIN ..> S02 : <<include>>
+S03 ..> MAIN : <<extend>>
+S04 ..> MAIN : <<extend>>
+MAIN ..> S05 : <<include>>
+S06 ..> MAIN : <<extend>>
+S07 ..> MAIN : <<extend>>
+S08 ..> MAIN : <<extend>>
+A1 --> MAIN
+@enduml

@@ -49,8 +49,7 @@ const STAFF_WEB_REQUIREMENTS = [
   { scope: 'staff-web', group: 'required_for_build_test_smoke', type: 'file', path: 'staff-web/tsconfig.json', label: 'staff-web TypeScript config' },
   { scope: 'staff-web', group: 'required_for_build_test_smoke', type: 'file', path: 'staff-web/vitest.config.ts', label: 'staff-web Vitest config' },
   { scope: 'staff-web', group: 'required_for_build_test_smoke', type: 'file', path: 'staff-web/scripts/live-smoke.mjs', label: 'staff-web live smoke harness' },
-  { scope: 'staff-web', group: 'required_for_build_test_smoke', type: 'file', path: 'staff-web/src/api/sdk.ts', label: 'staff-web SDK adapter' },
-  { scope: 'staff-web', group: 'required_for_build_test_smoke', type: 'file', path: 'staff-web/src/core/api/sdk.ts', label: 'staff-web core SDK adapter' },
+  { scope: 'staff-web', group: 'required_for_build_test_smoke', type: 'file', path: 'staff-web/src/shared/api/sdk.ts', label: 'staff-web shared SDK adapter' },
 ];
 
 const ARTIFACT_REQUIREMENTS = [

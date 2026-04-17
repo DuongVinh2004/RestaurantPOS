@@ -1,0 +1,97 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+
+left to right direction
+title UCD-00 - Tổng quan RestaurantPOS
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+}
+
+actor "Khách hàng" as Customer
+actor "Nhân viên sảnh / Thu ngân" as StaffCashier
+actor "Quản trị viên" as Admin
+actor "Nhân viên bếp" as KitchenStaff
+actor "Operator / System" as Operator
+actor "Payment Provider / Webhook" as Provider
+
+package "Customer Journey" {
+  usecase "UC-01\nĐăng nhập khách hàng" as UC_01
+  usecase "UC-03\nTra cứu bàn trống" as UC_03
+  usecase "UC-04\nTạo / làm mới / hủy table hold" as UC_04
+  usecase "UC-05\nTạo reservation" as UC_05
+  usecase "UC-06\nKhách tự quản lý reservation" as UC_06
+  usecase "UC-07\nQuản lý preorder và deposit" as UC_07
+  usecase "UC-08\nQuản lý phiên thanh toán deposit / bill" as UC_08
+  usecase "UC-09\nQuản lý waiting list" as UC_09
+  usecase "UC-16\nÁp dụng voucher / loyalty / benefits" as UC_16
+  usecase "UC-20\nXử lý privacy request và export dữ liệu" as UC_20
+}
+
+package "Staff POS Journey" {
+  usecase "UC-02\nĐăng nhập nhân viên / quản trị" as UC_02
+  usecase "UC-10\nCheck-in reservation hoặc mở service session walk-in" as UC_10
+  usecase "UC-11\nGán bàn / đổi bàn / giải phóng bàn" as UC_11
+  usecase "UC-12\nTạo order và cập nhật món" as UC_12
+  usecase "UC-13\nDispatch bếp và cập nhật vòng đời món" as UC_13
+  usecase "UC-14\nKhóa bill và hoàn tất checkout" as UC_14
+  usecase "UC-15\nRefund hoặc refund kèm hủy reservation" as UC_15
+  usecase "UC-21\nTheo dõi audit, báo cáo và đối soát" as UC_21
+  usecase "UC-23\nMở / xem / đóng cashier shift" as UC_23
+}
+
+package "Admin / Back-office" {
+  usecase "UC-17\nQuản trị dữ liệu nền và branch policy" as UC_17
+  usecase "UC-18\nQuản lý tồn kho, mua hàng và cấu hình bếp" as UC_18
+}
+
+package "Ops / Governance" {
+  usecase "UC-19\nXử lý conversation inbox nội bộ" as UC_19
+  usecase "UC-22\nVận hành health, metrics và release readiness" as UC_22
+}
+
+Customer --> UC_01
+Customer --> UC_03
+Customer --> UC_04
+Customer --> UC_05
+Customer --> UC_06
+Customer --> UC_07
+Customer --> UC_08
+Customer --> UC_09
+Customer --> UC_16
+Customer --> UC_20
+
+StaffCashier --> UC_02
+StaffCashier --> UC_03
+StaffCashier --> UC_04
+StaffCashier --> UC_05
+StaffCashier --> UC_09
+StaffCashier --> UC_10
+StaffCashier --> UC_11
+StaffCashier --> UC_12
+StaffCashier --> UC_13
+StaffCashier --> UC_14
+StaffCashier --> UC_15
+StaffCashier --> UC_16
+StaffCashier --> UC_21
+StaffCashier --> UC_23
+
+Admin --> UC_02
+Admin --> UC_17
+Admin --> UC_18
+Admin --> UC_20
+Admin --> UC_21
+
+KitchenStaff --> UC_13
+Operator --> UC_22
+Provider --> UC_08
+
+UC_05 ..> UC_03 : <<include>>
+UC_05 ..> UC_04 : <<include>>
+
+@enduml

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Customer Web Copy UX"
+  short_description: "Write consistent customer-facing RestaurantPOS microcopy."
+  default_prompt: "Use $restaurantpos-customer-web-copy-ux when writing customer-web labels, status text, errors, and empty states."

@@ -1,0 +1,49 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam SequenceMessageAlign center
+skinparam maxMessageSize 140
+autonumber
+
+title SD-03 - Tra cứu bàn trống
+
+actor "Khách hàng / Nhân viên" as User
+boundary "Booking Client" as Client
+boundary "GET /api/v1/tables/available\nTableController@available" as Api
+control "redis.throttle:tables.available" as Throttle
+control "BranchSchedulingPolicyService" as Policy
+control "TableAvailabilityService" as Availability
+database "branches + restaurant_tables\n+ reservations + reservation_tables\n+ table_holds + table_hold_details" as ReadStore
+
+User -> Client : chọn branch_id, start_time, end_time, party_size
+Client -> Api : GET /tables/available
+Api -> Throttle : throttle by IP
+alt throttled
+  Throttle --> Api : reject
+  Api --> Client : 429
+else allowed
+  Throttle --> Api : continue
+  Api -> Policy : resolve branch timezone + business_hours + closure_windows + booking_policy
+  Policy -> ReadStore : load branch policy context
+  ReadStore --> Policy : branch policy data
+  alt branch closed / blackout / lead time invalid / max advance invalid
+    Policy --> Api : deny slot
+    Api --> Client : slot rejected by policy
+  else slot policy-valid
+    Policy --> Api : effective scheduling context
+    Api -> Availability : search candidate tables by capacity + interval
+    Availability -> ReadStore : read busy tables from reservations + holds
+    ReadStore --> Availability : occupied / held table set
+    alt no matching table
+      Availability --> Api : no table available
+      Api --> Client : empty result / suggestions
+    else matching tables found
+      Availability --> Api : candidate tables + availability meta
+      Api --> Client : available tables / suggested fit
+    end
+  end
+end
+
+@enduml

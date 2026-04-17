@@ -1,0 +1,37 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam activity {
+  BackgroundColor white
+  BorderColor #374151
+  DiamondBackgroundColor #EEF2FF
+  DiamondBorderColor #4B5563
+}
+title AD-23 - Refund kèm hủy reservation
+start
+partition "Nhân viên / Thu ngân" {
+  :Thực hiện refund-cancel reservation;
+}
+partition "StaffCheckoutController" {
+  :Nhận refund-cancel;
+  :Áp capability payment.refund + idempotency;
+}
+partition "CheckoutPayments + Reservations" {
+  :Load payment lineage + reservation state;
+  :Kiểm tra có thể refund-cancel;
+  :Persist payment refund và cancel reservation;
+}
+if (Refund-cancel hợp lệ?) then (yes)
+partition "CheckoutPayments + Reservations" {
+  :Trả refund-cancel applied;
+}
+  stop
+else (no)
+partition "StaffCheckoutController" {
+  :Trả refund-cancel denied;
+}
+  stop
+endif
+@enduml
