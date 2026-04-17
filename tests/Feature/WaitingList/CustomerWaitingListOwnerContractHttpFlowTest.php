@@ -121,6 +121,29 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
             ->assertJsonPath('category_code', 'owner_scope_denied');
     }
 
+    public function test_active_customer_access_session_id_without_customer_token_is_forbidden_for_owner_only_waiting_list_contract(): void
+    {
+        $ownerId = $this->createUser([
+            'full_name' => 'Session Only Owner',
+            'phone' => '0909888555',
+        ]);
+        $sessionId = 'sess-owner-only-active-access-session';
+
+        $this->customerAuthHeaders($ownerId, $sessionId, [
+            'session_id' => $sessionId,
+            'source' => 'owner-only-session-misuse-test',
+        ]);
+
+        $this->withHeaders([
+            'Idempotency-Key' => 'cust-owner-only-active-session-create-1',
+            'X-Session-Id' => $sessionId,
+        ])->postJson('/api/v1/waiting-list', [
+            'session_id' => $sessionId,
+            'guest_count' => 2,
+        ])->assertStatus(403)
+            ->assertJsonPath('category_code', 'owner_scope_denied');
+    }
+
     public function test_pre_resolved_staff_user_is_rejected_under_owner_only_waiting_list_contract(): void
     {
         $staffUserId = $this->createUser([

@@ -1,0 +1,34 @@
+﻿@startuml
+left to right direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultTextAlignment left
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+  FontColor black
+}
+skinparam actor {
+  BorderColor #374151
+  FontColor black
+}
+
+title UC-09 - Quản lý waiting list
+actor "Khách hàng / Nhân viên" as A1
+rectangle "RestaurantPOS Backend" as SYS {
+  usecase "UC-09\nQuản lý waiting list" as MAIN
+  usecase "Khách tạo waiting-list entry" as S01
+  usecase "Khách accept / decline / confirm-arrival" as S02
+  usecase "Nhân viên notify / seat / advance / cancel entry" as S03
+  usecase "Xem danh sách waiting list" as S04
+  usecase "Kiểm tra branch eligibility" as S05
+}
+S01 ..> MAIN : <<extend>>
+S02 ..> MAIN : <<extend>>
+S03 ..> MAIN : <<extend>>
+MAIN ..> S04 : <<include>>
+MAIN ..> S05 : <<include>>
+A1 --> MAIN
+@enduml

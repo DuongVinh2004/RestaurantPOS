@@ -1,0 +1,188 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam ArrowFontSize 9
+skinparam nodesep 110
+skinparam ranksep 130
+
+top to bottom direction
+hide circle
+title ERD-09 - Conversation, notification và support
+caption Mô tả conversation inbox nội bộ, assignment, message, file, event, analysis và notification outbox.
+skinparam linetype ortho
+skinparam entity {
+  BackgroundColor white
+  BorderColor #374151
+}
+
+entity "conversations" as conversations {
+  * conversation_id
+    branch_id
+    user_id
+    linked_reservation_id
+    linked_waiting_list_id
+    status
+}
+
+entity "agent_assignments" as agent_assignments {
+  * assignment_id
+    conversation_id
+    agent_user_id
+    active_conversation_id
+    assigned_at
+    released_at
+    is_active
+}
+
+entity "conversation_messages" as conversation_messages {
+  * message_id
+    conversation_id
+    sender_id
+    related_reservation_id
+    related_order_id
+    processing_status
+}
+
+entity "conversation_files" as conversation_files {
+  * file_id
+    message_id
+    file_url
+    mime_type
+}
+
+entity "conversation_events" as conversation_events {
+  * event_id
+    conversation_id
+    event_by_user_id
+    event_type
+    event_data
+}
+
+entity "conversation_analyses" as conversation_analyses {
+  * analysis_id
+    conversation_id
+    analyzer_name
+    is_spam
+    quality_score
+    extracted_info
+}
+
+entity "message_entities" as message_entities {
+  * message_entity_id
+    message_id
+    entity_type
+    entity_text
+    entity_normalized
+}
+
+entity "notification_outbox" as notification_outbox {
+  * outbox_id
+    recipient_user_id
+    related_reservation_id
+    status
+    idempotency_key
+    last_attempted_at
+}
+
+entity "notification_delivery_attempts" as notification_delivery_attempts {
+  * attempt_id
+    outbox_id
+    status
+    provider_status
+    error_code
+    provider_message_id
+}
+
+entity "users" as users {
+  * user_id
+    role_id
+    current_tier_id
+    privacy_anonymized_at
+    full_name
+}
+
+entity "branches" as branches {
+  * branch_id
+    branch_code
+    currency
+}
+
+entity "reservations" as reservations {
+  * reservation_id
+    status
+    deposit_status
+    deposit_paid_amount
+}
+
+entity "waiting_list" as waiting_list {
+  * waiting_id
+    user_id
+    branch_id
+    notified_by
+    updated_by
+    status
+    customer_response_status
+}
+
+entity "reservation_orders" as reservation_orders {
+  * order_id
+    reservation_id
+    created_by
+    updated_by
+    status
+}
+
+conversation_messages ||--o{ message_entities : message_id
+conversations ||--o{ conversation_analyses : conversation_id
+conversations ||--o{ agent_assignments : conversation_id
+users ||--o{ agent_assignments : agent_user_id
+reservations |o--o{ notification_outbox : related_reservation_id
+users |o--o{ notification_outbox : recipient_user_id
+conversations ||--o{ conversation_messages : conversation_id
+reservation_orders |o--o{ conversation_messages : related_order_id
+reservations |o--o{ conversation_messages : related_reservation_id
+users |o--o{ conversation_messages : sender_id
+branches ||--o{ conversations : branch_id
+reservations |o--o{ conversations : linked_reservation_id
+waiting_list |o--o{ conversations : linked_waiting_list_id
+users |o--o{ conversations : user_id
+users |o--o{ reservation_orders : created_by
+reservations ||--o{ reservation_orders : reservation_id
+users |o--o{ reservation_orders : updated_by
+conversation_messages ||--o{ conversation_files : message_id
+conversations ||--o{ conversation_events : conversation_id
+users |o--o{ conversation_events : event_by_user_id
+branches ||--o{ waiting_list : branch_id
+users |o--o{ waiting_list : notified_by
+users |o--o{ waiting_list : updated_by
+users |o--o{ waiting_list : user_id
+notification_outbox ||--o{ notification_delivery_attempts : outbox_id
+
+branches -[hidden]right- users
+users -[hidden]right- reservations
+reservations -[hidden]right- waiting_list
+
+agent_assignments -[hidden]right- conversations
+conversations -[hidden]right- reservation_orders
+reservation_orders -[hidden]right- notification_outbox
+
+conversation_analyses -[hidden]right- conversation_messages
+conversation_messages -[hidden]right- notification_delivery_attempts
+notification_delivery_attempts -[hidden]right- conversation_events
+conversation_files -[hidden]right- message_entities
+
+branches -[hidden]down- agent_assignments
+users -[hidden]down- conversations
+reservations -[hidden]down- reservation_orders
+waiting_list -[hidden]down- notification_outbox
+
+conversations -[hidden]down- conversation_analyses
+conversation_messages -[hidden]down- conversation_files
+@enduml
+
+
+
+
+

@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { StaffApiError } from '../../core/api/http';
-import type { StaffSession } from '../../core/auth/storage';
-import { STAFF_TOKEN_STORAGE_KEY } from '../../core/auth/storage';
-import { notifyStaffAuthFailure } from '../../core/auth/session-events';
+import { StaffApiError } from '../../shared/api/http';
+import type { StaffSession } from '../../shared/auth/storage';
+import { STAFF_TOKEN_STORAGE_KEY } from '../../shared/auth/storage';
+import { notifyStaffAuthFailure } from '../../shared/auth/session-events';
+import { buildStaffSession, type StaffStartupOverrides } from '../../test/fixtures';
+import { staffRoutePaths } from '../router/workspace-paths';
 import { STAFF_SESSION_EXPIRED_MESSAGE, defaultPathForSession, recommendedPathForSession, useAuthStore } from './auth-store';
+import { useWorkspaceStore } from './workspace-store';
 
 const staffApiMocks = vi.hoisted(() => ({
   getCurrentStaffSession: vi.fn(),
@@ -12,21 +15,26 @@ const staffApiMocks = vi.hoisted(() => ({
   logoutStaff: vi.fn(),
 }));
 
-vi.mock('../../core/api/staff-auth-api', () => staffApiMocks);
+vi.mock('../../shared/api/staff-auth-api', () => staffApiMocks);
 
-function makeSession(capabilities: Array<string>, overrides: Partial<StaffSession> = {}): StaffSession {
-  return {
-    auth_mode: 'staff_api_key',
-    token_type: 'opaque',
-    auth_header: 'X-Staff-Key',
-    access_token: 'staff-token',
+const initialWorkspaceState = useWorkspaceStore.getState();
+
+type StaffSessionOverrides = Omit<Partial<StaffSession>, 'startup'> & {
+  startup?: StaffStartupOverrides;
+};
+
+function makeSession(capabilities: Array<string>, overrides: StaffSessionOverrides = {}): StaffSession {
+  const { startup: startupOverrides, ...sessionOverrides } = overrides;
+
+  return buildStaffSession({
+    ...sessionOverrides,
     staff_api_key_id: 1,
     capabilities,
     known_capabilities: capabilities,
-    capability_source: 'role_capabilities',
     startup: {
       default_branch: null,
       active_cashier_shift: null,
+      ...startupOverrides,
       readiness: {
         access: 'ready',
         branch: 'ready',
@@ -35,10 +43,10 @@ function makeSession(capabilities: Array<string>, overrides: Partial<StaffSessio
         requires_cashier_shift: false,
         granted_capability_count: capabilities.length,
         known_capability_count: capabilities.length,
+        ...startupOverrides?.readiness,
       },
     },
-    ...overrides,
-  };
+  });
 }
 
 describe('routing helpers', () => {
@@ -53,10 +61,11 @@ describe('routing helpers', () => {
       session: null,
       notice: null,
     });
+    useWorkspaceStore.setState(initialWorkspaceState, true);
   });
 
   it('routes authenticated staff to the access hub by default', () => {
-    expect(defaultPathForSession(makeSession(['cashier.shift.manage', 'table.board.view', 'waiting_list.manage']))).toBe('/access');
+    expect(defaultPathForSession(makeSession(['cashier.shift.manage', 'table.board.view', 'waiting_list.manage']))).toBe(staffRoutePaths.access);
   });
 
   it('recommends cashier shift first when finance is blocked by startup readiness', () => {
@@ -74,7 +83,7 @@ describe('routing helpers', () => {
           known_capability_count: 2,
         },
       },
-    }))).toBe('/cashier-shift');
+    }))).toBe(staffRoutePaths.ops.cashierShift);
   });
 
   it('recommends the access hub when startup readiness is incomplete', () => {
@@ -92,15 +101,15 @@ describe('routing helpers', () => {
           known_capability_count: 1,
         },
       },
-    }))).toBe('/access');
+    }))).toBe(staffRoutePaths.access);
   });
 
   it('recommends the dashboard once the session is fully ready', () => {
-    expect(recommendedPathForSession(makeSession(['cashier.shift.manage', 'table.board.view', 'waiting_list.manage']))).toBe('/dashboard');
+    expect(recommendedPathForSession(makeSession(['cashier.shift.manage', 'table.board.view', 'waiting_list.manage']))).toBe(staffRoutePaths.ops.dashboard);
   });
 
-  it('keeps the dashboard as the ready-state entry even with one workspace capability', () => {
-    expect(recommendedPathForSession(makeSession(['reporting.view']))).toBe('/dashboard');
+  it('lands directly in the canonical admin workspace when admin is the only available workspace', () => {
+    expect(recommendedPathForSession(makeSession(['reporting.view']))).toBe(staffRoutePaths.admin.landing);
   });
 
   it('keeps the stored opaque token during bootstrap when auth/me omits access_token', async () => {
@@ -111,6 +120,19 @@ describe('routing helpers', () => {
 
     expect(localStorage.getItem(STAFF_TOKEN_STORAGE_KEY)).toBe('persisted-token');
     expect(useAuthStore.getState().status).toBe('authenticated');
+  });
+
+  it('hydrates workspace state during bootstrap from the restored staff session', async () => {
+    localStorage.setItem(STAFF_TOKEN_STORAGE_KEY, 'persisted-token');
+    staffApiMocks.getCurrentStaffSession.mockResolvedValue(makeSession(['kitchen.manage']));
+
+    await useAuthStore.getState().bootstrap();
+
+    expect(useWorkspaceStore.getState()).toMatchObject({
+      activeWorkspace: 'kitchen',
+      availableWorkspaces: ['kitchen'],
+      primaryWorkspace: 'kitchen',
+    });
   });
 
   it('keeps the stored token when bootstrap fails with a forbidden response', async () => {
@@ -127,6 +149,11 @@ describe('routing helpers', () => {
     expect(localStorage.getItem(STAFF_TOKEN_STORAGE_KEY)).toBe('persisted-token');
     expect(useAuthStore.getState().status).toBe('anonymous');
     expect(useAuthStore.getState().session).toBeNull();
+    expect(useWorkspaceStore.getState()).toMatchObject({
+      activeWorkspace: null,
+      availableWorkspaces: [],
+      primaryWorkspace: null,
+    });
     expect(useAuthStore.getState().notice).toEqual({
       tone: 'error',
       message: 'Không thể khôi phục phiên làm việc. Hãy thử làm mới hoặc đăng nhập lại.',
@@ -150,6 +177,16 @@ describe('routing helpers', () => {
     expect(useAuthStore.getState().notice).toBeNull();
   });
 
+  it('setSession syncs workspace state from the current staff session', () => {
+    useAuthStore.getState().setSession(makeSession(['reservation.manage', 'audit.view']));
+
+    expect(useWorkspaceStore.getState()).toMatchObject({
+      activeWorkspace: 'ops',
+      availableWorkspaces: ['ops', 'admin'],
+      primaryWorkspace: 'ops',
+    });
+  });
+
   it('expire clears the token and leaves an auth notice for the next render', () => {
     localStorage.setItem(STAFF_TOKEN_STORAGE_KEY, 'persisted-token');
     useAuthStore.setState({
@@ -163,6 +200,11 @@ describe('routing helpers', () => {
     expect(localStorage.getItem(STAFF_TOKEN_STORAGE_KEY)).toBeNull();
     expect(useAuthStore.getState().status).toBe('anonymous');
     expect(useAuthStore.getState().session).toBeNull();
+    expect(useWorkspaceStore.getState()).toMatchObject({
+      activeWorkspace: null,
+      availableWorkspaces: [],
+      primaryWorkspace: null,
+    });
     expect(useAuthStore.getState().notice).toEqual({
       tone: 'error',
       message: 'Phiên làm việc của nhân viên đã hết hạn. Đăng nhập lại để tiếp tục.',

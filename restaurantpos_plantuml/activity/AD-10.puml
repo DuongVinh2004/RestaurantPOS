@@ -1,0 +1,37 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam activity {
+  BackgroundColor white
+  BorderColor #374151
+  DiamondBackgroundColor #EEF2FF
+  DiamondBorderColor #4B5563
+}
+title AD-10 - Quản lý preorder
+start
+partition "Khách hàng" {
+  :Xem / preview / thay preorder;
+}
+partition "CustomerReservationPreorderController" {
+  :Nhận show / preview / replace / clear;
+  :Áp idempotency cho replace / clear;
+}
+partition "Reservation preorder + Menu policy" {
+  :Kiểm tra owner scope + reservation state;
+  :Kiểm tra menu item / quota / cutoff / giá hiện hành;
+  :Thay thế hoặc xóa preorder items;
+}
+if (Preorder mutation hợp lệ?) then (yes)
+partition "Reservation preorder + Menu policy" {
+  :Persist preorder state;
+}
+  stop
+else (no)
+partition "CustomerReservationPreorderController" {
+  :Trả preorder denied;
+}
+  stop
+endif
+@enduml

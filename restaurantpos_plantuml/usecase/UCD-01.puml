@@ -1,0 +1,46 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+
+left to right direction
+title UCD-01 - Customer Journey
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+}
+
+actor "Khách hàng" as Customer
+actor "Payment Provider / Webhook" as Provider
+
+package "Customer Self-Service" {
+  usecase "UC-01\nĐăng nhập khách hàng" as UC_01
+  usecase "UC-03\nTra cứu bàn trống" as UC_03
+  usecase "UC-04\nTạo / làm mới / hủy table hold" as UC_04
+  usecase "UC-05\nTạo reservation" as UC_05
+  usecase "UC-06\nKhách tự quản lý reservation" as UC_06
+  usecase "UC-07\nQuản lý preorder và deposit" as UC_07
+  usecase "UC-08\nQuản lý phiên thanh toán deposit / bill" as UC_08
+  usecase "UC-09\nQuản lý waiting list" as UC_09
+  usecase "UC-16\nÁp dụng voucher / loyalty / benefits" as UC_16
+  usecase "UC-20\nXử lý privacy request và export dữ liệu" as UC_20
+}
+
+Customer --> UC_01
+Customer --> UC_03
+Customer --> UC_04
+Customer --> UC_05
+Customer --> UC_06
+Customer --> UC_07
+Customer --> UC_08
+Customer --> UC_09
+Customer --> UC_16
+Customer --> UC_20
+Provider --> UC_08
+
+UC_05 ..> UC_03 : <<include>>
+UC_05 ..> UC_04 : <<include>>
+@enduml

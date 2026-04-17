@@ -314,4 +314,33 @@ JSON . PHP_EOL);
         $this->assertSame([], $report['mismatch_paths']);
         $this->assertSame($this->root . '/release_manifest_snapshot.json', $report['snapshot_path']);
     }
+
+    public function test_write_snapshot_does_not_rewrite_when_only_volatile_metadata_changes(): void
+    {
+        $schemaPath = base_path($this->root . '/schema.sql');
+        $snapshotPath = base_path($this->root . '/release_manifest_snapshot.json');
+        File::ensureDirectoryExists(dirname($schemaPath));
+        File::put($schemaPath, "alpha\nbeta\n");
+
+        config()->set('booking_release.artifacts', [
+            'schema_dump' => [
+                'path' => $this->root . '/schema.sql',
+                'optional' => false,
+                'required_fragments' => ['alpha', 'beta'],
+            ],
+        ]);
+        config()->set('booking_release.required_sql_patches', []);
+        config()->set('booking_release.release_manifest.definition_path', 'config/booking_release.php');
+        config()->set('booking_release.release_manifest.snapshot_path', $this->root . '/release_manifest_snapshot.json');
+
+        $service = app(ReleaseArtifactManifestService::class);
+        $service->writeSnapshot($service->snapshot());
+        $firstContents = (string) File::get($snapshotPath);
+
+        $snapshot = $service->snapshot();
+        $snapshot['meta']['generated_at_utc'] = '2099-01-01T00:00:00Z';
+        $service->writeSnapshot($snapshot);
+
+        $this->assertSame($firstContents, (string) File::get($snapshotPath));
+    }
 }

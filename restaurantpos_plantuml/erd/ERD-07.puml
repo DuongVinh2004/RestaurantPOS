@@ -1,0 +1,131 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam ArrowFontSize 9
+skinparam nodesep 110
+skinparam ranksep 130
+
+left to right direction
+hide circle
+title ERD-07 - Inventory và purchasing
+caption Mô tả nguyên liệu, ledger tồn kho, nhà cung cấp, purchase order, receipt và các bảng dòng chi tiết.
+skinparam linetype ortho
+skinparam entity {
+  BackgroundColor white
+  BorderColor #374151
+}
+
+entity "ingredients" as ingredients {
+  * ingredient_id
+    code
+    unit_code
+    created_at
+    updated_at
+    name
+    description
+}
+
+entity "ingredient_stock_movements" as ingredient_stock_movements {
+  * movement_id
+    ingredient_id
+    branch_id
+    created_by
+    unit_code
+    reference_id
+    created_at
+}
+
+entity "suppliers" as suppliers {
+  * supplier_id
+    code
+    created_at
+    updated_at
+    name
+    phone
+    email
+}
+
+entity "purchase_orders" as purchase_orders {
+  * purchase_order_id
+    supplier_id
+    branch_id
+    created_by
+    updated_by
+    purchase_order_status
+    order_code
+}
+
+entity "purchase_order_lines" as purchase_order_lines {
+  * po_line_id
+    purchase_order_id
+    ingredient_id
+    unit_code
+    created_at
+    updated_at
+    ordered_quantity
+}
+
+entity "purchase_receipts" as purchase_receipts {
+  * receipt_id
+    purchase_order_id
+    branch_id
+    created_by
+    receipt_status
+    receipt_code
+    received_at
+}
+
+entity "purchase_receipt_lines" as purchase_receipt_lines {
+  * receipt_line_id
+    receipt_id
+    purchase_order_line_id
+    ingredient_id
+    stock_movement_id
+    unit_code
+    created_at
+}
+
+entity "branches" as branches {
+  * branch_id
+    branch_code
+    business_hours
+    closure_windows
+    booking_policy
+    currency
+    created_at
+}
+
+entity "users" as users {
+  * user_id
+    role_id
+    current_tier_id
+    privacy_anonymized_at
+    created_at
+    updated_at
+    full_name
+}
+
+branches ||--o{ purchase_orders : branch_id
+suppliers ||--o{ purchase_orders : supplier_id
+users |o--o{ purchase_orders : created_by
+users |o--o{ purchase_orders : updated_by
+branches ||--o{ purchase_receipts : branch_id
+purchase_orders ||--o{ purchase_receipts : purchase_order_id
+users |o--o{ purchase_receipts : created_by
+purchase_receipts ||--o{ purchase_receipt_lines : receipt_id
+purchase_order_lines ||--o{ purchase_receipt_lines : purchase_order_line_id
+ingredients ||--o{ purchase_receipt_lines : ingredient_id
+ingredient_stock_movements |o--o| purchase_receipt_lines : stock_movement_id
+branches ||--o{ ingredient_stock_movements : branch_id
+users |o--o{ ingredient_stock_movements : created_by
+ingredients ||--o{ ingredient_stock_movements : ingredient_id
+purchase_orders ||--o{ purchase_order_lines : purchase_order_id
+ingredients ||--o{ purchase_order_lines : ingredient_id
+@enduml
+
+
+
+
+

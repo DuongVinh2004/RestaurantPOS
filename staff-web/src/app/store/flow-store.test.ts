@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { staffRoutePaths } from '../router/workspace-paths';
 import { buildStaffSession } from '../../test/fixtures';
 import { useFlowStore } from './flow-store';
 
@@ -105,10 +106,27 @@ describe('flow-store', () => {
     });
   });
 
+  it('hydrates branch and single assigned station from startup contract fields', () => {
+    useFlowStore.getState().syncSessionContext(buildStaffSession({
+      staff_api_key_id: 21,
+      startup: {
+        default_branch_id: 7,
+        allowed_branch_ids: [7],
+        assigned_station_ids: [501],
+      },
+    }));
+
+    expect(useFlowStore.getState()).toMatchObject({
+      sessionOwnerKey: 21,
+      branchId: 7,
+      selectedStationId: 501,
+    });
+  });
+
   it('keeps pinned work and trims recent work for quick resume', () => {
     useFlowStore.getState().touchWork({
-      key: '/orders?order_id=51',
-      path: '/orders?order_id=51',
+      key: `${staffRoutePaths.ops.orders}?order_id=51`,
+      path: `${staffRoutePaths.ops.orders}?order_id=51`,
       label: 'Đơn hàng',
       subtitle: 'Đơn #51',
       branchId: 1,
@@ -117,8 +135,8 @@ describe('flow-store', () => {
 
     for (let index = 0; index < 8; index += 1) {
       useFlowStore.getState().touchWork({
-        key: `/tables?table_id=${index + 1}`,
-        path: `/tables?table_id=${index + 1}`,
+        key: `${staffRoutePaths.ops.tables}?table_id=${index + 1}`,
+        path: `${staffRoutePaths.ops.tables}?table_id=${index + 1}`,
         label: 'Sơ đồ bàn',
         subtitle: `Bàn ${index + 1}`,
         branchId: 1,
@@ -128,12 +146,12 @@ describe('flow-store', () => {
     const workItems = useFlowStore.getState().workItems;
 
     expect(workItems[0]).toMatchObject({
-      key: '/orders?order_id=51',
+      key: `${staffRoutePaths.ops.orders}?order_id=51`,
       pinned: true,
     });
     expect(workItems).toHaveLength(7);
-    expect(workItems.some((item) => item.key === '/tables?table_id=1')).toBe(false);
-    expect(workItems.some((item) => item.key === '/tables?table_id=8')).toBe(true);
+    expect(workItems.some((item) => item.key === `${staffRoutePaths.ops.tables}?table_id=1`)).toBe(false);
+    expect(workItems.some((item) => item.key === `${staffRoutePaths.ops.tables}?table_id=8`)).toBe(true);
   });
 });
 
@@ -153,6 +171,8 @@ function makeSession(staffApiKeyId: number, defaultBranchId: number) {
     startup: {
       ...base.startup,
       default_branch: defaultBranch,
+      default_branch_id: defaultBranchId,
+      allowed_branch_ids: [defaultBranchId],
     },
   });
 }

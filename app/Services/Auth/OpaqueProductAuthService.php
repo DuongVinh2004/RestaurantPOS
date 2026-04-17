@@ -7,16 +7,17 @@ namespace App\Services\Auth;
 use App\Models\CustomerAccessSession;
 use App\Models\StaffApiKey;
 use App\Models\User;
-use App\Modules\BranchScheduling\Domain\Models\Branch;
-use App\Modules\CheckoutPayments\Domain\Models\CashierShift;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
-use App\Services\CustomerAccessSessionService;
-use App\Modules\FloorOps\Application\Services\StaffBranchContextService;
+use App\Modules\BranchScheduling\Domain\Models\Branch;
 use App\Modules\CheckoutPayments\Application\Services\StaffCashierShiftService;
+use App\Modules\CheckoutPayments\Domain\Models\CashierShift;
+use App\Modules\FloorOps\Application\Services\StaffBranchContextService;
+use App\Services\CustomerAccessSessionService;
 use App\Services\StaffApiKeyGovernanceService;
 use App\Support\AuditEvent;
 use App\Support\StaffCapabilityResolver;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -26,18 +27,45 @@ class OpaqueProductAuthService
     /**
      * @var list<string>
      */
-    private const STAFF_WEB_ENTRY_CAPABILITIES = [
-        'audit.view',
-        'reservation.manage',
-        'table.board.view',
-        'waiting_list.manage',
-        'order.manage',
-        'kitchen.manage',
-        'settlement.manage',
-        'cashier.shift.manage',
-        'payment.refund',
-        'conversation.manage',
-        'reporting.view',
+    private const STAFF_WORKSPACE_ORDER = ['ops', 'kitchen', 'admin'];
+
+    private const DEFAULT_STAFF_WORKSPACE = 'ops';
+
+    /**
+     * @var array<string,list<string>>
+     */
+    private const STAFF_WORKSPACE_CAPABILITIES = [
+        'ops' => [
+            'table.board.view',
+            'table.release',
+            'reservation.manage',
+            'waiting_list.manage',
+            'order.manage',
+            'settlement.manage',
+            'payment.refund',
+            'cashier.shift.manage',
+            'conversation.manage',
+            'voucher.manage',
+            'loyalty.view',
+            'loyalty.redeem',
+            'loyalty.adjust',
+        ],
+        'kitchen' => [
+            'kitchen.manage',
+        ],
+        'admin' => [
+            'audit.view',
+            'reporting.view',
+            'inventory.manage',
+            'menu.manage',
+            'settings.manage',
+            'privacy.manage',
+            'ops.view',
+            'ops.health.view',
+            'ops.metrics.view',
+            'ops.release.view',
+            'voucher.master_data.manage',
+        ],
     ];
 
     public function __construct(
@@ -441,12 +469,18 @@ class OpaqueProductAuthService
         $activeCashierShift = $this->resolveActiveCashierShiftContext($user);
         $capabilities = array_values(array_map('strval', (array) ($capabilityContext['capabilities'] ?? [])));
         $knownCapabilities = array_values(array_map('strval', (array) ($capabilityContext['known_capabilities'] ?? [])));
-        $hasStaffWebAccess = $this->hasStaffWebEntryCapability($capabilities);
+        $workspaceContext = $this->resolveStaffWorkspaceContext($capabilities);
+        $hasStaffWebAccess = $workspaceContext['available_workspaces'] !== [];
         $hasBranchAccess = $branchAccess['accessible_branch_ids'] !== [];
         $requiresCashierShift = $this->hasCapability($capabilities, 'settlement.manage')
             || $this->hasCapability($capabilities, 'cashier.shift.manage');
 
         return [
+            'primary_workspace' => $workspaceContext['primary_workspace'],
+            'available_workspaces' => $workspaceContext['available_workspaces'],
+            'default_branch_id' => $branchAccess['default_branch_id'],
+            'allowed_branch_ids' => $branchAccess['accessible_branch_ids'],
+            'assigned_station_ids' => $this->resolveAssignedStationIdsContext($capabilities),
             'default_branch' => $defaultBranch,
             'branch_access' => $branchAccess,
             'active_cashier_shift' => $activeCashierShift,
@@ -555,6 +589,55 @@ class OpaqueProductAuthService
     }
 
     /**
+     * @param  list<string>  $capabilities
+     * @return array{primary_workspace:string,available_workspaces:list<string>}
+     */
+    private function resolveStaffWorkspaceContext(array $capabilities): array
+    {
+        $availableWorkspaces = [];
+
+        foreach (self::STAFF_WORKSPACE_ORDER as $workspace) {
+            $workspaceCapabilities = self::STAFF_WORKSPACE_CAPABILITIES[$workspace] ?? [];
+            if ($this->hasAnyCapability($capabilities, $workspaceCapabilities)) {
+                $availableWorkspaces[] = $workspace;
+            }
+        }
+
+        return [
+            'primary_workspace' => $availableWorkspaces[0] ?? self::DEFAULT_STAFF_WORKSPACE,
+            'available_workspaces' => $availableWorkspaces,
+        ];
+    }
+
+    /**
+     * @param  list<string>  $capabilities
+     * @return list<int>
+     */
+    private function resolveAssignedStationIdsContext(array $capabilities): array
+    {
+        if (! $this->hasCapability($capabilities, 'kitchen.manage') || ! Schema::hasTable('kitchen_stations')) {
+            return [];
+        }
+
+        try {
+            $query = DB::table('kitchen_stations');
+
+            if (Schema::hasColumn('kitchen_stations', 'is_active')) {
+                $query->where('is_active', true);
+            }
+
+            return $query
+                ->orderBy('station_id')
+                ->pluck('station_id')
+                ->map(static fn ($value): int => (int) $value)
+                ->values()
+                ->all();
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    /**
      * @return array<string,mixed>|null
      */
     private function resolveActiveCashierShiftContext(?User $user): ?array
@@ -606,24 +689,6 @@ class OpaqueProductAuthService
             'is_default' => (bool) $branch->is_default,
             'is_active' => (bool) $branch->is_active,
         ];
-    }
-
-    /**
-     * @param  list<string>  $capabilities
-     */
-    private function hasStaffWebEntryCapability(array $capabilities): bool
-    {
-        if ($this->hasCapability($capabilities, '*')) {
-            return true;
-        }
-
-        foreach (self::STAFF_WEB_ENTRY_CAPABILITIES as $capability) {
-            if ($this->hasCapability($capabilities, $capability)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**

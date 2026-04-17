@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 
 final class WaitingListStateMachine
 {
-    private const ROW_VERSION_MESSAGE = 'Dá»¯ liá»‡u Ä‘Ã£ thay Ä‘á»•i (row_version mismatch). HÃ£y reload rá»“i thá»­ láº¡i.';
+    private const ROW_VERSION_MESSAGE = 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.';
 
     public static function statusValue(WaitingList $entry): string
     {
@@ -57,13 +57,13 @@ final class WaitingListStateMachine
 
         if (! $expiresAt instanceof Carbon) {
             throw ValidationException::withMessages([
-                'notify_window' => ['Notify window hiá»‡n khÃ´ng há»£p lá»‡ hoáº·c Ä‘Ã£ bá»‹ reset.'],
+                'notify_window' => ['Notify window hiện không hợp lệ hoặc đã bị reset.'],
             ]);
         }
 
         if ($expiresAt->lessThanOrEqualTo($now)) {
             throw ValidationException::withMessages([
-                'notify_window' => ['Notify window Ä‘Ã£ háº¿t háº¡n. HÃ£y expire hoáº·c notify láº¡i entry nÃ y trÆ°á»›c khi seat.'],
+                'notify_window' => ['Notify window đã hết hạn. Hãy expire hoặc notify lại entry này trước khi seat.'],
             ]);
         }
     }

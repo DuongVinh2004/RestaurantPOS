@@ -1,0 +1,35 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+
+left to right direction
+title UCD-04 - Ops / Governance
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+}
+
+actor "Operator / System" as Operator
+actor "Quản trị viên" as Admin
+actor "Nhân viên sảnh / Thu ngân" as StaffCashier
+
+package "Ops & Governance" {
+  usecase "UC-19\nXử lý conversation inbox nội bộ" as UC_19
+  usecase "UC-20\nXử lý privacy request và export dữ liệu" as UC_20
+  usecase "UC-21\nTheo dõi audit, báo cáo và đối soát" as UC_21
+  usecase "UC-22\nVận hành health, metrics và release readiness" as UC_22
+}
+
+Operator --> UC_22
+Admin --> UC_20
+Admin --> UC_21
+Admin --> UC_22
+StaffCashier --> UC_19
+StaffCashier --> UC_21
+
+UC_22 ..> UC_21 : <<include>>
+@enduml

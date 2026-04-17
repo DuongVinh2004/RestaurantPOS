@@ -1,0 +1,4 @@
+interface:
+  display_name: "Customer Web Verification"
+  short_description: "Pick focused checks for customer-web changes."
+  default_prompt: "Use $restaurantpos-customer-web-verification before closing a customer-web frontend batch."

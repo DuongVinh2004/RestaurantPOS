@@ -1,0 +1,38 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam activity {
+  BackgroundColor white
+  BorderColor #374151
+  DiamondBackgroundColor #EEF2FF
+  DiamondBorderColor #4B5563
+}
+title AD-06 - Tạo reservation
+start
+partition "Khách hàng / Nhân viên" {
+  :Gửi dữ liệu reservation hoặc hold đã chọn;
+}
+partition "ReservationController" {
+  :Nhận create reservation;
+  :Áp CustomerOrStaff guard + throttle + idempotency;
+}
+partition "Reservations + BranchScheduling" {
+  :Kiểm tra hold/direct table selection;
+  :Kiểm tra conflict thời gian / bàn;
+  :Kiểm tra branch-local policy;
+  :Tạo reservation và reservation_tables;
+}
+if (Reservation create pass?) then (yes)
+partition "Reservations + BranchScheduling" {
+  :Trả reservation vừa tạo;
+}
+  stop
+else (no)
+partition "ReservationController" {
+  :Trả create denied;
+}
+  stop
+endif
+@enduml

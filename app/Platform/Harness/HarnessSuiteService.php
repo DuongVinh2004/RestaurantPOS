@@ -226,6 +226,11 @@ class HarnessSuiteService
             'staff_startup' => [
                 'source' => 'Staff auth session envelope (login/me/refresh)',
                 'fields' => [
+                    'data.startup.primary_workspace',
+                    'data.startup.available_workspaces',
+                    'data.startup.default_branch_id',
+                    'data.startup.allowed_branch_ids',
+                    'data.startup.assigned_station_ids',
                     'data.startup.default_branch',
                     'data.startup.active_cashier_shift',
                     'data.startup.readiness.access',

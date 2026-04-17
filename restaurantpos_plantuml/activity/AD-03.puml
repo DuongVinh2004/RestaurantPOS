@@ -1,0 +1,36 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam activity {
+  BackgroundColor white
+  BorderColor #374151
+  DiamondBackgroundColor #EEF2FF
+  DiamondBorderColor #4B5563
+}
+title AD-03 - Tra cứu bàn trống
+start
+partition "Khách hàng / Nhân viên" {
+  :Nhập branch, thời gian, số khách;
+}
+partition "TableController" {
+  :Nhận yêu cầu available tables;
+}
+partition "BranchScheduling + Availability" {
+  :Resolve timezone / business hours / closure windows;
+  :Kiểm tra lead time / max advance / cutoff;
+  :Tính candidate tables theo sức chứa và busy state;
+}
+if (Slot hợp lệ theo branch policy?) then (yes)
+partition "BranchScheduling + Availability" {
+  :Trả danh sách bàn phù hợp hoặc gợi ý best-fit;
+}
+  stop
+else (no)
+partition "TableController" {
+  :Trả slot bị từ chối theo policy;
+}
+  stop
+endif
+@enduml

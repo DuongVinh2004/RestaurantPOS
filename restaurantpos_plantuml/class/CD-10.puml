@@ -1,0 +1,118 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+
+hide empty methods
+skinparam classAttributeIconSize 0
+left to right direction
+title CD-10 - Privacy, Audit và Operational Controls
+caption Mô tả lớp governance: privacy request, audit log, audit subjects, feature flag và các neo dữ liệu\nliên quan.
+skinparam class {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+  HeaderBackgroundColor #E5EEF9
+}
+
+class "User" as User <<entity>> {
+  {static} table = users
+  --
+  user_id
+  role_id
+  current_tier_id
+  row_version
+  privacy_anonymized_at
+  username
+  full_name
+}
+
+class "Reservation" as Reservation <<entity>> {
+  {static} table = reservations
+  --
+  reservation_id
+  user_id
+  applied_user_voucher_id
+  row_version
+  status
+  deposit_status
+  deposit_intent_status
+}
+
+class "Payment" as Payment <<ledger>> {
+  {static} table = payments
+  --
+  payment_id
+  reservation_id
+  refund_of_payment_id
+  created_by
+  row_version
+  idempotency_key
+  payment_type
+}
+
+class "CustomerPrivacyRequest" as CustomerPrivacyRequest <<entity>> {
+  {static} table = customer_privacy_requests
+  --
+  customer_privacy_request_id
+  user_id
+  requested_by_user_id
+  reviewed_by
+  status
+  result_summary_json
+  reviewed_at
+}
+
+class "AuditLog" as AuditLog <<entity>> {
+  {static} table = audit_logs
+  --
+  audit_id
+  actor_user_id
+  entity_id
+  request_id
+  before_json
+  after_json
+  summary_json
+}
+
+class "AuditLogSubject" as AuditLogSubject <<entity>> {
+  {static} table = audit_log_subjects
+  --
+  audit_subject_id
+  audit_id
+  subject_id
+  created_at
+  subject_type
+  subject_role
+}
+
+class "FeatureFlag" as FeatureFlag <<entity>> {
+  {static} table = feature_flags
+  --
+  feature_flag_id
+  branch_id
+  updated_by
+  row_version
+  created_at
+  updated_at
+  feature_key
+}
+
+class "CustomerPrivacyRequestService" as CustomerPrivacyRequestService <<control>> {
+  orchestrates flow
+}
+
+User "1" --> "0..*" Reservation : reservations\nFK: user_id
+User "1" --> "0..*" Payment : createdPayments\nFK: created_by
+User "1" --> "0..*" CustomerPrivacyRequest : privacyRequests\nFK: user_id
+Reservation "1" --> "0..*" Payment : payments\nFK: reservation_id
+Payment "0..*" --> "1" Payment : refundOfPayment\nFK: refund_of_payment_id
+Payment "1" --> "0..*" Payment : refundPayments\nFK: refund_of_payment_id
+CustomerPrivacyRequest "0..*" --> "1" User : requestedByUser\nFK: requested_by_user_id
+CustomerPrivacyRequest "0..*" --> "1" User : reviewedByUser\nFK: reviewed_by
+AuditLog "0..*" --> "1" User : actorUser\nFK: actor_user_id
+AuditLog "1" --> "0..*" AuditLogSubject : subjects\nFK: audit_id
+FeatureFlag "0..*" --> "1" User : updatedByUser\nFK: updated_by
+CustomerPrivacyRequestService ..> User : uses
+@enduml

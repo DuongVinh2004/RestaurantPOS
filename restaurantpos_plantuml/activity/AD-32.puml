@@ -1,0 +1,59 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam activity {
+  BackgroundColor white
+  BorderColor #374151
+  DiamondBackgroundColor #EEF2FF
+  DiamondBorderColor #4B5563
+}
+title AD-32 - Cashier shift lifecycle
+start
+partition "Thu ngân / Nhân viên" {
+  :Chọn open shift, xem current/history hoặc close shift;
+}
+partition "StaffCashierShiftController" {
+  :Nhận cashier shift command;
+  :Áp capability cashier.shift.manage và idempotency cho open/close;
+}
+if (Open shift?) then (yes)
+  partition "StaffCashierShiftService" {
+    :Khóa cashier user và open shift hiện tại;
+    :Kiểm tra branch eligibility, opening float và terminal code;
+  }
+  if (Đã có shift Open?) then (yes)
+    partition "StaffCashierShiftController" {
+      :Trả open denied;
+    }
+    stop
+  else (no)
+    partition "StaffCashierShiftService" {
+      :Tạo cashier_shifts = Open và phát shift_code;
+    }
+    stop
+  endif
+else (no)
+  if (View current/history?) then (yes)
+    partition "StaffCashierShiftService" {
+      :Đọc current open shift hoặc paginate shift history theo branch/status/sort;
+    }
+    stop
+  else (close shift)
+    partition "StaffCashierShiftService" {
+      :Khóa shift đích, kiểm tra row_version và trạng thái Open;
+      :Build payment snapshot để tính expected cash;
+      :Tính discrepancy và chốt closed_at/closed_by;
+    }
+    if (Close hợp lệ?) then (yes)
+      stop
+    else (no)
+      partition "StaffCashierShiftController" {
+        :Trả close denied;
+      }
+      stop
+    endif
+  endif
+endif
+@enduml

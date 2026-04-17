@@ -1,0 +1,34 @@
+﻿@startuml
+left to right direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultTextAlignment left
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+  FontColor black
+}
+skinparam actor {
+  BorderColor #374151
+  FontColor black
+}
+
+title UC-05 - Tạo reservation
+actor "Khách hàng / Nhân viên" as A1
+rectangle "RestaurantPOS Backend" as SYS {
+  usecase "UC-05\nTạo reservation" as MAIN
+  usecase "Tạo từ table hold hợp lệ" as S01
+  usecase "Tạo từ chọn bàn trực tiếp" as S02
+  usecase "Kiểm tra conflict thời gian / bàn" as S03
+  usecase "Kiểm tra branch-local policy" as S04
+  usecase "Xem chi tiết reservation vừa tạo" as S05
+}
+S01 ..> MAIN : <<extend>>
+S02 ..> MAIN : <<extend>>
+MAIN ..> S03 : <<include>>
+MAIN ..> S04 : <<include>>
+S05 ..> MAIN : <<extend>>
+A1 --> MAIN
+@enduml

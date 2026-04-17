@@ -37,7 +37,8 @@ class CustomerWaitingListSelfServiceHttpFlowTest extends TestCase
             'guest_name' => 'Legacy Guest Session',
             'phone' => '0909888777',
             'guest_count' => 2,
-        ])->assertStatus(401);
+        ])->assertStatus(403)
+            ->assertJsonPath('category_code', 'owner_scope_denied');
     }
 
     public function test_owner_resource_uses_canonical_shape_and_omits_legacy_self_service_lifecycle_fields(): void

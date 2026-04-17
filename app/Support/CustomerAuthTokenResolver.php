@@ -90,11 +90,9 @@ class CustomerAuthTokenResolver
 
         if ($providedSessionId !== '') {
             $accessSession = $this->accessSessionService->resolveActiveSessionBySessionId($providedSessionId);
-            $user = $this->resolveUserById($accessSession && isset($accessSession->user_id) ? (int) $accessSession->user_id : null);
 
             return array_filter([
-                'auth_mode' => $user ? 'customer_session_user' : 'customer_session',
-                'user' => $user,
+                'auth_mode' => 'customer_session',
                 'session_id' => $providedSessionId,
                 'access_session_id' => $accessSession && isset($accessSession->access_session_id) ? (int) $accessSession->access_session_id : null,
                 'guest_name' => $accessSession && isset($accessSession->guest_name) ? (string) $accessSession->guest_name : null,

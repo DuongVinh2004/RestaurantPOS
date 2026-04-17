@@ -1,0 +1,38 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam activity {
+  BackgroundColor white
+  BorderColor #374151
+  DiamondBackgroundColor #EEF2FF
+  DiamondBorderColor #4B5563
+}
+title AD-20 - Ticket fire / bump / recall
+start
+partition "Nhân viên bếp" {
+  :Chọn action fire, bump hoặc recall ticket;
+}
+partition "StaffKitchenController" {
+  :Nhận kitchen ticket mutation;
+  :Áp capability kitchen.manage và idempotency key;
+}
+partition "KitchenRoutingService" {
+  :Load ticket, reservation context và order-item state;
+  :Kiểm tra transition policy và feature-flag runtime;
+}
+if (Ticket action hợp lệ?) then (yes)
+  partition "KitchenRoutingService" {
+    :Cập nhật ticket_status;
+    :Project state sang reservation_order_items nếu policy yêu cầu;
+    :Publish kitchen realtime event;
+  }
+  stop
+else (no)
+  partition "StaffKitchenController" {
+    :Trả action denied;
+  }
+  stop
+endif
+@enduml

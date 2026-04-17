@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { StaffSession } from '../../core/auth/storage';
-import type { JourneyContext } from '../../core/utils/journey';
+import type { StaffSession } from '../../shared/auth/storage';
+import type { JourneyContext } from '../router/journey';
 
 export type FlowWorkItem = {
   key: string;
@@ -110,7 +110,8 @@ export const useFlowStore = create<FlowState>()(
       workItems: [],
       syncSessionContext: (session) => {
         const nextSessionOwnerKey = session?.staff_api_key_id ?? null;
-        const defaultBranchId = session?.startup.default_branch?.branch_id ?? null;
+        const defaultBranchId = defaultBranchIdForSession(session);
+        const defaultStationId = defaultStationIdForSession(session);
 
         set((state) => {
           if (!session) {
@@ -128,19 +129,23 @@ export const useFlowStore = create<FlowState>()(
               branchId: defaultBranchId,
               workItems: [],
               ...clearedCoreContext,
+              selectedStationId: defaultStationId,
             };
           }
 
           return {
             sessionOwnerKey: nextSessionOwnerKey,
             branchId: state.branchId ?? defaultBranchId,
+            selectedStationId: state.selectedStationId ?? defaultStationId,
           };
         });
       },
       hydrateFromSession: (session) => {
-        const defaultBranchId = session?.startup.default_branch?.branch_id ?? null;
+        const defaultBranchId = defaultBranchIdForSession(session);
+        const defaultStationId = defaultStationIdForSession(session);
         set((state) => ({
           branchId: state.branchId ?? defaultBranchId,
+          selectedStationId: state.selectedStationId ?? defaultStationId,
         }));
       },
       applyJourney: (context) =>
@@ -270,4 +275,14 @@ function sortWorkItems(left: FlowWorkItem, right: FlowWorkItem): number {
   }
 
   return right.lastTouchedAt - left.lastTouchedAt;
+}
+
+function defaultBranchIdForSession(session: StaffSession | null): number | null {
+  return session?.startup.default_branch_id ?? session?.startup.default_branch?.branch_id ?? null;
+}
+
+function defaultStationIdForSession(session: StaffSession | null): number | null {
+  const assignedStationIds = session?.startup.assigned_station_ids ?? [];
+
+  return assignedStationIds.length === 1 ? assignedStationIds[0] : null;
 }

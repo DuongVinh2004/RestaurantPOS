@@ -1,14 +1,18 @@
 import { Suspense, lazy, useEffect } from 'react';
 import type { ComponentType } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
-import { Button } from 'antd';
+import type { WorkspaceId } from '../../workspaces/workspaces';
 import {
   PageLoadingState,
-  PermissionDeniedState,
-} from '../../components/states/StateBlocks';
-import { can } from '../../core/permissions/capabilities';
+} from '../../shared/ui/states/StateBlocks';
+import type { StaffWorkspacePageId, StaffWorkspaceRouteDefinition } from '../../workspaces/routes';
+import { adminWorkspaceRoutes } from '../../workspaces/admin/routes';
+import { kitchenWorkspaceRoutes } from '../../workspaces/kitchen/routes';
+import { opsWorkspaceRoutes } from '../../workspaces/ops/routes';
 import { recommendedPathForSession, useAuthStore } from '../store/auth-store';
-import { resolveFallbackRedirectPath, resolveIndexRedirectPath } from './redirects';
+import { resolveRecommendedStaffPath } from './session-paths';
+import { WorkspaceBoundary, WorkspaceIndexRedirect, WorkspaceRoute } from './workspace-route-guards';
+import { staffRoutePaths } from './workspace-paths';
 
 function lazyRoute<TModule extends Record<string, unknown>, TKey extends keyof TModule>(
   loader: () => Promise<TModule>,
@@ -21,24 +25,28 @@ function lazyRoute<TModule extends Record<string, unknown>, TKey extends keyof T
 }
 
 const StaffAppShell = lazyRoute(() => import('../layout/StaffAppShell'), 'StaffAppShell');
-const LoginPage = lazyRoute(() => import('../../features/auth/LoginPage'), 'LoginPage');
-const AccessGatePage = lazyRoute(() => import('../../features/access/AccessGatePage'), 'AccessGatePage');
-const DashboardPage = lazyRoute(() => import('../../features/dashboard/DashboardPage'), 'DashboardPage');
-const TableBoardPage = lazyRoute(() => import('../../features/tables/TableBoardPage'), 'TableBoardPage');
-const ReservationsPage = lazyRoute(() => import('../../features/reservations/ReservationsPage'), 'ReservationsPage');
-const OrderWorkspacePage = lazyRoute(() => import('../../features/orders/OrderWorkspacePage'), 'OrderWorkspacePage');
-const KitchenBoardPage = lazyRoute(() => import('../../features/kitchen/KitchenBoardPage'), 'KitchenBoardPage');
-const CheckoutPage = lazyRoute(() => import('../../features/checkout/CheckoutPage'), 'CheckoutPage');
-const RefundWorkspacePage = lazyRoute(() => import('../../features/refunds/RefundWorkspacePage'), 'RefundWorkspacePage');
-const WaitingListPage = lazyRoute(() => import('../../features/waiting/WaitingListPage'), 'WaitingListPage');
-const CashierShiftPage = lazyRoute(() => import('../../features/cashier/CashierShiftPage'), 'CashierShiftPage');
-const FinanceReviewPage = lazyRoute(() => import('../../features/finance/FinanceReviewPage'), 'FinanceReviewPage');
+const LoginPage = lazyRoute(() => import('../auth/LoginPage'), 'LoginPage');
+const AccessGatePage = lazyRoute(() => import('../../workspaces/shared/pages/access/AccessGatePage'), 'AccessGatePage');
+const DashboardPage = lazyRoute(() => import('../../workspaces/ops/pages/dashboard/DashboardPage'), 'DashboardPage');
+const TableBoardPage = lazyRoute(() => import('../../workspaces/ops/pages/tables/TableBoardPage'), 'TableBoardPage');
+const ReservationsPage = lazyRoute(() => import('../../workspaces/ops/pages/reservations/ReservationsPage'), 'ReservationsPage');
+const OrderWorkspacePage = lazyRoute(() => import('../../workspaces/ops/pages/orders/OrderWorkspacePage'), 'OrderWorkspacePage');
+const KitchenLandingPage = lazyRoute(() => import('../../workspaces/kitchen/pages/landing/KitchenLandingPage'), 'KitchenLandingPage');
+const KitchenBoardPage = lazyRoute(() => import('../../workspaces/kitchen/pages/board/KitchenBoardPage'), 'KitchenBoardPage');
+const CheckoutPage = lazyRoute(() => import('../../workspaces/ops/pages/checkout/CheckoutPage'), 'CheckoutPage');
+const RefundWorkspacePage = lazyRoute(() => import('../../workspaces/ops/pages/refunds/RefundWorkspacePage'), 'RefundWorkspacePage');
+const WaitingListPage = lazyRoute(() => import('../../workspaces/ops/pages/waiting/WaitingListPage'), 'WaitingListPage');
+const CashierShiftPage = lazyRoute(() => import('../../workspaces/ops/pages/cashier/CashierShiftPage'), 'CashierShiftPage');
+const FinanceReviewPage = lazyRoute(() => import('../../workspaces/ops/pages/finance/FinanceReviewPage'), 'FinanceReviewPage');
 const ConversationInboxPage = lazyRoute(
-  () => import('../../features/conversations/ConversationInboxPage'),
+  () => import('../../workspaces/ops/pages/conversations/ConversationInboxPage'),
   'ConversationInboxPage',
 );
-const AuditTrailPage = lazyRoute(() => import('../../features/audit/AuditTrailPage'), 'AuditTrailPage');
-const ReportingHubPage = lazyRoute(() => import('../../features/reporting/ReportingHubPage'), 'ReportingHubPage');
+const AdminLandingPage = lazyRoute(() => import('../../workspaces/admin/pages/landing/AdminLandingPage'), 'AdminLandingPage');
+const AdminSettingsPage = lazyRoute(() => import('../../workspaces/admin/pages/settings/AdminSettingsPage'), 'AdminSettingsPage');
+const AdminInventoryPage = lazyRoute(() => import('../../workspaces/admin/pages/inventory/AdminInventoryPage'), 'AdminInventoryPage');
+const AuditTrailPage = lazyRoute(() => import('../../workspaces/admin/pages/audit/AuditTrailPage'), 'AuditTrailPage');
+const ReportingHubPage = lazyRoute(() => import('../../workspaces/admin/pages/reporting/ReportingHubPage'), 'ReportingHubPage');
 
 export function AppRouter() {
   return (
@@ -46,108 +54,24 @@ export function AppRouter() {
       <BootstrapGate>
         <Suspense fallback={<RouteLoadingState />}>
           <Routes>
-            <Route path="/login" element={<LoginPage />} />
+            <Route path={staffRoutePaths.login} element={<LoginPage />} />
             <Route element={<ProtectedRoute />}>
               <Route element={<StaffAppShell />}>
                 <Route index element={<IndexRedirect />} />
-                <Route path="/access" element={<AccessGatePage />} />
-                <Route path="/dashboard" element={<DashboardRoute />} />
-                <Route
-                  path="/tables"
-                  element={(
-                    <CapabilityRoute capability="table.board.view">
-                      <TableBoardPage />
-                    </CapabilityRoute>
-                  )}
-                />
-                <Route
-                  path="/reservations"
-                  element={(
-                    <CapabilityRoute capability="reservation.manage">
-                      <ReservationsPage />
-                    </CapabilityRoute>
-                  )}
-                />
-                <Route
-                  path="/orders"
-                  element={(
-                    <CapabilityRoute capability="order.manage">
-                      <OrderWorkspacePage />
-                    </CapabilityRoute>
-                  )}
-                />
-                <Route
-                  path="/kitchen"
-                  element={(
-                    <CapabilityRoute capability="kitchen.manage">
-                      <KitchenBoardPage />
-                    </CapabilityRoute>
-                  )}
-                />
-                <Route
-                  path="/checkout"
-                  element={(
-                    <CapabilityRoute capability="settlement.manage">
-                      <CheckoutPage />
-                    </CapabilityRoute>
-                  )}
-                />
-                <Route
-                  path="/refunds"
-                  element={(
-                    <CapabilityRoute capability="payment.refund">
-                      <RefundWorkspacePage />
-                    </CapabilityRoute>
-                  )}
-                />
-                <Route
-                  path="/waiting-list"
-                  element={(
-                    <CapabilityRoute capability="waiting_list.manage">
-                      <WaitingListPage />
-                    </CapabilityRoute>
-                  )}
-                />
-                <Route
-                  path="/cashier-shift"
-                  element={(
-                    <CapabilityRoute capability="cashier.shift.manage">
-                      <CashierShiftPage />
-                    </CapabilityRoute>
-                  )}
-                />
-                <Route
-                  path="/finance-review"
-                  element={(
-                    <CapabilityRoute capability="settlement.manage">
-                      <FinanceReviewPage />
-                    </CapabilityRoute>
-                  )}
-                />
-                <Route
-                  path="/conversations"
-                  element={(
-                    <CapabilityRoute capability="conversation.manage">
-                      <ConversationInboxPage />
-                    </CapabilityRoute>
-                  )}
-                />
-                <Route
-                  path="/audit-trail"
-                  element={(
-                    <CapabilityRoute capability="audit.view">
-                      <AuditTrailPage />
-                    </CapabilityRoute>
-                  )}
-                />
-                <Route
-                  path="/reporting"
-                  element={(
-                    <CapabilityRoute capability="reporting.view">
-                      <ReportingHubPage />
-                    </CapabilityRoute>
-                  )}
-                />
+                <Route path={staffRoutePaths.access} element={<AccessGatePage />} />
+
+                <Route path={staffRoutePaths.ops.root} element={<WorkspaceBoundary workspace="ops" />}>
+                  <Route index element={<WorkspaceIndexRedirect workspace="ops" />} />
+                  {renderWorkspaceRoutes('ops', opsWorkspaceRoutes)}
+                </Route>
+
+                <Route path={staffRoutePaths.kitchen.root} element={<WorkspaceBoundary workspace="kitchen" />}>
+                  {renderWorkspaceRoutes('kitchen', kitchenWorkspaceRoutes)}
+                </Route>
+
+                <Route path={staffRoutePaths.admin.root} element={<WorkspaceBoundary workspace="admin" />}>
+                  {renderWorkspaceRoutes('admin', adminWorkspaceRoutes)}
+                </Route>
               </Route>
             </Route>
             <Route path="*" element={<FallbackRedirect />} />
@@ -158,8 +82,67 @@ export function AppRouter() {
   );
 }
 
+function renderWorkspaceRoutes(
+  workspace: WorkspaceId,
+  routes: Array<StaffWorkspaceRouteDefinition>,
+) {
+  return routes.map((route) => (
+    <Route
+      key={`${workspace}-${route.key}`}
+      path={route.path === '' ? undefined : route.path}
+      index={route.path === ''}
+      element={(
+        <WorkspaceRoute capability={route.capability} workspace={workspace}>
+          {renderWorkspacePage(route.page)}
+        </WorkspaceRoute>
+      )}
+    />
+  ));
+}
+
+function renderWorkspacePage(page: StaffWorkspacePageId): JSX.Element {
+  switch (page) {
+    case 'admin-landing':
+      return <AdminLandingPage />;
+    case 'admin-settings':
+      return <AdminSettingsPage />;
+    case 'admin-inventory':
+      return <AdminInventoryPage />;
+    case 'dashboard':
+      return <DashboardRoute />;
+    case 'tables':
+      return <TableBoardPage />;
+    case 'reservations':
+      return <ReservationsPage />;
+    case 'orders':
+      return <OrderWorkspacePage />;
+    case 'checkout':
+      return <CheckoutPage />;
+    case 'refunds':
+      return <RefundWorkspacePage />;
+    case 'waiting-list':
+      return <WaitingListPage />;
+    case 'cashier-shift':
+      return <CashierShiftPage />;
+    case 'finance-review':
+      return <FinanceReviewPage />;
+    case 'conversations':
+      return <ConversationInboxPage />;
+    case 'kitchen-landing':
+      return <KitchenLandingPage />;
+    case 'kitchen-board':
+      return <KitchenBoardPage />;
+    case 'reporting':
+      return <ReportingHubPage />;
+    case 'audit-trail':
+      return <AuditTrailPage />;
+    default:
+      return <DashboardRoute />;
+  }
+}
+
 function RouteLoadingState() {
-  return <PageLoadingState title="Đang tải màn hình…" description="Staff-web đang dựng route và khôi phục module cần cho bước tiếp theo." />;
+  return <PageLoadingState title="Đang tải màn hìnhâ€¦" description="Staff-web đang dựng route và khôi phục module cần cho bước tiếp theo." />;
 }
 
 function BootstrapGate({ children }: { children: JSX.Element }) {
@@ -171,7 +154,7 @@ function BootstrapGate({ children }: { children: JSX.Element }) {
   }, [bootstrap]);
 
   if (status === 'booting') {
-    return <PageLoadingState title="Đang khởi tạo phiên nhân viên…" description="Hệ thống đang kiểm tra capability, branch mặc định và điều kiện vận hành của phiên hiện tại." />;
+    return <PageLoadingState title="Đang khởi tạo phiên nhân viênâ€¦" description="Hệ thống đang kiểm tra capability, branch mặc định và điều kiện vận hành của phiên hiện tại." />;
   }
 
   return children;
@@ -181,7 +164,7 @@ function ProtectedRoute() {
   const session = useAuthStore((state) => state.session);
 
   if (!session) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={staffRoutePaths.login} replace />;
   }
 
   return <Outlet />;
@@ -192,51 +175,22 @@ function DashboardRoute() {
   const nextPath = recommendedPathForSession(session);
 
   if (!session) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={staffRoutePaths.login} replace />;
   }
 
-  if (nextPath !== '/dashboard') {
+  if (nextPath !== staffRoutePaths.ops.dashboard) {
     return <Navigate to={nextPath} replace />;
   }
 
   return <DashboardPage />;
 }
 
-function CapabilityRoute({
-  capability,
-  children,
-}: {
-  capability: string;
-  children: JSX.Element;
-}) {
-  const session = useAuthStore((state) => state.session);
-  const nextPath = resolveFallbackRedirectPath(session);
-
-  if (!session) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (!can(session, capability)) {
-    return (
-      <PermissionDeniedState
-        variant="page"
-        title="Phiên hiện tại chưa có quyền"
-        description={`Màn hình này chỉ mở khi phiên nhân viên có quyền ${capability}. Hãy quay về hub truy cập hoặc dùng màn hình đã được cấp cho phiên hiện tại.`}
-        primaryAction={<Button type="primary" href="/access">Mở access hub</Button>}
-        secondaryAction={nextPath !== '/access' ? <Button href={nextPath}>Mở màn hình được cấp</Button> : undefined}
-      />
-    );
-  }
-
-  return children;
-}
-
 function IndexRedirect() {
   const session = useAuthStore((state) => state.session);
-  return <Navigate to={resolveIndexRedirectPath(session)} replace />;
+  return <Navigate to={resolveRecommendedStaffPath(session)} replace />;
 }
 
 function FallbackRedirect() {
   const session = useAuthStore((state) => state.session);
-  return <Navigate to={resolveFallbackRedirectPath(session)} replace />;
+  return <Navigate to={resolveRecommendedStaffPath(session)} replace />;
 }

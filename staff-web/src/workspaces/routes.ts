@@ -1,0 +1,26 @@
+export type StaffWorkspacePageId =
+  | 'admin-landing'
+  | 'admin-settings'
+  | 'admin-inventory'
+  | 'dashboard'
+  | 'tables'
+  | 'reservations'
+  | 'orders'
+  | 'checkout'
+  | 'refunds'
+  | 'waiting-list'
+  | 'cashier-shift'
+  | 'finance-review'
+  | 'conversations'
+  | 'kitchen-landing'
+  | 'kitchen-board'
+  | 'reporting'
+  | 'audit-trail';
+
+export type StaffWorkspaceRouteDefinition = {
+  key: string;
+  path: string;
+  absolutePath: string;
+  page: StaffWorkspacePageId;
+  capability?: string;
+};

@@ -1,0 +1,101 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+
+hide empty methods
+skinparam classAttributeIconSize 0
+left to right direction
+title CD-01 - Identity, Access và Session
+caption Mô tả lớp định danh người dùng, vai trò, session khách hàng, staff API key và preference hỗ trợ truy\ncập.
+skinparam class {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+  HeaderBackgroundColor #E5EEF9
+}
+
+class "User" as User <<entity>> {
+  {static} table = users
+  --
+  user_id
+  role_id
+  current_tier_id
+  row_version
+  privacy_anonymized_at
+  username
+  full_name
+}
+
+class "Role" as Role <<entity>> {
+  {static} table = roles
+  --
+  role_id
+  role_name
+}
+
+class "CustomerAccessSession" as CustomerAccessSession <<session>> {
+  {static} table = customer_access_sessions
+  --
+  access_session_id
+  user_id
+  session_id
+  row_version
+  session_meta_json
+  expires_at
+  last_used_at
+}
+
+class "StaffApiKey" as StaffApiKey <<entity>> {
+  {static} table = staff_api_keys
+  --
+  staff_api_key_id
+  user_id
+  last_used_at
+  expires_at
+  revoked_at
+  created_at
+  updated_at
+}
+
+class "NotificationPreference" as NotificationPreference <<entity>> {
+  {static} table = notification_preferences
+  --
+  notification_preference_id
+  user_id
+  channel
+  created_at
+  updated_at
+  is_enabled
+  quiet_hours_start_minute
+}
+
+class "BankAccount" as BankAccount <<entity>> {
+  {static} table = bank_accounts
+  --
+  bank_account_id
+  user_id
+  default_user_id
+  created_at
+  bank_account_number
+  bank_name
+  account_holder_name
+}
+
+class "CustomerReservationSessionAccessService" as CustomerReservationSessionAccessService <<control>> {
+  orchestrates flow
+}
+
+class "NotificationPreferenceService" as NotificationPreferenceService <<control>> {
+  orchestrates flow
+}
+
+User "1" --> "0..*" BankAccount : bankAccounts\nFK: user_id
+User "1" --> "0..*" CustomerAccessSession : customerAccessSessions\nFK: user_id
+Role "1" --> "0..*" User : users\nFK: role_id
+StaffApiKey "0..*" --> "1" User : user\nFK: user_id
+NotificationPreference "0..*" --> "1" User : user\nFK: user_id
+CustomerReservationSessionAccessService ..> User : uses
+NotificationPreferenceService ..> User : uses
+@enduml

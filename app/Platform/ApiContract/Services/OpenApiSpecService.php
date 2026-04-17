@@ -35,7 +35,11 @@ class OpenApiSpecService
         $absolutePath = base_path($relativePath);
 
         File::ensureDirectoryExists(dirname($absolutePath));
-        File::put($absolutePath, json_encode($spec, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+
+        $contents = json_encode($spec, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if (! File::exists($absolutePath) || (string) File::get($absolutePath) !== $contents) {
+            File::put($absolutePath, $contents);
+        }
 
         return [
             'spec' => $spec,

@@ -1,0 +1,33 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+
+left to right direction
+title UCD-03 - Admin / Back-office
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+}
+
+actor "Quản trị viên" as Admin
+
+package "Back-office" {
+  usecase "UC-02\nĐăng nhập nhân viên / quản trị" as UC_02
+  usecase "UC-17\nQuản trị dữ liệu nền và branch policy" as UC_17
+  usecase "UC-18\nQuản lý tồn kho, mua hàng và cấu hình bếp" as UC_18
+  usecase "UC-20\nXử lý privacy request và export dữ liệu" as UC_20
+  usecase "UC-21\nTheo dõi audit, báo cáo và đối soát" as UC_21
+}
+
+Admin --> UC_02
+Admin --> UC_17
+Admin --> UC_18
+Admin --> UC_20
+Admin --> UC_21
+
+UC_17 ..> UC_18 : <<include>>
+@enduml

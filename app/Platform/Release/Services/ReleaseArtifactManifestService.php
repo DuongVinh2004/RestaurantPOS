@@ -413,6 +413,14 @@ class ReleaseArtifactManifestService
 
         $absolutePath = base_path($relativePath);
         File::ensureDirectoryExists(dirname($absolutePath));
+
+        if (File::exists($absolutePath)) {
+            $inspection = $this->inspectFrozenSnapshot($snapshot, $relativePath);
+            if (($inspection['ok'] ?? false) === true) {
+                return $snapshot;
+            }
+        }
+
         File::put($absolutePath, json_encode($snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
 
         return $snapshot;

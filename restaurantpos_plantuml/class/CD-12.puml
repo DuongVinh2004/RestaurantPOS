@@ -1,0 +1,95 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+
+hide empty methods
+skinparam classAttributeIconSize 0
+left to right direction
+title CD-12 - Notification Outbox và Delivery
+caption Tách riêng notification platform theo repo hiện tại: outbox queue, preference, delivery attempt evidence và health tooling.
+skinparam class {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+  HeaderBackgroundColor #E5EEF9
+}
+
+class "User" as User <<entity>> {
+  {static} table = users
+  --
+  user_id
+  role_id
+  full_name
+}
+
+class "NotificationPreference" as NotificationPreference <<entity>> {
+  {static} table = notification_preferences
+  --
+  notification_preference_id
+  user_id
+  channel
+  is_enabled
+  quiet_hours_start_minute
+  quiet_hours_end_minute
+}
+
+class "Reservation" as Reservation <<entity>> {
+  {static} table = reservations
+  --
+  reservation_id
+  user_id
+  branch_id
+  status
+}
+
+class "NotificationOutbox" as NotificationOutbox <<outbox>> {
+  {static} table = notification_outbox
+  --
+  outbox_id
+  recipient_user_id
+  related_reservation_id
+  channel
+  template_key
+  idempotency_key
+  dedupe_key
+  status
+  attempt_count
+  last_attempted_at
+  next_retry_at
+}
+
+class "NotificationDeliveryAttempt" as NotificationDeliveryAttempt <<entity>> {
+  {static} table = notification_delivery_attempts
+  --
+  attempt_id
+  outbox_id
+  channel
+  provider_key
+  attempt_number
+  status
+  attempted_at
+  error_code
+  provider_status
+}
+
+class "NotificationOutboxService" as NotificationOutboxService <<control>>
+class "NotificationPreferenceService" as NotificationPreferenceService <<control>>
+class "NotificationChannelManager" as NotificationChannelManager <<control>>
+class "NotificationOutboxHealthService" as NotificationOutboxHealthService <<control>>
+
+User "1" --> "0..*" NotificationPreference : preferences\nFK: user_id
+User "1" --> "0..*" NotificationOutbox : recipientOutbox\nFK: recipient_user_id
+Reservation "1" --> "0..*" NotificationOutbox : relatedNotifications\nFK: related_reservation_id
+NotificationOutbox "1" --> "0..*" NotificationDeliveryAttempt : deliveryAttempts\nFK: outbox_id
+
+NotificationOutboxService ..> NotificationOutbox : enqueue / lease / processDueMessages
+NotificationOutboxService ..> NotificationPreferenceService : evaluate preference + quiet hours
+NotificationOutboxService ..> NotificationChannelManager : resolve driver / describe channel
+NotificationOutboxHealthService ..> NotificationOutbox : backlog / stale processing / dead-letter
+NotificationOutboxHealthService ..> NotificationDeliveryAttempt : recent failure evidence
+NotificationChannelManager ..> NotificationDeliveryAttempt : provider result evidence
+
+
+@enduml

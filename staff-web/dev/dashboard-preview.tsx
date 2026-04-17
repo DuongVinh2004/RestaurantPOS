@@ -4,11 +4,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import '../src/index.css';
 import { StaffAppShell } from '../src/app/layout/StaffAppShell';
-import { DashboardPage } from '../src/features/dashboard/DashboardPage';
+import { DashboardPage } from '../src/workspaces/ops/pages/dashboard/DashboardPage';
 import { useAuthStore } from '../src/app/store/auth-store';
 import { useFlowStore } from '../src/app/store/flow-store';
 import { buildStaffSession } from '../src/test/fixtures';
-import { writeStoredStaffToken } from '../src/core/auth/storage';
+import { writeStoredStaffToken } from '../src/shared/auth/storage';
 
 const mode = new URLSearchParams(window.location.search).get('mode') ?? 'default';
 const queryClient = new QueryClient({
@@ -99,18 +99,18 @@ installFetchStub(mode, session);
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <AntdApp>
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/dashboard']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <MemoryRouter initialEntries={['/ops/dashboard']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route element={<StaffAppShell />}>
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/tables" element={<div />} />
-            <Route path="/waiting-list" element={<div />} />
-            <Route path="/kitchen" element={<div />} />
-            <Route path="/finance-review" element={<div />} />
-            <Route path="/cashier-shift" element={<div />} />
-            <Route path="/conversations" element={<div />} />
-            <Route path="/reporting" element={<div />} />
-            <Route path="/reservations" element={<div />} />
+            <Route path="/ops/dashboard" element={<DashboardPage />} />
+            <Route path="/ops/tables" element={<div />} />
+            <Route path="/ops/waiting-list" element={<div />} />
+            <Route path="/kitchen/board" element={<div />} />
+            <Route path="/ops/finance-review" element={<div />} />
+            <Route path="/ops/cashier-shift" element={<div />} />
+            <Route path="/ops/conversations" element={<div />} />
+            <Route path="/admin/reporting" element={<div />} />
+            <Route path="/ops/reservations" element={<div />} />
             <Route path="/access" element={<div />} />
           </Route>
         </Routes>

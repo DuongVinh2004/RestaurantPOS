@@ -1,0 +1,133 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+
+hide empty methods
+skinparam classAttributeIconSize 0
+left to right direction
+title CD-03 - Reservation và Waiting List Lifecycle
+caption Diễn tả aggregate reservation, waiting list, ownership của khách và mối nối với hold/bàn trong các\nflow đặt chỗ.
+skinparam class {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+  HeaderBackgroundColor #E5EEF9
+}
+
+class "User" as User <<entity>> {
+  {static} table = users
+  --
+  user_id
+  role_id
+  current_tier_id
+  row_version
+  privacy_anonymized_at
+  username
+  full_name
+}
+
+class "CustomerAccessSession" as CustomerAccessSession <<session>> {
+  {static} table = customer_access_sessions
+  --
+  access_session_id
+  user_id
+  session_id
+  row_version
+  session_meta_json
+  expires_at
+  last_used_at
+}
+
+class "TableHold" as TableHold <<entity>> {
+  {static} table = table_holds
+  --
+  hold_id
+  user_id
+  confirmed_reservation_id
+  session_id
+  row_version
+  hold_status
+  branch_id
+}
+
+class "Reservation" as Reservation <<entity>> {
+  {static} table = reservations
+  --
+  reservation_id
+  user_id
+  applied_user_voucher_id
+  row_version
+  status
+  deposit_status
+  deposit_intent_status
+}
+
+class "ReservationTable" as ReservationTable <<pivot>> {
+  {static} table = reservation_tables
+  --
+  reservation_table_id
+  reservation_id
+  table_id
+}
+
+class "RestaurantTable" as RestaurantTable <<entity>> {
+  {static} table = restaurant_tables
+  --
+  table_id
+  branch_id
+  template_id
+  row_version
+  status
+  price
+  table_code
+}
+
+class "WaitingList" as WaitingList <<entity>> {
+  {static} table = waiting_list
+  --
+  waiting_id
+  user_id
+  customer_session_id
+  row_version
+  status
+  customer_response_status
+  branch_id
+}
+
+class "ReservationCreateService" as ReservationCreateService <<control>> {
+  orchestrates flow
+}
+
+class "ReservationConflictValidator" as ReservationConflictValidator <<control>> {
+  orchestrates flow
+}
+
+class "ReservationRescheduleService" as ReservationRescheduleService <<control>> {
+  orchestrates flow
+}
+
+class "ReservationCancellationService" as ReservationCancellationService <<control>> {
+  orchestrates flow
+}
+
+class "CustomerReservationSelfService" as CustomerReservationSelfService <<control>> {
+  orchestrates flow
+}
+
+User "1" --> "0..*" Reservation : reservations\nFK: user_id
+User "1" --> "0..*" CustomerAccessSession : customerAccessSessions\nFK: user_id
+TableHold "0..*" --> "1" User : user\nFK: user_id
+TableHold "0..*" --> "1" Reservation : confirmedReservation\nFK: confirmed_reservation_id
+TableHold "0..*" -- "0..*" RestaurantTable : via table_hold_details
+Reservation "0..*" -- "0..*" RestaurantTable : via reservation_tables\nassociation: ReservationTable
+ReservationTable "0..*" --> "1" Reservation : reservation\nFK: reservation_id
+ReservationTable "0..*" --> "1" RestaurantTable : table\nFK: table_id
+WaitingList "0..*" --> "1" User : user\nFK: user_id
+ReservationCreateService ..> User : uses
+ReservationConflictValidator ..> User : uses
+ReservationRescheduleService ..> User : uses
+ReservationCancellationService ..> User : uses
+CustomerReservationSelfService ..> User : uses
+@enduml

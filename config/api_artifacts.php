@@ -36,10 +36,17 @@ return [
                     'GET api/v1/table-holds/{hold_id}',
                     'PATCH api/v1/table-holds/{hold_id}/refresh',
                     'DELETE api/v1/table-holds/{hold_id}',
+                    'GET api/v1/menu/categories',
                     'GET api/v1/menu/items',
+                    'GET api/v1/menu/items/{id}',
+                    'POST api/v1/menu/preorder/preview',
                     'POST api/v1/reservations',
+                    'GET api/v1/reservations',
                     'GET api/v1/reservations/{id}',
+                    'POST api/v1/reservations/{id}/cancel',
+                    'POST api/v1/reservations/{id}/reschedule',
                     'GET api/v1/reservations/{id}/preorder',
+                    'POST api/v1/reservations/{id}/preorder/preview',
                     'PUT api/v1/reservations/{id}/preorder',
                     'DELETE api/v1/reservations/{id}/preorder',
                 ],
@@ -69,6 +76,10 @@ return [
                     'POST api/v1/staff/orders/{order_id}/bill-snapshot',
                     'GET api/v1/reservations/{reservation_id}/bill-preview',
                     'GET api/v1/reservations/{reservation_id}/bill',
+                    'POST api/v1/reservations/{reservation_id}/bill/payment-sessions',
+                    'GET api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}',
+                    'POST api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/refresh',
+                    'POST api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/confirm',
                     'GET api/v1/staff/orders/{order_id}',
                     'GET api/v1/staff/cashier/shifts/current',
                     'POST api/v1/staff/cashier/shifts/open',
@@ -122,6 +133,7 @@ return [
             [
                 'name' => 'Waiting List',
                 'signatures' => [
+                    'GET api/v1/waiting-list',
                     'POST api/v1/waiting-list',
                     'GET api/v1/waiting-list/{id}',
                     'GET api/v1/staff/waiting-list',
@@ -129,6 +141,8 @@ return [
                     'POST api/v1/staff/waiting-list/{id}/notify',
                     'POST api/v1/waiting-list/{id}/accept',
                     'POST api/v1/waiting-list/{id}/confirm-arrival',
+                    'POST api/v1/waiting-list/{id}/decline',
+                    'POST api/v1/waiting-list/{id}/cancel',
                     'POST api/v1/staff/waiting-list/{id}/seat',
                 ],
             ],
@@ -136,11 +150,20 @@ return [
                 'name' => 'Benefits',
                 'signatures' => [
                     'GET api/v1/me/loyalty',
+                    'GET api/v1/me/vouchers',
                     'GET api/v1/reservations/{id}/benefits-preview',
                     'POST api/v1/reservations/{id}/voucher/apply',
                     'POST api/v1/reservations/{id}/voucher/remove',
                     'POST api/v1/reservations/{id}/loyalty/redeem',
                     'POST api/v1/reservations/{id}/loyalty/redeem/release',
+                ],
+            ],
+            [
+                'name' => 'Customer Privacy',
+                'signatures' => [
+                    'GET api/v1/me/data-export',
+                    'GET api/v1/me/privacy-requests',
+                    'POST api/v1/me/privacy-requests',
                 ],
             ],
             [
@@ -194,9 +217,23 @@ return [
             ],
             'PATCH api/v1/table-holds/{hold_id}/refresh' => [
                 'path' => ['hold_id' => 'holdId'],
+                'query' => [
+                    'session_id' => 'customerSessionId',
+                    'row_version' => 'tableHoldRowVersion',
+                ],
             ],
             'DELETE api/v1/table-holds/{hold_id}' => [
                 'path' => ['hold_id' => 'holdId'],
+                'query' => [
+                    'session_id' => 'customerSessionId',
+                    'row_version' => 'tableHoldRowVersion',
+                ],
+            ],
+            'GET api/v1/menu/categories' => [
+                'query' => [
+                    'service_time' => 'availabilityFromUtc',
+                    'preorder_only' => 'menuPreorderOnly',
+                ],
             ],
             'GET api/v1/menu/items' => [
                 'query' => [
@@ -205,10 +242,33 @@ return [
                     'per_page' => 'perPage',
                 ],
             ],
+            'GET api/v1/menu/items/{id}' => [
+                'path' => ['id' => 'menuItemId'],
+                'query' => [
+                    'service_time' => 'availabilityFromUtc',
+                ],
+            ],
             'GET api/v1/reservations/{id}' => [
                 'path' => ['id' => 'reservationId'],
             ],
+            'GET api/v1/reservations' => [
+                'query' => [
+                    'status' => 'reservationStatus',
+                    'active_only' => 'reservationActiveOnly',
+                    'page' => 'page',
+                    'per_page' => 'perPage',
+                ],
+            ],
+            'POST api/v1/reservations/{id}/cancel' => [
+                'path' => ['id' => 'reservationId'],
+            ],
+            'POST api/v1/reservations/{id}/reschedule' => [
+                'path' => ['id' => 'reservationId'],
+            ],
             'GET api/v1/reservations/{id}/preorder' => [
+                'path' => ['id' => 'reservationIdPreorder'],
+            ],
+            'POST api/v1/reservations/{id}/preorder/preview' => [
                 'path' => ['id' => 'reservationIdPreorder'],
             ],
             'PUT api/v1/reservations/{id}/preorder' => [
@@ -424,6 +484,27 @@ return [
             'GET api/v1/reservations/{reservation_id}/bill' => [
                 'path' => ['reservation_id' => 'reservationIdDineIn'],
             ],
+            'POST api/v1/reservations/{reservation_id}/bill/payment-sessions' => [
+                'path' => ['reservation_id' => 'reservationIdDineIn'],
+            ],
+            'GET api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}' => [
+                'path' => [
+                    'reservation_id' => 'reservationIdDineIn',
+                    'session_id' => 'billPaymentSessionId',
+                ],
+            ],
+            'POST api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/refresh' => [
+                'path' => [
+                    'reservation_id' => 'reservationIdDineIn',
+                    'session_id' => 'billPaymentSessionId',
+                ],
+            ],
+            'POST api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/confirm' => [
+                'path' => [
+                    'reservation_id' => 'reservationIdDineIn',
+                    'session_id' => 'billPaymentSessionId',
+                ],
+            ],
             'GET api/v1/staff/reservations/{reservation_id}/refund-preview' => [
                 'path' => ['reservation_id' => 'reservationIdRefund'],
                 'query' => [
@@ -473,6 +554,20 @@ return [
             ],
             'GET api/v1/reservations/{id}/benefits-preview' => [
                 'path' => ['id' => 'reservationIdBenefits'],
+            ],
+            'GET api/v1/me/vouchers' => [
+                'query' => [
+                    'status' => 'voucherStatus',
+                    'applicable_to_reservation_id' => 'reservationIdBenefits',
+                    'page' => 'page',
+                    'per_page' => 'perPage',
+                ],
+            ],
+            'GET api/v1/me/privacy-requests' => [
+                'query' => [
+                    'status' => 'privacyRequestStatus',
+                    'per_page' => 'perPage',
+                ],
             ],
             'POST api/v1/reservations/{id}/voucher/apply' => [
                 'path' => ['id' => 'reservationIdBenefits'],
@@ -538,6 +633,20 @@ return [
                 'table_ids.0' => '{{preferredTableId}}',
                 'hold_minutes' => 5,
             ],
+            'PATCH api/v1/table-holds/{hold_id}/refresh' => [
+                'session_id' => '{{customerSessionId}}',
+                'extend_minutes' => 5,
+                'row_version' => '{{tableHoldRowVersion}}',
+            ],
+            'DELETE api/v1/table-holds/{hold_id}' => [
+                'session_id' => '{{customerSessionId}}',
+                'row_version' => '{{tableHoldRowVersion}}',
+            ],
+            'POST api/v1/menu/preorder/preview' => [
+                'start_time' => '{{availabilityFromUtc}}',
+                'pre_order_items.0.item_id' => '{{menuItemIdPrimary}}',
+                'pre_order_items.0.quantity' => 1,
+            ],
             'POST api/v1/reservations' => [
                 'hold_id' => '{{holdId}}',
                 'session_id' => '{{customerSessionId}}',
@@ -545,6 +654,19 @@ return [
                 'end_time' => '{{availabilityToUtc}}',
                 'guest_count' => '{{guestCount}}',
                 'notes' => 'Postman availability -> hold -> reservation scenario',
+            ],
+            'POST api/v1/reservations/{id}/cancel' => [
+                'row_version' => '{{reservationRowVersion}}',
+                'cancel_reason' => 'Postman customer cancel',
+            ],
+            'POST api/v1/reservations/{id}/reschedule' => [
+                'row_version' => '{{reservationRowVersion}}',
+                'start_time' => '{{availabilityFromUtc}}',
+                'end_time' => '{{availabilityToUtc}}',
+            ],
+            'POST api/v1/reservations/{id}/preorder/preview' => [
+                'pre_order_items.0.item_id' => '{{menuItemIdPrimary}}',
+                'pre_order_items.0.quantity' => 1,
             ],
             'PUT api/v1/reservations/{id}/preorder' => [
                 'row_version' => '{{reservationRowVersionPreorder}}',
@@ -582,6 +704,21 @@ return [
             'POST api/v1/staff/orders/{order_id}/bill-snapshot' => [
                 'row_version' => '{{orderRowVersion}}',
                 'notes' => 'Postman bill snapshot',
+            ],
+            'POST api/v1/reservations/{reservation_id}/bill/payment-sessions' => [
+                'row_version' => '{{reservationRowVersionDineIn}}',
+                'amount' => '{{paymentAmount}}',
+                'payment_method' => 'Online',
+                'provider_code' => '{{providerCode}}',
+                'currency' => '{{currency}}',
+            ],
+            'POST api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/refresh' => [
+                'row_version' => '{{billPaymentSessionRowVersion}}',
+                'simulation_outcome' => 'succeeded',
+            ],
+            'POST api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/confirm' => [
+                'row_version' => '{{billPaymentSessionRowVersion}}',
+                'simulation_outcome' => 'succeeded',
             ],
             'POST api/v1/staff/orders/{order_id}/settlement/finalize' => [
                 'payment_method' => 'Cash',
@@ -644,6 +781,10 @@ return [
             'POST api/v1/reservations/{id}/loyalty/redeem/release' => [
                 'reason' => 'Postman loyalty release',
                 'row_version' => '{{reservationRowVersionBenefits}}',
+            ],
+            'POST api/v1/me/privacy-requests' => [
+                'request_type' => 'anonymize',
+                'reason' => 'Postman privacy request',
             ],
             'POST api/v1/admin/restaurant/tables' => [
                 'branch_id' => '{{branchId}}',
@@ -708,6 +849,10 @@ return [
             ],
             'POST api/v1/table-holds' => [
                 'holdId' => 'data.hold_id',
+                'tableHoldRowVersion' => 'data.row_version',
+            ],
+            'PATCH api/v1/table-holds/{hold_id}/refresh' => [
+                'tableHoldRowVersion' => 'data.row_version',
             ],
             'POST api/v1/reservations' => [
                 'reservationId' => 'data.reservation_id',
@@ -715,6 +860,13 @@ return [
             'POST api/v1/reservations/{reservation_id}/deposit/payment-sessions' => [
                 'depositPaymentSessionId' => 'data.payment_session.deposit_payment_session_id',
                 'depositPaymentSessionRowVersion' => 'data.payment_session.row_version',
+            ],
+            'POST api/v1/reservations/{reservation_id}/bill/payment-sessions' => [
+                'billPaymentSessionId' => 'data.payment_session.bill_payment_session_id',
+                'billPaymentSessionRowVersion' => 'data.payment_session.row_version',
+            ],
+            'POST api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/refresh' => [
+                'billPaymentSessionRowVersion' => 'data.payment_session.row_version',
             ],
             'POST api/v1/waiting-list' => [
                 'waitingListId' => 'data.waiting_id',
@@ -776,6 +928,14 @@ return [
         'readme' => 'mutation-contracts.md',
         'groups' => [
             [
+                'name' => 'Customer availability + table holds',
+                'signatures' => [
+                    'POST api/v1/table-holds',
+                    'PATCH api/v1/table-holds/{hold_id}/refresh',
+                    'DELETE api/v1/table-holds/{hold_id}',
+                ],
+            ],
+            [
                 'name' => 'Customer reservation + preorder + deposit + bill payment',
                 'signatures' => [
                     'POST api/v1/reservations',
@@ -802,6 +962,21 @@ return [
                     'POST api/v1/waiting-list/{id}/confirm-arrival',
                     'POST api/v1/waiting-list/{id}/decline',
                     'POST api/v1/waiting-list/{id}/cancel',
+                ],
+            ],
+            [
+                'name' => 'Customer benefits',
+                'signatures' => [
+                    'POST api/v1/reservations/{id}/voucher/apply',
+                    'POST api/v1/reservations/{id}/voucher/remove',
+                    'POST api/v1/reservations/{id}/loyalty/redeem',
+                    'POST api/v1/reservations/{id}/loyalty/redeem/release',
+                ],
+            ],
+            [
+                'name' => 'Customer privacy',
+                'signatures' => [
+                    'POST api/v1/me/privacy-requests',
                 ],
             ],
             [
@@ -867,6 +1042,7 @@ return [
             'reservationIdRefund' => '',
             'reservationIdRefundCancel' => '',
             'holdId' => '',
+            'tableHoldRowVersion' => '1',
             'tableId' => '',
             'dineInTableId' => '',
             'preferredTableId' => '',
@@ -880,12 +1056,15 @@ return [
             'cashierShiftRowVersion' => '',
             'depositPaymentSessionId' => '',
             'depositPaymentSessionRowVersion' => '',
+            'billPaymentSessionId' => '',
+            'billPaymentSessionRowVersion' => '',
             'userVoucherId' => '',
             'customerUserIdSecondary' => '',
             'menuCategoryId' => '',
             'menuItemId' => '',
             'menuItemIdPrimary' => '',
             'menuItemIdSecondary' => '',
+            'menuPreorderOnly' => '0',
             'priceId' => '',
             'availabilityFromUtc' => '2026-04-05T12:00:00Z',
             'availabilityToUtc' => '2026-04-05T14:00:00Z',
@@ -904,6 +1083,10 @@ return [
             'cancelAfterPayment' => '0',
             'currency' => 'VND',
             'loyaltyPoints' => '100',
+            'voucherStatus' => 'available',
+            'privacyRequestStatus' => 'requested',
+            'reservationStatus' => '',
+            'reservationActiveOnly' => '1',
             'conversationStatus' => 'Open',
             'waitingListStatus' => 'Waiting',
             'waitingListActiveOnly' => '1',
@@ -915,6 +1098,7 @@ return [
             'providerSessionCode' => 'sim-dep-001',
             'providerEventCode' => 'sim-webhook-001',
             'reservationRowVersionDineIn' => '1',
+            'reservationRowVersion' => '1',
             'reservationRowVersionPreorder' => '1',
             'reservationRowVersionDeposit' => '1',
             'reservationRowVersionBenefits' => '1',
@@ -949,6 +1133,7 @@ return [
             'reservationIdRefund' => '',
             'reservationIdRefundCancel' => '',
             'holdId' => '',
+            'tableHoldRowVersion' => '',
             'tableId' => '',
             'dineInTableId' => '',
             'preferredTableId' => '',
@@ -962,12 +1147,15 @@ return [
             'cashierShiftRowVersion' => '',
             'depositPaymentSessionId' => '',
             'depositPaymentSessionRowVersion' => '',
+            'billPaymentSessionId' => '',
+            'billPaymentSessionRowVersion' => '',
             'userVoucherId' => '',
             'customerUserIdSecondary' => '',
             'menuCategoryId' => '',
             'menuItemId' => '',
             'menuItemIdPrimary' => '',
             'menuItemIdSecondary' => '',
+            'menuPreorderOnly' => '0',
             'priceId' => '',
             'availabilityFromUtc' => '',
             'availabilityToUtc' => '',
@@ -986,6 +1174,10 @@ return [
             'cancelAfterPayment' => '0',
             'currency' => 'VND',
             'loyaltyPoints' => '100',
+            'voucherStatus' => 'available',
+            'privacyRequestStatus' => 'requested',
+            'reservationStatus' => '',
+            'reservationActiveOnly' => '1',
             'conversationStatus' => 'Open',
             'waitingListStatus' => 'Waiting',
             'waitingListActiveOnly' => '1',
@@ -997,6 +1189,7 @@ return [
             'providerSessionCode' => '',
             'providerEventCode' => '',
             'reservationRowVersionDineIn' => '',
+            'reservationRowVersion' => '',
             'reservationRowVersionPreorder' => '',
             'reservationRowVersionDeposit' => '',
             'reservationRowVersionBenefits' => '',

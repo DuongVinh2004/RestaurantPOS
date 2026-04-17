@@ -1,0 +1,37 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam activity {
+  BackgroundColor white
+  BorderColor #374151
+  DiamondBackgroundColor #EEF2FF
+  DiamondBorderColor #4B5563
+}
+title AD-19 - Dispatch bếp
+start
+partition "Nhân viên" {
+  :Dispatch order item sang kitchen;
+}
+partition "StaffKitchenController" {
+  :Nhận dispatch request;
+  :Áp capability order.manage + idempotency;
+}
+partition "KitchenDispatch" {
+  :Resolve station + category route;
+  :Tạo / cập nhật kitchen ticket;
+  :Cập nhật trạng thái order item;
+}
+if (Station / route hợp lệ?) then (yes)
+partition "KitchenDispatch" {
+  :Persist ticket dispatch result;
+}
+  stop
+else (no)
+partition "StaffKitchenController" {
+  :Trả dispatch denied;
+}
+  stop
+endif
+@enduml

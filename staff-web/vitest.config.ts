@@ -11,6 +11,6 @@ export default defineConfig({
     fileParallelism: false,
     maxWorkers: 1,
     minWorkers: 1,
-    exclude: [...configDefaults.exclude, 'src/_legacy/**'],
+    exclude: [...configDefaults.exclude],
   },
 });

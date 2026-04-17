@@ -1,0 +1,110 @@
+import type { StaffWorkspaceNavigationDefinition } from './types';
+import { staffRoutePaths } from '../../app/router/workspace-paths';
+
+export const opsNavigation: StaffWorkspaceNavigationDefinition = {
+  workspace: 'ops',
+  label: 'Ops',
+  description: 'Điều phối sàn, đơn hàng, thanh toán và hội thoại vận hành.',
+  landingPath: staffRoutePaths.ops.dashboard,
+  groups: [
+    {
+      key: 'ops-floor',
+      label: 'Điều phối sàn',
+      items: [
+        {
+          key: 'dashboard',
+          label: 'Tổng quan',
+          path: staffRoutePaths.ops.dashboard,
+          iconKey: 'dashboard',
+          workspace: 'ops',
+          description: 'Nhìn nhanh việc nóng, KPI ca và nơi cần vào xử lý ngay.',
+        },
+        {
+          key: 'tables',
+          label: 'Sơ đồ bàn',
+          path: staffRoutePaths.ops.tables,
+          iconKey: 'tables',
+          workspace: 'ops',
+          capability: 'table.board.view',
+          description: 'Theo dõi bàn đang phục vụ, bàn trống và nhịp điều phối mặt sàn.',
+        },
+        {
+          key: 'reservations',
+          label: 'Đặt bàn',
+          path: staffRoutePaths.ops.reservations,
+          iconKey: 'reservations',
+          workspace: 'ops',
+          capability: 'reservation.manage',
+          description: 'Xử lý lịch đến, gán bàn và các lượt nhận bàn trong ngày.',
+        },
+        {
+          key: 'waiting-list',
+          label: 'Chờ bàn',
+          path: staffRoutePaths.ops.waitingList,
+          iconKey: 'waiting',
+          workspace: 'ops',
+          capability: 'waiting_list.manage',
+          description: 'Điều phối khách chờ, gọi lại và đưa khách vào bàn đúng lúc.',
+        },
+        {
+          key: 'orders',
+          label: 'Đơn hàng',
+          path: staffRoutePaths.ops.orders,
+          iconKey: 'orders',
+          workspace: 'ops',
+          capability: 'order.manage',
+          description: 'Mở đơn, thêm món và đẩy bếp theo đúng ngữ cảnh bàn.',
+        },
+      ],
+    },
+    {
+      key: 'ops-finance',
+      label: 'Tiền & kiểm soát ca',
+      items: [
+        {
+          key: 'checkout',
+          label: 'Thanh toán & hoàn tiền',
+          path: staffRoutePaths.ops.checkout,
+          iconKey: 'checkout',
+          workspace: 'ops',
+          capability: 'settlement.manage',
+          description: 'Chốt bill, hoàn tiền theo reservation và hoàn tất thanh toán theo đúng phiên bản đơn.',
+          matchPaths: [staffRoutePaths.ops.refunds],
+        },
+        {
+          key: 'cashier-shift',
+          label: 'Ca thu ngân',
+          path: staffRoutePaths.ops.cashierShift,
+          iconKey: 'cashier',
+          workspace: 'ops',
+          capability: 'cashier.shift.manage',
+          description: 'Mở ca, theo dõi giao dịch và kiểm tra trước khi bàn giao.',
+        },
+        {
+          key: 'finance-review',
+          label: 'Đối soát',
+          path: staffRoutePaths.ops.financeReview,
+          iconKey: 'finance',
+          workspace: 'ops',
+          capability: 'settlement.manage',
+          description: 'Rà soát chênh lệch, hoàn tiền và xử lý các dòng cần kiểm tra.',
+        },
+      ],
+    },
+    {
+      key: 'ops-support',
+      label: 'Hỗ trợ khách',
+      items: [
+        {
+          key: 'conversations',
+          label: 'Hội thoại',
+          path: staffRoutePaths.ops.conversations,
+          iconKey: 'conversations',
+          workspace: 'ops',
+          capability: 'conversation.manage',
+          description: 'Nhận xử lý, phân công và phản hồi các cuộc hội thoại mở.',
+        },
+      ],
+    },
+  ],
+};

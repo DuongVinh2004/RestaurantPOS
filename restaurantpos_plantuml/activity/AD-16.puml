@@ -1,0 +1,37 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam activity {
+  BackgroundColor white
+  BorderColor #374151
+  DiamondBackgroundColor #EEF2FF
+  DiamondBorderColor #4B5563
+}
+title AD-16 - Mở service session walk-in
+start
+partition "Nhân viên" {
+  :Chọn bàn để mở walk-in service session;
+}
+partition "StaffWalkInController" {
+  :Nhận walk-in store;
+  :Áp capability reservation.manage + idempotency;
+}
+partition "FloorOps service session" {
+  :Load table board context;
+  :Kiểm tra branch scope / table availability;
+  :Tạo service session walk-in;
+}
+if (Bàn có thể mở walk-in?) then (yes)
+partition "FloorOps service session" {
+  :Persist service session;
+}
+  stop
+else (no)
+partition "StaffWalkInController" {
+  :Trả walk-in denied;
+}
+  stop
+endif
+@enduml

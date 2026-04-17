@@ -33,7 +33,10 @@ The shell and route tree only expose the core staff flow:
 - `Reservations`
 - `Waiting List`
 - `Active Order`
-- `Kitchen`
+- `Kitchen` (`/kitchen` landing, `/kitchen/board` ticket queue)
+- `Admin Home`
+- `Admin Settings`
+- `Admin Inventory`
 - `Checkout + Refund`
 - `Cashier Shift`
 - `Finance Review`
@@ -46,10 +49,8 @@ Everything else from the older staff-web remains outside the main route tree on 
 
 Deferred outside the current shell:
 
-- `Inventory`
-- `Settings`
-- standalone `Refunds`
-- standalone `Settlement`
+- a separate settlement-only console
+- admin write flows beyond the mounted settings and inventory routes
 
 ## Backend contract usage
 
@@ -70,6 +71,8 @@ This build binds directly to the staff backend and uses real APIs for the core f
 - Conversation inbox: `/api/v1/staff/conversations`, `/{conversation_id}`, `/take-over`, `/unassign`, `/internal-notes`, `/outbound-replies`
 - Audit trail: `/api/v1/staff/audit-trail`
 - Reporting: `/api/v1/staff/reporting/daily-sales`, `/daily-operations`, `/daily-inventory`
+- Admin settings: `/api/v1/admin/settings/branches`, `/admin/settings/finance/tax-profile`, `/admin/restaurant/tables`, `/admin/restaurant/zones`, `/admin/kitchen/stations`
+- Admin inventory: `/api/v1/admin/inventory/ingredients`, `/admin/inventory/suppliers`, `/admin/inventory/purchase-orders`
 
 ## Honest gaps
 
@@ -81,9 +84,9 @@ The FE does **not** fake completeness where backend contracts are still thin.
 - Waiting list create/advance/cancel routes are wired live through the local `staff-api` adapter because the generated TypeScript SDK does not currently expose those endpoints.
 - Waiting-list notify prefers board-driven table selection when `table.board.view` is granted; otherwise the UI falls back to explicit `table_id` entry instead of pretending the board data exists.
 - Checkout finalize is still intentionally blocked whenever startup readiness says an active cashier shift is required and the session has not refreshed into that state yet.
-- Refund is intentionally mounted inside the active `/checkout` workspace when the session has `payment.refund`; there is no standalone mounted `/refunds` route in the current shell.
-- Finance reconciliation and invoice responses now surface reservation `row_version` so the review workspace can reopen `/reservations` without dropping stale-write protection.
-- Conversation detail now opens linked waiting-list records through `/waiting-list?focus=<waiting_id>` so staff lands on the intended queue item instead of the first row in the list.
+- Refund is mounted at `/ops/refunds` and reuses the checkout domain flow instead of branching into a separate mixed shell.
+- Finance reconciliation and invoice responses now surface reservation `row_version` so the review workspace can reopen `/ops/reservations` without dropping stale-write protection.
+- Conversation detail now opens linked waiting-list records through `/ops/waiting-list?focus=<waiting_id>` so staff lands on the intended queue item instead of the first row in the list.
 
 ## Local run
 
@@ -115,7 +118,7 @@ VITE_APP_TITLE=RestaurantPOS Staff Web
 
 ```bash
 npm run build
-npx vitest run src/core/permissions/capabilities.test.ts src/core/utils/journey.test.ts src/app/router/navigation.test.ts
+npx vitest run src/shared/auth/capabilities.test.ts src/app/router/journey.test.ts src/app/router/navigation.test.ts
 ```
 
 ## Next recommended module after this batch

@@ -9,10 +9,15 @@ const mainSource = readFileSync(resolve(currentDir, '../../main.tsx'), 'utf8');
 const tokensCss = readFileSync(resolve(currentDir, '../../styles/tokens.css'), 'utf8');
 const uiOverridesCss = readFileSync(resolve(currentDir, '../../styles/ui-overrides.css'), 'utf8');
 const providersSource = readFileSync(resolve(currentDir, '../providers/AppProviders.tsx'), 'utf8');
+const adminShellSource = readFileSync(resolve(currentDir, './AdminShell.tsx'), 'utf8');
+const appFrameNavigationSource = readFileSync(resolve(currentDir, './frame/AppFrameNavigation.tsx'), 'utf8');
+const kitchenShellSource = readFileSync(resolve(currentDir, './KitchenShell.tsx'), 'utf8');
+const opsShellSource = readFileSync(resolve(currentDir, './OpsShell.tsx'), 'utf8');
 const shellCommandPaletteSource = readFileSync(resolve(currentDir, './StaffShellCommandPalette.tsx'), 'utf8');
 const shellNavDrawerSource = readFileSync(resolve(currentDir, './StaffShellNavDrawer.tsx'), 'utf8');
 const shellSource = readFileSync(resolve(currentDir, './StaffAppShell.tsx'), 'utf8');
 const shellContextSource = readFileSync(resolve(currentDir, './useStaffShellContext.ts'), 'utf8');
+const workspaceSwitcherSource = readFileSync(resolve(currentDir, './StaffWorkspaceSwitcher.tsx'), 'utf8');
 
 describe('StaffAppShell layout styles', () => {
   it('keeps the shared staff-web theme in a light palette after bundle overrides load', () => {
@@ -55,10 +60,20 @@ describe('StaffAppShell layout styles', () => {
 
   it('keeps shell navigation and branch controls on native elements so the shared shell chunk avoids AntD chrome', () => {
     expect(shellSource).not.toContain("from 'antd'");
-    expect(shellSource).toContain('<nav className="staff-shell-menu"');
-    expect(shellSource).toContain('<select');
+    expect(appFrameNavigationSource).toContain('<nav className="staff-shell-menu"');
+    expect(workspaceSwitcherSource).toContain('<select');
     expect(uiOverridesCss).toContain('.staff-shell-select-wrap::after');
     expect(uiOverridesCss).toContain('.staff-shell-control-button');
+  });
+
+  it('routes the shared entrypoint through workspace shells on top of shared frame primitives', () => {
+    expect(shellSource).toContain('OpsShell');
+    expect(shellSource).toContain('KitchenShell');
+    expect(shellSource).toContain('AdminShell');
+    expect(shellSource).toContain('AppFrameNavigation');
+    expect(opsShellSource).toContain('<AppFrame');
+    expect(kitchenShellSource).toContain('<AppFrame');
+    expect(adminShellSource).toContain('<AppFrame');
   });
 
   it('keeps the sidebar brand terse and improves navigation legibility', () => {

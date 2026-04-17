@@ -8,6 +8,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class StaffProductAuthHttpFlowTest extends TestCase
@@ -204,6 +205,13 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('data.user.user_id', $staffId)
             ->assertJsonPath('data.capability_source', 'role_capabilities')
             ->assertJsonPath('data.capabilities.0', 'audit.view')
+            ->assertJsonPath('data.startup.primary_workspace', 'ops')
+            ->assertJsonPath('data.startup.available_workspaces.0', 'ops')
+            ->assertJsonPath('data.startup.available_workspaces.1', 'kitchen')
+            ->assertJsonPath('data.startup.available_workspaces.2', 'admin')
+            ->assertJsonPath('data.startup.default_branch_id', 1)
+            ->assertJsonPath('data.startup.allowed_branch_ids.0', 1)
+            ->assertJsonPath('data.startup.assigned_station_ids', [])
             ->assertJsonPath('data.startup.default_branch.branch_code', 'MAIN')
             ->assertJsonPath('data.startup.branch_access.accessible_branch_ids.0', 1)
             ->assertJsonPath('data.startup.branch_access.default_branch_id', 1)
@@ -242,6 +250,8 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('data.user.user_id', $staffId)
             ->assertJsonPath('data.capability_source', 'role_capabilities')
             ->assertJsonPath('data.capabilities.0', 'audit.view')
+            ->assertJsonPath('data.startup.primary_workspace', 'ops')
+            ->assertJsonPath('data.startup.default_branch_id', 1)
             ->assertJsonPath('data.startup.default_branch.branch_name', 'Chi nhanh chinh')
             ->assertJsonPath('data.startup.branch_access.current_branch_id', 1)
             ->assertJsonPath('data.startup.active_cashier_shift.cashier_shift_id', 44)
@@ -256,6 +266,7 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('data.auth_mode', 'staff_api_key')
             ->assertJsonPath('data.user.user_id', $staffId)
             ->assertJsonPath('data.capability_source', 'role_capabilities')
+            ->assertJsonPath('data.startup.available_workspaces.0', 'ops')
             ->assertJsonPath('data.startup.default_branch.timezone', 'Asia/Ho_Chi_Minh')
             ->assertJsonPath('data.startup.branch_access.has_default_branch_access', true)
             ->assertJsonPath('data.startup.active_cashier_shift.branch.branch_code', 'MAIN')
@@ -311,6 +322,90 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('errors.identifier.0', 'Invalid credentials.');
     }
 
+    public function test_staff_startup_contract_resolves_ops_only_actor(): void
+    {
+        $login = $this->loginWorkspaceActor(11, 'OpsOnly', [
+            'table.board.view',
+            'reservation.manage',
+        ]);
+
+        $login->assertOk()
+            ->assertJsonPath('data.startup.primary_workspace', 'ops')
+            ->assertJsonPath('data.startup.available_workspaces', ['ops'])
+            ->assertJsonPath('data.startup.default_branch_id', 1)
+            ->assertJsonPath('data.startup.allowed_branch_ids', [1])
+            ->assertJsonPath('data.startup.assigned_station_ids', [])
+            ->assertJsonPath('data.startup.readiness.branch', 'ready');
+    }
+
+    public function test_staff_startup_contract_resolves_kitchen_only_actor(): void
+    {
+        $this->createKitchenStationsTable();
+
+        $login = $this->loginWorkspaceActor(12, 'KitchenOnly', [
+            'kitchen.manage',
+        ]);
+
+        $login->assertOk()
+            ->assertJsonPath('data.startup.primary_workspace', 'kitchen')
+            ->assertJsonPath('data.startup.available_workspaces', ['kitchen'])
+            ->assertJsonPath('data.startup.default_branch_id', 1)
+            ->assertJsonPath('data.startup.allowed_branch_ids', [1])
+            ->assertJsonPath('data.startup.assigned_station_ids', [501])
+            ->assertJsonPath('data.startup.readiness.cashier_shift', 'not_applicable');
+    }
+
+    public function test_staff_startup_contract_resolves_admin_only_actor(): void
+    {
+        $login = $this->loginWorkspaceActor(13, 'AdminOnly', [
+            'reporting.view',
+        ]);
+
+        $login->assertOk()
+            ->assertJsonPath('data.startup.primary_workspace', 'admin')
+            ->assertJsonPath('data.startup.available_workspaces', ['admin'])
+            ->assertJsonPath('data.startup.default_branch_id', 1)
+            ->assertJsonPath('data.startup.allowed_branch_ids', [1])
+            ->assertJsonPath('data.startup.assigned_station_ids', []);
+    }
+
+    public function test_staff_startup_contract_resolves_multi_workspace_actor_with_ops_primary(): void
+    {
+        $login = $this->loginWorkspaceActor(14, 'MultiWorkspace', [
+            'kitchen.manage',
+            'reporting.view',
+            'reservation.manage',
+        ]);
+
+        $login->assertOk()
+            ->assertJsonPath('data.startup.primary_workspace', 'ops')
+            ->assertJsonPath('data.startup.available_workspaces', ['ops', 'kitchen', 'admin'])
+            ->assertJsonPath('data.startup.default_branch_id', 1)
+            ->assertJsonPath('data.startup.allowed_branch_ids', [1]);
+    }
+
+    public function test_staff_startup_contract_handles_missing_branch_and_station_context(): void
+    {
+        Schema::dropIfExists('cashier_shifts');
+        Schema::dropIfExists('branches');
+        Schema::dropIfExists('kitchen_stations');
+
+        $login = $this->loginWorkspaceActor(15, 'KitchenNoContext', [
+            'kitchen.manage',
+        ]);
+
+        $login->assertOk()
+            ->assertJsonPath('data.startup.primary_workspace', 'kitchen')
+            ->assertJsonPath('data.startup.available_workspaces', ['kitchen'])
+            ->assertJsonPath('data.startup.default_branch_id', null)
+            ->assertJsonPath('data.startup.allowed_branch_ids', [])
+            ->assertJsonPath('data.startup.assigned_station_ids', [])
+            ->assertJsonPath('data.startup.default_branch', null)
+            ->assertJsonPath('data.startup.active_cashier_shift', null)
+            ->assertJsonPath('data.startup.readiness.branch', 'missing')
+            ->assertJsonPath('data.startup.readiness.operator_ready', false);
+    }
+
     public function test_customer_access_tokens_do_not_authenticate_staff_product_routes(): void
     {
         config()->set('customer_auth.enabled', true);
@@ -349,5 +444,98 @@ class StaffProductAuthHttpFlowTest extends TestCase
         ])->getJson('/api/v1/auth/staff/me')
             ->assertStatus(401)
             ->assertJsonPath('error_code', 'unauthorized');
+    }
+
+    /**
+     * @param  list<string>  $capabilities
+     * @param  list<string>  $branchScopes
+     */
+    private function loginWorkspaceActor(int $roleId, string $roleName, array $capabilities, array $branchScopes = ['default']): TestResponse
+    {
+        $allowedRoleIds = array_values(array_unique(array_merge(
+            array_map('intval', (array) config('staff_auth.allowed_role_ids', [])),
+            [$roleId],
+        )));
+        config()->set('staff_auth.allowed_role_ids', $allowedRoleIds);
+
+        $roleCapabilities = (array) config('staff_capabilities.role_capabilities', []);
+        $roleCapabilities[$roleName] = $capabilities;
+        config()->set('staff_capabilities.role_capabilities', $roleCapabilities);
+
+        $roleBranchScopes = (array) config('staff_capabilities.role_branch_scopes', []);
+        $roleBranchScopes[$roleName] = $branchScopes;
+        config()->set('staff_capabilities.role_branch_scopes', $roleBranchScopes);
+
+        DB::table('roles')->insert([
+            'role_id' => $roleId,
+            'role_name' => $roleName,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]);
+
+        $username = mb_strtolower($roleName).'-actor';
+
+        DB::table('users')->insert([
+            'user_id' => 1000 + $roleId,
+            'username' => $username,
+            'password_hash' => Hash::make('secret-123'),
+            'full_name' => $roleName.' Actor',
+            'email' => mb_strtolower($roleName).'@example.test',
+            'phone' => '090500'.str_pad((string) $roleId, 4, '0', STR_PAD_LEFT),
+            'role_id' => $roleId,
+            'current_tier_id' => null,
+            'language_pref' => 'vn',
+            'is_deleted' => 0,
+            'row_version' => 1,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]);
+
+        return $this->postJson('/api/v1/auth/staff/login', [
+            'identifier' => $username,
+            'password' => 'secret-123',
+            'device_name' => 'contract-test',
+        ]);
+    }
+
+    private function createKitchenStationsTable(): void
+    {
+        Schema::dropIfExists('kitchen_stations');
+        Schema::create('kitchen_stations', function (Blueprint $table): void {
+            $table->increments('station_id');
+            $table->string('code', 50)->unique();
+            $table->string('name', 120);
+            $table->string('description', 500)->nullable();
+            $table->string('output_mode', 20)->default('KDS');
+            $table->string('printer_target', 120)->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->dateTime('created_at')->nullable();
+            $table->dateTime('updated_at')->nullable();
+        });
+
+        DB::table('kitchen_stations')->insert([
+            [
+                'station_id' => 501,
+                'code' => 'HOT-PASS',
+                'name' => 'Hot Pass',
+                'description' => null,
+                'output_mode' => 'KDS',
+                'printer_target' => null,
+                'is_active' => 1,
+                'created_at' => now('UTC'),
+                'updated_at' => now('UTC'),
+            ],
+            [
+                'station_id' => 502,
+                'code' => 'CLOSED-BAR',
+                'name' => 'Closed Bar',
+                'description' => null,
+                'output_mode' => 'KDS',
+                'printer_target' => null,
+                'is_active' => 0,
+                'created_at' => now('UTC'),
+                'updated_at' => now('UTC'),
+            ],
+        ]);
     }
 }

@@ -1,20 +1,29 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { listBranches } from '../../core/api/staff-branch-api';
+import { listBranches } from '../../shared/api/staff-branch-api';
 import {
   hasStaffStartupBranch,
   isStaffSessionOperatorReady,
   requiresStaffCashierShift,
-} from '../../core/auth/startup';
-import { formatRelativeAge } from '../../core/utils/format';
-import { stripJourneySearch } from '../../core/utils/journey';
+} from '../auth/startup';
+import type { WorkspaceId } from '../../workspaces/workspaces';
+import { formatRelativeAge } from '../../shared/utils/format';
+import { stripJourneySearch } from '../router/journey';
 import { resolveRouteDataScope } from './route-scope';
-import { visibleNavigation, visibleNavigationGroups } from '../router/navigation';
+import {
+  findWorkspaceNavigationItem,
+  resolveWorkspaceForPath,
+  resolveWorkspaceNavigationOptions,
+  visibleWorkspaceNavigation,
+  visibleWorkspaceNavigationGroups,
+} from '../router/navigation';
+import { staffRoutePaths } from '../router/workspace-paths';
 import { useAuthStore } from '../store/auth-store';
 import { useFlowStore } from '../store/flow-store';
+import { useWorkspaceStore } from '../store/workspace-store';
 
-type ContextDockEntry = {
+export type ContextDockEntry = {
   key: string;
   label: string;
   value: string;
@@ -22,7 +31,7 @@ type ContextDockEntry = {
   meta?: string;
 };
 
-type RouteScopedNotice = {
+export type RouteScopedNotice = {
   tone: 'warning' | 'info' | 'error' | 'success';
   title: string;
   description: string;
@@ -34,6 +43,11 @@ export function useStaffShellContext() {
   const session = useAuthStore((state) => state.session);
   const lastSessionSyncAt = useAuthStore((state) => state.lastSessionSyncAt);
   const setNotice = useAuthStore((state) => state.setNotice);
+  const activeWorkspace = useWorkspaceStore((state) => state.activeWorkspace);
+  const availableWorkspaces = useWorkspaceStore((state) => state.availableWorkspaces);
+  const primaryWorkspace = useWorkspaceStore((state) => state.primaryWorkspace);
+  const setActiveWorkspace = useWorkspaceStore((state) => state.setActiveWorkspace);
+  const switchWorkspace = useWorkspaceStore((state) => state.switchWorkspace);
   const branchId = useFlowStore((state) => state.branchId);
   const hydrateFromSession = useFlowStore((state) => state.hydrateFromSession);
   const setBranchId = useFlowStore((state) => state.setBranchId);
@@ -53,11 +67,62 @@ export function useStaffShellContext() {
     hydrateFromSession(session);
   }, [hydrateFromSession, session]);
 
-  const navigationItems = visibleNavigation(session);
-  const navigationGroups = visibleNavigationGroups(session);
-  const activeNavigationItem = navigationItems.find((item) => (
-    location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)
-  )) ?? null;
+  const workspaceOptions = useMemo(
+    () => resolveWorkspaceNavigationOptions(session, availableWorkspaces),
+    [availableWorkspaces, session],
+  );
+  const routeWorkspace = useMemo(
+    () => resolveWorkspaceForPath(session, location.pathname),
+    [location.pathname, session],
+  );
+  const effectiveWorkspace = useMemo((): WorkspaceId | null => {
+    if (!session) {
+      return null;
+    }
+
+    const switchableWorkspaces = new Set(workspaceOptions.map((option) => option.workspace));
+
+    if (routeWorkspace && switchableWorkspaces.has(routeWorkspace)) {
+      return routeWorkspace;
+    }
+
+    if (activeWorkspace && switchableWorkspaces.has(activeWorkspace)) {
+      return activeWorkspace;
+    }
+
+    if (primaryWorkspace && switchableWorkspaces.has(primaryWorkspace)) {
+      return primaryWorkspace;
+    }
+
+    return workspaceOptions[0]?.workspace ?? activeWorkspace ?? primaryWorkspace ?? null;
+  }, [activeWorkspace, primaryWorkspace, routeWorkspace, session, workspaceOptions]);
+
+  useEffect(() => {
+    if (!effectiveWorkspace || effectiveWorkspace === activeWorkspace) {
+      return;
+    }
+
+    setActiveWorkspace(effectiveWorkspace);
+  }, [activeWorkspace, effectiveWorkspace, setActiveWorkspace]);
+
+  const navigationItems = useMemo(
+    () => (effectiveWorkspace
+      ? visibleWorkspaceNavigation(session, effectiveWorkspace)
+      : []),
+    [effectiveWorkspace, session],
+  );
+  const navigationGroups = useMemo(
+    () => (effectiveWorkspace
+      ? visibleWorkspaceNavigationGroups(session, effectiveWorkspace)
+      : []),
+    [effectiveWorkspace, session],
+  );
+  const activeNavigationItem = useMemo(
+    () => (effectiveWorkspace
+      ? findWorkspaceNavigationItem(session, effectiveWorkspace, location.pathname)
+      : null),
+    [effectiveWorkspace, location.pathname, session],
+  );
   const selectedMenuKey = activeNavigationItem?.key;
 
   const branchesQuery = useQuery({
@@ -100,14 +165,14 @@ export function useStaffShellContext() {
   }, [branchId, branchesQuery.data?.data, session?.startup.default_branch?.branch_id, setBranchId]);
 
   const routeDescriptor = useMemo(() => {
-    if (location.pathname === '/access') {
+    if (location.pathname === staffRoutePaths.access) {
       return {
         label: 'Trung tâm mở ca',
         description: 'Xác nhận chi nhánh, readiness và hướng xử lý an toàn trước khi quay lại ca làm.',
       };
     }
 
-    if (location.pathname === '/refunds') {
+    if (location.pathname === staffRoutePaths.ops.refunds) {
       return {
         label: 'Hoàn tiền',
         description: 'Tập trung xử lý preview hoàn tiền, hủy đặt bàn sau thanh toán và quay lại các bước tài chính liên quan mà không mất ngữ cảnh.',
@@ -209,7 +274,12 @@ export function useStaffShellContext() {
   );
 
   useEffect(() => {
-    if (!session || location.pathname === '/dashboard' || location.pathname === '/access' || location.pathname === '/login') {
+    if (
+      !session
+      || location.pathname === staffRoutePaths.ops.dashboard
+      || location.pathname === staffRoutePaths.access
+      || location.pathname === staffRoutePaths.login
+    ) {
       return;
     }
 
@@ -276,7 +346,7 @@ export function useStaffShellContext() {
   const shellStatusCopy = routeDataScope
     ? routeDataScope.kind === 'global'
       ? `Shell đang giữ branch context cho điều hướng, nhưng dữ liệu của màn này vẫn ở phạm vi toàn staff actor. ${freshnessMeta}.`
-      : `Shell đang giữ branch context cho luồng FOH, nhưng màn này đang trộn snapshot theo branch và theo staff actor. ${freshnessMeta}.`
+      : `Shell đang giữ branch context cho điều hướng, nhưng màn này vẫn cần đọc thêm dữ liệu ngoài phạm vi workspace hiện tại. ${freshnessMeta}.`
     : session && isStaffSessionOperatorReady(session)
       ? `Shell đang bám đúng chi nhánh và readiness. ${freshnessMeta}.`
       : `Shell đang giữ ngữ cảnh an toàn nhưng còn bước chuẩn bị chưa hoàn tất. ${freshnessMeta}.`;
@@ -321,7 +391,26 @@ export function useStaffShellContext() {
     });
   }
 
+  function handleWorkspaceSwitch(nextWorkspace: WorkspaceId) {
+    if (!session || nextWorkspace === effectiveWorkspace) {
+      return;
+    }
+
+    const nextWorkspaceOption = workspaceOptions.find((option) => option.workspace === nextWorkspace);
+    if (!nextWorkspaceOption) {
+      return;
+    }
+
+    const didSwitch = switchWorkspace(nextWorkspace);
+    if (!didSwitch) {
+      return;
+    }
+
+    navigate(nextWorkspaceOption.landingPath);
+  }
+
   return {
+    activeWorkspace: effectiveWorkspace,
     branchId,
     branchOptions,
     branchesQuery,
@@ -329,6 +418,7 @@ export function useStaffShellContext() {
     freshnessLabel,
     freshnessTone,
     handleBranchChange,
+    handleWorkspaceSwitch,
     navigationGroups,
     quickNavOptions,
     resumeTrayItems,
@@ -337,5 +427,6 @@ export function useStaffShellContext() {
     selectedMenuKey,
     session,
     otherBranchWorkItems,
+    workspaceOptions,
   };
 }

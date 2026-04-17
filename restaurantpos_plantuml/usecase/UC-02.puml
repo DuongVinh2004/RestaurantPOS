@@ -1,0 +1,35 @@
+﻿@startuml
+left to right direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultTextAlignment left
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #374151
+  ArrowColor #4B5563
+  FontColor black
+}
+skinparam actor {
+  BorderColor #374151
+  FontColor black
+}
+
+title UC-02 - Đăng nhập nhân viên / quản trị
+actor "Nhân viên / Quản trị viên" as StaffAdmin
+rectangle "RestaurantPOS Backend" as SYS {
+  usecase "UC-02\nĐăng nhập nhân viên / quản trị" as MAIN
+  usecase "Xác thực credential staff" as S01
+  usecase "Phát staff API key / session" as S02
+  usecase "Lấy actor hiện tại" as S03
+  usecase "Refresh staff session" as S04
+  usecase "Logout staff session" as S05
+}
+MAIN ..> S01 : <<include>>
+MAIN ..> S02 : <<include>>
+S03 ..> MAIN : <<extend>>
+S04 ..> MAIN : <<extend>>
+S05 ..> MAIN : <<extend>>
+StaffAdmin --> MAIN
+
+@enduml

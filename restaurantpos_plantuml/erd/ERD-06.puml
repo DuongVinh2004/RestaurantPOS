@@ -1,0 +1,76 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam ArrowFontSize 9
+skinparam nodesep 110
+skinparam ranksep 130
+
+left to right direction
+hide circle
+title ERD-06 - Menu, pricing và recipe
+caption Mô tả danh mục menu, giá bán và recipe line nối sang nguyên liệu.
+skinparam linetype ortho
+skinparam entity {
+  BackgroundColor white
+  BorderColor #374151
+}
+
+entity "menu_categories" as menu_categories {
+  * category_id
+    name
+    description
+    sort_order
+    is_deleted
+}
+
+entity "menu_items" as menu_items {
+  * item_id
+    category_id
+    code
+    created_at
+    updated_at
+    name
+    description
+}
+
+entity "menu_item_prices" as menu_item_prices {
+  * price_id
+    item_id
+    price
+    currency
+    effective_from
+    effective_to
+}
+
+entity "menu_item_recipes" as menu_item_recipes {
+  * recipe_line_id
+    item_id
+    ingredient_id
+    unit_code
+    created_at
+    updated_at
+    quantity
+}
+
+entity "ingredients" as ingredients {
+  * ingredient_id
+    code
+    unit_code
+    created_at
+    updated_at
+    name
+    description
+}
+
+ingredients ||--o{ menu_item_recipes : ingredient_id
+menu_items ||--o{ menu_item_recipes : item_id
+menu_items ||--o{ menu_item_prices : item_id
+menu_categories |o--o{ menu_items : category_id
+@enduml
+
+
+
+
+

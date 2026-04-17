@@ -1,0 +1,4 @@
+interface:
+  display_name: "Customer Web Context Budget"
+  short_description: "Reduce token use and broad scans for customer-web work."
+  default_prompt: "Use $restaurantpos-customer-web-context-budget to choose the smallest useful context before editing customer-web."

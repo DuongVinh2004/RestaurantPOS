@@ -137,7 +137,7 @@ class CustomerWaitingListController extends Controller
             ));
         }
 
-        if ($this->hasProvidedCustomerCredential($request) && (int) $request->attributes->get('customer_access_session_id', 0) <= 0) {
+        if ($this->hasProvidedCustomerToken($request) && (int) $request->attributes->get('customer_access_session_id', 0) <= 0) {
             throw new HttpResponseException(ApiErrorResponse::authenticationRequired(
                 $request,
                 'Customer authentication is required for waiting-list owner actions.',
@@ -163,7 +163,7 @@ class CustomerWaitingListController extends Controller
         ));
     }
 
-    private function hasProvidedCustomerCredential(Request $request): bool
+    private function hasProvidedCustomerToken(Request $request): bool
     {
         $headerName = (string) config('customer_auth.header', 'X-Customer-Token');
         $providedToken = trim((string) ($request->header($headerName) ?? ''));
@@ -172,19 +172,12 @@ class CustomerWaitingListController extends Controller
             return true;
         }
 
-        if ((bool) config('customer_auth.allow_bearer', false)) {
-            $authorization = trim((string) ($request->header('Authorization') ?? ''));
-
-            if (str_starts_with($authorization, 'Bearer ') && trim(substr($authorization, 7)) !== '') {
-                return true;
-            }
+        if (! (bool) config('customer_auth.allow_bearer', false)) {
+            return false;
         }
 
-        $sessionId = trim((string) ($request->header('X-Session-Id')
-            ?? $request->input('session_id')
-            ?? $request->query('session_id')
-            ?? ''));
+        $authorization = trim((string) ($request->header('Authorization') ?? ''));
 
-        return $sessionId !== '';
+        return str_starts_with($authorization, 'Bearer ') && trim(substr($authorization, 7)) !== '';
     }
 }

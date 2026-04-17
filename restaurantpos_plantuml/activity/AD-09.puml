@@ -1,0 +1,38 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam activity {
+  BackgroundColor white
+  BorderColor #374151
+  DiamondBackgroundColor #EEF2FF
+  DiamondBorderColor #4B5563
+}
+title AD-09 - Khách đổi lịch reservation
+start
+partition "Khách hàng" {
+  :Nhập slot mới cho reservation;
+}
+partition "CustomerReservationSelfServiceController" {
+  :Nhận reschedule;
+  :Áp idempotency customer.reservations.reschedule;
+}
+partition "Owner scope + BranchScheduling + Reservations" {
+  :Kiểm tra owner scope;
+  :Kiểm tra cutoff reschedule;
+  :Tính policy + conflict của slot mới;
+  :Cập nhật reservation / reservation_tables nếu pass;
+}
+if (Slot mới hợp lệ?) then (yes)
+partition "Owner scope + BranchScheduling + Reservations" {
+  :Persist reschedule result;
+}
+  stop
+else (no)
+partition "CustomerReservationSelfServiceController" {
+  :Trả reschedule denied;
+}
+  stop
+endif
+@enduml

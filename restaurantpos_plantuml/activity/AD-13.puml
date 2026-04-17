@@ -1,0 +1,36 @@
+﻿@startuml
+skinparam Shadowing false
+skinparam DefaultFontName Arial
+skinparam BackgroundColor white
+skinparam ArrowColor #4B5563
+skinparam activity {
+  BackgroundColor white
+  BorderColor #374151
+  DiamondBackgroundColor #EEF2FF
+  DiamondBorderColor #4B5563
+}
+title AD-13 - Khách tham gia waiting list
+start
+partition "Khách hàng" {
+  :Tạo waiting-list entry hoặc xem/confirm/decline/cancel entry;
+}
+partition "CustomerWaitingListController" {
+  :Nhận index / store / show / accept / confirm-arrival / decline / cancel;
+  :Áp idempotency cho mutation;
+}
+partition "WaitingList + Branch policy" {
+  :Kiểm tra branch eligibility / opening state;
+  :Tạo hoặc cập nhật waiting-list status;
+}
+if (Branch cho phép waiting list?) then (yes)
+partition "WaitingList + Branch policy" {
+  :Persist waiting-list state;
+}
+  stop
+else (no)
+partition "CustomerWaitingListController" {
+  :Trả waiting-list denied;
+}
+  stop
+endif
+@enduml
