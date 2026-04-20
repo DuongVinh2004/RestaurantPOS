@@ -189,6 +189,16 @@ final class BookingRuntimeConfigCoverageContractTest extends TestCase
         }
     }
 
+    public function test_local_like_runtime_defaults_do_not_self_throttle_the_local_performance_lane(): void
+    {
+        self::assertGreaterThanOrEqual(1200, (int) config('booking.throttle_tables_available_limit'));
+        self::assertGreaterThanOrEqual(1200, (int) config('booking.throttle_reservations_show_limit'));
+        self::assertGreaterThanOrEqual(1200, (int) config('booking.throttle_staff_limit'));
+        self::assertGreaterThanOrEqual(120, (int) config('booking.throttle_table_holds_store_limit'));
+        self::assertGreaterThanOrEqual(120, (int) config('booking.throttle_reservations_store_limit'));
+        self::assertGreaterThanOrEqual(120, (int) config('booking.throttle_reservations_status_limit'));
+    }
+
     /**
      * @param list<string> $paths
      */

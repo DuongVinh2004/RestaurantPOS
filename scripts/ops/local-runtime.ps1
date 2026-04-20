@@ -135,6 +135,23 @@ function Get-PhpExecutable {
     throw 'php.exe was not found. Install the PHP CLI and add it to PATH before using the local runtime script.'
 }
 
+function Test-AppUrlPinsServeEndpoint {
+    param(
+        [string] $AppUrl,
+        [System.Uri] $Uri
+    )
+
+    if ([string]::IsNullOrWhiteSpace($AppUrl) -or $null -eq $Uri) {
+        return $false
+    }
+
+    $explicitPort = $AppUrl -match '^[a-z]+://[^/]+:\d+(?:/|$)'
+    $trimmedPath = $Uri.AbsolutePath.TrimEnd('/')
+    $hasNonRootPath = -not [string]::IsNullOrWhiteSpace($trimmedPath) -and $trimmedPath -ne '/'
+
+    return $explicitPort -or $hasNonRootPath
+}
+
 function Resolve-BackendServeConfig {
     param(
         [hashtable] $Values
@@ -150,7 +167,9 @@ function Resolve-BackendServeConfig {
         try {
             $uri = [System.Uri] $appUrl
 
-            if (-not [string]::IsNullOrWhiteSpace($uri.Host)) {
+            # Keep the repo-local runtime pinned to 127.0.0.1:8000 unless APP_URL
+            # explicitly describes a different serve endpoint.
+            if ((Test-AppUrlPinsServeEndpoint -AppUrl $appUrl -Uri $uri) -and -not [string]::IsNullOrWhiteSpace($uri.Host)) {
                 $serveHost = $uri.Host
             }
 
@@ -526,7 +545,7 @@ function Touch-SchedulerHeartbeat {
         [string] $PhpExecutable
     )
 
-    $heartbeatOutput = & $PhpExecutable $artisanPath 'booking:ops-heartbeat:touch' 'scheduler' '--json' 2>&1
+    $heartbeatOutput = & $PhpExecutable $artisanRelativePath 'booking:ops-heartbeat:touch' 'scheduler' '--json' 2>&1
     if ($LASTEXITCODE -ne 0) {
         $message = (($heartbeatOutput | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine).Trim()
         if ($message -eq '') {
@@ -570,12 +589,14 @@ function Start-LocalRuntime {
 function Stop-LocalRuntime {
     $schedulerStopped = Stop-RepoPhpProcesses -Label 'Scheduler worker' -CommandPattern $schedulerProcessPattern
     $backendStopped = Stop-RepoBackendProcesses -TargetPort $serveConfig.Port
+    $redisProcesses = @(Get-RepoRedisProcesses)
+    $mySqlProcesses = @(Get-RepoMySqlProcesses)
 
-    if ((Get-RepoRedisProcesses).Count -gt 0 -and (Test-Path $startRedisScript)) {
+    if ($redisProcesses.Count -gt 0 -and (Test-Path $startRedisScript)) {
         & $startRedisScript -Stop
     }
 
-    if ((Get-RepoMySqlProcesses).Count -gt 0 -and (Test-Path $startMySqlScript)) {
+    if ($mySqlProcesses.Count -gt 0 -and (Test-Path $startMySqlScript)) {
         & $startMySqlScript -Stop
     }
 

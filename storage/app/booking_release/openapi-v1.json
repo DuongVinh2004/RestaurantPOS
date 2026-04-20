@@ -182,7 +182,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.master_data.manage"
                 ]
             },
@@ -246,7 +246,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.master_data.manage",
                     "idempotency:admin.loyalty-tiers.store"
                 ],
@@ -327,7 +327,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.master_data.manage"
                 ]
             }
@@ -371,7 +371,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.master_data.manage"
                 ],
                 "requestBody": {
@@ -441,7 +441,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.master_data.manage"
                 ]
             },
@@ -513,7 +513,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.master_data.manage",
                     "idempotency:admin.loyalty-tiers.update"
                 ],
@@ -576,7 +576,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.master_data.manage"
                 ]
             },
@@ -640,7 +640,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.master_data.manage",
                     "idempotency:admin.benefits-vouchers.store"
                 ],
@@ -728,7 +728,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.master_data.manage"
                 ]
             }
@@ -772,7 +772,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.master_data.manage"
                 ],
                 "requestBody": {
@@ -842,7 +842,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.master_data.manage"
                 ]
             },
@@ -914,7 +914,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.master_data.manage",
                     "idempotency:admin.benefits-vouchers.update"
                 ],
@@ -1176,7 +1176,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage"
                 ]
             },
@@ -1240,7 +1240,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage",
                     "idempotency:admin.inventory-ingredients.store"
                 ],
@@ -1472,7 +1472,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage"
                 ]
             },
@@ -1544,7 +1544,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage",
                     "idempotency:admin.inventory-ingredients.update"
                 ],
@@ -1779,7 +1779,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage"
                 ]
             },
@@ -1851,7 +1851,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage",
                     "idempotency:admin.inventory-movements.store"
                 ],
@@ -2085,7 +2085,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage"
                 ]
             },
@@ -2157,7 +2157,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage",
                     "idempotency:admin.inventory-menu-item-recipe.sync"
                 ],
@@ -2451,7 +2451,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage"
                 ]
             },
@@ -2515,7 +2515,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage",
                     "idempotency:admin.inventory-purchase-orders.store"
                 ],
@@ -2795,7 +2795,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage"
                 ]
             },
@@ -2867,7 +2867,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage",
                     "idempotency:admin.inventory-purchase-orders.update"
                 ],
@@ -3147,7 +3147,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage"
                 ]
             },
@@ -3219,7 +3219,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage",
                     "idempotency:admin.inventory-purchase-order-receipts.store"
                 ],
@@ -3467,7 +3467,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage"
                 ]
             },
@@ -3531,7 +3531,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage",
                     "idempotency:admin.inventory-suppliers.store"
                 ],
@@ -3759,7 +3759,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage"
                 ]
             },
@@ -3831,7 +3831,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:inventory.manage",
                     "idempotency:admin.inventory-suppliers.update"
                 ],
@@ -3895,7 +3895,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage"
                 ]
             },
@@ -3959,7 +3959,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage",
                     "idempotency:admin.kitchen-stations.store"
                 ],
@@ -4031,7 +4031,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage"
                 ]
             },
@@ -4103,7 +4103,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage",
                     "idempotency:admin.kitchen-stations.update"
                 ],
@@ -4175,7 +4175,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage"
                 ]
             },
@@ -4247,7 +4247,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage",
                     "idempotency:admin.kitchen-station-category-routes.sync"
                 ],
@@ -4460,7 +4460,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage"
                 ]
             },
@@ -4524,7 +4524,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage",
                     "idempotency:admin.menu-categories.store"
                 ],
@@ -4604,7 +4604,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage"
                 ]
             }
@@ -4648,7 +4648,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage"
                 ],
                 "requestBody": {
@@ -4739,7 +4739,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage",
                     "idempotency:admin.menu-categories.update"
                 ],
@@ -4993,7 +4993,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage"
                 ]
             },
@@ -5057,7 +5057,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage",
                     "idempotency:admin.menu-items.store"
                 ],
@@ -5142,7 +5142,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage"
                 ]
             }
@@ -5186,7 +5186,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage"
                 ],
                 "requestBody": {
@@ -5256,7 +5256,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage"
                 ]
             },
@@ -5328,7 +5328,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage",
                     "idempotency:admin.menu-items.update"
                 ],
@@ -5559,7 +5559,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage"
                 ]
             },
@@ -5631,7 +5631,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage",
                     "idempotency:admin.menu-item-prices.store"
                 ],
@@ -5711,7 +5711,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage"
                 ]
             }
@@ -5755,7 +5755,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage"
                 ],
                 "requestBody": {
@@ -5825,7 +5825,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage"
                 ]
             },
@@ -5897,7 +5897,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:menu.manage",
                     "idempotency:admin.menu-item-prices.update"
                 ],
@@ -5967,7 +5967,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:privacy.manage"
                 ]
             }
@@ -6067,7 +6067,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:privacy.manage"
                 ]
             }
@@ -6141,7 +6141,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:privacy.manage",
                     "idempotency:admin.privacy-requests.review"
                 ],
@@ -6201,7 +6201,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage"
                 ]
             }
@@ -6348,7 +6348,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage"
                 ]
             },
@@ -6412,7 +6412,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage",
                     "idempotency:admin.restaurant-tables.store"
                 ],
@@ -6498,7 +6498,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage"
                 ]
             }
@@ -6542,7 +6542,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage"
                 ],
                 "requestBody": {
@@ -6648,7 +6648,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage",
                     "idempotency:admin.restaurant-tables.delete"
                 ]
@@ -6700,7 +6700,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage"
                 ]
             },
@@ -6772,7 +6772,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage",
                     "idempotency:admin.restaurant-tables.update"
                 ],
@@ -6869,7 +6869,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage"
                 ]
             }
@@ -6935,7 +6935,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage",
                     "idempotency:admin.restaurant-zones.rename"
                 ],
@@ -6994,7 +6994,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.master_data.manage"
                 ]
             },
@@ -7058,7 +7058,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.master_data.manage",
                     "idempotency:admin.benefit-settings.upsert"
                 ],
@@ -7159,7 +7159,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage"
                 ]
             },
@@ -7243,7 +7243,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage",
                     "idempotency:admin.settings-branches.store"
                 ],
@@ -7325,7 +7325,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage"
                 ]
             }
@@ -7369,7 +7369,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage"
                 ],
                 "requestBody": {
@@ -7479,7 +7479,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage"
                 ]
             },
@@ -7601,7 +7601,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage",
                     "idempotency:admin.settings-branches.update"
                 ],
@@ -7660,7 +7660,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage"
                 ]
             },
@@ -7724,7 +7724,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage",
                     "idempotency:admin.settings-finance-tax-profile.upsert"
                 ],
@@ -7812,7 +7812,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settings.manage",
                     "idempotency:admin.reporting-snapshots.rebuild"
                 ],
@@ -9803,7 +9803,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\CustomerOrStaffMiddleware",
-                    "redis.throttle:reservations.store,20,60,either",
+                    "redis.throttle:reservations.store,120,60,either",
                     "idempotency:reservations"
                 ],
                 "requestBody": {
@@ -9890,7 +9890,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\CustomerOrStaffMiddleware",
-                    "redis.throttle:reservations.show,120,60,either"
+                    "redis.throttle:reservations.show,1200,60,either"
                 ]
             }
         },
@@ -11928,7 +11928,7 @@
                     "App\\Http\\Middleware\\MetricsRequestMiddleware",
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
-                    "redis.throttle:reservations.status,30,60,either",
+                    "redis.throttle:reservations.status,120,60,either",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "staff.capability:reservation.manage",
                     "idempotency:staff.reservation-status"
@@ -13852,7 +13852,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:audit.view"
                 ]
             }
@@ -13916,7 +13916,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reservation.manage"
                 ]
             }
@@ -14200,7 +14200,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:cashier.shift.manage"
                 ]
             }
@@ -14292,7 +14292,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:cashier.shift.manage"
                 ]
             }
@@ -14398,7 +14398,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:cashier.shift.manage",
                     "idempotency:staff.cashier-shift.open"
                 ],
@@ -14498,7 +14498,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:cashier.shift.manage"
                 ]
             }
@@ -14622,7 +14622,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:cashier.shift.manage",
                     "idempotency:staff.cashier-shift.close"
                 ],
@@ -15029,7 +15029,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:conversation.manage"
                 ]
             }
@@ -15162,7 +15162,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:conversation.manage"
                 ]
             }
@@ -15286,7 +15286,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:conversation.manage",
                     "idempotency:staff.conversation-assign"
                 ],
@@ -15385,7 +15385,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:conversation.manage",
                     "signed"
                 ]
@@ -15500,7 +15500,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:conversation.manage",
                     "idempotency:staff.conversation-internal-note"
                 ],
@@ -15629,7 +15629,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:conversation.manage",
                     "idempotency:staff.conversation-link"
                 ],
@@ -15750,7 +15750,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:conversation.manage",
                     "idempotency:staff.conversation-unlink-reservation"
                 ]
@@ -15855,7 +15855,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:conversation.manage",
                     "idempotency:staff.conversation-unlink-waiting-list"
                 ]
@@ -15940,7 +15940,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:conversation.manage",
                     "signed"
                 ]
@@ -16065,7 +16065,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:conversation.manage",
                     "idempotency:staff.conversation-outbound-reply"
                 ],
@@ -16204,7 +16204,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:conversation.manage",
                     "idempotency:staff.conversation-take-over"
                 ],
@@ -16322,7 +16322,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:conversation.manage",
                     "idempotency:staff.conversation-unassign"
                 ],
@@ -16460,7 +16460,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:conversation.manage",
                     "idempotency:staff.conversation-workflow-state"
                 ],
@@ -16897,7 +16897,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settlement.manage"
                 ]
             }
@@ -16967,7 +16967,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settlement.manage"
                 ]
             }
@@ -17041,7 +17041,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settlement.manage",
                     "idempotency:staff.finance-invoice.issue"
                 ],
@@ -17462,7 +17462,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settlement.manage"
                 ]
             }
@@ -17869,7 +17869,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settlement.manage"
                 ]
             }
@@ -17939,7 +17939,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settlement.manage"
                 ]
             }
@@ -18048,7 +18048,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:kitchen.manage"
                 ]
             }
@@ -18130,7 +18130,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:kitchen.manage"
                 ]
             }
@@ -18276,7 +18276,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:kitchen.manage"
                 ]
             }
@@ -18400,7 +18400,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:kitchen.manage",
                     "idempotency:staff.kitchen.bump"
                 ]
@@ -18525,7 +18525,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:kitchen.manage",
                     "idempotency:staff.kitchen.fire"
                 ]
@@ -18650,7 +18650,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:kitchen.manage",
                     "idempotency:staff.kitchen.recall"
                 ]
@@ -18821,7 +18821,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:order.manage"
                 ]
             }
@@ -18904,7 +18904,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:order.manage"
                 ]
             }
@@ -19028,7 +19028,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:order.manage",
                     "idempotency:staff.order-close"
                 ],
@@ -19168,7 +19168,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settlement.manage",
                     "idempotency:staff.checkout"
                 ],
@@ -19313,7 +19313,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:order.manage",
                     "idempotency:staff.order-close"
                 ],
@@ -19454,7 +19454,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:order.manage",
                     "idempotency:staff.order-items"
                 ],
@@ -19557,7 +19557,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:order.manage",
                     "idempotency:staff.order-item.update"
                 ],
@@ -19657,7 +19657,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:order.manage",
                     "idempotency:staff.order-item.status"
                 ],
@@ -19798,7 +19798,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:order.manage",
                     "idempotency:staff.kitchen.dispatch"
                 ],
@@ -19886,7 +19886,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settlement.manage",
                     "idempotency:staff.order-pay"
                 ],
@@ -19999,7 +19999,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settlement.manage"
                 ]
             }
@@ -20123,7 +20123,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settlement.manage",
                     "idempotency:staff.checkout"
                 ],
@@ -20414,7 +20414,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reporting.view"
                 ]
             }
@@ -20668,7 +20668,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reporting.view"
                 ]
             }
@@ -20938,7 +20938,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reporting.view"
                 ]
             }
@@ -21365,7 +21365,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reservation.manage"
                 ]
             }
@@ -21686,7 +21686,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reservation.manage"
                 ]
             }
@@ -21760,7 +21760,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reservation.manage",
                     "idempotency:staff.reservation-assign-best-fit"
                 ],
@@ -21852,7 +21852,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reservation.manage",
                     "idempotency:staff.reservation-assign-table"
                 ],
@@ -21995,7 +21995,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reservation.manage",
                     "idempotency:staff.reservation-checkin"
                 ],
@@ -22087,7 +22087,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reservation.manage",
                     "idempotency:staff.reservation-move-table"
                 ],
@@ -22179,7 +22179,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reservation.manage",
                     "idempotency:staff.reservation-reschedule"
                 ],
@@ -22274,7 +22274,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reservation.manage",
                     "idempotency:staff.reservation-assign-best-fit"
                 ],
@@ -22366,7 +22366,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reservation.manage",
                     "idempotency:staff.reservation-assign-table"
                 ],
@@ -22459,7 +22459,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reservation.manage",
                     "idempotency:staff.reservation-checkin"
                 ],
@@ -22559,7 +22559,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reservation.manage"
                 ]
             }
@@ -22612,7 +22612,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:order.manage"
                 ]
             }
@@ -22665,7 +22665,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settlement.manage"
                 ]
             }
@@ -22739,7 +22739,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:settlement.manage",
                     "idempotency:staff.reservation-deposit-pay"
                 ],
@@ -22813,7 +22813,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:loyalty.view"
                 ]
             }
@@ -22887,7 +22887,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:loyalty.redeem",
                     "idempotency:staff.reservation-loyalty-redeem"
                 ],
@@ -22977,7 +22977,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:loyalty.redeem",
                     "idempotency:staff.reservation-loyalty-release"
                 ],
@@ -23066,7 +23066,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:loyalty.redeem",
                     "idempotency:staff.reservation-loyalty-release"
                 ],
@@ -23175,7 +23175,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:order.manage"
                 ]
             }
@@ -23299,7 +23299,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:payment.refund",
                     "idempotency:staff.reservation-refund"
                 ],
@@ -23444,7 +23444,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:payment.refund",
                     "idempotency:staff.reservation-refund-cancel"
                 ],
@@ -23625,7 +23625,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:payment.refund"
                 ]
             }
@@ -23699,7 +23699,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.manage",
                     "idempotency:staff.reservation-voucher-apply"
                 ],
@@ -23789,7 +23789,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.manage",
                     "idempotency:staff.reservation-voucher-remove"
                 ],
@@ -23878,7 +23878,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.manage",
                     "idempotency:staff.reservation-voucher-remove"
                 ],
@@ -23945,7 +23945,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:voucher.manage"
                 ]
             }
@@ -24031,7 +24031,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reservation.manage",
                     "idempotency:staff.service-sessions.walk-in"
                 ],
@@ -24235,7 +24235,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:table.board.view"
                 ],
                 "x-canonical-route": "/api/v1/staff/tables/board"
@@ -24449,7 +24449,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:table.board.view"
                 ],
                 "x-envelope-exception": true
@@ -24559,7 +24559,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:table.board.view"
                 ]
             }
@@ -24612,7 +24612,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:order.manage"
                 ]
             }
@@ -24685,7 +24685,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:reservation.manage"
                 ]
             }
@@ -24809,7 +24809,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:order.manage",
                     "idempotency:staff.table-orders"
                 ],
@@ -24906,7 +24906,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:table.release",
                     "idempotency:staff.table-release"
                 ],
@@ -24976,7 +24976,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:loyalty.view"
                 ]
             }
@@ -25050,7 +25050,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:loyalty.adjust",
                     "idempotency:staff.user-loyalty-adjust"
                 ],
@@ -25355,7 +25355,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:waiting_list.manage"
                 ]
             },
@@ -25419,7 +25419,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:waiting_list.manage",
                     "idempotency:staff.waiting-list-create"
                 ],
@@ -25548,7 +25548,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:waiting_list.manage"
                 ]
             }
@@ -25622,7 +25622,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:waiting_list.manage",
                     "idempotency:staff.waiting-list-advance"
                 ],
@@ -25711,7 +25711,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:waiting_list.manage",
                     "idempotency:staff.waiting-list-cancel"
                 ],
@@ -25850,7 +25850,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:waiting_list.manage",
                     "idempotency:staff.waiting-list-notify"
                 ],
@@ -25990,7 +25990,7 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
-                    "redis.throttle:staff.ops,300,60,either",
+                    "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:waiting_list.manage",
                     "idempotency:staff.waiting-list-seat"
                 ],
@@ -26092,7 +26092,7 @@
                     "App\\Http\\Middleware\\MetricsRequestMiddleware",
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
-                    "redis.throttle:tableholds.store,30,60,ip",
+                    "redis.throttle:tableholds.store,120,60,ip",
                     "hold.ratelimit",
                     "idempotency:table-holds"
                 ],
@@ -26711,7 +26711,7 @@
                     "App\\Http\\Middleware\\MetricsRequestMiddleware",
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
-                    "redis.throttle:tables.available,60,60,ip"
+                    "redis.throttle:tables.available,1200,60,ip"
                 ]
             }
         },

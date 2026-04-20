@@ -180,6 +180,7 @@ Deprecated compatibility aliases remain in the spec and are marked `deprecated: 
 - Use the frozen artifact as the only schema source for typed clients.
 - Use `build/api-consumer/sdk/typescript/restaurantpos-sdk.ts` as the official TypeScript convenience layer only for the curated priority batch declared in `config/api_artifacts.php` and enumerated in `build/api-consumer/sdk/typescript/README.md`.
 - Use `build/api-consumer/sdk/typescript/restaurantpos-enums.ts` and `build/api-consumer/enum-state-map.json` for FE-safe enum/state values and semantic aliases instead of inferring states from incidental payload strings.
+- The generated TypeScript SDK expects the backend origin as its base URL and appends `/api/v1/...` paths itself. Boolean query parameters are serialized as `1` and `0` to match the frozen HTTP contract.
 - If a full-contract route is not in that curated SDK batch, generate from the frozen artifact instead of reading controllers/resources directly.
 - If a route only appears as fallback in the frozen artifact, treat it as discoverable but not yet an endorsed FE contract.
 - Controllers and resources are backend implementation detail, not the official consumer contract.
@@ -195,19 +196,18 @@ Deprecated compatibility aliases remain in the spec and are marked `deprecated: 
 
 ## Current limitations
 
-As of 2026-04-06, the generated spec reports `67` full-contract operations and `160` fallback operations.
+As of 2026-04-19, the generated spec reports `123` full-contract operations and `113` fallback operations.
 
 Routes still below contract-grade are intentionally left as fallback until their response shape is formalized or the source is tightened. The main remaining groups are:
 
 - Admin benefits, inventory, kitchen, menu, restaurant, and finance setting endpoints
-- Customer menu and loyalty/voucher read surfaces
-- Reservation preorder and benefits preview flows
-- Table hold endpoints
 - Metrics and assorted operational reporting endpoints
 - Staff kitchen, realtime, inbox, timeline, voucher, loyalty, and broader master-data CRUD surfaces
 - Legacy `/api/user`
 
 Fallback routes still appear in the artifact, but they use generic envelopes and inferred request schemas rather than curated domain schemas.
+
+Customer-facing auth, menu, availability, table holds, reservations, canonical `/preorder` flows, deposit, bill, waiting-list, benefits, privacy, and data-export surfaces are now part of the frozen full-contract customer lane. Selected deprecated aliases can still remain fallback-discoverable; for example, the legacy `DELETE /api/v1/reservations/{id}/pre-order` alias is not the contract source for customer-web. Frontend rollout policy can still be narrower than contract coverage; for example, customer-web keeps preorder env-gated and Wave 2 surfaces env-gated by default even though the canonical underlying contract is explicit.
 
 ## Notable source fixes made for contract alignment
 
@@ -218,6 +218,8 @@ Fallback routes still appear in the artifact, but they use generic envelopes and
 - Global API exception rendering now emits normalized English fallback messages instead of mojibake payload text.
 
 ## Canonical alias notes
+
+These are the only locked route alias groups remaining in `tests/fixtures/route_inventory_gate.json` for rollout safety.
 
 - Bill snapshot
   - Canonical: `POST /api/v1/staff/orders/{order_id}/bill-snapshot`
@@ -234,3 +236,13 @@ Fallback routes still appear in the artifact, but they use generic envelopes and
 - Loyalty redemption release
   - Canonical mutation remains the redeem-release route
   - Compatibility alias: `POST /api/v1/staff/reservations/{reservation_id}/loyalty/release`
+
+- Staff table board
+  - Canonical: `GET /api/v1/staff/tables/board`
+  - Legacy alias: `GET /api/v1/staff/table-board`
+
+Compatibility input aliases still accepted by the current implementation:
+
+- Canonical idempotency header: `Idempotency-Key`
+- Compatibility header alias: `X-Idempotency-Key`
+- Compatibility body field alias: `idempotency_key`

@@ -132,6 +132,18 @@ final class BranchSchedulingPolicyServiceTest extends TestCase
 
         self::assertFalse($advanceFailure['allowed']);
         self::assertSame('max_advance', $advanceFailure['reason']);
+
+        $waitingListSeatAllowed = $service->evaluateReservationWindow(
+            $branchId,
+            Carbon::parse('2026-07-01 18:10:00', 'America/New_York')->utc(),
+            Carbon::parse('2026-07-01 19:10:00', 'America/New_York')->utc(),
+            Carbon::parse('2026-07-01 18:05:00', 'America/New_York')->utc(),
+            'waiting_list_seat',
+            false,
+        );
+
+        self::assertTrue($waitingListSeatAllowed['allowed']);
+        self::assertNull($waitingListSeatAllowed['reason']);
     }
 
     public function test_waiting_list_eligibility_requires_open_enabled_branch_and_respects_closure_windows(): void

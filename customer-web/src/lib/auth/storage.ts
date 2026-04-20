@@ -69,6 +69,8 @@ export function storeCustomerAuthSession(envelope: CustomerAuthSessionEnvelope):
 
   if (token) {
     local?.setItem(tokenKey, token);
+  } else {
+    local?.removeItem(tokenKey);
   }
 
   if (expiresAtUtc) {
@@ -81,6 +83,35 @@ export function storeCustomerAuthSession(envelope: CustomerAuthSessionEnvelope):
 
   return {
     customerToken: token,
+    sessionId,
+    expiresAtUtc,
+  };
+}
+
+export function syncStoredCustomerAuthSession(envelope: CustomerAuthSessionEnvelope): StoredCustomerAuth {
+  const local = browserStorage("local");
+  const session = browserStorage("session");
+  const currentToken = getCustomerToken();
+  const nextToken = envelope.data.access_token ?? currentToken;
+  const sessionId = envelope.data.session_id || getCustomerSessionId() || ensureCustomerSessionId();
+  const expiresAtUtc = envelope.data.expires_at_utc ?? null;
+
+  if (nextToken) {
+    local?.setItem(tokenKey, nextToken);
+  } else {
+    local?.removeItem(tokenKey);
+  }
+
+  if (expiresAtUtc) {
+    local?.setItem(tokenExpiresKey, expiresAtUtc);
+  } else {
+    local?.removeItem(tokenExpiresKey);
+  }
+
+  session?.setItem(sessionIdKey, sessionId);
+
+  return {
+    customerToken: nextToken,
     sessionId,
     expiresAtUtc,
   };

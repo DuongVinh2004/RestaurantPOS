@@ -161,7 +161,7 @@ if ($existingConnection) {
 
 if ($Restart) {
     [void] (Stop-LocalRedis)
-} elseif ((Get-LocalRedisProcesses).Count -gt 0) {
+} elseif (@(Get-LocalRedisProcesses).Count -gt 0) {
     [void] (Stop-LocalRedis)
 }
 

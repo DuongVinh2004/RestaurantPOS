@@ -90,6 +90,21 @@ Do not edit generated JSON or SDK files directly. Update the contract or `config
 
 The generated enum/state artifacts expose backed enum values and semantic metadata that FE should not infer from incidental payload strings. This is especially important for reservation checked-in behavior, where the persisted value remains backward-compatible.
 
+## Provenance Lanes
+
+When Phase 0 baseline-freeze work is classifying a dirty worktree, treat these generated files as owned by explicit command lanes:
+
+| Lane | Command | Owned outputs |
+|---|---|---|
+| Backend contract freeze | `composer api:artifacts` | `storage/app/booking_release/openapi-v1.json`, `build/api-consumer/mutation-contracts.md`, `build/api-consumer/postman/RestaurantPOS.uat.postman_environment.json`, `build/api-consumer/sdk/typescript/restaurantpos-sdk.ts`, `build/api-consumer/sdk/typescript/restaurantpos-enums.ts`, `storage/app/booking_release/release_manifest_snapshot.json` |
+| Customer-web sync | `npm --prefix customer-web run sync:contracts` | `customer-web/src/lib/contracts/generated/restaurantpos-sdk.ts`, `customer-web/src/lib/contracts/generated/restaurantpos-enums.ts` |
+
+If one of those files has a Git diff, first confirm it came from the owning command above. If not, stop and investigate before merge.
+
+`build/api-consumer/postman/RestaurantPOS.uat.postman_environment.json` is still generated output, but its values are hydrated from `storage/app/uat/scenario-pack.json`. A diff there can be expected after the UAT scenario pack is refreshed.
+
+Do not hand-edit files under `build/api-consumer`, `storage/app/booking_release`, or `customer-web/src/lib/contracts/generated`.
+
 ## What is included
 
 The generated collection prioritizes:
@@ -101,6 +116,7 @@ The generated collection prioritizes:
 - refund flows
 - waiting-list customer + staff actions
 - benefits apply/remove/redeem/release
+- customer privacy self-service
 - admin master-data create flow
 - conversation inbox
 - payment webhook intake
@@ -153,6 +169,8 @@ Current scope:
 Use the generated SDK when the route you need appears in `build/api-consumer/sdk/typescript/README.md`.
 
 Use `build/api-consumer/mutation-contracts.md` when FE needs to know whether a mutation requires `row_version`, `Idempotency-Key`, or session propagation, and whether the current frozen contract formally exposes `401`, `403`, `409`, or `422` handling for that route.
+
+The generated TypeScript SDK serializes boolean query parameters as `1` and `0` so browser clients stay aligned with existing API query conventions such as `suggest=1`.
 
 ## Canonical error metadata
 
@@ -236,6 +254,25 @@ Frontend harness shortcut:
 php artisan booking:harness:fe-contract --refresh-openapi --json
 ```
 
+Customer-web provenance shortcut after a backend artifact refresh:
+
+```bash
+composer api:artifacts
+php artisan booking:harness:fe-contract --json
+php artisan booking:harness:web-auth --json
+cd customer-web
+npm run sync:contracts
+npm run verify:contracts
+```
+
+For a clean release branch, finish with:
+
+```bash
+node scripts/check-contract-governance.mjs --strict-generated
+```
+
+If `--strict-generated` fails on a dirty development worktree, confirm the generated-file diff came from the refresh chain above before asking reviewers to bless provenance.
+
 For the full release chain ending in an immutable package, use `php artisan booking:release-build` or `composer release:package`.
 
 For the full backend + `staff-web` release candidate loop, use `php artisan booking:release-loop` or `composer release:loop`. That loop keeps contract artifacts, backend harnesses, `staff-web` test/build, preview metadata, live smoke, and launch-readiness evidence in one report bundle.
@@ -275,6 +312,7 @@ CORS_ALLOWED_ORIGINS=https://customer.example.com,https://staff.example.com
 ```
 
 Use the exact browser origin. `localhost` and `127.0.0.1` are different origins for CORS and must both be listed if local dev uses both forms.
+An exact origin means `scheme://host:port` only. Do not include a path, trailing slash, or `/api/v1`.
 
 **Leave empty or omit to deny all cross-origin requests** (safe production default).
 
@@ -309,17 +347,31 @@ The backend exposes `X-Request-Id` in responses so FE can read it for error corr
 
 ```typescript
 // customer-web (Next.js)
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api/v1';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:8000';
 
 // staff-web (Vite)
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1';
 ```
 
-Point both values at the backend API origin, not at the frontend app origin. Typical examples:
+Point `customer-web` at the backend origin only; its generated SDK appends `/api/v1/...` paths. `staff-web` still uses its existing API URL convention. Typical `customer-web` examples:
 
-- local: `http://localhost:8000/api/v1`
-- staging: `https://api.staging.example.com/api/v1`
-- production: `https://api.example.com/api/v1`
+- local: `http://127.0.0.1:8000`
+- staging: `https://api.staging.example.com`
+- production: `https://api.example.com`
+
+The current local live proof lane is validated on `http://127.0.0.1:3000` calling `http://127.0.0.1:8000`. If QA or release uses another customer-web origin, update `CORS_ALLOWED_ORIGINS` first and rerun the live browser gate from that exact origin.
+
+For customer-web release proof, keep `NEXT_PUBLIC_ENABLE_DEV_MOCKS=false`. Wave 2 surfaces (`NEXT_PUBLIC_FEATURE_WAITING_LIST`, `NEXT_PUBLIC_FEATURE_ACCOUNT_BENEFITS`, `NEXT_PUBLIC_FEATURE_PRIVACY_TOOLS`, `NEXT_PUBLIC_FEATURE_DATA_EXPORT`) are now live-proven but remain env-gated by default, and deferred preorder (`NEXT_PUBLIC_FEATURE_PREORDER`) must stay off unless the support matrix explicitly calls for a focused QA or contract pass.
+
+After every backend artifact refresh, keep the customer-web generated contract copy aligned with:
+
+```bash
+composer api:artifacts
+cd customer-web
+npm run sync:contracts
+```
+
+Do not hand-edit files under `build/api-consumer`, `storage/app/booking_release`, or `customer-web/src/lib/contracts/generated`.
 
 ### Credentials mode
 
@@ -341,3 +393,5 @@ fetch(url, { credentials: 'include' }); // not needed, would fail
 - Some flows still need manual row-version updates when a preceding mutation changes state mid-demo.
 - The SDK is a generated foundation file, not yet a published package with versioned release workflow.
 - Admin and conversation mutation breadth is intentionally narrower than the total route surface in phase one.
+- Customer-web launch posture is intentionally narrower than raw contract coverage: waiting-list, benefits, privacy, and data export are live-proven but stay env-gated by default, while preorder remains CI-safe and env-gated until its own live rollout decision changes.
+- Local UAT payment proof can rely on the `simulated` provider path for deposit and bill payment sessions, but that still does not prove production PSP onboarding, webhook secret rollout, or real-money settlement readiness.

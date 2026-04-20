@@ -45,6 +45,7 @@ class CustomerReservationDepositSelfServiceFlowTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('meta.action', 'customer_reservation_deposit_acknowledge')
+            ->assertJsonPath('data.reservation.row_version', 2)
             ->assertJsonPath('data.deposit.self_service.requirement_acknowledged', true)
             ->assertJsonPath('data.deposit.self_service.intent_status', 'None')
             ->assertJsonPath('data.deposit.self_service.can_submit_intent', true);
@@ -70,6 +71,7 @@ class CustomerReservationDepositSelfServiceFlowTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('meta.action', 'customer_reservation_deposit_submit_intent')
+            ->assertJsonPath('data.reservation.row_version', 3)
             ->assertJsonPath('data.deposit.self_service.intent_status', 'Submitted')
             ->assertJsonPath('data.deposit.self_service.can_revoke_intent', true)
             ->assertJsonPath('data.deposit.self_service.next_step', 'awaiting_staff_payment_collection');

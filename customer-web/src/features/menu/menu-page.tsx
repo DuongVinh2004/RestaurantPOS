@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
 import { queryKeys } from "@/lib/api/query-keys";
 import { featureFlags } from "@/lib/config/feature-flags";
+import { createRoundedFutureLocalDateTimeInput, toUtcIsoFromLocalDateTimeInput } from "@/lib/contracts/datetime";
 import { formatMoney } from "@/lib/contracts/format";
 import { listMenuCategories, listMenuItems, previewMenuPreorder } from "./api";
 
@@ -32,7 +33,7 @@ export function MenuPage() {
   const previewMutation = useMutation({
     mutationFn: (itemId: number) =>
       previewMenuPreorder({
-        start_time: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        start_time: toUtcIsoFromLocalDateTimeInput(createRoundedFutureLocalDateTimeInput()),
         pre_order_items: [{ item_id: itemId, quantity: 1 }],
       }),
     onSuccess() {
@@ -50,7 +51,7 @@ export function MenuPage() {
           <Badge variant="outline" className="rounded-md">Live menu</Badge>
           <h1 className="max-w-2xl text-4xl font-semibold leading-tight tracking-normal">Browse the menu before your visit.</h1>
           <p className="max-w-xl text-muted-foreground">
-            Search live menu items, check preorder eligibility, and start a table booking when you are ready.
+            Search live menu items, review availability, and start a table booking when you are ready.
           </p>
         </div>
         <div className="flex gap-2">
@@ -74,7 +75,7 @@ export function MenuPage() {
           />
         </div>
 
-        {featureFlags.menuCategories && categoriesQuery.data?.data?.length ? (
+        {featureFlags.menuCategories && categoriesQuery.data?.length ? (
           <div className="flex gap-2 overflow-x-auto pb-1">
             <Button
               type="button"
@@ -84,7 +85,7 @@ export function MenuPage() {
             >
               All
             </Button>
-            {categoriesQuery.data.data.map((category) => (
+            {categoriesQuery.data.map((category) => (
               <Button
                 type="button"
                 key={category.category_id}
@@ -100,12 +101,12 @@ export function MenuPage() {
 
         {itemsQuery.isLoading ? <LoadingBlock label="Loading menu" /> : null}
         {itemsQuery.error ? <ErrorState error={itemsQuery.error} title="Menu is unavailable" onRetry={() => itemsQuery.refetch()} /> : null}
-        {itemsQuery.data && itemsQuery.data.data.length === 0 ? (
+        {itemsQuery.data && itemsQuery.data.length === 0 ? (
           <EmptyState title="No menu items found" description="Try a different search or clear the selected category." />
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {itemsQuery.data?.data.map((item) => (
+          {itemsQuery.data?.map((item) => (
             <Card key={item.item_id} className="overflow-hidden rounded-lg">
               {item.img_url ? (
                 // Backend image URLs are restaurant-managed and may be outside the Next image allow-list.

@@ -12,15 +12,49 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/status/status-badge";
-import { ErrorState, LoadingBlock } from "@/components/states/state-blocks";
+import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
+import { isConflictLikeApiError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query-keys";
+import { localDateTimeRangeToUtc } from "@/lib/contracts/datetime";
 import { formatDateTime, formatMoney } from "@/lib/contracts/format";
 import { BillingPanel } from "@/features/billing/billing-panel";
 import { DepositPanel } from "@/features/deposit/deposit-panel";
 import { PreorderPanel } from "@/features/preorder/preorder-panel";
 import { BenefitsPanel } from "@/features/vouchers/benefits-panel";
-import { cancelReservation, getReservation, rescheduleReservation } from "./api";
+import type { ReservationSummary } from "@/lib/contracts/generated/restaurantpos-sdk";
+import { cancelReservation, getReservation, mergeReservationInList, rescheduleReservation, type ReservationList } from "./api";
 import { reservationActionSchema, type ReservationActionValues } from "./schemas";
+import {
+  getReservationActionPolicy,
+  getReservationBillSummaryState,
+  getReservationDepositSummaryState,
+  getReservationDurationMinutes,
+  getReservationHoldSummaryState,
+  getReservationWorkspaceStatus,
+  reservationStartInputValue,
+} from "./state";
+import { getSelfServiceAccessState, getSelfServiceBlockedState } from "./self-service-boundary";
+
+function WorkspaceSummaryTile({
+  eyebrow,
+  title,
+  description,
+  footer,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  footer?: string | null;
+}) {
+  return (
+    <div className="rounded-lg bg-secondary p-4">
+      <p className="text-sm text-muted-foreground">{eyebrow}</p>
+      <p className="mt-2 font-semibold">{title}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      {footer ? <p className="mt-3 text-sm font-medium">{footer}</p> : null}
+    </div>
+  );
+}
 
 export function ReservationDetailPage({ id }: { id: number }) {
   const queryClient = useQueryClient();
@@ -31,41 +65,74 @@ export function ReservationDetailPage({ id }: { id: number }) {
   const actionForm = useForm<ReservationActionValues>({
     resolver: zodResolver(reservationActionSchema),
     values: {
-      row_version: reservationQuery.data?.data.row_version ?? 1,
+      row_version: reservationQuery.data?.row_version ?? 1,
       reason: "",
-      guest_count: reservationQuery.data?.data.guest_count ?? 2,
-      start_time: "",
+      guest_count: reservationQuery.data?.guest_count ?? 2,
+      start_time: reservationQuery.data ? reservationStartInputValue(reservationQuery.data) : "",
     },
   });
 
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.reservations.detail(id) });
-    queryClient.invalidateQueries({ queryKey: queryKeys.reservations.list("upcoming") });
+  const refreshReservation = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.reservations.detail(id) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.reservations.lists, refetchType: "inactive" });
+  };
+  const syncReservation = (nextReservation?: ReservationSummary) => {
+    if (!nextReservation) {
+      refreshReservation();
+      return;
+    }
+
+    queryClient.setQueryData(queryKeys.reservations.detail(nextReservation.reservation_id), nextReservation);
+    queryClient.setQueriesData<ReservationList>({ queryKey: queryKeys.reservations.lists }, (current) =>
+      mergeReservationInList(current, nextReservation),
+    );
+    void queryClient.invalidateQueries({ queryKey: queryKeys.reservations.lists, refetchType: "inactive" });
   };
 
   const cancelMutation = useMutation({
     mutationFn: (values: ReservationActionValues) => cancelReservation(id, values.row_version, values.reason),
-    onSuccess() {
+    onSuccess(result) {
       toast.success("Reservation cancelled.");
-      invalidate();
+      syncReservation(result);
+    },
+    onError(error) {
+      if (isConflictLikeApiError(error)) {
+        refreshReservation();
+      }
     },
   });
   const rescheduleMutation = useMutation({
     mutationFn: (values: ReservationActionValues) => {
-      const start = values.start_time ? new Date(values.start_time) : null;
-      const end = start ? new Date(start.getTime() + 90 * 60_000) : null;
+      if (!values.start_time) {
+        throw new Error("Choose a new start time.");
+      }
+
+      const durationMinutes = getReservationDurationMinutes(
+        reservationQuery.data ?? {
+          reservation_id: id,
+          reservation_code: `reservation-${id}`,
+          status: "Confirmed",
+          row_version: values.row_version,
+        },
+      );
+      const times = localDateTimeRangeToUtc(values.start_time, durationMinutes);
 
       return rescheduleReservation(id, {
         row_version: values.row_version,
-        start_time: start?.toISOString(),
-        end_time: end?.toISOString(),
+        start_time: times.start_time,
+        end_time: times.end_time,
         guest_count: values.guest_count,
         reason: values.reason,
       });
     },
-    onSuccess() {
+    onSuccess(result) {
       toast.success("Reservation rescheduled.");
-      invalidate();
+      syncReservation(result);
+    },
+    onError(error) {
+      if (isConflictLikeApiError(error)) {
+        refreshReservation();
+      }
     },
   });
 
@@ -78,14 +145,44 @@ export function ReservationDetailPage({ id }: { id: number }) {
   }
 
   if (reservationQuery.error || !reservationQuery.data) {
+    const boundary =
+      reservationQuery.error !== null
+        ? getSelfServiceBlockedState("reservation", reservationQuery.error, "Reservation is unavailable")
+        : {
+            kind: "unavailable" as const,
+            title: "Reservation is unavailable",
+            description: "The reservation response is unavailable right now.",
+          };
+
     return (
       <main className="mx-auto w-full max-w-5xl px-4 py-6">
-        <ErrorState error={reservationQuery.error} title="Reservation is unavailable" onRetry={() => reservationQuery.refetch()} />
+        {boundary.kind === "error" ? (
+          <ErrorState error={boundary.error} title={boundary.title} onRetry={() => reservationQuery.refetch()} />
+        ) : (
+          <EmptyState title={boundary.title} description={boundary.description} />
+        )}
       </main>
     );
   }
 
-  const reservation = reservationQuery.data.data;
+  const reservation = reservationQuery.data;
+  const accessState = getSelfServiceAccessState(reservation.access_scope);
+  const actionPolicy = getReservationActionPolicy(reservation);
+  const workspaceStatus = getReservationWorkspaceStatus(reservation);
+  const depositSummary = getReservationDepositSummaryState(reservation);
+  const billSummary = getReservationBillSummaryState(reservation);
+  const holdSummary = getReservationHoldSummaryState(reservation);
+  const actionError = cancelMutation.error ?? rescheduleMutation.error;
+  const actionBoundary = actionError
+    ? getSelfServiceBlockedState("reservation", actionError, isConflictLikeApiError(actionError) ? "Reservation details changed" : "Reservation action failed")
+    : null;
+  const holdFooter = holdSummary.expiresAt
+    ? `Until ${formatDateTime(holdSummary.expiresAt)}${holdSummary.tableCount > 0 ? ` | ${holdSummary.tableCount} table${holdSummary.tableCount > 1 ? "s" : ""}` : ""}`
+    : holdSummary.tableCount > 0
+      ? `${holdSummary.tableCount} table${holdSummary.tableCount > 1 ? "s" : ""}`
+      : null;
+  const depositFooter = depositSummary.amount ? formatMoney(depositSummary.amount, depositSummary.currency) : null;
+  const billFooter = billSummary.available ? formatMoney(billSummary.amount, billSummary.currency) : billSummary.label;
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6">
@@ -105,62 +202,137 @@ export function ReservationDetailPage({ id }: { id: number }) {
           </div>
           <StatusBadge status={reservation.status} />
         </div>
+        <div className="mt-5 rounded-lg bg-secondary/60 p-4">
+          <p className="text-sm text-muted-foreground">Reservation status</p>
+          <p className="mt-1 text-lg font-semibold">{workspaceStatus.title}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{workspaceStatus.description}</p>
+        </div>
+        {accessState ? (
+          <div className="mt-5 rounded-lg border bg-secondary/40 p-4">
+            <p className="text-sm font-medium">{accessState.title}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{accessState.description}</p>
+          </div>
+        ) : null}
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-lg bg-secondary p-4">
-            <p className="text-sm text-muted-foreground">Deposit</p>
-            <p className="font-semibold">{reservation.deposit_status ?? "Not required"}</p>
-          </div>
-          <div className="rounded-lg bg-secondary p-4">
-            <p className="text-sm text-muted-foreground">Bill</p>
-            <p className="font-semibold">{formatMoney(reservation.final_bill_amount, reservation.bill_currency ?? "USD")}</p>
-          </div>
-          <div className="rounded-lg bg-secondary p-4">
-            <p className="text-sm text-muted-foreground">Row version</p>
-            <p className="font-semibold">{reservation.row_version}</p>
-          </div>
+          <WorkspaceSummaryTile eyebrow="Hold" title={holdSummary.title} description={holdSummary.description} footer={holdFooter} />
+          <WorkspaceSummaryTile eyebrow="Deposit" title={depositSummary.title} description={depositSummary.description} footer={depositFooter} />
+          <WorkspaceSummaryTile eyebrow="Bill" title={billSummary.title} description={billSummary.description} footer={billFooter} />
         </div>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="space-y-5">
-          <DepositPanel reservationId={reservation.reservation_id} rowVersion={reservation.row_version} />
-          <BillingPanel reservationId={reservation.reservation_id} rowVersion={reservation.row_version} />
-          <PreorderPanel reservationId={reservation.reservation_id} rowVersion={reservation.row_version} />
+          <div className="space-y-1">
+            <h2 className="text-xl font-semibold">Reservation workspace</h2>
+            <p className="text-sm text-muted-foreground">Review hold, payments, order state, preorder, and benefits from one place.</p>
+          </div>
+          <Card className="rounded-lg">
+            <CardContent className="space-y-4 p-4">
+              <div>
+                <h3 className="text-lg font-semibold">Table hold</h3>
+                <p className="text-sm text-muted-foreground">Track whether a temporary hold is still protecting table availability for this reservation.</p>
+              </div>
+              {holdSummary.state === "unavailable" ? (
+                <EmptyState title={holdSummary.title} description={holdSummary.description} />
+              ) : (
+                <div className="rounded-lg bg-secondary p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Hold state</p>
+                      <p className="text-lg font-semibold">{holdSummary.title}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{holdSummary.description}</p>
+                    </div>
+                    <StatusBadge status={holdSummary.label} />
+                  </div>
+                  {holdFooter ? <p className="mt-4 text-sm font-medium">{holdFooter}</p> : null}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <DepositPanel reservation={reservation} onReservationChanged={syncReservation} />
+          <BillingPanel reservation={reservation} onReservationChanged={syncReservation} />
+          <PreorderPanel reservationId={reservation.reservation_id} />
           <BenefitsPanel reservationId={reservation.reservation_id} />
         </section>
 
         <Card className="h-fit rounded-lg">
           <CardContent className="space-y-4 p-4">
-            <h2 className="text-lg font-semibold">Manage reservation</h2>
-            <form className="space-y-3" onSubmit={actionForm.handleSubmit((values) => rescheduleMutation.mutate(values))}>
-              <input type="hidden" {...actionForm.register("row_version", { valueAsNumber: true })} />
-              <div className="space-y-2">
-                <Label htmlFor="start_time">New start time</Label>
-                <Input id="start_time" type="datetime-local" className="min-h-11 rounded-lg" {...actionForm.register("start_time")} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="guest_count">Guests</Label>
-                <Input id="guest_count" type="number" min={1} className="min-h-11 rounded-lg" {...actionForm.register("guest_count", { valueAsNumber: true })} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="reason">Reason or note</Label>
-                <Textarea id="reason" className="min-h-20 rounded-lg" {...actionForm.register("reason")} />
-              </div>
-              <Button type="submit" variant="outline" className="w-full rounded-lg" disabled={rescheduleMutation.isPending}>
-                {rescheduleMutation.isPending ? "Rescheduling" : "Reschedule"}
-              </Button>
-            </form>
-            <Button
-              type="button"
-              variant="destructive"
-              className="w-full rounded-lg"
-              disabled={cancelMutation.isPending}
-              onClick={actionForm.handleSubmit((values) => cancelMutation.mutate(values))}
-            >
-              {cancelMutation.isPending ? "Cancelling" : "Cancel reservation"}
-            </Button>
-            {cancelMutation.error || rescheduleMutation.error ? (
-              <ErrorState error={cancelMutation.error ?? rescheduleMutation.error} title="Reservation action failed" />
+            <div>
+              <h2 className="text-lg font-semibold">Online actions</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{actionPolicy.manageDescription}</p>
+            </div>
+            {actionPolicy.canCancel || actionPolicy.canReschedule ? (
+              <>
+                {actionPolicy.canReschedule ? (
+                  <form
+                    className="space-y-3"
+                    onSubmit={actionForm.handleSubmit((values) => {
+                      if (!values.start_time) {
+                        actionForm.setError("start_time", { message: "Choose a new start time." });
+                        return;
+                      }
+
+                      rescheduleMutation.mutate(values);
+                    })}
+                  >
+                    <input type="hidden" {...actionForm.register("row_version", { valueAsNumber: true })} />
+                    <div className="space-y-2">
+                      <Label htmlFor="start_time">New start time</Label>
+                      <Input id="start_time" type="datetime-local" className="min-h-11 rounded-lg" {...actionForm.register("start_time")} />
+                      {actionForm.formState.errors.start_time ? (
+                        <p className="text-sm text-destructive">{actionForm.formState.errors.start_time.message}</p>
+                      ) : null}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="guest_count">Guests</Label>
+                      <Input
+                        id="guest_count"
+                        type="number"
+                        min={1}
+                        className="min-h-11 rounded-lg"
+                        {...actionForm.register("guest_count", { valueAsNumber: true })}
+                      />
+                      {actionForm.formState.errors.guest_count ? (
+                        <p className="text-sm text-destructive">{actionForm.formState.errors.guest_count.message}</p>
+                      ) : null}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="reason">Reason or note</Label>
+                      <Textarea id="reason" className="min-h-20 rounded-lg" {...actionForm.register("reason")} />
+                    </div>
+                    <Button type="submit" variant="outline" className="w-full rounded-lg" disabled={rescheduleMutation.isPending}>
+                      {rescheduleMutation.isPending ? "Saving new time" : "Request new time"}
+                    </Button>
+                  </form>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{actionPolicy.rescheduleReason}</p>
+                )}
+                {actionPolicy.canCancel ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    className="w-full rounded-lg"
+                    disabled={cancelMutation.isPending}
+                    onClick={actionForm.handleSubmit((values) => cancelMutation.mutate(values))}
+                  >
+                    {cancelMutation.isPending ? "Cancelling" : "Cancel reservation"}
+                  </Button>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{actionPolicy.cancelReason}</p>
+                )}
+              </>
+            ) : (
+              <EmptyState
+                title={actionPolicy.manageTitle}
+                description={actionPolicy.manageDescription}
+              />
+            )}
+            {actionBoundary ? (
+              actionBoundary.kind === "error" ? (
+                <ErrorState error={actionBoundary.error} title={actionBoundary.title} onRetry={refreshReservation} />
+              ) : (
+                <EmptyState title={actionBoundary.title} description={actionBoundary.description} />
+              )
             ) : null}
           </CardContent>
         </Card>

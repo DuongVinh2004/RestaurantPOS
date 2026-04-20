@@ -5389,7 +5389,7 @@ export class RestaurantPosClient {
         if (value === undefined || value === null || value === '') {
           return;
         }
-        url.searchParams.set(key, String(value));
+        url.searchParams.set(key, this.serializeQueryParam(value));
       });
     }
 
@@ -5431,6 +5431,14 @@ export class RestaurantPosClient {
     }
 
     return payload as T;
+  }
+
+  private serializeQueryParam(value: unknown): string {
+    if (typeof value === 'boolean') {
+      return value ? '1' : '0';
+    }
+
+    return String(value);
   }
 
   private interpolatePath(template: string, values: Record<string, string | number>): string {

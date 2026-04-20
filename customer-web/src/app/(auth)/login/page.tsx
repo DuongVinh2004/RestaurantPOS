@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { LoadingBlock } from "@/components/states/state-blocks";
 import { LoginPage } from "@/features/auth/login-page";
+
+export const metadata: Metadata = {
+  title: "Sign in",
+  description: "Sign in to review your reservations, deposits, bills, and account tools.",
+};
 
 export default function Page() {
   return (

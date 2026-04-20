@@ -126,7 +126,7 @@ par customer refresh / confirm
       BillApi --> Client : session state
     end
   end
-and provider webhook
+else provider webhook
   Provider ->> WebhookApi : POST /api/v1/payments/providers/:provider_code/webhooks
   WebhookApi -> WebhookSvc : ingest(provider_code, raw_body, headers)
   WebhookSvc -> Provider : verify signature + parse webhook payload

@@ -8,14 +8,16 @@ use App\Enums\KitchenTicketStatus;
 use App\Enums\PurchaseOrderStatus;
 use App\Enums\StaffConversationWorkflowState;
 use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
+use App\Modules\Conversations\Application\Services\StaffConversationInboxService;
+use App\Modules\KitchenDispatch\Application\Services\KitchenTicketReconciliationService;
+use App\Modules\Notifications\Application\Services\NotificationOutboxHealthService;
 use App\Modules\Reporting\Application\Services\StaffOperationalRealtimeService;
 use App\Platform\ApiContract\Services\DatabaseContractInspector;
-use App\Services\Inventory\PurchaseOrderReconciliationService;
-use App\Modules\KitchenDispatch\Application\Services\KitchenTicketReconciliationService;
-use App\Modules\Conversations\Application\Services\StaffConversationInboxService;
 use App\Platform\Health\Support\OperationalHealthEvaluator;
+use App\Services\Inventory\PurchaseOrderReconciliationService;
 use App\Support\Money;
 use App\Support\StaffMutationRowVersionContract;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -29,8 +31,7 @@ class OperationalInsightsService
         private readonly PurchaseOrderReconciliationService $purchaseOrderReconciliationService,
         private readonly StaffOperationalRealtimeService $staffOperationalRealtimeService,
         private readonly BranchSchedulingPolicyService $branchSchedulingPolicyService,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<string,mixed>
@@ -280,7 +281,6 @@ class OperationalInsightsService
         return array_merge($snapshot, $evaluation);
     }
 
-
     /**
      * @return array<string,mixed>
      */
@@ -344,7 +344,6 @@ class OperationalInsightsService
 
         return array_merge($snapshot, $evaluation);
     }
-
 
     /**
      * @return array<string,mixed>
@@ -444,7 +443,7 @@ class OperationalInsightsService
         ]);
     }
 
-    private function applyStaffSessionKeyScope(\Illuminate\Database\Query\Builder $query): \Illuminate\Database\Query\Builder
+    private function applyStaffSessionKeyScope(Builder $query): Builder
     {
         return $query->whereRaw("LOWER(COALESCE(label, '')) LIKE ?", ['auth session%']);
     }
@@ -476,7 +475,13 @@ class OperationalInsightsService
             ->where('created_at', '>=', $windowStart);
 
         $recentTransitionCount = (int) (clone $baseQuery)->count();
-        $recentMissingActorCount = (int) (clone $baseQuery)->whereNull('actor_user_id')->count();
+        $recentMissingActorCount = (int) (clone $baseQuery)
+            ->whereNull('actor_user_id')
+            ->where(function ($query): void {
+                $query->whereNull('actor_key')
+                    ->orWhere('actor_key', '');
+            })
+            ->count();
 
         $driver = (string) DB::connection()->getDriverName();
         if (in_array($driver, ['mysql', 'mariadb'], true)) {
@@ -520,7 +525,6 @@ class OperationalInsightsService
             'reasons' => array_values(array_unique($reasons)),
         ]);
     }
-
 
     /**
      * @return array<string,mixed>
@@ -1015,8 +1019,9 @@ class OperationalInsightsService
             ->subMinutes(StaffConversationInboxService::OVERDUE_AFTER_MINUTES)
             ->toDateTimeString();
         $latestActivitySql = $this->conversationLatestActivitySql();
+        $conversationMetricsQuery = $this->conversationInboxMetricsQuery();
 
-        $activeConversationsQuery = DB::table('conversations')
+        $activeConversationsQuery = (clone $conversationMetricsQuery)
             ->whereNotIn('workflow_state', $terminalWorkflowStates);
 
         $unassignedConversationsQuery = (clone $activeConversationsQuery)
@@ -1030,7 +1035,7 @@ class OperationalInsightsService
         $overdueConversationsQuery = (clone $activeConversationsQuery)
             ->whereRaw($latestActivitySql.' <= ?', [$overdueThreshold]);
 
-        $terminalAssignedQuery = DB::table('conversations')
+        $terminalAssignedQuery = (clone $conversationMetricsQuery)
             ->whereIn('workflow_state', $terminalWorkflowStates)
             ->whereExists(function ($query): void {
                 $query->selectRaw('1')
@@ -1039,7 +1044,7 @@ class OperationalInsightsService
                     ->where('active_assignments.is_active', 1);
             });
 
-        $workflowStateCounts = DB::table('conversations')
+        $workflowStateCounts = (clone $conversationMetricsQuery)
             ->select('workflow_state')
             ->selectRaw('COUNT(*) AS aggregate')
             ->groupBy('workflow_state')
@@ -1078,7 +1083,7 @@ class OperationalInsightsService
             'waiting_on_customer_count' => (int) (clone $activeConversationsQuery)
                 ->where('workflow_state', StaffConversationWorkflowState::PendingCustomer->value)
                 ->count(),
-            'resolved_today_count' => (int) DB::table('conversations')
+            'resolved_today_count' => (int) (clone $conversationMetricsQuery)
                 ->where('workflow_state', StaffConversationWorkflowState::Resolved->value)
                 ->whereBetween('resolved_at', [
                     $now->copy()->startOfDay(),
@@ -1104,6 +1109,22 @@ class OperationalInsightsService
         return array_merge($snapshot, $evaluation);
     }
 
+    private function conversationInboxMetricsQuery(): Builder
+    {
+        $query = DB::table('conversations');
+
+        if (! Schema::hasTable('conversation_analyses')) {
+            return $query;
+        }
+
+        return $query->whereNotExists(function (Builder $subquery): void {
+            $subquery->selectRaw('1')
+                ->from('conversation_analyses as fixture_analyses')
+                ->whereColumn('fixture_analyses.conversation_id', 'conversations.conversation_id')
+                ->where('fixture_analyses.analyzer_name', 'uat_demo_pack');
+        });
+    }
+
     /**
      * @return array{sales:int,operations:int,inventory:int}
      */
@@ -1120,9 +1141,8 @@ class OperationalInsightsService
         ];
     }
 
-
     /**
-     * @param list<string> $scopeColumns
+     * @param  list<string>  $scopeColumns
      * @return array{0:int,1:int,2:list<array<string,mixed>>,3:?int}
      */
     private function reportingScopeFreshnessSummary(string $table, array $scopeColumns, Carbon $now): array
@@ -1340,7 +1360,7 @@ class OperationalInsightsService
 
         try {
             return (int) Carbon::parse((string) $value)->utc()->diffInSeconds($now);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
     }

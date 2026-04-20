@@ -179,6 +179,10 @@ class ReleasePackageServiceTest extends TestCase
         $report = app(ReleasePackageService::class)->package(null, verifyFrozen: true, overwrite: true);
 
         $this->assertTrue($report['ok']);
+        $this->assertMatchesRegularExpression(
+            '#booking-test-release-\d{8}t\d{6}z-\d{6}-abcdef123456\.tar\.gz$#',
+            (string) ($report['package_path'] ?? '')
+        );
         $this->assertStringEndsWith('-abcdef123456.tar.gz', (string) ($report['package_path'] ?? ''));
 
         $metadata = json_decode(
@@ -191,6 +195,48 @@ class ReleasePackageServiceTest extends TestCase
         $this->assertSame('abcdef1234567890', $metadata['build']['commit_sha'] ?? null);
         $this->assertSame('refs/heads/release/demo', $metadata['build']['ref_name'] ?? null);
         $this->assertSame('run-123', $metadata['build']['run_id'] ?? null);
+    }
+
+    public function test_package_fails_cleanly_when_the_same_package_id_is_already_locked(): void
+    {
+        $schemaPath = base_path($this->root.'/schema.sql');
+        $packageFile = base_path($this->root.'/src/release.txt');
+        File::ensureDirectoryExists(dirname($schemaPath));
+        File::ensureDirectoryExists(dirname($packageFile));
+        File::put($schemaPath, "alpha\nbeta\n");
+        File::put($packageFile, "release-payload\n");
+
+        config()->set('booking_release.artifacts', [
+            'schema_dump' => [
+                'path' => $this->root.'/schema.sql',
+                'optional' => false,
+                'required_fragments' => ['alpha', 'beta'],
+            ],
+        ]);
+        config()->set('booking_release.required_sql_patches', []);
+        config()->set('booking_release.release_manifest.definition_path', 'config/booking_release.php');
+        config()->set('booking_release.release_manifest.snapshot_path', $this->root.'/release_manifest_snapshot.json');
+        config()->set('booking_release.packaging.output_root', $this->root.'/build');
+        config()->set('booking_release.packaging.package_prefix', 'booking-test-release');
+        config()->set('booking_release.packaging.include_paths', [
+            ['path' => $this->root.'/src/release.txt', 'required' => true],
+        ]);
+        config()->set('booking_release.packaging.sidecars.latest_pointer_path', $this->root.'/build/latest-package.json');
+
+        $manifestService = app(ReleaseArtifactManifestService::class);
+        $snapshot = $manifestService->snapshot();
+        $manifestService->writeSnapshot($snapshot);
+
+        $lockPath = base_path($this->root.'/build/locks/booking-test-release-locked-test.lock');
+        File::ensureDirectoryExists(dirname($lockPath));
+        mkdir($lockPath);
+
+        $report = app(ReleasePackageService::class)->package('locked-test', verifyFrozen: true, overwrite: true);
+
+        $this->assertFalse($report['ok']);
+        $this->assertSame('fail', $report['status']);
+        $this->assertStringContainsString('already being built by another process', implode(' | ', $report['issues']));
+        $this->assertFalse(File::exists(base_path($report['package_path'])));
     }
 
     public function test_package_fails_early_when_generated_consumer_artifacts_are_stale(): void

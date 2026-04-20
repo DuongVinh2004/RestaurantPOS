@@ -25,7 +25,7 @@ export function ReservationsPage() {
         <div>
           <h1 className="text-4xl font-semibold tracking-normal">Reservations</h1>
           <p className="mt-2 max-w-xl text-muted-foreground">
-            Review upcoming visits, manage deposits, preorder items, and pay bills from live customer routes.
+            Review upcoming visits, manage deposits, and pay bills from live customer routes.
           </p>
         </div>
         <Button asChild className="min-h-11 rounded-lg">
@@ -45,7 +45,7 @@ export function ReservationsPage() {
       {reservationsQuery.error ? (
         <ErrorState error={reservationsQuery.error} title="Reservations are unavailable" onRetry={() => reservationsQuery.refetch()} />
       ) : null}
-      {reservationsQuery.data?.data.length === 0 ? (
+      {reservationsQuery.data?.length === 0 ? (
         <EmptyState
           title="No reservations found"
           description="Create a reservation or hold a table to start a new visit."
@@ -58,7 +58,7 @@ export function ReservationsPage() {
       ) : null}
 
       <div className="grid gap-3 md:grid-cols-2">
-        {reservationsQuery.data?.data.map((reservation) => (
+        {reservationsQuery.data?.map((reservation) => (
           <ReservationCard key={reservation.reservation_id} reservation={reservation} />
         ))}
       </div>

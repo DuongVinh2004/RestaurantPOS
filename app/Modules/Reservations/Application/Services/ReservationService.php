@@ -103,6 +103,9 @@ class ReservationService
         $sessionId = isset($payload['session_id']) ? (string) $payload['session_id'] : null;
         $skipLocking = (bool) ($options['skip_locking'] ?? false);
         $policyNowUtc = $options['policy_now_utc'] ?? null;
+        $policyUseCase = isset($options['policy_use_case']) && is_string($options['policy_use_case']) && $options['policy_use_case'] !== ''
+            ? $options['policy_use_case']
+            : 'reservation';
         $trustedHoldIds = array_values(array_unique(array_filter(
             array_map('strval', (array) ($options['trusted_hold_ids'] ?? [])),
             static fn (string $value) => $value !== ''
@@ -117,8 +120,8 @@ class ReservationService
             $trustedHoldIds = array_values(array_unique($trustedHoldIds));
         }
 
-        $runner = function () use ($payload, $actorUserId, $startUtc, $endUtc, $tableIds, $holdId, $sessionId, $trustedHoldIds, $policyNowUtc) {
-            return DB::transaction(function () use ($payload, $actorUserId, $startUtc, $endUtc, $tableIds, $holdId, $sessionId, $trustedHoldIds, $policyNowUtc) {
+        $runner = function () use ($payload, $actorUserId, $startUtc, $endUtc, $tableIds, $holdId, $sessionId, $trustedHoldIds, $policyNowUtc, $policyUseCase) {
+            return DB::transaction(function () use ($payload, $actorUserId, $startUtc, $endUtc, $tableIds, $holdId, $sessionId, $trustedHoldIds, $policyNowUtc, $policyUseCase) {
                 $this->tableHoldService->expireStaleHolds();
 
                 $userId = $this->resolveReservationUserId($payload, $actorUserId);
@@ -196,7 +199,7 @@ class ReservationService
                     $endUtc,
                     'start_time',
                     $policyNowUtc instanceof \DateTimeInterface ? Carbon::instance($policyNowUtc)->utc() : null,
-                    'reservation',
+                    $policyUseCase,
                     false
                 );
 

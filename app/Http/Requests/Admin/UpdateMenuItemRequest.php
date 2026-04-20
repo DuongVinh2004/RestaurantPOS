@@ -16,7 +16,7 @@ class UpdateMenuItemRequest extends FormRequest
 
     public function rules(): array
     {
-        $itemId = (int) $this->route('item_id');
+        $itemId = (int) ($this->route('item_id') ?? $this->route('id'));
 
         $rules = [
             'category_id' => ['sometimes', 'nullable', 'integer', 'min:1', Rule::exists('menu_categories', 'category_id')],

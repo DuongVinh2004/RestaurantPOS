@@ -173,6 +173,7 @@ Interpretation:
   - a terminal conversation still has an active assignment, which means assignment release drift already exists
 - `status=degraded`
   - unassigned or overdue backlog crossed the configured warning threshold, but workflow invariants still hold
+- canonical demo threads from `booking:uat-pack:bootstrap` tagged by `conversation_analyses.analyzer_name=uat_demo_pack` are excluded from these counters so deploy preflight reflects operator-owned backlog instead of seeded UAT fixtures
 
 Expected operator action:
 

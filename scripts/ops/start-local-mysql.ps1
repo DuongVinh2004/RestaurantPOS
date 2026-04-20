@@ -96,6 +96,18 @@ function Normalize-PathMarker {
     return ([System.IO.Path]::GetFullPath($Path)).Replace('\', '/').ToLowerInvariant()
 }
 
+function Normalize-CommandLine {
+    param(
+        [string] $CommandLine
+    )
+
+    if ([string]::IsNullOrWhiteSpace($CommandLine)) {
+        return ''
+    }
+
+    return $CommandLine.Replace('\', '/').ToLowerInvariant()
+}
+
 function Ensure-Junction {
     param(
         [string] $LinkPath,
@@ -142,7 +154,7 @@ function Get-LocalMySqlProcesses {
                     return $false
                 }
 
-                $normalizedCommandLine = $_.CommandLine.Replace('\', '/').ToLowerInvariant()
+                $normalizedCommandLine = Normalize-CommandLine -CommandLine $_.CommandLine
                 return @($CommandLineMarkers | Where-Object { $normalizedCommandLine.Contains($_) }).Count -gt 0
             }
     )
@@ -190,7 +202,11 @@ function Stop-LocalMySql {
             throw "Port $TargetPort is in use by a non-MySQL process (PID $($ownerProcess.ProcessId)). Stop it manually before starting local MySQL."
         }
 
-        $ownerMarker = $ownerProcess.CommandLine.Replace('\', '/').ToLowerInvariant()
+        $ownerMarker = Normalize-CommandLine -CommandLine $ownerProcess.CommandLine
+        if ($ownerMarker -eq '') {
+            throw "Port $TargetPort is already in use by mysqld.exe, but the owning command line could not be inspected. Stop that MySQL service manually before using -Stop or -Restart."
+        }
+
         if (@($CommandLineMarkers | Where-Object { $ownerMarker.Contains($_) }).Count -eq 0) {
             throw "Port $TargetPort is in use by a non-local MySQL process. Stop that service manually before using the repo-local MySQL runtime."
         }
@@ -378,9 +394,17 @@ if ($existingConnection) {
         throw "Port $resolvedPort is already in use by a non-MySQL process (PID $($ownerProcess.ProcessId))."
     }
 
-    $ownerMarker = $ownerProcess.CommandLine.Replace('\', '/').ToLowerInvariant()
+    $ownerMarker = Normalize-CommandLine -CommandLine $ownerProcess.CommandLine
+    if ($ownerMarker -eq '') {
+        Ensure-MySqlCredentials -MySqlClient $mySqlClient -DbUser $dbUser -DbPassword $dbPassword -DatabaseName $databaseName -TargetPort $resolvedPort
+        Write-Output "MySQL is already running on 127.0.0.1:$resolvedPort with PID $($ownerProcess.ProcessId), but the process command line could not be inspected. Reusing the active mysqld instance."
+        return
+    }
+
     if (@($mySqlAliasMarkers | Where-Object { $ownerMarker.Contains($_) }).Count -eq 0) {
-        throw "Port $resolvedPort is already in use by a non-local MySQL process. Stop that service manually before starting the repo-local MySQL runtime."
+        Ensure-MySqlCredentials -MySqlClient $mySqlClient -DbUser $dbUser -DbPassword $dbPassword -DatabaseName $databaseName -TargetPort $resolvedPort
+        Write-Output "MySQL is already running on 127.0.0.1:$resolvedPort with PID $($ownerProcess.ProcessId). Reusing the active mysqld instance."
+        return
     }
 
     if (-not $Restart) {
@@ -391,7 +415,7 @@ if ($existingConnection) {
 
 if ($Restart) {
     [void] (Stop-LocalMySql -TargetPort $resolvedPort -CommandLineMarkers $mySqlAliasMarkers)
-} elseif ((Get-LocalMySqlProcesses -CommandLineMarkers $mySqlAliasMarkers).Count -gt 0) {
+} elseif (@(Get-LocalMySqlProcesses -CommandLineMarkers $mySqlAliasMarkers).Count -gt 0) {
     [void] (Stop-LocalMySql -TargetPort $resolvedPort -CommandLineMarkers $mySqlAliasMarkers)
 }
 

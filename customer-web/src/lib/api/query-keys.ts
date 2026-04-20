@@ -11,6 +11,7 @@ export const queryKeys = {
     item: (id: number) => ["menu", "item", id] as const,
   },
   reservations: {
+    lists: ["reservations", "list"] as const,
     list: (bucket = "upcoming") => ["reservations", "list", bucket] as const,
     detail: (id: number) => ["reservations", "detail", id] as const,
     preorder: (id: number) => ["reservations", "preorder", id] as const,

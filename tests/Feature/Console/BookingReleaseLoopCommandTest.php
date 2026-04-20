@@ -64,6 +64,12 @@ class BookingReleaseLoopCommandTest extends TestCase
                         'reports_root' => 'storage/app/booking_release/release_loop/reports',
                         'json_path' => 'storage/app/booking_release/release_loop/reports/latest-staging.json',
                     ],
+                    'release_handoff' => [
+                        'candidate' => [
+                            'package_basename' => 'restaurantpos-backend-release-generated',
+                            'package_path' => 'build/booking-release/restaurantpos-backend-release-generated.tar.gz',
+                        ],
+                    ],
                     'blocking_failures' => [],
                 ];
             }
@@ -150,6 +156,24 @@ class BookingReleaseLoopCommandTest extends TestCase
                             'message' => 'doctor failed',
                         ],
                     ],
+                    'release_handoff' => [
+                        'candidate' => [
+                            'package_basename' => 'restaurantpos-backend-release-generated',
+                            'package_path' => 'build/booking-release/restaurantpos-backend-release-generated.tar.gz',
+                        ],
+                        'manual_evidence' => [
+                            'path' => 'storage/app/booking_release/manual_evidence/staging-20260420.json',
+                        ],
+                        'launch_readiness' => [
+                            'decision' => 'ready_with_warnings',
+                        ],
+                        'preview' => [
+                            'status' => 'unconfigured',
+                        ],
+                        'observability' => [
+                            'status' => 'missing-configuration',
+                        ],
+                    ],
                 ];
             }
         };
@@ -166,5 +190,7 @@ class BookingReleaseLoopCommandTest extends TestCase
         $this->assertStringContainsString('doctor failed', $output);
         $this->assertStringContainsString('missing-configuration', $output);
         $this->assertStringContainsString('abc123', $output);
+        $this->assertStringContainsString('restaurantpos-backend-release-generated', $output);
+        $this->assertStringContainsString('storage/app/booking_release/manual_evidence/staging-20260420.json', $output);
     }
 }

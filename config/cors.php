@@ -18,7 +18,7 @@ return [
     | This API uses header-based authentication (X-Customer-Token, X-Staff-Key),
     | not cookie sessions, so supports_credentials is false.
     |
-    | See: docs/runbooks/api-consumer-artifacts.md § Cross-Origin (CORS)
+    | See: docs/runbooks/api-consumer-artifacts.md, section "Cross-Origin (CORS)"
     |
     */
 

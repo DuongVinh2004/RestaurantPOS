@@ -27,6 +27,18 @@ const selectedKeys = args.scenario.length > 0
       .filter((scenario) => scenario.automation === 'automated' && scenario.profile_settings?.[profile])
       .map((scenario) => scenario.key);
 
+const handlers = {
+  availability_read_load: runAvailabilityReadLoad,
+  reservation_show_load: runReservationShowLoad,
+  waiting_list_queue_load: runWaitingListQueueLoad,
+  staff_board_timeline_load: runStaffBoardTimelineLoad,
+  checkout_preview_load: runCheckoutPreviewLoad,
+  reservation_create_race: runReservationCreateRace,
+  payment_webhook_burst: runPaymentWebhookBurst,
+  mixed_service_day_soak: runMixedServiceDaySoak,
+  webhook_duplicate_storm: runWebhookDuplicateStorm,
+};
+
 if (selectedKeys.length === 0) {
   throw new Error(`No automated scenarios selected for profile [${profile}].`);
 }
@@ -693,18 +705,6 @@ function classifyWebhookResponse(response) {
   });
 }
 
-const handlers = {
-  availability_read_load: runAvailabilityReadLoad,
-  reservation_show_load: runReservationShowLoad,
-  waiting_list_queue_load: runWaitingListQueueLoad,
-  staff_board_timeline_load: runStaffBoardTimelineLoad,
-  checkout_preview_load: runCheckoutPreviewLoad,
-  reservation_create_race: runReservationCreateRace,
-  payment_webhook_burst: runPaymentWebhookBurst,
-  mixed_service_day_soak: runMixedServiceDaySoak,
-  webhook_duplicate_storm: runWebhookDuplicateStorm,
-};
-
 async function runAvailabilityReadLoad(scenario, profileKey, context) {
   const settings = scenario.profile_settings[profileKey];
   const collector = createCollector();
@@ -917,7 +917,7 @@ async function runReservationCreateRace(scenario, profileKey, context) {
       }
 
       if (holdId) {
-        cleanupHolds.push(holdId);
+        cleanupHolds.push({ holdId, sessionId });
       }
 
       return buildOperation({
@@ -957,12 +957,19 @@ async function runReservationCreateRace(scenario, profileKey, context) {
     }
   }
 
-  for (const holdId of cleanupHolds) {
+  const uniqueCleanupHolds = new Map();
+  for (const hold of cleanupHolds) {
+    if (hold?.holdId) {
+      uniqueCleanupHolds.set(hold.holdId, hold);
+    }
+  }
+
+  for (const hold of uniqueCleanupHolds.values()) {
     const cleanup = await requestJson(context.baseUrl, {
       method: 'DELETE',
-      path: `/api/v1/table-holds/${holdId}`,
+      path: `/api/v1/table-holds/${hold.holdId}`,
       headers: {
-        ...context.auth.anonymous,
+        ...context.auth.staff,
         'Idempotency-Key': newIdempotencyKey('perf-hold-cancel'),
       },
       tag: 'reservation_race_hold_cleanup',
@@ -970,7 +977,7 @@ async function runReservationCreateRace(scenario, profileKey, context) {
 
     if (cleanup.status !== 200) {
       result.operations.cleanup_error_count += 1;
-      result.notes.push(`Cleanup hold cancel failed for hold [${holdId}] with status [${cleanup.status}]`);
+      result.notes.push(`Cleanup hold cancel failed for hold [${hold.holdId}] with status [${cleanup.status}]`);
     }
   }
 

@@ -5,11 +5,12 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getSessionRestoreDisplay } from "@/lib/api/errors";
 import { useAuth } from "@/providers/auth-provider";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isAuthenticated, isBootstrapping } = useAuth();
+  const { authError, isAuthenticated, isBootstrapping, logout, retryBootstrap } = useAuth();
 
   if (isBootstrapping) {
     return (
@@ -17,6 +18,38 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         <Skeleton className="h-8 w-40" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-24 w-full" />
+      </main>
+    );
+  }
+
+  if (authError) {
+    const restoreDisplay = getSessionRestoreDisplay(authError);
+
+    return (
+      <main className="mx-auto flex min-h-[70svh] w-full max-w-md items-center px-4 py-10">
+        <Card className="w-full rounded-lg">
+          <CardHeader>
+            <CardTitle>{restoreDisplay.title}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {restoreDisplay.message}
+            </p>
+            {restoreDisplay.retryHint ? <p className="text-sm text-muted-foreground">{restoreDisplay.retryHint}</p> : null}
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                type="button"
+                className="flex-1 rounded-lg"
+                onClick={restoreDisplay.primaryAction === "retry" ? retryBootstrap : () => void logout()}
+              >
+                {restoreDisplay.primaryAction === "retry" ? "Retry session check" : "Go to sign in"}
+              </Button>
+              <Button type="button" variant="outline" className="flex-1 rounded-lg" onClick={() => void logout()}>
+                Reset session
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </main>
     );
   }

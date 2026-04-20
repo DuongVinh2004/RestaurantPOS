@@ -1,3 +1,4 @@
+import { unwrapData } from "@/lib/api/envelope";
 import { apiCall, idempotentSessionOptions } from "@/lib/api/sdk-client";
 import type {
   CustomerReservationPreorderEnvelope,
@@ -5,33 +6,35 @@ import type {
   ReplaceCustomerReservationPreorderRequest,
 } from "@/lib/contracts/generated/restaurantpos-sdk";
 
-export function getReservationPreorder(reservationId: number): Promise<CustomerReservationPreorderEnvelope> {
-  return apiCall((client) => client.getV1ReservationsIdPreorder({ id: reservationId }));
+export type ReservationPreorderResult = CustomerReservationPreorderEnvelope["data"];
+
+export function getReservationPreorder(reservationId: number): Promise<ReservationPreorderResult> {
+  return apiCall((client) => client.getV1ReservationsIdPreorder({ id: reservationId })).then(unwrapData);
 }
 
 export function previewReservationPreorder(
   reservationId: number,
   body: PreviewCustomerReservationPreorderRequest,
-): Promise<CustomerReservationPreorderEnvelope> {
+): Promise<ReservationPreorderResult> {
   return apiCall((client) =>
     client.postV1ReservationsIdPreorderPreview({ id: reservationId }, body, idempotentSessionOptions("reservation-preorder-preview")),
-  );
+  ).then(unwrapData);
 }
 
 export function replaceReservationPreorder(
   reservationId: number,
   body: ReplaceCustomerReservationPreorderRequest,
-): Promise<CustomerReservationPreorderEnvelope> {
+): Promise<ReservationPreorderResult> {
   return apiCall((client) =>
     client.putV1ReservationsIdPreorder({ id: reservationId }, body, idempotentSessionOptions("reservation-preorder-replace")),
-  );
+  ).then(unwrapData);
 }
 
 export function clearReservationPreorder(
   reservationId: number,
   rowVersion: number,
   preOrderRowVersion?: number | null,
-): Promise<CustomerReservationPreorderEnvelope> {
+): Promise<ReservationPreorderResult> {
   return apiCall((client) =>
     client.deleteV1ReservationsIdPreorder(
       { id: reservationId },
@@ -41,5 +44,5 @@ export function clearReservationPreorder(
       },
       idempotentSessionOptions("reservation-preorder-clear"),
     ),
-  );
+  ).then(unwrapData);
 }

@@ -280,6 +280,7 @@ class StaffWaitingListService
                     ], $staffUserId, [
                         'skip_locking' => true,
                         'policy_now_utc' => $checkedInAt,
+                        'policy_use_case' => 'waiting_list_seat',
                         'trusted_hold_ids' => [(string) $hold->hold_id],
                     ]);
 

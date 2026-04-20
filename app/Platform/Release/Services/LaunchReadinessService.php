@@ -93,6 +93,13 @@ class LaunchReadinessService
         $blockingFailures = $this->flattenFindings(array_merge($checks, $manualChecks), 'blocking');
         $majorWarnings = $this->flattenFindings(array_merge($checks, $manualChecks), 'major');
         $informationalFindings = $this->buildInformationalFindings($checks, $manualChecks, $manualEvidence);
+        $followUpActions = $this->buildFollowUpActions($target, $manualChecks, $manualEvidence, $evaluatedAt);
+        $releaseHandoff = $this->buildReleaseHandoff(
+            $manualEvidence,
+            $manualChecks,
+            (array) ($sources['booking:package-release --verify-frozen'] ?? []),
+            (array) ($sources['booking:release-manifest'] ?? []),
+        );
 
         $decision = 'ready';
         $exitCode = 0;
@@ -127,6 +134,8 @@ class LaunchReadinessService
             'blocking_failures' => $blockingFailures,
             'major_warnings' => $majorWarnings,
             'informational_findings' => $informationalFindings,
+            'follow_up_actions' => $followUpActions,
+            'release_handoff' => $releaseHandoff,
             'manual_evidence' => $manualEvidence,
             'automation_gaps' => array_values((array) config('booking_launch_readiness.automation_gaps', [])),
             'integrated_sources' => $this->buildIntegratedSources($manualChecks),
@@ -777,6 +786,230 @@ class LaunchReadinessService
     }
 
     /**
+     * @param  array<int, array<string, mixed>>  $manualChecks
+     * @param  array<string, mixed>  $manualEvidence
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildFollowUpActions(string $target, array $manualChecks, array $manualEvidence, Carbon $evaluatedAt): array
+    {
+        $actions = [];
+        $manualEvidencePath = $this->displayPath(
+            is_string($manualEvidence['resolved_path'] ?? null) && trim((string) ($manualEvidence['resolved_path'] ?? '')) !== ''
+                ? (string) $manualEvidence['resolved_path']
+                : base_path(sprintf(
+                    'storage/app/booking_release/manual_evidence/%s-%s.json',
+                    $target,
+                    $evaluatedAt->copy()->utc()->format('Ymd')
+                ))
+        );
+
+        if (! (bool) ($manualEvidence['provided'] ?? false)) {
+            $actions[] = [
+                'kind' => 'manual_evidence_template',
+                'label' => 'Scaffold operator-owned manual evidence template',
+                'reason' => 'No manual evidence file was supplied for this launch-readiness run.',
+                'runbook_path' => 'docs/runbooks/booking-launch-readiness.md',
+                'commands' => [
+                    sprintf(
+                        'php artisan booking:manual-evidence:init --target=%s --candidate=%s --json',
+                        $target,
+                        $evaluatedAt->copy()->utc()->format('Ymd')
+                    ),
+                ],
+                'notes' => [
+                    sprintf('Use the generated template at %s to record operator evidence before the next promotion review.', $manualEvidencePath),
+                ],
+                'manual_evidence_path' => $manualEvidencePath,
+            ];
+        }
+
+        foreach ((array) ($manualEvidence['issues'] ?? []) as $issue) {
+            $actions[] = [
+                'kind' => 'manual_evidence_issue',
+                'label' => 'Repair manual evidence file',
+                'reason' => (string) $issue,
+                'runbook_path' => 'docs/runbooks/booking-launch-readiness.md',
+                'commands' => [
+                    sprintf(
+                        'php artisan booking:manual-evidence:init --target=%s --candidate=%s --overwrite --json',
+                        $target,
+                        $evaluatedAt->copy()->utc()->format('Ymd')
+                    ),
+                ],
+                'notes' => [
+                    sprintf('Re-run booking:launch-readiness with --manual-evidence=%s after repairing the file.', $manualEvidencePath),
+                ],
+                'manual_evidence_path' => $manualEvidencePath,
+            ];
+        }
+
+        foreach ($manualChecks as $check) {
+            if (! in_array((string) ($check['status'] ?? ''), ['warn', 'fail'], true)) {
+                continue;
+            }
+
+            $commands = array_values(array_filter(array_map(
+                static fn (mixed $value): string => is_string($value) ? trim($value) : '',
+                (array) ($check['operator_commands'] ?? []),
+            ), static fn (string $value): bool => $value !== ''));
+            $notes = array_values(array_filter(array_map(
+                static fn (mixed $value): string => is_string($value) ? trim($value) : '',
+                (array) ($check['operator_notes'] ?? []),
+            ), static fn (string $value): bool => $value !== ''));
+            $findings = array_values(array_filter(array_map(
+                static fn (mixed $finding): string => is_array($finding)
+                    ? trim((string) ($finding['message'] ?? ''))
+                    : '',
+                (array) ($check['findings'] ?? []),
+            ), static fn (string $value): bool => $value !== ''));
+
+            $actions[] = [
+                'kind' => 'manual_check',
+                'check_key' => (string) ($check['key'] ?? ''),
+                'label' => (string) ($check['label'] ?? $check['key'] ?? 'manual_check'),
+                'status' => (string) ($check['status'] ?? 'unknown'),
+                'severity' => (string) ($check['severity'] ?? 'major'),
+                'reason' => $findings[0] ?? (string) ($check['summary'] ?? 'Manual evidence is still required.'),
+                'runbook_path' => (string) ($check['runbook_path'] ?? 'docs/runbooks/booking-launch-readiness.md'),
+                'commands' => $commands,
+                'notes' => array_merge($notes, [
+                    sprintf(
+                        'Record the result under %s in %s, then rerun `php artisan booking:launch-readiness --target=%s --manual-evidence=%s --json`.',
+                        (string) ($check['key'] ?? 'manual_check'),
+                        $manualEvidencePath,
+                        $target,
+                        $manualEvidencePath
+                    ),
+                ]),
+                'manual_evidence_path' => $manualEvidencePath,
+            ];
+        }
+
+        return $actions;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $manualChecks
+     * @param  array<string, mixed>  $package
+     * @param  array<string, mixed>  $releaseManifest
+     * @return array<string, mixed>
+     */
+    private function buildReleaseHandoff(array $manualEvidence, array $manualChecks, array $package, array $releaseManifest): array
+    {
+        $manualEvidencePath = null;
+        if (is_string($manualEvidence['resolved_path'] ?? null) && trim((string) ($manualEvidence['resolved_path'] ?? '')) !== '') {
+            $manualEvidencePath = $this->displayPath((string) $manualEvidence['resolved_path']);
+        }
+
+        $candidateArchivePaths = [];
+        foreach ([
+            $package['package_path'] ?? null,
+            data_get($package, 'sidecars.metadata_path'),
+            data_get($package, 'sidecars.inventory_path'),
+            data_get($package, 'sidecars.checksums_path'),
+            data_get($package, 'sidecars.package_sha256_path'),
+            data_get($package, 'sidecars.latest_pointer_path'),
+            data_get($package, 'release_manifest.snapshot_path'),
+            data_get($releaseManifest, 'snapshot_path'),
+        ] as $path) {
+            if (! is_string($path)) {
+                continue;
+            }
+
+            $trimmed = trim($path);
+            if ($trimmed !== '') {
+                $candidateArchivePaths[] = $trimmed;
+            }
+        }
+        $candidateArchivePaths = array_values(array_unique($candidateArchivePaths));
+
+        $requiredChecks = array_values(array_filter(
+            $manualChecks,
+            static fn (array $check): bool => (string) ($check['severity'] ?? 'major') === 'blocking'
+        ));
+        $recommendedChecks = array_values(array_filter(
+            $manualChecks,
+            static fn (array $check): bool => (string) ($check['severity'] ?? 'major') !== 'blocking'
+        ));
+        $requiredPassCount = count(array_filter(
+            $requiredChecks,
+            static fn (array $check): bool => (string) ($check['status'] ?? 'unknown') === 'pass'
+        ));
+        $recommendedPassCount = count(array_filter(
+            $recommendedChecks,
+            static fn (array $check): bool => (string) ($check['status'] ?? 'unknown') === 'pass'
+        ));
+
+        $archivePaths = $candidateArchivePaths;
+        if ($manualEvidencePath !== null) {
+            $archivePaths[] = $manualEvidencePath;
+        }
+
+        $promotionNotes = [];
+        if ((bool) ($package['ok'] ?? false)) {
+            $promotionNotes[] = 'Copy package_basename, package_path, and sidecar paths into the release ticket before promotion.';
+        } else {
+            $promotionNotes[] = 'Package the candidate successfully before using this launch-readiness result as promotion evidence.';
+        }
+        if ($manualEvidencePath !== null) {
+            $promotionNotes[] = sprintf('Archive the operator-owned manual evidence JSON at `%s` with the same candidate record.', $manualEvidencePath);
+        } elseif ($manualChecks !== []) {
+            $promotionNotes[] = 'Attach the operator-owned manual evidence JSON to the same candidate record before limited-production sign-off.';
+        }
+        $promotionNotes[] = 'Retain the previous known-good immutable package plus matching sidecars separately; `latest-package.json` is only a pointer to the newest build.';
+
+        return [
+            'candidate' => [
+                'available' => (bool) ($package['ok'] ?? false),
+                'package_id' => trim((string) ($package['package_id'] ?? '')),
+                'package_basename' => trim((string) ($package['package_basename'] ?? '')),
+                'package_path' => trim((string) ($package['package_path'] ?? '')),
+                'package_sha256' => trim((string) ($package['package_sha256'] ?? '')),
+                'package_bytes' => is_numeric($package['package_bytes'] ?? null) ? (int) $package['package_bytes'] : null,
+                'release_manifest_snapshot_path' => trim((string) (data_get($package, 'release_manifest.snapshot_path', data_get($releaseManifest, 'snapshot_path', '')))),
+                'sidecars' => [
+                    'metadata_path' => trim((string) data_get($package, 'sidecars.metadata_path', '')),
+                    'inventory_path' => trim((string) data_get($package, 'sidecars.inventory_path', '')),
+                    'checksums_path' => trim((string) data_get($package, 'sidecars.checksums_path', '')),
+                    'package_sha256_path' => trim((string) data_get($package, 'sidecars.package_sha256_path', '')),
+                    'latest_pointer_path' => trim((string) data_get($package, 'sidecars.latest_pointer_path', '')),
+                ],
+            ],
+            'manual_evidence' => [
+                'provided' => (bool) ($manualEvidence['provided'] ?? false),
+                'path' => $manualEvidencePath,
+                'required_check_count' => count($requiredChecks),
+                'required_pass_count' => $requiredPassCount,
+                'recommended_check_count' => count($recommendedChecks),
+                'recommended_pass_count' => $recommendedPassCount,
+                'missing_required_check_keys' => array_values(array_map(
+                    static fn (array $check): string => (string) ($check['key'] ?? ''),
+                    array_values(array_filter(
+                        $requiredChecks,
+                        static fn (array $check): bool => (string) ($check['status'] ?? 'unknown') !== 'pass'
+                    ))
+                )),
+                'missing_recommended_check_keys' => array_values(array_map(
+                    static fn (array $check): string => (string) ($check['key'] ?? ''),
+                    array_values(array_filter(
+                        $recommendedChecks,
+                        static fn (array $check): bool => (string) ($check['status'] ?? 'unknown') !== 'pass'
+                    ))
+                )),
+            ],
+            'archive_paths' => array_values(array_unique(array_filter(
+                array_map(static fn (mixed $value): string => is_string($value) ? trim($value) : '', $archivePaths),
+                static fn (string $value): bool => $value !== ''
+            ))),
+            'rollback_kit' => [
+                'required_paths' => $candidateArchivePaths,
+                'note' => 'Archive the promoted candidate tarball together with its .metadata.json, .inventory.json, .checksums.sha256, .package.sha256, and the frozen release manifest snapshot. Keep the previous known-good package and sidecars separately for rollback; do not treat latest-package.json as the rollback decision record.',
+            ],
+            'promotion_notes' => $promotionNotes,
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function resolveTarget(string $target): array
@@ -854,6 +1087,18 @@ class LaunchReadinessService
         }
 
         return base_path($path);
+    }
+
+    private function displayPath(string $path): string
+    {
+        $normalizedPath = str_replace('\\', '/', $path);
+        $normalizedBasePath = rtrim(str_replace('\\', '/', base_path()), '/');
+
+        if (str_starts_with($normalizedPath, $normalizedBasePath.'/')) {
+            return ltrim(substr($normalizedPath, strlen($normalizedBasePath)), '/');
+        }
+
+        return $normalizedPath;
     }
 
     /**
@@ -1010,6 +1255,84 @@ class LaunchReadinessService
                     strtoupper((string) ($check['status'] ?? 'unknown')),
                     (string) ($check['label'] ?? $check['key'] ?? ''),
                     $details !== [] ? ' - '.implode('; ', $details) : ''
+                );
+            }
+        }
+
+        $releaseHandoff = (array) ($report['release_handoff'] ?? []);
+        $candidate = (array) ($releaseHandoff['candidate'] ?? []);
+        $manualSummary = (array) ($releaseHandoff['manual_evidence'] ?? []);
+        $lines[] = '';
+        $lines[] = '## Release Handoff';
+        $lines[] = '';
+        $lines[] = '| Field | Value |';
+        $lines[] = '| --- | --- |';
+        $lines[] = sprintf(
+            '| candidate_available | %s |',
+            ((bool) ($candidate['available'] ?? false)) ? 'yes' : 'no'
+        );
+        $lines[] = sprintf('| package_basename | `%s` |', (string) ($candidate['package_basename'] ?? 'not-available'));
+        $lines[] = sprintf('| package_path | `%s` |', (string) ($candidate['package_path'] ?? ''));
+        $lines[] = sprintf('| release_manifest_snapshot | `%s` |', (string) ($candidate['release_manifest_snapshot_path'] ?? ''));
+        $lines[] = sprintf(
+            '| manual_evidence | `%s` |',
+            (string) (($manualSummary['path'] ?? null) ?: 'not-supplied')
+        );
+        $lines[] = sprintf(
+            '| required_manual_checks | `%d/%d pass` |',
+            (int) ($manualSummary['required_pass_count'] ?? 0),
+            (int) ($manualSummary['required_check_count'] ?? 0)
+        );
+        $lines[] = sprintf(
+            '| recommended_manual_checks | `%d/%d pass` |',
+            (int) ($manualSummary['recommended_pass_count'] ?? 0),
+            (int) ($manualSummary['recommended_check_count'] ?? 0)
+        );
+
+        $archivePaths = (array) ($releaseHandoff['archive_paths'] ?? []);
+        $lines[] = '';
+        $lines[] = 'Archive with this candidate:';
+        if ($archivePaths === []) {
+            $lines[] = '- None recorded yet.';
+        } else {
+            foreach ($archivePaths as $path) {
+                $lines[] = sprintf('- `%s`', (string) $path);
+            }
+        }
+
+        $rollbackNote = trim((string) data_get($releaseHandoff, 'rollback_kit.note', ''));
+        if ($rollbackNote !== '') {
+            $lines[] = '';
+            $lines[] = 'Rollback note:';
+            $lines[] = '- '.$rollbackNote;
+        }
+        foreach ((array) ($releaseHandoff['promotion_notes'] ?? []) as $note) {
+            $lines[] = '- '.(string) $note;
+        }
+
+        $lines[] = '';
+        $lines[] = '## Follow-up Actions';
+        $lines[] = '';
+        if ((array) ($report['follow_up_actions'] ?? []) === []) {
+            $lines[] = '- None.';
+        } else {
+            $lines[] = '| Kind | Label | Runbook | Commands / Notes |';
+            $lines[] = '| --- | --- | --- | --- |';
+            foreach ((array) ($report['follow_up_actions'] ?? []) as $action) {
+                $details = [];
+                foreach ((array) ($action['commands'] ?? []) as $command) {
+                    $details[] = '`'.str_replace('|', '\|', (string) $command).'`';
+                }
+                foreach ((array) ($action['notes'] ?? []) as $note) {
+                    $details[] = str_replace('|', '\|', (string) $note);
+                }
+
+                $lines[] = sprintf(
+                    '| %s | %s | `%s` | %s |',
+                    strtoupper((string) ($action['kind'] ?? 'action')),
+                    str_replace('|', '\|', (string) ($action['label'] ?? '')),
+                    str_replace('|', '\|', (string) ($action['runbook_path'] ?? 'docs/runbooks/booking-launch-readiness.md')),
+                    $details !== [] ? implode('<br>', $details) : '-'
                 );
             }
         }

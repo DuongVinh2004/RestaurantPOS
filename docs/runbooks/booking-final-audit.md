@@ -19,7 +19,7 @@
 ## Remaining known gaps
 1. Full end-to-end PHPUnit/CI execution still depends on the complete project root, composer dependencies, and environment bootstrap in your real repository.
 2. True concurrency stress testing for multi-process booking races should still be run in staging with Redis + MySQL under load.
-3. API deprecation cleanup is still optional: legacy aliases such as `close`, `checkout`, `voucher/remove`, and `loyalty/redeem/release` are intentionally kept for compatibility.
+3. API deprecation cleanup is still optional: the remaining rollout-safety aliases are `close`, `checkout`, `voucher/release`, `loyalty/release`, and `table-board`; `X-Idempotency-Key` plus body field `idempotency_key` also remain accepted for compatibility.
 4. Business reporting / BI reconciliation jobs are still optional and were not added in these patches.
 
 ## Recommended release gate
@@ -44,7 +44,7 @@ If the aggregated gate is not clean, use the underlying source commands as drill
 - `php artisan booking:package-release --verify-frozen --json`
 
 ## Recommended deprecation plan
-- Keep legacy aliases for one release cycle
+- Keep the remaining rollout-safety aliases for one release cycle
 - Update FE/integrations to canonical endpoints
 - After one release cycle, remove aliases only if logs show zero usage
 

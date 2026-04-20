@@ -1,31 +1,75 @@
 "use client";
 
+import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useState } from "react";
+import { useForm, type UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
+import { StatusBadge } from "@/components/status/status-badge";
+import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { StatusBadge } from "@/components/status/status-badge";
-import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
-import { featureFlags } from "@/lib/config/feature-flags";
+import { isConflictLikeApiError, normalizeApiError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query-keys";
+import { customerWebRollout } from "@/lib/config/feature-flags";
 import { formatDateTime } from "@/lib/contracts/format";
+import type { CustomerWaitingListEntry } from "@/lib/contracts/generated/restaurantpos-sdk";
+import { cn } from "@/lib/utils";
 import {
   acceptWaitingListEntry,
   cancelWaitingListEntry,
   confirmWaitingListArrival,
   createWaitingListEntry,
   declineWaitingListEntry,
+  getWaitingListEntry,
   listWaitingList,
+  waitingListMutationEntry,
 } from "./api";
 import { waitingListCreateSchema, type WaitingListCreateValues } from "./schemas";
+import {
+  getWaitingListJourneyState,
+  getWaitingListOwnerActionPolicy,
+  getWaitingListRefreshPolicy,
+  getWaitingListSeatResultState,
+  sortWaitingListEntries,
+  waitingListActionLabels,
+  type WaitingListOwnerAction,
+} from "./state";
 
 export function WaitingListPage() {
+  const waitingListRollout = customerWebRollout.waitingList;
+
+  if (!waitingListRollout.enabled) {
+    return (
+      <main className="mx-auto w-full max-w-3xl px-4 py-6">
+        <EmptyState
+          title={waitingListRollout.disabledTitle}
+          description={waitingListRollout.disabledDescription}
+          action={
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+              <Button asChild className="rounded-lg">
+                <Link href="/booking">Find a table</Link>
+              </Button>
+              <Button asChild variant="outline" className="rounded-lg">
+                <Link href="/reservations">View reservations</Link>
+              </Button>
+            </div>
+          }
+        />
+      </main>
+    );
+  }
+
+  return <WaitingListWorkspace />;
+}
+
+function WaitingListWorkspace() {
   const queryClient = useQueryClient();
+  const [selectedIdOverride, setSelectedIdOverride] = useState<number | null>(null);
   const form = useForm<WaitingListCreateValues>({
     resolver: zodResolver(waitingListCreateSchema),
     defaultValues: {
@@ -35,77 +79,166 @@ export function WaitingListPage() {
       notes: "",
     },
   });
+  const refreshPolicy = getWaitingListRefreshPolicy();
   const waitingListQuery = useQuery({
     queryKey: queryKeys.waitingList.list,
     queryFn: listWaitingList,
-    enabled: featureFlags.waitingList,
   });
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.waitingList.list });
+  const orderedEntries = sortWaitingListEntries(waitingListQuery.data ?? []);
+  const selectedId =
+    selectedIdOverride !== null && orderedEntries.some((entry) => entry.waiting_id === selectedIdOverride)
+      ? selectedIdOverride
+      : (orderedEntries[0]?.waiting_id ?? null);
+  const selectedListEntry = orderedEntries.find((entry) => entry.waiting_id === selectedId) ?? null;
+  const detailQuery = useQuery({
+    queryKey: queryKeys.waitingList.detail(selectedId ?? 0),
+    queryFn: () => getWaitingListEntry(selectedId as number),
+    enabled: selectedId !== null,
+  });
+  const activeEntry = detailQuery.data ?? (detailQuery.error ? null : selectedListEntry);
+  const journeyState = activeEntry ? getWaitingListJourneyState(activeEntry) : null;
+  const actionPolicy = activeEntry ? getWaitingListOwnerActionPolicy(activeEntry) : null;
+  const seatResultState = activeEntry ? getWaitingListSeatResultState(activeEntry) : null;
+
+  const refreshCurrentView = async (detailId = selectedId) => {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.waitingList.list });
+
+    if (detailId !== null) {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.waitingList.detail(detailId) });
+    }
+  };
+  const syncWaitingListEntry = (entry: CustomerWaitingListEntry) => {
+    setSelectedIdOverride(entry.waiting_id);
+    queryClient.setQueryData(queryKeys.waitingList.detail(entry.waiting_id), entry);
+    queryClient.setQueryData(queryKeys.waitingList.list, (current: CustomerWaitingListEntry[] | undefined) => {
+      if (!current) {
+        return [entry];
+      }
+
+      const found = current.some((item) => item.waiting_id === entry.waiting_id);
+
+      return found ? current.map((item) => (item.waiting_id === entry.waiting_id ? entry : item)) : [entry, ...current];
+    });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.waitingList.list, refetchType: "inactive" });
+  };
   const createMutation = useMutation({
     mutationFn: createWaitingListEntry,
-    onSuccess() {
-      toast.success("Waiting list entry created.");
+    onSuccess(result) {
+      const entry = result.entry;
+
+      toast.success("Waiting-list entry created. Refresh details when staff asks you to respond.");
       form.reset();
-      invalidate();
+      syncWaitingListEntry(entry);
+    },
+    onError: (error) => {
+      applyWaitingListValidationErrors(error, form);
     },
   });
   const actionMutation = useMutation({
-    mutationFn: ({ id, rowVersion, action }: { id: number; rowVersion: number; action: "accept" | "arrival" | "decline" | "cancel" }) => {
+    mutationFn: async ({
+      action,
+      id,
+      rowVersion,
+    }: {
+      action: WaitingListOwnerAction;
+      id: number;
+      rowVersion: number;
+    }) => {
       const body = { row_version: rowVersion };
-      if (action === "accept") return acceptWaitingListEntry(id, body);
-      if (action === "arrival") return confirmWaitingListArrival(id, body);
-      if (action === "decline") return declineWaitingListEntry(id, body);
-      return cancelWaitingListEntry(id, body);
+
+      if (action === "accept") {
+        return { action, result: await acceptWaitingListEntry(id, body) };
+      }
+
+      if (action === "arrival") {
+        return { action, result: await confirmWaitingListArrival(id, body) };
+      }
+
+      if (action === "decline") {
+        return { action, result: await declineWaitingListEntry(id, body) };
+      }
+
+      return { action, result: await cancelWaitingListEntry(id, body) };
     },
-    onSuccess() {
-      toast.success("Waiting list updated.");
-      invalidate();
+    onSuccess({ action, result }) {
+      const entry = waitingListMutationEntry(result);
+
+      toast.success(waitingListActionSuccessMessage(action, result));
+      syncWaitingListEntry(entry);
+    },
+    onError: async (error) => {
+      if (isConflictLikeApiError(error)) {
+        await refreshCurrentView();
+      }
     },
   });
-
-  if (!featureFlags.waitingList) {
-    return (
-      <main className="mx-auto w-full max-w-3xl px-4 py-6">
-        <EmptyState title="Waiting list is not available" description="This customer flow is disabled for the current rollout." />
-      </main>
-    );
-  }
+  const createError = createMutation.error;
+  const actionError = actionMutation.error;
+  const detailError = detailQuery.error ? normalizeApiError(detailQuery.error) : null;
+  const waitingListLoading = waitingListQuery.isLoading;
+  const detailLoading = detailQuery.isLoading && selectedId !== null;
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-6">
-      <section className="mb-5">
+    <main className="mx-auto w-full max-w-6xl px-4 py-6">
+      <section className="mb-5 space-y-2">
         <h1 className="text-4xl font-semibold tracking-normal">Waiting list</h1>
-        <p className="mt-2 max-w-xl text-muted-foreground">
-          Join the live customer waiting list and respond to staff notifications from the same account.
+        <p className="max-w-3xl text-muted-foreground">
+          This Wave 2 surface stays rollout-gated by default. When QA or UAT enables it, the browser flow stays owner-scoped to the signed-in customer token only, with no fake realtime or staff-notification simulation.
         </p>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
+      <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
         <Card className="h-fit rounded-lg">
           <CardHeader>
             <CardTitle>Join waiting list</CardTitle>
           </CardHeader>
-          <CardContent>
-            <form className="space-y-4" onSubmit={form.handleSubmit((values) => createMutation.mutate(values))}>
+          <CardContent className="space-y-4">
+            <div className="rounded-lg border bg-secondary/30 p-4">
+              <p className="font-medium">Owner scope only</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Waiting-list entry ownership follows the signed-in customer token. This surface does not attach a browser visit session and does not simulate notification or final seating steps.
+              </p>
+            </div>
+            <form
+              className="space-y-4"
+              onSubmit={form.handleSubmit((values) => {
+                form.clearErrors();
+                createMutation.mutate(values);
+              })}
+            >
               <div className="space-y-2">
                 <Label htmlFor="guest_name">Guest name</Label>
                 <Input id="guest_name" className="min-h-11 rounded-lg" {...form.register("guest_name")} />
+                {form.formState.errors.guest_name ? (
+                  <p className="text-sm text-destructive">{form.formState.errors.guest_name.message}</p>
+                ) : null}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="guest_count">Guests</Label>
-                  <Input id="guest_count" type="number" min={1} className="min-h-11 rounded-lg" {...form.register("guest_count", { valueAsNumber: true })} />
+                  <Input
+                    id="guest_count"
+                    type="number"
+                    min={1}
+                    className="min-h-11 rounded-lg"
+                    {...form.register("guest_count", { valueAsNumber: true })}
+                  />
+                  {form.formState.errors.guest_count ? (
+                    <p className="text-sm text-destructive">{form.formState.errors.guest_count.message}</p>
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone</Label>
                   <Input id="phone" className="min-h-11 rounded-lg" {...form.register("phone")} />
+                  {form.formState.errors.phone ? <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p> : null}
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes</Label>
                 <Textarea id="notes" className="min-h-20 rounded-lg" {...form.register("notes")} />
+                {form.formState.errors.notes ? <p className="text-sm text-destructive">{form.formState.errors.notes.message}</p> : null}
               </div>
-              {createMutation.error ? <ErrorState error={createMutation.error} title="Could not join waiting list" /> : null}
+              {createError ? <ErrorState error={createError} title="Could not join waiting list" /> : null}
               <Button type="submit" className="min-h-11 w-full rounded-lg" disabled={createMutation.isPending}>
                 {createMutation.isPending ? "Joining" : "Join waiting list"}
               </Button>
@@ -113,43 +246,279 @@ export function WaitingListPage() {
           </CardContent>
         </Card>
 
-        <section className="space-y-3">
-          {waitingListQuery.isLoading ? <LoadingBlock label="Loading waiting list" /> : null}
-          {waitingListQuery.error ? <ErrorState error={waitingListQuery.error} title="Waiting list is unavailable" onRetry={() => waitingListQuery.refetch()} /> : null}
-          {waitingListQuery.data?.data.length === 0 ? (
-            <EmptyState title="No active waiting list entries" description="Join the list when you arrive or when the restaurant opens table notifications." />
-          ) : null}
-          {waitingListQuery.data?.data.map((entry) => (
-            <Card key={entry.waiting_id} className="rounded-lg">
-              <CardContent className="space-y-4 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Entry {entry.waiting_id}</p>
-                    <h2 className="text-lg font-semibold">{entry.guest_name ?? "Guest"} - {entry.guest_count} guests</h2>
-                    <p className="text-sm text-muted-foreground">Requested {formatDateTime(entry.requested_at)}</p>
+        <section className="space-y-5">
+          <Card className="rounded-lg">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1">
+                <CardTitle>Your entries</CardTitle>
+                <p className="text-sm text-muted-foreground">{refreshPolicy.description}</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-lg"
+                disabled={waitingListQuery.isFetching}
+                onClick={() => {
+                  void refreshCurrentView();
+                }}
+              >
+                {waitingListQuery.isFetching ? "Refreshing list" : "Refresh list"}
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {waitingListLoading ? <LoadingBlock label="Loading waiting-list entries" /> : null}
+              {waitingListQuery.error ? (
+                <ErrorState error={waitingListQuery.error} title="Waiting list is unavailable" onRetry={() => void refreshCurrentView()} />
+              ) : null}
+              {!waitingListLoading && !waitingListQuery.error && orderedEntries.length === 0 ? (
+                <EmptyState
+                  title="No waiting-list entries yet"
+                  description="Join the waiting list when the restaurant asks you to register or when a Wave 2 QA pass needs owner-response coverage."
+                />
+              ) : null}
+              {orderedEntries.map((entry) => {
+                const selected = entry.waiting_id === selectedId;
+                const journey = getWaitingListJourneyState(entry);
+
+                return (
+                  <button
+                    key={entry.waiting_id}
+                    type="button"
+                    className={cn(
+                      "w-full rounded-lg border p-4 text-left transition-colors",
+                      selected ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 hover:bg-secondary/30",
+                    )}
+                    onClick={() => setSelectedIdOverride(entry.waiting_id)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Entry #{entry.waiting_id}</p>
+                        <p className="text-lg font-semibold">
+                          {entry.guest_name ?? "Guest"} - {entry.guest_count} guests
+                        </p>
+                        <p className="text-sm text-muted-foreground">{journey.title}</p>
+                      </div>
+                      <StatusBadge status={entry.status} />
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      <span>Requested {formatDateTime(entry.requested_at)}</span>
+                      <span>Response {formatInlineStateLabel(entry.current_response_state)}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-lg">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1">
+                <CardTitle>Entry details</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Detail reads stay owner-scoped. Refresh manually after a staff prompt or after you submit a response.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-lg"
+                disabled={selectedId === null || detailQuery.isFetching}
+                onClick={() => {
+                  void refreshCurrentView();
+                }}
+              >
+                {detailQuery.isFetching ? "Refreshing details" : "Refresh details"}
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {detailLoading ? <LoadingBlock label="Loading waiting-list entry details" /> : null}
+              {!detailLoading && detailError?.kind === "not_found" ? (
+                <EmptyState
+                  title="This entry is no longer available for this account"
+                  description="Refresh the waiting-list entries to load the latest owner-visible record before trying another response."
+                  action={
+                    <Button type="button" variant="outline" className="rounded-lg" onClick={() => void refreshCurrentView()}>
+                      Refresh entries
+                    </Button>
+                  }
+                />
+              ) : null}
+              {!detailLoading && detailQuery.error && detailError?.kind !== "not_found" ? (
+                <ErrorState error={detailQuery.error} title="Waiting-list details are unavailable" onRetry={() => void refreshCurrentView()} />
+              ) : null}
+              {!detailLoading && !detailQuery.error && !activeEntry ? (
+                <EmptyState
+                  title="Select an entry"
+                  description="Choose a waiting-list entry to review its journey, seat-result state, and owner actions."
+                />
+              ) : null}
+              {activeEntry && journeyState && actionPolicy && seatResultState ? (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Entry #{activeEntry.waiting_id}</p>
+                        <h2 className="text-xl font-semibold">
+                          {activeEntry.guest_name ?? "Guest"} - {activeEntry.guest_count} guests
+                        </h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Requested {formatDateTime(activeEntry.requested_at)} - Response {formatInlineStateLabel(activeEntry.current_response_state)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <StatusBadge status={activeEntry.status} />
+                        <StatusBadge status={formatInlineStateLabel(activeEntry.current_response_state)} />
+                      </div>
+                    </div>
                   </div>
-                  <StatusBadge status={entry.status} />
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <Button type="button" variant="outline" className="rounded-lg" onClick={() => actionMutation.mutate({ id: entry.waiting_id, rowVersion: entry.row_version, action: "accept" })}>
-                    Accept
-                  </Button>
-                  <Button type="button" variant="outline" className="rounded-lg" onClick={() => actionMutation.mutate({ id: entry.waiting_id, rowVersion: entry.row_version, action: "arrival" })}>
-                    Arrived
-                  </Button>
-                  <Button type="button" variant="outline" className="rounded-lg" onClick={() => actionMutation.mutate({ id: entry.waiting_id, rowVersion: entry.row_version, action: "decline" })}>
-                    Decline
-                  </Button>
-                  <Button type="button" variant="outline" className="rounded-lg" onClick={() => actionMutation.mutate({ id: entry.waiting_id, rowVersion: entry.row_version, action: "cancel" })}>
-                    Cancel
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {actionMutation.error ? <ErrorState error={actionMutation.error} title="Waiting list action failed" /> : null}
+
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <div className="rounded-lg bg-secondary p-4">
+                      <p className="text-sm text-muted-foreground">Journey state</p>
+                      <p className="mt-1 text-lg font-semibold">{journeyState.title}</p>
+                      <p className="mt-2 text-sm text-muted-foreground">{journeyState.description}</p>
+                      <p className="mt-3 text-sm font-medium">{journeyState.nextStep}</p>
+                    </div>
+                    <div className="rounded-lg bg-secondary p-4">
+                      <p className="text-sm text-muted-foreground">Seat result visibility</p>
+                      <p className="mt-1 text-lg font-semibold">{seatResultState.title}</p>
+                      <p className="mt-2 text-sm text-muted-foreground">{seatResultState.description}</p>
+                      {seatResultState.reservationId !== null ? (
+                        <p className="mt-3 text-sm font-medium">Linked reservation #{seatResultState.reservationId}</p>
+                      ) : null}
+                      {seatResultState.tableLabel ? <p className="mt-1 text-sm text-muted-foreground">Last exposed {seatResultState.tableLabel}</p> : null}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <div className="rounded-lg border p-4">
+                      <p className="text-sm text-muted-foreground">Invite window</p>
+                      <p className="mt-1 font-medium">{describeInviteWindow(activeEntry)}</p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Notified {formatDateTime(activeEntry.invite_window.notified_at)} - Expires {formatDateTime(activeEntry.invite_window.expires_at)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <p className="text-sm text-muted-foreground">{refreshPolicy.title}</p>
+                      <p className="mt-1 font-medium">Row version {activeEntry.row_version}</p>
+                      <p className="mt-2 text-sm text-muted-foreground">{refreshPolicy.description}</p>
+                    </div>
+                  </div>
+
+                  <section className="space-y-3">
+                    <div>
+                      <h3 className="text-lg font-semibold">Available actions</h3>
+                      <p className="mt-1 font-medium">{actionPolicy.title}</p>
+                      <p className="text-sm text-muted-foreground">{actionPolicy.description}</p>
+                    </div>
+                    {actionPolicy.availableActions.length > 0 ? (
+                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                        {actionPolicy.availableActions.map((action) => (
+                          <Button
+                            key={action}
+                            type="button"
+                            variant="outline"
+                            className="rounded-lg"
+                            disabled={actionMutation.isPending || !detailQuery.data}
+                            onClick={() => {
+                              if (!detailQuery.data) {
+                                return;
+                              }
+
+                              actionMutation.mutate({
+                                action,
+                                id: detailQuery.data.waiting_id,
+                                rowVersion: detailQuery.data.row_version,
+                              });
+                            }}
+                          >
+                            {actionMutation.isPending && actionMutation.variables?.action === action
+                              ? `${waitingListActionLabels[action]}...`
+                              : waitingListActionLabels[action]}
+                          </Button>
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyState title={actionPolicy.title} description={actionPolicy.description} />
+                    )}
+                    {actionError ? (
+                      <ErrorState
+                        error={actionError}
+                        title={isConflictLikeApiError(actionError) ? "Waiting-list details changed" : "Waiting-list action failed"}
+                        onRetry={() => void refreshCurrentView()}
+                      />
+                    ) : null}
+                  </section>
+                </>
+              ) : null}
+            </CardContent>
+          </Card>
         </section>
       </div>
     </main>
   );
+}
+
+function applyWaitingListValidationErrors(error: unknown, form: UseFormReturn<WaitingListCreateValues>) {
+  const normalized = normalizeApiError(error);
+  const fields: Array<keyof WaitingListCreateValues> = ["guest_name", "guest_count", "phone", "notes"];
+
+  for (const field of fields) {
+    const message = normalized.validationErrors?.[field]?.[0];
+
+    if (message) {
+      form.setError(field, { type: "server", message });
+    }
+  }
+}
+
+function waitingListActionSuccessMessage(
+  action: WaitingListOwnerAction,
+  result:
+    | Awaited<ReturnType<typeof confirmWaitingListArrival>>
+    | Awaited<ReturnType<typeof acceptWaitingListEntry>>
+    | Awaited<ReturnType<typeof declineWaitingListEntry>>
+    | Awaited<ReturnType<typeof cancelWaitingListEntry>>,
+) {
+  if (action === "arrival" && result.meta) {
+    return result.meta.message ?? "Arrival confirmed. Staff still needs to finish the final seating step.";
+  }
+
+  switch (action) {
+    case "accept":
+      return "Invite accepted. Confirm arrival when you reach the restaurant.";
+    case "arrival":
+      return "Arrival confirmed. Staff still needs to finish the final seating step.";
+    case "decline":
+      return "Invite declined.";
+    case "cancel":
+    default:
+      return "Waiting-list entry cancelled.";
+  }
+}
+
+function describeInviteWindow(entry: CustomerWaitingListEntry) {
+  if (entry.invite_window.is_active) {
+    return `Active invite until ${formatDateTime(entry.invite_window.expires_at)}`;
+  }
+
+  if (entry.invite_window.is_expired) {
+    return `Invite expired at ${formatDateTime(entry.invite_window.expires_at)}`;
+  }
+
+  if (entry.invite_window.notified_at) {
+    return `Last invite opened at ${formatDateTime(entry.invite_window.notified_at)}`;
+  }
+
+  return "No active invite window";
+}
+
+function formatInlineStateLabel(value: string | null | undefined): string {
+  if (!value) {
+    return "Unknown";
+  }
+
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

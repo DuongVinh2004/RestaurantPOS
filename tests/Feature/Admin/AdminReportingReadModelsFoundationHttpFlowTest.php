@@ -269,6 +269,7 @@ class AdminReportingReadModelsFoundationHttpFlowTest extends TestCase
             'branch_code' => 'CTO',
             'branch_name' => 'Can Tho',
         ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $branchId]);
         $supplierId = $this->createSupplier([
             'code' => 'SUP-RPT-RECON',
             'name' => 'Reporting Reconcile Supply',

@@ -4,8 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/status/status-badge";
 import { formatDateTime, formatMoney } from "@/lib/contracts/format";
 import type { ReservationSummary } from "@/lib/contracts/generated/restaurantpos-sdk";
+import { getReservationBillSummaryState, getReservationDepositSummaryState } from "./state";
 
 export function ReservationCard({ reservation }: { reservation: ReservationSummary }) {
+  const deposit = getReservationDepositSummaryState(reservation);
+  const bill = getReservationBillSummaryState(reservation);
+
   return (
     <Card className="rounded-lg">
       <CardContent className="space-y-4 p-4">
@@ -23,11 +27,11 @@ export function ReservationCard({ reservation }: { reservation: ReservationSumma
           </div>
           <div>
             <p className="text-muted-foreground">Deposit</p>
-            <p className="font-medium">{reservation.deposit_status ?? "Not required"}</p>
+            <p className="font-medium">{deposit.label}</p>
           </div>
           <div>
             <p className="text-muted-foreground">Bill</p>
-            <p className="font-medium">{formatMoney(reservation.final_bill_amount, reservation.bill_currency ?? "USD")}</p>
+            <p className="font-medium">{bill.available ? formatMoney(bill.amount, bill.currency) : bill.label}</p>
           </div>
           <div>
             <p className="text-muted-foreground">Tables</p>

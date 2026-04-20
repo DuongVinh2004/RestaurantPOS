@@ -123,8 +123,14 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image: linear-gradient(180deg, oklch(0.985 0.012 42) 0%, var(--background) 14rem);
+    background-attachment: fixed;
   }
   html {
-    @apply font-sans;
+    @apply font-sans scroll-smooth;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 24%, white);
+    color: var(--foreground);
   }
 }

@@ -30,17 +30,17 @@ return [
     // Request throttles.
     'hold_rate_limit_per_minute' => (int) env('HOLD_RATE_LIMIT_PER_MINUTE', 20),
     'hold_rate_limit_window_seconds' => (int) env('HOLD_RATE_LIMIT_WINDOW_SECONDS', 60),
-    'throttle_tables_available_limit' => (int) env('THROTTLE_TABLES_AVAILABLE_LIMIT', 60),
+    'throttle_tables_available_limit' => (int) env('THROTTLE_TABLES_AVAILABLE_LIMIT', $isLocalLikeEnvironment ? 1200 : 60),
     'throttle_tables_available_window' => (int) env('THROTTLE_TABLES_AVAILABLE_WINDOW', 60),
-    'throttle_table_holds_store_limit' => (int) env('THROTTLE_TABLE_HOLDS_STORE_LIMIT', 30),
+    'throttle_table_holds_store_limit' => (int) env('THROTTLE_TABLE_HOLDS_STORE_LIMIT', $isLocalLikeEnvironment ? 120 : 30),
     'throttle_table_holds_store_window' => (int) env('THROTTLE_TABLE_HOLDS_STORE_WINDOW', 60),
-    'throttle_reservations_store_limit' => (int) env('THROTTLE_RESERVATIONS_STORE_LIMIT', 20),
+    'throttle_reservations_store_limit' => (int) env('THROTTLE_RESERVATIONS_STORE_LIMIT', $isLocalLikeEnvironment ? 120 : 20),
     'throttle_reservations_store_window' => (int) env('THROTTLE_RESERVATIONS_STORE_WINDOW', 60),
-    'throttle_reservations_show_limit' => (int) env('THROTTLE_RESERVATIONS_SHOW_LIMIT', 120),
+    'throttle_reservations_show_limit' => (int) env('THROTTLE_RESERVATIONS_SHOW_LIMIT', $isLocalLikeEnvironment ? 1200 : 120),
     'throttle_reservations_show_window' => (int) env('THROTTLE_RESERVATIONS_SHOW_WINDOW', 60),
-    'throttle_reservations_status_limit' => (int) env('THROTTLE_RESERVATIONS_STATUS_LIMIT', 30),
+    'throttle_reservations_status_limit' => (int) env('THROTTLE_RESERVATIONS_STATUS_LIMIT', $isLocalLikeEnvironment ? 120 : 30),
     'throttle_reservations_status_window' => (int) env('THROTTLE_RESERVATIONS_STATUS_WINDOW', 60),
-    'throttle_staff_limit' => (int) env('THROTTLE_STAFF_LIMIT', 300),
+    'throttle_staff_limit' => (int) env('THROTTLE_STAFF_LIMIT', $isLocalLikeEnvironment ? 1200 : 300),
     'throttle_staff_window' => (int) env('THROTTLE_STAFF_WINDOW', 60),
 
     // Idempotency timing and scope contract.

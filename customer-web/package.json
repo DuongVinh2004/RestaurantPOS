@@ -10,6 +10,13 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:journeys": "vitest run src/features/auth/login-page.test.tsx src/providers/auth-provider.test.tsx src/components/layout/protected-route.test.tsx src/features/table-booking/table-booking-page.test.tsx src/features/table-booking/state.test.ts src/features/reservations/reservation-create-page.test.tsx src/features/reservations/reservation-detail-page.test.tsx src/features/reservations/state.test.ts src/components/layout/backend-status-banner.test.tsx",
+    "test:e2e:smoke": "playwright test e2e/customer-smoke.spec.ts --project=chromium",
+    "test:e2e:live": "node scripts/verify-live-runtime.mjs && playwright test --config=playwright.live.config.ts --project=chromium",
+    "verify:wave-1": "npm run lint && npm run typecheck && npm run test:journeys",
+    "verify:contracts": "node scripts/check-contract-governance.mjs",
+    "verify:release": "npm run lint && npm run typecheck && npm run test && npm run build && npm run test:e2e:smoke",
+    "verify:release:live": "npm run lint && npm run typecheck && npm run test:journeys && npm run test:e2e:live",
     "sync:contracts": "node scripts/sync-contracts.mjs"
   },
   "dependencies": {
@@ -31,6 +38,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

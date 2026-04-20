@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Platform\ApiContract\Services\DatabaseContractInspector;
-use App\Services\Inventory\PurchaseOrderReconciliationService;
 use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
 use App\Modules\KitchenDispatch\Application\Services\KitchenTicketReconciliationService;
+use App\Modules\Notifications\Application\Services\NotificationOutboxHealthService;
 use App\Modules\Reporting\Application\Services\StaffOperationalRealtimeService;
+use App\Platform\ApiContract\Services\DatabaseContractInspector;
 use App\Platform\Metrics\Services\OperationalInsightsService;
+use App\Services\Inventory\PurchaseOrderReconciliationService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -125,6 +126,62 @@ class OperationalInsightsServiceTest extends TestCase
     }
 
     #[Group('booking-ops')]
+    public function test_notification_outbox_snapshot_uses_bound_health_service_for_disabled_outbox_mode(): void
+    {
+        config()->set('notifications.outbox.enabled', false);
+
+        $this->app->instance(NotificationOutboxHealthService::class, new class extends NotificationOutboxHealthService
+        {
+            public function __construct() {}
+
+            public function snapshot(?Carbon $now = null): array
+            {
+                return [
+                    'ok' => true,
+                    'enabled' => false,
+                    'pending_count' => 0,
+                    'processing_count' => 0,
+                    'failed_count' => 0,
+                    'cancelled_count' => 0,
+                    'due_now_count' => 0,
+                    'stale_processing_count' => 0,
+                    'oldest_pending_age_seconds' => null,
+                    'dead_letter_count' => 0,
+                    'recent_failure_attempt_count' => 0,
+                    'recent_failure_attempt_window_hours' => 24,
+                    'channel_breakdown' => [
+                        'Email' => [
+                            'channel' => 'Email',
+                            'enabled' => true,
+                            'driver' => 'smtp',
+                            'provider_key' => 'mail',
+                            'delivery_mode' => 'real',
+                            'readiness' => 'production_lean',
+                            'supports_live_delivery' => true,
+                            'total_count' => 0,
+                            'pending_count' => 0,
+                            'processing_count' => 0,
+                            'sent_count' => 0,
+                            'failed_count' => 0,
+                            'cancelled_count' => 0,
+                            'recent_failure_attempt_count' => 0,
+                        ],
+                    ],
+                    'error' => null,
+                ];
+            }
+        });
+
+        $snapshot = app(OperationalInsightsService::class)
+            ->notificationOutboxSnapshot(Carbon::parse('2026-04-02T09:00:00Z')->utc());
+
+        $this->assertSame('ok', $snapshot['status']);
+        $this->assertFalse($snapshot['enabled']);
+        $this->assertSame('real', $snapshot['channel_breakdown']['Email']['delivery_mode'] ?? null);
+        $this->assertSame('mail', $snapshot['channel_breakdown']['Email']['provider_key'] ?? null);
+    }
+
+    #[Group('booking-ops')]
     public function test_reporting_snapshot_health_degrades_when_latest_refresh_is_stale(): void
     {
         config()->set('booking.ops.reporting_snapshot_stale_hours', 24);
@@ -222,6 +279,66 @@ class OperationalInsightsServiceTest extends TestCase
         $this->assertSame(['operations', 'inventory'], $snapshot['empty_families']);
         $this->assertGreaterThan(0, $snapshot['families']['operations']['source_activity_count']);
         $this->assertGreaterThan(0, $snapshot['families']['inventory']['source_activity_count']);
+    }
+
+    #[Group('booking-ops')]
+    public function test_table_state_audit_snapshot_does_not_treat_system_actor_keys_as_missing_actor(): void
+    {
+        $now = Carbon::parse('2026-04-02T09:00:00Z')->utc();
+
+        DB::table('audit_logs')->insert([
+            'entity_type' => 'restaurant_table',
+            'entity_id' => '12',
+            'action' => 'table_state_released',
+            'actor_user_id' => null,
+            'actor_type' => 'system',
+            'actor_key' => 'system:console',
+            'before_json' => json_encode(['status' => 'Occupied'], JSON_THROW_ON_ERROR),
+            'after_json' => json_encode(['status' => 'Available', 'context' => ['source' => 'reservation_service']], JSON_THROW_ON_ERROR),
+            'summary_json' => json_encode(['from_status' => 'Occupied', 'to_status' => 'Available'], JSON_THROW_ON_ERROR),
+            'meta_json' => json_encode(['source' => 'table_state_audit'], JSON_THROW_ON_ERROR),
+            'request_id' => null,
+            'ip' => null,
+            'user_agent' => null,
+            'created_at' => $now,
+        ]);
+
+        $snapshot = app(OperationalInsightsService::class)->tableStateAuditSnapshot($now);
+
+        $this->assertSame(1, $snapshot['recent_transition_count']);
+        $this->assertSame(0, $snapshot['recent_missing_actor_count']);
+        $this->assertSame(0, $snapshot['recent_missing_context_count']);
+        $this->assertSame('ok', $snapshot['status']);
+    }
+
+    #[Group('booking-ops')]
+    public function test_table_state_audit_snapshot_still_counts_rows_without_user_or_actor_key_as_missing_actor(): void
+    {
+        $now = Carbon::parse('2026-04-02T09:00:00Z')->utc();
+
+        DB::table('audit_logs')->insert([
+            'entity_type' => 'restaurant_table',
+            'entity_id' => '14',
+            'action' => 'table_state_released',
+            'actor_user_id' => null,
+            'actor_type' => null,
+            'actor_key' => null,
+            'before_json' => json_encode(['status' => 'Occupied'], JSON_THROW_ON_ERROR),
+            'after_json' => json_encode(['status' => 'Available', 'context' => ['source' => 'reservation_service']], JSON_THROW_ON_ERROR),
+            'summary_json' => json_encode(['from_status' => 'Occupied', 'to_status' => 'Available'], JSON_THROW_ON_ERROR),
+            'meta_json' => json_encode(['source' => 'table_state_audit'], JSON_THROW_ON_ERROR),
+            'request_id' => null,
+            'ip' => null,
+            'user_agent' => null,
+            'created_at' => $now,
+        ]);
+
+        $snapshot = app(OperationalInsightsService::class)->tableStateAuditSnapshot($now);
+
+        $this->assertSame(1, $snapshot['recent_transition_count']);
+        $this->assertSame(1, $snapshot['recent_missing_actor_count']);
+        $this->assertSame('degraded', $snapshot['status']);
+        $this->assertContains('table_state_audit_missing_actor', $snapshot['reasons']);
     }
 
     #[Group('booking-ops')]
@@ -732,6 +849,67 @@ class OperationalInsightsServiceTest extends TestCase
         $this->assertSame(1, $conversationSnapshot['overdue_count']);
     }
 
+    #[Group('booking-ops')]
+    public function test_conversation_inbox_snapshot_excludes_canonical_uat_demo_fixture_from_operational_backlog_counts(): void
+    {
+        $now = Carbon::parse('2026-04-02T09:00:00Z')->utc();
+        $this->resetNonCoreOpsTables();
+
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $conversationId = $this->createConversation([
+            'workflow_state' => 'Assigned',
+            'workflow_state_reason' => 'assigned',
+            'status' => 'Open',
+            'created_at' => $now->copy()->subHours(2),
+            'workflow_state_changed_at' => $now->copy()->subHours(2),
+        ]);
+        DB::table('conversation_messages')->insert([
+            'conversation_id' => $conversationId,
+            'sender' => 'user',
+            'sender_id' => null,
+            'message_text' => 'Canonical UAT demo follow-up',
+            'message_type' => 'text',
+            'is_internal_note' => 0,
+            'attachment_url' => null,
+            'created_at' => $now->copy()->subHours(2),
+            'is_processed' => 0,
+            'processing_status' => null,
+            'confidence' => null,
+            'related_reservation_id' => null,
+            'related_order_id' => null,
+        ]);
+        DB::table('conversation_analyses')->insert([
+            'conversation_id' => $conversationId,
+            'analyzer_name' => 'uat_demo_pack',
+            'is_spam' => 0,
+            'quality_score' => '0.9300',
+            'extracted_info' => json_encode(['intent' => 'reservation_follow_up', 'pack' => 'uat_demo'], JSON_THROW_ON_ERROR),
+            'created_at' => $now->copy()->subHours(2),
+        ]);
+        DB::table('agent_assignments')->insert([
+            'conversation_id' => $conversationId,
+            'agent_user_id' => $staffId,
+            'assigned_at' => $now->copy()->subHours(2),
+            'released_at' => null,
+            'is_active' => 1,
+            'notes' => 'UAT demo inbox owner',
+        ]);
+
+        $snapshot = app(OperationalInsightsService::class)->conversationInboxSnapshot($now);
+
+        $this->assertSame(1, (int) DB::table('conversations')->where('conversation_id', $conversationId)->count());
+        $this->assertSame('ok', $snapshot['status']);
+        $this->assertSame(0, $snapshot['active_conversation_count']);
+        $this->assertSame(0, $snapshot['unassigned_count']);
+        $this->assertSame(0, $snapshot['overdue_count']);
+        $this->assertSame(0, $snapshot['waiting_on_customer_count']);
+        $this->assertSame(0, $snapshot['resolved_today_count']);
+        $this->assertSame(0, $snapshot['terminal_with_active_assignment_count']);
+        $this->assertSame([], $snapshot['workflow_state_counts']);
+        $this->assertSame([], $snapshot['overdue_examples']);
+        $this->assertNull($snapshot['oldest_overdue_age_seconds']);
+    }
+
     /**
      * @param  array<string,mixed>  $overrides
      * @return array{purchase_order_id:int,po_line_id:int,receipt_id:?int,receipt_line_id:?int,stock_movement_id:?int}
@@ -757,7 +935,7 @@ class OperationalInsightsServiceTest extends TestCase
         $purchaseOrderId = (int) DB::table('purchase_orders')->insertGetId([
             'branch_id' => (int) ($overrides['branch_id'] ?? 1),
             'supplier_id' => $supplierId,
-            'order_code' => (string) ($overrides['order_code'] ?? ('PO-OPS-' . strtoupper(bin2hex(random_bytes(3))))),
+            'order_code' => (string) ($overrides['order_code'] ?? ('PO-OPS-'.strtoupper(bin2hex(random_bytes(3))))),
             'purchase_order_status' => $purchaseOrderStatus,
             'ordered_at' => $overrides['ordered_at'] ?? $now->copy()->subDay(),
             'expected_at' => $overrides['expected_at'] ?? $now->copy()->addDay(),
@@ -793,7 +971,7 @@ class OperationalInsightsServiceTest extends TestCase
             $receiptId = (int) DB::table('purchase_receipts')->insertGetId([
                 'branch_id' => (int) ($overrides['branch_id'] ?? 1),
                 'purchase_order_id' => $purchaseOrderId,
-                'receipt_code' => (string) ($overrides['receipt_code'] ?? ('GRN-OPS-' . strtoupper(bin2hex(random_bytes(3))))),
+                'receipt_code' => (string) ($overrides['receipt_code'] ?? ('GRN-OPS-'.strtoupper(bin2hex(random_bytes(3))))),
                 'receipt_status' => 'Posted',
                 'received_at' => $overrides['receipt_received_at'] ?? $now->copy()->subMinutes(30),
                 'supplier_document_no' => 'SUP-DOC-OPS',

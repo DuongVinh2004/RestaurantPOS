@@ -33,7 +33,7 @@ export function MenuDetailPage({ id }: { id: number }) {
     );
   }
 
-  const item = itemQuery.data.data;
+  const item = itemQuery.data;
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-6">

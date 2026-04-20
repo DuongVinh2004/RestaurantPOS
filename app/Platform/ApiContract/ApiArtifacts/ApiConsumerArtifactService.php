@@ -980,9 +980,7 @@ class ApiConsumerArtifactService
             ? json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
             : $payload;
 
-        if (! File::exists($absolutePath) || (string) File::get($absolutePath) !== $contents) {
-            File::put($absolutePath, $contents);
-        }
+        File::put($absolutePath, $contents);
 
         return $relativeOutputPath;
     }
@@ -1132,7 +1130,7 @@ export class RestaurantPosClient {
         if (value === undefined || value === null || value === '') {
           return;
         }
-        url.searchParams.set(key, String(value));
+        url.searchParams.set(key, this.serializeQueryParam(value));
       });
     }
 
@@ -1174,6 +1172,14 @@ export class RestaurantPosClient {
     }
 
     return payload as T;
+  }
+
+  private serializeQueryParam(value: unknown): string {
+    if (typeof value === 'boolean') {
+      return value ? '1' : '0';
+    }
+
+    return String(value);
   }
 
   private interpolatePath(template: string, values: Record<string, string | number>): string {

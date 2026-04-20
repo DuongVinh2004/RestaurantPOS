@@ -5,17 +5,18 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\CreateAdminMenuCategoryRequest;
-use App\Http\Requests\Admin\CreateAdminMenuItemPriceRequest;
-use App\Http\Requests\Admin\CreateAdminMenuItemRequest;
 use App\Http\Requests\Admin\ListAdminMenuCategoriesRequest;
+use App\Http\Requests\Admin\ListAdminMenuItemPricesRequest;
 use App\Http\Requests\Admin\ListAdminMenuItemsRequest;
-use App\Http\Requests\Admin\UpdateAdminMenuCategoryRequest;
-use App\Http\Requests\Admin\UpdateAdminMenuItemRequest;
-use App\Http\Resources\AdminMenuCategoryResource;
-use App\Http\Resources\AdminMenuItemPriceResource;
-use App\Http\Resources\AdminMenuItemResource;
-use App\Services\Admin\AdminMenuService;
+use App\Http\Requests\Admin\StoreMenuCategoryRequest;
+use App\Http\Requests\Admin\StoreMenuItemPriceRequest;
+use App\Http\Requests\Admin\StoreMenuItemRequest;
+use App\Http\Requests\Admin\UpdateMenuCategoryRequest;
+use App\Http\Requests\Admin\UpdateMenuItemRequest;
+use App\Http\Resources\Admin\AdminMenuCategoryResource;
+use App\Http\Resources\Admin\AdminMenuItemPriceResource;
+use App\Http\Resources\Admin\AdminMenuItemResource;
+use App\Services\Admin\AdminMenuManagementService;
 use App\Support\ApiErrorResponse;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -29,7 +30,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 class AdminMenuController extends Controller
 {
     public function __construct(
-        private readonly AdminMenuService $menuService,
+        private readonly AdminMenuManagementService $menuService,
     ) {}
 
     public function listCategories(ListAdminMenuCategoriesRequest $request): JsonResponse
@@ -47,7 +48,7 @@ class AdminMenuController extends Controller
         ]);
     }
 
-    public function createCategory(CreateAdminMenuCategoryRequest $request): JsonResponse
+    public function createCategory(StoreMenuCategoryRequest $request): JsonResponse
     {
         $category = $this->menuService->createCategory($request->validated());
 
@@ -56,7 +57,7 @@ class AdminMenuController extends Controller
         ], 201);
     }
 
-    public function updateCategory(int $id, UpdateAdminMenuCategoryRequest $request): JsonResponse
+    public function updateCategory(int $id, UpdateMenuCategoryRequest $request): JsonResponse
     {
         $category = $this->menuService->updateCategory($id, $request->validated());
 
@@ -68,7 +69,7 @@ class AdminMenuController extends Controller
     public function listItems(ListAdminMenuItemsRequest $request): JsonResponse
     {
         $validated = $request->validated();
-        $paginator = $this->menuService->listItems($validated);
+        $paginator = $this->menuService->paginateItems($validated);
 
         return response()->json([
             'data' => AdminMenuItemResource::collection(collect($paginator->items()))->toArray($request),
@@ -102,7 +103,7 @@ class AdminMenuController extends Controller
         ]);
     }
 
-    public function createItem(CreateAdminMenuItemRequest $request): JsonResponse
+    public function createItem(StoreMenuItemRequest $request): JsonResponse
     {
         $item = $this->menuService->createItem($request->validated());
 
@@ -111,7 +112,7 @@ class AdminMenuController extends Controller
         ], 201);
     }
 
-    public function updateItem(int $id, UpdateAdminMenuItemRequest $request): JsonResponse
+    public function updateItem(int $id, UpdateMenuItemRequest $request): JsonResponse
     {
         $item = $this->menuService->updateItem($id, $request->validated());
 
@@ -120,10 +121,10 @@ class AdminMenuController extends Controller
         ]);
     }
 
-    public function listItemPrices(int $id, ListAdminMenuItemsRequest $request): JsonResponse
+    public function listItemPrices(int $id, ListAdminMenuItemPricesRequest $request): JsonResponse
     {
         try {
-            $prices = $this->menuService->listItemPrices($id, $request->validated());
+            $prices = $this->menuService->listPriceRows($id, $request->validated());
         } catch (ModelNotFoundException) {
             return $this->notFoundResponse($request, 'Menu item not found.');
         }
@@ -138,16 +139,16 @@ class AdminMenuController extends Controller
         ]);
     }
 
-    public function createItemPrice(int $id, CreateAdminMenuItemPriceRequest $request): JsonResponse
+    public function createItemPrice(int $id, StoreMenuItemPriceRequest $request): JsonResponse
     {
         try {
-            $result = $this->menuService->createItemPrice($id, $request->validated());
+            $price = $this->menuService->createPriceRow($id, $request->validated());
         } catch (ModelNotFoundException) {
             return $this->notFoundResponse($request, 'Menu item not found.');
         }
 
         return response()->json([
-            'data' => (new AdminMenuItemPriceResource($result['price']))->toArray($request),
+            'data' => (new AdminMenuItemPriceResource($price))->toArray($request),
         ], 201);
     }
 
