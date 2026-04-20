@@ -1016,8 +1016,8 @@ DELIMITER ;;
           FROM `table_hold_details` thd
           JOIN `table_holds` th ON th.`hold_id` = thd.`hold_id`
          WHERE thd.`table_id` = NEW.`table_id`
-           AND th.`hold_status` IN ('Holding', 'Pending', 'Confirmed')
-           AND (th.`hold_status` = 'Confirmed' OR th.`expire_at` > CURRENT_TIMESTAMP(6))
+           AND th.`hold_status` IN ('Holding', 'Pending')
+           AND th.`expire_at` > CURRENT_TIMESTAMP(6)
            AND th.`start_time` < v_end
            AND th.`end_time` > v_start
            AND (th.`confirmed_reservation_id` IS NULL OR th.`confirmed_reservation_id` <> NEW.`reservation_id`);
@@ -1069,8 +1069,8 @@ DELIMITER ;;
           FROM `table_hold_details` thd
           JOIN `table_holds` th ON th.`hold_id` = thd.`hold_id`
          WHERE thd.`table_id` = NEW.`table_id`
-           AND th.`hold_status` IN ('Holding', 'Pending', 'Confirmed')
-           AND (th.`hold_status` = 'Confirmed' OR th.`expire_at` > CURRENT_TIMESTAMP(6))
+           AND th.`hold_status` IN ('Holding', 'Pending')
+           AND th.`expire_at` > CURRENT_TIMESTAMP(6)
            AND th.`start_time` < v_end
            AND th.`end_time` > v_start
            AND (th.`confirmed_reservation_id` IS NULL OR th.`confirmed_reservation_id` <> NEW.`reservation_id`);
@@ -1448,7 +1448,7 @@ DELIMITER ;;
      WHERE `hold_id` = NEW.`hold_id`
      LIMIT 1;
 
-    IF v_status IN ('Holding', 'Pending', 'Confirmed') AND (v_status = 'Confirmed' OR v_expire_at > CURRENT_TIMESTAMP(6)) THEN
+    IF v_status IN ('Holding', 'Pending') AND v_expire_at > CURRENT_TIMESTAMP(6) THEN
         SELECT COUNT(*) INTO v_conflict_count
           FROM `reservation_tables` rt
           JOIN `reservations` r ON r.`reservation_id` = rt.`reservation_id`
@@ -1466,8 +1466,8 @@ DELIMITER ;;
           JOIN `table_holds` th ON th.`hold_id` = thd.`hold_id`
          WHERE thd.`table_id` = NEW.`table_id`
            AND thd.`hold_id` <> NEW.`hold_id`
-           AND th.`hold_status` IN ('Holding', 'Pending', 'Confirmed')
-           AND (th.`hold_status` = 'Confirmed' OR th.`expire_at` > CURRENT_TIMESTAMP(6))
+           AND th.`hold_status` IN ('Holding', 'Pending')
+           AND th.`expire_at` > CURRENT_TIMESTAMP(6)
            AND th.`start_time` < v_end
            AND th.`end_time` > v_start;
         IF v_conflict_count > 0 THEN
@@ -1503,7 +1503,7 @@ DELIMITER ;;
      WHERE `hold_id` = NEW.`hold_id`
      LIMIT 1;
 
-    IF v_status IN ('Holding', 'Pending', 'Confirmed') AND (v_status = 'Confirmed' OR v_expire_at > CURRENT_TIMESTAMP(6)) THEN
+    IF v_status IN ('Holding', 'Pending') AND v_expire_at > CURRENT_TIMESTAMP(6) THEN
         SELECT COUNT(*) INTO v_conflict_count
           FROM `reservation_tables` rt
           JOIN `reservations` r ON r.`reservation_id` = rt.`reservation_id`
@@ -1521,8 +1521,8 @@ DELIMITER ;;
           JOIN `table_holds` th ON th.`hold_id` = thd.`hold_id`
          WHERE thd.`table_id` = NEW.`table_id`
            AND thd.`hold_id` <> NEW.`hold_id`
-           AND th.`hold_status` IN ('Holding', 'Pending', 'Confirmed')
-           AND (th.`hold_status` = 'Confirmed' OR th.`expire_at` > CURRENT_TIMESTAMP(6))
+           AND th.`hold_status` IN ('Holding', 'Pending')
+           AND th.`expire_at` > CURRENT_TIMESTAMP(6)
            AND th.`start_time` < v_end
            AND th.`end_time` > v_start;
         IF v_conflict_count > 0 THEN

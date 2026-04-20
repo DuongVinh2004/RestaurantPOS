@@ -51,6 +51,11 @@ Canonical actors được ghi trong manifest:
 - `auth.customer_primary`
 - `auth.customer_secondary`
 
+Actor ownership mặc định:
+
+- `auth.customer_primary` chạy các scripted customer mutation flows, gồm `waiting-list-lifecycle`
+- `auth.customer_secondary` được giữ riêng cho seeded waiting-list + conversation linkage để replay `conversation-inbox` không đụng active waiting entry của scripted lane
+
 Manifest chứa:
 
 - username/password cho login flows

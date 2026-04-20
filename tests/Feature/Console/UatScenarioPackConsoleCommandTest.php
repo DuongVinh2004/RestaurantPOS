@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Platform\Metrics\Services\OperationalInsightsService;
 use App\Platform\Uat\UatScenarioPackService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Artisan;
@@ -46,6 +47,21 @@ class UatScenarioPackConsoleCommandTest extends TestCase
     #[Group('booking-ops')]
     public function test_bootstrap_and_reset_commands_manage_canonical_uat_pack_data_and_manifest(): void
     {
+        DB::table('branches')->updateOrInsert(
+            ['branch_code' => 'MAIN'],
+            [
+                'branch_name' => 'Primary Branch',
+                'description' => 'Legacy default branch kept for UAT reset coverage.',
+                'timezone' => 'UTC',
+                'currency' => 'VND',
+                'is_active' => true,
+                'is_default' => true,
+                'updated_at' => now('UTC'),
+                'created_at' => now('UTC'),
+                'row_version' => 1,
+            ]
+        );
+
         $bootstrapExit = Artisan::call('booking:uat-pack:bootstrap', [
             '--base-url' => 'http://127.0.0.1:8000',
             '--manifest-path' => $this->manifestPath,
@@ -60,6 +76,14 @@ class UatScenarioPackConsoleCommandTest extends TestCase
         self::assertSame('restaurantpos-uat-demo', (string) data_get($bootstrap, 'data.manifest.pack.name'));
         self::assertNotEmpty((string) data_get($bootstrap, 'data.manifest.auth.admin.api_key'));
         self::assertSame('UatDemo!123', (string) data_get($bootstrap, 'data.manifest.auth.customer_primary.password'));
+        self::assertCount(4, (array) data_get($bootstrap, 'data.summary.users', []));
+        self::assertSame(
+            ['uat.admin', 'uat.staff', 'uat.customer.primary', 'uat.customer.secondary'],
+            array_map(
+                static fn (array $row): string => (string) ($row['username'] ?? ''),
+                array_values((array) data_get($bootstrap, 'data.summary.users', [])),
+            ),
+        );
         self::assertCount(9, (array) data_get($bootstrap, 'data.summary.supported_scenarios', []));
         self::assertTrue(File::exists($this->manifestPath));
 
@@ -70,8 +94,32 @@ class UatScenarioPackConsoleCommandTest extends TestCase
         self::assertSame('UAT-VOUCHER-50', (string) data_get($manifest, 'benefits.voucher.voucher_code'));
         self::assertSame('Open', (string) data_get($manifest, 'conversation.status'));
         self::assertSame('customer.bill_self_payment', (string) data_get($manifest, 'feature_flags.0.feature_key'));
+        self::assertSame(
+            (int) data_get($manifest, 'auth.customer_primary.user_id'),
+            (int) data_get($manifest, 'scenarios.waiting_list_lifecycle.customer_user_id'),
+        );
+        self::assertSame(
+            (int) data_get($manifest, 'auth.customer_secondary.user_id'),
+            (int) DB::table('waiting_list')
+                ->where('waiting_id', (int) data_get($manifest, 'waiting_list.seeded_waiting_entry.waiting_id'))
+                ->value('user_id'),
+        );
+        self::assertSame(
+            'Available',
+            (string) DB::table('restaurant_tables')
+                ->where('table_id', (int) data_get($manifest, 'scenarios.availability_hold_reservation.preferred_table_ids.0'))
+                ->value('status'),
+        );
 
         self::assertSame(1, (int) DB::table('branches')->where('branch_code', 'UATDEMO')->count());
+        self::assertSame(1, (int) DB::table('branches')
+            ->where('branch_code', 'UATDEMO')
+            ->where('is_default', true)
+            ->count());
+        self::assertSame(0, (int) DB::table('branches')
+            ->where('branch_code', 'MAIN')
+            ->where('is_default', true)
+            ->count());
         self::assertSame(4, (int) DB::table('users')->whereIn('username', [
             'uat.admin',
             'uat.staff',
@@ -96,10 +144,16 @@ class UatScenarioPackConsoleCommandTest extends TestCase
         self::assertSame(1, (int) DB::table('kitchen_station_category_routes')
             ->where('category_id', (int) data_get($manifest, 'menu.categories.drinks.category_id'))
             ->count());
+        self::assertGreaterThan(0, (int) DB::table('reporting_daily_sales_snapshots')
+            ->where('branch_id', (int) data_get($manifest, 'branch.branch_id'))
+            ->count());
+        self::assertGreaterThan(0, (int) DB::table('reporting_daily_operation_snapshots')
+            ->where('branch_id', (int) data_get($manifest, 'branch.branch_id'))
+            ->count());
 
         $branchId = (int) data_get($manifest, 'branch.branch_id');
         $steakItemId = (int) data_get($manifest, 'menu.items.steak.item_id');
-        $businessDate = now('UTC')->toDateString();
+        $businessDate = now('UTC')->addDay()->toDateString();
         $ingredientId = $this->createIngredient();
         $unitCode = (string) (DB::table('ingredients')->where('ingredient_id', $ingredientId)->value('unit_code') ?? 'unit');
         $externalOrderItemId = $this->createOrderItem([
@@ -213,6 +267,10 @@ class UatScenarioPackConsoleCommandTest extends TestCase
         self::assertTrue((bool) data_get($reset, 'data.manifest_deleted'));
         self::assertFalse(File::exists($this->manifestPath));
         self::assertSame(0, (int) DB::table('branches')->where('branch_code', 'UATDEMO')->count());
+        self::assertSame(1, (int) DB::table('branches')
+            ->where('branch_code', 'MAIN')
+            ->where('is_default', true)
+            ->count());
         self::assertSame(0, (int) DB::table('users')->whereIn('username', [
             'uat.admin',
             'uat.staff',
@@ -257,6 +315,55 @@ class UatScenarioPackConsoleCommandTest extends TestCase
 
         self::assertSame('validation_error', $payload['error'] ?? null);
         self::assertSame(['The base_url must use https.'], $payload['errors']['base_url'] ?? null);
+    }
+
+    #[Group('booking-ops')]
+    public function test_bootstrap_keeps_canonical_uat_conversation_out_of_operational_backlog_metrics(): void
+    {
+        DB::table('branches')->updateOrInsert(
+            ['branch_code' => 'MAIN'],
+            [
+                'branch_name' => 'Primary Branch',
+                'description' => 'Legacy default branch kept for UAT reset coverage.',
+                'timezone' => 'UTC',
+                'currency' => 'VND',
+                'is_active' => true,
+                'is_default' => true,
+                'updated_at' => now('UTC'),
+                'created_at' => now('UTC'),
+                'row_version' => 1,
+            ]
+        );
+
+        $bootstrapExit = Artisan::call('booking:uat-pack:bootstrap', [
+            '--base-url' => 'http://127.0.0.1:8000',
+            '--manifest-path' => $this->manifestPath,
+            '--json' => true,
+        ]);
+
+        self::assertSame(0, $bootstrapExit);
+        $payload = $this->decodeArtisanOutput();
+
+        $conversationSnapshot = app(OperationalInsightsService::class)->conversationInboxSnapshot(now('UTC'));
+        $conversationId = (string) DB::table('conversation_analyses')
+            ->where('analyzer_name', 'uat_demo_pack')
+            ->value('conversation_id');
+
+        self::assertTrue((bool) ($payload['ok'] ?? false));
+        self::assertSame('ok', $conversationSnapshot['status']);
+        self::assertSame(0, $conversationSnapshot['active_conversation_count']);
+        self::assertSame(0, $conversationSnapshot['unassigned_count']);
+        self::assertSame(0, $conversationSnapshot['overdue_count']);
+        self::assertSame(0, $conversationSnapshot['terminal_with_active_assignment_count']);
+        self::assertSame([], $conversationSnapshot['workflow_state_counts']);
+        self::assertSame([], $conversationSnapshot['overdue_examples']);
+        self::assertNull($conversationSnapshot['oldest_overdue_age_seconds']);
+        self::assertNotSame('', $conversationId);
+        self::assertSame(1, (int) DB::table('conversations')->where('conversation_id', $conversationId)->count());
+        self::assertSame(1, (int) DB::table('conversation_analyses')
+            ->where('conversation_id', $conversationId)
+            ->where('analyzer_name', 'uat_demo_pack')
+            ->count());
     }
 
     /**

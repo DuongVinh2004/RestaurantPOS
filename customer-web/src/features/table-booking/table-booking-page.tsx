@@ -11,26 +11,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ErrorState, EmptyState } from "@/components/states/state-blocks";
-import type { AvailableTablesCollectionEnvelope, TableHoldEnvelope } from "@/lib/contracts/generated/restaurantpos-sdk";
+import { ErrorState, EmptyState, LoadingBlock } from "@/components/states/state-blocks";
+import type { TableHold } from "@/lib/contracts/generated/restaurantpos-sdk";
+import { createRoundedFutureLocalDateTimeInput } from "@/lib/contracts/datetime";
 import { formatDateTime } from "@/lib/contracts/format";
-import { createTableHold, searchAvailableTables } from "./api";
+import { createTableHold, searchAvailableTables, type AvailableTablesResult } from "./api";
 import { availabilitySearchSchema, type AvailabilitySearchValues } from "./schemas";
-
-function localTomorrow() {
-  const date = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  date.setMinutes(0, 0, 0);
-  return date.toISOString().slice(0, 16);
-}
+import { parseAvailabilityMeta, parseTableHoldState } from "./state";
 
 export function TableBookingPage() {
-  const [availability, setAvailability] = useState<AvailableTablesCollectionEnvelope | null>(null);
-  const [hold, setHold] = useState<TableHoldEnvelope | null>(null);
+  const [availability, setAvailability] = useState<AvailableTablesResult | null>(null);
+  const [hold, setHold] = useState<TableHold | null>(null);
+  const [heldVisitDetails, setHeldVisitDetails] = useState<AvailabilitySearchValues | null>(null);
+  const [heldTableIds, setHeldTableIds] = useState<number[]>([]);
   const [selectedTableIds, setSelectedTableIds] = useState<number[]>([]);
   const form = useForm<AvailabilitySearchValues>({
     resolver: zodResolver(availabilitySearchSchema),
     defaultValues: {
-      start_time: localTomorrow(),
+      start_time: createRoundedFutureLocalDateTimeInput(),
       duration_minutes: 90,
       guest_count: 2,
     },
@@ -38,22 +36,30 @@ export function TableBookingPage() {
 
   const searchMutation = useMutation({
     mutationFn: searchAvailableTables,
+    onMutate() {
+      setHold(null);
+      setHeldVisitDetails(null);
+      setHeldTableIds([]);
+      setSelectedTableIds([]);
+    },
     onSuccess(result) {
       setAvailability(result);
-      setHold(null);
-      setSelectedTableIds([]);
     },
   });
 
   const holdMutation = useMutation({
-    mutationFn: () => createTableHold(form.getValues(), selectedTableIds),
-    onSuccess(result) {
+    mutationFn: (values: AvailabilitySearchValues) => createTableHold(values, selectedTableIds),
+    onSuccess(result, values) {
       setHold(result);
+      setHeldVisitDetails(values);
+      setHeldTableIds([...selectedTableIds]);
       toast.success("Table hold created.");
     },
   });
 
-  const tables = availability?.data ?? [];
+  const tables = availability?.tables ?? [];
+  const availabilityMeta = availability ? parseAvailabilityMeta(availability.meta, tables.length) : null;
+  const holdState = hold ? parseTableHoldState(hold) : null;
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6">
@@ -95,10 +101,23 @@ export function TableBookingPage() {
         </Card>
 
         <section className="space-y-4">
-          {searchMutation.error ? <ErrorState error={searchMutation.error} title="Availability search failed" /> : null}
+          {searchMutation.isPending ? <LoadingBlock label="Searching availability" /> : null}
+          {searchMutation.error ? (
+            <ErrorState
+              error={searchMutation.error}
+              title="Availability search failed"
+              onRetry={() => searchMutation.mutate(form.getValues())}
+            />
+          ) : null}
 
           {availability && tables.length === 0 ? (
             <EmptyState title="No tables are available" description="Try another time or reduce the party size." />
+          ) : null}
+          {availabilityMeta ? (
+            <p className="text-sm text-muted-foreground">
+              Showing {availabilityMeta.count} available table{availabilityMeta.count === 1 ? "" : "s"} in{" "}
+              {availabilityMeta.branchTimezone ?? availabilityMeta.timezone ?? "the restaurant timezone"}.
+            </p>
           ) : null}
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -108,6 +127,7 @@ export function TableBookingPage() {
                 <button
                   type="button"
                   key={table.table_id}
+                  disabled={searchMutation.isPending || holdMutation.isPending}
                   className={`rounded-lg border bg-card p-4 text-left transition ${
                     selected ? "border-primary ring-2 ring-primary/20" : "hover:border-primary/50"
                   }`}
@@ -139,31 +159,57 @@ export function TableBookingPage() {
                 <Button
                   type="button"
                   className="rounded-lg"
-                  disabled={selectedTableIds.length === 0 || holdMutation.isPending}
-                  onClick={() => holdMutation.mutate()}
+                  disabled={selectedTableIds.length === 0 || holdMutation.isPending || searchMutation.isPending}
+                  onClick={() => holdMutation.mutate(form.getValues())}
                 >
                   {holdMutation.isPending ? "Creating hold" : "Create hold"}
                 </Button>
               </div>
-              {holdMutation.error ? <div className="mt-4"><ErrorState error={holdMutation.error} title="Could not create hold" /></div> : null}
+              {holdMutation.error ? (
+                <div className="mt-4">
+                  <ErrorState
+                    error={holdMutation.error}
+                    title="Could not create hold"
+                    onRetry={() => holdMutation.mutate(form.getValues())}
+                  />
+                </div>
+              ) : null}
             </div>
           ) : null}
 
-          {hold ? (
+          {hold && heldVisitDetails && holdState ? (
             <Card className="rounded-lg border-primary">
               <CardContent className="space-y-3 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="font-semibold">Hold {hold.data.hold_id}</p>
-                    <p className="text-sm text-muted-foreground">Expires {formatDateTime(hold.data.expire_at ?? null)}</p>
+                    <p className="font-semibold">Hold {holdState.holdId}</p>
+                    <p className="text-sm text-muted-foreground">Expires {formatDateTime(holdState.expiresAt)}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {heldVisitDetails.guest_count} guests, {heldVisitDetails.duration_minutes} minutes, starting{" "}
+                      {formatDateTime(new Date(heldVisitDetails.start_time).toISOString())}
+                    </p>
                   </div>
-                  <Badge variant="outline" className="rounded-md">{hold.data.hold_status}</Badge>
+                  <Badge variant="outline" className="rounded-md">{holdState.status}</Badge>
                 </div>
-                <Button asChild className="w-full rounded-lg">
-                  <Link href={`/reservations/new?hold_id=${encodeURIComponent(hold.data.hold_id)}&tables=${selectedTableIds.join(",")}`}>
-                    Continue to reservation
-                  </Link>
-                </Button>
+                {holdState.isActive ? (
+                  <Button asChild className="w-full rounded-lg">
+                    <Link
+                      href={`/reservations/new?hold_id=${encodeURIComponent(holdState.holdId)}&hold_status=${encodeURIComponent(holdState.status)}&hold_expires_at=${encodeURIComponent(holdState.expiresAt ?? "")}&tables=${heldTableIds.join(",")}&start_time=${encodeURIComponent(heldVisitDetails.start_time)}&duration_minutes=${heldVisitDetails.duration_minutes}&guest_count=${heldVisitDetails.guest_count}`}
+                    >
+                      Continue to reservation
+                    </Link>
+                  </Button>
+                ) : (
+                  <EmptyState
+                    title="This hold already expired"
+                    description="Search availability again to create a fresh hold before continuing to the reservation form."
+                    action={
+                      <Button type="button" className="rounded-lg" onClick={() => searchMutation.mutate(form.getValues())}>
+                        Search again
+                      </Button>
+                    }
+                  />
+                )}
               </CardContent>
             </Card>
           ) : null}

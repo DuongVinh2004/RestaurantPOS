@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Platform\Release\Services\BookingDeploySafetyService;
+use App\Platform\ApiContract\Services\RouteInventoryGateService;
 use App\Platform\Health\Services\BookingDoctorService;
-use App\Platform\Release\Services\CoreOpsGateService;
 use App\Platform\Metrics\Services\OperationalAlertService;
+use App\Platform\Release\Services\BookingDeploySafetyService;
+use App\Platform\Release\Services\CoreOpsGateService;
 use App\Platform\Release\Services\ReleaseArtifactManifestService;
 use App\Platform\Release\Services\ReleasePackageService;
 use App\Platform\Release\Services\RoundFiveGateService;
-use App\Platform\ApiContract\Services\RouteInventoryGateService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
@@ -122,6 +122,42 @@ class BookingLaunchReadinessCommandTest extends TestCase
         $this->assertSame('warn', $manualStatuses['uat_scenario_pack_replay'] ?? null);
         $this->assertSame('warn', $manualStatuses['performance_verification_report'] ?? null);
         $this->assertSame('warn', $manualStatuses['notification_provider_external_e2e'] ?? null);
+        $this->assertSame('manual_evidence_template', data_get($payload, 'follow_up_actions.0.kind'));
+        $this->assertSame(
+            'docs/runbooks/booking-launch-readiness.md',
+            data_get($payload, 'follow_up_actions.0.runbook_path')
+        );
+        $this->assertStringContainsString(
+            'booking:manual-evidence:init --target=staging',
+            (string) data_get($payload, 'follow_up_actions.0.commands.0')
+        );
+        $this->assertSame(
+            'docs/runbooks/booking-performance-verification.md',
+            data_get($payload, 'follow_up_actions.2.runbook_path')
+        );
+        $this->assertSame(
+            'restaurantpos-backend-release-generated',
+            data_get($payload, 'release_handoff.candidate.package_basename')
+        );
+        $this->assertSame(
+            'build/booking-release/restaurantpos-backend-release-generated.tar.gz',
+            data_get($payload, 'release_handoff.candidate.package_path')
+        );
+        $this->assertSame(
+            null,
+            data_get($payload, 'release_handoff.manual_evidence.path')
+        );
+        $this->assertContains(
+            'php artisan booking:performance-verify --profile=staging --run --base-url=<base-url> --manifest-path=storage/app/uat/scenario-pack.json --promote-baseline',
+            (array) data_get($payload, 'follow_up_actions.2.commands', [])
+        );
+        $markdownPath = base_path((string) (($payload['artifacts'] ?? [])['markdown_path'] ?? ''));
+        $markdown = (string) file_get_contents($markdownPath);
+        $this->assertStringContainsString('## Release Handoff', $markdown);
+        $this->assertStringContainsString('restaurantpos-backend-release-generated', $markdown);
+        $this->assertStringContainsString('## Follow-up Actions', $markdown);
+        $this->assertStringContainsString('MANUAL_EVIDENCE_TEMPLATE', $markdown);
+        $this->assertStringContainsString('docs/runbooks/notification-platform-v2.md', $markdown);
     }
 
     #[Group('booking-smoke')]
@@ -557,11 +593,18 @@ class BookingLaunchReadinessCommandTest extends TestCase
                     'package_basename' => 'restaurantpos-backend-release-generated',
                     'package_path' => 'build/booking-release/restaurantpos-backend-release-generated.tar.gz',
                     'package_exists' => true,
+                    'package_sha256' => str_repeat('c', 64),
                     'output_root' => 'build/booking-release',
                     'stage_path' => 'build/booking-release/stage/restaurantpos-backend-release-generated',
                     'include_roots' => [],
                     'skipped_optional_paths' => [],
-                    'sidecars' => [],
+                    'sidecars' => [
+                        'metadata_path' => 'build/booking-release/restaurantpos-backend-release-generated.metadata.json',
+                        'inventory_path' => 'build/booking-release/restaurantpos-backend-release-generated.inventory.json',
+                        'checksums_path' => 'build/booking-release/restaurantpos-backend-release-generated.checksums.sha256',
+                        'package_sha256_path' => 'build/booking-release/restaurantpos-backend-release-generated.package.sha256',
+                        'latest_pointer_path' => 'build/booking-release/latest-package.json',
+                    ],
                     'inventory' => [
                         'file_count' => 0,
                         'total_bytes' => 0,

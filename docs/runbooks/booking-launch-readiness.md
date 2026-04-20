@@ -154,11 +154,27 @@ Limited production rollout with manual evidence:
 ```bash
 php artisan booking:launch-readiness \
   --target=limited-production \
-  --manual-evidence=tests/fixtures/launch_readiness_manual_evidence.json \
+  --manual-evidence=storage/app/booking_release/manual_evidence/limited-production-20260405.json \
   --json
 ```
 
+Use an operator-owned candidate evidence file under `storage/app/booking_release/manual_evidence/` or the release artifact store. Do not point limited-production sign-off at `tests/fixtures/*`; those fixtures exist for automated tests, not rollout attestation.
+
 That manual evidence file is only complete for limited production when all five target-specific checks are recorded as `pass`: `uat_scenario_pack_replay`, `performance_verification_report`, `payment_provider_external_e2e`, `notification_provider_external_e2e`, and `concurrency_rehearsal`.
+
+Scaffold an operator-owned template before the rehearsal:
+
+```bash
+php artisan booking:manual-evidence:init --target=staging --candidate=20260420 --json
+php artisan booking:manual-evidence:init --target=limited-production --candidate=20260420 --json
+```
+
+By default the command writes to:
+
+- `storage/app/booking_release/manual_evidence/staging-20260420.json`
+- `storage/app/booking_release/manual_evidence/limited-production-20260420.json`
+
+Use `--output=<path>` when the release ticket or artifact store expects a different candidate filename, and `--overwrite` only when you intentionally want to replace an older operator template.
 
 Optional package override:
 
@@ -169,6 +185,30 @@ php artisan booking:launch-readiness \
   --overwrite-package \
   --json
 ```
+
+## Follow-up action plan
+
+When `booking:launch-readiness` returns `ready_with_warnings` or `not_ready`, the JSON and Markdown artifacts now emit a `follow_up_actions` section.
+
+Use that section as the operator checklist for the next pass:
+
+- scaffold the operator-owned manual evidence template when `--manual-evidence` was not supplied
+- jump directly to the owning runbook for each missing manual check
+- copy the exact command examples for UAT replay, performance verification, notification rehearsal, and concurrency probes
+- rerun `booking:launch-readiness` with the recorded manual evidence path after the operator proof is captured
+
+`booking:release-loop` now carries those same launch-readiness follow-up actions forward and adds separate actions for missing preview proof and missing Sentry release/runtime context.
+
+The same JSON/Markdown artifacts now also emit a `release_handoff` section. Use that section to copy the exact promotion candidate and archive set into the release ticket:
+
+- `release_handoff.candidate.package_basename`
+- `release_handoff.candidate.package_path`
+- `release_handoff.candidate.sidecars.*`
+- `release_handoff.candidate.release_manifest_snapshot_path`
+- `release_handoff.manual_evidence.path`
+- `release_handoff.archive_paths[]`
+
+`release_handoff` is the fast path for reviewer/operator handoff. It summarizes the exact immutable package + sidecars + manual evidence bundle for the candidate and repeats the rollback rule that the previous known-good package must stay archived separately from `latest-package.json`.
 
 ## Manual evidence JSON shape
 
@@ -249,6 +289,7 @@ The JSON artifact contains:
 - major warnings
 - informational findings
 - manual checks
+- release handoff summary for package + sidecars + manual evidence
 - automation gaps
 - raw source payloads from the integrated commands/services
 

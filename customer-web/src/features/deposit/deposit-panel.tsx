@@ -1,46 +1,181 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatusBadge } from "@/components/status/status-badge";
-import { ErrorState, LoadingBlock } from "@/components/states/state-blocks";
+import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
+import { PaymentSessionCard } from "@/features/payments/payment-session-card";
+import { isConflictLikeApiError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query-keys";
-import { formatMoney, stringValue } from "@/lib/contracts/format";
-import type { CustomerDepositPaymentSessionEnvelope } from "@/lib/contracts/generated/restaurantpos-sdk";
+import { formatMoney } from "@/lib/contracts/format";
+import type { ReservationSummary } from "@/lib/contracts/generated/restaurantpos-sdk";
+import { getSelfServiceBlockedState } from "@/features/reservations/self-service-boundary";
 import {
   acknowledgeDeposit,
+  confirmDepositPaymentSession,
   createDepositPaymentSession,
+  type DepositPaymentSessionResult,
+  type DepositPreview,
   getDepositPreview,
+  refreshDepositPaymentSession,
   revokeDepositIntent,
   submitDepositIntent,
 } from "./api";
+import {
+  getDepositPaymentSupportState,
+  getDepositPolicy,
+  getDepositSummaryState,
+  getPaymentSessionPolicy,
+  parseDepositContract,
+} from "@/features/reservations/state";
 
-export function DepositPanel({ reservationId, rowVersion }: { reservationId: number; rowVersion: number }) {
+export function DepositPanel({
+  reservation,
+  onReservationChanged,
+}: {
+  reservation: ReservationSummary;
+  onReservationChanged?: (reservation?: ReservationSummary) => void;
+}) {
   const queryClient = useQueryClient();
-  const [paymentSession, setPaymentSession] = useState<CustomerDepositPaymentSessionEnvelope | null>(null);
+  const [paymentSession, setPaymentSession] = useState<DepositPaymentSessionResult | null>(null);
+  const reservationId = reservation.reservation_id;
   const depositQuery = useQuery({
     queryKey: queryKeys.reservations.deposit(reservationId),
     queryFn: () => getDepositPreview(reservationId),
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.reservations.deposit(reservationId) });
-  const acknowledgeMutation = useMutation({ mutationFn: () => acknowledgeDeposit(reservationId, rowVersion), onSuccess: invalidate });
-  const intentMutation = useMutation({ mutationFn: () => submitDepositIntent(reservationId, rowVersion), onSuccess: invalidate });
-  const revokeMutation = useMutation({ mutationFn: () => revokeDepositIntent(reservationId, rowVersion), onSuccess: invalidate });
+  const refreshWorkspace = async ({ clearSession = false }: { clearSession?: boolean } = {}) => {
+    if (clearSession) {
+      setPaymentSession(null);
+    }
+
+    const refreshed = await depositQuery.refetch();
+    onReservationChanged?.(refreshed.data?.reservation);
+  };
+  const currentRowVersion = depositQuery.data?.reservation.row_version ?? reservation.row_version;
+  const syncDepositPreview = async (result: DepositPreview) => {
+    queryClient.setQueryData(queryKeys.reservations.deposit(reservationId), result);
+    onReservationChanged?.(result.reservation);
+  };
+  const syncPaymentSession = async (result: DepositPaymentSessionResult) => {
+    setPaymentSession(result);
+    const nextPolicy = getPaymentSessionPolicy(result.payment_session, { surface: "deposit" });
+
+    if (nextPolicy.terminal) {
+      await refreshWorkspace();
+    }
+  };
+  const handleConflict = async (error: unknown) => {
+    if (isConflictLikeApiError(error)) {
+      await refreshWorkspace({ clearSession: true });
+    }
+  };
+  const acknowledgeMutation = useMutation({
+    mutationFn: () => acknowledgeDeposit(reservationId, currentRowVersion),
+    onSuccess: syncDepositPreview,
+    onError: handleConflict,
+  });
+  const intentMutation = useMutation({
+    mutationFn: () => submitDepositIntent(reservationId, currentRowVersion),
+    onSuccess: syncDepositPreview,
+    onError: handleConflict,
+  });
+  const revokeMutation = useMutation({
+    mutationFn: () => revokeDepositIntent(reservationId, currentRowVersion),
+    onSuccess: syncDepositPreview,
+    onError: handleConflict,
+  });
   const createSessionMutation = useMutation({
-    mutationFn: () => createDepositPaymentSession(reservationId, rowVersion),
-    onSuccess(result) {
-      setPaymentSession(result);
+    mutationFn: () => createDepositPaymentSession(reservationId, currentRowVersion),
+    onSuccess: syncPaymentSession,
+    onError: handleConflict,
+  });
+  const refreshSessionMutation = useMutation({
+    mutationFn: () => {
+      const session = paymentSession?.payment_session;
+
+      if (!session) {
+        throw new Error("No payment session is available to refresh.");
+      }
+
+      return refreshDepositPaymentSession(reservationId, session.deposit_payment_session_id, session.row_version);
     },
+    onSuccess: syncPaymentSession,
+    onError: handleConflict,
+  });
+  const confirmSessionMutation = useMutation({
+    mutationFn: () => {
+      const session = paymentSession?.payment_session;
+
+      if (!session) {
+        throw new Error("No payment session is available to confirm.");
+      }
+
+      return confirmDepositPaymentSession(reservationId, session.deposit_payment_session_id, session.row_version);
+    },
+    onSuccess: syncPaymentSession,
+    onError: handleConflict,
   });
 
-  const deposit = depositQuery.data?.data.deposit;
-  const depositRecord = deposit as Record<string, unknown> | undefined;
-  const amount = stringValue(depositRecord, ["amount_due", "required_amount", "amount"]);
-  const currency = stringValue(depositRecord, ["currency"]) ?? "USD";
-  const status = stringValue(depositRecord, ["status", "deposit_status"]);
+  const depositReservation = depositQuery.data?.reservation ?? reservation;
+  const depositState = parseDepositContract(depositQuery.data?.deposit, depositReservation);
+  const depositPolicy = getDepositPolicy(depositReservation, depositState);
+  const depositSummary = getDepositSummaryState({
+    reservation: depositReservation,
+    deposit: depositState,
+  });
+  const session = paymentSession?.payment_session;
+  const sessionPolicy = session ? getPaymentSessionPolicy(session, { surface: "deposit" }) : null;
+  const paymentSupport = getDepositPaymentSupportState({
+    canCreatePaymentSession: depositPolicy.canCreatePaymentSession,
+    deposit: depositState,
+  });
+  const previewActionError = acknowledgeMutation.error ?? intentMutation.error ?? revokeMutation.error;
+  const sessionActionError = createSessionMutation.error ?? refreshSessionMutation.error ?? confirmSessionMutation.error;
+  const actionError = previewActionError ?? sessionActionError;
+  const loadBoundary = depositQuery.error ? getSelfServiceBlockedState("deposit", depositQuery.error, "Deposit is unavailable") : null;
+  const actionBoundary = actionError
+    ? getSelfServiceBlockedState(
+        "deposit",
+        actionError,
+        isConflictLikeApiError(actionError) ? "Deposit details changed" : sessionActionError ? "Payment session failed" : "Deposit action failed",
+      )
+    : null;
+  const noActionTitle =
+    depositSummary.state === "not_required"
+      ? "No deposit required"
+      : depositSummary.state === "paid"
+        ? "Deposit settled"
+        : depositSummary.state === "refunded"
+          ? "Deposit refunded"
+          : "No deposit action required";
+
+  useEffect(() => {
+    if (!session || !sessionPolicy || sessionPolicy.refreshMode !== "auto" || !sessionPolicy.autoRefreshMs) {
+      return;
+    }
+
+    if (refreshSessionMutation.isPending || refreshSessionMutation.isError) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      refreshSessionMutation.mutate();
+    }, sessionPolicy.autoRefreshMs);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    refreshSessionMutation,
+    refreshSessionMutation.isError,
+    refreshSessionMutation.isPending,
+    session,
+    session?.deposit_payment_session_id,
+    session?.row_version,
+    sessionPolicy,
+    sessionPolicy?.autoRefreshMs,
+    sessionPolicy?.refreshMode,
+  ]);
 
   return (
     <Card className="rounded-lg">
@@ -49,43 +184,89 @@ export function DepositPanel({ reservationId, rowVersion }: { reservationId: num
       </CardHeader>
       <CardContent className="space-y-4">
         {depositQuery.isLoading ? <LoadingBlock label="Loading deposit" /> : null}
-        {depositQuery.error ? <ErrorState error={depositQuery.error} title="Deposit is unavailable" onRetry={() => depositQuery.refetch()} /> : null}
+        {loadBoundary ? (
+          loadBoundary.kind === "error" ? (
+            <ErrorState error={loadBoundary.error} title={loadBoundary.title} onRetry={() => depositQuery.refetch()} />
+          ) : (
+            <EmptyState title={loadBoundary.title} description={loadBoundary.description} />
+          )
+        ) : null}
         {depositQuery.data ? (
           <>
-            <div className="flex items-start justify-between gap-3 rounded-lg bg-secondary p-4">
+            <section className="space-y-3">
               <div>
-                <p className="text-sm text-muted-foreground">Amount due</p>
-                <p className="text-2xl font-semibold">{formatMoney(amount, currency)}</p>
+                <h3 className="text-lg font-semibold">Deposit preview</h3>
+                <p className="text-sm text-muted-foreground">Review the current deposit requirement before opening or refreshing a payment session.</p>
               </div>
-              <StatusBadge status={status ?? "Pending"} />
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Button type="button" variant="outline" className="rounded-lg" disabled={acknowledgeMutation.isPending} onClick={() => acknowledgeMutation.mutate()}>
-                Acknowledge
-              </Button>
-              <Button type="button" variant="outline" className="rounded-lg" disabled={intentMutation.isPending} onClick={() => intentMutation.mutate()}>
-                Submit intent
-              </Button>
-              <Button type="button" variant="outline" className="rounded-lg" disabled={revokeMutation.isPending} onClick={() => revokeMutation.mutate()}>
-                Revoke intent
-              </Button>
-              <Button type="button" className="rounded-lg" disabled={createSessionMutation.isPending} onClick={() => createSessionMutation.mutate()}>
-                Create payment session
-              </Button>
-            </div>
-            {paymentSession ? (
-              <div className="rounded-lg border p-4 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-medium">Session {paymentSession.data.payment_session.provider_session_code}</span>
-                  <StatusBadge status={paymentSession.data.payment_session.session_status} />
+              <div className="rounded-lg bg-secondary p-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Deposit status</p>
+                  <p className="text-lg font-semibold">{depositSummary.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{depositSummary.description}</p>
+                </div>
+                <div className="mt-4">
+                  <p className="text-sm text-muted-foreground">Amount due</p>
+                  <p className="text-2xl font-semibold">{formatMoney(depositPolicy.amount, depositPolicy.currency)}</p>
                 </div>
               </div>
-            ) : null}
-            {(acknowledgeMutation.error || intentMutation.error || revokeMutation.error || createSessionMutation.error) ? (
-              <ErrorState
-                error={acknowledgeMutation.error ?? intentMutation.error ?? revokeMutation.error ?? createSessionMutation.error}
-                title="Deposit action failed"
-              />
+              {depositPolicy.canAcknowledge || depositPolicy.canSubmitIntent || depositPolicy.canRevokeIntent ? (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {depositPolicy.canAcknowledge ? (
+                    <Button type="button" variant="outline" className="rounded-lg" disabled={acknowledgeMutation.isPending} onClick={() => acknowledgeMutation.mutate()}>
+                      Acknowledge deposit
+                    </Button>
+                  ) : null}
+                  {depositPolicy.canSubmitIntent ? (
+                    <Button type="button" variant="outline" className="rounded-lg" disabled={intentMutation.isPending} onClick={() => intentMutation.mutate()}>
+                      Mark as self-pay
+                    </Button>
+                  ) : null}
+                  {depositPolicy.canRevokeIntent ? (
+                    <Button type="button" variant="outline" className="rounded-lg" disabled={revokeMutation.isPending} onClick={() => revokeMutation.mutate()}>
+                      Remove self-pay
+                    </Button>
+                  ) : null}
+                </div>
+              ) : (
+                <EmptyState title={noActionTitle} description={depositPolicy.noActionMessage ?? "No further deposit action is available right now."} />
+              )}
+            </section>
+
+            <section className="space-y-3">
+              <div>
+                <h3 className="text-lg font-semibold">Payment session lifecycle</h3>
+                <p className="text-sm text-muted-foreground">Open a payment session only when the backend exposes a supported runtime path for this reservation.</p>
+              </div>
+              {session && sessionPolicy ? (
+                <PaymentSessionCard
+                  surfaceLabel="Deposit"
+                  session={session}
+                  policy={sessionPolicy}
+                  refreshPending={refreshSessionMutation.isPending}
+                  confirmPending={confirmSessionMutation.isPending}
+                  onRefresh={() => refreshSessionMutation.mutate()}
+                  onConfirm={() => confirmSessionMutation.mutate()}
+                />
+              ) : (
+                <EmptyState
+                  title={paymentSupport.title}
+                  description={paymentSupport.description}
+                  action={
+                    depositPolicy.canCreatePaymentSession ? (
+                      <Button type="button" className="rounded-lg" disabled={createSessionMutation.isPending} onClick={() => createSessionMutation.mutate()}>
+                        {createSessionMutation.isPending ? "Opening payment" : "Continue to deposit payment"}
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              )}
+            </section>
+            {actionBoundary ? (
+              actionBoundary.kind === "error" ? (
+                <ErrorState error={actionBoundary.error} title={actionBoundary.title} onRetry={() => refreshWorkspace()} />
+              ) : (
+                <EmptyState title={actionBoundary.title} description={actionBoundary.description} />
+              )
             ) : null}
           </>
         ) : null}

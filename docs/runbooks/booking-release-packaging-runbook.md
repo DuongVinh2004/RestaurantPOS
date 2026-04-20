@@ -215,6 +215,8 @@ The release-loop report now records preview and observability context explicitly
 - `preview.status=url-recorded` means a preview URL was supplied, but runtime logs and release tagging still need to come from the target platform
 - `preview.status=unconfigured` means no linked preview project was detected and no preview URL/command was supplied
 - `observability.status=missing-configuration` means release/runtime evidence is still missing required provider credentials such as `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT`
+- step `status=warn` means the command returned warning-only evidence, for example `booking:deploy-check --mode=preflight --strict` with warnings but no errors or `booking:launch-readiness` with `decision=ready_with_warnings`
+- overall `decision=pass` means the release loop saw no blocking `fail` steps; review the `warnings` list before promotion whenever any step is `warn` or `skip`
 
 Treat `preview.status=unconfigured` and `observability.status=missing-configuration` as external promotion blockers, not as soft green evidence.
 
@@ -324,6 +326,14 @@ Configured release roots come from `config/booking_release.php` and currently in
 3. Confirm `latest-package.json` points at the newly built package.
 4. Archive the package and sidecars with the release ticket or CI artifact store.
 5. Deploy only from this immutable package, not from a mutable working tree.
+
+When launch-readiness or release-loop is part of the same candidate review, prefer copying the package handoff data from the artifact's `release_handoff` block instead of digging through raw source payloads. The operator should lift these exact fields into the release ticket:
+
+- `release_handoff.candidate.package_basename`
+- `release_handoff.candidate.package_path`
+- `release_handoff.candidate.sidecars.*`
+- `release_handoff.candidate.release_manifest_snapshot_path`
+- `release_handoff.archive_paths[]`
 
 Before promotion, also retain the previous known-good package tarball plus its matching `.metadata.json`, `.inventory.json`, `.checksums.sha256`, and `.package.sha256` sidecars. `latest-package.json` is only a pointer to the most recently built package; it is not the rollback decision record by itself.
 

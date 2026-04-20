@@ -90,6 +90,23 @@ The FE does **not** fake completeness where backend contracts are still thin.
 
 ## Local run
 
+Preferred repo-root daily lane:
+
+```bash
+npm run dev:all
+npm run dev:smoke
+```
+
+`npm run dev:all` starts the backend, `customer-web`, and `staff-web` together on:
+
+- `http://127.0.0.1:8000`
+- `http://127.0.0.1:3000`
+- `http://127.0.0.1:5173`
+
+It also refreshes the shared UAT manifest used by the local login and smoke lanes. `npm run dev:smoke` is the short repo-level proof that backend, customer-web, staff-web, and the demo credentials are all wired correctly.
+
+If you only need the operator UI and already have the backend lane running, you can still work inside `staff-web` directly:
+
 ```bash
 npm install
 npm run build
@@ -101,7 +118,7 @@ For local development:
 npm run dev
 ```
 
-The Vite dev and preview servers intentionally bind to `localhost` so the default backend API base and local CORS setup stay aligned.
+For a standalone session that matches the repo-root lane exactly, run `npm run dev -- --host 127.0.0.1 --port 5173`.
 
 ## Environment
 
@@ -113,6 +130,8 @@ VITE_APP_TITLE=RestaurantPOS Staff Web
 ```
 
 `VITE_API_URL` should include `/api/v1`.
+
+Keep the frontend origin aligned with the backend CORS allow-list. `http://localhost:5173` and `http://127.0.0.1:5173` are different origins. The repo-root `npm run dev:all` lane is validated on `127.0.0.1`, so either mirror that host family in standalone runs or ensure both origins are explicitly allowed by the backend.
 
 ## Verification used for this batch
 

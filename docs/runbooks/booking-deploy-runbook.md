@@ -112,14 +112,16 @@ Before promotion, retain the previous known-good immutable package together with
 - the release record that says why that package was last known-good
 
 Do not rely on `build/booking-release/latest-package.json` alone during rollback triage. It points at the most recently built package, not necessarily the previous good deployment candidate.
+Before promotion, copy the exact `package_basename`, `package_path`, and sidecar paths from the promoted candidate's `.metadata.json` or `build/booking-release/latest-package.json` into the release ticket. The rollback kit must point at that recorded known-good basename, not a hand-written shortcut.
 
 ## Rollback procedure
 
-1. Select the previous known-good package from the archived rollback kit.
+1. Select the previous known-good package basename from the archived rollback kit and release record.
+   - example basename shape: `restaurantpos-backend-release-20260420t004220z`
 2. Verify the tarball checksum against the sidecar:
-   - `sha256sum -c build/booking-release/<package>.package.sha256`
+   - `sha256sum -c build/booking-release/<recorded-known-good-package-basename>.package.sha256`
 3. Extract the package into a clean rollback directory:
-   - `tar -xzf build/booking-release/<package>.tar.gz -C <rollback-root>`
+   - `tar -xzf build/booking-release/<recorded-known-good-package-basename>.tar.gz -C <rollback-root>`
 4. From the extracted package root, verify the staged file checksums:
    - `sha256sum -c release_checksums.sha256`
 5. Re-point the deployment to that rollback directory and clear stale caches before warming the restored release:

@@ -141,6 +141,65 @@ class StaffWaitingListLifecycleTest extends TestCase
         $this->assertAuditSubjectRecorded($seatedLog, 'reservation', $reservationId, 'reservation');
     }
 
+    public function test_waiting_list_seat_bypasses_reservation_lead_time_and_same_day_cutoff_for_immediate_service(): void
+    {
+        $branchId = $this->createBranch([
+            'branch_code' => 'WL-SEAT',
+            'timezone' => 'UTC',
+            'business_hours' => $this->defaultBranchFixtureBusinessHours(),
+            'booking_policy' => [
+                'reservation' => [
+                    'min_lead_time_minutes' => 15,
+                    'same_day_cutoff_time' => '00:00',
+                ],
+                'waiting_list' => [
+                    'enabled' => true,
+                    'default_service_minutes' => 90,
+                ],
+            ],
+        ]);
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $guestUserId = $this->createUser(['role_name' => 'Customer']);
+        $tableId = $this->createRestaurantTableWithSeats(4, [
+            'branch_id' => $branchId,
+            'status' => 'Available',
+        ]);
+        $staffHeaders = $this->staffAuthHeaders($staffId);
+
+        $createResponse = $this->withHeaders($this->withIdempotencyKey('waiting-list-seat-immediate-create', $staffHeaders))
+            ->postJson('/api/v1/staff/waiting-list', [
+                'branch_id' => $branchId,
+                'user_id' => $guestUserId,
+                'guest_count' => 2,
+                'guest_name' => 'Immediate Queue',
+            ]);
+
+        $createResponse->assertCreated();
+        $waitingId = (int) $createResponse->json('data.waiting_id');
+
+        $notifyResponse = $this->withHeaders($this->withIdempotencyKey('waiting-list-seat-immediate-notify', $staffHeaders))
+            ->postJson("/api/v1/staff/waiting-list/{$waitingId}/notify", [
+                'table_id' => $tableId,
+                'hold_minutes' => 10,
+                'row_version' => 1,
+            ]);
+
+        $notifyResponse->assertOk()
+            ->assertJsonPath('data.status', 'Notified');
+
+        $seatResponse = $this->withHeaders($this->withIdempotencyKey('waiting-list-seat-immediate-seat', $staffHeaders))
+            ->postJson("/api/v1/staff/waiting-list/{$waitingId}/seat", [
+                'user_id' => $guestUserId,
+                'service_minutes' => 90,
+                'row_version' => 2,
+            ]);
+
+        $seatResponse->assertOk()
+            ->assertJsonPath('data.waiting_list.status', 'Seated')
+            ->assertJsonPath('data.reservation.branch_id', $branchId)
+            ->assertJsonPath('data.reservation.user_id', $guestUserId);
+    }
+
     public function test_staff_create_rejects_waiting_list_when_branch_policy_disables_it(): void
     {
         $branchId = $this->createBranch([

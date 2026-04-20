@@ -27,7 +27,7 @@ class AdminMenuItemController extends Controller
             $paginator = $this->menuService->paginateItems($validated);
 
             return response()->json([
-                'data' => AdminMenuItemResource::collection($paginator->getCollection()),
+                'data' => AdminMenuItemResource::collection(collect($paginator->items())),
                 'meta' => ListingMetaFactory::paginated(
                     $paginator,
                     [

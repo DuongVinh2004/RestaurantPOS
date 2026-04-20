@@ -35,6 +35,7 @@ class AdminMultiBranchDomainDefaultsHttpFlowTest extends TestCase
             'branch_code' => 'DN01',
             'branch_name' => 'Da Nang 01',
         ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $secondaryBranchId]);
 
         $defaultTable = $this->withHeaders($this->withIdempotencyKey($adminHeaders, 'idem-admin-branch-table-default'))
             ->postJson('/api/v1/admin/restaurant/tables', [

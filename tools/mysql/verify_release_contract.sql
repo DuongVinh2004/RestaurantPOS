@@ -191,4 +191,27 @@ PREPARE verify_stmt FROM @stmt;
 EXECUTE verify_stmt;
 DEALLOCATE PREPARE verify_stmt;
 
+SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.triggers
+        WHERE trigger_schema = DATABASE()
+          AND trigger_name IN (
+              'trg_reservation_tables__bi_prevent_overlap',
+              'trg_reservation_tables__bu_prevent_overlap',
+              'trg_table_hold_details__bi_prevent_overlap',
+              'trg_table_hold_details__bu_prevent_overlap'
+          )
+          AND (
+              action_statement LIKE '%hold_status` IN (''Holding'', ''Pending'', ''Confirmed'')%'
+              OR action_statement LIKE '%v_status IN (''Holding'', ''Pending'', ''Confirmed'')%'
+          )
+    ),
+    'SELECT * FROM __stale_confirmed_hold_conflict_triggers__',
+    'SELECT "table_hold_conflict_scope.confirmed_linkage:ok"'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
 SELECT 'verify_release_contract:done' AS checkpoint;

@@ -42,7 +42,7 @@ export function LoginPage() {
         <p className="text-sm font-medium text-primary">Customer access</p>
         <h1 className="max-w-lg text-4xl font-semibold leading-tight tracking-normal">Manage your visit without waiting at the counter.</h1>
         <p className="max-w-md text-base text-muted-foreground">
-          Sign in to see reservations, deposits, bills, waiting list updates, vouchers, and account tools.
+          Sign in to see reservations, deposits, bills, and any account tools enabled for your rollout.
         </p>
       </section>
 

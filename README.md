@@ -86,6 +86,16 @@ For the Windows local daily runtime lane, use:
 - `npm run runtime:down` to stop the same repo-local runtime processes
 - `npm run runtime:preflight` when you want the full doctor/outbox readiness gate after startup
 
+For the simple dev lane:
+
+- `npm run dev:be` ensures repo-local Redis, runs `composer bootstrap:booking`, refreshes the local UAT login/demo pack, and starts `php artisan serve --host=127.0.0.1 --port=8000`
+- `npm run dev:all` runs backend, `customer-web`, and `staff-web` together on `127.0.0.1:8000`, `127.0.0.1:3000`, and `127.0.0.1:5173`
+
+The simple dev lane is for UI and fixture-driven iteration. It does not replace `npm run runtime:up` plus `npm run runtime:preflight` when scheduler heartbeat, outbox drain, or `booking:doctor` evidence matters.
+
+The simple dev lane writes fresh demo credentials to `storage/app/uat/scenario-pack.json`. Use `uat.customer.primary` or `uat.staff` with password `UatDemo!123` after startup. If you intentionally want backend bootstrap without the demo login pack, run `npm run dev:be -- -SkipUatPack`.
+If you intentionally want to use an already-managed Redis instance and skip the repo-local Redis helper, run `npm run dev:be -- -SkipRedis`.
+
 ## What `composer bootstrap:booking` does
 
 - imports `database/schema/mysql-schema.sql`
@@ -155,8 +165,11 @@ If MySQL, Redis, scheduler heartbeat, or backend HTTP are unavailable, treat the
 For separate `customer-web` and `staff-web` deployments:
 
 - set `CORS_ALLOWED_ORIGINS` on the backend to the exact frontend origins allowed to call `/api/*`
-- point frontend base URLs at the backend API origin, for example `http://localhost:8000/api/v1`
+- point `customer-web` at the backend origin only, for example `http://127.0.0.1:8000`
+- point `staff-web` at its existing API base URL, for example `http://127.0.0.1:8000/api/v1`
 - keep auth header-based (`X-Customer-Token`, `X-Staff-Key`, `X-Session-Id`) instead of cookie credential mode
+
+Treat an exact origin as `scheme://host:port` with no path or trailing slash. `http://localhost:3000` and `http://127.0.0.1:3000` are different origins and both must be listed if both are used.
 
 The canonical artifact and CORS runbook is `docs/runbooks/api-consumer-artifacts.md`.
 

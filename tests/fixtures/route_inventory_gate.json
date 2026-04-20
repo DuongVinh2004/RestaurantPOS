@@ -294,13 +294,21 @@
             "key": "get_v1healthdetailed",
             "method": "GET",
             "uri": "api/v1/health/detailed",
-            "action": "App\\Platform\\Health\\Http\\HealthController@detailed"
+            "action": "App\\Platform\\Health\\Http\\HealthController@detailed",
+            "middleware_contains": [
+                "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                "staff.capability:ops.health.view"
+            ]
         },
         {
             "key": "health_redis",
             "method": "GET",
             "uri": "api/v1/health/redis",
-            "action": "App\\Platform\\Health\\Http\\HealthController@redis"
+            "action": "App\\Platform\\Health\\Http\\HealthController@redis",
+            "middleware_contains": [
+                "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                "staff.capability:ops.health.view"
+            ]
         },
         {
             "key": "get_v1_me_data_export",
@@ -1437,12 +1445,21 @@
             ]
         },
         {
+            "key": "health_detailed",
+            "method": "GET",
+            "uri": "api/v1/health/detailed",
+            "allowed_statuses": [
+                401,
+                403
+            ]
+        },
+        {
             "key": "health_redis",
             "method": "GET",
             "uri": "api/v1/health/redis",
             "allowed_statuses": [
-                200,
-                503
+                401,
+                403
             ]
         },
         {

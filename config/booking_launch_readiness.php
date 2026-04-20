@@ -134,6 +134,14 @@ return [
             'pass_criteria' => 'Run the canonical UAT/demo scenario pack against the candidate build and capture operator evidence.',
             'failure_meaning' => 'Automated suites passed, but operator-level end-to-end confirmation for seeded booking flows is still missing.',
             'remediation_hint' => 'Run the UAT bootstrap/scenario scripts and record the evidence in a manual evidence JSON file.',
+            'runbook_path' => 'docs/runbooks/uat-demo-scenario-pack.md',
+            'operator_commands' => [
+                'pwsh -File .\\scripts\\uat\\Bootstrap-UatPack.ps1 -BaseUrl <base-url>',
+                'pwsh -File .\\scripts\\uat\\Invoke-UatScenario.ps1 -Scenario all',
+            ],
+            'operator_notes' => [
+                'Capture the scenario summary and record the result under uat_scenario_pack_replay in the manual evidence JSON.',
+            ],
         ],
         [
             'key' => 'performance_verification_report',
@@ -145,6 +153,15 @@ return [
             'pass_criteria' => 'Capture the candidate-specific performance verification report, including the automated load scenarios and any required operator-assisted staging probes.',
             'failure_meaning' => 'The rollout target still lacks candidate-specific performance/resilience evidence for read-heavy and contention-sensitive flows.',
             'remediation_hint' => 'Run booking:performance-verify for the candidate build, archive the report, and record it in the manual evidence JSON before limited production.',
+            'runbook_path' => 'docs/runbooks/booking-performance-verification.md',
+            'operator_commands' => [
+                'php artisan booking:performance-verify --profile=staging --run --base-url=<base-url> --manifest-path=storage/app/uat/scenario-pack.json --promote-baseline',
+                'php artisan notifications:outbox-health --json',
+                'php artisan booking:alert-check --json',
+            ],
+            'operator_notes' => [
+                'Archive the candidate-specific performance report and record its outcome under performance_verification_report in the manual evidence JSON.',
+            ],
         ],
         [
             'key' => 'payment_provider_external_e2e',
@@ -156,6 +173,14 @@ return [
             'pass_criteria' => 'Validate one end-to-end payment provider callback path against the target integration credentials.',
             'failure_meaning' => 'The automated suite covered adapters and webhook flows, but not the real external provider path for this rollout target.',
             'remediation_hint' => 'Run a real payment-provider callback rehearsal in staging and capture the evidence before limited production.',
+            'runbook_path' => 'docs/runbooks/booking-launch-readiness.md',
+            'operator_commands' => [
+                'php artisan booking:round5-gate --json',
+                'php artisan booking:alert-check --json',
+            ],
+            'operator_notes' => [
+                'Replay one real payment-provider callback against staging credentials, confirm the webhook landed, then record the evidence under payment_provider_external_e2e.',
+            ],
         ],
         [
             'key' => 'notification_provider_external_e2e',
@@ -167,6 +192,14 @@ return [
             'pass_criteria' => 'Validate one end-to-end external notification delivery path against the target mailer/provider and capture both outbox attempt evidence and recipient confirmation.',
             'failure_meaning' => 'Outbox health and retry logic passed, but the rollout target still lacks proof that a real external notification reached the intended recipient.',
             'remediation_hint' => 'Run a staging notification delivery rehearsal against the real email provider and capture the evidence before limited production.',
+            'runbook_path' => 'docs/runbooks/notification-platform-v2.md',
+            'operator_commands' => [
+                'php artisan notifications:outbox-health --json',
+                'php artisan booking:alert-check --json',
+            ],
+            'operator_notes' => [
+                'Trigger one real Email notification against the target mailer/provider, confirm notification_outbox and notification_delivery_attempts, then record the recipient confirmation under notification_provider_external_e2e.',
+            ],
         ],
         [
             'key' => 'concurrency_rehearsal',
@@ -178,6 +211,13 @@ return [
             'pass_criteria' => 'Run a Redis/MySQL-backed multi-process rehearsal for table hold and checkout concurrency on staging.',
             'failure_meaning' => 'Single-process automated tests passed, but rollout-level race protection has not been exercised under realistic contention.',
             'remediation_hint' => 'Execute the staging concurrency drill and store the result as manual evidence before limited production.',
+            'runbook_path' => 'docs/runbooks/booking-performance-verification.md',
+            'operator_commands' => [
+                'php artisan booking:performance-verify --profile=staging --run --base-url=<base-url> --scenario=reservation_create_race --scenario=checkout_preview_load',
+            ],
+            'operator_notes' => [
+                'Run the probe while Redis/MySQL contention is injected on staging, archive the report, then record the result under concurrency_rehearsal.',
+            ],
         ],
     ],
     'automation_gaps' => [

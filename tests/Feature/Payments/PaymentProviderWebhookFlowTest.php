@@ -20,6 +20,8 @@ class PaymentProviderWebhookFlowTest extends TestCase
     use BuildsBookingScenario;
     use DatabaseTransactions;
 
+    private const SIMULATED_WEBHOOK_SECRET = 'simulated-webhook-secret';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -33,7 +35,8 @@ class PaymentProviderWebhookFlowTest extends TestCase
         config()->set('booking.realtime.cache_store', 'array');
         config()->set('booking.realtime.recent_event_limit', 50);
         config()->set('booking.realtime.poll_hint_ms', 1500);
-        config()->set('booking.payment_providers.providers.simulated.webhook_secret', 'simulated-webhook-secret');
+        config()->set('booking.payment_providers.providers.simulated.webhook_secret', self::SIMULATED_WEBHOOK_SECRET);
+        config()->set('booking.payment_providers.providers.simulated.webhook.secret', self::SIMULATED_WEBHOOK_SECRET);
         config()->set('booking.payment_providers.providers.simulated.enforce_signature', true);
         app('cache')->forgetDriver('redis');
         Cache::store('redis')->getStore()->flush();
@@ -178,7 +181,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'simulation_outcome' => 'succeeded',
         ];
         $body = json_encode($payload, JSON_THROW_ON_ERROR);
-        $signature = hash_hmac('sha256', $body, 'simulated-webhook-secret');
+        $signature = hash_hmac('sha256', $body, self::SIMULATED_WEBHOOK_SECRET);
 
         DB::table('payment_provider_webhook_receipts')->insert([
             'provider_code' => 'simulated',
@@ -255,7 +258,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'simulation_outcome' => 'succeeded',
         ];
         $body = json_encode($payload, JSON_THROW_ON_ERROR);
-        $signature = hash_hmac('sha256', $body, 'simulated-webhook-secret');
+        $signature = hash_hmac('sha256', $body, self::SIMULATED_WEBHOOK_SECRET);
 
         $this->postJson('/api/v1/payments/providers/simulated/webhooks', $payload, $this->webhookHeaders($payload))
             ->assertStatus(202)
@@ -927,7 +930,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
         return [
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
-            'X-Payment-Signature' => hash_hmac('sha256', $body, 'simulated-webhook-secret'),
+            'X-Payment-Signature' => hash_hmac('sha256', $body, self::SIMULATED_WEBHOOK_SECRET),
         ];
     }
 

@@ -124,7 +124,68 @@ Neu lenh tren pass, ban khong can chay lai moi ngay.
 
 Moi lan mo project de dev/test local, chi can 1 lenh bat runtime backend va 1 tien trinh tuy chon cho frontend.
 
-### 4.0. One-liner runtime
+### 4.0. One-liner dev
+
+Neu chi can backend Laravel nhu luong ban vua chay thu cong:
+
+```cmd
+npm run dev:be
+```
+
+Lenh nay thay cho:
+
+```cmd
+powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-redis.ps1
+composer bootstrap:booking
+php artisan booking:uat-pack:bootstrap --base-url=http://127.0.0.1:8000 --manifest-path=storage/app/uat/scenario-pack.json
+php artisan serve --host=127.0.0.1 --port=8000
+```
+
+Lenh nay cung refresh demo login pack de hai tai khoan `uat.customer.primary` va `uat.staff` dung password `UatDemo!123` khop voi DB vua bootstrap. Neu chi muon bootstrap backend ma khong seed demo login pack, chay:
+
+```cmd
+npm run dev:be -- -SkipUatPack
+```
+
+Neu ban da tu quan ly Redis rieng va khong muon script bat repo-local Redis, chay:
+
+```cmd
+npm run dev:be -- -SkipRedis
+```
+
+Neu muon chay backend va ca 2 frontend trong cung mot terminal:
+
+```cmd
+npm run dev:all
+```
+
+Mac dinh:
+
+- backend: `http://127.0.0.1:8000`
+- customer-web: `http://127.0.0.1:3000`
+- staff-web: `http://127.0.0.1:5173`
+
+Dung `Ctrl+C` de dung ca nhom process.
+
+Ngay sau khi `npm run dev:all` len xong, prove lane bang:
+
+```cmd
+npm run dev:smoke
+```
+
+`npm run dev:smoke` chi pass khi:
+
+- manifest `storage\app\uat\scenario-pack.json` ton tai
+- backend `127.0.0.1:8000` dang nghe
+- customer-web `127.0.0.1:3000` dang nghe
+- staff-web `127.0.0.1:5173` dang nghe
+- customer va staff demo login trong UAT pack dang dung
+
+Neu `dev:smoke` fail vi port chua len, doi startup xong roi chay lai. Neu fail vi manifest, refresh pack bang `npm run dev:all` hoac script UAT ben duoi.
+
+Luu y: `npm run dev:all` + `npm run dev:smoke` la lane dev/UI va live-E2E. Neu ban can `booking:doctor`, scheduler heartbeat, hoac outbox readiness thi van phai dung lane `npm run runtime:up` + `npm run runtime:preflight` o muc ben duoi.
+
+### 4.1. One-liner runtime
 
 ```cmd
 npm run runtime:up
@@ -146,7 +207,7 @@ npm run runtime:down
 
 Neu can debug tung process rieng le, dung fallback thu cong ben duoi.
 
-### 4.1. Manual fallback theo tung process
+### 4.2. Manual fallback theo tung process
 
 Chocolatey package Redis tren may Windows nay khong tu tao service. Khong chay truc tiep config mac dinh trong `C:\ProgramData\chocolatey\lib\redis\tools` vi thu muc do co the chi doc voi user thuong, lam Redis tu bao `MISCONF` sau khi RDB snapshot fail.
 
@@ -323,6 +384,31 @@ Script nay ton tai that trong repo:
 
 Lop nay moi dung app dang chay that, redis that, scheduler that.
 
+#### 6.3.0. Canonical UAT pack cho customer-web live proof
+
+Manifest UAT chuan cho local lane nam tai:
+
+```text
+storage\app\uat\scenario-pack.json
+```
+
+Refresh pack thu cong:
+
+```cmd
+powershell -ExecutionPolicy Bypass -File scripts\uat\Bootstrap-UatPack.ps1 -BaseUrl http://127.0.0.1:8000
+```
+
+Reset pack va seeded UAT data khi can lam sach:
+
+```cmd
+powershell -ExecutionPolicy Bypass -File scripts\uat\Reset-UatPack.ps1
+```
+
+Sau khi reset, phai bootstrap pack lai truoc khi chay:
+
+- `npm run dev:smoke`
+- `cd customer-web && npm run verify:release:live`
+
 #### 6.3.1. UAT-0: xac nhan runtime
 
 ```cmd
@@ -446,6 +532,37 @@ php artisan booking:deploy-check --mode=preflight --strict
 php artisan booking:release-manifest --verify-frozen --json
 php artisan test
 ```
+
+Neu ban muon prove customer-web theo lane release:
+
+```cmd
+cd customer-web
+npm run verify:release
+```
+
+Lenh nay la CI-safe. No prove lint, typecheck, Vitest, production build, va Playwright smoke mock-backed.
+
+Neu ban muon prove live dung runtime that:
+
+```cmd
+cd customer-web
+set NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+set CUSTOMER_WEB_LIVE_APP_HOST=127.0.0.1
+set CUSTOMER_WEB_LIVE_APP_PORT=3000
+set CUSTOMER_WEB_LIVE_IDENTIFIER=uat.customer.primary
+set CUSTOMER_WEB_LIVE_PASSWORD=UatDemo!123
+npm run verify:release:live
+```
+
+Lenh nay khong CI-safe. No se fail ro neu:
+
+- thieu env live
+- thieu hoac vo `storage\app\uat\scenario-pack.json`
+- backend `127.0.0.1:8000` khong len
+- customer-web `127.0.0.1:3000` khong len
+- `NEXT_PUBLIC_ENABLE_DEV_MOCKS=true`
+
+Dung `npm run verify:release` khi ban can lane release an toan cho CI. Chi dung `npm run verify:release:live` khi muon prove live runtime that.
 
 ## 7. Viec can lam sau khi pull code moi
 

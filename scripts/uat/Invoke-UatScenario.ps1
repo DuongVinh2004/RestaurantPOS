@@ -205,15 +205,25 @@ function Invoke-DepositSelfPayScenario {
     }) -Body @{
         row_version = [int]$reservation.row_version
     }
+    $ackReservationRowVersion = if ($null -ne $ack.data.reservation -and $null -ne $ack.data.reservation.row_version) {
+        [int]$ack.data.reservation.row_version
+    } else {
+        [int]$ack.data.row_version
+    }
     $intent = Invoke-UatApi -Method 'POST' -Path ("/api/v1/reservations/{0}/deposit/intent" -f $scenario.reservation_id) -Headers (Merge-Headers $headers @{
         'Idempotency-Key' = New-UatIdempotencyKey 'uat-deposit-intent'
     }) -Body @{
-        row_version = [int]$ack.data.row_version
+        row_version = $ackReservationRowVersion
+    }
+    $intentReservationRowVersion = if ($null -ne $intent.data.reservation -and $null -ne $intent.data.reservation.row_version) {
+        [int]$intent.data.reservation.row_version
+    } else {
+        [int]$intent.data.row_version
     }
     $session = Invoke-UatApi -Method 'POST' -Path ("/api/v1/reservations/{0}/deposit/payment-sessions" -f $scenario.reservation_id) -Headers (Merge-Headers $headers @{
         'Idempotency-Key' = New-UatIdempotencyKey 'uat-deposit-session-create'
     }) -Body @{
-        row_version = [int]$intent.data.row_version
+        row_version = $intentReservationRowVersion
         amount = [decimal]$scenario.payment_amount
         provider_code = $scenario.provider_code
         currency = $script:Manifest.branch.currency
@@ -242,6 +252,7 @@ function Invoke-DineInCheckoutScenario {
     $reservation = $script:Manifest.reservations.dine_in_checkin
     $staffHeaders = Get-StaffHeaders -ActorKey 'staff'
     $customerHeaders = Get-CustomerHeaders -ActorKey 'customer_primary' -SessionLabel 'uat-dine-in-checkout'
+    $branchId = [int]$script:Manifest.branch.branch_id
     $checkedInAt = [DateTime]::UtcNow.ToString('o')
 
     $checkIn = Invoke-UatApi -Method 'POST' -Path ("/api/v1/staff/reservations/{0}/check-in" -f $scenario.reservation_id) -Headers (Merge-Headers $staffHeaders @{
@@ -286,6 +297,41 @@ function Invoke-DineInCheckoutScenario {
     }
     $billPreview = Invoke-UatApi -Method 'GET' -Path ("/api/v1/reservations/{0}/bill-preview" -f $scenario.reservation_id) -Headers $customerHeaders
     $orderShow = Invoke-UatApi -Method 'GET' -Path ("/api/v1/staff/orders/{0}" -f $createOrder.data.order_id) -Headers $staffHeaders
+    $cashierShift = $null
+    try {
+        $cashierShift = Invoke-UatApi -Method 'GET' -Path ("/api/v1/staff/cashier/shifts/current?branch_id={0}" -f $branchId) -Headers $staffHeaders
+    } catch {
+        $detail = $_.Exception.Message
+        if ($detail -notmatch '"error_code":"not_found"' -and $detail -notmatch '\(404\)') {
+            throw
+        }
+    }
+
+    if ($null -eq $cashierShift) {
+        $cashierShift = Invoke-UatApi -Method 'POST' -Path '/api/v1/staff/cashier/shifts/open' -Headers (Merge-Headers $staffHeaders @{
+            'Idempotency-Key' = New-UatIdempotencyKey 'uat-cashier-open'
+        }) -Body @{
+            branch_id = $branchId
+            opening_float_amount = '100000.00'
+            currency = $script:Manifest.branch.currency
+            terminal_code = 'UAT-POS-01'
+            notes = 'UAT dine-in checkout scenario shift'
+        }
+    }
+
+    $cashierShiftId = if ($null -ne $cashierShift.data.cashier_shift_id) {
+        [int]$cashierShift.data.cashier_shift_id
+    } elseif ($null -ne $cashierShift.data.shift -and $null -ne $cashierShift.data.shift.cashier_shift_id) {
+        [int]$cashierShift.data.shift.cashier_shift_id
+    } else {
+        0
+    }
+
+    $finalizeRowVersion = if ($null -ne $orderShow.data.order -and $null -ne $orderShow.data.order.row_version) {
+        [int]$orderShow.data.order.row_version
+    } else {
+        [int]$orderShow.data.row_version
+    }
     $finalize = Invoke-UatApi -Method 'POST' -Path ("/api/v1/staff/orders/{0}/settlement/finalize" -f $createOrder.data.order_id) -Headers (Merge-Headers $staffHeaders @{
         'Idempotency-Key' = New-UatIdempotencyKey 'uat-settlement-finalize'
     }) -Body @{
@@ -294,7 +340,7 @@ function Invoke-DineInCheckoutScenario {
         paid_amount = [decimal]$billPreview.data.bill_preview.outstanding_amount
         currency = $script:Manifest.branch.currency
         transaction_code = New-UatIdempotencyKey 'uat-final-payment'
-        row_version = [int]$orderShow.data.row_version
+        row_version = $finalizeRowVersion
     }
 
     return [pscustomobject]@{
@@ -302,11 +348,16 @@ function Invoke-DineInCheckoutScenario {
         reservation_id = [int]$scenario.reservation_id
         check_in_status = $checkIn.data.status
         order_id = [int]$createOrder.data.order_id
+        cashier_shift_id = $cashierShiftId
         active_order_total_due = $activeOrder.data.active_order.totals.total_due
         bill_snapshot_action = $billSnapshot.meta.action
         bill_preview_due = $billPreview.data.bill_preview.total_due_amount
         final_payment_status = $finalize.data.payment_status
-        final_reservation_status = $finalize.data.status
+        final_reservation_status = if (-not [string]::IsNullOrWhiteSpace([string]$finalize.data.reservation_status)) {
+            $finalize.data.reservation_status
+        } else {
+            $finalize.data.status
+        }
     }
 }
 
@@ -373,7 +424,7 @@ function Invoke-RefundCancelScenario {
 
 function Invoke-WaitingListLifecycleScenario {
     $scenario = $script:Manifest.scenarios.waiting_list_lifecycle
-    $customerHeaders = Get-CustomerHeaders -ActorKey 'customer_secondary' -SessionLabel 'uat-waiting-list'
+    $customerHeaders = Get-CustomerHeaders -ActorKey 'customer_primary' -SessionLabel 'uat-waiting-list'
     $staffHeaders = Get-StaffHeaders -ActorKey 'staff'
 
     $create = Invoke-UatApi -Method 'POST' -Path '/api/v1/waiting-list' -Headers (Merge-Headers $customerHeaders @{
@@ -547,7 +598,7 @@ if (-not (Test-Path -LiteralPath $resolvedManifestPath)) {
     throw "Manifest file [$resolvedManifestPath] was not found. Run scripts/uat/Bootstrap-UatPack.ps1 first."
 }
 
-$script:Manifest = Get-Content -LiteralPath $resolvedManifestPath -Raw | ConvertFrom-Json -Depth 100
+$script:Manifest = Get-Content -LiteralPath $resolvedManifestPath -Raw | ConvertFrom-Json
 $script:ResolvedBaseUrl = if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
     $script:Manifest.pack.base_url
 } else {

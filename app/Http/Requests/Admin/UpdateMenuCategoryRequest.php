@@ -16,7 +16,7 @@ class UpdateMenuCategoryRequest extends FormRequest
 
     public function rules(): array
     {
-        $categoryId = (int) $this->route('category_id');
+        $categoryId = (int) ($this->route('category_id') ?? $this->route('id'));
 
         return [
             'name' => ['required', 'string', 'max:150', Rule::unique('menu_categories', 'name')->ignore($categoryId, 'category_id')],

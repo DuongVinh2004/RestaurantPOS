@@ -103,6 +103,8 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertStringContainsString('this.fetchImpl = providedFetch === globalThis.fetch', $sdk);
         self::assertStringContainsString('routeSupportsCustomerSession: boolean,', $sdk);
         self::assertStringContainsString('this.applyAuthHeaders(headers, authMode, options.authMode ?? \'auto\', routeSupportsCustomerSession);', $sdk);
+        self::assertStringContainsString('url.searchParams.set(key, this.serializeQueryParam(value));', $sdk);
+        self::assertStringContainsString("return value ? '1' : '0';", $sdk);
         self::assertStringContainsString('this.applyCustomerHeaders(headers, customerToken, customerSessionId, routeSupportsCustomerSession);', $sdk);
         self::assertStringContainsString('if (routeSupportsCustomerSession && customerSessionId)', $sdk);
         self::assertStringContainsString('postV1AuthCustomerLogin', $sdk);
@@ -347,9 +349,15 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         /** @var array<string,mixed> $firstPayload */
         $firstPayload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
 
-        $firstCollectionHash = hash_file('sha256', base_path((string) ($firstPayload['artifacts']['collection'] ?? '')));
+        $collectionPath = base_path((string) ($firstPayload['artifacts']['collection'] ?? ''));
+        $firstCollectionHash = hash_file('sha256', $collectionPath);
         $firstLocalEnvironmentHash = hash_file('sha256', base_path((string) ($firstPayload['artifacts']['local_environment'] ?? '')));
         $firstStagingEnvironmentHash = hash_file('sha256', base_path((string) ($firstPayload['artifacts']['staging_environment'] ?? '')));
+
+        $staleTimestamp = time() - 3600;
+        touch($collectionPath, $staleTimestamp);
+        clearstatcache(true, $collectionPath);
+        self::assertSame($staleTimestamp, File::lastModified($collectionPath));
 
         $secondExitCode = Artisan::call('booking:api-artifacts:generate', [
             '--json' => true,
@@ -364,6 +372,9 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertSame($firstCollectionHash, hash_file('sha256', base_path((string) ($secondPayload['artifacts']['collection'] ?? ''))));
         self::assertSame($firstLocalEnvironmentHash, hash_file('sha256', base_path((string) ($secondPayload['artifacts']['local_environment'] ?? ''))));
         self::assertSame($firstStagingEnvironmentHash, hash_file('sha256', base_path((string) ($secondPayload['artifacts']['staging_environment'] ?? ''))));
+
+        clearstatcache(true, $collectionPath);
+        self::assertGreaterThan($staleTimestamp, File::lastModified($collectionPath));
     }
 
     /**

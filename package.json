@@ -6,6 +6,7 @@
         "encoding:check": "node scripts/ui-text-encoding-guard.mjs",
         "encoding:fix": "node scripts/ui-text-encoding-guard.mjs --write",
         "verify:package": "node scripts/release/check-package-integrity.mjs",
+        "verify:package:test": "node --test scripts/release/check-package-integrity.test.mjs",
         "mysql:local": "powershell -ExecutionPolicy Bypass -File scripts/ops/start-local-mysql.ps1",
         "mysql:local:restart": "powershell -ExecutionPolicy Bypass -File scripts/ops/start-local-mysql.ps1 -Restart",
         "mysql:local:stop": "powershell -ExecutionPolicy Bypass -File scripts/ops/start-local-mysql.ps1 -Stop",
@@ -13,6 +14,9 @@
         "runtime:down": "powershell -ExecutionPolicy Bypass -File scripts/ops/local-runtime.ps1 -Action down",
         "runtime:restart": "powershell -ExecutionPolicy Bypass -File scripts/ops/local-runtime.ps1 -Action restart",
         "runtime:preflight": "node scripts/ops/local-runtime-preflight.mjs",
+        "dev:be": "powershell -ExecutionPolicy Bypass -File scripts/ops/dev-backend.ps1",
+        "dev:all": "powershell -ExecutionPolicy Bypass -File scripts/ops/dev-all.ps1",
+        "dev:smoke": "node scripts/ops/dev-smoke.mjs",
         "build": "node scripts/ui-text-encoding-guard.mjs && vite build",
         "dev": "vite"
     },

@@ -121,4 +121,60 @@ class BookingPackageReleaseCommandTest extends TestCase
         $this->assertStringContainsString('booking:package-release failed.', $output);
         $this->assertStringContainsString('Frozen release manifest snapshot verification failed with status [stale].', $output);
     }
+
+    public function test_booking_package_release_displays_package_sidecars_in_table_mode(): void
+    {
+        $service = new class extends ReleasePackageService
+        {
+            public function __construct() {}
+
+            public function package(?string $packageId = null, bool $verifyFrozen = false, bool $overwrite = false): array
+            {
+                return [
+                    'ok' => true,
+                    'status' => 'ok',
+                    'package_id' => 'manual-test',
+                    'package_basename' => 'restaurantpos-backend-release-manual-test',
+                    'package_path' => 'build/booking-release/restaurantpos-backend-release-manual-test.tar.gz',
+                    'package_exists' => true,
+                    'package_sha256' => str_repeat('a', 64),
+                    'output_root' => 'build/booking-release',
+                    'stage_path' => 'build/booking-release/stage/restaurantpos-backend-release-manual-test',
+                    'include_roots' => [],
+                    'skipped_optional_paths' => [],
+                    'sidecars' => [
+                        'metadata_path' => 'build/booking-release/pkg.metadata.json',
+                        'inventory_path' => 'build/booking-release/pkg.inventory.json',
+                        'checksums_path' => 'build/booking-release/pkg.checksums.sha256',
+                        'package_sha256_path' => 'build/booking-release/pkg.package.sha256',
+                        'latest_pointer_path' => 'build/booking-release/latest-package.json',
+                    ],
+                    'inventory' => [
+                        'file_count' => 5,
+                        'total_bytes' => 1234,
+                    ],
+                    'release_manifest' => [
+                        'status' => 'ok',
+                        'snapshot_path' => 'storage/app/booking_release/release_manifest_snapshot.json',
+                        'definition_sha256' => str_repeat('b', 64),
+                        'frozen_snapshot' => [
+                            'status' => 'ok',
+                            'path' => 'storage/app/booking_release/release_manifest_snapshot.json',
+                        ],
+                    ],
+                    'issues' => [],
+                    'warnings' => [],
+                ];
+            }
+        };
+        $this->app->instance(ReleasePackageService::class, $service);
+
+        $exitCode = Artisan::call('booking:package-release', ['--verify-frozen' => true]);
+        $output = Artisan::output();
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('restaurantpos-backend-release-manual-test', $output);
+        $this->assertStringContainsString('build/booking-release/pkg.metadata.json', $output);
+        $this->assertStringContainsString('build/booking-release/latest-package.json', $output);
+    }
 }

@@ -1,6 +1,7 @@
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import process from 'node:process';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const REQUIREMENT_GROUPS = {
@@ -23,6 +24,8 @@ const GROUP_ORDER = [
   'required_for_build_test_smoke',
   'useful_for_handover',
 ];
+
+const RELEASE_MANIFEST_SNAPSHOT_PATH = 'storage/app/booking_release/release_manifest_snapshot.json';
 
 const BACKEND_REQUIREMENTS = [
   { scope: 'backend', group: 'required_to_run', type: 'file', path: 'composer.json', label: 'backend root composer manifest' },
@@ -52,22 +55,41 @@ const STAFF_WEB_REQUIREMENTS = [
   { scope: 'staff-web', group: 'required_for_build_test_smoke', type: 'file', path: 'staff-web/src/shared/api/sdk.ts', label: 'staff-web shared SDK adapter' },
 ];
 
+const CUSTOMER_WEB_REQUIREMENTS = [
+  { scope: 'customer-web', group: 'required_to_run', type: 'file', path: 'customer-web/package.json', label: 'customer-web package manifest' },
+  { scope: 'customer-web', group: 'required_to_run', type: 'file', path: 'customer-web/next.config.ts', label: 'customer-web Next.js config' },
+  { scope: 'customer-web', group: 'required_to_run', type: 'directory', path: 'customer-web/src/app', label: 'customer-web App Router entrypoint' },
+  { scope: 'customer-web', group: 'required_for_build_test_smoke', type: 'file', path: 'customer-web/tsconfig.json', label: 'customer-web TypeScript config' },
+  { scope: 'customer-web', group: 'required_for_build_test_smoke', type: 'file', path: 'customer-web/vitest.config.ts', label: 'customer-web Vitest config' },
+  { scope: 'customer-web', group: 'required_for_build_test_smoke', type: 'file', path: 'customer-web/playwright.config.ts', label: 'customer-web Playwright smoke config' },
+  { scope: 'customer-web', group: 'required_for_build_test_smoke', type: 'file', path: 'customer-web/playwright.live.config.ts', label: 'customer-web Playwright live config' },
+  { scope: 'customer-web', group: 'required_for_build_test_smoke', type: 'directory', path: 'customer-web/e2e', label: 'customer-web Playwright specs' },
+  { scope: 'customer-web', group: 'required_for_build_test_smoke', type: 'file', path: 'customer-web/scripts/check-contract-governance.mjs', label: 'customer-web contract governance check' },
+  { scope: 'customer-web', group: 'required_for_build_test_smoke', type: 'file', path: 'customer-web/scripts/verify-live-runtime.mjs', label: 'customer-web live runtime preflight' },
+  { scope: 'customer-web', group: 'required_for_build_test_smoke', type: 'file', path: 'customer-web/src/lib/contracts/generated/restaurantpos-sdk.ts', label: 'customer-web copied generated SDK' },
+  { scope: 'customer-web', group: 'required_for_build_test_smoke', type: 'file', path: 'customer-web/src/lib/contracts/generated/restaurantpos-enums.ts', label: 'customer-web copied generated enums' },
+];
+
 const ARTIFACT_REQUIREMENTS = [
   { scope: 'artifacts', group: 'required_for_build_test_smoke', type: 'directory', path: 'build/api-consumer', label: 'generated API consumer artifact root' },
   { scope: 'artifacts', group: 'required_for_build_test_smoke', type: 'file', path: 'build/api-consumer/sdk/typescript/restaurantpos-sdk.ts', label: 'generated TypeScript SDK' },
   { scope: 'artifacts', group: 'required_for_build_test_smoke', type: 'file', path: 'build/api-consumer/sdk/typescript/restaurantpos-enums.ts', label: 'generated TypeScript enums' },
   { scope: 'artifacts', group: 'required_for_build_test_smoke', type: 'file', path: 'build/api-consumer/mutation-contracts.md', label: 'generated mutation contract artifact' },
   { scope: 'artifacts', group: 'required_for_build_test_smoke', type: 'file', path: 'storage/app/booking_release/openapi-v1.json', label: 'frozen OpenAPI release artifact' },
-  { scope: 'artifacts', group: 'required_for_build_test_smoke', type: 'file', path: 'storage/app/booking_release/release_manifest_snapshot.json', label: 'frozen release manifest snapshot' },
+  { scope: 'artifacts', group: 'required_for_build_test_smoke', type: 'file', path: RELEASE_MANIFEST_SNAPSHOT_PATH, label: 'frozen release manifest snapshot' },
 ];
 
 const HANDOVER_REQUIREMENTS = [
   { scope: 'handover', group: 'useful_for_handover', type: 'file', path: 'README.md', label: 'repo bootstrap overview' },
   { scope: 'handover', group: 'useful_for_handover', type: 'directory', path: 'docs/runbooks', label: 'operator runbooks directory' },
   { scope: 'handover', group: 'useful_for_handover', type: 'file', path: 'docs/runbooks/api-consumer-artifacts.md', label: 'API consumer artifact runbook' },
+  { scope: 'handover', group: 'useful_for_handover', type: 'file', path: 'docs/runbooks/booking-local-windows-vscode-cmd-runbook.md', label: 'Windows local daily-use runbook' },
   { scope: 'handover', group: 'useful_for_handover', type: 'file', path: 'docs/runbooks/booking-release-packaging-runbook.md', label: 'release packaging runbook' },
+  { scope: 'handover', group: 'useful_for_handover', type: 'file', path: 'customer-web/.env.example', label: 'customer-web environment template' },
+  { scope: 'handover', group: 'useful_for_handover', type: 'file', path: 'customer-web/README.md', label: 'customer-web setup runbook' },
   { scope: 'handover', group: 'useful_for_handover', type: 'file', path: 'staff-web/.env.example', label: 'staff-web environment template' },
   { scope: 'handover', group: 'useful_for_handover', type: 'file', path: 'staff-web/STAFF_WEB_SETUP.md', label: 'staff-web setup runbook' },
+  { scope: 'handover', group: 'useful_for_handover', type: 'file', path: 'staff-web/README.md', label: 'staff-web setup runbook' },
   { scope: 'handover', group: 'useful_for_handover', type: 'file', path: 'build/api-consumer/sdk/typescript/README.md', label: 'generated SDK scope note' },
 ];
 
@@ -129,13 +151,15 @@ export function collectPackageIntegrityReport({ rootDir = process.cwd(), staffWe
   const resolvedRootDir = path.resolve(rootDir);
   const requirements = staffWebOnly
     ? [...STAFF_WEB_REQUIREMENTS, ...ARTIFACT_REQUIREMENTS, ...HANDOVER_REQUIREMENTS]
-    : [...BACKEND_REQUIREMENTS, ...STAFF_WEB_REQUIREMENTS, ...ARTIFACT_REQUIREMENTS, ...HANDOVER_REQUIREMENTS];
+    : [...BACKEND_REQUIREMENTS, ...STAFF_WEB_REQUIREMENTS, ...CUSTOMER_WEB_REQUIREMENTS, ...ARTIFACT_REQUIREMENTS, ...HANDOVER_REQUIREMENTS];
 
   const checks = requirements.map((requirement) => evaluateRequirement(resolvedRootDir, requirement));
   const missing = checks.filter((check) => !check.exists);
   const blockingMissing = missing.filter((check) => check.blocking);
   const advisoryMissing = missing.filter((check) => !check.blocking);
-  const freshnessChecks = FRESHNESS_RULES.map((rule) => evaluateFreshnessRule(resolvedRootDir, rule))
+  const releaseManifestSnapshot = loadReleaseManifestSnapshot(resolvedRootDir);
+  const hashCache = new Map();
+  const freshnessChecks = FRESHNESS_RULES.map((rule) => evaluateFreshnessRule(resolvedRootDir, rule, releaseManifestSnapshot, hashCache))
     .filter((check) => !check.skipped);
   const stale = freshnessChecks.filter((check) => !check.ok);
   const blockingStale = stale.filter((check) => check.blocking);
@@ -191,7 +215,7 @@ function evaluateRequirement(rootDir, requirement) {
   };
 }
 
-function evaluateFreshnessRule(rootDir, rule) {
+function evaluateFreshnessRule(rootDir, rule, releaseManifestSnapshot, hashCache) {
   const resolvedPath = path.resolve(rootDir, rule.path);
   const resolvedDependencyPath = path.resolve(rootDir, rule.depends_on);
   const targetExists = existsSync(resolvedPath);
@@ -217,6 +241,24 @@ function evaluateFreshnessRule(rootDir, rule) {
     };
   }
 
+  const snapshotFreshness = evaluateFreshnessFromSnapshot(rule, resolvedPath, resolvedDependencyPath, releaseManifestSnapshot, hashCache);
+  if (snapshotFreshness) {
+    return {
+      scope: rule.scope,
+      group: rule.group,
+      group_label: group.label,
+      blocking: group.blocking,
+      label: rule.label,
+      path: rule.path,
+      resolved_path: resolvedPath,
+      depends_on: rule.depends_on,
+      dependency_resolved_path: resolvedDependencyPath,
+      ok: snapshotFreshness.ok,
+      skipped: false,
+      failure: snapshotFreshness.failure,
+    };
+  }
+
   const targetStat = statSync(resolvedPath);
   const dependencyStat = statSync(resolvedDependencyPath);
   const ok = targetStat.mtimeMs >= dependencyStat.mtimeMs;
@@ -237,6 +279,96 @@ function evaluateFreshnessRule(rootDir, rule) {
       ? null
       : `stale generated artifact: ${rule.path} is older than ${rule.depends_on}; ${FRESHNESS_REMEDIATION}`,
   };
+}
+
+function evaluateFreshnessFromSnapshot(rule, resolvedPath, resolvedDependencyPath, releaseManifestSnapshot, hashCache) {
+  if (!releaseManifestSnapshot) {
+    return null;
+  }
+
+  const normalizedTargetPath = normalizeManifestPath(rule.path);
+  const normalizedDependencyPath = normalizeManifestPath(rule.depends_on);
+  const dependencyArtifact = releaseManifestSnapshot.artifactsByPath.get(normalizedDependencyPath);
+
+  if (normalizedTargetPath === RELEASE_MANIFEST_SNAPSHOT_PATH) {
+    if (!dependencyArtifact || typeof dependencyArtifact.sha256 !== 'string') {
+      return {
+        ok: false,
+        failure: `stale generated artifact: ${rule.path} does not record ${rule.depends_on}; ${FRESHNESS_REMEDIATION}`,
+      };
+    }
+
+    const dependencyHash = computeSha256(resolvedDependencyPath, hashCache);
+    return dependencyArtifact.sha256 === dependencyHash
+      ? { ok: true, failure: null }
+      : {
+          ok: false,
+          failure: `stale generated artifact: ${rule.path} no longer matches ${rule.depends_on}; ${FRESHNESS_REMEDIATION}`,
+        };
+  }
+
+  const targetArtifact = releaseManifestSnapshot.artifactsByPath.get(normalizedTargetPath);
+  if (!targetArtifact || !dependencyArtifact || typeof targetArtifact.sha256 !== 'string' || typeof dependencyArtifact.sha256 !== 'string') {
+    return null;
+  }
+
+  const targetHash = computeSha256(resolvedPath, hashCache);
+  const dependencyHash = computeSha256(resolvedDependencyPath, hashCache);
+  if (targetArtifact.sha256 !== targetHash || dependencyArtifact.sha256 !== dependencyHash) {
+    return null;
+  }
+
+  const targetEpoch = Number(targetArtifact.modified_epoch);
+  const dependencyEpoch = Number(dependencyArtifact.modified_epoch);
+  if (!Number.isFinite(targetEpoch) || !Number.isFinite(dependencyEpoch)) {
+    return null;
+  }
+
+  return targetEpoch >= dependencyEpoch
+    ? { ok: true, failure: null }
+    : {
+        ok: false,
+        failure: `stale generated artifact: ${rule.path} is older than ${rule.depends_on} in ${RELEASE_MANIFEST_SNAPSHOT_PATH}; ${FRESHNESS_REMEDIATION}`,
+      };
+}
+
+function loadReleaseManifestSnapshot(rootDir) {
+  const resolvedSnapshotPath = path.resolve(rootDir, RELEASE_MANIFEST_SNAPSHOT_PATH);
+  if (!existsSync(resolvedSnapshotPath)) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(readFileSync(resolvedSnapshotPath, 'utf8'));
+    const artifactsByPath = new Map();
+    for (const artifact of Object.values(payload?.artifacts ?? {})) {
+      if (!artifact || typeof artifact !== 'object' || typeof artifact.path !== 'string') {
+        continue;
+      }
+
+      artifactsByPath.set(normalizeManifestPath(artifact.path), artifact);
+    }
+
+    return {
+      artifactsByPath,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function normalizeManifestPath(value) {
+  return String(value).replace(/\\/g, '/');
+}
+
+function computeSha256(resolvedPath, hashCache) {
+  if (hashCache.has(resolvedPath)) {
+    return hashCache.get(resolvedPath);
+  }
+
+  const sha256 = createHash('sha256').update(readFileSync(resolvedPath)).digest('hex');
+  hashCache.set(resolvedPath, sha256);
+  return sha256;
 }
 
 function resolveEntryType(resolvedPath) {

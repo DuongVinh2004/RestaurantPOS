@@ -10,13 +10,13 @@ use Tests\TestCase;
 
 class RouteInventoryGateServiceTest extends TestCase
 {
-
     protected function tearDown(): void
     {
         File::delete(app_path('Http/Controllers/Api/Nested/CustomerNestedInventoryProbeController.php'));
         File::deleteDirectory(app_path('Http/Controllers/Api/Nested'));
         parent::tearDown();
     }
+
     public function test_definition_reads_canonical_route_inventory_fixture(): void
     {
         $definition = app(RouteInventoryGateService::class)->definition();
@@ -34,8 +34,10 @@ class RouteInventoryGateServiceTest extends TestCase
 
         $this->assertSame('api/v1/health', $smoke['health']['uri']);
         $this->assertSame([200, 503], $smoke['health']['allowed_statuses']);
+        $this->assertSame('api/v1/health/detailed', $smoke['health_detailed']['uri']);
+        $this->assertSame([401, 403], $smoke['health_detailed']['allowed_statuses']);
         $this->assertSame('api/v1/health/redis', $smoke['health_redis']['uri']);
-        $this->assertSame([200, 503], $smoke['health_redis']['allowed_statuses']);
+        $this->assertSame([401, 403], $smoke['health_redis']['allowed_statuses']);
         $this->assertSame('api/v1/payments/providers/simulated/webhooks', $smoke['webhook_boundary']['uri']);
         $this->assertSame([202, 401, 422], $smoke['webhook_boundary']['allowed_statuses']);
         $this->assertSame('api/v1/staff/tables/board', $smoke['staff_tables_board_auth']['uri']);
@@ -49,6 +51,14 @@ class RouteInventoryGateServiceTest extends TestCase
         $definition = app(RouteInventoryGateService::class)->definition();
         $routes = collect($definition['expected_routes'])->keyBy('key');
 
+        $this->assertSame(
+            ['App\\Http\\Middleware\\StaffApiKeyMiddleware', 'staff.capability:ops.health.view'],
+            $routes['get_v1healthdetailed']['middleware_contains'] ?? []
+        );
+        $this->assertSame(
+            ['App\\Http\\Middleware\\StaffApiKeyMiddleware', 'staff.capability:ops.health.view'],
+            $routes['health_redis']['middleware_contains'] ?? []
+        );
         $this->assertSame(
             ['App\\Http\\Middleware\\StaffApiKeyMiddleware', 'staff.capability:table.board.view'],
             $routes['staff_tables_board']['middleware_contains'] ?? []
@@ -68,7 +78,6 @@ class RouteInventoryGateServiceTest extends TestCase
         $this->assertTrue($report['checks']['expected_routes']['ok']);
         $this->assertTrue($report['checks']['public_controllers']['ok']);
     }
-
 
     public function test_public_controller_inventory_has_no_runtime_unlocked_controllers(): void
     {

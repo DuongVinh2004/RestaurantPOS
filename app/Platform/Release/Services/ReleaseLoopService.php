@@ -85,6 +85,7 @@ class ReleaseLoopService
         $summary = [
             'step_count' => count($steps),
             'pass_count' => count(array_filter($steps, static fn (array $step): bool => ($step['status'] ?? null) === 'pass')),
+            'warn_count' => count(array_filter($steps, static fn (array $step): bool => ($step['status'] ?? null) === 'warn')),
             'skip_count' => count(array_filter($steps, static fn (array $step): bool => ($step['status'] ?? null) === 'skip')),
             'fail_count' => count(array_filter($steps, static fn (array $step): bool => ($step['status'] ?? null) === 'fail')),
         ];
@@ -100,13 +101,15 @@ class ReleaseLoopService
 
         $warnings = [];
         foreach ($steps as $step) {
-            if (($step['status'] ?? null) === 'skip') {
+            if (in_array(($step['status'] ?? null), ['skip', 'warn'], true)) {
                 $warnings[] = sprintf('%s: %s', (string) ($step['label'] ?? $step['key'] ?? 'step'), (string) ($step['summary'] ?? 'skipped'));
             }
         }
         if (! (bool) ($observabilityContext['configured'] ?? false)) {
             $warnings[] = 'Observability: '.(string) ($observabilityContext['reason'] ?? 'missing configuration');
         }
+        $followUpActions = $this->buildFollowUpActions($scopeKey, $steps, $previewContext, $observabilityContext);
+        $releaseHandoff = $this->buildReleaseHandoff($steps, $previewContext, $observabilityContext);
 
         $report = [
             'ok' => $blockingFailures === [],
@@ -119,6 +122,8 @@ class ReleaseLoopService
             'steps' => $steps,
             'blocking_failures' => $blockingFailures,
             'warnings' => $warnings,
+            'follow_up_actions' => $followUpActions,
+            'release_handoff' => $releaseHandoff,
             'preview' => [
                 'label' => $resolvedPreviewLabel,
                 'url' => $resolvedPreviewUrl,
@@ -377,10 +382,12 @@ class ReleaseLoopService
             }
         }
 
+        $status = $this->determineStepStatus($decodedJson, $process, $timedOut);
+
         return [
             'key' => $key,
             'label' => $label,
-            'status' => $timedOut ? 'fail' : ($process->isSuccessful() ? 'pass' : 'fail'),
+            'status' => $status,
             'exit_code' => $timedOut ? ($process->getExitCode() ?? 124) : $process->getExitCode(),
             'command' => $this->displayCommand($definition['command'] ?? []),
             'cwd' => $this->relativePath($cwd),
@@ -606,6 +613,8 @@ class ReleaseLoopService
 
         if ($skipPreview) {
             return [
+                'label' => $previewLabel,
+                'preview_url' => $previewUrl,
                 'provider' => $previewProvider,
                 'status' => 'skipped',
                 'available' => $available,
@@ -617,6 +626,8 @@ class ReleaseLoopService
 
         if ($previewUrl !== null) {
             return [
+                'label' => $previewLabel,
+                'preview_url' => $previewUrl,
                 'provider' => $previewProvider,
                 'status' => 'url-recorded',
                 'available' => true,
@@ -628,6 +639,8 @@ class ReleaseLoopService
 
         if ($previewCommand !== null) {
             return [
+                'label' => $previewLabel,
+                'preview_url' => $previewUrl,
                 'provider' => $previewProvider,
                 'status' => $linkedProjectDetected ? 'command-configured' : 'command-configured-unlinked',
                 'available' => true,
@@ -641,6 +654,8 @@ class ReleaseLoopService
 
         if ($linkedProjectDetected) {
             return [
+                'label' => $previewLabel,
+                'preview_url' => $previewUrl,
                 'provider' => $previewProvider,
                 'status' => 'linked-project-detected',
                 'available' => true,
@@ -651,6 +666,8 @@ class ReleaseLoopService
         }
 
         return [
+            'label' => $previewLabel,
+            'preview_url' => $previewUrl,
             'provider' => $previewProvider,
             'status' => 'unconfigured',
             'available' => false,
@@ -799,6 +816,11 @@ class ReleaseLoopService
                 return 'decision='.$decision;
             }
 
+            $warningSummary = $this->warningOnlySummary($decodedJson);
+            if ($warningSummary !== null) {
+                return $warningSummary;
+            }
+
             if (array_key_exists('ok', $decodedJson)) {
                 return 'ok='.(($decodedJson['ok'] ?? false) ? 'true' : 'false');
             }
@@ -820,6 +842,80 @@ class ReleaseLoopService
         }
 
         return sprintf('exit_code=%d', (int) $exitCode);
+    }
+
+    private function determineStepStatus(?array $decodedJson, Process $process, bool $timedOut): string
+    {
+        if ($timedOut) {
+            return 'fail';
+        }
+
+        if ($process->isSuccessful()) {
+            return 'pass';
+        }
+
+        if (is_array($decodedJson) && $this->isWarningOnlyResult($decodedJson)) {
+            return 'warn';
+        }
+
+        return 'fail';
+    }
+
+    /**
+     * @param  array<string, mixed>  $decodedJson
+     */
+    private function isWarningOnlyResult(array $decodedJson): bool
+    {
+        $decision = Str::lower(trim((string) ($decodedJson['decision'] ?? data_get($decodedJson, 'readiness.decision', ''))));
+        if (in_array($decision, ['ready_with_warnings', 'warn', 'warning'], true)) {
+            return true;
+        }
+
+        $exitCode = $decodedJson['exit_code'] ?? null;
+        if (is_numeric($exitCode) && (int) $exitCode === 2) {
+            return true;
+        }
+
+        $reportOk = data_get($decodedJson, 'report.ok');
+        $reportErrors = array_values(array_filter(array_map(
+            static fn (mixed $value): string => is_string($value) ? trim($value) : '',
+            (array) data_get($decodedJson, 'report.errors', []),
+        ), static fn (string $value): bool => $value !== ''));
+        $reportWarnings = array_values(array_filter(array_map(
+            static fn (mixed $value): string => is_string($value) ? trim($value) : '',
+            (array) data_get($decodedJson, 'report.warnings', []),
+        ), static fn (string $value): bool => $value !== ''));
+
+        return ($decodedJson['ok'] ?? null) === false
+            && $reportOk === true
+            && $reportErrors === []
+            && $reportWarnings !== [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $decodedJson
+     */
+    private function warningOnlySummary(array $decodedJson): ?string
+    {
+        if (! $this->isWarningOnlyResult($decodedJson)) {
+            return null;
+        }
+
+        $reportWarnings = array_values(array_filter(array_map(
+            static fn (mixed $value): string => is_string($value) ? trim($value) : '',
+            (array) data_get($decodedJson, 'report.warnings', []),
+        ), static fn (string $value): bool => $value !== ''));
+
+        if ($reportWarnings !== []) {
+            return $reportWarnings[0];
+        }
+
+        $exitCode = $decodedJson['exit_code'] ?? null;
+        if (is_numeric($exitCode)) {
+            return 'exit_code='.(string) ((int) $exitCode);
+        }
+
+        return 'warning-only result';
     }
 
     private function environmentValue(string $key): ?string
@@ -873,6 +969,166 @@ class ReleaseLoopService
             $label,
             (int) ceil($exception->getExceededTimeout())
         );
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $steps
+     * @param  array<string, mixed>  $previewContext
+     * @param  array<string, mixed>  $observabilityContext
+     * @return list<array<string, mixed>>
+     */
+    private function buildFollowUpActions(
+        string $target,
+        array $steps,
+        array $previewContext,
+        array $observabilityContext,
+    ): array {
+        $actions = [];
+        $launchReadiness = $this->launchReadinessPayload($steps);
+
+        foreach ((array) ($launchReadiness['follow_up_actions'] ?? []) as $action) {
+            if (is_array($action)) {
+                $actions[] = $action;
+            }
+        }
+
+        $previewStatus = (string) ($previewContext['status'] ?? '');
+        if (! in_array($previewStatus, ['url-recorded', 'command-configured'], true)) {
+            $actions[] = [
+                'kind' => 'preview_proof',
+                'label' => 'Record preview deployment proof',
+                'reason' => (string) ($previewContext['reason'] ?? 'Preview deployment proof is still missing.'),
+                'runbook_path' => 'docs/runbooks/booking-launch-readiness.md',
+                'commands' => [
+                    sprintf(
+                        'php artisan booking:release-loop --target=%s --preview-url=<preview-url> --preview-label=vercel-preview --json',
+                        $target
+                    ),
+                ],
+                'notes' => [
+                    'Provide the real preview URL or an explicit preview command so the release-loop artifact can archive preview proof together with the backend and staff-web evidence.',
+                ],
+            ];
+        }
+
+        if (! (bool) ($observabilityContext['configured'] ?? false)) {
+            $missingEnv = array_values(array_filter(array_map(
+                static fn (mixed $value): string => is_string($value) ? trim($value) : '',
+                (array) ($observabilityContext['missing_env'] ?? []),
+            ), static fn (string $value): bool => $value !== ''));
+
+            $actions[] = [
+                'kind' => 'observability',
+                'label' => 'Provide Sentry release/runtime evidence context',
+                'reason' => (string) ($observabilityContext['reason'] ?? 'Observability configuration is incomplete.'),
+                'runbook_path' => 'docs/runbooks/booking-ci-cd-runbook.md',
+                'commands' => [
+                    sprintf('php artisan booking:release-loop --target=%s --json', $target),
+                ],
+                'notes' => [
+                    $missingEnv !== []
+                        ? 'Set the missing env vars before rerunning: '.implode(', ', $missingEnv).'.'
+                        : 'Populate the required Sentry environment before rerunning the release loop.',
+                ],
+            ];
+        }
+
+        return $actions;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $steps
+     * @param  array<string, mixed>  $previewContext
+     * @param  array<string, mixed>  $observabilityContext
+     * @return array<string, mixed>
+     */
+    private function buildReleaseHandoff(
+        array $steps,
+        array $previewContext,
+        array $observabilityContext,
+    ): array {
+        $launchReadiness = $this->launchReadinessPayload($steps);
+        $handoff = is_array($launchReadiness)
+            ? (array) ($launchReadiness['release_handoff'] ?? [])
+            : [];
+        $archivePaths = array_values(array_unique(array_filter(array_map(
+            static fn (mixed $value): string => is_string($value) ? trim($value) : '',
+            array_merge(
+                (array) ($handoff['archive_paths'] ?? []),
+                array_values(array_filter([
+                    data_get($launchReadiness, 'artifacts.json_path'),
+                    data_get($launchReadiness, 'artifacts.markdown_path'),
+                ], static fn (mixed $value): bool => is_string($value) && trim($value) !== ''))
+            )
+        ), static fn (string $value): bool => $value !== '')));
+
+        $promotionBlockers = [];
+        if (! in_array((string) ($previewContext['status'] ?? ''), ['url-recorded', 'command-configured'], true)) {
+            $promotionBlockers[] = (string) ($previewContext['reason'] ?? 'Preview deployment proof is still missing.');
+        }
+        if (! (bool) ($observabilityContext['configured'] ?? false)) {
+            $promotionBlockers[] = (string) ($observabilityContext['reason'] ?? 'Observability configuration is incomplete.');
+        }
+
+        $promotionNotes = array_values(array_filter(array_map(
+            static fn (mixed $value): string => is_string($value) ? trim($value) : '',
+            array_merge(
+                (array) ($handoff['promotion_notes'] ?? []),
+                ['Archive the release-loop JSON/Markdown artifacts from the current run together with the candidate package and launch-readiness report.']
+            )
+        ), static fn (string $value): bool => $value !== ''));
+
+        return [
+            'candidate' => (array) ($handoff['candidate'] ?? []),
+            'manual_evidence' => (array) ($handoff['manual_evidence'] ?? []),
+            'launch_readiness' => [
+                'decision' => is_array($launchReadiness) ? (string) ($launchReadiness['decision'] ?? 'unknown') : 'unavailable',
+                'json_path' => is_array($launchReadiness) ? trim((string) data_get($launchReadiness, 'artifacts.json_path', '')) : '',
+                'markdown_path' => is_array($launchReadiness) ? trim((string) data_get($launchReadiness, 'artifacts.markdown_path', '')) : '',
+            ],
+            'preview' => [
+                'status' => (string) ($previewContext['status'] ?? 'unknown'),
+                'url' => trim((string) ($previewContext['preview_url'] ?? '')),
+                'label' => trim((string) ($previewContext['label'] ?? 'preview')),
+            ],
+            'observability' => [
+                'status' => (string) ($observabilityContext['status'] ?? 'unknown'),
+                'release' => trim((string) ($observabilityContext['release'] ?? '')),
+                'missing_env' => array_values((array) ($observabilityContext['missing_env'] ?? [])),
+            ],
+            'archive_paths' => $archivePaths,
+            'promotion_blockers' => $promotionBlockers,
+            'promotion_notes' => $promotionNotes,
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $steps
+     * @return array<string, mixed>|null
+     */
+    private function launchReadinessPayload(array $steps): ?array
+    {
+        foreach ($steps as $step) {
+            if (($step['key'] ?? null) !== 'backend_launch_readiness') {
+                continue;
+            }
+
+            $jsonPath = trim((string) data_get($step, 'artifacts.json_path', ''));
+            if ($jsonPath === '') {
+                return null;
+            }
+
+            $resolvedJsonPath = $this->resolvePath($jsonPath);
+            if (! File::exists($resolvedJsonPath)) {
+                return null;
+            }
+
+            $decoded = json_decode((string) File::get($resolvedJsonPath), true);
+
+            return is_array($decoded) ? $decoded : null;
+        }
+
+        return null;
     }
 
     /**
@@ -983,6 +1239,80 @@ class ReleaseLoopService
             }
             if ($releaseTag !== '') {
                 $lines[] = '- Release tag candidate: `'.$releaseTag.'`';
+            }
+        }
+
+        $releaseHandoff = (array) ($report['release_handoff'] ?? []);
+        $candidate = (array) ($releaseHandoff['candidate'] ?? []);
+        $manualEvidence = (array) ($releaseHandoff['manual_evidence'] ?? []);
+        $lines[] = '';
+        $lines[] = '## Release Handoff';
+        $lines[] = '';
+        $lines[] = '| Field | Value |';
+        $lines[] = '| --- | --- |';
+        $lines[] = sprintf(
+            '| package_basename | `%s` |',
+            (string) (($candidate['package_basename'] ?? null) ?: 'not-available')
+        );
+        $lines[] = sprintf('| package_path | `%s` |', (string) ($candidate['package_path'] ?? ''));
+        $lines[] = sprintf(
+            '| manual_evidence | `%s` |',
+            (string) (($manualEvidence['path'] ?? null) ?: 'not-supplied')
+        );
+        $lines[] = sprintf(
+            '| launch_readiness | `%s` |',
+            (string) data_get($releaseHandoff, 'launch_readiness.decision', 'unavailable')
+        );
+        $lines[] = sprintf('| preview_status | `%s` |', (string) data_get($releaseHandoff, 'preview.status', 'unknown'));
+        $lines[] = sprintf('| observability_status | `%s` |', (string) data_get($releaseHandoff, 'observability.status', 'unknown'));
+
+        $archivePaths = (array) ($releaseHandoff['archive_paths'] ?? []);
+        $lines[] = '';
+        $lines[] = 'Archive with this candidate:';
+        if ($archivePaths === []) {
+            $lines[] = '- None recorded yet.';
+        } else {
+            foreach ($archivePaths as $path) {
+                $lines[] = sprintf('- `%s`', (string) $path);
+            }
+        }
+
+        $promotionBlockers = (array) ($releaseHandoff['promotion_blockers'] ?? []);
+        if ($promotionBlockers !== []) {
+            $lines[] = '';
+            $lines[] = 'Promotion blockers:';
+            foreach ($promotionBlockers as $blocker) {
+                $lines[] = '- '.(string) $blocker;
+            }
+        }
+        foreach ((array) ($releaseHandoff['promotion_notes'] ?? []) as $note) {
+            $lines[] = '- '.(string) $note;
+        }
+
+        $lines[] = '';
+        $lines[] = '## Follow-up Actions';
+        $lines[] = '';
+        if ((array) ($report['follow_up_actions'] ?? []) === []) {
+            $lines[] = '- None.';
+        } else {
+            $lines[] = '| Kind | Label | Runbook | Commands / Notes |';
+            $lines[] = '| --- | --- | --- | --- |';
+            foreach ((array) ($report['follow_up_actions'] ?? []) as $action) {
+                $details = [];
+                foreach ((array) ($action['commands'] ?? []) as $command) {
+                    $details[] = '`'.str_replace('|', '\\|', (string) $command).'`';
+                }
+                foreach ((array) ($action['notes'] ?? []) as $note) {
+                    $details[] = str_replace('|', '\\|', (string) $note);
+                }
+
+                $lines[] = sprintf(
+                    '| %s | %s | `%s` | %s |',
+                    strtoupper((string) ($action['kind'] ?? 'action')),
+                    str_replace('|', '\\|', (string) ($action['label'] ?? '')),
+                    str_replace('|', '\\|', (string) ($action['runbook_path'] ?? 'docs/runbooks/booking-launch-readiness.md')),
+                    $details !== [] ? implode('<br>', $details) : '-'
+                );
             }
         }
 

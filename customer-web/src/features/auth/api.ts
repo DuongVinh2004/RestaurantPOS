@@ -1,4 +1,5 @@
-import { ensureCustomerSessionId, storeCustomerAuthSession } from "@/lib/auth/storage";
+import { normalizeApiError } from "@/lib/api/errors";
+import { ensureCustomerSessionId, getCustomerToken, storeCustomerAuthSession } from "@/lib/auth/storage";
 import type { CustomerAuthSessionEnvelope } from "@/lib/contracts/generated/restaurantpos-sdk";
 import { apiCall } from "@/lib/api/sdk-client";
 import type { LoginFormValues } from "./schemas";
@@ -20,6 +21,21 @@ export async function loginCustomer(values: LoginFormValues): Promise<CustomerAu
 
 export async function fetchCurrentCustomer(): Promise<CustomerAuthSessionEnvelope> {
   return apiCall((client) => client.getV1AuthCustomerMe());
+}
+
+export async function bootstrapCustomerSession(): Promise<CustomerAuthSessionEnvelope> {
+  try {
+    return await fetchCurrentCustomer();
+  } catch (error) {
+    const normalized = normalizeApiError(error);
+
+    if (normalized.kind !== "unauthorized" || !getCustomerToken()) {
+      throw normalized;
+    }
+  }
+
+  await refreshCustomerSession();
+  return fetchCurrentCustomer();
 }
 
 export async function refreshCustomerSession(): Promise<CustomerAuthSessionEnvelope> {

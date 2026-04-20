@@ -355,7 +355,7 @@ class BranchSchedulingPolicyService
         $leadThreshold = $minLeadMinutes === 0
             ? $localNow->copy()->startOfMinute()
             : $localNow->copy()->addMinutes($minLeadMinutes);
-        if ($useCase !== 'availability' && $localStart->lessThan($leadThreshold)) {
+        if (! $this->bypassesReservationLeadTime($useCase) && $localStart->lessThan($leadThreshold)) {
             return $this->windowDecision(
                 $context,
                 false,
@@ -383,7 +383,12 @@ class BranchSchedulingPolicyService
         }
 
         $sameDayCutoffTime = $reservationPolicy['same_day_cutoff_time'] ?? null;
-        if (is_string($sameDayCutoffTime) && $sameDayCutoffTime !== '' && $localStart->isSameDay($localNow)) {
+        if (
+            ! $this->bypassesSameDayCutoff($useCase)
+            && is_string($sameDayCutoffTime)
+            && $sameDayCutoffTime !== ''
+            && $localStart->isSameDay($localNow)
+        ) {
             $cutoffMinutes = $this->timeToMinutes($sameDayCutoffTime, 'booking_policy.reservation.same_day_cutoff_time');
             $cutoffAt = $localNow->startOfDay()->addMinutes($cutoffMinutes);
             if ($localNow->greaterThanOrEqualTo($cutoffAt)) {
@@ -1022,8 +1027,19 @@ class BranchSchedulingPolicyService
             'availability' => 'Requested availability window',
             'hold' => 'Requested hold window',
             'waiting_list' => 'Requested waiting-list window',
+            'waiting_list_seat' => 'Requested waiting-list seating window',
             default => 'Requested reservation window',
         };
+    }
+
+    private function bypassesReservationLeadTime(string $useCase): bool
+    {
+        return in_array($useCase, ['availability', 'waiting_list_seat'], true);
+    }
+
+    private function bypassesSameDayCutoff(string $useCase): bool
+    {
+        return $useCase === 'waiting_list_seat';
     }
 
     private function throwValidation(string $field, string $message): never

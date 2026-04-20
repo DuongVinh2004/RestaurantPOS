@@ -14,6 +14,7 @@ use App\Platform\Metrics\Services\OperationalInsightsService;
 use App\Platform\Performance\PerformanceVerificationService;
 use App\Platform\Release\Services\BookingDeploySafetyService;
 use App\Platform\Release\Services\CoreOpsGateService;
+use App\Platform\Release\Services\LaunchReadinessManualEvidenceTemplateService;
 use App\Platform\Release\Services\LaunchReadinessService;
 use App\Platform\Release\Services\ReleaseArtifactManifestService;
 use App\Platform\Release\Services\ReleaseArtifactNormalizerService;
@@ -1057,11 +1058,19 @@ Artisan::command('booking:package-release {--json : Output machine-readable JSON
     $command->newLine();
     $command->table(['Field', 'Value'], [
         ['package_id', (string) ($report['package_id'] ?? '')],
+        ['package_basename', (string) ($report['package_basename'] ?? '')],
         ['package_path', (string) ($report['package_path'] ?? '')],
+        ['package_sha256', (string) ($report['package_sha256'] ?? '')],
         ['output_root', (string) ($report['output_root'] ?? '')],
         ['stage_path', (string) ($report['stage_path'] ?? '')],
         ['package_exists', ((bool) ($report['package_exists'] ?? false)) ? 'yes' : 'no'],
     ]);
+    if ((array) ($report['sidecars'] ?? []) !== []) {
+        $command->table(['Sidecar', 'Path'], collect((array) ($report['sidecars'] ?? []))
+            ->map(static fn (mixed $path, string $key): array => [$key, (string) $path])
+            ->values()
+            ->all());
+    }
 
     if (! empty($report['issues'])) {
         foreach ((array) $report['issues'] as $issue) {
@@ -1082,6 +1091,71 @@ Artisan::command('booking:package-release {--json : Output machine-readable JSON
 
     return $exitCode;
 })->purpose('Create an immutable release package and sidecar inventory from the already-frozen RestaurantPOS release artifacts.');
+
+Artisan::command('booking:manual-evidence:init
+    {--target=staging : staging|limited-production}
+    {--candidate= : Candidate slug used in the default output filename}
+    {--output= : Optional absolute or repo-relative JSON output path}
+    {--overwrite : Overwrite an existing template file}
+    {--json : Output machine-readable JSON}', function () {
+    /** @var ConsoleCommand $command */
+    // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
+    $command = $this;
+
+    $target = strtolower(trim((string) $command->option('target')));
+    if (! in_array($target, ['staging', 'limited-production'], true)) {
+        $command->error('Invalid --target. Supported values: staging, limited-production.');
+
+        return 1;
+    }
+
+    /** @var LaunchReadinessManualEvidenceTemplateService $service */
+    $service = app(LaunchReadinessManualEvidenceTemplateService::class);
+    $payload = $service->scaffold(
+        target: $target,
+        candidate: ($value = trim((string) ($command->option('candidate') ?? ''))) !== '' ? $value : null,
+        outputPath: ($value = trim((string) ($command->option('output') ?? ''))) !== '' ? $value : null,
+        overwrite: (bool) $command->option('overwrite'),
+    );
+    $exitCode = (bool) ($payload['ok'] ?? false) ? 0 : 1;
+
+    if ($command->option('json')) {
+        $command->line(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+
+        return $exitCode;
+    }
+
+    $command->info('Booking launch-readiness manual evidence template');
+    $command->newLine();
+    $command->table(['Field', 'Value'], [
+        ['target', (string) ($payload['target'] ?? $target)],
+        ['candidate', (string) ($payload['candidate'] ?? '')],
+        ['output_path', (string) ($payload['output_path'] ?? '')],
+        ['check_count', (string) ($payload['check_count'] ?? 0)],
+    ]);
+    $command->table(['Check', 'Source', 'Required'], collect((array) ($payload['manual_checks'] ?? []))
+        ->map(static fn (array $row): array => [
+            (string) ($row['label'] ?? $row['key'] ?? ''),
+            (string) ($row['source'] ?? ''),
+            ((bool) ($row['required_for_target'] ?? false)) ? 'yes' : 'no',
+        ])->values()->all());
+
+    if ((array) ($payload['issues'] ?? []) !== []) {
+        foreach ((array) ($payload['issues'] ?? []) as $issue) {
+            $command->line((string) $issue);
+        }
+    }
+
+    $command->line('Next command: '.(string) ($payload['next_command'] ?? ''));
+
+    if ($exitCode === 0) {
+        $command->info('booking:manual-evidence:init completed.');
+    } else {
+        $command->error('booking:manual-evidence:init failed.');
+    }
+
+    return $exitCode;
+})->purpose('Scaffold an operator-owned manual evidence JSON template for booking launch readiness.');
 
 Artisan::command('booking:release-loop
     {--target=staging : staging|limited-production}
@@ -1173,6 +1247,34 @@ Artisan::command('booking:release-loop
                 (string) ($failure['message'] ?? '')
             ));
         }
+    }
+
+    if ((array) ($payload['follow_up_actions'] ?? []) !== []) {
+        $command->warn('Follow-up actions:');
+        foreach ((array) ($payload['follow_up_actions'] ?? []) as $action) {
+            $command->line(sprintf(
+                ' - [%s] %s',
+                strtoupper((string) ($action['kind'] ?? 'action')),
+                (string) ($action['label'] ?? 'follow-up')
+            ));
+            foreach ((array) ($action['commands'] ?? []) as $step) {
+                $command->line('   command: '.(string) $step);
+            }
+            foreach ((array) ($action['notes'] ?? []) as $note) {
+                $command->line('   note: '.(string) $note);
+            }
+        }
+    }
+
+    if ((array) ($payload['release_handoff'] ?? []) !== []) {
+        $command->table(['Release handoff', 'Value'], [
+            ['package_basename', (string) data_get($payload, 'release_handoff.candidate.package_basename', '')],
+            ['package_path', (string) data_get($payload, 'release_handoff.candidate.package_path', '')],
+            ['manual_evidence', (string) (data_get($payload, 'release_handoff.manual_evidence.path') ?: 'not-supplied')],
+            ['launch_readiness', (string) data_get($payload, 'release_handoff.launch_readiness.decision', 'unavailable')],
+            ['preview_status', (string) data_get($payload, 'release_handoff.preview.status', 'unknown')],
+            ['observability_status', (string) data_get($payload, 'release_handoff.observability.status', 'unknown')],
+        ]);
     }
 
     $command->table(['Artifact', 'Path'], [
@@ -1281,6 +1383,37 @@ Artisan::command('booking:launch-readiness
         foreach ((array) (($payload['manual_evidence'] ?? [])['issues'] ?? []) as $issue) {
             $command->line(' - '.(string) $issue);
         }
+    }
+
+    if ((array) ($payload['follow_up_actions'] ?? []) !== []) {
+        $command->warn('Follow-up actions:');
+        foreach ((array) ($payload['follow_up_actions'] ?? []) as $action) {
+            $command->line(sprintf(
+                ' - [%s] %s',
+                strtoupper((string) ($action['kind'] ?? 'action')),
+                (string) ($action['label'] ?? 'follow-up')
+            ));
+            foreach ((array) ($action['commands'] ?? []) as $step) {
+                $command->line('   command: '.(string) $step);
+            }
+            foreach ((array) ($action['notes'] ?? []) as $note) {
+                $command->line('   note: '.(string) $note);
+            }
+        }
+    }
+
+    if ((array) ($payload['release_handoff'] ?? []) !== []) {
+        $command->table(['Release handoff', 'Value'], [
+            ['package_basename', (string) data_get($payload, 'release_handoff.candidate.package_basename', '')],
+            ['package_path', (string) data_get($payload, 'release_handoff.candidate.package_path', '')],
+            ['release_manifest_snapshot', (string) data_get($payload, 'release_handoff.candidate.release_manifest_snapshot_path', '')],
+            ['manual_evidence', (string) (data_get($payload, 'release_handoff.manual_evidence.path') ?: 'not-supplied')],
+            ['required_manual_checks', sprintf(
+                '%d/%d pass',
+                (int) data_get($payload, 'release_handoff.manual_evidence.required_pass_count', 0),
+                (int) data_get($payload, 'release_handoff.manual_evidence.required_check_count', 0),
+            )],
+        ]);
     }
 
     $command->table(['Artifact', 'Path'], [

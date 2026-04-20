@@ -120,4 +120,41 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
         $this->assertStringContainsString('payments.refund_trigger_contract:ok', $verifySql);
         $this->assertStringContainsString('__runtime_incompatible_payment_refund_triggers_present__', $verifySql);
     }
+
+    public function test_release_artifacts_keep_confirmed_holds_out_of_live_overlap_trigger_scope(): void
+    {
+        foreach ([
+            base_path('database/schema/mysql-schema.sql'),
+            base_path('db_all.sql'),
+        ] as $path) {
+            $sql = (string) File::get($path);
+
+            $this->assertSame(
+                4,
+                substr_count($sql, "AND th.`hold_status` IN ('Holding', 'Pending')\n           AND th.`expire_at` > CURRENT_TIMESTAMP(6)"),
+                sprintf('Expected live hold overlap triggers to ignore Confirmed linkage rows in %s.', $path)
+            );
+            $this->assertSame(
+                2,
+                substr_count($sql, "IF v_status IN ('Holding', 'Pending') AND v_expire_at > CURRENT_TIMESTAMP(6) THEN"),
+                sprintf('Expected table-hold detail triggers to run only for unexpired Holding/Pending holds in %s.', $path)
+            );
+            $this->assertStringNotContainsString(
+                "th.`hold_status` IN ('Holding', 'Pending', 'Confirmed')\n           AND (th.`hold_status` = 'Confirmed' OR th.`expire_at` > CURRENT_TIMESTAMP(6))",
+                $sql
+            );
+            $this->assertStringNotContainsString(
+                "IF v_status IN ('Holding', 'Pending', 'Confirmed') AND (v_status = 'Confirmed' OR v_expire_at > CURRENT_TIMESTAMP(6)) THEN",
+                $sql
+            );
+        }
+
+        $patchSql = (string) File::get(base_path('database/patches/2026_04_20_000053_confirmed_hold_conflict_scope_alignment.sql'));
+        $verifySql = (string) File::get(base_path('tools/mysql/verify_release_contract.sql'));
+
+        $this->assertStringContainsString('DROP TRIGGER IF EXISTS `trg_reservation_tables__bi_prevent_overlap`', $patchSql);
+        $this->assertStringContainsString('DROP TRIGGER IF EXISTS `trg_table_hold_details__bu_prevent_overlap`', $patchSql);
+        $this->assertStringContainsString('table_hold_conflict_scope.confirmed_linkage:ok', $verifySql);
+        $this->assertStringContainsString('__stale_confirmed_hold_conflict_triggers__', $verifySql);
+    }
 }

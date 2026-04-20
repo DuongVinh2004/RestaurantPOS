@@ -259,6 +259,7 @@ return [
         '2026_04_12_000050_staff_conversation_workflow_hardening.sql',
         '2026_04_13_000051_inventory_stock_movement_reference_uniqueness.sql',
         '2026_04_15_000052_finance_replay_records.sql',
+        '2026_04_20_000053_confirmed_hold_conflict_scope_alignment.sql',
     ],
     'release_manifest' => [
         'definition_path' => 'config/booking_release.php',

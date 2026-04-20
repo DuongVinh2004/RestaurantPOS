@@ -22,7 +22,7 @@ try {
         throw "booking:uat-pack:reset failed.`n$output"
     }
 
-    $payload = $output | ConvertFrom-Json -Depth 100
+    $payload = $output | ConvertFrom-Json
     if (-not $payload.ok) {
         throw "booking:uat-pack:reset returned a non-ok payload.`n$output"
     }
@@ -43,6 +43,10 @@ try {
             Write-Host ("  - {0}: {1}" -f $row.Name, $row.Value)
         }
     }
+
+    Write-Host "Next:"
+    Write-Host '  - Rebuild the canonical UAT pack with `powershell -ExecutionPolicy Bypass -File scripts\\uat\\Bootstrap-UatPack.ps1` before live verification.'
+    Write-Host '  - `npm run dev:all` also refreshes the same manifest for the standard local lane.'
 }
 finally {
     Pop-Location

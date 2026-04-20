@@ -91,7 +91,7 @@ class ReleasePackageService
         }
 
         $absoluteOutputRoot = base_path($outputRoot);
-        File::ensureDirectoryExists($absoluteOutputRoot);
+        $this->ensureDirectoryExists($absoluteOutputRoot);
 
         if (File::exists(base_path($packagePath)) && ! $overwrite) {
             $issues[] = sprintf('Release package [%s] already exists. Re-run with overwrite enabled or use a different package id.', $packagePath);
@@ -114,45 +114,11 @@ class ReleasePackageService
             );
         }
 
-        $absoluteStagePath = base_path($stagePath);
-        File::deleteDirectory($absoluteStagePath);
-        File::ensureDirectoryExists($absoluteStagePath);
+        $absoluteLockRoot = $absoluteOutputRoot.DIRECTORY_SEPARATOR.'locks';
+        $absoluteLockPath = $absoluteLockRoot.DIRECTORY_SEPARATOR.$packageBasename.'.lock';
+        $this->ensureDirectoryExists($absoluteLockRoot);
 
-        $missingRequiredPaths = [];
-
-        foreach ($definition['include_paths'] as $includePath) {
-            $relativeSourcePath = $includePath['path'];
-            $required = $includePath['required'];
-            $absoluteSourcePath = base_path($relativeSourcePath);
-
-            if (! File::exists($absoluteSourcePath)) {
-                if ($required) {
-                    $missingRequiredPaths[] = $relativeSourcePath;
-                } else {
-                    $skippedOptionalPaths[] = $relativeSourcePath;
-                }
-
-                continue;
-            }
-
-            $includeRoots[] = [
-                'path' => $relativeSourcePath,
-                'required' => $required,
-                'type' => is_dir($absoluteSourcePath) ? 'directory' : 'file',
-            ];
-
-            $this->stagePath($absoluteSourcePath, $relativeSourcePath, $absoluteStagePath);
-        }
-
-        if ($missingRequiredPaths !== []) {
-            $issues[] = sprintf(
-                'Release package is missing %d required source path(s): %s',
-                count($missingRequiredPaths),
-                implode(', ', $missingRequiredPaths)
-            );
-
-            File::deleteDirectory($absoluteStagePath);
-
+        if (! $this->acquirePackageLock($absoluteLockPath)) {
             return $this->failureReport(
                 packageId: $packageId,
                 packageBasename: $packageBasename,
@@ -164,66 +130,126 @@ class ReleasePackageService
                 sidecars: $sidecars,
                 snapshot: $snapshot,
                 frozenSnapshot: $frozenSnapshot,
-                issues: $issues,
+                issues: [
+                    sprintf(
+                        'Release package [%s] is already being built by another process. Wait for the active build to finish or use a different package id.',
+                        $packageBasename
+                    ),
+                ],
                 warnings: $warnings,
             );
         }
 
-        $packageTimestamp = $this->stablePackageTimestamp($frozenSnapshot, $snapshot);
-        $packageTimestampEpoch = $this->stablePackageTimestampEpoch($packageTimestamp);
-        $packageFrozenSnapshot = $this->stableFrozenSnapshotForPackage($frozenSnapshot, $packageTimestamp);
-        $inventoryEntries = $this->inventoryEntries($absoluteStagePath, $packageBasename);
-        $inventoryPayload = [
-            'package_id' => $packageId,
-            'package_basename' => $packageBasename,
-            'generated_at_utc' => $packageTimestamp,
-            'file_count' => count($inventoryEntries),
-            'total_bytes' => array_sum(array_map(static fn (array $entry): int => (int) $entry['bytes'], $inventoryEntries)),
-            'entries' => $inventoryEntries,
-        ];
+        $absoluteStagePath = base_path($stagePath);
+        try {
+            File::deleteDirectory($absoluteStagePath);
+            $this->ensureDirectoryExists($absoluteStagePath);
 
-        $metadataPayload = [
-            'package_id' => $packageId,
-            'package_basename' => $packageBasename,
-            'created_at_utc' => $packageTimestamp,
-            'app_env' => (string) config('app.env', 'production'),
-            'package_format' => 'tar.gz',
-            'include_roots' => $includeRoots,
-            'skipped_optional_paths' => $skippedOptionalPaths,
-            'release_manifest' => [
-                'status' => (string) ($snapshot['status'] ?? 'fail'),
-                'definition_sha256' => (string) ($snapshot['definition_sha256'] ?? ''),
-                'snapshot_path' => (string) ($snapshot['snapshot_path'] ?? ''),
-                'frozen_snapshot' => $packageFrozenSnapshot,
-            ],
-            'build' => $buildMetadata,
-        ];
+            $missingRequiredPaths = [];
 
-        $this->writeJson($absoluteStagePath.DIRECTORY_SEPARATOR.'release_metadata.json', $metadataPayload);
-        $this->writeJson($absoluteStagePath.DIRECTORY_SEPARATOR.'release_inventory.json', $inventoryPayload);
+            foreach ($definition['include_paths'] as $includePath) {
+                $relativeSourcePath = $includePath['path'];
+                $required = $includePath['required'];
+                $absoluteSourcePath = base_path($relativeSourcePath);
 
-        $checksumEntries = [];
-        foreach ($this->collectStageFiles($absoluteStagePath) as $relativePath) {
-            if ($relativePath === 'release_checksums.sha256') {
-                continue;
+                if (! File::exists($absoluteSourcePath)) {
+                    if ($required) {
+                        $missingRequiredPaths[] = $relativeSourcePath;
+                    } else {
+                        $skippedOptionalPaths[] = $relativeSourcePath;
+                    }
+
+                    continue;
+                }
+
+                $includeRoots[] = [
+                    'path' => $relativeSourcePath,
+                    'required' => $required,
+                    'type' => is_dir($absoluteSourcePath) ? 'directory' : 'file',
+                ];
+
+                $this->stagePath($absoluteSourcePath, $relativeSourcePath, $absoluteStagePath);
             }
 
-            $absolutePath = $absoluteStagePath.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
-            $checksumEntries[] = [
-                'path' => $relativePath,
-                'sha256' => hash_file('sha256', $absolutePath),
+            if ($missingRequiredPaths !== []) {
+                $issues[] = sprintf(
+                    'Release package is missing %d required source path(s): %s',
+                    count($missingRequiredPaths),
+                    implode(', ', $missingRequiredPaths)
+                );
+
+                File::deleteDirectory($absoluteStagePath);
+
+                return $this->failureReport(
+                    packageId: $packageId,
+                    packageBasename: $packageBasename,
+                    packagePath: $packagePath,
+                    outputRoot: $outputRoot,
+                    stagePath: $stagePath,
+                    includeRoots: $includeRoots,
+                    skippedOptionalPaths: $skippedOptionalPaths,
+                    sidecars: $sidecars,
+                    snapshot: $snapshot,
+                    frozenSnapshot: $frozenSnapshot,
+                    issues: $issues,
+                    warnings: $warnings,
+                );
+            }
+
+            $packageTimestamp = $this->stablePackageTimestamp($frozenSnapshot, $snapshot);
+            $packageTimestampEpoch = $this->stablePackageTimestampEpoch($packageTimestamp);
+            $packageFrozenSnapshot = $this->stableFrozenSnapshotForPackage($frozenSnapshot, $packageTimestamp);
+            $inventoryEntries = $this->inventoryEntries($absoluteStagePath, $packageBasename);
+            $inventoryPayload = [
+                'package_id' => $packageId,
+                'package_basename' => $packageBasename,
+                'generated_at_utc' => $packageTimestamp,
+                'file_count' => count($inventoryEntries),
+                'total_bytes' => array_sum(array_map(static fn (array $entry): int => (int) $entry['bytes'], $inventoryEntries)),
+                'entries' => $inventoryEntries,
             ];
-        }
-        usort($checksumEntries, static fn (array $left, array $right): int => strcmp((string) $left['path'], (string) $right['path']));
 
-        $checksumsContent = implode("\n", array_map(
-            static fn (array $entry): string => sprintf('%s  %s', $entry['sha256'], $entry['path']),
-            $checksumEntries
-        ))."\n";
-        File::put($absoluteStagePath.DIRECTORY_SEPARATOR.'release_checksums.sha256', $checksumsContent);
-        $this->normalizeStageTimestamps($absoluteStagePath, $packageTimestampEpoch);
+            $metadataPayload = [
+                'package_id' => $packageId,
+                'package_basename' => $packageBasename,
+                'created_at_utc' => $packageTimestamp,
+                'app_env' => (string) config('app.env', 'production'),
+                'package_format' => 'tar.gz',
+                'include_roots' => $includeRoots,
+                'skipped_optional_paths' => $skippedOptionalPaths,
+                'release_manifest' => [
+                    'status' => (string) ($snapshot['status'] ?? 'fail'),
+                    'definition_sha256' => (string) ($snapshot['definition_sha256'] ?? ''),
+                    'snapshot_path' => (string) ($snapshot['snapshot_path'] ?? ''),
+                    'frozen_snapshot' => $packageFrozenSnapshot,
+                ],
+                'build' => $buildMetadata,
+            ];
 
-        try {
+            $this->writeJson($absoluteStagePath.DIRECTORY_SEPARATOR.'release_metadata.json', $metadataPayload);
+            $this->writeJson($absoluteStagePath.DIRECTORY_SEPARATOR.'release_inventory.json', $inventoryPayload);
+
+            $checksumEntries = [];
+            foreach ($this->collectStageFiles($absoluteStagePath) as $relativePath) {
+                if ($relativePath === 'release_checksums.sha256') {
+                    continue;
+                }
+
+                $absolutePath = $absoluteStagePath.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+                $checksumEntries[] = [
+                    'path' => $relativePath,
+                    'sha256' => hash_file('sha256', $absolutePath),
+                ];
+            }
+            usort($checksumEntries, static fn (array $left, array $right): int => strcmp((string) $left['path'], (string) $right['path']));
+
+            $checksumsContent = implode("\n", array_map(
+                static fn (array $entry): string => sprintf('%s  %s', $entry['sha256'], $entry['path']),
+                $checksumEntries
+            ))."\n";
+            File::put($absoluteStagePath.DIRECTORY_SEPARATOR.'release_checksums.sha256', $checksumsContent);
+            $this->normalizeStageTimestamps($absoluteStagePath, $packageTimestampEpoch);
+
             $this->buildArchive(
                 stageAbsolutePath: $absoluteStagePath,
                 packageBasename: $packageBasename,
@@ -248,6 +274,8 @@ class ReleasePackageService
                 issues: ['Release package build failed: '.$e->getMessage()],
                 warnings: $warnings,
             );
+        } finally {
+            $this->releasePackageLock($absoluteLockPath);
         }
 
         File::copy($absoluteStagePath.DIRECTORY_SEPARATOR.'release_metadata.json', base_path($sidecars['metadata_path']));
@@ -270,7 +298,7 @@ class ReleasePackageService
             'checksums_path' => $sidecars['checksums_path'],
             'package_sha256_path' => $sidecars['package_sha256_path'],
         ];
-        File::ensureDirectoryExists(dirname(base_path($sidecars['latest_pointer_path'])));
+        $this->ensureDirectoryExists(dirname(base_path($sidecars['latest_pointer_path'])));
         File::put(base_path($sidecars['latest_pointer_path']), json_encode($latestPointerPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
         return [
@@ -352,7 +380,8 @@ class ReleasePackageService
 
     private function defaultPackageId(?string $commitSha = null): string
     {
-        $timestamp = now('UTC')->format('Ymd\THis\Z');
+        $now = now('UTC');
+        $timestamp = $now->format('Ymd\THis\Z').'-'.$now->format('u');
 
         $suffix = '';
         if (is_string($commitSha) && trim($commitSha) !== '') {
@@ -382,7 +411,7 @@ class ReleasePackageService
             }
 
             $destination = $absoluteStagePath.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $relativeSourcePath);
-            File::ensureDirectoryExists(dirname($destination));
+            $this->ensureDirectoryExists(dirname($destination));
             File::copy($absoluteSourcePath, $destination);
 
             return;
@@ -405,7 +434,7 @@ class ReleasePackageService
             }
 
             $destination = $absoluteStagePath.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $archiveRelativePath);
-            File::ensureDirectoryExists(dirname($destination));
+            $this->ensureDirectoryExists(dirname($destination));
             File::copy($item->getPathname(), $destination);
         }
     }
@@ -492,7 +521,7 @@ class ReleasePackageService
 
     private function writeJson(string $absolutePath, array $payload): void
     {
-        File::ensureDirectoryExists(dirname($absolutePath));
+        $this->ensureDirectoryExists(dirname($absolutePath));
         File::put($absolutePath, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     }
 
@@ -571,7 +600,7 @@ class ReleasePackageService
             }
         }
 
-        File::ensureDirectoryExists(dirname($tarAbsolutePath));
+        $this->ensureDirectoryExists(dirname($tarAbsolutePath));
 
         $this->buildDeterministicTarGz(
             stageAbsolutePath: $stageAbsolutePath,
@@ -684,6 +713,29 @@ class ReleasePackageService
         }
 
         return substr_count($contents, "\n") + (! str_ends_with($contents, "\n") ? 1 : 0);
+    }
+
+    private function ensureDirectoryExists(string $absolutePath): void
+    {
+        if (is_dir($absolutePath)) {
+            return;
+        }
+
+        if (@mkdir($absolutePath, 0777, true) === false && ! is_dir($absolutePath)) {
+            throw new RuntimeException(sprintf('Unable to create directory [%s].', $absolutePath));
+        }
+    }
+
+    private function acquirePackageLock(string $absoluteLockPath): bool
+    {
+        return ! is_dir($absoluteLockPath) && @mkdir($absoluteLockPath, 0777, false);
+    }
+
+    private function releasePackageLock(string $absoluteLockPath): void
+    {
+        if (is_dir($absoluteLockPath)) {
+            @rmdir($absoluteLockPath);
+        }
     }
 
     /**

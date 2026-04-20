@@ -27,7 +27,7 @@ class AdminMenuItemPriceController extends Controller
             $paginator = $this->menuService->paginatePriceRows($item_id, $validated);
 
             return response()->json([
-                'data' => AdminMenuItemPriceResource::collection($paginator->getCollection()),
+                'data' => AdminMenuItemPriceResource::collection(collect($paginator->items())),
                 'meta' => ListingMetaFactory::paginated(
                     $paginator,
                     [

@@ -1,4 +1,5 @@
-import { mkdtempSync, mkdirSync, utimesSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdtempSync, mkdirSync, readFileSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -101,6 +102,7 @@ describe('package integrity report', () => {
     const staleTime = new Date(now.getTime() - 10_000);
     const freshTime = new Date(now.getTime() + 10_000);
 
+    writeFileSync(openApiPath, '{"openapi":"3.1.0","refreshed":true}', 'utf8');
     utimesSync(sdkPath, staleTime, staleTime);
     utimesSync(openApiPath, freshTime, freshTime);
     utimesSync(manifestPath, staleTime, staleTime);
@@ -120,7 +122,7 @@ describe('package integrity report', () => {
         }),
         expect.objectContaining({
           path: 'storage/app/booking_release/release_manifest_snapshot.json',
-          failure: expect.stringContaining('older than storage/app/booking_release/openapi-v1.json'),
+          failure: expect.stringContaining('no longer matches storage/app/booking_release/openapi-v1.json'),
         }),
       ]),
     );
@@ -182,11 +184,17 @@ function seedCanonicalFixture(
     createFile(rootDir, 'README.md', '# repo');
     createDirectory(rootDir, 'docs/runbooks');
     createFile(rootDir, 'docs/runbooks/api-consumer-artifacts.md', '# api artifacts');
+    createFile(rootDir, 'docs/runbooks/booking-local-windows-vscode-cmd-runbook.md', '# local runbook');
     createFile(rootDir, 'docs/runbooks/booking-release-packaging-runbook.md', '# packaging');
+    createFile(rootDir, 'customer-web/.env.example', 'NEXT_PUBLIC_API_BASE_URL=http://localhost:8000');
+    createFile(rootDir, 'customer-web/README.md', '# customer-web');
     createFile(rootDir, 'staff-web/.env.example', 'VITE_API_URL=http://localhost:8000/api/v1');
     createFile(rootDir, 'staff-web/STAFF_WEB_SETUP.md', '# setup');
+    createFile(rootDir, 'staff-web/README.md', '# staff-web');
     createFile(rootDir, 'build/api-consumer/sdk/typescript/README.md', '# sdk');
   }
+
+  writeReleaseManifestSnapshot(rootDir);
 }
 
 function createDirectory(rootDir, relativePath) {
@@ -197,4 +205,43 @@ function createFile(rootDir, relativePath, contents) {
   const resolvedPath = path.join(rootDir, relativePath);
   mkdirSync(path.dirname(resolvedPath), { recursive: true });
   writeFileSync(resolvedPath, contents, 'utf8');
+}
+
+function writeReleaseManifestSnapshot(rootDir) {
+  const artifactPaths = [
+    'storage/app/booking_release/openapi-v1.json',
+    'build/api-consumer/sdk/typescript/restaurantpos-sdk.ts',
+    'build/api-consumer/sdk/typescript/restaurantpos-enums.ts',
+    'build/api-consumer/mutation-contracts.md',
+  ];
+
+  const artifacts = {};
+
+  for (const artifactPath of artifactPaths) {
+    const resolvedPath = path.join(rootDir, artifactPath);
+
+    try {
+      const stats = statSync(resolvedPath);
+      const sha256 = createHash('sha256').update(readFileSync(resolvedPath)).digest('hex');
+      const artifactKey = artifactPath
+        .replace(/^build\/api-consumer\/sdk\/typescript\//, '')
+        .replace(/^build\/api-consumer\//, '')
+        .replace(/^storage\/app\/booking_release\//, '')
+        .replace(/[/.\\-]+/g, '_');
+
+      artifacts[artifactKey] = {
+        path: artifactPath,
+        sha256,
+        modified_epoch: Math.trunc(stats.mtimeMs),
+      };
+    } catch {
+      // Skip artifacts intentionally omitted by the fixture variant.
+    }
+  }
+
+  createFile(
+    rootDir,
+    'storage/app/booking_release/release_manifest_snapshot.json',
+    JSON.stringify({ artifacts }, null, 2),
+  );
 }

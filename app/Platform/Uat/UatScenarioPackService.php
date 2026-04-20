@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Platform\Uat;
 
+use App\Models\User;
 use App\Modules\BranchScheduling\Domain\Models\Branch;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
-use App\Models\User;
+use App\Modules\Reporting\Application\Services\ReportingSnapshotService;
 use App\Platform\FeatureFlags\Services\FeatureFlagManagementService;
 use App\Platform\Release\Services\SiteBootstrapService;
 use App\Services\StaffApiKeyGovernanceService;
@@ -150,6 +151,7 @@ class UatScenarioPackService
             $waitingList = $this->seedWaitingListFoundation($branch, $users);
             $conversation = $this->seedConversationFoundation($branch, $users, $reservationContext, $waitingList);
             $featureFlags = $this->ensureFeatureFlags($branch, $users['admin']);
+            $this->rebuildReportingSnapshots($branch, (array) ($reservationContext['manifest'] ?? []), (int) $users['admin']->user_id);
             $tables = $this->buildTableManifest($branch);
 
             return $this->buildManifest(
@@ -327,7 +329,7 @@ class UatScenarioPackService
                 ->map(static fn (mixed $value): int => (int) $value)
                 ->all();
 
-            return [
+            $counts = [
                 'message_entities' => $messageIds === [] ? 0 : DB::table('message_entities')->whereIn('message_id', $messageIds)->delete(),
                 'conversation_files' => $messageIds === [] ? 0 : DB::table('conversation_files')->whereIn('message_id', $messageIds)->delete(),
                 'conversation_events' => $conversationIds === [] ? 0 : DB::table('conversation_events')->whereIn('conversation_id', $conversationIds)->delete(),
@@ -406,6 +408,10 @@ class UatScenarioPackService
                 'menu_categories' => $menuCategoryIds === [] ? 0 : DB::table('menu_categories')->whereIn('category_id', $menuCategoryIds)->delete(),
                 'vouchers' => $voucherIds === [] ? 0 : DB::table('vouchers')->whereIn('voucher_id', $voucherIds)->delete(),
             ];
+
+            $this->restoreDefaultBranchIfMissing();
+
+            return $counts;
         }, 3);
 
         $resolvedManifestPath = $this->resolveManifestPath($manifestPath);
@@ -424,6 +430,14 @@ class UatScenarioPackService
 
     private function configureBranchPolicy(Branch $branch): Branch
     {
+        DB::table('branches')
+            ->where('branch_id', '!=', (int) $branch->branch_id)
+            ->where('is_default', true)
+            ->update([
+                'is_default' => false,
+                'updated_at' => now('UTC'),
+            ]);
+
         $branch->fill([
             'description' => 'Canonical UAT/demo branch for RestaurantPOS backend hand-off.',
             'timezone' => 'Asia/Ho_Chi_Minh',
@@ -452,10 +466,76 @@ class UatScenarioPackService
                 ],
             ],
             'is_active' => true,
+            'is_default' => true,
         ]);
         $branch->save();
 
         return $branch->fresh() ?? $branch;
+    }
+
+    /**
+     * @param  array<string,mixed>  $reservationManifest
+     */
+    private function rebuildReportingSnapshots(Branch $branch, array $reservationManifest, int $actorUserId): void
+    {
+        $businessDates = collect($reservationManifest)
+            ->filter(static fn ($row): bool => is_array($row))
+            ->flatMap(static function (array $row): array {
+                return [
+                    (string) ($row['start_time_utc'] ?? ''),
+                    (string) ($row['end_time_utc'] ?? ''),
+                ];
+            })
+            ->filter(static fn (string $value): bool => trim($value) !== '')
+            ->map(static fn (string $value): string => Carbon::parse($value)->utc()->toDateString())
+            ->values();
+
+        $businessDates->push(now('UTC')->toDateString());
+
+        $startDate = $businessDates->min();
+        $endDate = $businessDates->max();
+
+        if (! is_string($startDate) || ! is_string($endDate)) {
+            return;
+        }
+
+        app(ReportingSnapshotService::class)->rebuild([
+            'branch_id' => (int) $branch->branch_id,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'include_sales' => true,
+            'include_operations' => true,
+            'include_inventory' => true,
+        ], $actorUserId);
+    }
+
+    private function restoreDefaultBranchIfMissing(): void
+    {
+        if (! DB::table('branches')->exists() || DB::table('branches')->where('is_default', true)->exists()) {
+            return;
+        }
+
+        $fallbackBranchId = DB::table('branches')
+            ->where('is_active', true)
+            ->orderBy('branch_id')
+            ->value('branch_id');
+
+        if ($fallbackBranchId === null) {
+            $fallbackBranchId = DB::table('branches')
+                ->orderBy('branch_id')
+                ->value('branch_id');
+        }
+
+        if ($fallbackBranchId === null) {
+            return;
+        }
+
+        DB::table('branches')
+            ->where('branch_id', (int) $fallbackBranchId)
+            ->update([
+                'is_default' => true,
+                'updated_at' => now('UTC'),
+            ]);
     }
 
     /**
@@ -507,7 +587,7 @@ class UatScenarioPackService
     }
 
     /**
-     * @param array<string,User> $users
+     * @param  array<string,User>  $users
      * @return array<string,array<string,mixed>>
      */
     private function reissueStaffApiKeys(array $users): array
@@ -571,7 +651,7 @@ class UatScenarioPackService
     }
 
     /**
-     * @param array<string,mixed> $menu
+     * @param  array<string,mixed>  $menu
      */
     private function ensureCanonicalKitchenRouting(array $menu): void
     {
@@ -602,7 +682,7 @@ class UatScenarioPackService
     }
 
     /**
-     * @param array<string,User> $users
+     * @param  array<string,User>  $users
      * @return array<string,mixed>
      */
     private function ensureCanonicalBenefits(array $users): array
@@ -669,9 +749,9 @@ class UatScenarioPackService
     }
 
     /**
-     * @param array<string,User> $users
-     * @param array<string,array<string,mixed>> $menu
-     * @param array<string,mixed> $benefits
+     * @param  array<string,User>  $users
+     * @param  array<string,array<string,mixed>>  $menu
+     * @param  array<string,mixed>  $benefits
      * @return array<string,mixed>
      */
     private function seedReservationsAndPayments(Branch $branch, array $users, array $menu, array $benefits): array
@@ -918,7 +998,7 @@ class UatScenarioPackService
     }
 
     /**
-     * @param array<string,User> $users
+     * @param  array<string,User>  $users
      * @return array<string,mixed>
      */
     private function seedWaitingListFoundation(Branch $branch, array $users): array
@@ -969,9 +1049,9 @@ class UatScenarioPackService
     }
 
     /**
-     * @param array<string,User> $users
-     * @param array<string,mixed> $reservationContext
-     * @param array<string,mixed> $waitingList
+     * @param  array<string,User>  $users
+     * @param  array<string,mixed>  $reservationContext
+     * @param  array<string,mixed>  $waitingList
      * @return array<string,mixed>
      */
     private function seedConversationFoundation(
@@ -1094,7 +1174,7 @@ class UatScenarioPackService
     }
 
     /**
-     * @param array<string,User> $users
+     * @param  array<string,User>  $users
      * @return list<array<string,mixed>>
      */
     private function ensureFeatureFlags(Branch $branch, User $actor): array
@@ -1121,15 +1201,15 @@ class UatScenarioPackService
     }
 
     /**
-     * @param array<string,User> $users
-     * @param array<string,array<string,mixed>> $staffApiKeys
-     * @param array<string,array<string,mixed>> $tables
-     * @param array<string,array<string,mixed>> $menu
-     * @param array<string,mixed> $benefits
-     * @param array<string,mixed> $reservations
-     * @param array<string,mixed> $waitingList
-     * @param array<string,mixed> $conversation
-     * @param list<array<string,mixed>> $featureFlags
+     * @param  array<string,User>  $users
+     * @param  array<string,array<string,mixed>>  $staffApiKeys
+     * @param  array<string,array<string,mixed>>  $tables
+     * @param  array<string,array<string,mixed>>  $menu
+     * @param  array<string,mixed>  $benefits
+     * @param  array<string,mixed>  $reservations
+     * @param  array<string,mixed>  $waitingList
+     * @param  array<string,mixed>  $conversation
+     * @param  list<array<string,mixed>>  $featureFlags
      * @return array<string,mixed>
      */
     private function buildManifest(
@@ -1184,7 +1264,7 @@ class UatScenarioPackService
                     'session_id' => 'uat-session-booking',
                     'from_utc' => (string) data_get($reservations, 'deposit_pending.start_time_utc'),
                     'to_utc' => (string) data_get($reservations, 'deposit_pending.end_time_utc'),
-                    'preferred_table_ids' => [(int) data_get($tables, 'main_4p.table_id')],
+                    'preferred_table_ids' => [(int) data_get($tables, 'vip_4p.table_id')],
                 ],
                 'deposit_self_pay' => [
                     'reservation_id' => (int) data_get($reservations, 'deposit_pending.reservation_id'),
@@ -1210,7 +1290,7 @@ class UatScenarioPackService
                 ],
                 'waiting_list_lifecycle' => [
                     'branch_id' => (int) $branch->branch_id,
-                    'customer_user_id' => (int) $users['customer_secondary']->user_id,
+                    'customer_user_id' => (int) $users['customer_primary']->user_id,
                     'table_id' => (int) data_get($tables, 'patio_4p.table_id'),
                 ],
                 'benefits' => [
@@ -1247,6 +1327,7 @@ class UatScenarioPackService
                     'username' => (string) ($row['username'] ?? ''),
                     'role_name' => (string) ($row['role_name'] ?? ''),
                 ])
+                ->values()
                 ->all(),
             'reservations' => collect((array) data_get($manifest, 'reservations', []))
                 ->map(static fn (array $row): array => [
@@ -1314,14 +1395,14 @@ class UatScenarioPackService
             ->get();
 
         return [
-            'main_2p' => $this->resolveTableManifestEntry($tableRows, self::BRANCH_CODE . '-MAIN-01', 'Main', 2),
-            'main_4p' => $this->resolveTableManifestEntry($tableRows, self::BRANCH_CODE . '-MAIN-02', 'Main', 4),
-            'patio_4p' => $this->resolveTableManifestEntry($tableRows, self::BRANCH_CODE . '-PATIO-02', 'Patio', 4),
-            'vip_4p' => $this->resolveTableManifestEntry($tableRows, self::BRANCH_CODE . '-VIP-02', 'VIP', 4),
+            'main_2p' => $this->resolveTableManifestEntry($tableRows, self::BRANCH_CODE.'-MAIN-01', 'Main', 2),
+            'main_4p' => $this->resolveTableManifestEntry($tableRows, self::BRANCH_CODE.'-MAIN-02', 'Main', 4),
+            'patio_4p' => $this->resolveTableManifestEntry($tableRows, self::BRANCH_CODE.'-PATIO-02', 'Patio', 4),
+            'vip_4p' => $this->resolveTableManifestEntry($tableRows, self::BRANCH_CODE.'-VIP-02', 'VIP', 4),
             'templates' => [
-                '2p' => $this->resolveTemplateManifestEntry($tableRows, self::BRANCH_CODE . '-MAIN-01', 'Main', 2),
-                '4p' => $this->resolveTemplateManifestEntry($tableRows, self::BRANCH_CODE . '-MAIN-02', 'Main', 4),
-                '6p' => $this->resolveTemplateManifestEntry($tableRows, self::BRANCH_CODE . '-MAIN-04', 'Main', 6),
+                '2p' => $this->resolveTemplateManifestEntry($tableRows, self::BRANCH_CODE.'-MAIN-01', 'Main', 2),
+                '4p' => $this->resolveTemplateManifestEntry($tableRows, self::BRANCH_CODE.'-MAIN-02', 'Main', 4),
+                '6p' => $this->resolveTemplateManifestEntry($tableRows, self::BRANCH_CODE.'-MAIN-04', 'Main', 6),
             ],
         ];
     }
@@ -1334,8 +1415,7 @@ class UatScenarioPackService
         string $tableCode,
         ?string $zone = null,
         ?int $seats = null,
-    ): array
-    {
+    ): array {
         /** @var RestaurantTable|null $table */
         $table = $tableRows->first(static fn (RestaurantTable $row): bool => (string) $row->table_code === $tableCode);
 
@@ -1370,8 +1450,7 @@ class UatScenarioPackService
         string $tableCode,
         ?string $zone = null,
         ?int $seats = null,
-    ): array
-    {
+    ): array {
         /** @var RestaurantTable|null $table */
         $table = $tableRows->first(static fn (RestaurantTable $row): bool => (string) $row->table_code === $tableCode);
 
@@ -1588,8 +1667,8 @@ class UatScenarioPackService
     }
 
     /**
-     * @param array<string,mixed> $payload
-     * @param list<int> $tableIds
+     * @param  array<string,mixed>  $payload
+     * @param  list<int>  $tableIds
      */
     private function upsertReservation(array $payload, array $tableIds): int
     {
@@ -1659,7 +1738,7 @@ class UatScenarioPackService
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      */
     private function upsertOrder(array $payload): int
     {
@@ -1700,7 +1779,7 @@ class UatScenarioPackService
     }
 
     /**
-     * @param list<array<string,mixed>> $items
+     * @param  list<array<string,mixed>>  $items
      */
     private function replaceOrderItems(int $orderId, array $items): void
     {
@@ -1733,7 +1812,7 @@ class UatScenarioPackService
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      */
     private function upsertPayment(array $payload): int
     {
@@ -1825,7 +1904,7 @@ class UatScenarioPackService
     }
 
     /**
-     * @param array<string,mixed> $manifest
+     * @param  array<string,mixed>  $manifest
      */
     private function writeManifest(string $manifestPath, array $manifest): void
     {

@@ -13,6 +13,8 @@ use App\Services\Admin\AdminMenuManagementService;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Http\JsonResponse;
 
+
+
 class AdminMenuCategoryController extends Controller
 {
     public function __construct(
@@ -27,7 +29,7 @@ class AdminMenuCategoryController extends Controller
             $paginator = $this->menuService->paginateCategories($validated);
 
             return response()->json([
-                'data' => AdminMenuCategoryResource::collection($paginator->getCollection()),
+                'data' => AdminMenuCategoryResource::collection(collect($paginator->items())),
                 'meta' => ListingMetaFactory::paginated(
                     $paginator,
                     [
