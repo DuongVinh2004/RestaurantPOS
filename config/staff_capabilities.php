@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 return [
-    'enforce_known_capabilities' => (bool) env('STAFF_CAPABILITIES_ENFORCE_KNOWN', false),
+    'enforce_known_capabilities' => (bool) env('STAFF_CAPABILITIES_ENFORCE_KNOWN', true),
 
     'known_capabilities' => [
         'audit.view',

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\AuditTrail;
 
-use App\Support\Money;
+use App\SharedKernel\Money\Money;
 
 final class LegacyAuditPayloadFactory
 {

@@ -6,7 +6,6 @@ namespace App\Modules\Notifications\Application\Services;
 
 use App\Modules\Notifications\Domain\Models\NotificationDeliveryAttempt;
 use App\Modules\Notifications\Domain\Models\NotificationOutbox;
-use App\Modules\Notifications\Infrastructure\NotificationChannelManager;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Throwable;

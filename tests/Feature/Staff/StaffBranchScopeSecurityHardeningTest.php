@@ -197,6 +197,121 @@ class StaffBranchScopeSecurityHardeningTest extends TestCase
             ->assertJsonPath('data.0.reservation.reservation_id', $reservationId);
     }
 
+    public function test_staff_cannot_issue_invoice_for_cross_branch_reservation_even_with_existing_shift(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $branchId = $this->createBranch([
+            'branch_code' => 'INVOICE-LOCKED',
+            'branch_name' => 'Invoice Locked Branch',
+        ]);
+
+        $reservationId = $this->createReservation([
+            'branch_id' => $branchId,
+            'user_id' => $customerId,
+            'status' => 'Completed',
+            'final_bill_amount' => '90000.00',
+            'bill_currency' => 'VND',
+            'billed_at' => $this->nowUtc(),
+        ]);
+        $this->createPayment([
+            'branch_id' => $branchId,
+            'reservation_id' => $reservationId,
+            'payment_type' => 'Final',
+            'status' => 'Success',
+            'amount' => '90000.00',
+            'currency' => 'VND',
+            'created_by' => $staffId,
+            'transaction_code' => 'BRANCH-INVOICE-PAY-1',
+        ]);
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId,
+            'status' => 'Open',
+        ]);
+
+        $headers = $this->withIdempotencyKey(
+            'staff-cross-branch-invoice-issue',
+            $this->staffAuthHeaders($staffId, 'staff-cross-branch-invoice')
+        );
+
+        $this->postJson('/api/v1/staff/finance/invoices/'.$reservationId.'/issue', [], $headers)
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+    }
+
+    public function test_staff_payment_and_refund_replay_paths_do_not_bypass_branch_scope(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $branchId = $this->createBranch([
+            'branch_code' => 'REPLAY-LOCKED',
+            'branch_name' => 'Replay Locked Branch',
+        ]);
+        $reservationId = $this->createReservation([
+            'branch_id' => $branchId,
+            'user_id' => $customerId,
+            'status' => 'Completed',
+            'final_bill_amount' => '100000.00',
+            'bill_currency' => 'VND',
+            'billed_at' => $this->nowUtc(),
+        ]);
+        $orderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'order_type' => 'OnSpot',
+            'status' => 'Active',
+            'row_version' => 1,
+        ]);
+        $finalPaymentId = $this->createPayment([
+            'branch_id' => $branchId,
+            'reservation_id' => $reservationId,
+            'payment_type' => 'Final',
+            'status' => 'Success',
+            'amount' => '100000.00',
+            'currency' => 'VND',
+            'created_by' => $staffId,
+            'transaction_code' => 'BRANCH-REPLAY-PAY-1',
+            'idempotency_key' => 'cross-branch-pay-replay',
+        ]);
+        $this->createPayment([
+            'branch_id' => $branchId,
+            'reservation_id' => $reservationId,
+            'payment_type' => 'Refund',
+            'status' => 'Refunded',
+            'amount' => '25000.00',
+            'currency' => 'VND',
+            'refund_of_payment_id' => $finalPaymentId,
+            'created_by' => $staffId,
+            'transaction_code' => 'BRANCH-REPLAY-REFUND-1',
+            'idempotency_key' => 'cross-branch-refund-replay',
+        ]);
+
+        $headers = $this->staffAuthHeaders($staffId, 'staff-cross-branch-replay');
+
+        $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', [
+            'payment_method' => 'Cash',
+            'payment_provider' => 'Cash',
+            'paid_amount' => 100000,
+            'currency' => 'VND',
+            'transaction_code' => 'BRANCH-REPLAY-PAY-REQUEST',
+            'row_version' => 1,
+        ], $this->withIdempotencyKey($headers, 'cross-branch-pay-replay'))
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        $this->postJson('/api/v1/staff/reservations/'.$reservationId.'/refund', [
+            'payment_method' => 'Cash',
+            'payment_provider' => 'Cash',
+            'refund_scope' => 'final',
+            'refund_amount' => 25000,
+            'currency' => 'VND',
+            'transaction_code' => 'BRANCH-REPLAY-REFUND-REQUEST',
+            'row_version' => 1,
+        ], $this->withIdempotencyKey($headers, 'cross-branch-refund-replay'))
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+    }
+
     private function recordAuditLog(int $staffId, int $reservationId, int $branchId, int $paymentId): void
     {
         $auditId = (int) DB::table('audit_logs')->insertGetId([

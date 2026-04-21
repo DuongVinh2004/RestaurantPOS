@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Modules\CheckoutPayments\Support\PaymentProviderPayloadSanitizer;
+use App\Modules\Payments\Infrastructure\Internal\PaymentProviderPayloadSanitizer;
 use Tests\TestCase;
 
 final class PaymentProviderPayloadSanitizerTest extends TestCase

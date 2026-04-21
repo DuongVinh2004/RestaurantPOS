@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
-use App\Modules\Reporting\Application\Services\StaffOperationalRealtimeService;
 use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
+use App\Platform\Realtime\Services\OperationalRealtimeService;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -52,10 +52,7 @@ class StaffServiceSessionHttpFlowTest extends TestCase
             'full_name' => 'Walk In Session Customer',
             'email' => 'walkin.session.customer@example.test',
         ]);
-        $branchId = $this->createBranch([
-            'branch_code' => 'WALKIN-A',
-            'branch_name' => 'Walk In Branch',
-        ]);
+        $branchId = 1;
         $tableId = $this->createRestaurantTableWithSeats(4, [
             'branch_id' => $branchId,
             'table_code' => 'WALKIN-01',
@@ -93,7 +90,7 @@ class StaffServiceSessionHttpFlowTest extends TestCase
             ->where('template_key', 'reservation.checked_in')
             ->count());
 
-        $changes = app(StaffOperationalRealtimeService::class)->readTopic(StaffOperationalRealtimeService::TOPIC_BOARD, 0, 10);
+        $changes = app(OperationalRealtimeService::class)->readTopic(OperationalRealtimeService::TOPIC_BOARD, 0, 10);
         $event = collect((array) ($changes['events'] ?? []))->firstWhere('type', 'service_session.walk_in_created');
         self::assertIsArray($event);
         self::assertSame($reservationId, (int) data_get($event, 'payload.reservation_id'));
@@ -114,10 +111,7 @@ class StaffServiceSessionHttpFlowTest extends TestCase
             'email' => 'walkin.phone.customer@example.test',
             'phone' => '0900000123',
         ]);
-        $branchId = $this->createBranch([
-            'branch_code' => 'WALKIN-PHONE',
-            'branch_name' => 'Walk In Phone Branch',
-        ]);
+        $branchId = 1;
         $tableId = $this->createRestaurantTableWithSeats(4, [
             'branch_id' => $branchId,
             'table_code' => 'WALKIN-PHONE-01',
@@ -154,10 +148,7 @@ class StaffServiceSessionHttpFlowTest extends TestCase
             'email' => 'walkin.phone.staff@example.test',
             'phone' => '0900000456',
         ]);
-        $branchId = $this->createBranch([
-            'branch_code' => 'WALKIN-PHONE-GUARD',
-            'branch_name' => 'Walk In Phone Guard Branch',
-        ]);
+        $branchId = 1;
         $tableId = $this->createRestaurantTableWithSeats(4, [
             'branch_id' => $branchId,
             'status' => 'Available',
@@ -188,10 +179,7 @@ class StaffServiceSessionHttpFlowTest extends TestCase
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $branchId = $this->createBranch([
-            'branch_code' => 'WALKIN-B',
-            'branch_name' => 'Active Session Branch',
-        ]);
+        $branchId = 1;
         $tableId = $this->createRestaurantTableWithSeats(4, [
             'branch_id' => $branchId,
             'table_code' => 'ACTIVE-01',
@@ -223,10 +211,7 @@ class StaffServiceSessionHttpFlowTest extends TestCase
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $tableBranchId = $this->createBranch([
-            'branch_code' => 'WALKIN-C',
-            'branch_name' => 'Table Branch',
-        ]);
+        $tableBranchId = 1;
         $otherBranchId = $this->createBranch([
             'branch_code' => 'WALKIN-D',
             'branch_name' => 'Requested Branch',
@@ -254,10 +239,7 @@ class StaffServiceSessionHttpFlowTest extends TestCase
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $branchId = $this->createBranch([
-            'branch_code' => 'WALKIN-E',
-            'branch_name' => 'Conflict Branch',
-        ]);
+        $branchId = 1;
         $tableId = $this->createRestaurantTableWithSeats(4, [
             'branch_id' => $branchId,
             'status' => 'Available',
@@ -294,10 +276,7 @@ class StaffServiceSessionHttpFlowTest extends TestCase
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $branchId = $this->createBranch([
-            'branch_code' => 'WALKIN-U',
-            'branch_name' => 'Unavailable Branch',
-        ]);
+        $branchId = 1;
         $tableId = $this->createRestaurantTableWithSeats(4, [
             'branch_id' => $branchId,
             'status' => 'Occupied',
@@ -343,10 +322,7 @@ class StaffServiceSessionHttpFlowTest extends TestCase
             'full_name' => 'Not A Customer',
             'email' => 'walkin.staff.target@example.test',
         ]);
-        $branchId = $this->createBranch([
-            'branch_code' => 'WALKIN-H',
-            'branch_name' => 'Identity Guard Branch',
-        ]);
+        $branchId = 1;
         $tableId = $this->createRestaurantTableWithSeats(4, [
             'branch_id' => $branchId,
             'status' => 'Available',
@@ -380,10 +356,7 @@ class StaffServiceSessionHttpFlowTest extends TestCase
             'role_name' => 'Customer',
             'email' => 'walkin.idempotent.customer@example.test',
         ]);
-        $branchId = $this->createBranch([
-            'branch_code' => 'WALKIN-F',
-            'branch_name' => 'Replay Branch',
-        ]);
+        $branchId = 1;
         $tableId = $this->createRestaurantTableWithSeats(4, [
             'branch_id' => $branchId,
             'status' => 'Available',
@@ -447,5 +420,201 @@ class StaffServiceSessionHttpFlowTest extends TestCase
             ->assertHeader('X-Request-Id', 'req-staff-service-session-404')
             ->assertJsonPath('error_code', 'not_found')
             ->assertJsonPath('request_id', 'req-staff-service-session-404');
+    }
+
+    public function test_walk_in_happy_path_supports_board_and_order_replays_without_duplicate_mutation(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $customerId = $this->createUser([
+            'role_name' => 'Customer',
+            'full_name' => 'Replay Happy Path Customer',
+            'email' => 'replay.happy.path.customer@example.test',
+        ]);
+        $tableId = $this->createRestaurantTableWithSeats(4, [
+            'branch_id' => 1,
+            'table_code' => 'WALKIN-HAPPY-01',
+            'status' => 'Available',
+            'zone' => 'Main',
+        ]);
+        $menuItemId = $this->createMenuItem();
+        $this->createMenuItemPrice([
+            'item_id' => $menuItemId,
+            'price' => '90000.00',
+            'currency' => 'VND',
+        ]);
+
+        $startedAt = $this->nowUtc()->copy()->addMinutes(25)->startOfMinute();
+        $headers = $this->staffAuthHeaders($staffId, 'staff-dine-in-happy-path');
+
+        $walkIn = $this->withHeaders($this->withIdempotencyKey($headers, 'staff-dine-in-walk-in-1'))
+            ->postJson('/api/v1/staff/service-sessions/walk-in', [
+                'branch_id' => 1,
+                'user_id' => $customerId,
+                'table_ids' => [$tableId],
+                'guest_count' => 2,
+                'started_at' => $startedAt->toIso8601String(),
+                'service_minutes' => 90,
+                'notes' => 'Replay happy path',
+            ]);
+
+        $walkIn->assertCreated()
+            ->assertJsonPath('data.status', 'Reserved')
+            ->assertJsonPath('data.table_ids.0', $tableId);
+
+        $reservationId = (int) $walkIn->json('data.reservation_id');
+        $reservationRowVersion = (int) $walkIn->json('data.row_version');
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/tables/'.$tableId.'/active-service-session')
+            ->assertOk()
+            ->assertJsonPath('data.reservation_id', $reservationId);
+
+        $boardBeforeOrder = $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/tables/board?from='.urlencode($startedAt->copy()->subHour()->toIso8601String()).'&to='.urlencode($startedAt->copy()->addHours(2)->toIso8601String()).'&branch_id=1');
+
+        $boardBeforeOrder->assertOk();
+        $boardRowBeforeOrder = collect($boardBeforeOrder->json('data'))->firstWhere('table_id', $tableId);
+        self::assertIsArray($boardRowBeforeOrder);
+        self::assertSame('occupied_now', $boardRowBeforeOrder['board_state']);
+        self::assertSame($reservationId, (int) data_get($boardRowBeforeOrder, 'reservation.reservation_id'));
+        self::assertNull(data_get($boardRowBeforeOrder, 'active_order'));
+
+        $createPayload = [
+            'reservation_id' => $reservationId,
+            'row_version' => $reservationRowVersion,
+            'notes' => 'Start dine-in order',
+        ];
+
+        $createOrderFirst = $this->withHeaders($this->withIdempotencyKey($headers, 'staff-dine-in-order-create-1'))
+            ->postJson("/api/v1/staff/tables/{$tableId}/orders", $createPayload);
+
+        $createOrderFirst->assertStatus(201)
+            ->assertHeader('Idempotency-Replayed', 'false')
+            ->assertJsonPath('data.reservation_id', $reservationId)
+            ->assertJsonPath('data.status', 'Active')
+            ->assertJsonCount(0, 'data.items');
+
+        $orderId = (int) $createOrderFirst->json('data.order_id');
+        $orderRowVersion = (int) $createOrderFirst->json('data.row_version');
+
+        $createOrderReplay = $this->withHeaders($this->withIdempotencyKey($headers, 'staff-dine-in-order-create-1'))
+            ->postJson("/api/v1/staff/tables/{$tableId}/orders", $createPayload);
+
+        $createOrderReplay->assertStatus(201)
+            ->assertHeader('Idempotency-Replayed', 'true')
+            ->assertJsonPath('data.order_id', $orderId);
+
+        $addItemsPayload = [
+            'row_version' => $orderRowVersion,
+            'items' => [[
+                'menu_item_id' => $menuItemId,
+                'qty' => 1,
+                'note' => 'no onions',
+            ]],
+        ];
+
+        $addItemsFirst = $this->withHeaders($this->withIdempotencyKey($headers, 'staff-dine-in-order-items-1'))
+            ->postJson("/api/v1/staff/orders/{$orderId}/items", $addItemsPayload);
+
+        $addItemsFirst->assertOk()
+            ->assertHeader('Idempotency-Replayed', 'false')
+            ->assertJsonPath('data.order_id', $orderId)
+            ->assertJsonPath('data.items.0.item_id', $menuItemId)
+            ->assertJsonPath('data.items.0.quantity', 1);
+
+        $addItemsReplay = $this->withHeaders($this->withIdempotencyKey($headers, 'staff-dine-in-order-items-1'))
+            ->postJson("/api/v1/staff/orders/{$orderId}/items", $addItemsPayload);
+
+        $addItemsReplay->assertOk()
+            ->assertHeader('Idempotency-Replayed', 'true')
+            ->assertJsonPath('data.order_id', $orderId)
+            ->assertJsonPath('data.items.0.item_id', $menuItemId);
+
+        self::assertSame(
+            1,
+            (int) DB::table('reservation_order_items')
+                ->where('order_id', $orderId)
+                ->where('item_id', $menuItemId)
+                ->count()
+        );
+
+        $this->withHeaders($headers)
+            ->getJson("/api/v1/staff/tables/{$tableId}/active-order")
+            ->assertOk()
+            ->assertJsonPath('meta.action', 'active_order_by_table')
+            ->assertJsonPath('data.order.order_id', $orderId)
+            ->assertJsonPath('data.order.items.0.item_id', $menuItemId)
+            ->assertJsonPath('data.order.items.0.quantity', 1)
+            ->assertJsonPath('data.table.table_id', $tableId);
+
+        $boardAfterOrder = $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/tables/board?from='.urlencode($startedAt->copy()->subHour()->toIso8601String()).'&to='.urlencode($startedAt->copy()->addHours(2)->toIso8601String()).'&branch_id=1');
+
+        $boardAfterOrder->assertOk();
+        $boardRowAfterOrder = collect($boardAfterOrder->json('data'))->firstWhere('table_id', $tableId);
+        self::assertIsArray($boardRowAfterOrder);
+        self::assertSame($orderId, (int) data_get($boardRowAfterOrder, 'active_order.order_id'));
+        self::assertSame('Active', data_get($boardRowAfterOrder, 'active_order.status'));
+    }
+
+    public function test_walk_in_create_rejects_branch_outside_staff_operational_scope(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $annexBranchId = $this->createBranch([
+            'branch_code' => 'WALKIN-SCOPE',
+            'branch_name' => 'Walk In Scope Branch',
+        ]);
+        $tableId = $this->createRestaurantTableWithSeats(4, [
+            'branch_id' => $annexBranchId,
+            'status' => 'Available',
+        ]);
+
+        $this->withHeaders($this->withIdempotencyKey(
+            $this->staffAuthHeaders($staffId, 'staff-service-session-branch-scope'),
+            'staff-service-session-branch-scope-1',
+        ))->postJson('/api/v1/staff/service-sessions/walk-in', [
+            'branch_id' => $annexBranchId,
+            'user_id' => $customerId,
+            'table_ids' => [$tableId],
+            'guest_count' => 2,
+            'started_at' => $this->nowUtc()->copy()->addMinutes(30)->toIso8601String(),
+            'service_minutes' => 60,
+        ])->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        self::assertSame(0, (int) DB::table('reservations')->where('source', 'WalkIn')->count());
+        self::assertSame('Available', (string) DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
+    }
+
+    public function test_active_service_session_lookup_hides_sessions_outside_staff_operational_branch_scope(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $annexBranchId = $this->createBranch([
+            'branch_code' => 'WALKIN-LOOKUP-SCOPE',
+            'branch_name' => 'Walk In Lookup Scope Branch',
+        ]);
+        $tableId = $this->createRestaurantTableWithSeats(4, [
+            'branch_id' => $annexBranchId,
+            'table_code' => 'ACTIVE-SCOPE-01',
+            'status' => 'Occupied',
+        ]);
+        $reservationId = $this->createReservation([
+            'branch_id' => $annexBranchId,
+            'user_id' => $customerId,
+            'status' => 'Reserved',
+            'source' => 'WalkIn',
+            'checked_in_at' => $this->nowUtc()->copy()->subMinutes(10),
+            'checked_out_at' => null,
+            'cancelled_at' => null,
+            'no_show_at' => null,
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+
+        $this->withHeaders($this->staffAuthHeaders($staffId, 'staff-service-session-scope-read'))
+            ->getJson('/api/v1/staff/tables/'.$tableId.'/active-service-session')
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
     }
 }

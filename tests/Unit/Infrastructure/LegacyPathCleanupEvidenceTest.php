@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Infrastructure;
 
-use App\Modules\FloorOps\Http\Controllers\Staff\StaffTableBoardController;
-use App\Modules\WaitingList\Http\Controllers\Customer\CustomerWaitingListController;
-use App\Modules\WaitingList\Http\Requests\Customer\ListOwnerWaitingListRequest;
-use App\Modules\WaitingList\Http\Requests\Customer\RespondOwnerWaitingListRequest;
-use App\Modules\WaitingList\Http\Requests\Customer\StoreOwnerWaitingListRequest;
+use App\Modules\FloorOperations\Http\Controllers\Staff\TableBoardController;
+use App\Modules\Waitlist\Http\Controllers\Customer\WaitlistController;
+use App\Modules\Waitlist\Http\Requests\Customer\JoinWaitlistRequest;
+use App\Modules\Waitlist\Http\Requests\Customer\ListWaitlistRequest;
+use App\Modules\Waitlist\Http\Requests\Customer\RespondWaitlistInviteRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
@@ -81,12 +81,12 @@ class LegacyPathCleanupEvidenceTest extends TestCase
 
     public function test_customer_waiting_list_owner_flow_stays_on_canonical_controller_service_and_requests(): void
     {
-        $store = Route::getRoutes()->getByAction(CustomerWaitingListController::class.'@store');
-        $show = Route::getRoutes()->getByAction(CustomerWaitingListController::class.'@show');
-        $accept = Route::getRoutes()->getByAction(CustomerWaitingListController::class.'@accept');
-        $confirm = Route::getRoutes()->getByAction(CustomerWaitingListController::class.'@confirmArrival');
-        $decline = Route::getRoutes()->getByAction(CustomerWaitingListController::class.'@decline');
-        $cancel = Route::getRoutes()->getByAction(CustomerWaitingListController::class.'@cancel');
+        $store = Route::getRoutes()->getByAction(WaitlistController::class.'@store');
+        $show = Route::getRoutes()->getByAction(WaitlistController::class.'@show');
+        $accept = Route::getRoutes()->getByAction(WaitlistController::class.'@accept');
+        $confirm = Route::getRoutes()->getByAction(WaitlistController::class.'@confirmArrival');
+        $decline = Route::getRoutes()->getByAction(WaitlistController::class.'@decline');
+        $cancel = Route::getRoutes()->getByAction(WaitlistController::class.'@cancel');
 
         self::assertNotNull($store);
         self::assertNotNull($show);
@@ -95,16 +95,16 @@ class LegacyPathCleanupEvidenceTest extends TestCase
         self::assertNotNull($decline);
         self::assertNotNull($cancel);
 
-        $controller = app(CustomerWaitingListController::class);
-        self::assertInstanceOf(CustomerWaitingListController::class, $controller);
+        $controller = app(WaitlistController::class);
+        self::assertInstanceOf(WaitlistController::class, $controller);
 
-        $this->assertMethodRequestType('index', ListOwnerWaitingListRequest::class);
-        $this->assertMethodRequestType('store', StoreOwnerWaitingListRequest::class);
+        $this->assertMethodRequestType('index', ListWaitlistRequest::class);
+        $this->assertMethodRequestType('store', JoinWaitlistRequest::class);
         $this->assertMethodRequestType('show', Request::class);
-        $this->assertMethodRequestType('accept', RespondOwnerWaitingListRequest::class);
-        $this->assertMethodRequestType('confirmArrival', RespondOwnerWaitingListRequest::class);
-        $this->assertMethodRequestType('decline', RespondOwnerWaitingListRequest::class);
-        $this->assertMethodRequestType('cancel', RespondOwnerWaitingListRequest::class);
+        $this->assertMethodRequestType('accept', RespondWaitlistInviteRequest::class);
+        $this->assertMethodRequestType('confirmArrival', RespondWaitlistInviteRequest::class);
+        $this->assertMethodRequestType('decline', RespondWaitlistInviteRequest::class);
+        $this->assertMethodRequestType('cancel', RespondWaitlistInviteRequest::class);
     }
 
     public function test_legacy_waiting_list_and_staff_order_read_residue_has_been_removed(): void
@@ -119,8 +119,8 @@ class LegacyPathCleanupEvidenceTest extends TestCase
             'app/Http/Requests/WaitingList/StoreCustomerWaitingListRequest.php',
             'app/Http/Requests/WaitingList/Concerns/AuthorizesCustomerWaitingListSelfService.php',
             'app/Services/WaitingList/CustomerWaitingListSelfService.php',
-            'app/Services/StaffOrderReadController.php',
-            'app/Services/Staff/StaffOrderReadController.php',
+            'app/Services/OrderReadController.php',
+            'app/Services/Staff/OrderReadController.php',
             'app/Services/PaymentIntegration/PaymentSessionStatusTransitionPolicy.php',
             'app/Support/BackupArtifactManifest.php',
             'app/Support/BackupRestoreManifest.php',
@@ -141,8 +141,8 @@ class LegacyPathCleanupEvidenceTest extends TestCase
 
     public function test_staff_table_board_legacy_alias_is_kept_as_explicit_compatibility_route(): void
     {
-        $canonical = Route::getRoutes()->getByAction(StaffTableBoardController::class.'@index');
-        $legacy = Route::getRoutes()->getByAction(StaffTableBoardController::class.'@legacyIndex');
+        $canonical = Route::getRoutes()->getByAction(TableBoardController::class.'@index');
+        $legacy = Route::getRoutes()->getByAction(TableBoardController::class.'@legacyIndex');
 
         self::assertNotNull($canonical);
         self::assertSame('api/v1/staff/tables/board', $canonical->uri());
@@ -153,14 +153,16 @@ class LegacyPathCleanupEvidenceTest extends TestCase
 
     private function assertMethodRequestType(string $method, string $expectedClass): void
     {
-        $reflection = new \ReflectionMethod(CustomerWaitingListController::class, $method);
+        $reflection = new \ReflectionMethod(WaitlistController::class, $method);
         $parameters = $reflection->getParameters();
 
-        self::assertNotEmpty($parameters, sprintf('Expected %s::%s to declare a request parameter.', CustomerWaitingListController::class, $method));
+        self::assertNotEmpty($parameters, sprintf('Expected %s::%s to declare a request parameter.', WaitlistController::class, $method));
 
         $requestParameter = $parameters[count($parameters) - 1];
         $type = $requestParameter->getType();
         self::assertInstanceOf(\ReflectionNamedType::class, $type);
-        self::assertSame($expectedClass, $type->getName(), sprintf('Expected %s::%s to use %s.', CustomerWaitingListController::class, $method, $expectedClass));
+        self::assertSame($expectedClass, $type->getName(), sprintf('Expected %s::%s to use %s.', WaitlistController::class, $method, $expectedClass));
     }
 }
+
+

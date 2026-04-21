@@ -258,11 +258,11 @@ final class ApiOpenApiContractCoverageTest extends TestCase
             data_get($operations['POST api/v1/staff/orders/{order_id}/items'], 'requestBody.content.application/json.schema.$ref')
         );
         $this->assertSame(
-            '#/components/schemas/NotifyWaitingListRequest',
+            '#/components/schemas/InviteWaitlistCustomerRequest',
             data_get($operations['POST api/v1/staff/waiting-list/{id}/notify'], 'requestBody.content.application/json.schema.$ref')
         );
         $this->assertSame(
-            '#/components/schemas/SeatWaitingListRequest',
+            '#/components/schemas/SeatWaitlistRequest',
             data_get($operations['POST api/v1/staff/waiting-list/{id}/seat'], 'requestBody.content.application/json.schema.$ref')
         );
 
@@ -420,7 +420,7 @@ final class ApiOpenApiContractCoverageTest extends TestCase
         $this->assertSame('staff_api_key', $operations['PATCH api/v1/admin/settings/branches/{id}']['x-auth-mode'] ?? null);
         $this->assertSame([['StaffApiKey' => []]], $operations['PATCH api/v1/admin/settings/branches/{id}']['security'] ?? null);
         $this->assertSame(
-            '#/components/schemas/UpdateAdminBranchRequest',
+            '#/components/schemas/UpdateBranchRequest',
             data_get($operations['PATCH api/v1/admin/settings/branches/{id}'], 'requestBody.content.application/json.schema.$ref')
         );
 
@@ -458,7 +458,7 @@ final class ApiOpenApiContractCoverageTest extends TestCase
         }
 
         $this->assertSame(
-            '#/components/schemas/DispatchKitchenTicketsRequest',
+            '#/components/schemas/DispatchKitchenTicketRequest',
             data_get($operations['POST api/v1/staff/orders/{order_id}/kitchen/dispatch'], 'requestBody.content.application/json.schema.$ref')
         );
         $this->assertSame(
@@ -635,3 +635,4 @@ final class ApiOpenApiContractCoverageTest extends TestCase
         return strtoupper((string) ($route['method'] ?? 'GET')).' '.(string) ($route['uri'] ?? '');
     }
 }
+

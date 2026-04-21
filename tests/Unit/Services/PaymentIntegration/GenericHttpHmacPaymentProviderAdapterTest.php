@@ -6,7 +6,7 @@ namespace Tests\Unit\Services\PaymentIntegration;
 
 use App\Enums\PaymentSessionScope;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\CheckoutPayments\Infrastructure\PaymentProviders\GenericHttpHmacPaymentProviderAdapter;
+use App\Modules\Payments\Infrastructure\Integrations\PaymentProviders\GenericHttpHmacPaymentProviderAdapter;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 

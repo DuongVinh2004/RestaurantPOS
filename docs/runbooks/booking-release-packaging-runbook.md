@@ -33,6 +33,8 @@ Use this exact checklist for final packaging and handoff:
    - Source-only exports are review artifacts only. Label them `SOURCE-ONLY`, do not deploy them, and do not cite them as release evidence because they can omit generated artifacts, frozen manifests, package sidecars, and smoke reports.
 3. Release/handoff package.
    - Use only `build/booking-release/*.tar.gz` plus matching `.metadata.json`, `.inventory.json`, `.checksums.sha256`, `.package.sha256`, and `latest-package.json` after `booking:package-release --verify-frozen` or `booking:release-build`.
+   - Treat `build/booking-release/stage/<package>` as transient local staging only. It is not release evidence and may be deleted immediately after packaging.
+   - Local package retention keeps only the two newest package sets under `build/booking-release/`. Archive promoted candidates elsewhere if you need a longer rollback history than current-plus-previous.
 4. Authoritative smoke proof.
    - Cite the exact timestamped smoke file for the target, not an old failure copied from the folder listing. Current pointers live at `storage/app/booking_release/staff_web_smoke/latest-local.*`, `latest-staging.*`, and release-loop step artifacts under `storage/app/booking_release/release_loop/steps/<target>/<timestamp>/staff-web-smoke/`.
    - Timestamped reports that are not the cited target evidence are historical only unless the release ticket explicitly promotes them.

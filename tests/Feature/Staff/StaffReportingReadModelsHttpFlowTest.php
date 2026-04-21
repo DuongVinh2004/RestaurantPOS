@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Modules\Reporting\Application\Services\ReportingSnapshotService;
+use App\Modules\Reporting\Application\Workflows\ReportingSnapshotWorkflow;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -156,7 +156,7 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
             'created_at' => $businessDay->copy()->setTime(21, 0),
         ]);
 
-        app(ReportingSnapshotService::class)->rebuild([
+        app(ReportingSnapshotWorkflow::class)->rebuild([
             'branch_id' => $branchId,
             'start_date' => $businessDay->toDateString(),
             'end_date' => $businessDay->toDateString(),
@@ -165,7 +165,7 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
         $headers = $this->staffAuthHeaders($staffId, 'staff-reporting-view-key');
 
         $sales = $this->withHeaders($headers)
-            ->getJson('/api/v1/staff/reporting/daily-sales?start_date=' . $businessDay->toDateString() . '&end_date=' . $businessDay->toDateString());
+            ->getJson('/api/v1/staff/reporting/daily-sales?start_date='.$businessDay->toDateString().'&end_date='.$businessDay->toDateString());
 
         $sales->assertOk()
             ->assertJsonPath('meta.action', 'staff_reporting_daily_sales_index')
@@ -182,7 +182,7 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
             ->assertJsonPath('data.0.invoices.tax_amount', 8181.82);
 
         $operations = $this->withHeaders($headers)
-            ->getJson('/api/v1/staff/reporting/daily-operations?start_date=' . $businessDay->toDateString() . '&end_date=' . $businessDay->toDateString());
+            ->getJson('/api/v1/staff/reporting/daily-operations?start_date='.$businessDay->toDateString().'&end_date='.$businessDay->toDateString());
 
         $operations->assertOk()
             ->assertJsonPath('meta.action', 'staff_reporting_daily_operations_index')
@@ -197,7 +197,7 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
             ->assertJsonPath('data.0.waiting_list.arrival_confirmation_rate', 100.0);
 
         $inventory = $this->withHeaders($headers)
-            ->getJson('/api/v1/staff/reporting/daily-inventory?start_date=' . $businessDay->toDateString() . '&end_date=' . $businessDay->toDateString() . '&ingredient_id=' . $ingredientId);
+            ->getJson('/api/v1/staff/reporting/daily-inventory?start_date='.$businessDay->toDateString().'&end_date='.$businessDay->toDateString().'&ingredient_id='.$ingredientId);
 
         $inventory->assertOk()
             ->assertJsonPath('meta.action', 'staff_reporting_daily_inventory_index')
@@ -211,7 +211,6 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
             ->assertJsonPath('data.0.movement_summary.wastage_quantity', 2.0)
             ->assertJsonPath('data.0.movement_summary.net_quantity_delta', 10.0);
     }
-
 
     public function test_staff_reporting_meta_marks_empty_snapshot_scope_as_degraded(): void
     {

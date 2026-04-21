@@ -13,38 +13,38 @@ final class AdminMasterDataRouteSurfaceTest extends TestCase
     public function test_admin_menu_benefits_and_settings_routes_are_registered_to_runtime_surface(): void
     {
         $expected = [
-            ['GET', 'v1/admin/menu/categories', 'App\\Http\\Controllers\\Api\\Admin\\AdminMenuCategoryController@index'],
-            ['GET', 'v1/admin/menu/categories/export', 'App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export'],
-            ['POST', 'v1/admin/menu/categories/import', 'App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import'],
-            ['POST', 'v1/admin/menu/categories', 'App\\Http\\Controllers\\Api\\Admin\\AdminMenuCategoryController@store'],
-            ['GET', 'v1/admin/menu/items', 'App\\Http\\Controllers\\Api\\Admin\\AdminMenuItemController@index'],
-            ['GET', 'v1/admin/menu/items/export', 'App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export'],
-            ['POST', 'v1/admin/menu/items/import', 'App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import'],
-            ['POST', 'v1/admin/menu/items', 'App\\Http\\Controllers\\Api\\Admin\\AdminMenuItemController@store'],
-            ['GET', 'v1/admin/menu/prices/export', 'App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export'],
-            ['POST', 'v1/admin/menu/prices/import', 'App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import'],
-            ['POST', 'v1/admin/menu/items/{item_id}/prices', 'App\\Http\\Controllers\\Api\\Admin\\AdminMenuItemPriceController@store'],
-            ['PUT', 'v1/admin/menu/prices/{price_id}', 'App\\Http\\Controllers\\Api\\Admin\\AdminMenuItemPriceController@update'],
-            ['GET', 'v1/admin/benefits/vouchers', 'App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminVoucherController@index'],
-            ['GET', 'v1/admin/benefits/vouchers/export', 'App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export'],
-            ['POST', 'v1/admin/benefits/vouchers/import', 'App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import'],
-            ['POST', 'v1/admin/benefits/vouchers', 'App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminVoucherController@store'],
-            ['PATCH', 'v1/admin/benefits/vouchers/{id}', 'App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminVoucherController@update'],
-            ['GET', 'v1/admin/benefits/loyalty-tiers', 'App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminLoyaltyTierController@index'],
-            ['GET', 'v1/admin/benefits/loyalty-tiers/export', 'App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export'],
-            ['POST', 'v1/admin/benefits/loyalty-tiers/import', 'App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import'],
-            ['POST', 'v1/admin/benefits/loyalty-tiers', 'App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminLoyaltyTierController@store'],
-            ['PATCH', 'v1/admin/benefits/loyalty-tiers/{id}', 'App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminLoyaltyTierController@update'],
-            ['GET', 'v1/admin/settings/benefits', 'App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminBenefitSettingController@index'],
-            ['POST', 'v1/admin/settings/benefits', 'App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminBenefitSettingController@upsert'],
-            ['GET', 'v1/admin/settings/branches', 'App\\Http\\Controllers\\Api\\Admin\\AdminBranchController@index'],
-            ['GET', 'v1/admin/settings/branches/export', 'App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export'],
-            ['POST', 'v1/admin/settings/branches/import', 'App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import'],
-            ['POST', 'v1/admin/settings/branches', 'App\\Http\\Controllers\\Api\\Admin\\AdminBranchController@store'],
-            ['GET', 'v1/admin/settings/branches/{id}', 'App\\Http\\Controllers\\Api\\Admin\\AdminBranchController@show'],
-            ['PATCH', 'v1/admin/settings/branches/{id}', 'App\\Http\\Controllers\\Api\\Admin\\AdminBranchController@update'],
-            ['GET', 'v1/admin/settings/finance/tax-profile', 'App\\Http\\Controllers\\Api\\Admin\\AdminFinanceSettingsController@showTaxProfile'],
-            ['POST', 'v1/admin/settings/finance/tax-profile', 'App\\Http\\Controllers\\Api\\Admin\\AdminFinanceSettingsController@upsertTaxProfile'],
+            ['GET', 'v1/admin/menu/categories', 'App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuCategoryController@index'],
+            ['GET', 'v1/admin/menu/categories/export', 'App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export'],
+            ['POST', 'v1/admin/menu/categories/import', 'App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataImportController@import'],
+            ['POST', 'v1/admin/menu/categories', 'App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuCategoryController@store'],
+            ['GET', 'v1/admin/menu/items', 'App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemController@index'],
+            ['GET', 'v1/admin/menu/items/export', 'App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export'],
+            ['POST', 'v1/admin/menu/items/import', 'App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataImportController@import'],
+            ['POST', 'v1/admin/menu/items', 'App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemController@store'],
+            ['GET', 'v1/admin/menu/prices/export', 'App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export'],
+            ['POST', 'v1/admin/menu/prices/import', 'App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataImportController@import'],
+            ['POST', 'v1/admin/menu/items/{item_id}/prices', 'App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemPriceController@store'],
+            ['PUT', 'v1/admin/menu/prices/{price_id}', 'App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemPriceController@update'],
+            ['GET', 'v1/admin/benefits/vouchers', 'App\\Modules\\Promotions\\Http\\Controllers\\Admin\\VoucherController@index'],
+            ['GET', 'v1/admin/benefits/vouchers/export', 'App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export'],
+            ['POST', 'v1/admin/benefits/vouchers/import', 'App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataImportController@import'],
+            ['POST', 'v1/admin/benefits/vouchers', 'App\\Modules\\Promotions\\Http\\Controllers\\Admin\\VoucherController@store'],
+            ['PATCH', 'v1/admin/benefits/vouchers/{id}', 'App\\Modules\\Promotions\\Http\\Controllers\\Admin\\VoucherController@update'],
+            ['GET', 'v1/admin/benefits/loyalty-tiers', 'App\\Modules\\Loyalty\\Http\\Controllers\\Admin\\LoyaltyTierController@index'],
+            ['GET', 'v1/admin/benefits/loyalty-tiers/export', 'App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export'],
+            ['POST', 'v1/admin/benefits/loyalty-tiers/import', 'App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataImportController@import'],
+            ['POST', 'v1/admin/benefits/loyalty-tiers', 'App\\Modules\\Loyalty\\Http\\Controllers\\Admin\\LoyaltyTierController@store'],
+            ['PATCH', 'v1/admin/benefits/loyalty-tiers/{id}', 'App\\Modules\\Loyalty\\Http\\Controllers\\Admin\\LoyaltyTierController@update'],
+            ['GET', 'v1/admin/settings/benefits', 'App\\Modules\\Promotions\\Http\\Controllers\\Admin\\BenefitSettingController@index'],
+            ['POST', 'v1/admin/settings/benefits', 'App\\Modules\\Promotions\\Http\\Controllers\\Admin\\BenefitSettingController@upsert'],
+            ['GET', 'v1/admin/settings/branches', 'App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\BranchController@index'],
+            ['GET', 'v1/admin/settings/branches/export', 'App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export'],
+            ['POST', 'v1/admin/settings/branches/import', 'App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataImportController@import'],
+            ['POST', 'v1/admin/settings/branches', 'App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\BranchController@store'],
+            ['GET', 'v1/admin/settings/branches/{id}', 'App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\BranchController@show'],
+            ['PATCH', 'v1/admin/settings/branches/{id}', 'App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\BranchController@update'],
+            ['GET', 'v1/admin/settings/finance/tax-profile', 'App\\Modules\\Billing\\Http\\Controllers\\Admin\\FinanceTaxProfileController@showTaxProfile'],
+            ['POST', 'v1/admin/settings/finance/tax-profile', 'App\\Modules\\Billing\\Http\\Controllers\\Admin\\FinanceTaxProfileController@upsertTaxProfile'],
         ];
 
         foreach ($expected as [$method, $uri, $action]) {
@@ -63,27 +63,39 @@ final class AdminMasterDataRouteSurfaceTest extends TestCase
             ->all();
 
         self::assertFalse(
-            collect($routeActions)->contains(static fn (string $action): bool => str_starts_with($action, 'App\\Http\\Controllers\\Api\\Admin\\AdminMenuController@')),
-            'Legacy AdminMenuController routes should not remain registered after the menu foundation split.'
+            collect($routeActions)->contains(static fn (string $action): bool => str_starts_with($action, 'App\\Modules\\Catalog\\Http\\Controllers\\Admin\\LegacyMenuController@')),
+            'Legacy LegacyMenuController routes should not remain registered after the menu foundation split.'
         );
 
         foreach ([
-            'app/Http/Controllers/Api/Admin/AdminMenuController.php',
-            'app/Services/Admin/AdminMenuService.php',
-            'app/Http/Requests/Admin/CreateAdminMenuCategoryRequest.php',
-            'app/Http/Requests/Admin/CreateAdminMenuItemPriceRequest.php',
-            'app/Http/Requests/Admin/CreateAdminMenuItemRequest.php',
-            'app/Http/Requests/Admin/ListAdminMenuCategoriesRequest.php',
-            'app/Http/Requests/Admin/ListAdminMenuItemsRequest.php',
-            'app/Http/Requests/Admin/UpdateAdminMenuCategoryRequest.php',
-            'app/Http/Requests/Admin/UpdateAdminMenuItemRequest.php',
-            'app/Http/Resources/AdminMenuCategoryResource.php',
-            'app/Http/Resources/AdminMenuItemPriceResource.php',
-            'app/Http/Resources/AdminMenuItemResource.php',
+            'app/Modules/Catalog/Http/Controllers/Admin/LegacyMenuController.php',
+            'app/Modules/Catalog/Application/UseCases/Management/LegacyMenuService.php',
+            'app/Modules/Catalog/Http/Requests/Admin/CreateMenuCategoryRequest.php',
+            'app/Modules/Catalog/Http/Requests/Admin/CreateMenuItemPriceRequest.php',
+            'app/Modules/Catalog/Http/Requests/Admin/CreateMenuItemRequest.php',
+            'app/Modules/Catalog/Http/Requests/Admin/ListMenuCategoriesRequest.php',
+            'app/Modules/Catalog/Http/Requests/Admin/ListMenuItemsRequest.php',
+            'app/Modules/Catalog/Http/Requests/Admin/LegacyUpdateMenuCategoryRequest.php',
+            'app/Modules/Catalog/Http/Requests/Admin/LegacyUpdateMenuItemRequest.php',
+            'app/Modules/Catalog/Http/Resources/Admin/LegacyMenuCategoryResource.php',
+            'app/Modules/Catalog/Http/Resources/Admin/LegacyMenuItemPriceResource.php',
+            'app/Modules/Catalog/Http/Resources/Admin/LegacyMenuItemResource.php',
         ] as $legacyPath) {
             self::assertTrue(
                 file_exists(base_path($legacyPath)),
-                sprintf('Legacy admin menu compatibility artifact [%s] should remain available while runtime routes stay on the split controller stack.', $legacyPath)
+                sprintf('Module-local legacy admin menu compatibility artifact [%s] should remain available while runtime routes stay on the split controller stack.', $legacyPath)
+            );
+        }
+
+        foreach ([
+            'app/Http/Controllers/Api/Admin/LegacyMenuController.php',
+            'app/Services/Admin/LegacyMenuService.php',
+            'app/Http/Requests/Admin/CreateMenuCategoryRequest.php',
+            'app/Http/Resources/MenuCategoryResource.php',
+        ] as $legacyTopLevelPath) {
+            self::assertFalse(
+                file_exists(base_path($legacyTopLevelPath)),
+                sprintf('Legacy admin menu business artifact [%s] should not remain in top-level lanes after the Catalog module move.', $legacyTopLevelPath)
             );
         }
     }

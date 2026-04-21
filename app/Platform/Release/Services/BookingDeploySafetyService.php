@@ -6,7 +6,7 @@ use App\Enums\DepositStatus;
 use App\Enums\ReservationStatus;
 use App\Platform\Health\Services\BookingEnvironmentValidator;
 use App\Platform\Metrics\Services\OperationalInsightsService;
-use App\Services\Inventory\PurchaseOrderReconciliationService;
+use App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService;
 use Illuminate\Database\Migrations\DatabaseMigrationRepository;
 use Illuminate\Database\Migrations\Migrator;
 use Illuminate\Support\Carbon;

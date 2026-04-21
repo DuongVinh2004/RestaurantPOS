@@ -10,14 +10,14 @@ use App\Modules\Conversations\Domain\Models\AgentAssignment;
 use App\Modules\Conversations\Domain\Models\Conversation;
 use App\Modules\Conversations\Domain\Models\ConversationEvent;
 use App\Modules\Conversations\Domain\Models\ConversationMessage;
-use App\Modules\FloorOps\Application\Services\StaffBranchContextService;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\WaitingList\Domain\Models\WaitingList;
-use App\Models\User;
+use App\Modules\Waitlist\Domain\Models\WaitlistEntry;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use App\Support\AuditEvent;
-use App\Support\StaffCapabilityResolver;
+use App\Modules\IdentityAccess\Application\Queries\StaffCapabilityResolver;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -939,9 +939,9 @@ class StaffConversationWorkflowService
 
         $waitingList = null;
         if (! empty($payload['waiting_list_id'])) {
-            $waitingList = WaitingList::query()->find((int) $payload['waiting_list_id']);
-            if (! $waitingList instanceof WaitingList) {
-                throw (new ModelNotFoundException())->setModel(WaitingList::class, [(int) $payload['waiting_list_id']]);
+            $waitingList = WaitlistEntry::query()->find((int) $payload['waiting_list_id']);
+            if (! $waitingList instanceof WaitlistEntry) {
+                throw (new ModelNotFoundException())->setModel(WaitlistEntry::class, [(int) $payload['waiting_list_id']]);
             }
         }
 
@@ -953,7 +953,7 @@ class StaffConversationWorkflowService
             }
         }
 
-        if ($reservation instanceof Reservation && $waitingList instanceof WaitingList && (int) $reservation->branch_id !== (int) $waitingList->branch_id) {
+        if ($reservation instanceof Reservation && $waitingList instanceof WaitlistEntry && (int) $reservation->branch_id !== (int) $waitingList->branch_id) {
             throw ValidationException::withMessages([
                 'waiting_list_id' => ['Waiting-list entry must belong to the same branch as the linked reservation.'],
             ]);
@@ -974,7 +974,7 @@ class StaffConversationWorkflowService
         $branchId = (int) ($conversation->branch_id ?? 0);
         if ($reservation instanceof Reservation) {
             $branchId = (int) $reservation->branch_id;
-        } elseif ($waitingList instanceof WaitingList) {
+        } elseif ($waitingList instanceof WaitlistEntry) {
             $branchId = (int) $waitingList->branch_id;
         }
 
@@ -997,7 +997,7 @@ class StaffConversationWorkflowService
             'linked_reservation_id' => $reservation instanceof Reservation
                 ? (int) $reservation->reservation_id
                 : ($conversation->linked_reservation_id !== null ? (int) $conversation->linked_reservation_id : null),
-            'linked_waiting_list_id' => $waitingList instanceof WaitingList
+            'linked_waiting_list_id' => $waitingList instanceof WaitlistEntry
                 ? (int) $waitingList->waiting_id
                 : ($conversation->linked_waiting_list_id !== null ? (int) $conversation->linked_waiting_list_id : null),
         ];
@@ -1315,3 +1315,4 @@ class StaffConversationWorkflowService
         $this->branchContextService->assertAccessibleBranch($staffActorUserId, $branchId);
     }
 }
+

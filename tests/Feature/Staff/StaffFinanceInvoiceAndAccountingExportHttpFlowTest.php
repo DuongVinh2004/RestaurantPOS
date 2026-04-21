@@ -253,6 +253,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $branchA = $this->createBranch(['branch_code' => 'INVCASHA', 'branch_name' => 'Invoice Cashier A']);
         $branchB = $this->createBranch(['branch_code' => 'INVCASHB', 'branch_name' => 'Invoice Cashier B']);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', [$branchA]);
 
         DB::table('settings')->updateOrInsert(
             ['setting_key' => 'finance.tax_invoice_profile'],
@@ -314,6 +315,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $branchA = $this->createBranch(['branch_code' => 'INVA', 'branch_name' => 'Invoice A']);
         $branchB = $this->createBranch(['branch_code' => 'INVB', 'branch_name' => 'Invoice B']);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', [$branchA]);
 
         DB::table('settings')->updateOrInsert(
             ['setting_key' => 'finance.tax_invoice_profile'],
@@ -384,6 +386,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $branchA = $this->createBranch(['branch_code' => 'INVOPS1', 'branch_name' => 'Invoice Ops A']);
         $branchB = $this->createBranch(['branch_code' => 'INVOPS2', 'branch_name' => 'Invoice Ops B']);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', [$branchA]);
 
         DB::table('settings')->updateOrInsert(
             ['setting_key' => 'finance.tax_invoice_profile'],

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Platform\Uat;
 
-use App\Models\User;
 use App\Modules\BranchScheduling\Domain\Models\Branch;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
-use App\Modules\Reporting\Application\Services\ReportingSnapshotService;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\IdentityAccess\Infrastructure\Persistence\StaffApiKeyStore;
+use App\Modules\Reporting\Application\Workflows\ReportingSnapshotWorkflow;
 use App\Platform\FeatureFlags\Services\FeatureFlagManagementService;
 use App\Platform\Release\Services\SiteBootstrapService;
-use App\Services\StaffApiKeyGovernanceService;
 use Carbon\Carbon;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Collection;
@@ -108,7 +108,7 @@ class UatScenarioPackService
 
     public function __construct(
         private readonly SiteBootstrapService $siteBootstrapService,
-        private readonly StaffApiKeyGovernanceService $staffApiKeyGovernanceService,
+        private readonly StaffApiKeyStore $staffApiKeyGovernanceService,
         private readonly FeatureFlagManagementService $featureFlagManagementService,
     ) {}
 
@@ -499,7 +499,7 @@ class UatScenarioPackService
             return;
         }
 
-        app(ReportingSnapshotService::class)->rebuild([
+        app(ReportingSnapshotWorkflow::class)->rebuild([
             'branch_id' => (int) $branch->branch_id,
             'start_date' => $startDate,
             'end_date' => $endDate,

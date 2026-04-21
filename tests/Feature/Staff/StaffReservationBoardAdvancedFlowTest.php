@@ -225,7 +225,7 @@ class StaffReservationBoardAdvancedFlowTest extends TestCase
 
     public function test_non_staff_cannot_view_board(): void
     {
-        $customer = \App\Models\User::query()->findOrFail($this->createUser(['role_name' => 'Customer']));
+        $customer = \App\Modules\IdentityAccess\Domain\Models\User::query()->findOrFail($this->createUser(['role_name' => 'Customer']));
 
         $response = $this->actingAs($customer)->getJson('/api/v1/staff/tables/board');
 

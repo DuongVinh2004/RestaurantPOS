@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Reservation;
 
-use App\Models\User;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Tests\Support\BuildsBookingScenario;

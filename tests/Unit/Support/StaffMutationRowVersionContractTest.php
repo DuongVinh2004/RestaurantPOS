@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Modules\CheckoutPayments\Http\Requests\Staff\CheckoutOrderRequest;
-use App\Modules\CheckoutPayments\Http\Requests\Staff\FinalizeSettlementRequest;
-use App\Support\StaffMutationRowVersionContract;
+use App\Modules\Cashiering\Http\Requests\Staff\CheckoutOrderRequest;
+use App\Modules\Cashiering\Http\Requests\Staff\FinalizeSettlementRequest;
+use App\Platform\QualityAssurance\Verification\Application\Verifiers\StaffMutationRowVersionContract;
 use PHPUnit\Framework\TestCase;
 
 class StaffMutationRowVersionContractTest extends TestCase

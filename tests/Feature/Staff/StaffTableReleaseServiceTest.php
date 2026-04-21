@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Staff;
 
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
-use App\Modules\FloorOps\Application\Services\StaffTableReleaseService;
+use App\Modules\FloorOperations\Application\UseCases\Boards\StaffTableReleaseService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Mockery;
 use Tests\Support\BuildsBookingScenario;
@@ -61,3 +61,4 @@ class StaffTableReleaseServiceTest extends TestCase
         $this->assertSame('Available', (string) ($released->status->value ?? $released->status));
     }
 }
+

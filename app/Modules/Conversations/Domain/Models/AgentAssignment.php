@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Conversations\Domain\Models;
 
-use App\Models\User;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 

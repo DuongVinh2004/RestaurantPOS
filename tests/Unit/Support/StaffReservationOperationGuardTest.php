@@ -9,7 +9,7 @@ use App\Enums\RestaurantTableStatus;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
-use App\Modules\FloorOps\Domain\Guards\StaffReservationOperationGuard;
+use App\Modules\FloorOperations\Domain\Guards\StaffReservationOperationGuard;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -92,3 +92,4 @@ final class StaffReservationOperationGuardTest extends TestCase
         StaffReservationOperationGuard::assertExpectedTableRowVersion($table, 3);
     }
 }
+

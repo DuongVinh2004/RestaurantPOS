@@ -6,7 +6,7 @@ namespace App\Modules\Ordering\Http\Resources;
 
 use App\Enums\PaymentStatus;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
-use App\Support\Money;
+use App\SharedKernel\Money\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 

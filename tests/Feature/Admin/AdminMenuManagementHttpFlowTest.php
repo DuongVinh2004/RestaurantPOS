@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
-use App\Services\MenuPreorderPolicyService;
+use App\Modules\Catalog\Application\UseCases\PolicyPreview\MenuPreorderPolicyService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Tests\Support\BuildsBookingScenario;

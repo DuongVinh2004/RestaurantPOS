@@ -11,12 +11,12 @@ class TriggerManagedRowVersionContractTest extends TestCase
     public function test_services_do_not_manually_increment_row_version_for_trigger_managed_tables(): void
     {
         $paths = [
-            app_path('Services/TableHoldService.php'),
-            app_path('Services/ReservationCancellationService.php'),
-            app_path('Services/RestaurantTableStateService.php'),
-            app_path('Services/ReservationService.php'),
-            app_path('Services/Staff/StaffWaitingListService.php'),
-            app_path('Services/Staff/StaffCheckoutService.php'),
+            app_path('Modules/BranchScheduling/Application/Services/TableHoldService.php'),
+            app_path('Modules/Reservations/Application/Services/ReservationCancellationService.php'),
+            app_path('Modules/BranchScheduling/Application/Services/RestaurantTableStateService.php'),
+            app_path('Modules/Reservations/Application/Services/ReservationService.php'),
+            app_path('Modules/Waitlist/Application/Services/StaffWaitingListService.php'),
+            app_path('Modules/Cashiering/Application/Workflows/OrderSettlementWorkflow.php'),
         ];
 
         foreach ($paths as $path) {

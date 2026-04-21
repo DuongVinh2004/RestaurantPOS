@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature\Auth;
 
 use App\Http\Middleware\ResolveCustomerAuthMiddleware;
-use App\Models\User;
-use App\Services\CustomerAccessSessionService;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\IdentityAccess\Infrastructure\Persistence\CustomerAccessSessionStore;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -106,7 +106,7 @@ final class CustomerAccessSessionFoundationTest extends TestCase
     public function test_dedicated_customer_access_session_token_resolves_customer_context(): void
     {
         $user = $this->createUser(roleId: 3, username: 'customer-auth-1');
-        $issued = app(CustomerAccessSessionService::class)->issueForUser($user, now('UTC')->addHour(), [
+        $issued = app(CustomerAccessSessionStore::class)->issueForUser($user, now('UTC')->addHour(), [
             'user_agent' => 'TestAgent/1.0',
         ]);
 
@@ -135,7 +135,7 @@ final class CustomerAccessSessionFoundationTest extends TestCase
     public function test_expired_or_revoked_dedicated_customer_access_token_is_rejected(): void
     {
         $user = $this->createUser(roleId: 3, username: 'customer-auth-2');
-        $service = app(CustomerAccessSessionService::class);
+        $service = app(CustomerAccessSessionStore::class);
 
         $expired = $service->issueForUser($user, now('UTC')->subMinute());
         $revoked = $service->issueForUser($user, now('UTC')->addHour());
@@ -182,7 +182,7 @@ final class CustomerAccessSessionFoundationTest extends TestCase
 
         $this->expectException(\Illuminate\Validation\ValidationException::class);
 
-        app(CustomerAccessSessionService::class)->issueForUser($staffUser, now('UTC')->addHour());
+        app(CustomerAccessSessionStore::class)->issueForUser($staffUser, now('UTC')->addHour());
     }
 
     private function createUser(int $roleId, string $username): User

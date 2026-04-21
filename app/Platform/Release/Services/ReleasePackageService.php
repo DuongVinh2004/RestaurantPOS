@@ -300,6 +300,18 @@ class ReleasePackageService
         ];
         $this->ensureDirectoryExists(dirname(base_path($sidecars['latest_pointer_path'])));
         File::put(base_path($sidecars['latest_pointer_path']), json_encode($latestPointerPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        $stageCleanupWarning = $this->cleanupStageDirectory($absoluteStagePath, $stagePath);
+        if ($stageCleanupWarning !== null) {
+            $warnings[] = $stageCleanupWarning;
+        }
+        foreach ($this->pruneRetainedPackageSets(
+            absoluteOutputRoot: $absoluteOutputRoot,
+            packagePrefix: $definition['package_prefix'],
+            retainCount: $definition['retained_package_sets'],
+            sidecars: $definition['sidecars'],
+        ) as $retentionWarning) {
+            $warnings[] = $retentionWarning;
+        }
 
         return [
             'ok' => true,
@@ -334,6 +346,7 @@ class ReleasePackageService
      * @return array{
      *   output_root: string,
      *   package_prefix: string,
+     *   retained_package_sets: int,
      *   exclude_paths: list<string>,
      *   include_paths: list<array{path: string, required: bool}>,
      *   sidecars: array{metadata_suffix: string, inventory_suffix: string, checksums_suffix: string, package_sha256_suffix: string, latest_pointer_path: string}
@@ -363,6 +376,7 @@ class ReleasePackageService
         return [
             'output_root' => trim((string) ($packaging['output_root'] ?? 'build/booking-release'), '/'),
             'package_prefix' => trim((string) ($packaging['package_prefix'] ?? 'restaurantpos-backend-release')),
+            'retained_package_sets' => max(1, (int) ($packaging['retained_package_sets'] ?? 2)),
             'exclude_paths' => array_values(array_filter(array_map(
                 static fn (mixed $path): string => is_scalar($path) ? trim(str_replace('\\', '/', (string) $path), '/') : '',
                 (array) ($packaging['exclude_paths'] ?? [])
@@ -704,6 +718,109 @@ class ReleasePackageService
         }
 
         return "\x1f\x8b\x08\x00".pack('V', 0)."\x02\xff".$deflated.pack('V', crc32($contents)).pack('V', strlen($contents));
+    }
+
+    private function cleanupStageDirectory(string $absoluteStagePath, string $stagePath): ?string
+    {
+        if (! File::exists($absoluteStagePath)) {
+            return null;
+        }
+
+        File::deleteDirectory($absoluteStagePath);
+        clearstatcache();
+
+        return File::exists($absoluteStagePath)
+            ? sprintf('Release stage directory [%s] could not be removed after packaging; clean it up manually to reclaim disk space.', $stagePath)
+            : null;
+    }
+
+    /**
+     * @param  array{metadata_suffix: string, inventory_suffix: string, checksums_suffix: string, package_sha256_suffix: string, latest_pointer_path: string}  $sidecars
+     * @return list<string>
+     */
+    private function pruneRetainedPackageSets(string $absoluteOutputRoot, string $packagePrefix, int $retainCount, array $sidecars): array
+    {
+        if (! is_dir($absoluteOutputRoot)) {
+            return [];
+        }
+
+        $trackedSuffixes = [
+            '.tar.gz',
+            (string) ($sidecars['metadata_suffix'] ?? '.metadata.json'),
+            (string) ($sidecars['inventory_suffix'] ?? '.inventory.json'),
+            (string) ($sidecars['checksums_suffix'] ?? '.checksums.sha256'),
+            (string) ($sidecars['package_sha256_suffix'] ?? '.package.sha256'),
+        ];
+        $packageGroups = [];
+
+        foreach (File::files($absoluteOutputRoot) as $file) {
+            $filename = $file->getFilename();
+            if (! str_starts_with($filename, $packagePrefix.'-')) {
+                continue;
+            }
+
+            foreach ($trackedSuffixes as $suffix) {
+                if ($suffix === '' || ! str_ends_with($filename, $suffix) || strlen($filename) <= strlen($suffix)) {
+                    continue;
+                }
+
+                $packageBase = substr($filename, 0, -strlen($suffix));
+                if ($packageBase === false || $packageBase === '') {
+                    continue 2;
+                }
+
+                if (! array_key_exists($packageBase, $packageGroups)) {
+                    $packageGroups[$packageBase] = [
+                        'base' => $packageBase,
+                        'last_modified' => 0,
+                        'paths' => [],
+                    ];
+                }
+
+                $packageGroups[$packageBase]['last_modified'] = max(
+                    (int) $packageGroups[$packageBase]['last_modified'],
+                    (int) $file->getMTime()
+                );
+                $packageGroups[$packageBase]['paths'][] = $file->getPathname();
+
+                continue 2;
+            }
+        }
+
+        $groupedPackages = array_values($packageGroups);
+        usort($groupedPackages, static function (array $left, array $right): int {
+            $lastModifiedComparison = ((int) $right['last_modified']) <=> ((int) $left['last_modified']);
+
+            return $lastModifiedComparison !== 0
+                ? $lastModifiedComparison
+                : strcmp((string) $right['base'], (string) $left['base']);
+        });
+
+        $packagesToDelete = array_slice($groupedPackages, max(0, $retainCount));
+        $warnings = [];
+
+        foreach ($packagesToDelete as $package) {
+            $failedDeletes = [];
+            foreach ((array) ($package['paths'] ?? []) as $path) {
+                File::delete($path);
+                clearstatcache();
+
+                if (File::exists($path)) {
+                    $failedDeletes[] = $path;
+                }
+            }
+
+            if ($failedDeletes !== []) {
+                $warnings[] = sprintf(
+                    'Release package retention could not delete %d file(s) for [%s]: %s',
+                    count($failedDeletes),
+                    (string) ($package['base'] ?? 'unknown-package'),
+                    implode(', ', $failedDeletes),
+                );
+            }
+        }
+
+        return $warnings;
     }
 
     private function lineCount(string $contents): int

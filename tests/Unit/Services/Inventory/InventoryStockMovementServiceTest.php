@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Inventory;
 
-use App\Services\Inventory\InventoryStockMovementService;
+use App\Modules\InventoryProcurement\Application\UseCases\Inventory\InventoryStockMovementService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Staff;
 
-use App\Modules\CheckoutPayments\Application\Services\StaffCashierShiftService;
-use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Modules\Cashiering\Application\UseCases\Shifts\StaffCashierShiftService;
+use App\Modules\Payments\Domain\Models\Payment;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;

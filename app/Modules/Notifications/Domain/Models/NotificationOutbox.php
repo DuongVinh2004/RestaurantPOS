@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Notifications\Domain\Models;
 
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Models\User;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;

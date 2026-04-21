@@ -8,8 +8,8 @@ use App\Enums\StaffConversationWorkflowState;
 use App\Modules\Conversations\Domain\Models\AgentAssignment;
 use App\Modules\Conversations\Domain\Models\Conversation;
 use App\Modules\Notifications\Application\Services\NotificationPreferenceService;
-use App\Modules\Notifications\Infrastructure\NotificationChannelManager;
-use App\Models\User;
+use App\Modules\Notifications\Application\Services\NotificationChannelManager;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use Illuminate\Support\Carbon;
 
 class StaffConversationOutboundReplySupportService

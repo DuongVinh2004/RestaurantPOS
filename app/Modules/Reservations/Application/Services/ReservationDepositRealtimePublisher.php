@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace App\Modules\Reservations\Application\Services;
 
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\CheckoutPayments\Domain\Models\Payment;
-use App\Modules\Reporting\Application\Services\StaffOperationalRealtimeService;
-use App\Support\Money;
+use App\Modules\Payments\Domain\Models\Payment;
+use App\Platform\Realtime\Services\OperationalRealtimeService;
+use App\SharedKernel\Money\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class ReservationDepositRealtimePublisher
 {
     public function __construct(
-        private readonly StaffOperationalRealtimeService $realtime,
+        private readonly OperationalRealtimeService $realtime,
     ) {}
 
     /**

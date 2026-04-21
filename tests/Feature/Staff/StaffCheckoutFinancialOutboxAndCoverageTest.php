@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Modules\CheckoutPayments\Domain\Models\Payment;
-use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
+use App\Modules\Payments\Domain\Models\Payment;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Mockery;

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Reservation;
 
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Models\User;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;

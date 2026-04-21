@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Http;
 
-use App\Modules\Reporting\Application\Services\ReportingSnapshotService;
+use App\Modules\Reporting\Application\Workflows\ReportingSnapshotWorkflow;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Tests\Support\BuildsBookingScenario;
@@ -166,14 +166,14 @@ class ApiListingQueryStandardTest extends TestCase
         ]);
 
         $legacy = $this->withHeaders($headers)
-            ->getJson('/api/v1/admin/menu/items?filter[category_id]=' . $categoryId);
+            ->getJson('/api/v1/admin/menu/items?filter[category_id]='.$categoryId);
 
         $legacy->assertOk()
             ->assertJsonPath('meta.pagination.mode', 'legacy_unbounded')
             ->assertJsonPath('meta.total', 2);
 
         $paged = $this->withHeaders($headers)
-            ->getJson('/api/v1/admin/menu/items?filter[category_id]=' . $categoryId . '&sort=code&page=1&per_page=1');
+            ->getJson('/api/v1/admin/menu/items?filter[category_id]='.$categoryId.'&sort=code&page=1&per_page=1');
 
         $paged->assertOk()
             ->assertJsonPath('meta.pagination.mode', 'paged')
@@ -182,7 +182,7 @@ class ApiListingQueryStandardTest extends TestCase
             ->assertJsonPath('data.0.code', 'Q-MENU-A');
 
         $prices = $this->withHeaders($headers)
-            ->getJson('/api/v1/admin/menu/items/' . $itemA . '/prices?sort=-effective_from&page=1&per_page=1');
+            ->getJson('/api/v1/admin/menu/items/'.$itemA.'/prices?sort=-effective_from&page=1&per_page=1');
 
         $prices->assertOk()
             ->assertJsonPath('meta.pagination.mode', 'paged')
@@ -234,7 +234,7 @@ class ApiListingQueryStandardTest extends TestCase
             ->assertJsonPath('data.0.ingredient_id', $ingredientId);
 
         $movements = $this->withHeaders($headers)
-            ->getJson('/api/v1/admin/inventory/ingredients/' . $ingredientId . '/movements?sort=-created_at&page=1&per_page=1');
+            ->getJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements?sort=-created_at&page=1&per_page=1');
 
         $movements->assertOk()
             ->assertJsonPath('meta.sort.value', '-created_at')
@@ -248,7 +248,7 @@ class ApiListingQueryStandardTest extends TestCase
             ->assertJsonPath('data.0.supplier_id', $supplierId);
 
         $orders = $this->withHeaders($headers)
-            ->getJson('/api/v1/admin/inventory/purchase-orders?filter[supplier_id]=' . $supplierId . '&sort=-created_at&page=1&per_page=1');
+            ->getJson('/api/v1/admin/inventory/purchase-orders?filter[supplier_id]='.$supplierId.'&sort=-created_at&page=1&per_page=1');
 
         $orders->assertOk()
             ->assertJsonPath('meta.sort.value', '-created_at')
@@ -293,7 +293,7 @@ class ApiListingQueryStandardTest extends TestCase
             'paid_at' => Carbon::parse('2026-04-05 08:35:00', 'UTC'),
         ]);
 
-        app(ReportingSnapshotService::class)->rebuild([
+        app(ReportingSnapshotWorkflow::class)->rebuild([
             'branch_id' => 1,
             'start_date' => '2026-04-05',
             'end_date' => '2026-04-05',

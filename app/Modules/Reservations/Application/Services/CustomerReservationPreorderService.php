@@ -8,16 +8,16 @@ use App\Enums\ReservationOrderItemStatus;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
-use App\Models\MenuItem;
-use App\Models\MenuItemPrice;
+use App\Modules\Catalog\Domain\Models\MenuItem;
+use App\Modules\Catalog\Domain\Models\MenuItemPrice;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
-use App\Services\CustomerReservationSessionAccessService;
-use App\Services\MenuPreorderPolicyService;
+use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
+use App\Modules\Catalog\Application\UseCases\PolicyPreview\MenuPreorderPolicyService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Support\AuditEvent;
-use App\Support\Money;
+use App\SharedKernel\Money\Money;
 use App\Support\ValidationExceptionFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -28,7 +28,7 @@ use Illuminate\Support\Facades\DB;
 class CustomerReservationPreorderService
 {
     public function __construct(
-        private readonly CustomerReservationSessionAccessService $customerSessionAccessService,
+        private readonly ReservationSessionAccessWorkflow $customerSessionAccessService,
         private readonly MenuPreorderPolicyService $menuPreorderPolicyService,
         private readonly ReservationLockService $locks,
     ) {

@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
-use App\Models\User;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Support\ApiErrorResponse;
-use App\Support\CustomerSessionRouteContract;
-use App\Support\RequestActorContext;
-use App\Support\StaffActorResolver;
+use App\Modules\IdentityAccess\Infrastructure\Internal\CustomerSessionRouteContract;
+use App\Support\Auth\RequestActorContext;
+use App\Modules\IdentityAccess\Infrastructure\Tokenization\StaffApiKeyActorResolver;
 use Closure;
 use Illuminate\Http\Request;
 
 class CustomerOrStaffMiddleware
 {
     public function __construct(
-        private readonly StaffActorResolver $resolver,
+        private readonly StaffApiKeyActorResolver $resolver,
         private readonly CustomerSessionRouteContract $customerSessionRouteContract,
     ) {}
 

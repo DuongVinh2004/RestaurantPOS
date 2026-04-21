@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
-use App\Models\User;
-use App\Services\CustomerAccessSessionService;
-use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyPointsService;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\IdentityAccess\Infrastructure\Persistence\CustomerAccessSessionStore;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
+use App\Modules\Loyalty\Application\UseCases\Points\ReservationLoyaltySummaryReader;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
-use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncService;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
-use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
-use App\Modules\BenefitsLoyalty\Application\Services\StaffReservationVoucherService;
-use App\Modules\Ordering\Application\Services\StaffTableOrderService;
+use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
+use App\Modules\Promotions\Application\Workflows\ReservationVoucherWorkflow;
+use App\Modules\Ordering\Application\UseCases\Orders\StaffTableOrderService;
 use Illuminate\Support\Carbon;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -3254,7 +3255,7 @@ SQL);
             }
         }
 
-        $issued = app(CustomerAccessSessionService::class)->issueForUser(
+        $issued = app(CustomerAccessSessionStore::class)->issueForUser(
             $customer,
             now('UTC')->addMinutes(max(1, (int) config('customer_auth.access_session_ttl_minutes', 60))),
             $context,
@@ -3327,12 +3328,12 @@ SQL);
         return $mock;
     }
 
-    protected function makeCheckoutService(?NotificationOutboxService $notificationOutboxService = null): StaffCheckoutService
+    protected function makeCheckoutService(?NotificationOutboxService $notificationOutboxService = null): OrderSettlementWorkflow
     {
         $financialSync = new ReservationFinancialSyncService();
         $loyalty = new LoyaltyPointsService($financialSync, $this->mockRuntimeSettings());
 
-        return new StaffCheckoutService(
+        return new OrderSettlementWorkflow(
             $this->mockReservationLocks(),
             $notificationOutboxService ?? $this->mockNotificationOutbox(),
             $loyalty,
@@ -3341,12 +3342,13 @@ SQL);
         );
     }
 
-    protected function makeVoucherService(): StaffReservationVoucherService
+    protected function makeVoucherService(): ReservationVoucherWorkflow
     {
-        return new StaffReservationVoucherService(
+        return new ReservationVoucherWorkflow(
             $this->mockReservationLocks(),
             new ReservationFinancialSyncService(),
             $this->mockRuntimeSettings(),
+            new ReservationLoyaltySummaryReader($this->makeLoyaltyService()),
         );
     }
 
@@ -3360,3 +3362,4 @@ SQL);
         return new StaffTableOrderService($this->mockReservationLocks());
     }
 }
+

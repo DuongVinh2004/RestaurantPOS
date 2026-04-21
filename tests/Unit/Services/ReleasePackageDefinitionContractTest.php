@@ -22,6 +22,7 @@ class ReleasePackageDefinitionContractTest extends TestCase
 
         $this->assertSame('build/booking-release', (string) ($definition['output_root'] ?? ''));
         $this->assertSame('restaurantpos-backend-release', (string) ($definition['package_prefix'] ?? ''));
+        $this->assertSame(2, (int) ($definition['retained_package_sets'] ?? 0));
         $this->assertContains('artisan', $requiredPaths);
         $this->assertContains('composer.json', $requiredPaths);
         $this->assertContains('.env.example', $requiredPaths);

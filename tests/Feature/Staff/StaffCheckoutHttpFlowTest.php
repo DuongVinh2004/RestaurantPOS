@@ -253,6 +253,69 @@ class StaffCheckoutHttpFlowTest extends TestCase
             ->assertJsonValidationErrors(['cashier_shift']);
     }
 
+    public function test_settlement_and_refund_mutations_reject_open_shift_with_mismatched_currency(): void
+    {
+        [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario();
+        $branchId = (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('branch_id');
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId,
+            'status' => 'Open',
+            'currency' => 'USD',
+        ]);
+
+        $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-finalize-shift-currency-mismatch'))
+            ->postJson("/api/v1/staff/orders/{$orderId}/settlement/finalize", [
+                'payment_method' => 'Cash',
+                'payment_provider' => 'Cash',
+                'paid_amount' => 100000,
+                'currency' => 'VND',
+                'transaction_code' => 'PAY-SHIFT-CURRENCY-MISMATCH-1',
+                'row_version' => 1,
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonPath('errors.cashier_shift.0', 'Open cashier shift currency must match the mutation currency for this branch.');
+
+        $this->assertSame(0, (int) DB::table('payments')->where('reservation_id', $reservationId)->count());
+
+        $completedReservationId = $this->createReservation([
+            'user_id' => $this->createUser(['role_name' => 'Customer']),
+            'status' => 'Completed',
+            'branch_id' => $branchId,
+            'final_bill_amount' => '100000.00',
+            'bill_currency' => 'VND',
+            'billed_at' => $this->nowUtc(),
+        ]);
+        $this->createPayment([
+            'reservation_id' => $completedReservationId,
+            'branch_id' => $branchId,
+            'payment_type' => 'Final',
+            'status' => 'Success',
+            'amount' => '100000.00',
+            'currency' => 'VND',
+            'payment_method' => 'Cash',
+            'payment_provider' => 'Cash',
+            'created_by' => $staffId,
+            'transaction_code' => 'REFUND-SHIFT-CURRENCY-SOURCE-1',
+        ]);
+
+        $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-refund-shift-currency-mismatch'))
+            ->postJson("/api/v1/staff/reservations/{$completedReservationId}/refund", [
+                'payment_method' => 'Cash',
+                'payment_provider' => 'Cash',
+                'refund_scope' => 'all',
+                'currency' => 'VND',
+                'transaction_code' => 'REFUND-SHIFT-CURRENCY-MISMATCH-1',
+                'row_version' => 1,
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonPath('errors.cashier_shift.0', 'Open cashier shift currency must match the mutation currency for this branch.');
+
+        $this->assertSame(0, (int) DB::table('payments')->where('reservation_id', $completedReservationId)->where('payment_type', 'Refund')->count());
+    }
+
     /**
      * @return array{0:int,1:int,2:int}
      */

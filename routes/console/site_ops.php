@@ -1,46 +1,12 @@
 <?php
 
-use App\Models\CustomerAccessSession;
-use App\Models\StaffApiKey;
-use App\Models\User;
-use App\Platform\ApiContract\ApiArtifacts\ApiConsumerArtifactService;
-use App\Platform\ApiContract\Services\OpenApiSpecService;
-use App\Platform\Release\Services\BookingDeploySafetyService;
-use App\Platform\Health\Services\BookingDoctorService;
-use App\Platform\Health\Services\BookingMaintenanceService;
-use App\Platform\Release\Services\CoreOpsGateService;
-use App\Services\CustomerAccessSessionService;
-use App\Modules\PrivacyAudit\Application\Services\DataRetentionService;
-use App\Platform\Backup\DisasterRecovery\DisasterRecoveryDrillService;
-use App\Platform\FeatureFlags\Services\FeatureFlagManagementService;
-use App\Platform\Release\Services\LaunchReadinessService;
-use App\Modules\Notifications\Application\Services\NotificationOutboxHealthService;
-use App\Modules\Notifications\Application\Services\NotificationOutboxService;
-use App\Platform\Metrics\Services\OperationalAlertService;
-use App\Platform\Metrics\Services\OperationalInsightsService;
-use App\Platform\ApiContract\Services\OpsGateArtifactService;
-use App\Platform\Health\Services\OpsHeartbeatService;
-use App\Platform\Performance\PerformanceVerificationService;
-use App\Platform\Release\Services\ReleaseArtifactManifestService;
-use App\Platform\Release\Services\ReleaseArtifactNormalizerService;
-use App\Platform\Release\Services\ReleasePackageService;
-use App\Modules\Reporting\Application\Services\ReportingSnapshotService;
-use App\Platform\Release\Services\RoundFiveGateService;
-use App\Platform\ApiContract\Services\RouteInventoryGateService;
-use App\Platform\FeatureFlags\Services\RuntimeSettingService;
+use App\Modules\IdentityAccess\Domain\Models\StaffApiKey;
+use App\Modules\Reporting\Application\Workflows\ReportingSnapshotWorkflow;
 use App\Platform\Release\Services\SiteBootstrapService;
-use App\Modules\WaitingList\Application\Services\StaffWaitingListService;
-use App\Services\StaffApiKeyGovernanceService;
-use App\Platform\Uat\UatScenarioPackService;
-use App\Support\AuditEvent;
 use Illuminate\Console\Command as ConsoleCommand;
-use Illuminate\Console\Scheduling\Schedule;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 $consoleValidationPayload = static function (ValidationException $exception): array {
@@ -212,7 +178,7 @@ Artisan::command('booking:reporting-snapshots:rebuild
         $filters['branch_id'] = (int) $command->option('branch-id');
     }
 
-    $result = app(ReportingSnapshotService::class)->rebuild($filters);
+    $result = app(ReportingSnapshotWorkflow::class)->rebuild($filters);
 
     if ($command->option('json')) {
         $command->line(json_encode(['ok' => true, 'data' => $result], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
@@ -390,17 +356,20 @@ Artisan::command('booking:backfill-table-state-audit-context
         $afterPayload = json_decode((string) ($row->after_json ?? ''), true);
         if (! is_array($afterPayload)) {
             $unresolved++;
+
             continue;
         }
 
         if (is_array($afterPayload['context'] ?? null) && ($afterPayload['context'] ?? []) !== []) {
             $skippedWithContext++;
+
             continue;
         }
 
         $metaPayload = json_decode((string) ($row->meta_json ?? ''), true);
         if (! is_array($metaPayload)) {
             $unresolved++;
+
             continue;
         }
 
@@ -412,6 +381,7 @@ Artisan::command('booking:backfill-table-state-audit-context
         $orderId = (int) ($matches[1] ?? 0);
         if ($orderId <= 0) {
             $unresolved++;
+
             continue;
         }
 
@@ -421,6 +391,7 @@ Artisan::command('booking:backfill-table-state-audit-context
 
         if ($reservationId <= 0) {
             $unresolved++;
+
             continue;
         }
 

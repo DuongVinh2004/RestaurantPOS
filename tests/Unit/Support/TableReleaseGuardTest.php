@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Modules\FloorOps\Domain\Guards\TableReleaseGuard;
+use App\Modules\FloorOperations\Domain\Guards\TableReleaseGuard;
 use Illuminate\Support\Carbon;
 use PHPUnit\Framework\TestCase;
 
@@ -54,3 +54,4 @@ final class TableReleaseGuardTest extends TestCase
         self::assertSame([11, 12, 13], $ids);
     }
 }
+

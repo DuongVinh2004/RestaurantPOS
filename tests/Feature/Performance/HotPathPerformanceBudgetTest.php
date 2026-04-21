@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Performance;
 
-use App\Models\User;
-use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -533,7 +533,7 @@ class HotPathPerformanceBudgetTest extends TestCase
         ]);
 
         if ($lockBill) {
-            app(StaffCheckoutService::class)->lockBill(
+            app(OrderSettlementWorkflow::class)->lockBill(
                 orderId: $orderId,
                 discountAmount: null,
                 notes: 'lock bill for performance profiling',

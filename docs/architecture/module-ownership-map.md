@@ -82,7 +82,7 @@ This map is the canonical ownership reference for `app/` after the six-batch mod
 - Representative paths:
   - Models: `app/Modules/Conversations/Domain/Models/Conversation.php`, `AgentAssignment.php`, `ConversationMessage.php`, `ConversationEvent.php`, `ConversationAnalysis.php`
   - Services: `app/Modules/Conversations/Application/Services/StaffConversationInboxService.php`, `StaffConversationWorkflowService.php`, `StaffConversationOutboundReplySupportService.php`, `StaffReservationInboxService.php`
-  - HTTP: `app/Modules/Conversations/Http/Controllers/Staff/StaffConversationInboxController.php`, `StaffReservationInboxController.php`
+  - HTTP: `app/Modules/Conversations/Http/Controllers/Staff/ConversationInboxController.php`, `ReservationInboxController.php`
   - Requests/resources: `app/Modules/Conversations/Http/Requests/Staff/`, `app/Modules/Conversations/Http/Resources/`
 
 ## Notifications
@@ -91,31 +91,31 @@ This map is the canonical ownership reference for `app/` after the six-batch mod
 - Representative paths:
   - Models: `app/Modules/Notifications/Domain/Models/NotificationOutbox.php`, `NotificationDeliveryAttempt.php`, `NotificationPreference.php`
   - Services: `app/Modules/Notifications/Application/Services/NotificationOutboxService.php`, `NotificationOutboxHealthService.php`, `NotificationPreferenceService.php`
-  - Infrastructure: `app/Modules/Notifications/Infrastructure/NotificationChannelManager.php`, `Contracts/`, `Drivers/`
+- Channel runtime: `app/Modules/Notifications/Application/Services/NotificationChannelManager.php`, `Infrastructure/Contracts/`, `Infrastructure/Drivers/`
 
-## PrivacyAudit
+## PrivacyCompliance
 
 - Owns customer privacy requests, export/anonymize orchestration, retention-safe privacy application, and audit-trail querying.
 - Representative paths:
-  - Models: `app/Modules/PrivacyAudit/Domain/Models/CustomerPrivacyRequest.php`, `AuditLog.php`, `AuditLogSubject.php`
-  - Services: `app/Modules/PrivacyAudit/Application/Services/CustomerDataExportService.php`, `CustomerAnonymizationService.php`, `CustomerPrivacyRequestService.php`, `DataRetentionService.php`, `AuditTrailQueryService.php`
-  - HTTP: `app/Modules/PrivacyAudit/Http/Controllers/Customer/CustomerDataLifecycleController.php`, `Admin/AdminCustomerDataLifecycleController.php`, `Staff/StaffAuditTrailController.php`
-  - Requests: `app/Modules/PrivacyAudit/Http/Requests/`
+  - Models: `app/Modules/PrivacyCompliance/Domain/Models/CustomerPrivacyRequest.php`, `AuditLog.php`, `AuditLogSubject.php`
+  - Application: `app/Modules/PrivacyCompliance/Application/UseCases/Requests/CustomerDataExportHandler.php`, `Application/Workflows/Redaction/CustomerAnonymizationWorkflow.php`, `Application/Workflows/Requests/PrivacyRequestWorkflow.php`, `Application/Workflows/Retention/RetentionEnforcementWorkflow.php`, `Application/Queries/Audit/AuditTrailQueryHandler.php`
+  - HTTP: `app/Modules/PrivacyCompliance/Http/Controllers/Customer/PrivacyRequestController.php`, `Admin/PrivacyController.php`, `Staff/AuditTrailController.php`
+  - Requests: `app/Modules/PrivacyCompliance/Http/Requests/`
 
 ## Reporting
 
-- Owns realtime change feeds, reporting snapshot rebuilds, and reporting read-model queries.
+- Owns reporting snapshot rebuilds and reporting read-model queries.
 - Representative paths:
   - Models: `app/Modules/Reporting/Domain/Models/ReportingDailySalesSnapshot.php`, `ReportingDailyOperationSnapshot.php`, `ReportingDailyInventoryMovementSnapshot.php`
-  - Services: `app/Modules/Reporting/Application/Services/ReportingSnapshotService.php`, `StaffOperationalRealtimeService.php`
-  - HTTP: `app/Modules/Reporting/Http/Controllers/Staff/StaffReportingController.php`, `StaffOperationalRealtimeController.php`, `Admin/AdminReportingController.php`
+  - Services: `app/Modules/Reporting/Application/Services/ReportingSnapshotService.php`
+  - HTTP: `app/Modules/Reporting/Http/Controllers/Staff/OperationalReportController.php`, `Admin/ReportingSnapshotController.php`
   - Requests/resources: `app/Modules/Reporting/Http/Requests/`, `app/Modules/Reporting/Http/Resources/`
 
-## AdminMasterDataBulk
+## MasterDataExchange
 
-- Owns bulk import/export orchestration, domain registry lookup, parser selection, dry-run and commit gates, and batch reporting.
+- Owns exchange-only import/export orchestration, domain registry lookup, parser selection, dry-run and commit gates, and batch reporting.
 - Representative paths:
-  - Contracts/domains: `app/Modules/AdminMasterDataBulk/Domain/Contracts/MasterDataBulkDomain.php`, `Domain/Domains/*.php`
-  - Services: `app/Modules/AdminMasterDataBulk/Application/Services/AdminMasterDataBulkService.php`, `MasterDataBulkRegistry.php`
-  - Infrastructure: `app/Modules/AdminMasterDataBulk/Infrastructure/Parsers/MasterDataImportSourceParser.php`, `Infrastructure/Support/AbstractMasterDataBulkDomain.php`
-  - HTTP: `app/Modules/AdminMasterDataBulk/Http/Controllers/Admin/AdminMasterDataBulkController.php`
+  - Contracts/domains: `app/Modules/MasterDataExchange/Domain/Contracts/MasterDataDomain.php`, `Domain/Registries/*.php`
+  - Application: `app/Modules/MasterDataExchange/Application/Workflows/MasterDataExchangeWorkflow.php`, `Application/UseCases/Registry/MasterDataDomainRegistry.php`
+  - Infrastructure: `app/Modules/MasterDataExchange/Infrastructure/Files/Parsers/MasterDataImportSourceParser.php`, `Infrastructure/Internal/AbstractMasterDataDomain.php`
+  - HTTP: `app/Modules/MasterDataExchange/Http/Controllers/Admin/MasterDataExchangeController.php`

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Tests\Feature\Reservation;
 
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Models\User;
-use App\Modules\CheckoutPayments\Domain\Models\ReservationBillPaymentSession;
-use App\Modules\CheckoutPayments\Infrastructure\CustomerBillPayment\CustomerBillPaymentProvider;
-use App\Modules\CheckoutPayments\Infrastructure\CustomerBillPayment\CustomerBillPaymentProviderRegistry;
-use App\Modules\CheckoutPayments\Application\Services\CustomerReservationBillPaymentService;
-use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Payments\Domain\Models\ReservationBillPaymentSession;
+use App\Modules\Payments\Infrastructure\Integrations\CustomerBillPayment\CustomerBillPaymentProvider;
+use App\Modules\Payments\Infrastructure\Integrations\CustomerBillPayment\CustomerBillPaymentProviderRegistry;
+use App\Modules\Payments\Application\UseCases\PaymentSessions\CustomerReservationBillPaymentService;
+use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -708,7 +708,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
         ])->assertOk();
 
         $orderRowVersion = (int) DB::table('reservation_orders')->where('order_id', $orderId)->value('row_version');
-        $order = app(StaffCheckoutService::class)->payOrder(
+        $order = app(OrderSettlementWorkflow::class)->payOrder(
             orderId: $orderId,
             paymentMethod: 'Cash',
             paidAmount: 0.0,
@@ -767,7 +767,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
         ]);
 
         if ($lockBill) {
-            app(StaffCheckoutService::class)->lockBill(
+            app(OrderSettlementWorkflow::class)->lockBill(
                 orderId: $orderId,
                 discountAmount: null,
                 notes: 'lock bill for customer self-payment',

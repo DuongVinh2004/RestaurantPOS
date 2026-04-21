@@ -1,47 +1,49 @@
 <?php
 
-use App\Http\Controllers\Api\CustomerMenuCatalogController;
+use App\Modules\Catalog\Http\Controllers\Customer\MenuCatalogController;
 use App\Http\Middleware\CustomerOrStaffMiddleware;
 use App\Http\Middleware\MetricsRequestMiddleware;
 use App\Http\Middleware\ResolveCustomerAuthMiddleware;
-use App\Modules\BenefitsLoyalty\Http\Controllers\Customer\CustomerBenefitsController;
-use App\Modules\BenefitsLoyalty\Http\Controllers\Customer\CustomerReservationBenefitsActionController;
-use App\Modules\BranchScheduling\Http\Controllers\TableController;
-use App\Modules\BranchScheduling\Http\Controllers\TableHoldController;
-use App\Modules\CheckoutPayments\Http\Controllers\Customer\CustomerReservationBillPaymentController;
-use App\Modules\CheckoutPayments\Http\Controllers\Customer\CustomerReservationDepositPaymentController;
-use App\Modules\CheckoutPayments\Http\Controllers\Customer\CustomerReservationOrderBillController;
-use App\Modules\PrivacyAudit\Http\Controllers\Customer\CustomerDataLifecycleController;
+use App\Modules\Loyalty\Http\Controllers\Customer\LoyaltySummaryController;
+use App\Modules\Loyalty\Http\Controllers\Customer\ReservationLoyaltyController;
+use App\Modules\Promotions\Http\Controllers\Customer\BenefitsController;
+use App\Modules\Promotions\Http\Controllers\Customer\ReservationBenefitsActionController;
+use App\Modules\BranchScheduling\Http\Controllers\Guest\TableAvailabilityController;
+use App\Modules\BranchScheduling\Http\Controllers\Guest\TableHoldController;
+use App\Modules\Payments\Http\Controllers\Customer\ReservationBillPaymentController;
+use App\Modules\Payments\Http\Controllers\Customer\ReservationDepositPaymentController;
+use App\Modules\Billing\Http\Controllers\Customer\ReservationBillController;
+use App\Modules\PrivacyCompliance\Http\Controllers\Customer\PrivacyRequestController;
 use App\Modules\Reservations\Http\Controllers\CustomerReservationDepositController;
 use App\Modules\Reservations\Http\Controllers\CustomerReservationPreorderController;
-use App\Modules\Reservations\Http\Controllers\CustomerReservationSelfServiceController;
-use App\Modules\Reservations\Http\Controllers\ReservationController;
-use App\Modules\WaitingList\Http\Controllers\Customer\CustomerWaitingListController;
+use App\Modules\Reservations\Http\Controllers\Customer\ReservationController;
+use App\Modules\Reservations\Http\Controllers\Customer\ReservationSelfServiceController;
+use App\Modules\Waitlist\Http\Controllers\Customer\WaitlistController as CustomerWaitlistController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware([
     MetricsRequestMiddleware::class,
     ResolveCustomerAuthMiddleware::class,
 ])->group(function () {
-    Route::get('menu/categories', [CustomerMenuCatalogController::class, 'categories']);
-    Route::get('menu/items', [CustomerMenuCatalogController::class, 'items']);
-    Route::get('menu/items/{id}', [CustomerMenuCatalogController::class, 'show'])->whereNumber('id');
-    Route::post('menu/preorder/preview', [CustomerMenuCatalogController::class, 'previewPreorder']);
+    Route::get('menu/categories', [MenuCatalogController::class, 'categories']);
+    Route::get('menu/items', [MenuCatalogController::class, 'items']);
+    Route::get('menu/items/{id}', [MenuCatalogController::class, 'show'])->whereNumber('id');
+    Route::post('menu/preorder/preview', [MenuCatalogController::class, 'previewPreorder']);
 
     Route::middleware(['require.redis'])->group(function () {
         Route::middleware([CustomerOrStaffMiddleware::class])->group(function () {
-            Route::get('me/loyalty', [CustomerBenefitsController::class, 'loyalty']);
-            Route::get('me/vouchers', [CustomerBenefitsController::class, 'vouchers']);
-            Route::get('me/data-export', [CustomerDataLifecycleController::class, 'export']);
-            Route::get('me/privacy-requests', [CustomerDataLifecycleController::class, 'index']);
-            Route::post('me/privacy-requests', [CustomerDataLifecycleController::class, 'store'])
+            Route::get('me/loyalty', [LoyaltySummaryController::class, 'show']);
+            Route::get('me/vouchers', [BenefitsController::class, 'vouchers']);
+            Route::get('me/data-export', [PrivacyRequestController::class, 'export']);
+            Route::get('me/privacy-requests', [PrivacyRequestController::class, 'index']);
+            Route::post('me/privacy-requests', [PrivacyRequestController::class, 'store'])
                 ->middleware('idempotency:customer.privacy-requests.store');
 
-            Route::get('reservations', [CustomerReservationSelfServiceController::class, 'index']);
-            Route::post('reservations/{id}/cancel', [CustomerReservationSelfServiceController::class, 'cancel'])
+            Route::get('reservations', [ReservationSelfServiceController::class, 'index']);
+            Route::post('reservations/{id}/cancel', [ReservationSelfServiceController::class, 'cancel'])
                 ->whereNumber('id')
                 ->middleware('idempotency:customer.reservations.cancel');
-            Route::post('reservations/{id}/reschedule', [CustomerReservationSelfServiceController::class, 'reschedule'])
+            Route::post('reservations/{id}/reschedule', [ReservationSelfServiceController::class, 'reschedule'])
                 ->whereNumber('id')
                 ->middleware('idempotency:customer.reservations.reschedule');
 
@@ -74,76 +76,76 @@ Route::middleware([
                 ->whereNumber('id')
                 ->middleware('idempotency:customer.reservation-deposit.revoke-intent');
 
-            Route::post('reservations/{reservation_id}/deposit/payment-sessions', [CustomerReservationDepositPaymentController::class, 'store'])
+            Route::post('reservations/{reservation_id}/deposit/payment-sessions', [ReservationDepositPaymentController::class, 'store'])
                 ->whereNumber('reservation_id')
                 ->middleware('idempotency:customer.reservation-deposit-payment-sessions.create');
-            Route::get('reservations/{reservation_id}/deposit/payment-sessions/{session_id}', [CustomerReservationDepositPaymentController::class, 'show'])
+            Route::get('reservations/{reservation_id}/deposit/payment-sessions/{session_id}', [ReservationDepositPaymentController::class, 'show'])
                 ->whereNumber('reservation_id')
                 ->whereNumber('session_id');
-            Route::post('reservations/{reservation_id}/deposit/payment-sessions/{session_id}/refresh', [CustomerReservationDepositPaymentController::class, 'refresh'])
+            Route::post('reservations/{reservation_id}/deposit/payment-sessions/{session_id}/refresh', [ReservationDepositPaymentController::class, 'refresh'])
                 ->whereNumber('reservation_id')
                 ->whereNumber('session_id')
                 ->middleware('idempotency:customer.reservation-deposit-payment-sessions.refresh');
-            Route::post('reservations/{reservation_id}/deposit/payment-sessions/{session_id}/confirm', [CustomerReservationDepositPaymentController::class, 'confirm'])
+            Route::post('reservations/{reservation_id}/deposit/payment-sessions/{session_id}/confirm', [ReservationDepositPaymentController::class, 'confirm'])
                 ->whereNumber('reservation_id')
                 ->whereNumber('session_id')
                 ->middleware('idempotency:customer.reservation-deposit-payment-sessions.confirm');
 
-            Route::get('reservations/{id}/benefits-preview', [CustomerBenefitsController::class, 'reservationBenefitsPreview'])->whereNumber('id');
-            Route::post('reservations/{id}/voucher/apply', [CustomerReservationBenefitsActionController::class, 'applyVoucher'])
+            Route::get('reservations/{id}/benefits-preview', [BenefitsController::class, 'reservationBenefitsPreview'])->whereNumber('id');
+            Route::post('reservations/{id}/voucher/apply', [ReservationBenefitsActionController::class, 'applyVoucher'])
                 ->whereNumber('id')
                 ->middleware('idempotency:customer.reservation-voucher.apply');
-            Route::post('reservations/{id}/voucher/remove', [CustomerReservationBenefitsActionController::class, 'removeVoucher'])
+            Route::post('reservations/{id}/voucher/remove', [ReservationBenefitsActionController::class, 'removeVoucher'])
                 ->whereNumber('id')
                 ->middleware('idempotency:customer.reservation-voucher.remove');
-            Route::post('reservations/{id}/loyalty/redeem', [CustomerReservationBenefitsActionController::class, 'redeemLoyalty'])
+            Route::post('reservations/{id}/loyalty/redeem', [ReservationLoyaltyController::class, 'redeem'])
                 ->whereNumber('id')
                 ->middleware('idempotency:customer.reservation-loyalty.redeem');
-            Route::post('reservations/{id}/loyalty/redeem/release', [CustomerReservationBenefitsActionController::class, 'releaseLoyalty'])
+            Route::post('reservations/{id}/loyalty/redeem/release', [ReservationLoyaltyController::class, 'release'])
                 ->whereNumber('id')
                 ->middleware('idempotency:customer.reservation-loyalty.release');
 
-            Route::get('reservations/{reservation_id}/bill', [CustomerReservationOrderBillController::class, 'show'])
+            Route::get('reservations/{reservation_id}/bill', [ReservationBillController::class, 'show'])
                 ->whereNumber('reservation_id');
-            Route::get('reservations/{reservation_id}/active-order', [CustomerReservationOrderBillController::class, 'activeOrder'])
+            Route::get('reservations/{reservation_id}/active-order', [ReservationBillController::class, 'activeOrder'])
                 ->whereNumber('reservation_id');
-            Route::get('reservations/{reservation_id}/bill-preview', [CustomerReservationOrderBillController::class, 'billPreview'])
+            Route::get('reservations/{reservation_id}/bill-preview', [ReservationBillController::class, 'billPreview'])
                 ->whereNumber('reservation_id');
 
-            Route::post('reservations/{reservation_id}/bill/payment-sessions', [CustomerReservationBillPaymentController::class, 'store'])
+            Route::post('reservations/{reservation_id}/bill/payment-sessions', [ReservationBillPaymentController::class, 'store'])
                 ->whereNumber('reservation_id')
                 ->middleware('idempotency:customer.reservation-bill-payment-sessions.create');
-            Route::get('reservations/{reservation_id}/bill/payment-sessions/{session_id}', [CustomerReservationBillPaymentController::class, 'show'])
+            Route::get('reservations/{reservation_id}/bill/payment-sessions/{session_id}', [ReservationBillPaymentController::class, 'show'])
                 ->whereNumber('reservation_id')
                 ->whereNumber('session_id');
-            Route::post('reservations/{reservation_id}/bill/payment-sessions/{session_id}/refresh', [CustomerReservationBillPaymentController::class, 'refresh'])
+            Route::post('reservations/{reservation_id}/bill/payment-sessions/{session_id}/refresh', [ReservationBillPaymentController::class, 'refresh'])
                 ->whereNumber('reservation_id')
                 ->whereNumber('session_id')
                 ->middleware('idempotency:customer.reservation-bill-payment-sessions.refresh');
-            Route::post('reservations/{reservation_id}/bill/payment-sessions/{session_id}/confirm', [CustomerReservationBillPaymentController::class, 'confirm'])
+            Route::post('reservations/{reservation_id}/bill/payment-sessions/{session_id}/confirm', [ReservationBillPaymentController::class, 'confirm'])
                 ->whereNumber('reservation_id')
                 ->whereNumber('session_id')
                 ->middleware('idempotency:customer.reservation-bill-payment-sessions.confirm');
         });
 
-        Route::get('waiting-list', [CustomerWaitingListController::class, 'index']);
-        Route::post('waiting-list', [CustomerWaitingListController::class, 'store'])
+        Route::get('waiting-list', [CustomerWaitlistController::class, 'index']);
+        Route::post('waiting-list', [CustomerWaitlistController::class, 'store'])
             ->middleware('idempotency:customer.waiting-list.create');
-        Route::get('waiting-list/{id}', [CustomerWaitingListController::class, 'show'])->whereNumber('id');
-        Route::post('waiting-list/{id}/accept', [CustomerWaitingListController::class, 'accept'])
+        Route::get('waiting-list/{id}', [CustomerWaitlistController::class, 'show'])->whereNumber('id');
+        Route::post('waiting-list/{id}/accept', [CustomerWaitlistController::class, 'accept'])
             ->whereNumber('id')
             ->middleware('idempotency:customer.waiting-list.accept');
-        Route::post('waiting-list/{id}/confirm-arrival', [CustomerWaitingListController::class, 'confirmArrival'])
+        Route::post('waiting-list/{id}/confirm-arrival', [CustomerWaitlistController::class, 'confirmArrival'])
             ->whereNumber('id')
             ->middleware('idempotency:customer.waiting-list.confirm-arrival');
-        Route::post('waiting-list/{id}/decline', [CustomerWaitingListController::class, 'decline'])
+        Route::post('waiting-list/{id}/decline', [CustomerWaitlistController::class, 'decline'])
             ->whereNumber('id')
             ->middleware('idempotency:customer.waiting-list.decline');
-        Route::post('waiting-list/{id}/cancel', [CustomerWaitingListController::class, 'cancel'])
+        Route::post('waiting-list/{id}/cancel', [CustomerWaitlistController::class, 'cancel'])
             ->whereNumber('id')
             ->middleware('idempotency:customer.waiting-list.cancel');
 
-        Route::get('tables/available', [TableController::class, 'available'])
+        Route::get('tables/available', [TableAvailabilityController::class, 'available'])
             ->middleware('redis.throttle:tables.available,'.
                 config('booking.throttle_tables_available_limit').','.
                 config('booking.throttle_tables_available_window').',ip'

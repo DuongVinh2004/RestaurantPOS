@@ -4,6 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Infrastructure;
 
+use App\Modules\Conversations\Http\Controllers\Staff\ConversationInboxController;
+use App\Modules\Conversations\Http\Controllers\Staff\ReservationInboxController;
+use App\Modules\FloorOperations\Http\Controllers\Staff\OperationalChangeFeedController;
+use App\Modules\MasterDataExchange\Http\Controllers\Admin\MasterDataExportController;
+use App\Modules\PrivacyCompliance\Http\Controllers\Admin\PrivacyController;
+use App\Modules\PrivacyCompliance\Http\Controllers\Staff\AuditTrailController;
+use App\Modules\Reporting\Http\Controllers\Admin\ReportingSnapshotController;
+use App\Modules\Reporting\Http\Controllers\Staff\SalesReportController;
+use App\Modules\Waitlist\Http\Controllers\Customer\WaitlistController;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -13,36 +22,36 @@ final class SecondaryDomainRouteControllerOwnershipTest extends TestCase
     {
         $expectations = [
             'api/v1/waiting-list' => [
-                'GET' => \App\Modules\WaitingList\Http\Controllers\Customer\CustomerWaitingListController::class . '@index',
-                'POST' => \App\Modules\WaitingList\Http\Controllers\Customer\CustomerWaitingListController::class . '@store',
+                'GET' => WaitlistController::class.'@index',
+                'POST' => WaitlistController::class.'@store',
             ],
             'api/v1/staff/waiting-list' => [
-                'GET' => \App\Modules\WaitingList\Http\Controllers\Staff\StaffWaitingListController::class . '@index',
-                'POST' => \App\Modules\WaitingList\Http\Controllers\Staff\StaffWaitingListController::class . '@store',
+                'GET' => \App\Modules\Waitlist\Http\Controllers\Staff\WaitlistController::class.'@index',
+                'POST' => \App\Modules\Waitlist\Http\Controllers\Staff\WaitlistController::class.'@store',
             ],
             'api/v1/staff/conversations' => [
-                'GET' => \App\Modules\Conversations\Http\Controllers\Staff\StaffConversationInboxController::class . '@index',
+                'GET' => ConversationInboxController::class.'@index',
             ],
             'api/v1/staff/reservations' => [
-                'GET' => \App\Modules\Conversations\Http\Controllers\Staff\StaffReservationInboxController::class . '@index',
+                'GET' => ReservationInboxController::class.'@index',
             ],
             'api/v1/staff/audit-trail' => [
-                'GET' => \App\Modules\PrivacyAudit\Http\Controllers\Staff\StaffAuditTrailController::class . '@index',
+                'GET' => AuditTrailController::class.'@index',
             ],
             'api/v1/staff/reporting/daily-sales' => [
-                'GET' => \App\Modules\Reporting\Http\Controllers\Staff\StaffReportingController::class . '@dailySales',
+                'GET' => SalesReportController::class.'@index',
             ],
             'api/v1/staff/tables/board/changes' => [
-                'GET' => \App\Modules\Reporting\Http\Controllers\Staff\StaffOperationalRealtimeController::class . '@boardChanges',
+                'GET' => OperationalChangeFeedController::class.'@boardChanges',
             ],
             'api/v1/admin/privacy/requests' => [
-                'GET' => \App\Modules\PrivacyAudit\Http\Controllers\Admin\AdminCustomerDataLifecycleController::class . '@index',
+                'GET' => PrivacyController::class.'@index',
             ],
             'api/v1/admin/settings/reporting/snapshots/rebuild' => [
-                'POST' => \App\Modules\Reporting\Http\Controllers\Admin\AdminReportingController::class . '@rebuild',
+                'POST' => ReportingSnapshotController::class.'@rebuild',
             ],
             'api/v1/admin/settings/branches/export' => [
-                'GET' => \App\Modules\AdminMasterDataBulk\Http\Controllers\Admin\AdminMasterDataBulkController::class . '@export',
+                'GET' => MasterDataExportController::class.'@export',
             ],
         ];
 

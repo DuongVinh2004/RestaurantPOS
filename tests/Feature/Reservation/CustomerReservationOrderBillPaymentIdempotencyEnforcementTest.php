@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Reservation;
 
-use App\Models\User;
-use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -113,7 +113,7 @@ final class CustomerReservationOrderBillPaymentIdempotencyEnforcementTest extend
             'line_total' => '100000.00',
         ]);
 
-        app(StaffCheckoutService::class)->lockBill(
+        app(OrderSettlementWorkflow::class)->lockBill(
             orderId: $orderId,
             discountAmount: null,
             notes: 'lock bill for customer bill payment idempotency enforcement',

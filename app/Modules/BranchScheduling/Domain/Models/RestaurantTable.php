@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\BranchScheduling\Domain\Models;
 
 use App\Enums\RestaurantTableStatus;
-use App\Models\Concerns\HasRowVersion;
+use App\Support\Persistence\HasRowVersion;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;

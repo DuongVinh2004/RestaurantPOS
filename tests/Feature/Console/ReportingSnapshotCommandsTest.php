@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Modules\Reporting\Application\Services\ReportingSnapshotService;
+use App\Modules\Reporting\Application\Workflows\ReportingSnapshotWorkflow;
 use Illuminate\Support\Facades\Artisan;
 use Mockery;
 use PHPUnit\Framework\Attributes\Group;
@@ -21,7 +21,7 @@ class ReportingSnapshotCommandsTest extends TestCase
     #[Group('booking-ops')]
     public function test_reporting_snapshot_rebuild_command_passes_compact_filters_to_service(): void
     {
-        $mock = Mockery::mock(ReportingSnapshotService::class);
+        $mock = Mockery::mock(ReportingSnapshotWorkflow::class);
         $mock->shouldReceive('rebuild')
             ->once()
             ->with([
@@ -43,7 +43,7 @@ class ReportingSnapshotCommandsTest extends TestCase
                 ],
                 'warnings' => [],
             ]);
-        $this->app->instance(ReportingSnapshotService::class, $mock);
+        $this->app->instance(ReportingSnapshotWorkflow::class, $mock);
 
         $exitCode = Artisan::call('booking:reporting-snapshots:rebuild', [
             '--branch-id' => 2,

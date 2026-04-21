@@ -1,6 +1,6 @@
 <?php
 
-use App\Modules\PrivacyAudit\Application\Services\DataRetentionService;
+use App\Modules\PrivacyCompliance\Application\Workflows\Retention\RetentionEnforcementWorkflow;
 use App\Platform\ApiContract\ApiArtifacts\ApiConsumerArtifactService;
 use App\Platform\ApiContract\Services\OpenApiSpecService;
 use App\Platform\ApiContract\Services\OpsGateArtifactService;
@@ -62,7 +62,7 @@ Artisan::command('data-lifecycle:enforce-retention {--dry-run : Preview retentio
     // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
     $command = $this;
 
-    $result = app(DataRetentionService::class)->enforce((bool) $command->option('dry-run'));
+    $result = app(RetentionEnforcementWorkflow::class)->enforce((bool) $command->option('dry-run'));
     $payload = json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
     if ($payload !== false) {

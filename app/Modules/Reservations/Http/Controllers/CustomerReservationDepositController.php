@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Reservations\Http\Controllers;
 
-use App\Http\Controllers\Api\Concerns\RespondsWithCustomerReservationNotFound;
+use App\Http\Concerns\RespondsWithCustomerReservationNotFound;
 use App\Http\Controllers\Controller;
 use App\Modules\Reservations\Http\Requests\AcknowledgeCustomerReservationDepositRequest;
 use App\Modules\Reservations\Http\Requests\RevokeCustomerReservationDepositIntentRequest;
@@ -13,7 +13,7 @@ use App\Modules\Reservations\Http\Resources\CustomerReservationDepositPreviewRes
 use App\Modules\Reservations\Application\Services\CustomerReservationDepositIntentService;
 use App\Modules\Reservations\Application\Services\CustomerReservationDepositService;
 use App\Support\ApiErrorResponse;
-use App\Support\RequestActorContext;
+use App\Support\Auth\RequestActorContext;
 use App\Modules\Reservations\Domain\Policies\ReservationAccessScope;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Exceptions\HttpResponseException;

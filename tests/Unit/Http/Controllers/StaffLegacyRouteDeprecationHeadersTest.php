@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Http\Controllers;
 
-use App\Modules\FloorOps\Http\Controllers\Staff\StaffTableBoardController;
-use App\Modules\FloorOps\Http\Requests\TableBoardRequest;
-use App\Modules\Reporting\Application\Services\StaffOperationalRealtimeService;
-use App\Modules\FloorOps\Application\Services\StaffTableBoardService;
+use App\Modules\FloorOperations\Http\Controllers\Staff\TableBoardController;
+use App\Modules\FloorOperations\Http\Requests\Staff\TableBoardRequest;
+use App\Platform\Realtime\Services\OperationalRealtimeService;
+use App\Modules\FloorOperations\Application\Queries\StaffTableBoardService;
 use Mockery;
 use Tests\TestCase;
 
@@ -29,10 +29,10 @@ class StaffLegacyRouteDeprecationHeadersTest extends TestCase
             'unassigned_reservations' => [],
             'orchestration' => [],
         ]);
-        $realtime = Mockery::mock(StaffOperationalRealtimeService::class);
+        $realtime = Mockery::mock(OperationalRealtimeService::class);
         $realtime->shouldReceive('describeTopic')->once()->andReturn([]);
 
-        $controller = new StaffTableBoardController($service, $realtime);
+        $controller = new TableBoardController($service, $realtime);
         $request = TableBoardRequest::create('/api/v1/staff/table-board', 'GET', [
             'from' => '2026-04-01 00:00:00',
             'to' => '2026-04-01 23:59:59',
@@ -57,3 +57,5 @@ class StaffLegacyRouteDeprecationHeadersTest extends TestCase
         self::assertSame('/api/v1/staff/tables/board', $response->getData(true)['meta']['canonical_route']);
     }
 }
+
+

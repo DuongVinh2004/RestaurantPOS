@@ -62,6 +62,7 @@ class BookingReleaseConfigContractTest extends TestCase
         $this->assertContains('tools/bootstrap_booking.php', $requiredPaths);
         $this->assertContains('tools/mysql', $requiredPaths);
         $this->assertContains('vite.config.js', $requiredPaths);
+        $this->assertSame(2, (int) config('booking_release.packaging.retained_package_sets'));
 
         $excludedPaths = array_values((array) config('booking_release.packaging.exclude_paths', []));
         $this->assertContains('staff-web/node_modules', $excludedPaths);

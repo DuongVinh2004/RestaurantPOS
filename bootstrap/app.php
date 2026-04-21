@@ -10,7 +10,7 @@ use App\Http\Middleware\RequireStaffCapability;
 use App\Http\Middleware\TableHoldRateLimitMiddleware;
 use App\Support\ApiErrorCategory;
 use App\Support\ApiErrorResponse;
-use App\Support\ApiValidationErrorClassifier;
+use App\Http\Concerns\MapsFrameworkValidationFailure;
 use App\Support\DatabaseWriteConflictMapper;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -58,7 +58,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            $classified = ApiValidationErrorClassifier::classify($e);
+            $classified = MapsFrameworkValidationFailure::classify($e);
             $errors = $e->errors();
 
             if (($classified['category_code'] ?? null) === ApiErrorCategory::STALE_WRITE) {

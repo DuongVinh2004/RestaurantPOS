@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\Staff;
 
 use App\Enums\PaymentStatus;
-use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
-use App\Modules\CheckoutPayments\Application\Services\CheckoutResponseFactory;
-use App\Modules\CheckoutPayments\Application\Services\PaymentCaptureService;
-use App\Modules\CheckoutPayments\Application\Services\SettlementAmountCalculator;
+use App\Modules\Billing\Application\UseCases\Previews\CheckoutResponseFactory;
+use App\Modules\Payments\Application\UseCases\Capture\PaymentCaptureService;
+use App\Modules\Billing\Application\UseCases\Previews\SettlementAmountCalculator;
 use Mockery;
 use ReflectionMethod;
 use Tests\TestCase;

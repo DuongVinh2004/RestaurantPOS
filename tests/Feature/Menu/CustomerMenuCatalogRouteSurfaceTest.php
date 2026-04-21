@@ -13,10 +13,10 @@ final class CustomerMenuCatalogRouteSurfaceTest extends TestCase
     public function test_public_menu_routes_are_bound_to_customer_menu_catalog_controller(): void
     {
         $expected = [
-            ['GET', 'v1/menu/categories', 'App\\Http\\Controllers\\Api\\CustomerMenuCatalogController@categories'],
-            ['GET', 'v1/menu/items', 'App\\Http\\Controllers\\Api\\CustomerMenuCatalogController@items'],
-            ['GET', 'v1/menu/items/{id}', 'App\\Http\\Controllers\\Api\\CustomerMenuCatalogController@show'],
-            ['POST', 'v1/menu/preorder/preview', 'App\\Http\\Controllers\\Api\\CustomerMenuCatalogController@previewPreorder'],
+            ['GET', 'v1/menu/categories', 'App\\Modules\\Catalog\\Http\\Controllers\\Customer\\MenuCatalogController@categories'],
+            ['GET', 'v1/menu/items', 'App\\Modules\\Catalog\\Http\\Controllers\\Customer\\MenuCatalogController@items'],
+            ['GET', 'v1/menu/items/{id}', 'App\\Modules\\Catalog\\Http\\Controllers\\Customer\\MenuCatalogController@show'],
+            ['POST', 'v1/menu/preorder/preview', 'App\\Modules\\Catalog\\Http\\Controllers\\Customer\\MenuCatalogController@previewPreorder'],
         ];
 
         foreach ($expected as [$method, $uri, $action]) {

@@ -6,8 +6,8 @@ namespace Tests\Unit\Support;
 
 use App\Enums\WaitingListCustomerResponseStatus;
 use App\Enums\WaitingListStatus;
-use App\Modules\WaitingList\Domain\Models\WaitingList;
-use App\Modules\WaitingList\Domain\State\WaitingListStateMachine;
+use App\Modules\Waitlist\Domain\Models\WaitlistEntry;
+use App\Modules\Waitlist\Domain\StateMachines\WaitlistInvitationStateMachine;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -30,7 +30,7 @@ class WaitingListStateMachineTest extends TestCase
         foreach ($cases as [$from, $to, $expected]) {
             self::assertSame(
                 $expected,
-                WaitingListStateMachine::canTransition($from, $to),
+                WaitlistInvitationStateMachine::canTransition($from, $to),
                 sprintf('Unexpected waiting list transition result for %s -> %s.', $from->value, $to->value),
             );
         }
@@ -38,7 +38,7 @@ class WaitingListStateMachineTest extends TestCase
 
     public function test_apply_expired_to_waiting_clears_notify_and_customer_response_fields(): void
     {
-        $entry = new WaitingList();
+        $entry = new WaitlistEntry();
         $entry->status = WaitingListStatus::Notified;
         $entry->notified_at = Carbon::parse('2026-03-21T10:00:00Z');
         $entry->notify_expires_at = Carbon::parse('2026-03-21T10:10:00Z');
@@ -47,7 +47,7 @@ class WaitingListStateMachineTest extends TestCase
         $entry->customer_responded_at = Carbon::parse('2026-03-21T10:01:00Z');
         $entry->customer_confirmed_arrival_at = Carbon::parse('2026-03-21T10:05:00Z');
 
-        WaitingListStateMachine::applyExpiredToWaiting($entry, null);
+        WaitlistInvitationStateMachine::applyExpiredToWaiting($entry, null);
 
         self::assertSame(WaitingListStatus::Waiting, $entry->status);
         self::assertNull($entry->notified_at);
@@ -60,12 +60,12 @@ class WaitingListStateMachineTest extends TestCase
 
     public function test_apply_customer_declined_preserves_customer_response_context(): void
     {
-        $entry = new WaitingList();
+        $entry = new WaitlistEntry();
         $entry->status = WaitingListStatus::Notified;
         $entry->notify_expires_at = Carbon::parse('2026-03-21T10:10:00Z');
 
         $now = Carbon::parse('2026-03-21T10:05:00Z');
-        WaitingListStateMachine::applyCustomerDeclined($entry, $now, 123);
+        WaitlistInvitationStateMachine::applyCustomerDeclined($entry, $now, 123);
 
         self::assertSame(WaitingListStatus::Cancelled, $entry->status);
         self::assertSame('Declined by customer', $entry->cancel_reason);
@@ -76,12 +76,12 @@ class WaitingListStateMachineTest extends TestCase
 
     public function test_assert_can_seat_rejects_expired_notify_window(): void
     {
-        $entry = new WaitingList();
+        $entry = new WaitlistEntry();
         $entry->status = WaitingListStatus::Notified;
         $entry->notify_expires_at = Carbon::now('UTC')->subMinute();
 
         try {
-            WaitingListStateMachine::assertCanSeat($entry, Carbon::now('UTC'));
+            WaitlistInvitationStateMachine::assertCanSeat($entry, Carbon::now('UTC'));
             self::fail('Expected ValidationException was not thrown.');
         } catch (ValidationException $e) {
             self::assertArrayHasKey('notify_window', $e->errors());

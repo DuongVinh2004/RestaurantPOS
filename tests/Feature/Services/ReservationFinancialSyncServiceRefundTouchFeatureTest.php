@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Services;
 
-use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
+use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Tests\Support\BuildsBookingScenario;
@@ -51,7 +51,7 @@ final class ReservationFinancialSyncServiceRefundTouchFeatureTest extends TestCa
 
             $beforeVersion = (int) $this->table('reservations')->where('reservation_id', $reservationId)->value('row_version');
 
-            app(StaffCheckoutService::class)->refundReservation(
+            app(OrderSettlementWorkflow::class)->refundReservation(
                 reservationId: $reservationId,
                 paymentMethod: 'Cash',
                 refundScope: 'deposit',

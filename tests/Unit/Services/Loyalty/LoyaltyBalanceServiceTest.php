@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\Loyalty;
 
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyBalanceService;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyBalanceService;
 use Mockery;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;

@@ -8,8 +8,8 @@ use App\Enums\ReservationOrderItemStatus;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
-use App\Models\MenuItem;
-use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Modules\Catalog\Domain\Models\MenuItem;
+use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Reservations\Domain\Models\ReservationTable;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
@@ -21,8 +21,8 @@ use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use App\Support\AuditEvent;
 use App\Support\AvailabilityCacheVersion;
 use App\Support\DatabaseWriteConflictMapper;
-use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
-use App\Support\Money;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
+use App\SharedKernel\Money\Money;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
@@ -130,12 +130,6 @@ class ReservationRescheduleService
                         ->map(fn ($value) => (int) $value)
                         ->all();
 
-                    if ($currentTableIds === []) {
-                        throw ValidationException::withMessages([
-                            'reservation_id' => ['Reservation has no assigned tables.'],
-                        ]);
-                    }
-
                     $oldStart = Carbon::parse((string) $reservation->start_time)->utc();
                     $oldEnd = Carbon::parse((string) $reservation->end_time)->utc();
                     $oldGuestCount = (int) $reservation->guest_count;
@@ -231,31 +225,33 @@ class ReservationRescheduleService
                         ]);
                     }
 
-                    $this->assertCapacityEnough($tables, $newGuestCount);
+                    if ($newTableIds !== []) {
+                        $this->assertCapacityEnough($tables, $newGuestCount);
 
-                    $reservationConflictIds = $this->tableTimeConflictService->findReservationConflictTableIds(
-                        tableIds: $newTableIds,
-                        start: $newStart,
-                        end: $newEnd,
-                        ignoreReservationId: $reservationId,
-                        lock: true,
-                    );
-                    if ($reservationConflictIds !== []) {
-                        throw ValidationException::withMessages([
-                            'table_ids' => ['Target tables have overlapping reservations: ' . implode(',', $reservationConflictIds)],
-                        ]);
-                    }
+                        $reservationConflictIds = $this->tableTimeConflictService->findReservationConflictTableIds(
+                            tableIds: $newTableIds,
+                            start: $newStart,
+                            end: $newEnd,
+                            ignoreReservationId: $reservationId,
+                            lock: true,
+                        );
+                        if ($reservationConflictIds !== []) {
+                            throw ValidationException::withMessages([
+                                'table_ids' => ['Target tables have overlapping reservations: ' . implode(',', $reservationConflictIds)],
+                            ]);
+                        }
 
-                    $holdConflictIds = $this->tableTimeConflictService->findHoldConflictTableIds(
-                        tableIds: $newTableIds,
-                        start: $newStart,
-                        end: $newEnd,
-                        lock: true,
-                    );
-                    if ($holdConflictIds !== []) {
-                        throw ValidationException::withMessages([
-                            'table_ids' => ['Target tables still have active overlapping holds: ' . implode(',', $holdConflictIds)],
-                        ]);
+                        $holdConflictIds = $this->tableTimeConflictService->findHoldConflictTableIds(
+                            tableIds: $newTableIds,
+                            start: $newStart,
+                            end: $newEnd,
+                            lock: true,
+                        );
+                        if ($holdConflictIds !== []) {
+                            throw ValidationException::withMessages([
+                                'table_ids' => ['Target tables still have active overlapping holds: ' . implode(',', $holdConflictIds)],
+                            ]);
+                        }
                     }
 
                     $this->branchSchedulingPolicyService->assertReservationWindowAllowed(

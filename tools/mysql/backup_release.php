@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../app/Support/BackupArtifactManifest.php';
-require_once __DIR__ . '/../../app/Support/PortableSqlSanitizer.php';
+require_once __DIR__ . '/../../app/Platform/Delivery/Release/Application/Verifiers/PortableSqlSanitizer.php';
 
 use App\Platform\Backup\Support\BackupArtifactManifest;
-use App\Support\PortableSqlSanitizer;
+use App\Platform\Delivery\Release\Application\Verifiers\PortableSqlSanitizer;
 
 $rootDir = realpath(__DIR__ . '/../../');
 if ($rootDir === false) {

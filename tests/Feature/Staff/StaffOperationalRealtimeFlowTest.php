@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyPointsService;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Reservations\Application\Services\ReservationCodeGenerator;
-use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncService;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Application\Services\ReservationService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
-use App\Modules\FloorOps\Application\Services\StaffCheckInService;
-use App\Modules\Reporting\Application\Services\StaffOperationalRealtimeService;
-use App\Modules\WaitingList\Application\Services\StaffWaitingListService;
+use App\Modules\FloorOperations\Application\UseCases\CheckIn\StaffCheckInService;
+use App\Platform\Realtime\Services\OperationalRealtimeService;
+use App\Modules\Waitlist\Application\Services\StaffWaitingListService;
 use App\Modules\BranchScheduling\Application\Services\TableHoldService;
 use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -89,7 +89,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         $events = [];
         for ($version = 1; $version <= 12; $version++) {
             $events[] = [
-                'topic' => StaffOperationalRealtimeService::TOPIC_BOARD,
+                'topic' => OperationalRealtimeService::TOPIC_BOARD,
                 'channel' => 'staff.board',
                 'version' => $version,
                 'type' => 'reservation.updated',
@@ -100,7 +100,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         }
 
         $events[] = [
-            'topic' => StaffOperationalRealtimeService::TOPIC_WAITING_LIST,
+            'topic' => OperationalRealtimeService::TOPIC_WAITING_LIST,
             'channel' => 'staff.waiting_list',
             'version' => 99,
             'type' => 'waiting_list.notified',
@@ -112,8 +112,8 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         Cache::store('array')->forever('booking:realtime:board:events', $events);
         Cache::store('array')->forever('booking:realtime:board:version', 12);
 
-        $snapshot = app(StaffOperationalRealtimeService::class)->readTopic(
-            StaffOperationalRealtimeService::TOPIC_BOARD,
+        $snapshot = app(OperationalRealtimeService::class)->readTopic(
+            OperationalRealtimeService::TOPIC_BOARD,
             1,
             20,
         );
@@ -123,14 +123,14 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         self::assertTrue((bool) $snapshot['stale_cursor']);
         self::assertCount(10, (array) $snapshot['events']);
         self::assertSame(range(3, 12), array_map(static fn (array $event): int => (int) ($event['version'] ?? 0), (array) $snapshot['events']));
-        self::assertNull(collect($snapshot['events'])->firstWhere('topic', StaffOperationalRealtimeService::TOPIC_WAITING_LIST));
+        self::assertNull(collect($snapshot['events'])->firstWhere('topic', OperationalRealtimeService::TOPIC_WAITING_LIST));
     }
 
     public function test_publish_reconciles_cached_version_with_existing_history_before_appending_event(): void
     {
         Cache::store('array')->forever('booking:realtime:board:events', [
             [
-                'topic' => StaffOperationalRealtimeService::TOPIC_BOARD,
+                'topic' => OperationalRealtimeService::TOPIC_BOARD,
                 'channel' => 'staff.board',
                 'version' => 4,
                 'type' => 'reservation.created',
@@ -139,7 +139,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
                 'payload' => ['reservation_id' => 4],
             ],
             [
-                'topic' => StaffOperationalRealtimeService::TOPIC_BOARD,
+                'topic' => OperationalRealtimeService::TOPIC_BOARD,
                 'channel' => 'staff.board',
                 'version' => 5,
                 'type' => 'reservation.checked_in',
@@ -150,7 +150,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         ]);
         Cache::store('array')->forever('booking:realtime:board:version', 1);
 
-        $service = app(StaffOperationalRealtimeService::class);
+        $service = app(OperationalRealtimeService::class);
         $event = $service->publishBoardEvent('reservation.board_assignment_committed', [
             'reservation_id' => 6,
             'table_id' => 9,
@@ -159,7 +159,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         self::assertNotNull($event);
         self::assertSame(6, (int) ($event['version'] ?? 0));
 
-        $snapshot = $service->readTopic(StaffOperationalRealtimeService::TOPIC_BOARD, 0, 20);
+        $snapshot = $service->readTopic(OperationalRealtimeService::TOPIC_BOARD, 0, 20);
 
         self::assertSame(6, (int) $snapshot['current_version']);
         self::assertSame([4, 5, 6], array_map(static fn (array $row): int => (int) ($row['version'] ?? 0), (array) $snapshot['events']));
@@ -167,10 +167,10 @@ class StaffOperationalRealtimeFlowTest extends TestCase
 
     public function test_testing_environment_can_use_explicit_array_store_for_realtime_backend(): void
     {
-        $service = app(StaffOperationalRealtimeService::class);
+        $service = app(OperationalRealtimeService::class);
 
         $status = $service->backendStatus();
-        $topic = $service->describeTopic(StaffOperationalRealtimeService::TOPIC_BOARD, '/api/v1/staff/tables/board/changes');
+        $topic = $service->describeTopic(OperationalRealtimeService::TOPIC_BOARD, '/api/v1/staff/tables/board/changes');
 
         self::assertTrue((bool) $status['usable']);
         self::assertSame('ok', $status['status']);
@@ -187,11 +187,11 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         config()->set('booking.realtime.cache_store', 'array');
         config()->set('booking.realtime.production_like_environments', ['production']);
 
-        $service = app(StaffOperationalRealtimeService::class);
+        $service = app(OperationalRealtimeService::class);
 
         $status = $service->backendStatus();
-        $topic = $service->describeTopic(StaffOperationalRealtimeService::TOPIC_BOARD, '/api/v1/staff/tables/board/changes');
-        $snapshot = $service->readTopic(StaffOperationalRealtimeService::TOPIC_BOARD, 0, 20);
+        $topic = $service->describeTopic(OperationalRealtimeService::TOPIC_BOARD, '/api/v1/staff/tables/board/changes');
+        $snapshot = $service->readTopic(OperationalRealtimeService::TOPIC_BOARD, 0, 20);
         $published = $service->publishBoardEvent('reservation.updated', ['reservation_id' => 10]);
 
         self::assertFalse((bool) $status['usable']);
@@ -273,7 +273,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             'full_name' => 'Realtime Waiting Customer',
             'phone' => '0909444001',
         ]);
-        $customer = \App\Models\User::query()->findOrFail($customerId);
+        $customer = \App\Modules\IdentityAccess\Domain\Models\User::query()->findOrFail($customerId);
         $staffHeaders = $this->staffAuthHeaders($staffId);
 
         $tableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available']);
@@ -352,7 +352,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             'full_name' => 'Advance Next',
             'phone' => '0909555002',
         ]);
-        $sourceCustomer = \App\Models\User::query()->findOrFail($sourceCustomerId);
+        $sourceCustomer = \App\Modules\IdentityAccess\Domain\Models\User::query()->findOrFail($sourceCustomerId);
 
         $tableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available']);
         $sourceWaitingId = $this->createWaitingListEntry([
@@ -963,3 +963,4 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         return [$staffId, $tableId, $reservationId];
     }
 }
+

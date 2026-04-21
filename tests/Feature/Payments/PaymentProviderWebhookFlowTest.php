@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Payments;
 
-use App\Modules\CheckoutPayments\Domain\Models\ReservationBillPaymentSession;
-use App\Modules\CheckoutPayments\Domain\Models\ReservationDepositPaymentSession;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Payments\Domain\Models\ReservationBillPaymentSession;
+use App\Modules\Payments\Domain\Models\ReservationDepositPaymentSession;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -99,7 +100,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             ->assertJsonPath('data.delivery_status', 'Applied');
 
         $firstChanges = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $beforeVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$beforeVersion);
 
         $firstChanges->assertOk()->assertJsonPath('data.has_changes', true);
         $event = collect($firstChanges->json('data.events'))->firstWhere('type', 'reservation.deposit_paid');
@@ -116,7 +117,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             ->assertJsonPath('data.payment_scope', 'deposit');
 
         $replayChanges = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $afterFirstVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$afterFirstVersion);
 
         $replayChanges->assertOk()
             ->assertJsonPath('data.has_changes', false)
@@ -225,6 +226,68 @@ class PaymentProviderWebhookFlowTest extends TestCase
         self::assertSame(1, DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Deposit')->count());
     }
 
+    public function test_duplicate_delivery_retries_transient_failed_receipt_after_session_is_created(): void
+    {
+        $payload = [
+            'provider_event_code' => 'evt-dep-late-session-1',
+            'provider_session_code' => 'sim-dep-late-session-1',
+            'payment_scope' => 'deposit',
+            'simulation_outcome' => 'succeeded',
+        ];
+
+        $first = $this->postJson('/api/v1/payments/providers/simulated/webhooks', $payload, $this->webhookHeaders($payload));
+
+        $first->assertStatus(202)
+            ->assertJsonPath('data.duplicate', false)
+            ->assertJsonPath('data.delivery_status', 'Failed')
+            ->assertJsonPath('data.failure_message', 'Webhook payload payment_scope does not match the stored payment session scope.');
+
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Confirmed',
+            'deposit_required_amount' => '92000.00',
+            'deposit_paid_amount' => '0.00',
+            'deposit_status' => 'Pending',
+            'bill_currency' => 'VND',
+        ]);
+
+        ReservationDepositPaymentSession::query()->create([
+            'reservation_id' => $reservationId,
+            'customer_user_id' => $customerId,
+            'provider_code' => 'simulated',
+            'provider_session_code' => 'sim-dep-late-session-1',
+            'payment_method' => 'Online',
+            'amount' => '92000.00',
+            'currency' => 'VND',
+            'session_status' => 'Pending',
+            'settlement_status' => 'NotApplied',
+            'provider_payload_json' => ['payment_scope' => 'deposit'],
+            'row_version' => 1,
+        ]);
+
+        $second = $this->postJson('/api/v1/payments/providers/simulated/webhooks', $payload, $this->webhookHeaders($payload));
+
+        $second->assertStatus(202)
+            ->assertJsonPath('data.duplicate', true)
+            ->assertJsonPath('data.resumed_incomplete_delivery', true)
+            ->assertJsonPath('data.payment_scope', 'deposit')
+            ->assertJsonPath('data.delivery_status', 'Applied');
+
+        self::assertSame(1, DB::table('payment_provider_webhook_receipts')->where('provider_event_code', 'evt-dep-late-session-1')->count());
+        self::assertSame(
+            'Applied',
+            (string) DB::table('payment_provider_webhook_receipts')
+                ->where('provider_event_code', 'evt-dep-late-session-1')
+                ->value('delivery_status')
+        );
+        self::assertSame('Succeeded', (string) DB::table('reservation_deposit_payment_sessions')
+            ->where('provider_code', 'simulated')
+            ->where('provider_session_code', 'sim-dep-late-session-1')
+            ->value('session_status'));
+        self::assertSame(1, DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Deposit')->count());
+    }
+
     public function test_webhook_receipt_redacts_sensitive_request_artifacts_and_raw_provider_payloads(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
@@ -313,7 +376,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'row_version' => 1,
         ]);
 
-        $customer = \App\Models\User::query()->findOrFail($customerId);
+        $customer = User::query()->findOrFail($customerId);
         $confirm = $this->actingAs($customer)->withHeaders([
             'Idempotency-Key' => 'cust-dep-confirm-then-webhook-1',
             'Accept' => 'application/json',
@@ -554,7 +617,6 @@ class PaymentProviderWebhookFlowTest extends TestCase
         self::assertSame(0, DB::table('payments')->where('reservation_id', $reservationId)->count());
     }
 
-
     public function test_webhook_rejects_disabled_provider_configuration(): void
     {
         config()->set('booking.payment_providers.providers.simulated.enabled', false);
@@ -668,7 +730,6 @@ class PaymentProviderWebhookFlowTest extends TestCase
                 ->value('delivery_status')
         );
     }
-
 
     public function test_webhook_with_invalid_declared_scope_marks_receipt_failed_cleanly(): void
     {
@@ -920,7 +981,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      * @return array<string,string>
      */
     private function webhookHeaders(array $payload): array
@@ -935,7 +996,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      * @return array<string,string>
      */
     private function genericWebhookHeaders(array $payload, string $secret): array

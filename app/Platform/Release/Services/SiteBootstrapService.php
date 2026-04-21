@@ -6,16 +6,16 @@ namespace App\Platform\Release\Services;
 
 use App\Enums\RestaurantTableStatus;
 use App\Modules\BranchScheduling\Domain\Models\Branch;
-use App\Models\MenuCategory;
-use App\Models\MenuItem;
-use App\Models\MenuItemPrice;
+use App\Modules\Catalog\Domain\Models\MenuCategory;
+use App\Modules\Catalog\Domain\Models\MenuItem;
+use App\Modules\Catalog\Domain\Models\MenuItemPrice;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
-use App\Models\StaffApiKey;
+use App\Modules\IdentityAccess\Domain\Models\StaffApiKey;
 use App\Modules\BranchScheduling\Domain\Models\TableTemplate;
-use App\Models\User;
-use App\Services\StaffApiKeyGovernanceService;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\IdentityAccess\Infrastructure\Persistence\StaffApiKeyStore;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
-use App\Services\Finance\FinanceTaxProfileService;
+use App\Modules\Billing\Application\Workflows\FinanceTaxProfileWorkflow;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -26,7 +26,7 @@ class SiteBootstrapService
     public function __construct(
         private readonly BranchContextService $branchContextService,
         private readonly FinanceTaxProfileService $financeTaxProfileService,
-        private readonly StaffApiKeyGovernanceService $staffApiKeyGovernanceService,
+        private readonly StaffApiKeyStore $staffApiKeyGovernanceService,
     ) {}
 
     /**

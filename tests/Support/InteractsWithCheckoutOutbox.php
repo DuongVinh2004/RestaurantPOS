@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Tests\Support;
 
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
-use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
+use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
 use Illuminate\Support\Facades\DB;
 
 trait InteractsWithCheckoutOutbox
 {
-    protected function makeCheckoutServiceWithOutbox(): StaffCheckoutService
+    protected function makeCheckoutServiceWithOutbox(): OrderSettlementWorkflow
     {
         config()->set('notifications.outbox.enabled', true);
 

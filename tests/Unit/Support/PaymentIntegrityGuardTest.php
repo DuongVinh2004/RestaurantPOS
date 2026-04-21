@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Modules\CheckoutPayments\Domain\Guards\PaymentIntegrityGuard;
+use App\Modules\Payments\Domain\Guards\PaymentIntegrityGuard;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\TestCase;
 

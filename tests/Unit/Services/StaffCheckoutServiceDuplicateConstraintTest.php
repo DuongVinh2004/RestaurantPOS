@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyPointsService;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
-use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncService;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
-use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
+use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
 use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 use Mockery;
@@ -102,9 +102,9 @@ class StaffCheckoutServiceDuplicateConstraintTest extends TestCase
         ));
     }
 
-    private function makeService(): StaffCheckoutService
+    private function makeService(): OrderSettlementWorkflow
     {
-        return new StaffCheckoutService(
+        return new OrderSettlementWorkflow(
             Mockery::mock(ReservationLockService::class),
             Mockery::mock(NotificationOutboxService::class),
             Mockery::mock(LoyaltyPointsService::class),

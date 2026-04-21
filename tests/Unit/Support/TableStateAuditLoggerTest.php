@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Modules\FloorOps\Domain\Audit\TableStateAuditLogger;
+use App\Modules\FloorOperations\Domain\Audit\TableStateAuditLogger;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
@@ -64,3 +64,4 @@ class TableStateAuditLoggerTest extends TestCase
         $this->assertSame([], $records);
     }
 }
+

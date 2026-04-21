@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Platform\Release\Services;
 
-use App\Services\Concerns\BuildsPhpUnitTestingEnvironment;
+use App\Platform\QualityAssurance\Harness\Application\Builders\BuildsPhpUnitTestingEnvironment;
 use Illuminate\Support\Facades\File;
 use Symfony\Component\Process\Process;
 use Throwable;

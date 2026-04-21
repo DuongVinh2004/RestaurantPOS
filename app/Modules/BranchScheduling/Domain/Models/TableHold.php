@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\BranchScheduling\Domain\Models;
 
 use App\Enums\TableHoldStatus;
-use App\Models\Concerns\HasRowVersion;
-use App\Models\Concerns\UsesUuidPrimaryKey;
-use App\Models\User;
+use App\Support\Persistence\HasRowVersion;
+use App\Support\Persistence\UsesUuidPrimaryKey;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;

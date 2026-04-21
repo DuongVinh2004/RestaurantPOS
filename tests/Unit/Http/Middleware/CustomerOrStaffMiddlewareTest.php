@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Tests\Unit\Http\Middleware;
 
 use App\Http\Middleware\CustomerOrStaffMiddleware;
-use App\Models\Role;
-use App\Models\User;
-use App\Services\CustomerReservationSessionAccessService;
-use App\Support\CustomerSessionRouteContract;
-use App\Support\StaffActorResolver;
+use App\Modules\IdentityAccess\Domain\Models\Role;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
+use App\Modules\IdentityAccess\Infrastructure\Internal\CustomerSessionRouteContract;
+use App\Modules\IdentityAccess\Infrastructure\Tokenization\StaffApiKeyActorResolver;
 use Illuminate\Http\Request;
 use Mockery;
 use Tests\TestCase;
@@ -24,7 +24,7 @@ final class CustomerOrStaffMiddlewareTest extends TestCase
 
     public function test_it_allows_session_bound_customer_flow_when_no_staff_key_is_provided(): void
     {
-        $resolver = Mockery::mock(StaffActorResolver::class);
+        $resolver = Mockery::mock(StaffApiKeyActorResolver::class);
         $resolver->shouldReceive('extractProvidedKey')
             ->once()
             ->andReturn('');
@@ -48,7 +48,7 @@ final class CustomerOrStaffMiddlewareTest extends TestCase
 
     public function test_it_does_not_silently_downgrade_to_customer_context_when_a_staff_key_is_invalid(): void
     {
-        $resolver = Mockery::mock(StaffActorResolver::class);
+        $resolver = Mockery::mock(StaffApiKeyActorResolver::class);
         $resolver->shouldReceive('extractProvidedKey')
             ->once()
             ->andReturn('invalid-staff-key');
@@ -81,7 +81,7 @@ final class CustomerOrStaffMiddlewareTest extends TestCase
 
     public function test_it_prefers_a_valid_staff_key_over_a_pre_resolved_customer_actor(): void
     {
-        $resolver = Mockery::mock(StaffActorResolver::class);
+        $resolver = Mockery::mock(StaffApiKeyActorResolver::class);
         $resolver->shouldReceive('extractProvidedKey')
             ->once()
             ->andReturn('valid-staff-key');
@@ -136,7 +136,7 @@ final class CustomerOrStaffMiddlewareTest extends TestCase
 
     public function test_it_does_not_fallback_to_session_flow_when_staff_key_is_invalid(): void
     {
-        $resolver = Mockery::mock(StaffActorResolver::class);
+        $resolver = Mockery::mock(StaffApiKeyActorResolver::class);
         $resolver->shouldReceive('extractProvidedKey')
             ->once()
             ->andReturn('invalid-staff-key');
@@ -165,7 +165,7 @@ final class CustomerOrStaffMiddlewareTest extends TestCase
 
     public function test_it_prefers_staff_actor_resolution_over_session_flow_when_staff_key_is_valid(): void
     {
-        $resolver = Mockery::mock(StaffActorResolver::class);
+        $resolver = Mockery::mock(StaffApiKeyActorResolver::class);
         $resolver->shouldReceive('extractProvidedKey')
             ->once()
             ->andReturn('valid-staff-key');
@@ -204,11 +204,11 @@ final class CustomerOrStaffMiddlewareTest extends TestCase
         $this->assertSame(false, $response->getData(true)['customer_session_flow'] ?? null);
     }
 
-    private function middleware(StaffActorResolver $resolver): CustomerOrStaffMiddleware
+    private function middleware(StaffApiKeyActorResolver $resolver): CustomerOrStaffMiddleware
     {
         return new CustomerOrStaffMiddleware(
             $resolver,
-            new CustomerSessionRouteContract($this->createMock(CustomerReservationSessionAccessService::class)),
+            new CustomerSessionRouteContract($this->createMock(ReservationSessionAccessWorkflow::class)),
         );
     }
 

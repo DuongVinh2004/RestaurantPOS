@@ -8,15 +8,15 @@ use App\Modules\Conversations\Domain\Models\Conversation;
 use App\Modules\Conversations\Domain\Models\ConversationAnalysis;
 use App\Modules\Conversations\Domain\Models\ConversationMessage;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\WaitingList\Domain\Models\WaitingList;
-use App\Services\AI\ConversationThreadAssistService;
+use App\Modules\Waitlist\Domain\Models\WaitlistEntry;
+use App\Modules\Conversations\Infrastructure\Internal\ConversationAiAssistBuilder;
 use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Mockery;
 use Tests\TestCase;
 
-class ConversationThreadAssistServiceTest extends TestCase
+class ConversationAiAssistBuilderTest extends TestCase
 {
     public function test_it_builds_a_ready_summary_with_actions_and_risk_flags(): void
     {
@@ -147,7 +147,7 @@ class ConversationThreadAssistServiceTest extends TestCase
             'status' => 'Closed',
             'channel' => 'WebChat',
         ]);
-        $conversation->setRelation('linkedWaitingList', new WaitingList([
+        $conversation->setRelation('linkedWaitingList', new WaitlistEntry([
             'waiting_list_id' => 144,
             'status' => 'Seated',
         ]));

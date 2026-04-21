@@ -8,14 +8,13 @@ use App\Enums\ReservationStatus;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\Notifications\Domain\Models\NotificationDeliveryAttempt;
 use App\Modules\Notifications\Domain\Models\NotificationOutbox;
-use App\Modules\Notifications\Infrastructure\NotificationChannelManager;
 use App\Modules\Notifications\Infrastructure\NotificationDeliveryException;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\WaitingList\Domain\Models\WaitingList;
+use App\Modules\Waitlist\Domain\Models\WaitlistEntry;
 use App\Platform\Metrics\Services\MetricsService;
 use App\Support\AuditEvent;
-use App\Support\Money;
-use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
+use App\SharedKernel\Money\Money;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use DateTimeZone;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -329,7 +328,7 @@ class NotificationOutboxService
         ]);
     }
 
-    public function enqueueWaitingListNotified(WaitingList $entry, RestaurantTable $table, Carbon $expiresAt): ?NotificationOutbox
+    public function enqueueWaitingListNotified(WaitlistEntry $entry, RestaurantTable $table, Carbon $expiresAt): ?NotificationOutbox
     {
         $entry->loadMissing('user');
 

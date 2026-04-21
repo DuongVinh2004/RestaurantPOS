@@ -6,7 +6,7 @@
             "key": "delete_v1_admin_restaurant_tables_id",
             "method": "DELETE",
             "uri": "api/v1/admin/restaurant/tables/{id}",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminRestaurantTableController@destroy"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\RestaurantTableController@destroy"
         },
         {
             "key": "delete_v1_reservations_id_pre_order",
@@ -24,19 +24,19 @@
             "key": "delete_v1_staff_conversations_conversation_id_links_reservation",
             "method": "DELETE",
             "uri": "api/v1/staff/conversations/{conversation_id}/links/reservation",
-            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@unlinkReservation"
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\ConversationInboxController@unlinkReservation"
         },
         {
             "key": "delete_v1_staff_conversations_conversation_id_links_waiting_list",
             "method": "DELETE",
             "uri": "api/v1/staff/conversations/{conversation_id}/links/waiting-list",
-            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@unlinkWaitingList"
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\ConversationInboxController@unlinkWaitingList"
         },
         {
             "key": "delete_v1_table_holds_hold_id",
             "method": "DELETE",
             "uri": "api/v1/table-holds/{hold_id}",
-            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\TableHoldController@cancel"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Guest\\TableHoldController@cancel"
         },
         {
             "key": "get_user",
@@ -48,241 +48,241 @@
             "key": "get_v1_admin_benefits_loyalty_tiers",
             "method": "GET",
             "uri": "api/v1/admin/benefits/loyalty-tiers",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminLoyaltyTierController@index"
+            "action": "App\\Modules\\Loyalty\\Http\\Controllers\\Admin\\LoyaltyTierController@index"
         },
         {
             "key": "get_v1_admin_benefits_loyalty_tiers_export",
             "method": "GET",
             "uri": "api/v1/admin/benefits/loyalty-tiers/export",
-            "action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export"
+            "action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export"
         },
         {
             "key": "get_v1_admin_benefits_loyalty_tiers_id",
             "method": "GET",
             "uri": "api/v1/admin/benefits/loyalty-tiers/{id}",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminLoyaltyTierController@show"
+            "action": "App\\Modules\\Loyalty\\Http\\Controllers\\Admin\\LoyaltyTierController@show"
         },
         {
             "key": "get_v1_admin_benefits_vouchers",
             "method": "GET",
             "uri": "api/v1/admin/benefits/vouchers",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminVoucherController@index"
+            "action": "App\\Modules\\Promotions\\Http\\Controllers\\Admin\\VoucherController@index"
         },
         {
             "key": "get_v1_admin_benefits_vouchers_export",
             "method": "GET",
             "uri": "api/v1/admin/benefits/vouchers/export",
-            "action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export"
+            "action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export"
         },
         {
             "key": "get_v1_admin_benefits_vouchers_id",
             "method": "GET",
             "uri": "api/v1/admin/benefits/vouchers/{id}",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminVoucherController@show"
+            "action": "App\\Modules\\Promotions\\Http\\Controllers\\Admin\\VoucherController@show"
         },
         {
             "key": "get_v1_admin_inventory_ingredients",
             "method": "GET",
             "uri": "api/v1/admin/inventory/ingredients",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminInventoryController@listIngredients"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\InventoryAdjustmentController@listIngredients"
         },
         {
             "key": "get_v1_admin_inventory_ingredients_id",
             "method": "GET",
             "uri": "api/v1/admin/inventory/ingredients/{id}",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminInventoryController@showIngredient"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\InventoryAdjustmentController@showIngredient"
         },
         {
             "key": "get_v1_admin_inventory_ingredients_id_movements",
             "method": "GET",
             "uri": "api/v1/admin/inventory/ingredients/{id}/movements",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminInventoryController@listIngredientMovements"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\InventoryAdjustmentController@listIngredientMovements"
         },
         {
             "key": "get_v1_admin_inventory_menu_items_id_recipe",
             "method": "GET",
             "uri": "api/v1/admin/inventory/menu-items/{id}/recipe",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminInventoryController@showMenuItemRecipe"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\InventoryAdjustmentController@showMenuItemRecipe"
         },
         {
             "key": "get_v1_admin_inventory_purchase_orders",
             "method": "GET",
             "uri": "api/v1/admin/inventory/purchase-orders",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminPurchasingController@listPurchaseOrders"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\ProcurementController@listPurchaseOrders"
         },
         {
             "key": "get_v1_admin_inventory_purchase_orders_id",
             "method": "GET",
             "uri": "api/v1/admin/inventory/purchase-orders/{id}",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminPurchasingController@showPurchaseOrder"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\ProcurementController@showPurchaseOrder"
         },
         {
             "key": "get_v1_admin_inventory_purchase_orders_id_receipts",
             "method": "GET",
             "uri": "api/v1/admin/inventory/purchase-orders/{id}/receipts",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminPurchasingController@listPurchaseOrderReceipts"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\ProcurementController@listPurchaseOrderReceipts"
         },
         {
             "key": "get_v1_admin_inventory_suppliers",
             "method": "GET",
             "uri": "api/v1/admin/inventory/suppliers",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminPurchasingController@listSuppliers"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\ProcurementController@listSuppliers"
         },
         {
             "key": "get_v1_admin_inventory_suppliers_id",
             "method": "GET",
             "uri": "api/v1/admin/inventory/suppliers/{id}",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminPurchasingController@showSupplier"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\ProcurementController@showSupplier"
         },
         {
             "key": "get_v1_admin_kitchen_stations",
             "method": "GET",
             "uri": "api/v1/admin/kitchen/stations",
-            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\AdminKitchenRoutingController@index"
+            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\KitchenStationController@index"
         },
         {
             "key": "get_v1_admin_kitchen_stations_station_id",
             "method": "GET",
             "uri": "api/v1/admin/kitchen/stations/{station_id}",
-            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\AdminKitchenRoutingController@show"
+            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\KitchenStationController@show"
         },
         {
             "key": "get_v1_admin_kitchen_stations_station_id_category_routes",
             "method": "GET",
             "uri": "api/v1/admin/kitchen/stations/{station_id}/category-routes",
-            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\AdminKitchenRoutingController@routes"
+            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\KitchenCategoryRouteController@index"
         },
         {
             "key": "get_v1_admin_menu_categories",
             "method": "GET",
             "uri": "api/v1/admin/menu/categories",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminMenuCategoryController@index"
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuCategoryController@index"
         },
         {
             "key": "get_v1_admin_menu_categories_export",
             "method": "GET",
             "uri": "api/v1/admin/menu/categories/export",
-            "action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export"
+            "action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export"
         },
         {
             "key": "get_v1_admin_menu_items",
             "method": "GET",
             "uri": "api/v1/admin/menu/items",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminMenuItemController@index"
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemController@index"
         },
         {
             "key": "get_v1_admin_menu_items_export",
             "method": "GET",
             "uri": "api/v1/admin/menu/items/export",
-            "action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export"
+            "action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export"
         },
         {
             "key": "get_v1_admin_menu_items_item_id",
             "method": "GET",
             "uri": "api/v1/admin/menu/items/{item_id}",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminMenuItemController@show"
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemController@show"
         },
         {
             "key": "get_v1_admin_menu_items_item_id_prices",
             "method": "GET",
             "uri": "api/v1/admin/menu/items/{item_id}/prices",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminMenuItemPriceController@index"
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemPriceController@index"
         },
         {
             "key": "get_v1_admin_menu_prices_export",
             "method": "GET",
             "uri": "api/v1/admin/menu/prices/export",
-            "action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export"
+            "action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export"
         },
         {
             "key": "get_v1_admin_menu_prices_price_id",
             "method": "GET",
             "uri": "api/v1/admin/menu/prices/{price_id}",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminMenuItemPriceController@show"
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemPriceController@show"
         },
         {
             "key": "get_v1_admin_privacy_customers_user_id_data_export",
             "method": "GET",
             "uri": "api/v1/admin/privacy/customers/{user_id}/data-export",
-            "action": "App\\Modules\\PrivacyAudit\\Http\\Controllers\\Admin\\AdminCustomerDataLifecycleController@exportCustomerData"
+            "action": "App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Admin\\PrivacyController@exportCustomerData"
         },
         {
             "key": "get_v1_admin_privacy_requests",
             "method": "GET",
             "uri": "api/v1/admin/privacy/requests",
-            "action": "App\\Modules\\PrivacyAudit\\Http\\Controllers\\Admin\\AdminCustomerDataLifecycleController@index"
+            "action": "App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Admin\\PrivacyController@index"
         },
         {
             "key": "get_v1_admin_restaurant_table_templates",
             "method": "GET",
             "uri": "api/v1/admin/restaurant/table-templates",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminRestaurantTableController@templates"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\TableTemplateController@index"
         },
         {
             "key": "get_v1_admin_restaurant_tables",
             "method": "GET",
             "uri": "api/v1/admin/restaurant/tables",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminRestaurantTableController@index"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\RestaurantTableController@index"
         },
         {
             "key": "get_v1_admin_restaurant_tables_export",
             "method": "GET",
             "uri": "api/v1/admin/restaurant/tables/export",
-            "action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export"
+            "action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export"
         },
         {
             "key": "get_v1_admin_restaurant_tables_id",
             "method": "GET",
             "uri": "api/v1/admin/restaurant/tables/{id}",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminRestaurantTableController@show"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\RestaurantTableController@show"
         },
         {
             "key": "get_v1_admin_restaurant_zones",
             "method": "GET",
             "uri": "api/v1/admin/restaurant/zones",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminRestaurantZoneController@index"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\RestaurantZoneController@index"
         },
         {
             "key": "get_v1_admin_settings_benefits",
             "method": "GET",
             "uri": "api/v1/admin/settings/benefits",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminBenefitSettingController@index"
+            "action": "App\\Modules\\Promotions\\Http\\Controllers\\Admin\\BenefitSettingController@index"
         },
         {
             "key": "get_v1_admin_settings_branches",
             "method": "GET",
             "uri": "api/v1/admin/settings/branches",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminBranchController@index"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\BranchController@index"
         },
         {
             "key": "get_v1_admin_settings_branches_export",
             "method": "GET",
             "uri": "api/v1/admin/settings/branches/export",
-            "action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export"
+            "action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export"
         },
         {
             "key": "get_v1_admin_settings_branches_id",
             "method": "GET",
             "uri": "api/v1/admin/settings/branches/{id}",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminBranchController@show"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\BranchController@show"
         },
         {
             "key": "get_v1_admin_settings_finance_tax_profile",
             "method": "GET",
             "uri": "api/v1/admin/settings/finance/tax-profile",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminFinanceSettingsController@showTaxProfile"
+            "action": "App\\Modules\\Billing\\Http\\Controllers\\Admin\\FinanceTaxProfileController@showTaxProfile"
         },
         {
             "key": "get_v1_auth_customer_me",
             "method": "GET",
             "uri": "api/v1/auth/customer/me",
-            "action": "App\\Http\\Controllers\\Api\\Auth\\CustomerAuthController@me"
+            "action": "App\\Modules\\IdentityAccess\\Http\\Controllers\\Customer\\AuthController@me"
         },
         {
             "key": "get_v1_auth_staff_me",
             "method": "GET",
             "uri": "api/v1/auth/staff/me",
-            "action": "App\\Http\\Controllers\\Api\\Auth\\StaffAuthController@me"
+            "action": "App\\Modules\\IdentityAccess\\Http\\Controllers\\Staff\\AuthController@me"
         },
         {
             "key": "health",
@@ -314,43 +314,43 @@
             "key": "get_v1_me_data_export",
             "method": "GET",
             "uri": "api/v1/me/data-export",
-            "action": "App\\Modules\\PrivacyAudit\\Http\\Controllers\\Customer\\CustomerDataLifecycleController@export"
+            "action": "App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Customer\\PrivacyRequestController@export"
         },
         {
             "key": "get_v1_me_loyalty",
             "method": "GET",
             "uri": "api/v1/me/loyalty",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Customer\\CustomerBenefitsController@loyalty"
+            "action": "App\\Modules\\Loyalty\\Http\\Controllers\\Customer\\LoyaltySummaryController@show"
         },
         {
             "key": "get_v1_me_privacy_requests",
             "method": "GET",
             "uri": "api/v1/me/privacy-requests",
-            "action": "App\\Modules\\PrivacyAudit\\Http\\Controllers\\Customer\\CustomerDataLifecycleController@index"
+            "action": "App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Customer\\PrivacyRequestController@index"
         },
         {
             "key": "get_v1_me_vouchers",
             "method": "GET",
             "uri": "api/v1/me/vouchers",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Customer\\CustomerBenefitsController@vouchers"
+            "action": "App\\Modules\\Promotions\\Http\\Controllers\\Customer\\BenefitsController@vouchers"
         },
         {
             "key": "get_v1_menu_categories",
             "method": "GET",
             "uri": "api/v1/menu/categories",
-            "action": "App\\Http\\Controllers\\Api\\CustomerMenuCatalogController@categories"
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Customer\\MenuCatalogController@categories"
         },
         {
             "key": "get_v1_menu_items",
             "method": "GET",
             "uri": "api/v1/menu/items",
-            "action": "App\\Http\\Controllers\\Api\\CustomerMenuCatalogController@items"
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Customer\\MenuCatalogController@items"
         },
         {
             "key": "get_v1_menu_items_id",
             "method": "GET",
             "uri": "api/v1/menu/items/{id}",
-            "action": "App\\Http\\Controllers\\Api\\CustomerMenuCatalogController@show"
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Customer\\MenuCatalogController@show"
         },
         {
             "key": "metrics",
@@ -365,19 +365,19 @@
             "key": "get_v1_reservations",
             "method": "GET",
             "uri": "api/v1/reservations",
-            "action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationSelfServiceController@index"
+            "action": "App\\Modules\\Reservations\\Http\\Controllers\\Customer\\ReservationSelfServiceController@index"
         },
         {
             "key": "get_v1_reservations_id",
             "method": "GET",
             "uri": "api/v1/reservations/{id}",
-            "action": "App\\Modules\\Reservations\\Http\\Controllers\\ReservationController@show"
+            "action": "App\\Modules\\Reservations\\Http\\Controllers\\Customer\\ReservationController@show"
         },
         {
             "key": "get_v1_reservations_id_benefits_preview",
             "method": "GET",
             "uri": "api/v1/reservations/{id}/benefits-preview",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Customer\\CustomerBenefitsController@reservationBenefitsPreview"
+            "action": "App\\Modules\\Promotions\\Http\\Controllers\\Customer\\BenefitsController@reservationBenefitsPreview"
         },
         {
             "key": "get_v1_reservations_id_deposit_preview",
@@ -401,235 +401,235 @@
             "key": "get_v1_reservations_reservation_id_active_order",
             "method": "GET",
             "uri": "api/v1/reservations/{reservation_id}/active-order",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationOrderBillController@activeOrder"
+            "action": "App\\Modules\\Billing\\Http\\Controllers\\Customer\\ReservationBillController@activeOrder"
         },
         {
             "key": "get_v1_reservations_reservation_id_bill",
             "method": "GET",
             "uri": "api/v1/reservations/{reservation_id}/bill",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationOrderBillController@show"
+            "action": "App\\Modules\\Billing\\Http\\Controllers\\Customer\\ReservationBillController@show"
         },
         {
             "key": "get_v1_reservations_reservation_id_bill_preview",
             "method": "GET",
             "uri": "api/v1/reservations/{reservation_id}/bill-preview",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationOrderBillController@billPreview"
+            "action": "App\\Modules\\Billing\\Http\\Controllers\\Customer\\ReservationBillController@billPreview"
         },
         {
             "key": "get_v1_reservations_reservation_id_bill_payment_sessions_session_id",
             "method": "GET",
             "uri": "api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationBillPaymentController@show"
+            "action": "App\\Modules\\Payments\\Http\\Controllers\\Customer\\ReservationBillPaymentController@show"
         },
         {
             "key": "get_v1_reservations_reservation_id_deposit_payment_sessions_session_id",
             "method": "GET",
             "uri": "api/v1/reservations/{reservation_id}/deposit/payment-sessions/{session_id}",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationDepositPaymentController@show"
+            "action": "App\\Modules\\Payments\\Http\\Controllers\\Customer\\ReservationDepositPaymentController@show"
         },
         {
             "key": "get_v1_staff_audit_trail",
             "method": "GET",
             "uri": "api/v1/staff/audit-trail",
-            "action": "App\\Modules\\PrivacyAudit\\Http\\Controllers\\Staff\\StaffAuditTrailController@index"
+            "action": "App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Staff\\AuditTrailController@index"
         },
         {
             "key": "get_v1_staff_branches",
             "method": "GET",
             "uri": "api/v1/staff/branches",
-            "action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffBranchContextController@index"
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\BranchContextController@index"
         },
         {
             "key": "get_v1_staff_cashier_shifts",
             "method": "GET",
             "uri": "api/v1/staff/cashier/shifts",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCashierShiftController@index"
+            "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CashierShiftController@index"
         },
         {
             "key": "get_v1_staff_cashier_shifts_current",
             "method": "GET",
             "uri": "api/v1/staff/cashier/shifts/current",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCashierShiftController@current"
+            "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CashierShiftController@current"
         },
         {
             "key": "get_v1_staff_cashier_shifts_shift_id",
             "method": "GET",
             "uri": "api/v1/staff/cashier/shifts/{shift_id}",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCashierShiftController@show"
+            "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CashierShiftController@show"
         },
         {
             "key": "get_v1_staff_conversations",
             "method": "GET",
             "uri": "api/v1/staff/conversations",
-            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@index"
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\ConversationInboxController@index"
         },
         {
             "key": "get_v1_staff_conversations_conversation_id",
             "method": "GET",
             "uri": "api/v1/staff/conversations/{conversation_id}",
-            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@show"
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\ConversationInboxController@show"
         },
         {
             "key": "get_v1staffconversationsconversation_idfilesfile_idaccess",
             "method": "GET",
             "uri": "api/v1/staff/conversations/{conversation_id}/files/{file_id}/access",
-            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@accessFile"
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\ConversationInboxController@accessFile"
         },
         {
             "key": "get_v1staffconversationsconversation_idmessagesmessage_idattachment",
             "method": "GET",
             "uri": "api/v1/staff/conversations/{conversation_id}/messages/{message_id}/attachment",
-            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@accessMessageAttachment"
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\ConversationInboxController@accessMessageAttachment"
         },
         {
             "key": "get_v1_staff_finance_accounting_export",
             "method": "GET",
             "uri": "api/v1/staff/finance/accounting-export",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinanceInvoiceController@accountingExport"
+            "action": "App\\Modules\\Billing\\Http\\Controllers\\Staff\\InvoiceController@accountingExport"
         },
         {
             "key": "get_v1_staff_finance_invoices_reservation_id",
             "method": "GET",
             "uri": "api/v1/staff/finance/invoices/{reservation_id}",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinanceInvoiceController@show"
+            "action": "App\\Modules\\Billing\\Http\\Controllers\\Staff\\InvoiceController@show"
         },
         {
             "key": "get_v1_staff_finance_reconciliation",
             "method": "GET",
             "uri": "api/v1/staff/finance/reconciliation",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinancialReconciliationController@index"
+            "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\SettlementReconciliationController@index"
         },
         {
             "key": "get_v1_staff_finance_reconciliation_export",
             "method": "GET",
             "uri": "api/v1/staff/finance/reconciliation/export",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinancialReconciliationController@export"
+            "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\SettlementReconciliationController@export"
         },
         {
             "key": "get_v1_staff_finance_reconciliation_reservation_id",
             "method": "GET",
             "uri": "api/v1/staff/finance/reconciliation/{reservation_id}",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinancialReconciliationController@show"
+            "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\SettlementReconciliationController@show"
         },
         {
             "key": "get_v1_staff_kitchen_changes",
             "method": "GET",
             "uri": "api/v1/staff/kitchen/changes",
-            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@changes"
+            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\KitchenDispatchController@changes"
         },
         {
             "key": "get_v1_staff_kitchen_stations",
             "method": "GET",
             "uri": "api/v1/staff/kitchen/stations",
-            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@stations"
+            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\KitchenDispatchController@stations"
         },
         {
             "key": "get_v1_staff_kitchen_stations_station_id_tickets",
             "method": "GET",
             "uri": "api/v1/staff/kitchen/stations/{station_id}/tickets",
-            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@stationTickets"
+            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\KitchenDispatchController@stationTickets"
         },
         {
             "key": "get_v1_staff_menu_items",
             "method": "GET",
             "uri": "api/v1/staff/menu/items",
-            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffMenuCatalogController@index"
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Staff\\MenuCatalogController@index"
         },
         {
             "key": "get_v1_staff_orders_order_id",
             "method": "GET",
             "uri": "api/v1/staff/orders/{order_id}",
-            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffOrderReadController@show"
+            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\OrderReadController@show"
         },
         {
             "key": "get_v1_staff_orders_order_id_settlement_preview",
             "method": "GET",
             "uri": "api/v1/staff/orders/{order_id}/settlement-preview",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@settlementPreview"
+            "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CheckoutController@settlementPreview"
         },
         {
             "key": "get_v1_staff_reporting_daily_inventory",
             "method": "GET",
             "uri": "api/v1/staff/reporting/daily-inventory",
-            "action": "App\\Modules\\Reporting\\Http\\Controllers\\Staff\\StaffReportingController@dailyInventory"
+            "action": "App\\Modules\\Reporting\\Http\\Controllers\\Staff\\InventoryReportController@index"
         },
         {
             "key": "get_v1_staff_reporting_daily_operations",
             "method": "GET",
             "uri": "api/v1/staff/reporting/daily-operations",
-            "action": "App\\Modules\\Reporting\\Http\\Controllers\\Staff\\StaffReportingController@dailyOperations"
+            "action": "App\\Modules\\Reporting\\Http\\Controllers\\Staff\\OperationsReportController@index"
         },
         {
             "key": "get_v1_staff_reporting_daily_sales",
             "method": "GET",
             "uri": "api/v1/staff/reporting/daily-sales",
-            "action": "App\\Modules\\Reporting\\Http\\Controllers\\Staff\\StaffReportingController@dailySales"
+            "action": "App\\Modules\\Reporting\\Http\\Controllers\\Staff\\SalesReportController@index"
         },
         {
             "key": "get_v1_staff_reservations",
             "method": "GET",
             "uri": "api/v1/staff/reservations",
-            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffReservationInboxController@index"
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\ReservationInboxController@index"
         },
         {
             "key": "get_v1_staff_reservations_timeline",
             "method": "GET",
             "uri": "api/v1/staff/reservations/timeline",
-            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationTimelineController@index"
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\ReservationTimelineController@index"
         },
         {
             "key": "get_v1_staff_reservations_reservation_id",
             "method": "GET",
             "uri": "api/v1/staff/reservations/{reservation_id}",
-            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffReservationInboxController@show"
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\ReservationInboxController@show"
         },
         {
             "key": "get_v1_staff_reservations_reservation_id_active_order",
             "method": "GET",
             "uri": "api/v1/staff/reservations/{reservation_id}/active-order",
-            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffOrderReadController@showActiveByReservation"
+            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\OrderReadController@showActiveByReservation"
         },
         {
             "key": "get_v1_staff_reservations_reservation_id_deposit_preview",
             "method": "GET",
             "uri": "api/v1/staff/reservations/{reservation_id}/deposit-preview",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffReservationDepositController@preview"
+            "action": "App\\Modules\\Payments\\Http\\Controllers\\Staff\\ReservationDepositPaymentController@preview"
         },
         {
             "key": "get_v1_staff_reservations_reservation_id_loyalty",
             "method": "GET",
             "uri": "api/v1/staff/reservations/{reservation_id}/loyalty",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffLoyaltyController@showReservation"
+            "action": "App\\Modules\\Loyalty\\Http\\Controllers\\Staff\\LoyaltyLedgerController@showReservation"
         },
         {
             "key": "get_v1_staff_reservations_reservation_id_orders",
             "method": "GET",
             "uri": "api/v1/staff/reservations/{reservation_id}/orders",
-            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffTableOrderController@indexByReservation"
+            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\ReservationOrderController@indexByReservation"
         },
         {
             "key": "get_v1_staff_reservations_reservation_id_refund_preview",
             "method": "GET",
             "uri": "api/v1/staff/reservations/{reservation_id}/refund-preview",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@refundPreview"
+            "action": "App\\Modules\\Payments\\Http\\Controllers\\Staff\\ReservationRefundController@preview"
         },
         {
             "key": "get_v1_staff_reservations_reservation_id_vouchers",
             "method": "GET",
             "uri": "api/v1/staff/reservations/{reservation_id}/vouchers",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffReservationVoucherController@index"
+            "action": "App\\Modules\\Promotions\\Http\\Controllers\\Staff\\ReservationVoucherController@index"
         },
         {
             "key": "get_v1_staff_table_board",
             "method": "GET",
             "uri": "api/v1/staff/table-board",
-            "action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffTableBoardController@legacyIndex"
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\TableBoardController@legacyIndex"
         },
         {
             "key": "staff_tables_board",
             "method": "GET",
             "uri": "api/v1/staff/tables/board",
-            "action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffTableBoardController@index",
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\TableBoardController@index",
             "middleware_contains": [
                 "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                 "staff.capability:table.board.view"
@@ -639,355 +639,355 @@
             "key": "get_v1_staff_tables_board_changes",
             "method": "GET",
             "uri": "api/v1/staff/tables/board/changes",
-            "action": "App\\Modules\\Reporting\\Http\\Controllers\\Staff\\StaffOperationalRealtimeController@boardChanges"
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\OperationalChangeFeedController@boardChanges"
         },
         {
             "key": "get_v1_staff_tables_table_id_active_order",
             "method": "GET",
             "uri": "api/v1/staff/tables/{table_id}/active-order",
-            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffOrderReadController@showActiveByTable"
+            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\OrderReadController@showActiveByTable"
         },
         {
             "key": "get_v1_staff_tables_table_id_active_service_session",
             "method": "GET",
             "uri": "api/v1/staff/tables/{table_id}/active-service-session",
-            "action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffServiceSessionController@showActiveByTable"
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\ServiceSessionController@showActiveByTable"
         },
         {
             "key": "get_v1_staff_users_user_id_loyalty",
             "method": "GET",
             "uri": "api/v1/staff/users/{user_id}/loyalty",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffLoyaltyController@showUser"
+            "action": "App\\Modules\\Loyalty\\Http\\Controllers\\Staff\\LoyaltyLedgerController@showUser"
         },
         {
             "key": "get_v1_staff_waiting_list",
             "method": "GET",
             "uri": "api/v1/staff/waiting-list",
-            "action": "App\\Modules\\WaitingList\\Http\\Controllers\\Staff\\StaffWaitingListController@index"
+            "action": "App\\Modules\\Waitlist\\Http\\Controllers\\Staff\\WaitlistController@index"
         },
         {
             "key": "get_v1_staff_waiting_list_changes",
             "method": "GET",
             "uri": "api/v1/staff/waiting-list/changes",
-            "action": "App\\Modules\\Reporting\\Http\\Controllers\\Staff\\StaffOperationalRealtimeController@waitingListChanges"
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\OperationalChangeFeedController@waitingListChanges"
         },
         {
             "key": "get_v1_table_holds_hold_id",
             "method": "GET",
             "uri": "api/v1/table-holds/{hold_id}",
-            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\TableHoldController@show"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Guest\\TableHoldController@show"
         },
         {
             "key": "get_v1_tables_available",
             "method": "GET",
             "uri": "api/v1/tables/available",
-            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\TableController@available"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Guest\\TableAvailabilityController@available"
         },
         {
             "key": "get_v1_waiting_list",
             "method": "GET",
             "uri": "api/v1/waiting-list",
-            "action": "App\\Modules\\WaitingList\\Http\\Controllers\\Customer\\CustomerWaitingListController@index"
+            "action": "App\\Modules\\Waitlist\\Http\\Controllers\\Customer\\WaitlistController@index"
         },
         {
             "key": "get_v1_waiting_list_id",
             "method": "GET",
             "uri": "api/v1/waiting-list/{id}",
-            "action": "App\\Modules\\WaitingList\\Http\\Controllers\\Customer\\CustomerWaitingListController@show"
+            "action": "App\\Modules\\Waitlist\\Http\\Controllers\\Customer\\WaitlistController@show"
         },
         {
             "key": "patch_v1_admin_benefits_loyalty_tiers_id",
             "method": "PATCH",
             "uri": "api/v1/admin/benefits/loyalty-tiers/{id}",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminLoyaltyTierController@update"
+            "action": "App\\Modules\\Loyalty\\Http\\Controllers\\Admin\\LoyaltyTierController@update"
         },
         {
             "key": "patch_v1_admin_benefits_vouchers_id",
             "method": "PATCH",
             "uri": "api/v1/admin/benefits/vouchers/{id}",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminVoucherController@update"
+            "action": "App\\Modules\\Promotions\\Http\\Controllers\\Admin\\VoucherController@update"
         },
         {
             "key": "patch_v1_admin_inventory_ingredients_id",
             "method": "PATCH",
             "uri": "api/v1/admin/inventory/ingredients/{id}",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminInventoryController@updateIngredient"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\InventoryAdjustmentController@updateIngredient"
         },
         {
             "key": "patch_v1_admin_inventory_purchase_orders_id",
             "method": "PATCH",
             "uri": "api/v1/admin/inventory/purchase-orders/{id}",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminPurchasingController@updatePurchaseOrder"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\ProcurementController@updatePurchaseOrder"
         },
         {
             "key": "patch_v1_admin_inventory_suppliers_id",
             "method": "PATCH",
             "uri": "api/v1/admin/inventory/suppliers/{id}",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminPurchasingController@updateSupplier"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\ProcurementController@updateSupplier"
         },
         {
             "key": "patch_v1_admin_kitchen_stations_station_id",
             "method": "PATCH",
             "uri": "api/v1/admin/kitchen/stations/{station_id}",
-            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\AdminKitchenRoutingController@update"
+            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\KitchenStationController@update"
         },
         {
             "key": "patch_v1_admin_menu_categories_category_id",
             "method": "PATCH",
             "uri": "api/v1/admin/menu/categories/{category_id}",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminMenuCategoryController@update"
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuCategoryController@update"
         },
         {
             "key": "patch_v1_admin_menu_items_item_id",
             "method": "PATCH",
             "uri": "api/v1/admin/menu/items/{item_id}",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminMenuItemController@update"
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemController@update"
         },
         {
             "key": "patch_v1_admin_restaurant_tables_id",
             "method": "PATCH",
             "uri": "api/v1/admin/restaurant/tables/{id}",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminRestaurantTableController@update"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\RestaurantTableController@update"
         },
         {
             "key": "patch_v1_admin_settings_branches_id",
             "method": "PATCH",
             "uri": "api/v1/admin/settings/branches/{id}",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminBranchController@update"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\BranchController@update"
         },
         {
             "key": "patch_v1_reservations_id_status",
             "method": "PATCH",
             "uri": "api/v1/reservations/{id}/status",
-            "action": "App\\Modules\\Reservations\\Http\\Controllers\\ReservationController@updateStatus"
+            "action": "App\\Modules\\Reservations\\Http\\Controllers\\Staff\\ReservationController@updateStatus"
         },
         {
             "key": "patch_v1_staff_orders_order_id_items_order_item_id",
             "method": "PATCH",
             "uri": "api/v1/staff/orders/{order_id}/items/{order_item_id}",
-            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffOrderItemLifecycleController@update"
+            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\OrderItemLifecycleController@update"
         },
         {
             "key": "patch_v1_table_holds_hold_id_refresh",
             "method": "PATCH",
             "uri": "api/v1/table-holds/{hold_id}/refresh",
-            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\TableHoldController@refresh"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Guest\\TableHoldController@refresh"
         },
         {
             "key": "post_v1_admin_benefits_loyalty_tiers",
             "method": "POST",
             "uri": "api/v1/admin/benefits/loyalty-tiers",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminLoyaltyTierController@store"
+            "action": "App\\Modules\\Loyalty\\Http\\Controllers\\Admin\\LoyaltyTierController@store"
         },
         {
             "key": "post_v1_admin_benefits_loyalty_tiers_import",
             "method": "POST",
             "uri": "api/v1/admin/benefits/loyalty-tiers/import",
-            "action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import"
+            "action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataImportController@import"
         },
         {
             "key": "post_v1_admin_benefits_vouchers",
             "method": "POST",
             "uri": "api/v1/admin/benefits/vouchers",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminVoucherController@store"
+            "action": "App\\Modules\\Promotions\\Http\\Controllers\\Admin\\VoucherController@store"
         },
         {
             "key": "post_v1_admin_benefits_vouchers_import",
             "method": "POST",
             "uri": "api/v1/admin/benefits/vouchers/import",
-            "action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import"
+            "action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataImportController@import"
         },
         {
             "key": "post_v1_admin_inventory_ingredients",
             "method": "POST",
             "uri": "api/v1/admin/inventory/ingredients",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminInventoryController@createIngredient"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\InventoryAdjustmentController@createIngredient"
         },
         {
             "key": "post_v1_admin_inventory_ingredients_id_movements",
             "method": "POST",
             "uri": "api/v1/admin/inventory/ingredients/{id}/movements",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminInventoryController@createIngredientMovement"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\InventoryAdjustmentController@createIngredientMovement"
         },
         {
             "key": "post_v1_admin_inventory_purchase_orders",
             "method": "POST",
             "uri": "api/v1/admin/inventory/purchase-orders",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminPurchasingController@createPurchaseOrder"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\ProcurementController@createPurchaseOrder"
         },
         {
             "key": "post_v1_admin_inventory_purchase_orders_id_receipts",
             "method": "POST",
             "uri": "api/v1/admin/inventory/purchase-orders/{id}/receipts",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminPurchasingController@createPurchaseOrderReceipt"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\ProcurementController@createPurchaseOrderReceipt"
         },
         {
             "key": "post_v1_admin_inventory_suppliers",
             "method": "POST",
             "uri": "api/v1/admin/inventory/suppliers",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminPurchasingController@createSupplier"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\ProcurementController@createSupplier"
         },
         {
             "key": "post_v1_admin_kitchen_stations",
             "method": "POST",
             "uri": "api/v1/admin/kitchen/stations",
-            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\AdminKitchenRoutingController@store"
+            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\KitchenStationController@store"
         },
         {
             "key": "post_v1_admin_menu_categories",
             "method": "POST",
             "uri": "api/v1/admin/menu/categories",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminMenuCategoryController@store"
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuCategoryController@store"
         },
         {
             "key": "post_v1_admin_menu_categories_import",
             "method": "POST",
             "uri": "api/v1/admin/menu/categories/import",
-            "action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import"
+            "action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataImportController@import"
         },
         {
             "key": "post_v1_admin_menu_items",
             "method": "POST",
             "uri": "api/v1/admin/menu/items",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminMenuItemController@store"
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemController@store"
         },
         {
             "key": "post_v1_admin_menu_items_import",
             "method": "POST",
             "uri": "api/v1/admin/menu/items/import",
-            "action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import"
+            "action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataImportController@import"
         },
         {
             "key": "post_v1_admin_menu_items_item_id_prices",
             "method": "POST",
             "uri": "api/v1/admin/menu/items/{item_id}/prices",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminMenuItemPriceController@store"
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemPriceController@store"
         },
         {
             "key": "post_v1_admin_menu_prices_import",
             "method": "POST",
             "uri": "api/v1/admin/menu/prices/import",
-            "action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import"
+            "action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataImportController@import"
         },
         {
             "key": "post_v1_admin_privacy_requests_request_id_review",
             "method": "POST",
             "uri": "api/v1/admin/privacy/requests/{request_id}/review",
-            "action": "App\\Modules\\PrivacyAudit\\Http\\Controllers\\Admin\\AdminCustomerDataLifecycleController@review"
+            "action": "App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Admin\\PrivacyController@review"
         },
         {
             "key": "post_v1_admin_restaurant_tables",
             "method": "POST",
             "uri": "api/v1/admin/restaurant/tables",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminRestaurantTableController@store"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\RestaurantTableController@store"
         },
         {
             "key": "post_v1_admin_restaurant_tables_import",
             "method": "POST",
             "uri": "api/v1/admin/restaurant/tables/import",
-            "action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import"
+            "action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataImportController@import"
         },
         {
             "key": "post_v1_admin_restaurant_zones_rename",
             "method": "POST",
             "uri": "api/v1/admin/restaurant/zones/rename",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminRestaurantZoneController@rename"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\RestaurantZoneController@rename"
         },
         {
             "key": "post_v1_admin_settings_benefits",
             "method": "POST",
             "uri": "api/v1/admin/settings/benefits",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Admin\\AdminBenefitSettingController@upsert"
+            "action": "App\\Modules\\Promotions\\Http\\Controllers\\Admin\\BenefitSettingController@upsert"
         },
         {
             "key": "post_v1_admin_settings_branches",
             "method": "POST",
             "uri": "api/v1/admin/settings/branches",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminBranchController@store"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\BranchController@store"
         },
         {
             "key": "post_v1_admin_settings_branches_import",
             "method": "POST",
             "uri": "api/v1/admin/settings/branches/import",
-            "action": "App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import"
+            "action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataImportController@import"
         },
         {
             "key": "post_v1_admin_settings_finance_tax_profile",
             "method": "POST",
             "uri": "api/v1/admin/settings/finance/tax-profile",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminFinanceSettingsController@upsertTaxProfile"
+            "action": "App\\Modules\\Billing\\Http\\Controllers\\Admin\\FinanceTaxProfileController@upsertTaxProfile"
         },
         {
             "key": "post_v1_admin_settings_reporting_snapshots_rebuild",
             "method": "POST",
             "uri": "api/v1/admin/settings/reporting/snapshots/rebuild",
-            "action": "App\\Modules\\Reporting\\Http\\Controllers\\Admin\\AdminReportingController@rebuild"
+            "action": "App\\Modules\\Reporting\\Http\\Controllers\\Admin\\ReportingSnapshotController@rebuild"
         },
         {
             "key": "post_v1_auth_customer_login",
             "method": "POST",
             "uri": "api/v1/auth/customer/login",
-            "action": "App\\Http\\Controllers\\Api\\Auth\\CustomerAuthController@login"
+            "action": "App\\Modules\\IdentityAccess\\Http\\Controllers\\Customer\\AuthController@login"
         },
         {
             "key": "post_v1_auth_customer_logout",
             "method": "POST",
             "uri": "api/v1/auth/customer/logout",
-            "action": "App\\Http\\Controllers\\Api\\Auth\\CustomerAuthController@logout"
+            "action": "App\\Modules\\IdentityAccess\\Http\\Controllers\\Customer\\AuthController@logout"
         },
         {
             "key": "post_v1_auth_customer_refresh",
             "method": "POST",
             "uri": "api/v1/auth/customer/refresh",
-            "action": "App\\Http\\Controllers\\Api\\Auth\\CustomerAuthController@refresh"
+            "action": "App\\Modules\\IdentityAccess\\Http\\Controllers\\Customer\\AuthController@refresh"
         },
         {
             "key": "post_v1_auth_staff_login",
             "method": "POST",
             "uri": "api/v1/auth/staff/login",
-            "action": "App\\Http\\Controllers\\Api\\Auth\\StaffAuthController@login"
+            "action": "App\\Modules\\IdentityAccess\\Http\\Controllers\\Staff\\AuthController@login"
         },
         {
             "key": "post_v1_auth_staff_logout",
             "method": "POST",
             "uri": "api/v1/auth/staff/logout",
-            "action": "App\\Http\\Controllers\\Api\\Auth\\StaffAuthController@logout"
+            "action": "App\\Modules\\IdentityAccess\\Http\\Controllers\\Staff\\AuthController@logout"
         },
         {
             "key": "post_v1_auth_staff_refresh",
             "method": "POST",
             "uri": "api/v1/auth/staff/refresh",
-            "action": "App\\Http\\Controllers\\Api\\Auth\\StaffAuthController@refresh"
+            "action": "App\\Modules\\IdentityAccess\\Http\\Controllers\\Staff\\AuthController@refresh"
         },
         {
             "key": "post_v1_me_privacy_requests",
             "method": "POST",
             "uri": "api/v1/me/privacy-requests",
-            "action": "App\\Modules\\PrivacyAudit\\Http\\Controllers\\Customer\\CustomerDataLifecycleController@store"
+            "action": "App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Customer\\PrivacyRequestController@store"
         },
         {
             "key": "post_v1_menu_preorder_preview",
             "method": "POST",
             "uri": "api/v1/menu/preorder/preview",
-            "action": "App\\Http\\Controllers\\Api\\CustomerMenuCatalogController@previewPreorder"
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Customer\\MenuCatalogController@previewPreorder"
         },
         {
             "key": "post_v1_payments_providers_provider_code_webhooks",
             "method": "POST",
             "uri": "api/v1/payments/providers/{provider_code}/webhooks",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\PaymentProviderWebhookController@handle"
+            "action": "App\\Modules\\Payments\\Http\\Controllers\\Webhook\\PaymentProviderWebhookController@handle"
         },
         {
             "key": "post_v1_reservations",
             "method": "POST",
             "uri": "api/v1/reservations",
-            "action": "App\\Modules\\Reservations\\Http\\Controllers\\ReservationController@store"
+            "action": "App\\Modules\\Reservations\\Http\\Controllers\\Customer\\ReservationController@store"
         },
         {
             "key": "post_v1_reservations_id_cancel",
             "method": "POST",
             "uri": "api/v1/reservations/{id}/cancel",
-            "action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationSelfServiceController@cancel"
+            "action": "App\\Modules\\Reservations\\Http\\Controllers\\Customer\\ReservationSelfServiceController@cancel"
         },
         {
             "key": "post_v1_reservations_id_deposit_acknowledge",
@@ -1011,13 +1011,13 @@
             "key": "post_v1_reservations_id_loyalty_redeem",
             "method": "POST",
             "uri": "api/v1/reservations/{id}/loyalty/redeem",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Customer\\CustomerReservationBenefitsActionController@redeemLoyalty"
+            "action": "App\\Modules\\Loyalty\\Http\\Controllers\\Customer\\ReservationLoyaltyController@redeem"
         },
         {
             "key": "post_v1_reservations_id_loyalty_redeem_release",
             "method": "POST",
             "uri": "api/v1/reservations/{id}/loyalty/redeem/release",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Customer\\CustomerReservationBenefitsActionController@releaseLoyalty"
+            "action": "App\\Modules\\Loyalty\\Http\\Controllers\\Customer\\ReservationLoyaltyController@release"
         },
         {
             "key": "post_v1_reservations_id_pre_order_preview",
@@ -1035,391 +1035,391 @@
             "key": "post_v1_reservations_id_reschedule",
             "method": "POST",
             "uri": "api/v1/reservations/{id}/reschedule",
-            "action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationSelfServiceController@reschedule"
+            "action": "App\\Modules\\Reservations\\Http\\Controllers\\Customer\\ReservationSelfServiceController@reschedule"
         },
         {
             "key": "post_v1_reservations_id_voucher_apply",
             "method": "POST",
             "uri": "api/v1/reservations/{id}/voucher/apply",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Customer\\CustomerReservationBenefitsActionController@applyVoucher"
+            "action": "App\\Modules\\Promotions\\Http\\Controllers\\Customer\\ReservationBenefitsActionController@applyVoucher"
         },
         {
             "key": "post_v1_reservations_id_voucher_remove",
             "method": "POST",
             "uri": "api/v1/reservations/{id}/voucher/remove",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Customer\\CustomerReservationBenefitsActionController@removeVoucher"
+            "action": "App\\Modules\\Promotions\\Http\\Controllers\\Customer\\ReservationBenefitsActionController@removeVoucher"
         },
         {
             "key": "post_v1_reservations_reservation_id_bill_payment_sessions",
             "method": "POST",
             "uri": "api/v1/reservations/{reservation_id}/bill/payment-sessions",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationBillPaymentController@store"
+            "action": "App\\Modules\\Payments\\Http\\Controllers\\Customer\\ReservationBillPaymentController@store"
         },
         {
             "key": "post_v1_reservations_reservation_id_bill_payment_sessions_session_id_confirm",
             "method": "POST",
             "uri": "api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/confirm",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationBillPaymentController@confirm"
+            "action": "App\\Modules\\Payments\\Http\\Controllers\\Customer\\ReservationBillPaymentController@confirm"
         },
         {
             "key": "post_v1_reservations_reservation_id_bill_payment_sessions_session_id_refresh",
             "method": "POST",
             "uri": "api/v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/refresh",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationBillPaymentController@refresh"
+            "action": "App\\Modules\\Payments\\Http\\Controllers\\Customer\\ReservationBillPaymentController@refresh"
         },
         {
             "key": "post_v1_reservations_reservation_id_deposit_payment_sessions",
             "method": "POST",
             "uri": "api/v1/reservations/{reservation_id}/deposit/payment-sessions",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationDepositPaymentController@store"
+            "action": "App\\Modules\\Payments\\Http\\Controllers\\Customer\\ReservationDepositPaymentController@store"
         },
         {
             "key": "post_v1_reservations_reservation_id_deposit_payment_sessions_session_id_confirm",
             "method": "POST",
             "uri": "api/v1/reservations/{reservation_id}/deposit/payment-sessions/{session_id}/confirm",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationDepositPaymentController@confirm"
+            "action": "App\\Modules\\Payments\\Http\\Controllers\\Customer\\ReservationDepositPaymentController@confirm"
         },
         {
             "key": "post_v1_reservations_reservation_id_deposit_payment_sessions_session_id_refresh",
             "method": "POST",
             "uri": "api/v1/reservations/{reservation_id}/deposit/payment-sessions/{session_id}/refresh",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationDepositPaymentController@refresh"
+            "action": "App\\Modules\\Payments\\Http\\Controllers\\Customer\\ReservationDepositPaymentController@refresh"
         },
         {
             "key": "post_v1_staff_cashier_shifts_open",
             "method": "POST",
             "uri": "api/v1/staff/cashier/shifts/open",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCashierShiftController@open"
+            "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CashierShiftController@open"
         },
         {
             "key": "post_v1_staff_cashier_shifts_shift_id_close",
             "method": "POST",
             "uri": "api/v1/staff/cashier/shifts/{shift_id}/close",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCashierShiftController@close"
+            "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CashierShiftController@close"
         },
         {
             "key": "post_v1_staff_conversations_conversation_id_assign",
             "method": "POST",
             "uri": "api/v1/staff/conversations/{conversation_id}/assign",
-            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@assign"
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\ConversationInboxController@assign"
         },
         {
             "key": "post_v1_staff_conversations_conversation_id_internal_notes",
             "method": "POST",
             "uri": "api/v1/staff/conversations/{conversation_id}/internal-notes",
-            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@addInternalNote"
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\ConversationInboxController@addInternalNote"
         },
         {
             "key": "post_v1_staff_conversations_conversation_id_links",
             "method": "POST",
             "uri": "api/v1/staff/conversations/{conversation_id}/links",
-            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@link"
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\ConversationInboxController@link"
         },
         {
             "key": "post_v1_staff_conversations_conversation_id_outbound_replies",
             "method": "POST",
             "uri": "api/v1/staff/conversations/{conversation_id}/outbound-replies",
-            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@sendOutboundReply"
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\ConversationInboxController@sendOutboundReply"
         },
         {
             "key": "post_v1_staff_conversations_conversation_id_take_over",
             "method": "POST",
             "uri": "api/v1/staff/conversations/{conversation_id}/take-over",
-            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@takeOver"
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\ConversationInboxController@takeOver"
         },
         {
             "key": "post_v1_staff_conversations_conversation_id_unassign",
             "method": "POST",
             "uri": "api/v1/staff/conversations/{conversation_id}/unassign",
-            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@unassign"
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\ConversationInboxController@unassign"
         },
         {
             "key": "post_v1staffconversationsconversation_idworkflow_state",
             "method": "POST",
             "uri": "api/v1/staff/conversations/{conversation_id}/workflow-state",
-            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\StaffConversationInboxController@updateWorkflowState"
+            "action": "App\\Modules\\Conversations\\Http\\Controllers\\Staff\\ConversationInboxController@updateWorkflowState"
         },
         {
             "key": "post_v1_staff_finance_invoices_reservation_id_issue",
             "method": "POST",
             "uri": "api/v1/staff/finance/invoices/{reservation_id}/issue",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffFinanceInvoiceController@issue"
+            "action": "App\\Modules\\Billing\\Http\\Controllers\\Staff\\InvoiceController@issue"
         },
         {
             "key": "post_v1_staff_kitchen_tickets_ticket_id_bump",
             "method": "POST",
             "uri": "api/v1/staff/kitchen/tickets/{ticket_id}/bump",
-            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@bump"
+            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\KitchenDispatchController@bump"
         },
         {
             "key": "post_v1_staff_kitchen_tickets_ticket_id_fire",
             "method": "POST",
             "uri": "api/v1/staff/kitchen/tickets/{ticket_id}/fire",
-            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@fire"
+            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\KitchenDispatchController@fire"
         },
         {
             "key": "post_v1_staff_kitchen_tickets_ticket_id_recall",
             "method": "POST",
             "uri": "api/v1/staff/kitchen/tickets/{ticket_id}/recall",
-            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@recall"
+            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\KitchenDispatchController@recall"
         },
         {
             "key": "post_v1_staff_orders_order_id_bill_snapshot",
             "method": "POST",
             "uri": "api/v1/staff/orders/{order_id}/bill-snapshot",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@billSnapshot"
+            "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CheckoutController@billSnapshot"
         },
         {
             "key": "post_v1_staff_orders_order_id_checkout",
             "method": "POST",
             "uri": "api/v1/staff/orders/{order_id}/checkout",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@checkout"
+            "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CheckoutController@checkout"
         },
         {
             "key": "post_v1_staff_orders_order_id_close",
             "method": "POST",
             "uri": "api/v1/staff/orders/{order_id}/close",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@close"
+            "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CheckoutController@close"
         },
         {
             "key": "post_v1_staff_orders_order_id_items",
             "method": "POST",
             "uri": "api/v1/staff/orders/{order_id}/items",
-            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffTableOrderController@addItems"
+            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\ReservationOrderController@addItems"
         },
         {
             "key": "post_v1_staff_orders_order_id_items_order_item_id_status",
             "method": "POST",
             "uri": "api/v1/staff/orders/{order_id}/items/{order_item_id}/status",
-            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffOrderItemLifecycleController@updateStatus"
+            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\OrderItemLifecycleController@updateStatus"
         },
         {
             "key": "post_v1_staff_orders_order_id_kitchen_dispatch",
             "method": "POST",
             "uri": "api/v1/staff/orders/{order_id}/kitchen/dispatch",
-            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\StaffKitchenController@dispatchOrder"
+            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\KitchenDispatchController@dispatchOrder"
         },
         {
             "key": "post_v1_staff_orders_order_id_pay",
             "method": "POST",
             "uri": "api/v1/staff/orders/{order_id}/pay",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@pay"
+            "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CheckoutController@pay"
         },
         {
             "key": "post_v1_staff_orders_order_id_settlement_finalize",
             "method": "POST",
             "uri": "api/v1/staff/orders/{order_id}/settlement/finalize",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@finalizeSettlement"
+            "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CheckoutController@finalizeSettlement"
         },
         {
             "key": "post_v1_staff_reservations_id_assign_best_fit",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{id}/assign-best-fit",
-            "action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffReservationBoardAssignmentController@assignBestFit"
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\ReservationBoardAssignmentController@assignBestFit"
         },
         {
             "key": "post_v1_staff_reservations_id_assign_table",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{id}/assign-table",
-            "action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffReservationBoardAssignmentController@assignSuggested"
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\ReservationBoardAssignmentController@assignSuggested"
         },
         {
             "key": "post_v1_staff_reservations_id_check_in",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{id}/check-in",
-            "action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffReservationCheckInController@store"
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\ReservationCheckInController@store"
         },
         {
             "key": "post_v1_staff_reservations_id_move_table",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{id}/move-table",
-            "action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffReservationMoveTableController@store"
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\ReservationMoveTableController@store"
         },
         {
             "key": "post_v1_staff_reservations_id_reschedule",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{id}/reschedule",
-            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationRescheduleController@store"
+            "action": "App\\Modules\\Reservations\\Http\\Controllers\\Staff\\ReservationRescheduleController@store"
         },
         {
             "key": "post_v1_staff_reservations_id_timeline_actions_assign_best_fit",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{id}/timeline/actions/assign-best-fit",
-            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationTimelineWorkbenchController@assignBestFit"
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\ReservationWorkbenchController@assignBestFit"
         },
         {
             "key": "post_v1_staff_reservations_id_timeline_actions_assign_suggested",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{id}/timeline/actions/assign-suggested",
-            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationTimelineWorkbenchController@assignSuggested"
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\ReservationWorkbenchController@assignSuggested"
         },
         {
             "key": "post_v1_staff_reservations_id_timeline_actions_check_in",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{id}/timeline/actions/check-in",
-            "action": "App\\Http\\Controllers\\Api\\Staff\\StaffReservationTimelineWorkbenchController@checkIn"
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\ReservationWorkbenchController@checkIn"
         },
         {
             "key": "post_v1_staff_reservations_reservation_id_deposit_pay",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{reservation_id}/deposit/pay",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffReservationDepositController@pay"
+            "action": "App\\Modules\\Payments\\Http\\Controllers\\Staff\\ReservationDepositPaymentController@pay"
         },
         {
             "key": "post_v1_staff_reservations_reservation_id_loyalty_redeem",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{reservation_id}/loyalty/redeem",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffLoyaltyController@redeemReservation"
+            "action": "App\\Modules\\Loyalty\\Http\\Controllers\\Staff\\LoyaltyLedgerController@redeemReservation"
         },
         {
             "key": "post_v1_staff_reservations_reservation_id_loyalty_redeem_release",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{reservation_id}/loyalty/redeem/release",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffLoyaltyController@releaseReservation"
+            "action": "App\\Modules\\Loyalty\\Http\\Controllers\\Staff\\LoyaltyLedgerController@releaseReservation"
         },
         {
             "key": "post_v1_staff_reservations_reservation_id_loyalty_release",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{reservation_id}/loyalty/release",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffLoyaltyController@legacyReleaseReservation"
+            "action": "App\\Modules\\Loyalty\\Http\\Controllers\\Staff\\LoyaltyLedgerController@legacyReleaseReservation"
         },
         {
             "key": "post_v1_staff_reservations_reservation_id_refund",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{reservation_id}/refund",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@refund"
+            "action": "App\\Modules\\Payments\\Http\\Controllers\\Staff\\ReservationRefundController@refund"
         },
         {
             "key": "post_v1_staff_reservations_reservation_id_refund_cancel",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{reservation_id}/refund-cancel",
-            "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@refundAndCancel"
+            "action": "App\\Modules\\Payments\\Http\\Controllers\\Staff\\ReservationRefundController@refundAndCancel"
         },
         {
             "key": "post_v1_staff_reservations_reservation_id_voucher_apply",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{reservation_id}/voucher/apply",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffReservationVoucherController@apply"
+            "action": "App\\Modules\\Promotions\\Http\\Controllers\\Staff\\ReservationVoucherController@apply"
         },
         {
             "key": "post_v1_staff_reservations_reservation_id_voucher_release",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{reservation_id}/voucher/release",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffReservationVoucherController@release"
+            "action": "App\\Modules\\Promotions\\Http\\Controllers\\Staff\\ReservationVoucherController@release"
         },
         {
             "key": "post_v1_staff_reservations_reservation_id_voucher_remove",
             "method": "POST",
             "uri": "api/v1/staff/reservations/{reservation_id}/voucher/remove",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffReservationVoucherController@remove"
+            "action": "App\\Modules\\Promotions\\Http\\Controllers\\Staff\\ReservationVoucherController@remove"
         },
         {
             "key": "post_v1_staff_service_sessions_walk_in",
             "method": "POST",
             "uri": "api/v1/staff/service-sessions/walk-in",
-            "action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffServiceSessionController@store"
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\ServiceSessionController@store"
         },
         {
             "key": "post_v1_staff_tables_table_id_orders",
             "method": "POST",
             "uri": "api/v1/staff/tables/{table_id}/orders",
-            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\StaffTableOrderController@store"
+            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\ReservationOrderController@store"
         },
         {
             "key": "post_v1_staff_tables_table_id_release",
             "method": "POST",
             "uri": "api/v1/staff/tables/{table_id}/release",
-            "action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffTableReleaseController@store"
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\TableReleaseController@store"
         },
         {
             "key": "post_v1_staff_users_user_id_loyalty_adjust",
             "method": "POST",
             "uri": "api/v1/staff/users/{user_id}/loyalty/adjust",
-            "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffLoyaltyController@adjustUser"
+            "action": "App\\Modules\\Loyalty\\Http\\Controllers\\Staff\\LoyaltyLedgerController@adjustUser"
         },
         {
             "key": "post_v1_staff_waiting_list",
             "method": "POST",
             "uri": "api/v1/staff/waiting-list",
-            "action": "App\\Modules\\WaitingList\\Http\\Controllers\\Staff\\StaffWaitingListController@store"
+            "action": "App\\Modules\\Waitlist\\Http\\Controllers\\Staff\\WaitlistController@store"
         },
         {
             "key": "post_v1_staff_waiting_list_id_advance",
             "method": "POST",
             "uri": "api/v1/staff/waiting-list/{id}/advance",
-            "action": "App\\Modules\\WaitingList\\Http\\Controllers\\Staff\\StaffWaitingListController@advance"
+            "action": "App\\Modules\\Waitlist\\Http\\Controllers\\Staff\\WaitlistController@advance"
         },
         {
             "key": "post_v1_staff_waiting_list_id_cancel",
             "method": "POST",
             "uri": "api/v1/staff/waiting-list/{id}/cancel",
-            "action": "App\\Modules\\WaitingList\\Http\\Controllers\\Staff\\StaffWaitingListController@cancel"
+            "action": "App\\Modules\\Waitlist\\Http\\Controllers\\Staff\\WaitlistController@cancel"
         },
         {
             "key": "post_v1_staff_waiting_list_id_notify",
             "method": "POST",
             "uri": "api/v1/staff/waiting-list/{id}/notify",
-            "action": "App\\Modules\\WaitingList\\Http\\Controllers\\Staff\\StaffWaitingListController@notify"
+            "action": "App\\Modules\\Waitlist\\Http\\Controllers\\Staff\\WaitlistController@notify"
         },
         {
             "key": "post_v1_staff_waiting_list_id_seat",
             "method": "POST",
             "uri": "api/v1/staff/waiting-list/{id}/seat",
-            "action": "App\\Modules\\WaitingList\\Http\\Controllers\\Staff\\StaffWaitingListController@seat"
+            "action": "App\\Modules\\Waitlist\\Http\\Controllers\\Staff\\WaitlistController@seat"
         },
         {
             "key": "post_v1_table_holds",
             "method": "POST",
             "uri": "api/v1/table-holds",
-            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\TableHoldController@store"
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Guest\\TableHoldController@store"
         },
         {
             "key": "post_v1_waiting_list",
             "method": "POST",
             "uri": "api/v1/waiting-list",
-            "action": "App\\Modules\\WaitingList\\Http\\Controllers\\Customer\\CustomerWaitingListController@store"
+            "action": "App\\Modules\\Waitlist\\Http\\Controllers\\Customer\\WaitlistController@store"
         },
         {
             "key": "post_v1_waiting_list_id_accept",
             "method": "POST",
             "uri": "api/v1/waiting-list/{id}/accept",
-            "action": "App\\Modules\\WaitingList\\Http\\Controllers\\Customer\\CustomerWaitingListController@accept"
+            "action": "App\\Modules\\Waitlist\\Http\\Controllers\\Customer\\WaitlistController@accept"
         },
         {
             "key": "post_v1_waiting_list_id_cancel",
             "method": "POST",
             "uri": "api/v1/waiting-list/{id}/cancel",
-            "action": "App\\Modules\\WaitingList\\Http\\Controllers\\Customer\\CustomerWaitingListController@cancel"
+            "action": "App\\Modules\\Waitlist\\Http\\Controllers\\Customer\\WaitlistController@cancel"
         },
         {
             "key": "post_v1_waiting_list_id_confirm_arrival",
             "method": "POST",
             "uri": "api/v1/waiting-list/{id}/confirm-arrival",
-            "action": "App\\Modules\\WaitingList\\Http\\Controllers\\Customer\\CustomerWaitingListController@confirmArrival"
+            "action": "App\\Modules\\Waitlist\\Http\\Controllers\\Customer\\WaitlistController@confirmArrival"
         },
         {
             "key": "post_v1_waiting_list_id_decline",
             "method": "POST",
             "uri": "api/v1/waiting-list/{id}/decline",
-            "action": "App\\Modules\\WaitingList\\Http\\Controllers\\Customer\\CustomerWaitingListController@decline"
+            "action": "App\\Modules\\Waitlist\\Http\\Controllers\\Customer\\WaitlistController@decline"
         },
         {
             "key": "put_v1_admin_inventory_menu_items_id_recipe",
             "method": "PUT",
             "uri": "api/v1/admin/inventory/menu-items/{id}/recipe",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminInventoryController@upsertMenuItemRecipe"
+            "action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\InventoryAdjustmentController@upsertMenuItemRecipe"
         },
         {
             "key": "put_v1_admin_kitchen_stations_station_id_category_routes",
             "method": "PUT",
             "uri": "api/v1/admin/kitchen/stations/{station_id}/category-routes",
-            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\AdminKitchenRoutingController@syncRoutes"
+            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\KitchenCategoryRouteController@update"
         },
         {
             "key": "put_v1_admin_menu_prices_price_id",
             "method": "PUT",
             "uri": "api/v1/admin/menu/prices/{price_id}",
-            "action": "App\\Http\\Controllers\\Api\\Admin\\AdminMenuItemPriceController@update"
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemPriceController@update"
         },
         {
             "key": "put_v1_reservations_id_pre_order",
@@ -1509,51 +1509,51 @@
     "alias_groups": [
         {
             "canonical": "api/v1/staff/orders/{order_id}/bill-snapshot",
-            "canonical_action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@billSnapshot",
+            "canonical_action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CheckoutController@billSnapshot",
             "aliases": [
                 {
                     "uri": "api/v1/staff/orders/{order_id}/close",
-                    "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@close"
+                    "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CheckoutController@close"
                 }
             ]
         },
         {
             "canonical": "api/v1/staff/orders/{order_id}/settlement/finalize",
-            "canonical_action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@finalizeSettlement",
+            "canonical_action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CheckoutController@finalizeSettlement",
             "aliases": [
                 {
                     "uri": "api/v1/staff/orders/{order_id}/checkout",
-                    "action": "App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@checkout"
+                    "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CheckoutController@checkout"
                 }
             ]
         },
         {
             "canonical": "api/v1/staff/reservations/{reservation_id}/loyalty/redeem/release",
-            "canonical_action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffLoyaltyController@releaseReservation",
+            "canonical_action": "App\\Modules\\Loyalty\\Http\\Controllers\\Staff\\LoyaltyLedgerController@releaseReservation",
             "aliases": [
                 {
                     "uri": "api/v1/staff/reservations/{reservation_id}/loyalty/release",
-                    "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffLoyaltyController@legacyReleaseReservation"
+                    "action": "App\\Modules\\Loyalty\\Http\\Controllers\\Staff\\LoyaltyLedgerController@legacyReleaseReservation"
                 }
             ]
         },
         {
             "canonical": "api/v1/staff/reservations/{reservation_id}/voucher/remove",
-            "canonical_action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffReservationVoucherController@remove",
+            "canonical_action": "App\\Modules\\Promotions\\Http\\Controllers\\Staff\\ReservationVoucherController@remove",
             "aliases": [
                 {
                     "uri": "api/v1/staff/reservations/{reservation_id}/voucher/release",
-                    "action": "App\\Modules\\BenefitsLoyalty\\Http\\Controllers\\Staff\\StaffReservationVoucherController@release"
+                    "action": "App\\Modules\\Promotions\\Http\\Controllers\\Staff\\ReservationVoucherController@release"
                 }
             ]
         },
         {
             "canonical": "api/v1/staff/tables/board",
-            "canonical_action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffTableBoardController@index",
+            "canonical_action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\TableBoardController@index",
             "aliases": [
                 {
                     "uri": "api/v1/staff/table-board",
-                    "action": "App\\Modules\\FloorOps\\Http\\Controllers\\Staff\\StaffTableBoardController@legacyIndex"
+                    "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\TableBoardController@legacyIndex"
                 }
             ]
         }

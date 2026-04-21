@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Support\Money;
+use App\SharedKernel\Money\Money;
 use PHPUnit\Framework\TestCase;
 
 final class MoneyTest extends TestCase

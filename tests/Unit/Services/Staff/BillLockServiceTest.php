@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\Staff;
 
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
-use App\Modules\CheckoutPayments\Application\Services\BillLockService;
+use App\Modules\Billing\Application\UseCases\Previews\BillLockService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;

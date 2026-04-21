@@ -317,6 +317,7 @@ return [
     'packaging' => [
         'output_root' => 'build/booking-release',
         'package_prefix' => 'restaurantpos-backend-release',
+        'retained_package_sets' => 2,
         'exclude_paths' => [
             'staff-web/node_modules',
             'staff-web/dist',

@@ -261,6 +261,39 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             ->assertJsonPath('details.errors.status.0', 'Cannot transition order item from Served to Cancelled.');
     }
 
+    public function test_bill_locked_order_item_mutations_are_rejected_deterministically(): void
+    {
+        [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario(
+            itemOverrides: [],
+            reservationOverrides: [
+                'final_bill_amount' => '50000.00',
+                'billed_at' => $this->nowUtc(),
+            ],
+        );
+
+        $update = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-bill-lock-update'))
+            ->patchJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}", [
+                'order_row_version' => 1,
+                'row_version' => 1,
+                'qty' => 2,
+            ]);
+
+        $update
+            ->assertStatus(422)
+            ->assertJsonPath('details.errors.reservation_id.0', 'Reservation bill has already been closed for payment. Reopen the bill before modifying order items.');
+
+        $status = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-bill-lock-status'))
+            ->postJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}/status", [
+                'order_row_version' => 1,
+                'row_version' => 1,
+                'status' => 'Cancelled',
+            ]);
+
+        $status
+            ->assertStatus(422)
+            ->assertJsonPath('details.errors.reservation_id.0', 'Reservation bill has already been closed for payment. Reopen the bill before modifying order items.');
+    }
+
     /**
      * @param  array<string,mixed>  $itemOverrides
      * @param  array<string,mixed>  $reservationOverrides

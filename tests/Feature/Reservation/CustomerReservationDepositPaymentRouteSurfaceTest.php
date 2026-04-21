@@ -16,19 +16,19 @@ final class CustomerReservationDepositPaymentRouteSurfaceTest extends TestCase
             [
                 'method' => 'POST',
                 'uri' => 'v1/reservations/{reservation_id}/deposit/payment-sessions',
-                'action' => 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationDepositPaymentController@store',
+                'action' => 'App\\Modules\\Payments\\Http\\Controllers\\Customer\\ReservationDepositPaymentController@store',
                 'idempotency' => 'idempotency:customer.reservation-deposit-payment-sessions.create',
             ],
             [
                 'method' => 'POST',
                 'uri' => 'v1/reservations/{reservation_id}/deposit/payment-sessions/{session_id}/refresh',
-                'action' => 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationDepositPaymentController@refresh',
+                'action' => 'App\\Modules\\Payments\\Http\\Controllers\\Customer\\ReservationDepositPaymentController@refresh',
                 'idempotency' => 'idempotency:customer.reservation-deposit-payment-sessions.refresh',
             ],
             [
                 'method' => 'POST',
                 'uri' => 'v1/reservations/{reservation_id}/deposit/payment-sessions/{session_id}/confirm',
-                'action' => 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationDepositPaymentController@confirm',
+                'action' => 'App\\Modules\\Payments\\Http\\Controllers\\Customer\\ReservationDepositPaymentController@confirm',
                 'idempotency' => 'idempotency:customer.reservation-deposit-payment-sessions.confirm',
             ],
         ];

@@ -79,7 +79,7 @@ class BookingDeploySafetyServiceTest extends TestCase
         $service = new class(
             app(\App\Platform\Health\Services\BookingEnvironmentValidator::class),
             app(\App\Platform\Metrics\Services\OperationalInsightsService::class),
-            app(\App\Services\Inventory\PurchaseOrderReconciliationService::class),
+            app(\App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService::class),
         ) extends BookingDeploySafetyService
         {
             protected function inspectOperationalGuards(): array
@@ -139,7 +139,7 @@ class BookingDeploySafetyServiceTest extends TestCase
         $service = new class(
             app(\App\Platform\Health\Services\BookingEnvironmentValidator::class),
             app(\App\Platform\Metrics\Services\OperationalInsightsService::class),
-            app(\App\Services\Inventory\PurchaseOrderReconciliationService::class),
+            app(\App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService::class),
         ) extends BookingDeploySafetyService
         {
             protected function inspectDataGuards(): array
@@ -163,7 +163,7 @@ class BookingDeploySafetyServiceTest extends TestCase
         $service = new class(
             app(\App\Platform\Health\Services\BookingEnvironmentValidator::class),
             app(\App\Platform\Metrics\Services\OperationalInsightsService::class),
-            app(\App\Services\Inventory\PurchaseOrderReconciliationService::class),
+            app(\App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService::class),
         ) extends BookingDeploySafetyService
         {
             protected function inspectDataGuards(): array
@@ -290,7 +290,7 @@ class BookingDeploySafetyServiceTest extends TestCase
         $service = new class(
             app(\App\Platform\Health\Services\BookingEnvironmentValidator::class),
             app(\App\Platform\Metrics\Services\OperationalInsightsService::class),
-            app(\App\Services\Inventory\PurchaseOrderReconciliationService::class),
+            app(\App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService::class),
         ) extends BookingDeploySafetyService
         {
             protected function inspectOperationalGuards(): array

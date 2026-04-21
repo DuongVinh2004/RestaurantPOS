@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\BranchScheduling\Domain\Models;
 
-use App\Models\Concerns\HasRowVersion;
+use App\Support\Persistence\HasRowVersion;
 use Illuminate\Database\Eloquent\Model;
 
 class Branch extends Model

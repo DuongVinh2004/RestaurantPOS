@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\WaitingList;
 
-use App\Modules\WaitingList\Http\Controllers\Customer\CustomerWaitingListController;
+use App\Modules\Waitlist\Http\Controllers\Customer\WaitlistController;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -13,7 +13,7 @@ class WaitingListRuntimeContractDriftTest extends TestCase
     public function test_customer_waiting_list_routes_stay_on_canonical_owner_only_runtime_contract(): void
     {
         $legacyClass = 'App\\Services\\WaitingList\\CustomerWaitingListSelfService';
-        $customerController = CustomerWaitingListController::class;
+        $customerController = WaitlistController::class;
         $customerWaitingRoutes = 0;
 
         foreach (Route::getRoutes() as $route) {

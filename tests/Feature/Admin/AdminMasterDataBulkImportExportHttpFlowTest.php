@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
-use App\Modules\PrivacyAudit\Domain\Models\AuditLog;
+use App\Modules\PrivacyCompliance\Domain\Models\AuditLog;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;

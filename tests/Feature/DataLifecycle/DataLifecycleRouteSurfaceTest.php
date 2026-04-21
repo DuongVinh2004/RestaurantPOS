@@ -13,12 +13,12 @@ final class DataLifecycleRouteSurfaceTest extends TestCase
     public function test_customer_and_admin_data_lifecycle_routes_are_registered(): void
     {
         $expected = [
-            ['GET', 'v1/me/data-export', 'App\\Modules\\PrivacyAudit\\Http\\Controllers\\Customer\\CustomerDataLifecycleController@export'],
-            ['GET', 'v1/me/privacy-requests', 'App\\Modules\\PrivacyAudit\\Http\\Controllers\\Customer\\CustomerDataLifecycleController@index'],
-            ['POST', 'v1/me/privacy-requests', 'App\\Modules\\PrivacyAudit\\Http\\Controllers\\Customer\\CustomerDataLifecycleController@store'],
-            ['GET', 'v1/admin/privacy/requests', 'App\\Modules\\PrivacyAudit\\Http\\Controllers\\Admin\\AdminCustomerDataLifecycleController@index'],
-            ['GET', 'v1/admin/privacy/customers/{user_id}/data-export', 'App\\Modules\\PrivacyAudit\\Http\\Controllers\\Admin\\AdminCustomerDataLifecycleController@exportCustomerData'],
-            ['POST', 'v1/admin/privacy/requests/{request_id}/review', 'App\\Modules\\PrivacyAudit\\Http\\Controllers\\Admin\\AdminCustomerDataLifecycleController@review'],
+            ['GET', 'v1/me/data-export', 'App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Customer\\PrivacyRequestController@export'],
+            ['GET', 'v1/me/privacy-requests', 'App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Customer\\PrivacyRequestController@index'],
+            ['POST', 'v1/me/privacy-requests', 'App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Customer\\PrivacyRequestController@store'],
+            ['GET', 'v1/admin/privacy/requests', 'App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Admin\\PrivacyController@index'],
+            ['GET', 'v1/admin/privacy/customers/{user_id}/data-export', 'App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Admin\\PrivacyController@exportCustomerData'],
+            ['POST', 'v1/admin/privacy/requests/{request_id}/review', 'App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Admin\\PrivacyController@review'],
         ];
 
         foreach ($expected as [$method, $uri, $action]) {

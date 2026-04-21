@@ -105,13 +105,27 @@
                                 "type": "text"
                             },
                             {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
                                 "key": "X-Customer-Token",
                                 "value": "{{customerToken}}",
                                 "type": "text"
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/auth/customer/refresh",
-                        "description": "Rotate the current customer access session and return a replacement opaque token.\n\nSignature: `POST api/v1/auth/customer/refresh`\nAuth mode: `customer_access_token`\nContract grade: `full`"
+                        "description": "Rotate the current customer access session and return a replacement opaque token.\n\nSignature: `POST api/v1/auth/customer/refresh`\nAuth mode: `customer_access_token`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "[]",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
                     },
                     "response": []
                 },

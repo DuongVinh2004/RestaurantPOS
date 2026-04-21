@@ -6,9 +6,9 @@ namespace Tests\Unit\Http\Controllers;
 
 use App\Modules\Reservations\Http\Controllers\CustomerReservationPreorderController;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Models\User;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Reservations\Application\Services\CustomerReservationPreorderService;
-use App\Services\CustomerReservationSessionAccessService;
+use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use Tests\TestCase;
@@ -20,7 +20,7 @@ class CustomerReservationPreorderLegacyRouteDeprecationHeadersTest extends TestC
     public function test_legacy_preorder_show_alias_adds_deprecation_headers(): void
     {
         $service = Mockery::mock(CustomerReservationPreorderService::class);
-        $sessionAccess = Mockery::mock(CustomerReservationSessionAccessService::class);
+        $sessionAccess = Mockery::mock(ReservationSessionAccessWorkflow::class);
 
         $reservation = new Reservation();
         $reservation->forceFill([

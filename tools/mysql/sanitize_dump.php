@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../app/Support/PortableSqlSanitizer.php';
+require_once __DIR__ . '/../../app/Platform/Delivery/Release/Application/Verifiers/PortableSqlSanitizer.php';
 
-use App\Support\PortableSqlSanitizer;
+use App\Platform\Delivery\Release\Application\Verifiers\PortableSqlSanitizer;
 
 if ($argc < 3) {
     fwrite(STDERR, "Usage: php tools/mysql/sanitize_dump.php <input.sql> <output.sql>\n");

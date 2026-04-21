@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Financial;
 
-use App\Models\User;
-use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -67,13 +67,18 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
             'line_total' => '200000.00',
         ]);
 
-        app(StaffCheckoutService::class)->lockBill(
+        app(OrderSettlementWorkflow::class)->lockBill(
             orderId: $orderId,
             discountAmount: null,
             notes: 'lock bill for refund-cancel integration',
             expectedRowVersion: 1,
             staffUserId: $staffId,
         );
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('branch_id'),
+            'currency' => 'VND',
+        ]);
 
         $customer = User::query()->findOrFail($customerId);
 
@@ -188,18 +193,23 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
             'transaction_code' => 'DEP-PARTIAL-ROW-VERSION-1',
         ]);
 
-        app(StaffCheckoutService::class)->lockBill(
+        app(OrderSettlementWorkflow::class)->lockBill(
             orderId: $orderId,
             discountAmount: null,
             notes: 'lock bill for partial payment row-version',
             expectedRowVersion: 1,
             staffUserId: $staffId,
         );
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('branch_id'),
+            'currency' => 'VND',
+        ]);
 
         $reservationRowVersionBefore = (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version');
         $orderRowVersion = (int) DB::table('reservation_orders')->where('order_id', $orderId)->value('row_version');
 
-        $order = app(StaffCheckoutService::class)->payOrder(
+        $order = app(OrderSettlementWorkflow::class)->payOrder(
             orderId: $orderId,
             paymentMethod: 'Cash',
             paidAmount: 100000.00,

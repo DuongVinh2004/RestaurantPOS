@@ -47,9 +47,9 @@ class RouteContractReconcilerServiceTest extends TestCase
             ->first(fn (array $group): bool => (string) ($group['canonical'] ?? '') === 'api/v1/staff/orders/{order_id}/settlement/finalize');
 
         $this->assertIsArray($aliasGroup);
-        $this->assertSame('App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@finalizeSettlement', $aliasGroup['canonical_action'] ?? null);
+        $this->assertSame('App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CheckoutController@finalizeSettlement', $aliasGroup['canonical_action'] ?? null);
         $this->assertSame('api/v1/staff/orders/{order_id}/checkout', $aliasGroup['aliases'][0]['uri'] ?? null);
-        $this->assertSame('App\\Modules\\CheckoutPayments\\Http\\Controllers\\Staff\\StaffCheckoutController@checkout', $aliasGroup['aliases'][0]['action'] ?? null);
+        $this->assertSame('App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CheckoutController@checkout', $aliasGroup['aliases'][0]['action'] ?? null);
     }
 
     public function test_reconcile_can_refresh_custom_contract_files_from_runtime_candidates(): void

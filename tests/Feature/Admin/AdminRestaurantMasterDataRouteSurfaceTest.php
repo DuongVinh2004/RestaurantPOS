@@ -13,16 +13,16 @@ final class AdminRestaurantMasterDataRouteSurfaceTest extends TestCase
     public function test_admin_restaurant_master_data_routes_are_registered_to_runtime_surface(): void
     {
         $expected = [
-            ['GET', 'v1/admin/restaurant/zones', 'App\\Http\\Controllers\\Api\\Admin\\AdminRestaurantZoneController@index'],
-            ['POST', 'v1/admin/restaurant/zones/rename', 'App\\Http\\Controllers\\Api\\Admin\\AdminRestaurantZoneController@rename'],
-            ['GET', 'v1/admin/restaurant/tables', 'App\\Http\\Controllers\\Api\\Admin\\AdminRestaurantTableController@index'],
-            ['GET', 'v1/admin/restaurant/tables/export', 'App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@export'],
-            ['POST', 'v1/admin/restaurant/tables/import', 'App\\Modules\\AdminMasterDataBulk\\Http\\Controllers\\Admin\\AdminMasterDataBulkController@import'],
-            ['POST', 'v1/admin/restaurant/tables', 'App\\Http\\Controllers\\Api\\Admin\\AdminRestaurantTableController@store'],
-            ['GET', 'v1/admin/restaurant/tables/{id}', 'App\\Http\\Controllers\\Api\\Admin\\AdminRestaurantTableController@show'],
-            ['PATCH', 'v1/admin/restaurant/tables/{id}', 'App\\Http\\Controllers\\Api\\Admin\\AdminRestaurantTableController@update'],
-            ['DELETE', 'v1/admin/restaurant/tables/{id}', 'App\\Http\\Controllers\\Api\\Admin\\AdminRestaurantTableController@destroy'],
-            ['GET', 'v1/admin/restaurant/table-templates', 'App\\Http\\Controllers\\Api\\Admin\\AdminRestaurantTableController@templates'],
+            ['GET', 'v1/admin/restaurant/zones', 'App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\RestaurantZoneController@index'],
+            ['POST', 'v1/admin/restaurant/zones/rename', 'App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\RestaurantZoneController@rename'],
+            ['GET', 'v1/admin/restaurant/tables', 'App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\RestaurantTableController@index'],
+            ['GET', 'v1/admin/restaurant/tables/export', 'App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export'],
+            ['POST', 'v1/admin/restaurant/tables/import', 'App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataImportController@import'],
+            ['POST', 'v1/admin/restaurant/tables', 'App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\RestaurantTableController@store'],
+            ['GET', 'v1/admin/restaurant/tables/{id}', 'App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\RestaurantTableController@show'],
+            ['PATCH', 'v1/admin/restaurant/tables/{id}', 'App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\RestaurantTableController@update'],
+            ['DELETE', 'v1/admin/restaurant/tables/{id}', 'App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\RestaurantTableController@destroy'],
+            ['GET', 'v1/admin/restaurant/table-templates', 'App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\TableTemplateController@index'],
         ];
 
         foreach ($expected as [$method, $uri, $action]) {
@@ -52,7 +52,7 @@ final class AdminRestaurantMasterDataRouteSurfaceTest extends TestCase
         $candidates = [$normalized];
 
         if (! str_starts_with($normalized, 'api/')) {
-            $candidates[] = 'api/' . $normalized;
+            $candidates[] = 'api/'.$normalized;
         }
 
         return array_values(array_unique($candidates));

@@ -1,24 +1,27 @@
 <?php
 
-use App\Http\Controllers\Api\Admin\AdminBranchController;
-use App\Http\Controllers\Api\Admin\AdminFinanceSettingsController;
-use App\Http\Controllers\Api\Admin\AdminInventoryController;
-use App\Http\Controllers\Api\Admin\AdminMenuCategoryController;
-use App\Http\Controllers\Api\Admin\AdminMenuItemController;
-use App\Http\Controllers\Api\Admin\AdminMenuItemPriceController;
-use App\Http\Controllers\Api\Admin\AdminPurchasingController;
-use App\Http\Controllers\Api\Admin\AdminRestaurantTableController;
-use App\Http\Controllers\Api\Admin\AdminRestaurantZoneController;
 use App\Http\Middleware\MetricsRequestMiddleware;
 use App\Http\Middleware\ResolveCustomerAuthMiddleware;
 use App\Http\Middleware\StaffApiKeyMiddleware;
-use App\Modules\AdminMasterDataBulk\Http\Controllers\Admin\AdminMasterDataBulkController;
-use App\Modules\BenefitsLoyalty\Http\Controllers\Admin\AdminBenefitSettingController;
-use App\Modules\BenefitsLoyalty\Http\Controllers\Admin\AdminLoyaltyTierController;
-use App\Modules\BenefitsLoyalty\Http\Controllers\Admin\AdminVoucherController;
-use App\Modules\KitchenDispatch\Http\Controllers\Admin\AdminKitchenRoutingController;
-use App\Modules\PrivacyAudit\Http\Controllers\Admin\AdminCustomerDataLifecycleController;
-use App\Modules\Reporting\Http\Controllers\Admin\AdminReportingController;
+use App\Modules\Billing\Http\Controllers\Admin\FinanceTaxProfileController;
+use App\Modules\BranchScheduling\Http\Controllers\Admin\BranchController;
+use App\Modules\BranchScheduling\Http\Controllers\Admin\RestaurantTableController;
+use App\Modules\BranchScheduling\Http\Controllers\Admin\RestaurantZoneController;
+use App\Modules\BranchScheduling\Http\Controllers\Admin\TableTemplateController;
+use App\Modules\Catalog\Http\Controllers\Admin\MenuCategoryController;
+use App\Modules\Catalog\Http\Controllers\Admin\MenuItemController;
+use App\Modules\Catalog\Http\Controllers\Admin\MenuItemPriceController;
+use App\Modules\InventoryProcurement\Http\Controllers\Admin\InventoryAdjustmentController;
+use App\Modules\InventoryProcurement\Http\Controllers\Admin\ProcurementController;
+use App\Modules\KitchenDispatch\Http\Controllers\Admin\KitchenCategoryRouteController;
+use App\Modules\KitchenDispatch\Http\Controllers\Admin\KitchenStationController;
+use App\Modules\Loyalty\Http\Controllers\Admin\LoyaltyTierController;
+use App\Modules\MasterDataExchange\Http\Controllers\Admin\MasterDataExportController;
+use App\Modules\MasterDataExchange\Http\Controllers\Admin\MasterDataImportController;
+use App\Modules\PrivacyCompliance\Http\Controllers\Admin\PrivacyController;
+use App\Modules\Promotions\Http\Controllers\Admin\BenefitSettingController;
+use App\Modules\Promotions\Http\Controllers\Admin\VoucherController;
+use App\Modules\Reporting\Http\Controllers\Admin\ReportingSnapshotController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware([
@@ -36,158 +39,158 @@ Route::middleware([
             ])
             ->group(function () {
                 Route::middleware('staff.capability:privacy.manage')->prefix('privacy')->group(function () {
-                    Route::get('requests', [AdminCustomerDataLifecycleController::class, 'index']);
-                    Route::get('customers/{user_id}/data-export', [AdminCustomerDataLifecycleController::class, 'exportCustomerData'])
+                    Route::get('requests', [PrivacyController::class, 'index']);
+                    Route::get('customers/{user_id}/data-export', [PrivacyController::class, 'exportCustomerData'])
                         ->whereNumber('user_id');
-                    Route::post('requests/{request_id}/review', [AdminCustomerDataLifecycleController::class, 'review'])
+                    Route::post('requests/{request_id}/review', [PrivacyController::class, 'review'])
                         ->whereNumber('request_id')
                         ->middleware('idempotency:admin.privacy-requests.review');
                 });
 
                 Route::middleware('staff.capability:menu.manage')->group(function () {
-                    Route::get('menu/categories', [AdminMenuCategoryController::class, 'index']);
-                    Route::get('menu/categories/export', [AdminMasterDataBulkController::class, 'export'])
+                    Route::get('menu/categories', [MenuCategoryController::class, 'index']);
+                    Route::get('menu/categories/export', [MasterDataExportController::class, 'export'])
                         ->defaults('domain', 'menu-categories');
-                    Route::post('menu/categories/import', [AdminMasterDataBulkController::class, 'import'])
+                    Route::post('menu/categories/import', [MasterDataImportController::class, 'import'])
                         ->defaults('domain', 'menu-categories');
-                    Route::post('menu/categories', [AdminMenuCategoryController::class, 'store'])
+                    Route::post('menu/categories', [MenuCategoryController::class, 'store'])
                         ->middleware('idempotency:admin.menu-categories.store');
-                    Route::patch('menu/categories/{category_id}', [AdminMenuCategoryController::class, 'update'])
+                    Route::patch('menu/categories/{category_id}', [MenuCategoryController::class, 'update'])
                         ->whereNumber('category_id')
                         ->middleware('idempotency:admin.menu-categories.update');
-                    Route::get('menu/items', [AdminMenuItemController::class, 'index']);
-                    Route::get('menu/items/export', [AdminMasterDataBulkController::class, 'export'])
+                    Route::get('menu/items', [MenuItemController::class, 'index']);
+                    Route::get('menu/items/export', [MasterDataExportController::class, 'export'])
                         ->defaults('domain', 'menu-items');
-                    Route::post('menu/items/import', [AdminMasterDataBulkController::class, 'import'])
+                    Route::post('menu/items/import', [MasterDataImportController::class, 'import'])
                         ->defaults('domain', 'menu-items');
-                    Route::get('menu/items/{item_id}', [AdminMenuItemController::class, 'show'])->whereNumber('item_id');
-                    Route::post('menu/items', [AdminMenuItemController::class, 'store'])
+                    Route::get('menu/items/{item_id}', [MenuItemController::class, 'show'])->whereNumber('item_id');
+                    Route::post('menu/items', [MenuItemController::class, 'store'])
                         ->middleware('idempotency:admin.menu-items.store');
-                    Route::patch('menu/items/{item_id}', [AdminMenuItemController::class, 'update'])
+                    Route::patch('menu/items/{item_id}', [MenuItemController::class, 'update'])
                         ->whereNumber('item_id')
                         ->middleware('idempotency:admin.menu-items.update');
-                    Route::get('menu/prices/export', [AdminMasterDataBulkController::class, 'export'])
+                    Route::get('menu/prices/export', [MasterDataExportController::class, 'export'])
                         ->defaults('domain', 'menu-prices');
-                    Route::post('menu/prices/import', [AdminMasterDataBulkController::class, 'import'])
+                    Route::post('menu/prices/import', [MasterDataImportController::class, 'import'])
                         ->defaults('domain', 'menu-prices');
-                    Route::get('menu/items/{item_id}/prices', [AdminMenuItemPriceController::class, 'index'])->whereNumber('item_id');
-                    Route::get('menu/prices/{price_id}', [AdminMenuItemPriceController::class, 'show'])->whereNumber('price_id');
-                    Route::post('menu/items/{item_id}/prices', [AdminMenuItemPriceController::class, 'store'])
+                    Route::get('menu/items/{item_id}/prices', [MenuItemPriceController::class, 'index'])->whereNumber('item_id');
+                    Route::get('menu/prices/{price_id}', [MenuItemPriceController::class, 'show'])->whereNumber('price_id');
+                    Route::post('menu/items/{item_id}/prices', [MenuItemPriceController::class, 'store'])
                         ->whereNumber('item_id')
                         ->middleware('idempotency:admin.menu-item-prices.store');
-                    Route::put('menu/prices/{price_id}', [AdminMenuItemPriceController::class, 'update'])
+                    Route::put('menu/prices/{price_id}', [MenuItemPriceController::class, 'update'])
                         ->whereNumber('price_id')
                         ->middleware('idempotency:admin.menu-item-prices.update');
                 });
 
                 Route::middleware('staff.capability:voucher.master_data.manage')->group(function () {
-                    Route::get('benefits/vouchers', [AdminVoucherController::class, 'index']);
-                    Route::get('benefits/vouchers/export', [AdminMasterDataBulkController::class, 'export'])
+                    Route::get('benefits/vouchers', [VoucherController::class, 'index']);
+                    Route::get('benefits/vouchers/export', [MasterDataExportController::class, 'export'])
                         ->defaults('domain', 'vouchers');
-                    Route::post('benefits/vouchers/import', [AdminMasterDataBulkController::class, 'import'])
+                    Route::post('benefits/vouchers/import', [MasterDataImportController::class, 'import'])
                         ->defaults('domain', 'vouchers');
-                    Route::get('benefits/vouchers/{id}', [AdminVoucherController::class, 'show'])->whereNumber('id');
-                    Route::post('benefits/vouchers', [AdminVoucherController::class, 'store'])
+                    Route::get('benefits/vouchers/{id}', [VoucherController::class, 'show'])->whereNumber('id');
+                    Route::post('benefits/vouchers', [VoucherController::class, 'store'])
                         ->middleware('idempotency:admin.benefits-vouchers.store');
-                    Route::patch('benefits/vouchers/{id}', [AdminVoucherController::class, 'update'])
+                    Route::patch('benefits/vouchers/{id}', [VoucherController::class, 'update'])
                         ->whereNumber('id')
                         ->middleware('idempotency:admin.benefits-vouchers.update');
-                    Route::get('benefits/loyalty-tiers', [AdminLoyaltyTierController::class, 'index']);
-                    Route::get('benefits/loyalty-tiers/export', [AdminMasterDataBulkController::class, 'export'])
+                    Route::get('benefits/loyalty-tiers', [LoyaltyTierController::class, 'index']);
+                    Route::get('benefits/loyalty-tiers/export', [MasterDataExportController::class, 'export'])
                         ->defaults('domain', 'loyalty-tiers');
-                    Route::post('benefits/loyalty-tiers/import', [AdminMasterDataBulkController::class, 'import'])
+                    Route::post('benefits/loyalty-tiers/import', [MasterDataImportController::class, 'import'])
                         ->defaults('domain', 'loyalty-tiers');
-                    Route::get('benefits/loyalty-tiers/{id}', [AdminLoyaltyTierController::class, 'show'])->whereNumber('id');
-                    Route::post('benefits/loyalty-tiers', [AdminLoyaltyTierController::class, 'store'])
+                    Route::get('benefits/loyalty-tiers/{id}', [LoyaltyTierController::class, 'show'])->whereNumber('id');
+                    Route::post('benefits/loyalty-tiers', [LoyaltyTierController::class, 'store'])
                         ->middleware('idempotency:admin.loyalty-tiers.store');
-                    Route::patch('benefits/loyalty-tiers/{id}', [AdminLoyaltyTierController::class, 'update'])
+                    Route::patch('benefits/loyalty-tiers/{id}', [LoyaltyTierController::class, 'update'])
                         ->whereNumber('id')
                         ->middleware('idempotency:admin.loyalty-tiers.update');
-                    Route::get('settings/benefits', [AdminBenefitSettingController::class, 'index']);
-                    Route::post('settings/benefits', [AdminBenefitSettingController::class, 'upsert'])
+                    Route::get('settings/benefits', [BenefitSettingController::class, 'index']);
+                    Route::post('settings/benefits', [BenefitSettingController::class, 'upsert'])
                         ->middleware('idempotency:admin.benefit-settings.upsert');
                 });
 
                 Route::middleware('staff.capability:settings.manage')->group(function () {
-                    Route::get('settings/branches', [AdminBranchController::class, 'index']);
-                    Route::get('settings/branches/export', [AdminMasterDataBulkController::class, 'export'])
+                    Route::get('settings/branches', [BranchController::class, 'index']);
+                    Route::get('settings/branches/export', [MasterDataExportController::class, 'export'])
                         ->defaults('domain', 'branches');
-                    Route::post('settings/branches/import', [AdminMasterDataBulkController::class, 'import'])
+                    Route::post('settings/branches/import', [MasterDataImportController::class, 'import'])
                         ->defaults('domain', 'branches');
-                    Route::post('settings/branches', [AdminBranchController::class, 'store'])
+                    Route::post('settings/branches', [BranchController::class, 'store'])
                         ->middleware('idempotency:admin.settings-branches.store');
-                    Route::get('settings/branches/{id}', [AdminBranchController::class, 'show'])->whereNumber('id');
-                    Route::patch('settings/branches/{id}', [AdminBranchController::class, 'update'])
+                    Route::get('settings/branches/{id}', [BranchController::class, 'show'])->whereNumber('id');
+                    Route::patch('settings/branches/{id}', [BranchController::class, 'update'])
                         ->whereNumber('id')
                         ->middleware('idempotency:admin.settings-branches.update');
-                    Route::get('settings/finance/tax-profile', [AdminFinanceSettingsController::class, 'showTaxProfile']);
-                    Route::post('settings/finance/tax-profile', [AdminFinanceSettingsController::class, 'upsertTaxProfile'])
+                    Route::get('settings/finance/tax-profile', [FinanceTaxProfileController::class, 'showTaxProfile']);
+                    Route::post('settings/finance/tax-profile', [FinanceTaxProfileController::class, 'upsertTaxProfile'])
                         ->middleware('idempotency:admin.settings-finance-tax-profile.upsert');
-                    Route::post('settings/reporting/snapshots/rebuild', [AdminReportingController::class, 'rebuild'])
+                    Route::post('settings/reporting/snapshots/rebuild', [ReportingSnapshotController::class, 'rebuild'])
                         ->middleware('idempotency:admin.reporting-snapshots.rebuild');
-                    Route::get('kitchen/stations', [AdminKitchenRoutingController::class, 'index']);
-                    Route::post('kitchen/stations', [AdminKitchenRoutingController::class, 'store'])
+                    Route::get('kitchen/stations', [KitchenStationController::class, 'index']);
+                    Route::post('kitchen/stations', [KitchenStationController::class, 'store'])
                         ->middleware('idempotency:admin.kitchen-stations.store');
-                    Route::get('kitchen/stations/{station_id}', [AdminKitchenRoutingController::class, 'show'])->whereNumber('station_id');
-                    Route::patch('kitchen/stations/{station_id}', [AdminKitchenRoutingController::class, 'update'])
+                    Route::get('kitchen/stations/{station_id}', [KitchenStationController::class, 'show'])->whereNumber('station_id');
+                    Route::patch('kitchen/stations/{station_id}', [KitchenStationController::class, 'update'])
                         ->whereNumber('station_id')
                         ->middleware('idempotency:admin.kitchen-stations.update');
-                    Route::get('kitchen/stations/{station_id}/category-routes', [AdminKitchenRoutingController::class, 'routes'])->whereNumber('station_id');
-                    Route::put('kitchen/stations/{station_id}/category-routes', [AdminKitchenRoutingController::class, 'syncRoutes'])
+                    Route::get('kitchen/stations/{station_id}/category-routes', [KitchenCategoryRouteController::class, 'index'])->whereNumber('station_id');
+                    Route::put('kitchen/stations/{station_id}/category-routes', [KitchenCategoryRouteController::class, 'update'])
                         ->whereNumber('station_id')
                         ->middleware('idempotency:admin.kitchen-station-category-routes.sync');
-                    Route::get('restaurant/zones', [AdminRestaurantZoneController::class, 'index']);
-                    Route::post('restaurant/zones/rename', [AdminRestaurantZoneController::class, 'rename'])
+                    Route::get('restaurant/zones', [RestaurantZoneController::class, 'index']);
+                    Route::post('restaurant/zones/rename', [RestaurantZoneController::class, 'rename'])
                         ->middleware('idempotency:admin.restaurant-zones.rename');
-                    Route::get('restaurant/tables', [AdminRestaurantTableController::class, 'index']);
-                    Route::get('restaurant/tables/export', [AdminMasterDataBulkController::class, 'export'])
+                    Route::get('restaurant/tables', [RestaurantTableController::class, 'index']);
+                    Route::get('restaurant/tables/export', [MasterDataExportController::class, 'export'])
                         ->defaults('domain', 'restaurant-tables');
-                    Route::post('restaurant/tables/import', [AdminMasterDataBulkController::class, 'import'])
+                    Route::post('restaurant/tables/import', [MasterDataImportController::class, 'import'])
                         ->defaults('domain', 'restaurant-tables');
-                    Route::post('restaurant/tables', [AdminRestaurantTableController::class, 'store'])
+                    Route::post('restaurant/tables', [RestaurantTableController::class, 'store'])
                         ->middleware('idempotency:admin.restaurant-tables.store');
-                    Route::get('restaurant/tables/{id}', [AdminRestaurantTableController::class, 'show'])->whereNumber('id');
-                    Route::patch('restaurant/tables/{id}', [AdminRestaurantTableController::class, 'update'])
+                    Route::get('restaurant/tables/{id}', [RestaurantTableController::class, 'show'])->whereNumber('id');
+                    Route::patch('restaurant/tables/{id}', [RestaurantTableController::class, 'update'])
                         ->whereNumber('id')
                         ->middleware('idempotency:admin.restaurant-tables.update');
-                    Route::delete('restaurant/tables/{id}', [AdminRestaurantTableController::class, 'destroy'])
+                    Route::delete('restaurant/tables/{id}', [RestaurantTableController::class, 'destroy'])
                         ->whereNumber('id')
                         ->middleware('idempotency:admin.restaurant-tables.delete');
-                    Route::get('restaurant/table-templates', [AdminRestaurantTableController::class, 'templates']);
+                    Route::get('restaurant/table-templates', [TableTemplateController::class, 'index']);
                 });
 
                 Route::middleware('staff.capability:inventory.manage')->group(function () {
-                    Route::get('inventory/ingredients', [AdminInventoryController::class, 'listIngredients']);
-                    Route::post('inventory/ingredients', [AdminInventoryController::class, 'createIngredient'])
+                    Route::get('inventory/ingredients', [InventoryAdjustmentController::class, 'listIngredients']);
+                    Route::post('inventory/ingredients', [InventoryAdjustmentController::class, 'createIngredient'])
                         ->middleware('idempotency:admin.inventory-ingredients.store');
-                    Route::get('inventory/ingredients/{id}', [AdminInventoryController::class, 'showIngredient'])->whereNumber('id');
-                    Route::patch('inventory/ingredients/{id}', [AdminInventoryController::class, 'updateIngredient'])
+                    Route::get('inventory/ingredients/{id}', [InventoryAdjustmentController::class, 'showIngredient'])->whereNumber('id');
+                    Route::patch('inventory/ingredients/{id}', [InventoryAdjustmentController::class, 'updateIngredient'])
                         ->whereNumber('id')
                         ->middleware('idempotency:admin.inventory-ingredients.update');
-                    Route::get('inventory/menu-items/{id}/recipe', [AdminInventoryController::class, 'showMenuItemRecipe'])->whereNumber('id');
-                    Route::put('inventory/menu-items/{id}/recipe', [AdminInventoryController::class, 'upsertMenuItemRecipe'])
+                    Route::get('inventory/menu-items/{id}/recipe', [InventoryAdjustmentController::class, 'showMenuItemRecipe'])->whereNumber('id');
+                    Route::put('inventory/menu-items/{id}/recipe', [InventoryAdjustmentController::class, 'upsertMenuItemRecipe'])
                         ->whereNumber('id')
                         ->middleware('idempotency:admin.inventory-menu-item-recipe.sync');
-                    Route::get('inventory/ingredients/{id}/movements', [AdminInventoryController::class, 'listIngredientMovements'])->whereNumber('id');
-                    Route::post('inventory/ingredients/{id}/movements', [AdminInventoryController::class, 'createIngredientMovement'])
+                    Route::get('inventory/ingredients/{id}/movements', [InventoryAdjustmentController::class, 'listIngredientMovements'])->whereNumber('id');
+                    Route::post('inventory/ingredients/{id}/movements', [InventoryAdjustmentController::class, 'createIngredientMovement'])
                         ->whereNumber('id')
                         ->middleware('idempotency:admin.inventory-movements.store');
-                    Route::get('inventory/suppliers', [AdminPurchasingController::class, 'listSuppliers']);
-                    Route::post('inventory/suppliers', [AdminPurchasingController::class, 'createSupplier'])
+                    Route::get('inventory/suppliers', [ProcurementController::class, 'listSuppliers']);
+                    Route::post('inventory/suppliers', [ProcurementController::class, 'createSupplier'])
                         ->middleware('idempotency:admin.inventory-suppliers.store');
-                    Route::get('inventory/suppliers/{id}', [AdminPurchasingController::class, 'showSupplier'])->whereNumber('id');
-                    Route::patch('inventory/suppliers/{id}', [AdminPurchasingController::class, 'updateSupplier'])
+                    Route::get('inventory/suppliers/{id}', [ProcurementController::class, 'showSupplier'])->whereNumber('id');
+                    Route::patch('inventory/suppliers/{id}', [ProcurementController::class, 'updateSupplier'])
                         ->whereNumber('id')
                         ->middleware('idempotency:admin.inventory-suppliers.update');
-                    Route::get('inventory/purchase-orders', [AdminPurchasingController::class, 'listPurchaseOrders']);
-                    Route::post('inventory/purchase-orders', [AdminPurchasingController::class, 'createPurchaseOrder'])
+                    Route::get('inventory/purchase-orders', [ProcurementController::class, 'listPurchaseOrders']);
+                    Route::post('inventory/purchase-orders', [ProcurementController::class, 'createPurchaseOrder'])
                         ->middleware('idempotency:admin.inventory-purchase-orders.store');
-                    Route::get('inventory/purchase-orders/{id}', [AdminPurchasingController::class, 'showPurchaseOrder'])->whereNumber('id');
-                    Route::patch('inventory/purchase-orders/{id}', [AdminPurchasingController::class, 'updatePurchaseOrder'])
+                    Route::get('inventory/purchase-orders/{id}', [ProcurementController::class, 'showPurchaseOrder'])->whereNumber('id');
+                    Route::patch('inventory/purchase-orders/{id}', [ProcurementController::class, 'updatePurchaseOrder'])
                         ->whereNumber('id')
                         ->middleware('idempotency:admin.inventory-purchase-orders.update');
-                    Route::get('inventory/purchase-orders/{id}/receipts', [AdminPurchasingController::class, 'listPurchaseOrderReceipts'])->whereNumber('id');
-                    Route::post('inventory/purchase-orders/{id}/receipts', [AdminPurchasingController::class, 'createPurchaseOrderReceipt'])
+                    Route::get('inventory/purchase-orders/{id}/receipts', [ProcurementController::class, 'listPurchaseOrderReceipts'])->whereNumber('id');
+                    Route::post('inventory/purchase-orders/{id}/receipts', [ProcurementController::class, 'createPurchaseOrderReceipt'])
                         ->whereNumber('id')
                         ->middleware('idempotency:admin.inventory-purchase-order-receipts.store');
                 });
