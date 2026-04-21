@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace App\Platform\Release\Services;
 
 use App\Enums\RestaurantTableStatus;
+use App\Modules\Billing\Application\Workflows\FinanceTaxProfileWorkflow;
+use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Modules\BranchScheduling\Domain\Models\Branch;
+use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
+use App\Modules\BranchScheduling\Domain\Models\TableTemplate;
 use App\Modules\Catalog\Domain\Models\MenuCategory;
 use App\Modules\Catalog\Domain\Models\MenuItem;
 use App\Modules\Catalog\Domain\Models\MenuItemPrice;
-use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\IdentityAccess\Domain\Models\StaffApiKey;
-use App\Modules\BranchScheduling\Domain\Models\TableTemplate;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\IdentityAccess\Infrastructure\Persistence\StaffApiKeyStore;
-use App\Modules\BranchScheduling\Application\Services\BranchContextService;
-use App\Modules\Billing\Application\Workflows\FinanceTaxProfileWorkflow;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -25,7 +25,7 @@ class SiteBootstrapService
 {
     public function __construct(
         private readonly BranchContextService $branchContextService,
-        private readonly FinanceTaxProfileService $financeTaxProfileService,
+        private readonly FinanceTaxProfileWorkflow $financeTaxProfileWorkflow,
         private readonly StaffApiKeyStore $staffApiKeyGovernanceService,
     ) {}
 
@@ -333,9 +333,9 @@ class SiteBootstrapService
      */
     private function ensureFinanceProfile(int $adminUserId): array
     {
-        $description = $this->financeTaxProfileService->describe();
+        $description = $this->financeTaxProfileWorkflow->describe();
         if (($description['runtime_profile'] ?? null) === null) {
-            $description = $this->financeTaxProfileService->upsert(
+            $description = $this->financeTaxProfileWorkflow->upsert(
                 (array) config('booking.finance_tax_invoice_profile', []),
                 $adminUserId,
             );
