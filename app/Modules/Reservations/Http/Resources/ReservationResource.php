@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Modules\Reservations\Http\Resources;
 
 use App\Enums\ReservationStatus;
-use App\Modules\CheckoutPayments\Support\PaymentProviderPayloadSanitizer;
 use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
-use App\Modules\BranchScheduling\Http\Resources\RestaurantTableResource;
+use App\Modules\BranchScheduling\Http\Resources\Guest\RestaurantTableResource;
+use App\Modules\Payments\Infrastructure\Internal\PaymentProviderPayloadSanitizer;
 use App\Modules\Reservations\Application\Services\ReservationDepositReadService;
 use App\Modules\Reservations\Domain\Policies\ReservationAccessScope;
-use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
-use App\Support\Money;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
+use App\SharedKernel\Money\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;

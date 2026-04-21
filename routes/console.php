@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\CustomerAccessSession;
-use App\Models\StaffApiKey;
+use App\Modules\IdentityAccess\Domain\Models\CustomerAccessSession;
+use App\Modules\IdentityAccess\Domain\Models\StaffApiKey;
 use App\Platform\ApiContract\Services\OpsGateArtifactService;
 use Illuminate\Console\Command as ConsoleCommand;
 use Illuminate\Foundation\Inspiring;

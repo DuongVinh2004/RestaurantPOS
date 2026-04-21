@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\Api\Auth\CustomerAuthController;
-use App\Http\Controllers\Api\Auth\StaffAuthController;
 use App\Http\Middleware\ResolveCustomerAuthMiddleware;
 use App\Http\Middleware\StaffApiKeyMiddleware;
+use App\Modules\IdentityAccess\Http\Controllers\Customer\AuthController as CustomerAuthController;
+use App\Modules\IdentityAccess\Http\Controllers\Staff\AuthController as StaffAuthController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {

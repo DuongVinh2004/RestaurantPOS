@@ -14,7 +14,7 @@ class VerificationSelectorServiceTest extends TestCase
         $service = new VerificationSelectorService;
 
         $report = $service->buildReport([
-            'app/Services/Staff/StaffCheckoutService.php',
+            'app/Modules/Cashiering/Application/Workflows/OrderSettlementWorkflow.php',
         ]);
 
         $domainKeys = array_map(static fn (array $domain): string => (string) $domain['key'], $report['domains']);
@@ -55,7 +55,7 @@ class VerificationSelectorServiceTest extends TestCase
 
                 return match ($key) {
                     'rev-parse --is-inside-work-tree' => ['exit_code' => 0, 'stdout' => "true\n", 'stderr' => ''],
-                    'diff --name-only --diff-filter=ACMR origin/main...HEAD' => ['exit_code' => 0, 'stdout' => "app/Services/Staff/StaffCheckoutService.php\n", 'stderr' => ''],
+                    'diff --name-only --diff-filter=ACMR origin/main...HEAD' => ['exit_code' => 0, 'stdout' => "app/Modules/Cashiering/Application/Workflows/OrderSettlementWorkflow.php\n", 'stderr' => ''],
                     'diff --name-only --diff-filter=ACMR' => ['exit_code' => 0, 'stdout' => "routes/api.php\n", 'stderr' => ''],
                     'diff --cached --name-only --diff-filter=ACMR' => ['exit_code' => 0, 'stdout' => "composer.json\n", 'stderr' => ''],
                     'ls-files --others --exclude-standard' => ['exit_code' => 0, 'stdout' => "tests/Feature/Console/BookingVerifySelectCommandTest.php\n", 'stderr' => ''],
@@ -71,7 +71,7 @@ class VerificationSelectorServiceTest extends TestCase
         $this->assertContains('restaurantpos-git-aware-verify', $report['skills']);
         $this->assertContains('collected branch diff against origin/main', $report['notes']);
         $this->assertSame([
-            'app/Services/Staff/StaffCheckoutService.php',
+            'app/Modules/Cashiering/Application/Workflows/OrderSettlementWorkflow.php',
             'routes/api.php',
             'composer.json',
             'tests/Feature/Console/BookingVerifySelectCommandTest.php',

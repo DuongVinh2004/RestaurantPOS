@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace Tests\Feature\Staff;
 
 use App\Enums\WaitingListStatus;
-use App\Models\User;
-use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyPointsService;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Reservations\Application\Services\ReservationCodeGenerator;
-use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncService;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Application\Services\ReservationService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
-use App\Modules\FloorOps\Application\Services\StaffCheckInService;
-use App\Modules\WaitingList\Application\Services\StaffWaitingListService;
+use App\Modules\FloorOperations\Application\UseCases\CheckIn\StaffCheckInService;
+use App\Modules\Waitlist\Application\Services\StaffWaitingListService;
 use App\Modules\BranchScheduling\Application\Services\TableHoldService;
 use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -395,3 +395,4 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
             ->assertJsonValidationErrors(['row_version']);
     }
 }
+

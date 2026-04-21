@@ -7,10 +7,11 @@ namespace Tests\Feature\Staff;
 use App\Enums\ReservationStatus;
 use App\Enums\RestaurantTableStatus;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
+use App\Modules\Ordering\Application\UseCases\Orders\StaffTableOrderService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
-use App\Modules\Ordering\Application\Services\StaffTableOrderService;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -209,9 +210,15 @@ final class StaffTableOrderBranchScopeTest extends TestCase
             'table_id' => 12,
         ]);
 
+        $staffBranchContext = Mockery::mock(StaffBranchContextService::class);
+        $staffBranchContext->shouldReceive('assertAccessibleBranch')
+            ->once()
+            ->with(5001, 2)
+            ->andThrow(new ModelNotFoundException);
+
         $this->expectException(ModelNotFoundException::class);
 
-        $this->makeService()->createOnSpotOrder(
+        $this->makeService($staffBranchContext)->createOnSpotOrder(
             tableId: 12,
             reservationId: 102,
             items: [],
@@ -219,12 +226,13 @@ final class StaffTableOrderBranchScopeTest extends TestCase
         );
     }
 
-    private function makeService(): StaffTableOrderService
+    private function makeService(?StaffBranchContextService $staffBranchContextService = null): StaffTableOrderService
     {
         $locks = Mockery::mock(ReservationLockService::class);
         $locks->shouldReceive('withTableLocks')
             ->andReturnUsing(static fn (array $tableIds, callable $callback) => $callback());
 
-        return new StaffTableOrderService($locks, new BranchContextService());
+        return new StaffTableOrderService($locks, new BranchContextService, $staffBranchContextService);
     }
 }
+

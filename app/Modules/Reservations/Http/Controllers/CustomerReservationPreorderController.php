@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Reservations\Http\Controllers;
 
-use App\Http\Controllers\Concerns\AppliesDeprecatedRouteHeaders;
+use App\Http\Concerns\AppliesDeprecatedRouteHeaders;
 use App\Http\Controllers\Controller;
 use App\Modules\Reservations\Http\Requests\ClearCustomerReservationPreorderRequest;
 use App\Modules\Reservations\Http\Requests\PreviewCustomerReservationPreorderRequest;
@@ -12,7 +12,7 @@ use App\Modules\Reservations\Http\Requests\ReplaceCustomerReservationPreorderReq
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Reservations\Application\Services\CustomerReservationPreorderService;
 use App\Support\ApiErrorResponse;
-use App\Support\RequestActorContext;
+use App\Support\Auth\RequestActorContext;
 use App\Modules\Reservations\Domain\Policies\ReservationAccessScope;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Exceptions\HttpResponseException;

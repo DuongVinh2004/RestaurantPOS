@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Reservation;
 
-use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\CheckoutPayments\Domain\Models\ReservationDepositPaymentSession;
+use App\Modules\Payments\Domain\Models\ReservationDepositPaymentSession;
 use App\Modules\Reservations\Application\Services\ReservationDepositReadService;
 use Tests\TestCase;
 

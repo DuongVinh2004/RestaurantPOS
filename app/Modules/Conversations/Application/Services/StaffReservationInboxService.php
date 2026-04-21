@@ -7,7 +7,7 @@ namespace App\Modules\Conversations\Application\Services;
 use App\Enums\ReservationStatus;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Support\Listing\SafeLike;
-use App\Modules\FloorOps\Application\Services\StaffBranchContextService;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -286,3 +286,4 @@ class StaffReservationInboxService
             ]);
     }
 }
+

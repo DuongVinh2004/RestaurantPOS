@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
-use App\Models\User;
-use App\Support\CustomerAuthTokenResolver;
-use App\Support\RequestActorContext;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\IdentityAccess\Infrastructure\Tokenization\CustomerAuthTokenResolver;
+use App\Support\Auth\RequestActorContext;
 use Closure;
 use Illuminate\Http\Request;
 

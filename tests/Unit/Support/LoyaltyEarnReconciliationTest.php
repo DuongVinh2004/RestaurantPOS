@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Modules\BenefitsLoyalty\Domain\ValueObjects\LoyaltyEarnReconciliation;
+use App\Modules\Loyalty\Domain\ValueObjects\LoyaltyEarnReconciliation;
 use PHPUnit\Framework\TestCase;
 
 final class LoyaltyEarnReconciliationTest extends TestCase

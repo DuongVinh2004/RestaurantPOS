@@ -7,7 +7,7 @@ namespace App\Modules\Reservations\Application\Services;
 use App\Enums\ReservationStatus;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
-use App\Services\CustomerReservationSessionAccessService;
+use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
 use App\Modules\Reservations\Application\Services\ReservationService;
 use App\Modules\Reservations\Domain\Policies\ReservationAccessScope;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -21,7 +21,7 @@ use Illuminate\Validation\ValidationException;
 class CustomerReservationSelfService
 {
     public function __construct(
-        private readonly CustomerReservationSessionAccessService $customerSessionAccessService,
+        private readonly ReservationSessionAccessWorkflow $customerSessionAccessService,
         private readonly ReservationService $reservationService,
         private readonly ReservationRescheduleService $reservationRescheduleService,
         private readonly BranchSchedulingPolicyService $branchSchedulingPolicyService,

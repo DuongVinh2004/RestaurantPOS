@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature\Staff;
 
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyPointsService;
-use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
-use App\Modules\BenefitsLoyalty\Application\Services\StaffReservationVoucherService;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
+use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
+use App\Modules\Promotions\Application\Workflows\ReservationVoucherWorkflow;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Mockery;
@@ -48,7 +48,7 @@ final class StaffMutationAliasReplayHttpFlowTest extends TestCase
         $staffId = $this->createUser(['role_name' => 'Admin']);
         $headers = $this->withIdempotencyKey($this->staffAuthHeaders($staffId, 'staff-alias-checkout'), 'idem-staff-checkout-alias-1');
 
-        $service = Mockery::mock(StaffCheckoutService::class);
+        $service = Mockery::mock(OrderSettlementWorkflow::class);
         $service->shouldReceive('checkout')
             ->once()
             ->andReturn([
@@ -56,7 +56,7 @@ final class StaffMutationAliasReplayHttpFlowTest extends TestCase
                 'status' => 'Completed',
                 'payments' => [],
             ]);
-        $this->app->instance(StaffCheckoutService::class, $service);
+        $this->app->instance(OrderSettlementWorkflow::class, $service);
 
         $payload = [
             'payment_method' => 'Cash',
@@ -93,7 +93,7 @@ final class StaffMutationAliasReplayHttpFlowTest extends TestCase
         $reservationId = $this->createReservation(['status' => 'Confirmed']);
         $reservation = Reservation::query()->findOrFail($reservationId);
 
-        $service = Mockery::mock(StaffReservationVoucherService::class);
+        $service = Mockery::mock(ReservationVoucherWorkflow::class);
         $service->shouldReceive('removeVoucher')
             ->once()
             ->andReturn([
@@ -103,7 +103,7 @@ final class StaffMutationAliasReplayHttpFlowTest extends TestCase
                     'voucher_code' => 'ALIAS-77',
                 ],
             ]);
-        $this->app->instance(StaffReservationVoucherService::class, $service);
+        $this->app->instance(ReservationVoucherWorkflow::class, $service);
 
         $payload = [
             'row_version' => 1,

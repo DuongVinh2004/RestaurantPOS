@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Reservation;
 
-use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyPointsService;
-use App\Services\MenuPreorderPolicyService;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
+use App\Modules\Catalog\Application\UseCases\PolicyPreview\MenuPreorderPolicyService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Reservations\Application\Services\ReservationCodeGenerator;
-use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncService;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Application\Services\ReservationService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
@@ -204,7 +204,7 @@ class ReservationServicePreorderPricingGuardTest extends TestCase
             'updated_at' => Carbon::now('UTC'),
         ]);
 
-        $ref = new ReflectionClass(\App\Models\MenuItem::class);
+        $ref = new ReflectionClass(\App\Modules\Catalog\Domain\Models\MenuItem::class);
         $property = $ref->getProperty('supportsPreorderColumns');
         $property->setAccessible(true);
         $property->setValue(null, null);

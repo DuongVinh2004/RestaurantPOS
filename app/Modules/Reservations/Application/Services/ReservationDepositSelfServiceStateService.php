@@ -7,7 +7,7 @@ namespace App\Modules\Reservations\Application\Services;
 use App\Enums\ReservationDepositIntentStatus;
 use App\Enums\ReservationStatus;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Support\Money;
+use App\SharedKernel\Money\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 

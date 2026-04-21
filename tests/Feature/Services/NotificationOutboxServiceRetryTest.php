@@ -9,7 +9,7 @@ use App\Modules\Notifications\Domain\Models\NotificationOutbox;
 use App\Modules\Notifications\Domain\Models\NotificationPreference;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Notifications\Infrastructure\Contracts\NotificationChannelDriver;
-use App\Modules\Notifications\Infrastructure\NotificationChannelManager;
+use App\Modules\Notifications\Application\Services\NotificationChannelManager;
 use App\Modules\Notifications\Application\Services\NotificationPreferenceService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Carbon;

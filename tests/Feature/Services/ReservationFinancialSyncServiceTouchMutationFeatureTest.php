@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Services;
 
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncService;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Tests\Support\BuildsBookingScenario;

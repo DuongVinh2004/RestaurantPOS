@@ -6,8 +6,8 @@ namespace Tests\Unit\Support;
 
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
-use App\Modules\BenefitsLoyalty\Domain\Models\Voucher;
-use App\Modules\BenefitsLoyalty\Domain\Policies\VoucherRedemptionSupport;
+use App\Modules\Promotions\Domain\Models\Voucher;
+use App\Modules\Promotions\Domain\Policies\VoucherRedemptionSupport;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\TestCase;
 

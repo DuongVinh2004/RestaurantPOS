@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
-use App\Services\Inventory\PurchaseOrderReconciliationService;
+use App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;

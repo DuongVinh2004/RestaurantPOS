@@ -6,7 +6,7 @@ namespace Tests\Unit\Resources;
 
 use App\Modules\Reservations\Http\Resources\ReservationResource;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Models\User;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use Illuminate\Http\Request;
 use Tests\TestCase;
 

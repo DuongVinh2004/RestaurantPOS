@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Loyalty;
 
-use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Models\User;
-use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyAdjustmentService;
-use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyBalanceService;
-use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyCompletionSyncService;
-use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyLedgerWriter;
-use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyRedemptionService;
-use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyRefundSyncService;
-use App\Modules\BenefitsLoyalty\Application\Services\LoyaltyTierSyncService;
-use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncService;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyAdjustmentService;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyBalanceService;
+use App\Modules\Loyalty\Application\Workflows\LoyaltyCompletionSyncService;
+use App\Modules\Loyalty\Application\Workflows\LoyaltyLedgerWriter;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyRedemptionService;
+use App\Modules\Loyalty\Application\Workflows\LoyaltyRefundSyncService;
+use App\Modules\Loyalty\Application\UseCases\Tiers\LoyaltyTierSyncService;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;

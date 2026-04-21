@@ -6,7 +6,7 @@ namespace App\Modules\Conversations\Http\Requests\Staff;
 
 use App\Enums\ReservationDepositIntentStatus;
 use App\Enums\ReservationStatus;
-use App\Http\Requests\Concerns\InteractsWithListingQuery;
+use App\Support\Listing\InteractsWithListingQuery;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ListStaffReservationsRequest extends FormRequest

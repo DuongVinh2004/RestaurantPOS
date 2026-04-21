@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Reporting\Domain\Models;
 
 use App\Modules\BranchScheduling\Domain\Models\Branch;
-use App\Models\Ingredient;
+use App\Modules\InventoryProcurement\Domain\Models\Ingredient;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 

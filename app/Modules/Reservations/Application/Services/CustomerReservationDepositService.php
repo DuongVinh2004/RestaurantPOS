@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace App\Modules\Reservations\Application\Services;
 
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Services\CustomerReservationSessionAccessService;
-use App\Modules\CheckoutPayments\Application\Services\StaffReservationDepositService;
+use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
+use App\Modules\Payments\Application\UseCases\Capture\StaffReservationDepositService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class CustomerReservationDepositService
 {
     public function __construct(
         private readonly StaffReservationDepositService $staffReservationDepositService,
-        private readonly CustomerReservationSessionAccessService $customerSessionAccessService,
+        private readonly ReservationSessionAccessWorkflow $customerSessionAccessService,
     ) {}
 
     /**

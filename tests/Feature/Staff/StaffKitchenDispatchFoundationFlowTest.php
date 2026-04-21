@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Modules\KitchenDispatch\Application\Services\KitchenRoutingService;
-use App\Modules\KitchenDispatch\Application\Services\KitchenTicketReconciliationService;
+use App\Modules\KitchenDispatch\Application\Workflows\KitchenRoutingService;
+use App\Modules\KitchenDispatch\Application\Workflows\KitchenTicketReconciliationService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -597,7 +597,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             ->assertJsonValidationErrors(['feature_flag']);
     }
 
-    public function test_branch_flag_blocks_ticket_fire_for_existing_ticket(): void
+    public function test_branch_flag_blocks_new_dispatch_but_existing_tickets_can_finish_service(): void
     {
         $branchId = $this->createBranch([
             'branch_code' => 'KITCHFIREOFF',
@@ -669,11 +669,42 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
         $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-fire-flag-disabled'))
             ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire')
+            ->assertOk()
+            ->assertJsonPath('data.ticket_status', 'Fired');
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-bump-flag-disabled'))
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/bump')
+            ->assertOk()
+            ->assertJsonPath('data.ticket_status', 'Ready');
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-recall-flag-disabled'))
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/recall')
+            ->assertOk()
+            ->assertJsonPath('data.ticket_status', 'Fired');
+
+        $blockedOrderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'status' => 'Active',
+            'row_version' => 1,
+        ]);
+        $this->createOrderItem([
+            'order_id' => $blockedOrderId,
+            'item_id' => $itemId,
+            'quantity' => 1,
+            'status' => 'Ordered',
+            'row_version' => 1,
+        ]);
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-dispatch-flag-disabled-new-order'))
+            ->postJson('/api/v1/staff/orders/'.$blockedOrderId.'/kitchen/dispatch', [
+                'row_version' => 1,
+            ])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['feature_flag']);
 
-        self::assertSame('Queued', (string) $this->table('kitchen_order_item_tickets')->where('ticket_id', $ticketId)->value('ticket_status'));
-        self::assertSame('Ordered', (string) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('status'));
+        self::assertSame('Fired', (string) $this->table('kitchen_order_item_tickets')->where('ticket_id', $ticketId)->value('ticket_status'));
+        self::assertSame('InProgress', (string) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('status'));
+        self::assertSame(0, (int) $this->table('kitchen_order_item_tickets')->where('order_id', $blockedOrderId)->count());
     }
 
     public function test_redispatch_preserves_ready_ticket_state_and_fire_requires_a_queued_ticket(): void
@@ -1179,3 +1210,4 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
         return DB::table($table);
     }
 }
+

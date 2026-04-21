@@ -3,7 +3,7 @@
 use App\Http\Middleware\MetricsRequestMiddleware;
 use App\Http\Middleware\ResolveCustomerAuthMiddleware;
 use App\Http\Middleware\StaffApiKeyMiddleware;
-use App\Modules\CheckoutPayments\Http\Controllers\PaymentProviderWebhookController;
+use App\Modules\Payments\Http\Controllers\Webhook\PaymentProviderWebhookController;
 use App\Platform\Health\Http\HealthController;
 use App\Platform\Metrics\Http\MetricsController;
 use Illuminate\Support\Facades\Route;

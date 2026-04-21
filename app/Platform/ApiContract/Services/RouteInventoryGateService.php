@@ -267,8 +267,18 @@ class RouteInventoryGateService
                 }
 
                 return collect(File::allFiles($path))
-                    ->filter(function ($file) use ($prefixes, $exactNames): bool {
-                        $basename = $file->getFilenameWithoutExtension();
+                    ->map(static function ($file) use ($path, $namespace): array {
+                        $relativePath = trim(str_replace([$path, DIRECTORY_SEPARATOR], ['', '\\'], $file->getPathname()), '\\');
+
+                        return [
+                            'basename' => $file->getFilenameWithoutExtension(),
+                            'relative_path' => $relativePath,
+                            'fqcn' => $namespace.'\\'.preg_replace('/\\.php$/', '', $relativePath),
+                        ];
+                    })
+                    ->filter(function (array $candidate) use ($prefixes, $exactNames): bool {
+                        $basename = (string) ($candidate['basename'] ?? '');
+                        $relativePath = (string) ($candidate['relative_path'] ?? '');
 
                         if (in_array($basename, $exactNames, true)) {
                             return true;
@@ -280,13 +290,9 @@ class RouteInventoryGateService
                             }
                         }
 
-                        return false;
+                        return str_starts_with($relativePath, 'Customer\\');
                     })
-                    ->map(static function ($file) use ($path, $namespace): string {
-                        $relativePath = trim(str_replace([$path, DIRECTORY_SEPARATOR], ['', '\\'], $file->getPathname()), '\\');
-
-                        return $namespace.'\\'.preg_replace('/\\.php$/', '', $relativePath);
-                    })
+                    ->pluck('fqcn')
                     ->all();
             })
             ->reject(static fn (string $fqcn): bool => in_array($fqcn, $exclusions, true))

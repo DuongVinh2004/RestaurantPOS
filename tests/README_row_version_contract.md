@@ -27,7 +27,7 @@ Current inventory locked by test:
 
 ## Role of `HasRowVersion`
 
-`app/Models/Concerns/HasRowVersion.php` remains in place as an application-side compatibility helper for Eloquent model saves and test harnesses, but it is **not** the release artifact source-of-truth for persisted row-version advancement.
+`app/Support/Persistence/HasRowVersion.php` remains in place as an application-side compatibility helper for Eloquent model saves and test harnesses, but it is **not** the release artifact source-of-truth for persisted row-version advancement.
 
 Implications:
 

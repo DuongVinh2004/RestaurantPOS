@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\PaymentIntegration;
 
-use App\Modules\CheckoutPayments\Domain\Policies\PaymentSessionStatusTransitionPolicy;
+use App\Modules\Payments\Domain\Policies\PaymentSessionStatusTransitionPolicy;
 use Tests\TestCase;
 
 final class PaymentSessionStatusTransitionPolicyTest extends TestCase

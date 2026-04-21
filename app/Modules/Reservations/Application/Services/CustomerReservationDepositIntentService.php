@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\Reservations\Application\Services;
 
-use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Services\CustomerReservationSessionAccessService;
+use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
 use App\Modules\Reservations\Application\Services\ReservationDepositSelfServiceStateService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
-use App\Modules\CheckoutPayments\Application\Services\StaffReservationDepositService;
+use App\Modules\Payments\Application\UseCases\Capture\StaffReservationDepositService;
 use App\Support\AuditEvent;
-use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +23,7 @@ class CustomerReservationDepositIntentService
         private readonly ReservationLockService $locks,
         private readonly StaffReservationDepositService $staffReservationDepositService,
         private readonly ReservationDepositSelfServiceStateService $stateService,
-        private readonly CustomerReservationSessionAccessService $customerSessionAccessService,
+        private readonly ReservationSessionAccessWorkflow $customerSessionAccessService,
     ) {}
 
     /**

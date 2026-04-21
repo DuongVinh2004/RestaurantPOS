@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Reservation;
 
-use App\Models\MenuItem;
-use App\Models\User;
+use App\Modules\Catalog\Domain\Models\MenuItem;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;

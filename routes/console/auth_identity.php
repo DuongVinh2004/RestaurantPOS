@@ -1,10 +1,10 @@
 <?php
 
-use App\Models\CustomerAccessSession;
-use App\Models\StaffApiKey;
-use App\Models\User;
-use App\Services\CustomerAccessSessionService;
-use App\Services\StaffApiKeyGovernanceService;
+use App\Modules\IdentityAccess\Domain\Models\CustomerAccessSession;
+use App\Modules\IdentityAccess\Domain\Models\StaffApiKey;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\IdentityAccess\Infrastructure\Persistence\CustomerAccessSessionStore;
+use App\Modules\IdentityAccess\Infrastructure\Persistence\StaffApiKeyStore;
 use Illuminate\Console\Command as ConsoleCommand;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
@@ -129,7 +129,7 @@ Artisan::command('customer-auth:access-sessions:issue
     ], static fn ($value): bool => $value !== null && trim((string) $value) !== '');
 
     try {
-        $issued = app(CustomerAccessSessionService::class)->issueForUser($user, $expiresAt, $context);
+        $issued = app(CustomerAccessSessionStore::class)->issueForUser($user, $expiresAt, $context);
     } catch (ValidationException $exception) {
         $payload = $consoleValidationPayload($exception);
         if ($command->option('json')) {
@@ -194,7 +194,7 @@ Artisan::command('customer-auth:access-sessions:list
 
     $rows = array_map(
         fn (CustomerAccessSession $session): array => $customerAccessSessionConsolePayload($session, (bool) $command->option('verbose-sensitive')),
-        app(CustomerAccessSessionService::class)->listSessions($userId, (bool) $command->option('include-revoked'))
+        app(CustomerAccessSessionStore::class)->listSessions($userId, (bool) $command->option('include-revoked'))
     );
 
     if ($command->option('json')) {
@@ -243,7 +243,7 @@ Artisan::command('customer-auth:access-sessions:show
     $command = $this;
 
     try {
-        $session = app(CustomerAccessSessionService::class)->showSession((int) $command->argument('access_session_id'));
+        $session = app(CustomerAccessSessionStore::class)->showSession((int) $command->argument('access_session_id'));
     } catch (ModelNotFoundException) {
         $payload = ['error' => 'not_found', 'message' => 'Customer access session not found.'];
         if ($command->option('json')) {
@@ -281,7 +281,7 @@ Artisan::command('customer-auth:access-sessions:revoke
     $command = $this;
 
     try {
-        $record = app(CustomerAccessSessionService::class)->revokeSession((int) $command->argument('access_session_id'));
+        $record = app(CustomerAccessSessionStore::class)->revokeSession((int) $command->argument('access_session_id'));
     } catch (ModelNotFoundException) {
         $record = null;
     }
@@ -328,7 +328,7 @@ Artisan::command('staff-auth:api-keys:issue
         : now('UTC')->addDays($ttlDays);
 
     try {
-        $issued = app(StaffApiKeyGovernanceService::class)->issueKey(
+        $issued = app(StaffApiKeyStore::class)->issueKey(
             userId: (int) $command->argument('user_id'),
             label: (string) $command->argument('label'),
             expiresAt: $expiresAt,
@@ -395,7 +395,7 @@ Artisan::command('staff-auth:api-keys:list
 
     $rows = array_map(
         $staffApiKeyConsolePayload,
-        app(StaffApiKeyGovernanceService::class)->listKeys($userId, (bool) $command->option('include-revoked'))
+        app(StaffApiKeyStore::class)->listKeys($userId, (bool) $command->option('include-revoked'))
     );
 
     if ($command->option('json')) {
@@ -444,7 +444,7 @@ Artisan::command('staff-auth:api-keys:revoke
     $command = $this;
 
     try {
-        $record = app(StaffApiKeyGovernanceService::class)->revokeKey(
+        $record = app(StaffApiKeyStore::class)->revokeKey(
             (int) $command->argument('staff_api_key_id'),
             $command->option('reason') ? (string) $command->option('reason') : null,
         );
@@ -507,7 +507,7 @@ Artisan::command('staff-auth:api-keys:rotate
     }
 
     try {
-        $rotated = app(StaffApiKeyGovernanceService::class)->rotateKey(
+        $rotated = app(StaffApiKeyStore::class)->rotateKey(
             staffApiKeyId: (int) $command->argument('staff_api_key_id'),
             replacementLabel: $command->option('label') ? (string) $command->option('label') : null,
             expiresAt: $expiresAt,

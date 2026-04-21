@@ -284,6 +284,73 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
         );
     }
 
+    public function test_branch_filtered_stock_views_and_implicit_branch_movements_use_isolated_stock_on_hand(): void
+    {
+        [, $headers] = $this->adminHeaders('admin-inventory-branch-scope-key');
+        $defaultBranchId = (int) (DB::table('branches')->where('is_default', 1)->value('branch_id') ?? 1);
+        $branchId = $this->createBranch([
+            'branch_code' => 'INV-BRANCH-B',
+            'branch_name' => 'Inventory Branch B',
+        ]);
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-BRANCH-STOCK',
+            'name' => 'Branch Scoped Flour',
+            'unit_code' => 'kg',
+        ]);
+
+        $this->withHeaders($headers)
+            ->postJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements', [
+                'movement_type' => 'StockIn',
+                'quantity' => '5.000',
+                'unit_code' => 'kg',
+                'reference_type' => 'manual_count',
+                'reference_id' => 'default-branch-seed',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.branch_id', $defaultBranchId)
+            ->assertJsonPath('meta.stock_on_hand', '5.000');
+
+        $this->withHeaders($headers)
+            ->postJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements', [
+                'movement_type' => 'StockIn',
+                'branch_id' => $branchId,
+                'quantity' => '11.000',
+                'unit_code' => 'kg',
+                'reference_type' => 'manual_count',
+                'reference_id' => 'branch-b-seed',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.branch_id', $branchId)
+            ->assertJsonPath('meta.stock_on_hand', '11.000');
+
+        $this->withHeaders($headers)
+            ->postJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements', [
+                'movement_type' => 'StockIn',
+                'quantity' => '2.000',
+                'unit_code' => 'kg',
+                'reference_type' => 'manual_count',
+                'reference_id' => 'default-branch-topup',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.branch_id', $defaultBranchId)
+            ->assertJsonPath('meta.stock_on_hand', '7.000');
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements?branch_id='.$defaultBranchId)
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('meta.ingredient.stock_on_hand', '7.000')
+            ->assertJsonPath('data.0.branch_id', $defaultBranchId)
+            ->assertJsonPath('data.1.branch_id', $defaultBranchId);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements?branch_id='.$branchId)
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('meta.ingredient.stock_on_hand', '11.000')
+            ->assertJsonPath('data.0.branch_id', $branchId);
+    }
+
     public function test_missing_inventory_resources_return_standardized_not_found_envelope(): void
     {
         [, $headers] = $this->adminHeaders('admin-inventory-missing-resource-key');

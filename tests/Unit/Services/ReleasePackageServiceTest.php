@@ -61,6 +61,7 @@ class ReleasePackageServiceTest extends TestCase
         $this->assertFileExists(base_path($report['sidecars']['package_sha256_path']));
         $this->assertSame('ok', $report['release_manifest']['frozen_snapshot']['status']);
         $this->assertGreaterThan(0, (int) ($report['inventory']['file_count'] ?? 0));
+        $this->assertDirectoryDoesNotExist(base_path($report['stage_path']));
     }
 
     public function test_package_fails_when_frozen_manifest_is_stale_even_without_explicit_verify_flag(): void
@@ -362,5 +363,69 @@ class ReleasePackageServiceTest extends TestCase
         $this->assertContains($this->root.'/staff-web/src/main.tsx', $paths);
         $this->assertNotContains($this->root.'/staff-web/node_modules/example/index.js', $paths);
         $this->assertNotContains($this->root.'/staff-web/dist/assets/app.js', $paths);
+    }
+
+    public function test_package_prunes_older_package_sets_to_the_retention_limit(): void
+    {
+        $schemaPath = base_path($this->root.'/schema.sql');
+        $packageFile = base_path($this->root.'/src/release.txt');
+        File::ensureDirectoryExists(dirname($schemaPath));
+        File::ensureDirectoryExists(dirname($packageFile));
+        File::put($schemaPath, "alpha\nbeta\n");
+        File::put($packageFile, "release-payload\n");
+
+        config()->set('booking_release.artifacts', [
+            'schema_dump' => [
+                'path' => $this->root.'/schema.sql',
+                'optional' => false,
+                'required_fragments' => ['alpha', 'beta'],
+            ],
+        ]);
+        config()->set('booking_release.required_sql_patches', []);
+        config()->set('booking_release.release_manifest.definition_path', 'config/booking_release.php');
+        config()->set('booking_release.release_manifest.snapshot_path', $this->root.'/release_manifest_snapshot.json');
+        config()->set('booking_release.packaging.output_root', $this->root.'/build');
+        config()->set('booking_release.packaging.package_prefix', 'booking-test-release');
+        config()->set('booking_release.packaging.retained_package_sets', 2);
+        config()->set('booking_release.packaging.include_paths', [
+            ['path' => $this->root.'/src/release.txt', 'required' => true],
+        ]);
+        config()->set('booking_release.packaging.sidecars.latest_pointer_path', $this->root.'/build/latest-package.json');
+
+        $manifestService = app(ReleaseArtifactManifestService::class);
+        $snapshot = $manifestService->snapshot();
+        $manifestService->writeSnapshot($snapshot);
+
+        $first = app(ReleasePackageService::class)->package('retention-001', verifyFrozen: true, overwrite: true);
+        $second = app(ReleasePackageService::class)->package('retention-002', verifyFrozen: true, overwrite: true);
+        $third = app(ReleasePackageService::class)->package('retention-003', verifyFrozen: true, overwrite: true);
+
+        $this->assertTrue($first['ok']);
+        $this->assertTrue($second['ok']);
+        $this->assertTrue($third['ok']);
+        $this->assertFileDoesNotExist(base_path($first['package_path']));
+        $this->assertFileDoesNotExist(base_path((string) ($first['sidecars']['metadata_path'] ?? '')));
+        $this->assertFileExists(base_path($second['package_path']));
+        $this->assertFileExists(base_path($third['package_path']));
+
+        $latestPointer = json_decode(
+            (string) File::get(base_path($this->root.'/build/latest-package.json')),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+
+        $this->assertSame('retention-003', $latestPointer['package_id'] ?? null);
+
+        $retainedPackageFiles = collect(File::files(base_path($this->root.'/build')))
+            ->map(static fn (\SplFileInfo $file): string => $file->getFilename())
+            ->filter(static fn (string $filename): bool => str_starts_with($filename, 'booking-test-release-retention-'))
+            ->values()
+            ->all();
+
+        $this->assertCount(10, $retainedPackageFiles);
+        $this->assertContains('booking-test-release-retention-002.tar.gz', $retainedPackageFiles);
+        $this->assertContains('booking-test-release-retention-003.tar.gz', $retainedPackageFiles);
+        $this->assertNotContains('booking-test-release-retention-001.tar.gz', $retainedPackageFiles);
     }
 }

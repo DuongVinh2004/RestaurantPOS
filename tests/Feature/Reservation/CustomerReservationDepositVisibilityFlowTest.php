@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Reservation;
 
-use App\Modules\CheckoutPayments\Domain\Models\Payment;
+use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Models\User;
-use App\Modules\CheckoutPayments\Application\Services\ReservationFinancialSyncService;
-use App\Modules\CheckoutPayments\Domain\ValueObjects\PaymentSummary;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\BuildsBookingScenario;

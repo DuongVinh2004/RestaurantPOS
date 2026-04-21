@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Domain\Policies;
 
 use App\Enums\PaymentStatus;
-use App\Modules\CheckoutPayments\Domain\Policies\PaymentStatusTransitionPolicy;
+use App\Modules\Payments\Domain\Policies\PaymentStatusTransitionPolicy;
 use Tests\TestCase;
 
 final class PaymentStatusTransitionPolicyTest extends TestCase

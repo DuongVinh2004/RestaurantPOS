@@ -119,8 +119,8 @@ PHP
     {
         $controllers = app(RouteInventoryGateService::class)->discoverPublicControllers();
 
-        $this->assertContains('App\\Http\\Controllers\\Api\\CustomerMenuCatalogController', $controllers);
-        $this->assertContains('App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationSelfServiceController', $controllers);
-        $this->assertContains('App\\Modules\\CheckoutPayments\\Http\\Controllers\\PaymentProviderWebhookController', $controllers);
+        $this->assertContains('App\\Modules\\Catalog\\Http\\Controllers\\Customer\\MenuCatalogController', $controllers);
+        $this->assertContains('App\\Modules\\Reservations\\Http\\Controllers\\Customer\\ReservationSelfServiceController', $controllers);
+        $this->assertContains('App\\Modules\\Payments\\Http\\Controllers\\Webhook\\PaymentProviderWebhookController', $controllers);
     }
 }

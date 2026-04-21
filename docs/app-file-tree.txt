@@ -1,1001 +1,1359 @@
-﻿Folder PATH listing for volume Windows 10
-Volume serial number is 8B5D-A210
-C:\USERS\DUONG VINH\RESTAURANTPOS-LARAVEL\APP
-+---Casts
-|       LenientDepositStatusCast.php
-|       ReservationOrderTypeCast.php
-|       
-+---Enums
-|       ConversationChannel.php
-|       ConversationStatus.php
-|       DepositStatus.php
-|       KitchenStationOutputMode.php
-|       KitchenTicketStatus.php
-|       MessageSender.php
-|       MessageType.php
-|       PaymentProviderWebhookReceiptStatus.php
-|       PaymentSessionScope.php
-|       PaymentStatus.php
-|       PurchaseOrderStatus.php
-|       PurchaseReceiptStatus.php
-|       ReservationBillPaymentSessionStatus.php
-|       ReservationBillPaymentSettlementStatus.php
-|       ReservationDepositIntentStatus.php
-|       ReservationDepositPaymentSessionStatus.php
-|       ReservationDepositPaymentSettlementStatus.php
-|       ReservationOrderItemStatus.php
-|       ReservationOrderStatus.php
-|       ReservationOrderType.php
-|       ReservationStatus.php
-|       RestaurantTableStatus.php
-|       StaffConversationWorkflowState.php
-|       TableHoldStatus.php
-|       VoucherDiscountType.php
-|       WaitingListCustomerResponseStatus.php
-|       WaitingListStatus.php
-|       
-+---Http
-|   +---Controllers
-|   |   |   Controller.php
-|   |   |   
-|   |   +---Api
-|   |   |   |   CustomerMenuCatalogController.php
-|   |   |   |   
-|   |   |   +---Admin
-|   |   |   |       AdminBranchController.php
-|   |   |   |       AdminFinanceSettingsController.php
-|   |   |   |       AdminInventoryController.php
-|   |   |   |       AdminMenuCategoryController.php
-|   |   |   |       AdminMenuController.php
-|   |   |   |       AdminMenuItemController.php
-|   |   |   |       AdminMenuItemPriceController.php
-|   |   |   |       AdminPurchasingController.php
-|   |   |   |       AdminRestaurantTableController.php
-|   |   |   |       AdminRestaurantZoneController.php
-|   |   |   |       
-|   |   |   +---Auth
-|   |   |   |       CustomerAuthController.php
-|   |   |   |       StaffAuthController.php
-|   |   |   |       
-|   |   |   +---Concerns
-|   |   |   |       RespondsWithCustomerReservationNotFound.php
-|   |   |   |       
-|   |   |   \---Staff
-|   |   |           StaffMenuCatalogController.php
-|   |   |           StaffReservationRescheduleController.php
-|   |   |           StaffReservationTimelineController.php
-|   |   |           StaffReservationTimelineWorkbenchController.php
-|   |   |           
-|   |   \---Concerns
-|   |           AppliesDeprecatedRouteHeaders.php
-|   |           AuthorizesResolvedStaffCapability.php
-|   |           ResolvesStaffActor.php
-|   |           
-|   +---Middleware
-|   |       AuditRequestMiddleware.php
-|   |       CustomerOrStaffMiddleware.php
-|   |       IdempotencyMiddleware.php
-|   |       MetricsRequestMiddleware.php
-|   |       NormalizeApiJsonResponseEncodingMiddleware.php
-|   |       RedisThrottleMiddleware.php
-|   |       RequestCorrelationIdMiddleware.php
-|   |       RequireRedisCacheMiddleware.php
-|   |       RequireStaffCapability.php
-|   |       ResolveCustomerAuthMiddleware.php
-|   |       StaffApiKeyMiddleware.php
-|   |       TableHoldRateLimitMiddleware.php
-|   |       
-|   +---Requests
-|   |   +---Admin
-|   |   |   |   CreateAdminBranchRequest.php
-|   |   |   |   CreateAdminIngredientRequest.php
-|   |   |   |   CreateAdminIngredientStockMovementRequest.php
-|   |   |   |   CreateAdminMenuCategoryRequest.php
-|   |   |   |   CreateAdminMenuItemPriceRequest.php
-|   |   |   |   CreateAdminMenuItemRequest.php
-|   |   |   |   CreateAdminPurchaseOrderReceiptRequest.php
-|   |   |   |   CreateAdminPurchaseOrderRequest.php
-|   |   |   |   CreateAdminSupplierRequest.php
-|   |   |   |   ListAdminBranchesRequest.php
-|   |   |   |   ListAdminIngredientsRequest.php
-|   |   |   |   ListAdminIngredientStockMovementsRequest.php
-|   |   |   |   ListAdminMenuCategoriesRequest.php
-|   |   |   |   ListAdminMenuItemPricesRequest.php
-|   |   |   |   ListAdminMenuItemsRequest.php
-|   |   |   |   ListAdminPurchaseOrdersRequest.php
-|   |   |   |   ListAdminSuppliersRequest.php
-|   |   |   |   StoreMenuCategoryRequest.php
-|   |   |   |   StoreMenuItemPriceRequest.php
-|   |   |   |   StoreMenuItemRequest.php
-|   |   |   |   UpdateAdminBranchRequest.php
-|   |   |   |   UpdateAdminIngredientRequest.php
-|   |   |   |   UpdateAdminMenuCategoryRequest.php
-|   |   |   |   UpdateAdminMenuItemRequest.php
-|   |   |   |   UpdateAdminPurchaseOrderRequest.php
-|   |   |   |   UpdateAdminSupplierRequest.php
-|   |   |   |   UpdateMenuCategoryRequest.php
-|   |   |   |   UpdateMenuItemPriceRequest.php
-|   |   |   |   UpdateMenuItemRequest.php
-|   |   |   |   UpsertAdminFinanceTaxProfileRequest.php
-|   |   |   |   UpsertAdminMenuItemRecipeRequest.php
-|   |   |   |   
-|   |   |   \---Restaurant
-|   |   |           DeleteAdminRestaurantTableRequest.php
-|   |   |           ListAdminRestaurantTablesRequest.php
-|   |   |           ListAdminRestaurantZonesRequest.php
-|   |   |           RenameAdminRestaurantZoneRequest.php
-|   |   |           StoreAdminRestaurantTableRequest.php
-|   |   |           UpdateAdminRestaurantTableRequest.php
-|   |   |           
-|   |   +---Auth
-|   |   |       LoginCustomerAuthRequest.php
-|   |   |       LoginStaffAuthRequest.php
-|   |   |       
-|   |   +---Concerns
-|   |   |       InteractsWithListingQuery.php
-|   |   |       
-|   |   +---Menu
-|   |   |       ListMenuCategoriesRequest.php
-|   |   |       ListMenuItemsRequest.php
-|   |   |       PreviewMenuPreorderRequest.php
-|   |   |       ShowMenuItemRequest.php
-|   |   |       
-|   |   \---Staff
-|   |           RescheduleReservationRequest.php
-|   |           ReservationTimelineRequest.php
-|   |           
-|   \---Resources
-|       |   AdminIngredientResource.php
-|       |   AdminIngredientStockMovementResource.php
-|       |   AdminMenuCategoryResource.php
-|       |   AdminMenuItemPriceResource.php
-|       |   AdminMenuItemRecipeLineResource.php
-|       |   AdminMenuItemResource.php
-|       |   AdminPurchaseOrderLineResource.php
-|       |   AdminPurchaseOrderResource.php
-|       |   AdminPurchaseReceiptLineResource.php
-|       |   AdminPurchaseReceiptResource.php
-|       |   AdminSupplierResource.php
-|       |   BranchResource.php
-|       |   CustomerMenuCategoryResource.php
-|       |   CustomerMenuItemResource.php
-|       |   StaffReservationTimelineItemResource.php
-|       |   
-|       \---Admin
-|               AdminMenuCategoryResource.php
-|               AdminMenuItemPriceResource.php
-|               AdminMenuItemResource.php
-|               AdminRestaurantTableResource.php
-|               AdminRestaurantZoneResource.php
-|               AdminTableTemplateResource.php
-|               AdminZoneResource.php
-|               
-+---Models
-|   |   BankAccount.php
-|   |   CustomerAccessSession.php
-|   |   Ingredient.php
-|   |   IngredientStockMovement.php
-|   |   MenuCategory.php
-|   |   MenuItem.php
-|   |   MenuItemPrice.php
-|   |   MenuItemRecipe.php
-|   |   PurchaseOrder.php
-|   |   PurchaseOrderLine.php
-|   |   PurchaseReceipt.php
-|   |   PurchaseReceiptLine.php
-|   |   Role.php
-|   |   StaffApiKey.php
-|   |   Supplier.php
-|   |   User.php
-|   |   
-|   \---Concerns
-|           HasIsDeletedFlag.php
-|           HasRowVersion.php
-|           UsesUuidPrimaryKey.php
-|           
-+---Modules
-|   +---AdminMasterDataBulk
-|   |   +---Application
-|   |   |   \---Services
-|   |   |           AdminMasterDataBulkService.php
-|   |   |           MasterDataBulkRegistry.php
-|   |   |           
-|   |   +---Domain
-|   |   |   +---Contracts
-|   |   |   |       MasterDataBulkDomain.php
-|   |   |   |       
-|   |   |   \---Domains
-|   |   |           BranchesBulkDomain.php
-|   |   |           LoyaltyTiersBulkDomain.php
-|   |   |           MenuCategoriesBulkDomain.php
-|   |   |           MenuItemsBulkDomain.php
-|   |   |           MenuPricesBulkDomain.php
-|   |   |           RestaurantTablesBulkDomain.php
-|   |   |           VouchersBulkDomain.php
-|   |   |           
-|   |   +---Http
-|   |   |   +---Controllers
-|   |   |   |   \---Admin
-|   |   |   |           AdminMasterDataBulkController.php
-|   |   |   |           
-|   |   |   \---Requests
-|   |   |       \---Admin
-|   |   |               ExportAdminMasterDataRequest.php
-|   |   |               ImportAdminMasterDataRequest.php
-|   |   |               
-|   |   \---Infrastructure
-|   |       +---Parsers
-|   |       |       MasterDataImportSourceParser.php
-|   |       |       
-|   |       \---Support
-|   |               AbstractMasterDataBulkDomain.php
-|   |               
-|   +---BenefitsLoyalty
-|   |   +---Application
-|   |   |   \---Services
-|   |   |           AdminBenefitSettingService.php
-|   |   |           AdminBenefitsService.php
-|   |   |           AdminLoyaltyTierService.php
-|   |   |           AdminRuntimeSettingService.php
-|   |   |           AdminVoucherService.php
-|   |   |           CustomerBenefitsService.php
-|   |   |           CustomerReservationBenefitsSelfService.php
-|   |   |           LoyaltyAdjustmentService.php
-|   |   |           LoyaltyBalanceService.php
-|   |   |           LoyaltyCompletionSyncService.php
-|   |   |           LoyaltyLedgerWriter.php
-|   |   |           LoyaltyPointsService.php
-|   |   |           LoyaltyRedemptionService.php
-|   |   |           LoyaltyRefundSyncService.php
-|   |   |           LoyaltyTierSyncService.php
-|   |   |           ReservationVoucherPreviewService.php
-|   |   |           StaffReservationVoucherService.php
-|   |   |           
-|   |   +---Domain
-|   |   |   +---Guards
-|   |   |   |       VoucherUsageGuard.php
-|   |   |   |       
-|   |   |   +---Models
-|   |   |   |       LoyaltyPointTransaction.php
-|   |   |   |       LoyaltyTier.php
-|   |   |   |       UserPoint.php
-|   |   |   |       UserTierHistory.php
-|   |   |   |       UserVoucher.php
-|   |   |   |       Voucher.php
-|   |   |   |       
-|   |   |   +---Policies
-|   |   |   |       ReservationVoucherLifecycleSupport.php
-|   |   |   |       VoucherRedemptionSupport.php
-|   |   |   |       
-|   |   |   \---ValueObjects
-|   |   |           LoyaltyEarnReconciliation.php
-|   |   |           
-|   |   \---Http
-|   |       +---Controllers
-|   |       |   +---Admin
-|   |       |   |       AdminBenefitSettingController.php
-|   |       |   |       AdminLoyaltyTierController.php
-|   |       |   |       AdminVoucherController.php
-|   |       |   |       
-|   |       |   +---Customer
-|   |       |   |       CustomerBenefitsController.php
-|   |       |   |       CustomerReservationBenefitsActionController.php
-|   |       |   |       
-|   |       |   \---Staff
-|   |       |           StaffLoyaltyController.php
-|   |       |           StaffReservationVoucherController.php
-|   |       |           
-|   |       +---Requests
-|   |       |   +---Admin
-|   |       |   |   |   StoreAdminLoyaltyTierRequest.php
-|   |       |   |   |   StoreAdminVoucherRequest.php
-|   |       |   |   |   UpdateAdminLoyaltyTierRequest.php
-|   |       |   |   |   UpdateAdminVoucherRequest.php
-|   |       |   |   |   UpsertAdminBenefitSettingRequest.php
-|   |       |   |   |   
-|   |       |   |   \---Benefits
-|   |       |   |           CreateAdminLoyaltyTierRequest.php
-|   |       |   |           CreateAdminVoucherRequest.php
-|   |       |   |           ListAdminLoyaltyTiersRequest.php
-|   |       |   |           ListAdminVouchersRequest.php
-|   |       |   |           UpdateAdminLoyaltyTierRequest.php
-|   |       |   |           UpdateAdminVoucherRequest.php
-|   |       |   |           UpsertAdminBenefitRuntimeSettingRequest.php
-|   |       |   |           
-|   |       |   +---Customer
-|   |       |   |       ApplyCustomerReservationVoucherRequest.php
-|   |       |   |       ListCustomerVouchersRequest.php
-|   |       |   |       RedeemCustomerReservationPointsRequest.php
-|   |       |   |       ReleaseCustomerReservationPointsRequest.php
-|   |       |   |       RemoveCustomerReservationVoucherRequest.php
-|   |       |   |       ShowCustomerLoyaltySummaryRequest.php
-|   |       |   |       
-|   |       |   \---Staff
-|   |       |           AdjustUserLoyaltyPointsRequest.php
-|   |       |           ApplyReservationVoucherRequest.php
-|   |       |           RedeemReservationPointsRequest.php
-|   |       |           ReleaseReservationPointsRequest.php
-|   |       |           RemoveReservationVoucherRequest.php
-|   |       |           
-|   |       \---Resources
-|   |           |   CustomerLoyaltySummaryResource.php
-|   |           |   CustomerReservationBenefitsPreviewResource.php
-|   |           |   CustomerVoucherResource.php
-|   |           |   LoyaltyPointTransactionResource.php
-|   |           |   
-|   |           \---Admin
-|   |                   AdminLoyaltyTierResource.php
-|   |                   AdminRuntimeSettingResource.php
-|   |                   AdminVoucherResource.php
-|   |                   LoyaltyTierAdminResource.php
-|   |                   
-|   +---BranchScheduling
-|   |   +---Application
-|   |   |   \---Services
-|   |   |           BranchContextService.php
-|   |   |           BranchManagementService.php
-|   |   |           BranchSchedulingPolicyService.php
-|   |   |           ReservationBranchScopeService.php
-|   |   |           RestaurantTableStateService.php
-|   |   |           TableAvailabilityService.php
-|   |   |           TableHoldService.php
-|   |   |           TableTimeConflictService.php
-|   |   |           
-|   |   +---Domain
-|   |   |   +---Guards
-|   |   |   |       HoldConflictScope.php
-|   |   |   |       
-|   |   |   \---Models
-|   |   |           Branch.php
-|   |   |           RestaurantTable.php
-|   |   |           TableHold.php
-|   |   |           TableHoldDetail.php
-|   |   |           TableTemplate.php
-|   |   |           
-|   |   \---Http
-|   |       +---Controllers
-|   |       |       TableController.php
-|   |       |       TableHoldController.php
-|   |       |       
-|   |       +---Requests
-|   |       |       AvailableTablesRequest.php
-|   |       |       CancelTableHoldRequest.php
-|   |       |       RefreshTableHoldRequest.php
-|   |       |       StoreTableHoldRequest.php
-|   |       |       
-|   |       \---Resources
-|   |               RestaurantTableResource.php
-|   |               TableHoldResource.php
-|   |               
-|   +---CheckoutPayments
-|   |   +---Application
-|   |   |   \---Services
-|   |   |           BillLockService.php
-|   |   |           CheckoutResponseFactory.php
-|   |   |           CustomerReservationBillPaymentService.php
-|   |   |           CustomerReservationBillService.php
-|   |   |           CustomerReservationDepositPaymentService.php
-|   |   |           CustomerReservationOrderBillService.php
-|   |   |           FinanceReplayRecorder.php
-|   |   |           OrderSettlementService.php
-|   |   |           PaymentCaptureService.php
-|   |   |           RefundExecutionService.php
-|   |   |           RefundPlannerService.php
-|   |   |           ReservationBillPaymentService.php
-|   |   |           ReservationDepositPaymentService.php
-|   |   |           ReservationFinancialSyncService.php
-|   |   |           SettlementAmountCalculator.php
-|   |   |           SettlementFinalizerService.php
-|   |   |           StaffCashierShiftService.php
-|   |   |           StaffCheckoutService.php
-|   |   |           StaffFinancialReconciliationService.php
-|   |   |           StaffInvoiceService.php
-|   |   |           StaffReservationDepositOperationalReadService.php
-|   |   |           StaffReservationDepositService.php
-|   |   |           
-|   |   +---Domain
-|   |   |   +---Guards
-|   |   |   |       PaymentIntegrityGuard.php
-|   |   |   |       
-|   |   |   +---Models
-|   |   |   |       BillingInvoice.php
-|   |   |   |       CashierShift.php
-|   |   |   |       Payment.php
-|   |   |   |       PaymentProviderWebhookReceipt.php
-|   |   |   |       ReservationBillPaymentSession.php
-|   |   |   |       ReservationDepositPaymentSession.php
-|   |   |   |       
-|   |   |   +---Policies
-|   |   |   |       PaymentSessionStatusTransitionPolicy.php
-|   |   |   |       PaymentStatusTransitionPolicy.php
-|   |   |   |       RefundAllocationPolicy.php
-|   |   |   |       
-|   |   |   \---ValueObjects
-|   |   |           PaymentSummary.php
-|   |   |           
-|   |   +---Http
-|   |   |   +---Controllers
-|   |   |   |   |   PaymentProviderWebhookController.php
-|   |   |   |   |   
-|   |   |   |   +---Customer
-|   |   |   |   |       CustomerReservationBillPaymentController.php
-|   |   |   |   |       CustomerReservationDepositPaymentController.php
-|   |   |   |   |       CustomerReservationOrderBillController.php
-|   |   |   |   |       
-|   |   |   |   \---Staff
-|   |   |   |           StaffCashierShiftController.php
-|   |   |   |           StaffCheckoutController.php
-|   |   |   |           StaffFinanceInvoiceController.php
-|   |   |   |           StaffFinancialReconciliationController.php
-|   |   |   |           StaffReservationDepositController.php
-|   |   |   |           
-|   |   |   +---Requests
-|   |   |   |   +---Customer
-|   |   |   |   |       CreateCustomerReservationBillPaymentSessionRequest.php
-|   |   |   |   |       CreateCustomerReservationDepositPaymentSessionRequest.php
-|   |   |   |   |       MutateCustomerReservationBillPaymentSessionRequest.php
-|   |   |   |   |       MutateCustomerReservationDepositPaymentSessionRequest.php
-|   |   |   |   |       
-|   |   |   |   \---Staff
-|   |   |   |           CheckoutOrderRequest.php
-|   |   |   |           CloseCashierShiftRequest.php
-|   |   |   |           CloseOrderRequest.php
-|   |   |   |           FinalizeSettlementRequest.php
-|   |   |   |           ListAccountingExportRequest.php
-|   |   |   |           ListFinancialReconciliationRequest.php
-|   |   |   |           ListStaffCashierShiftsRequest.php
-|   |   |   |           OpenCashierShiftRequest.php
-|   |   |   |           PayOrderRequest.php
-|   |   |   |           PayReservationDepositRequest.php
-|   |   |   |           RefundAndCancelReservationRequest.php
-|   |   |   |           RefundPreviewRequest.php
-|   |   |   |           RefundReservationRequest.php
-|   |   |   |           
-|   |   |   \---Resources
-|   |   |           CustomerReservationBillPaymentSessionResource.php
-|   |   |           CustomerReservationBillResource.php
-|   |   |           CustomerReservationDepositPaymentSessionResource.php
-|   |   |           
-|   |   +---Infrastructure
-|   |   |   +---CustomerBillPayment
-|   |   |   |       CustomerBillPaymentProvider.php
-|   |   |   |       CustomerBillPaymentProviderRegistry.php
-|   |   |   |       GenericHttpHmacCustomerBillPaymentProvider.php
-|   |   |   |       SimulatedCustomerBillPaymentProvider.php
-|   |   |   |       
-|   |   |   +---CustomerDepositPayment
-|   |   |   |       CustomerDepositPaymentProvider.php
-|   |   |   |       CustomerDepositPaymentProviderRegistry.php
-|   |   |   |       GenericHttpHmacCustomerDepositPaymentProvider.php
-|   |   |   |       SimulatedCustomerDepositPaymentProvider.php
-|   |   |   |       
-|   |   |   +---Drivers
-|   |   |   |       SimulatedCustomerPaymentSessionDriver.php
-|   |   |   |       
-|   |   |   \---PaymentProviders
-|   |   |           GenericHttpHmacPaymentProviderAdapter.php
-|   |   |           PaymentProviderAdapter.php
-|   |   |           PaymentProviderRegistry.php
-|   |   |           PaymentProviderRolloutConfig.php
-|   |   |           PaymentProviderSessionScopeGuard.php
-|   |   |           PaymentWebhookIngestionService.php
-|   |   |           ReservationBillPaymentSessionLifecycleService.php
-|   |   |           ReservationDepositPaymentSessionLifecycleService.php
-|   |   |           SimulatedPaymentProviderAdapter.php
-|   |   |           
-|   |   \---Support
-|   |           PaymentProviderPayloadSanitizer.php
-|   |           
-|   +---Conversations
-|   |   +---Application
-|   |   |   \---Services
-|   |   |           StaffConversationFileAccessService.php
-|   |   |           StaffConversationInboxService.php
-|   |   |           StaffConversationOutboundReplySupportService.php
-|   |   |           StaffConversationWorkflowService.php
-|   |   |           StaffReservationInboxService.php
-|   |   |           
-|   |   +---Domain
-|   |   |   \---Models
-|   |   |           AgentAssignment.php
-|   |   |           Conversation.php
-|   |   |           ConversationAggregate.php
-|   |   |           ConversationAnalysis.php
-|   |   |           ConversationEvent.php
-|   |   |           ConversationFile.php
-|   |   |           ConversationMessage.php
-|   |   |           MessageEntity.php
-|   |   |           
-|   |   \---Http
-|   |       +---Controllers
-|   |       |   \---Staff
-|   |       |           StaffConversationInboxController.php
-|   |       |           StaffReservationInboxController.php
-|   |       |           
-|   |       +---Requests
-|   |       |   \---Staff
-|   |       |           AddConversationInternalNoteRequest.php
-|   |       |           AssignConversationRequest.php
-|   |       |           LinkConversationRequest.php
-|   |       |           ListStaffConversationsRequest.php
-|   |       |           ListStaffReservationsRequest.php
-|   |       |           SendConversationOutboundReplyRequest.php
-|   |       |           ShowStaffConversationRequest.php
-|   |       |           TakeOverConversationRequest.php
-|   |       |           UnassignConversationRequest.php
-|   |       |           UpdateConversationWorkflowStateRequest.php
-|   |       |           
-|   |       \---Resources
-|   |               StaffConversationAiAssistResource.php
-|   |               StaffConversationAnalysisResource.php
-|   |               StaffConversationAssignmentResource.php
-|   |               StaffConversationDetailResource.php
-|   |               StaffConversationEventResource.php
-|   |               StaffConversationMessageResource.php
-|   |               StaffConversationSummaryResource.php
-|   |               StaffReservationInboxResource.php
-|   |               
-|   +---FloorOps
-|   |   +---Application
-|   |   |   \---Services
-|   |   |           StaffBranchContextService.php
-|   |   |           StaffCheckInReadinessService.php
-|   |   |           StaffCheckInService.php
-|   |   |           StaffMoveTableService.php
-|   |   |           StaffReservationBoardAssignmentService.php
-|   |   |           StaffServiceSessionService.php
-|   |   |           StaffTableBoardService.php
-|   |   |           StaffTableReleaseService.php
-|   |   |           
-|   |   +---Domain
-|   |   |   +---Audit
-|   |   |   |       TableStateAuditLogger.php
-|   |   |   |       
-|   |   |   \---Guards
-|   |   |           StaffReservationOperationGuard.php
-|   |   |           TableReleaseGuard.php
-|   |   |           
-|   |   \---Http
-|   |       +---Controllers
-|   |       |   \---Staff
-|   |       |           StaffBranchContextController.php
-|   |       |           StaffReservationBoardAssignmentController.php
-|   |       |           StaffReservationCheckInController.php
-|   |       |           StaffReservationMoveTableController.php
-|   |       |           StaffServiceSessionController.php
-|   |       |           StaffTableBoardController.php
-|   |       |           StaffTableReleaseController.php
-|   |       |           
-|   |       \---Requests
-|   |               AssignBestFitTableRequest.php
-|   |               AssignSuggestedTableRequest.php
-|   |               BranchScopeRequest.php
-|   |               CheckInReservationRequest.php
-|   |               CreateWalkInServiceSessionRequest.php
-|   |               MoveTableRequest.php
-|   |               ReleaseTableRequest.php
-|   |               TableBoardRequest.php
-|   |               
-|   +---KitchenDispatch
-|   |   +---Application
-|   |   |   \---Services
-|   |   |           KitchenRoutingService.php
-|   |   |           KitchenTicketConsistencyInspector.php
-|   |   |           KitchenTicketReconciliationService.php
-|   |   |           
-|   |   +---Domain
-|   |   |   +---Models
-|   |   |   |       KitchenOrderItemTicket.php
-|   |   |   |       KitchenStation.php
-|   |   |   |       KitchenStationCategoryRoute.php
-|   |   |   |       
-|   |   |   \---Policies
-|   |   |           KitchenTicketTransitionPolicy.php
-|   |   |           
-|   |   \---Http
-|   |       +---Controllers
-|   |       |   +---Admin
-|   |       |   |       AdminKitchenRoutingController.php
-|   |       |   |       
-|   |       |   \---Staff
-|   |       |           StaffKitchenController.php
-|   |       |           
-|   |       +---Requests
-|   |       |       CreateAdminKitchenStationRequest.php
-|   |       |       DispatchKitchenTicketsRequest.php
-|   |       |       ListKitchenStationTicketsRequest.php
-|   |       |       SyncAdminKitchenStationRoutesRequest.php
-|   |       |       UpdateAdminKitchenStationRequest.php
-|   |       |       
-|   |       \---Resources
-|   |               KitchenOrderItemTicketResource.php
-|   |               KitchenStationCategoryRouteResource.php
-|   |               KitchenStationResource.php
-|   |               
-|   +---Notifications
-|   |   +---Application
-|   |   |   \---Services
-|   |   |           NotificationOutboxHealthService.php
-|   |   |           NotificationOutboxService.php
-|   |   |           NotificationPreferenceService.php
-|   |   |           
-|   |   +---Domain
-|   |   |   \---Models
-|   |   |           NotificationDeliveryAttempt.php
-|   |   |           NotificationOutbox.php
-|   |   |           NotificationPreference.php
-|   |   |           
-|   |   \---Infrastructure
-|   |       |   NotificationChannelManager.php
-|   |       |   NotificationDeliveryException.php
-|   |       |   NotificationDeliveryResult.php
-|   |       |   
-|   |       +---Contracts
-|   |       |       NotificationChannelDriver.php
-|   |       |       
-|   |       \---Drivers
-|   |               EmailNotificationChannelDriver.php
-|   |               SmsStubNotificationChannelDriver.php
-|   |               ZaloStubNotificationChannelDriver.php
-|   |               
-|   +---Ordering
-|   |   +---Application
-|   |   |   \---Services
-|   |   |           StaffOrderItemLifecycleService.php
-|   |   |           StaffOrderReadService.php
-|   |   |           StaffTableOrderService.php
-|   |   |           
-|   |   +---Domain
-|   |   |   +---Models
-|   |   |   |       ReservationOrder.php
-|   |   |   |       ReservationOrderItem.php
-|   |   |   |       
-|   |   |   \---Policies
-|   |   |           ReservationOrderItemStatusTransitionPolicy.php
-|   |   |           
-|   |   \---Http
-|   |       +---Controllers
-|   |       |   \---Staff
-|   |       |           StaffOrderItemLifecycleController.php
-|   |       |           StaffOrderReadController.php
-|   |       |           StaffTableOrderController.php
-|   |       |           
-|   |       +---Requests
-|   |       |       AddOrderItemsRequest.php
-|   |       |       CreateTableOrderRequest.php
-|   |       |       UpdateOrderItemRequest.php
-|   |       |       UpdateOrderItemStatusRequest.php
-|   |       |       
-|   |       \---Resources
-|   |               CustomerReservationOrderReadResource.php
-|   |               ReservationOrderResource.php
-|   |               StaffOrderReadResource.php
-|   |               
-|   +---PrivacyAudit
-|   |   +---Application
-|   |   |   \---Services
-|   |   |           AuditTrailQueryService.php
-|   |   |           CustomerAnonymizationService.php
-|   |   |           CustomerDataExportService.php
-|   |   |           CustomerPrivacyRequestService.php
-|   |   |           DataRetentionService.php
-|   |   |           
-|   |   +---Domain
-|   |   |   \---Models
-|   |   |           AuditLog.php
-|   |   |           AuditLogSubject.php
-|   |   |           CustomerPrivacyRequest.php
-|   |   |           
-|   |   \---Http
-|   |       +---Controllers
-|   |       |   +---Admin
-|   |       |   |       AdminCustomerDataLifecycleController.php
-|   |       |   |       
-|   |       |   +---Customer
-|   |       |   |       CustomerDataLifecycleController.php
-|   |       |   |       
-|   |       |   \---Staff
-|   |       |           StaffAuditTrailController.php
-|   |       |           
-|   |       \---Requests
-|   |           +---Admin
-|   |           |       ListAdminCustomerPrivacyRequestsRequest.php
-|   |           |       ReviewCustomerPrivacyRequestRequest.php
-|   |           |       
-|   |           +---Customer
-|   |           |       CreateCustomerPrivacyRequestRequest.php
-|   |           |       ListCustomerPrivacyRequestsRequest.php
-|   |           |       
-|   |           \---Staff
-|   |                   ListAuditTrailRequest.php
-|   |                   
-|   +---Reporting
-|   |   +---Application
-|   |   |   \---Services
-|   |   |           ReportingSnapshotService.php
-|   |   |           StaffOperationalRealtimeService.php
-|   |   |           
-|   |   +---Domain
-|   |   |   \---Models
-|   |   |           ReportingDailyInventoryMovementSnapshot.php
-|   |   |           ReportingDailyOperationSnapshot.php
-|   |   |           ReportingDailySalesSnapshot.php
-|   |   |           
-|   |   \---Http
-|   |       +---Controllers
-|   |       |   +---Admin
-|   |       |   |       AdminReportingController.php
-|   |       |   |       
-|   |       |   \---Staff
-|   |       |           StaffOperationalRealtimeController.php
-|   |       |           StaffReportingController.php
-|   |       |           
-|   |       +---Requests
-|   |       |   +---Admin
-|   |       |   |       RebuildReportingSnapshotsRequest.php
-|   |       |   |       
-|   |       |   \---Staff
-|   |       |           ListDailyInventoryReportingRequest.php
-|   |       |           ListDailyOperationReportingRequest.php
-|   |       |           ListDailySalesReportingRequest.php
-|   |       |           ListOperationalRealtimeChangesRequest.php
-|   |       |           
-|   |       \---Resources
-|   |               ReportingDailyInventoryMovementSnapshotResource.php
-|   |               ReportingDailyOperationSnapshotResource.php
-|   |               ReportingDailySalesSnapshotResource.php
-|   |               
-|   +---Reservations
-|   |   +---Application
-|   |   |   \---Services
-|   |   |           CustomerReservationDepositIntentService.php
-|   |   |           CustomerReservationDepositService.php
-|   |   |           CustomerReservationPreorderService.php
-|   |   |           CustomerReservationSelfService.php
-|   |   |           ReservationCancellationService.php
-|   |   |           ReservationCodeGenerator.php
-|   |   |           ReservationConflictValidator.php
-|   |   |           ReservationCreateService.php
-|   |   |           ReservationDepositReadService.php
-|   |   |           ReservationDepositRealtimePublisher.php
-|   |   |           ReservationDepositSelfServiceStateService.php
-|   |   |           ReservationLockService.php
-|   |   |           ReservationPreorderService.php
-|   |   |           ReservationRescheduleService.php
-|   |   |           ReservationService.php
-|   |   |           ReservationStatusTransitionService.php
-|   |   |           ReservationTableAssignmentService.php
-|   |   |           
-|   |   +---Domain
-|   |   |   +---Models
-|   |   |   |       Reservation.php
-|   |   |   |       ReservationTable.php
-|   |   |   |       
-|   |   |   \---Policies
-|   |   |           ReservationAccessScope.php
-|   |   |           ReservationStatusTransitionPolicy.php
-|   |   |           ReservationViewProfile.php
-|   |   |           
-|   |   \---Http
-|   |       +---Controllers
-|   |       |       CustomerReservationDepositController.php
-|   |       |       CustomerReservationPreorderController.php
-|   |       |       CustomerReservationSelfServiceController.php
-|   |       |       ReservationController.php
-|   |       |       
-|   |       +---Requests
-|   |       |       AcknowledgeCustomerReservationDepositRequest.php
-|   |       |       CancelReservationRequest.php
-|   |       |       ClearCustomerReservationPreorderRequest.php
-|   |       |       CustomerRescheduleReservationRequest.php
-|   |       |       ListReservationsRequest.php
-|   |       |       MutateCustomerReservationDepositRequest.php
-|   |       |       PreviewCustomerReservationPreorderRequest.php
-|   |       |       ReplaceCustomerReservationPreorderRequest.php
-|   |       |       ReplaceReservationPreOrderRequest.php
-|   |       |       RevokeCustomerReservationDepositIntentRequest.php
-|   |       |       StoreReservationRequest.php
-|   |       |       SubmitCustomerReservationDepositIntentRequest.php
-|   |       |       UpdateReservationStatusRequest.php
-|   |       |       
-|   |       \---Resources
-|   |               CustomerReservationDepositPreviewResource.php
-|   |               ReservationResource.php
-|   |               
-|   \---WaitingList
-|       +---Application
-|       |   \---Services
-|       |           CustomerWaitingListService.php
-|       |           StaffWaitingListService.php
-|       |           WaitingListInviteLifecycleService.php
-|       |           WaitingListOperationalOrchestrationService.php
-|       |           
-|       +---Domain
-|       |   +---Models
-|       |   |       WaitingList.php
-|       |   |       
-|       |   \---State
-|       |           WaitingListStateMachine.php
-|       |           
-|       \---Http
-|           +---Controllers
-|           |   +---Customer
-|           |   |       CustomerWaitingListController.php
-|           |   |       
-|           |   \---Staff
-|           |           StaffWaitingListController.php
-|           |           
-|           +---Requests
-|           |   +---Customer
-|           |   |       ListOwnerWaitingListRequest.php
-|           |   |       RespondOwnerWaitingListRequest.php
-|           |   |       StoreOwnerWaitingListRequest.php
-|           |   |       
-|           |   \---Staff
-|           |           AdvanceWaitingListRequest.php
-|           |           CancelWaitingListRequest.php
-|           |           ListWaitingListRequest.php
-|           |           NotifyWaitingListRequest.php
-|           |           SeatWaitingListRequest.php
-|           |           StoreWaitingListRequest.php
-|           |           
-|           \---Resources
-|                   CustomerWaitingListResource.php
-|                   WaitingListResource.php
-|                   
-+---Platform
-|   +---ApiContract
-|   |   +---ApiArtifacts
-|   |   |       ApiConsumerArtifactService.php
-|   |   |       ApiEnumStateArtifactService.php
-|   |   |       
-|   |   \---Services
-|   |           ApiContractMetadataRegistry.php
-|   |           DatabaseContractInspector.php
-|   |           FormRequestSchemaFactory.php
-|   |           OpenApiSpecService.php
-|   |           OpsGateArtifactService.php
-|   |           RouteContractReconcilerService.php
-|   |           RouteInventoryGateService.php
-|   |           
-|   +---Backup
-|   |   +---DisasterRecovery
-|   |   |       DisasterRecoveryDatabaseProbe.php
-|   |   |       DisasterRecoveryDrillService.php
-|   |   |       DisasterRecoveryProcessRunner.php
-|   |   |       
-|   |   \---Support
-|   |           BackupArtifactManifest.php
-|   |           BackupRestoreManifest.php
-|   |           
-|   +---FeatureFlags
-|   |   +---Domain
-|   |   |   \---Models
-|   |   |           FeatureFlag.php
-|   |   |           
-|   |   \---Services
-|   |           FeatureFlagManagementService.php
-|   |           FeatureFlagService.php
-|   |           RuntimeSettingService.php
-|   |           
-|   +---Harness
-|   |       HarnessSuiteService.php
-|   |       
-|   +---Health
-|   |   +---Http
-|   |   |       HealthController.php
-|   |   |       
-|   |   +---Services
-|   |   |       BookingDoctorService.php
-|   |   |       BookingEnvironmentValidator.php
-|   |   |       BookingMaintenanceService.php
-|   |   |       OpsHeartbeatService.php
-|   |   |       
-|   |   \---Support
-|   |           OperationalHealthEvaluator.php
-|   |           
-|   +---Metrics
-|   |   +---Http
-|   |   |       MetricsController.php
-|   |   |       
-|   |   \---Services
-|   |           MetricsService.php
-|   |           OperationalAlertService.php
-|   |           OperationalInsightsService.php
-|   |           
-|   +---Performance
-|   |       PerformanceVerificationService.php
-|   |       
-|   +---Release
-|   |   \---Services
-|   |           BookingDeploySafetyService.php
-|   |           CoreOpsGateService.php
-|   |           LaunchReadinessManualEvidenceTemplateService.php
-|   |           LaunchReadinessService.php
-|   |           ReleaseArtifactManifestService.php
-|   |           ReleaseArtifactNormalizerService.php
-|   |           ReleaseBuildMetadataService.php
-|   |           ReleaseBuildService.php
-|   |           ReleaseLoopService.php
-|   |           ReleasePackageService.php
-|   |           RoundFiveGateService.php
-|   |           SiteBootstrapService.php
-|   |           
-|   +---Uat
-|   |       UatScenarioPackService.php
-|   |       
-|   \---Verification
-|           VerificationSelectorService.php
-|           
-+---Providers
-|       AppServiceProvider.php
-|       
-+---Services
-|   |   CustomerAccessSessionService.php
-|   |   CustomerReservationSessionAccessService.php
-|   |   MenuPreorderPolicyService.php
-|   |   StaffApiKeyGovernanceService.php
-|   |   
-|   +---Admin
-|   |   |   AdminInventoryService.php
-|   |   |   AdminMenuManagementService.php
-|   |   |   AdminMenuService.php
-|   |   |   AdminPurchasingService.php
-|   |   |   AdminRestaurantMasterDataService.php
-|   |   |   
-|   |   \---Restaurant
-|   |           AdminRestaurantTableService.php
-|   |           AdminRestaurantZoneService.php
-|   |           
-|   +---AI
-|   |       ConversationThreadAssistService.php
-|   |       
-|   +---Auth
-|   |       OpaqueProductAuthService.php
-|   |       
-|   +---Concerns
-|   |       BuildsPhpUnitTestingEnvironment.php
-|   |       
-|   +---Finance
-|   |       FinanceTaxProfileService.php
-|   |       
-|   +---Inventory
-|   |       InventoryStockMovementService.php
-|   |       OrderItemInventoryConsumptionService.php
-|   |       PurchaseOrderReconciliationService.php
-|   |       
-|   +---Menu
-|   |       CustomerMenuCatalogService.php
-|   |       
-|   \---Staff
-|           StaffReservationRescheduleService.php
-|           StaffReservationTimelineService.php
-|           StaffReservationTimelineWorkbenchService.php
-|           
-\---Support
-    |   ApiErrorCategory.php
-    |   ApiErrorResponse.php
-    |   ApiPayloadEncodingNormalizer.php
-    |   ApiValidationErrorClassifier.php
-    |   AuditEvent.php
-    |   AvailabilityCacheVersion.php
-    |   CustomerAuthTokenResolver.php
-    |   CustomerSessionRouteContract.php
-    |   DatabaseWriteConflictMapper.php
-    |   Money.php
-    |   PortableSqlSanitizer.php
-    |   RequestActorContext.php
-    |   StaffActorResolver.php
-    |   StaffCapabilityResolver.php
-    |   StaffMutationRowVersionContract.php
-    |   ValidationExceptionFactory.php
-    |   
-    +---AuditTrail
-    |       AuditTrailActorResolver.php
-    |       AuditTrailRecorder.php
-    |       LegacyAuditPayloadFactory.php
-    |       
-    \---Listing
-            ListingMetaFactory.php
-            SafeLike.php
-            
+TARGET APP FILE TREE V5 — RESTAURANTPOS-LARAVEL
+Final stricter 10/10 target architecture for app/
+
+GOAL
+- Final target structure for long-term development of RestaurantPOS-Laravel.
+- Optimize simultaneously for:
+  - domain modularity
+  - layer clarity
+  - consistency
+  - separation of concerns
+  - operational maturity
+  - maintainability
+  - onboarding clarity
+  - scalability of code organization
+  - professional naming / ownership
+  - anti-drift enforceability
+
+QUALITY IMPROVEMENTS IN V5
+- No empty placeholder folders are shown in the tree. Optional subfolders are only created on first real use.
+- No pseudo-lane folders such as Shared/Common are used inside module Http. Cross-lane HTTP artifacts live directly under Http/Resources or Http/Concerns.
+- Platform no longer uses generic Application/Services. It uses sharper capability folders such as Builders / Inspectors / Verifiers / Resolvers / Gates / Packagers / Reporters / Propagators / Coordinators.
+- Opaque operational names are removed. Prefer explicit names such as RuntimeHealthInspector or ReleasePromotionGate over vague / project-internal names.
+- Generic “manage everything” handlers/controllers are removed where a more precise intent can be named.
+- Generic catch-all read-model classes are removed. Reporting and local read-side artifacts must be concrete and ownership-specific.
+- Infrastructure naming is standardized around Persistence / ReadModels / Projections / Caching / Integrations / Queue / Streaming / Files / Internal.
+- Cross-module publishing is made explicit through IntegrationEvents where module boundaries matter.
+- SharedKernel remains only for stable business primitives. Technical helpers remain in Support. Platform remains operational only.
+- MasterDataExchange remains exchange-only and registry-driven; it never becomes an admin super-module or a hidden business runtime owner.
+
+ARCHITECTURE POSITIONING
+- Modular Monolith by domain ownership.
+- Clean-ish / DDD-lite at module level, still pragmatic for Laravel.
+- Business runtime lives only in app/Modules/*.
+- Framework edge concerns stay in top-level app/Http.
+- Cross-domain business primitives stay in app/SharedKernel.
+- Technical support stays in app/Support.
+- Operational / governance / delivery capability stays in app/Platform.
+- No return to top-level legacy business lanes.
+
+FINAL ARCHITECTURE VERDICT
+- This is NOT Layered Monolith.
+- This is NOT actor-driven foldering.
+- This is NOT “half module, half random service dump”.
+- This is a disciplined Modular Monolith with explicit platform isolation and explicit anti-drift rules.
+
+NON-NEGOTIABLE LAWS
+1. app/Modules/* is the only home of business runtime.
+2. app/Http only contains framework-level HTTP concerns:
+   - base controller
+   - global middleware
+   - exception rendering / translation
+   - edge-only HTTP helpers
+3. app/Support only contains technical/framework support with no business ownership.
+4. app/SharedKernel only contains stable cross-domain business primitives.
+5. app/Platform only contains operational, governance, delivery, quality, and runtime-control concerns.
+6. Actor lanes are allowed ONLY inside module Http:
+   - Guest
+   - Customer
+   - Staff
+   - Admin
+   - Webhook
+   - Internal
+7. Module names must be domain/capability names, never actor names.
+8. No top-level business folders such as:
+   - app/Models/*
+   - app/Services/*
+   - app/Http/Controllers/Api/*
+   - app/Http/Requests/*
+   - app/Http/Resources/*
+9. Cross-module interaction is allowed only via:
+   - Application/Queries
+   - Application/Commands or Application/UseCases
+   - Domain/Events or Domain/IntegrationEvents with explicit owner workflow/listener
+10. No module may directly import another module’s Http or Infrastructure implementation.
+11. SharedKernel is not a dumping ground. “Used in many places” is NOT enough to move something there.
+12. Support is not a dumping ground. “Convenient helper” is NOT enough to move something there.
+13. Platform must never own business flow runtime.
+14. Reporting must never become the owner of business mutation logic.
+15. MasterDataExchange must never become a generic “admin super-module”.
+16. When a module grows, split by sub-area inside the module first; only create a new module when the domain boundary is real and stable.
+17. Generic *Service.php naming is forbidden when a more specific name is possible:
+   - Handler
+   - Workflow
+   - Policy
+   - Guard
+   - Rule
+   - Specification
+   - Projector
+   - Mapper
+   - Factory
+   - Builder
+   - Inspector
+   - Verifier
+   - Resolver
+   - Packager
+   - Reporter
+   - Propagator
+18. Domain/Services is allowed only for pure domain logic:
+   - no HTTP
+   - no persistence orchestration
+   - no external integration
+   - no transaction script dumping
+19. Actor-named subfolders are forbidden outside module Http.
+20. Optional folders are created only on first real file, never as empty ceremony.
+21. Inside Http actor lanes, file basenames must stay actor-neutral:
+   - AuthController.php, not CustomerAuthController.php
+   - ReservationController.php, not StaffReservationController.php
+22. Module-private technical helpers belong to Infrastructure/Internal, not Infrastructure/Support.
+23. Bank / settlement / payout ownership belongs to finance modules unless the object is strictly credential / identity scoped.
+24. Read-side ownership must be explicit:
+   - Infrastructure/ReadModels for local query models
+   - Infrastructure/Projections for reporting or integration projections
+25. Common cross-lane HTTP artifacts live directly under module Http/Resources or module Http/Concerns, never under pseudo-lane folders such as Shared or Common.
+26. Platform/Application must not use generic Services folders.
+27. Generic umbrella controllers / handlers such as ManageXxx or ReportingController are forbidden when sharper use-case naming is possible.
+28. Generic catch-all read model classes such as XxxReadModel.php are forbidden in business modules and reporting modules.
+29. Infrastructure foldering should prefer the standard vocabulary:
+   - Persistence
+   - ReadModels
+   - Projections
+   - Caching
+   - Integrations
+   - Queue
+   - Streaming
+   - Files
+   - Internal
+30. Import / export modules may coordinate exchange only; they must not quietly become owners of domain runtime rules.
+
+NAMING LAWS
+1. Module names: PascalCase, domain/capability noun, no Admin/Customer/Staff prefix.
+2. Application folders: DTOs / Commands / Queries / UseCases / Workflows / Contracts. Only create each folder on first real use.
+3. Domain folders: Models / Enums / Policies / Rules / Events / IntegrationEvents / ValueObjects / Services / StateMachines / Specifications / Factories. Only create each folder on first real use.
+4. Http folders: Controllers / Requests / Resources / Concerns. Lane split must be actor-consistent. Once inside a lane folder, basenames must be actor-neutral.
+5. Infrastructure folders: Persistence / ReadModels / Projections / Caching / Integrations / Streaming / Queue / Files / Internal depending on module need.
+6. UseCases are intent-specific, not generic “manager” dumping classes.
+7. Workflows are orchestration-heavy, multi-step, or cross-policy flows.
+8. Request / Resource / Controller naming must follow the same lane strategy across all modules.
+9. Sub-area names inside a module must be domain-oriented, not random technical names.
+10. Read models belong either:
+    - to the producing module for local queries under Infrastructure/ReadModels
+    - or to Reporting under Infrastructure/Projections when they are explicitly reporting projections
+11. Empty optional folders are not scaffolded until first use.
+12. Actor qualifiers in file names are allowed in Application only when they clarify intent, not as foldering strategy.
+
+TOP-LEVEL RULES
+- app/Models: forbidden for business models.
+- app/Services: forbidden for business services.
+- app/Http/Controllers/Api: forbidden.
+- app/Http/Requests: forbidden for business requests.
+- app/Http/Resources: forbidden for business resources.
+- app/Enums: only truly global technical enums.
+- app/Casts: only truly global technical casts.
+- app/Jobs: if needed for business runtime, place under the owning module or Platform if purely operational.
+- app/Events / app/Listeners: if business-owned, place under the owning module; if platform-owned, place under Platform.
+- module-private technical helper folders: use Infrastructure/Internal, never Infrastructure/Support.
+
+MODULE BOUNDARY DECISIONS
+1. Billing is split from Payments and Cashiering.
+   - Billing owns bill composition, invoice generation rules, financial summaries.
+   - Payments owns payment sessions, provider interactions, captures, refunds, webhook receipts.
+   - Cashiering owns staff checkout, cashier shifts, settlement, reconciliation.
+2. Loyalty is split from Promotions.
+   - Loyalty owns points, tiers, earn/burn, ledger sync.
+   - Promotions owns vouchers, benefits, promotion policy evaluation.
+3. InventoryProcurement stays as one module but is split internally into:
+   - Inventory
+   - Procurement
+4. BranchScheduling stays as one module but is split internally into:
+   - Branches
+   - Tables
+   - Availability
+   - Holds
+5. Conversations remains a dedicated module, not hidden under Reservations or Notifications.
+6. Notifications remains channel/runtime delivery oriented, not a miscellaneous communication dump.
+7. Reporting remains read/projection/report oriented only.
+8. PrivacyCompliance remains compliance/audit/redaction oriented only.
+9. Actor segmentation is an HTTP concern only; it must not leak into Application folder topology.
+10. Local read models stay with the owning module; reporting-wide projections belong to Reporting.
+11. FloorOperations owns in-service floor runtime only; it must not absorb reservation ownership.
+12. MasterDataExchange owns import/export coordination and registry resolution only; it must not own branch/menu/loyalty business logic.
+
+OPTIONAL FOLDER PRINCIPLE
+- Folders such as DTOs / Commands / Queries / Contracts / Services / StateMachines / Specifications / IntegrationEvents / Projections / Internal are created only when the first real class justifies them.
+- The target tree below intentionally avoids empty symmetry folders.
+- Symmetry is not a design goal; clarity of ownership is.
+
+ANTI-DRIFT CHECKLIST
+1. If owner domain is unclear, the file must not be created yet.
+2. If the code changes business state, it must live under an owning module.
+3. If the code is only HTTP adapter logic, it belongs in module Http or top-level app/Http if globally shared.
+4. If the code is a stable business primitive used by multiple modules, consider SharedKernel.
+5. If the code is only technical support with no business meaning, consider Support.
+6. If the code is deployment / health / metrics / verification / release / runtime control, consider Platform.
+7. Never create new top-level business folders just because the module feels “far away”.
+8. Never place cross-module orchestration in Support.
+9. Never place business-specific runtime settings in Platform.
+10. Never place operational probes inside business modules unless the probe is module-owned and strictly local.
+11. Never create actor-named subfolders outside module Http.
+12. Never repeat actor qualifiers in Http file basenames when the folder already expresses the lane.
+13. Never introduce empty symmetry folders just because other modules have them.
+14. If a model smells financial, do not place it in IdentityAccess by convenience.
+15. If a module-private helper does not deserve a named technical subfolder, do not create Internal yet.
+16. Never reintroduce pseudo-lanes like Shared/Common inside module Http.
+17. Never create generic umbrella controllers / handlers when a use-case-specific name is available.
+18. Never create generic reporting / read-model base artifacts that hide ownership.
+
+app
+├── Http
+│   ├── Controllers
+│   │   └── Controller.php
+│   ├── Middleware
+│   │   ├── AuditRequestMiddleware.php
+│   │   ├── IdempotencyMiddleware.php
+│   │   ├── MetricsRequestMiddleware.php
+│   │   ├── NormalizeApiJsonResponseEncodingMiddleware.php
+│   │   ├── RedisThrottleMiddleware.php
+│   │   ├── RequestCorrelationIdMiddleware.php
+│   │   ├── RequireRedisCacheMiddleware.php
+│   │   └── TrustInternalRuntimeCallerMiddleware.php
+│   ├── Exceptions
+│   │   ├── ApiExceptionRenderer.php
+│   │   └── TranslatesDomainException.php
+│   └── Concerns
+│       ├── AppliesDeprecatedRouteHeaders.php
+│       └── MapsFrameworkValidationFailure.php
+│
+├── SharedKernel
+│   ├── Contracts
+│   │   ├── AggregateRoot.php
+│   │   ├── DomainEvent.php
+│   │   ├── DomainRule.php
+│   │   ├── IntegrationEvent.php
+│   │   └── VersionedAggregate.php
+│   ├── Money
+│   │   ├── Currency.php
+│   │   ├── Money.php
+│   │   ├── MoneyFormatter.php
+│   │   └── MoneyParser.php
+│   ├── Time
+│   │   ├── BusinessDate.php
+│   │   ├── Clock.php
+│   │   ├── TimeRange.php
+│   │   └── TimeWindow.php
+│   ├── Identity
+│   │   ├── ActorId.php
+│   │   ├── BranchId.php
+│   │   ├── CorrelationId.php
+│   │   ├── ReservationId.php
+│   │   └── UserId.php
+│   ├── Pagination
+│   │   ├── PageRequest.php
+│   │   └── PageResult.php
+│   ├── Concurrency
+│   │   ├── RowVersion.php
+│   │   └── WriteIntentId.php
+│   └── Idempotency
+│       ├── IdempotencyKey.php
+│       └── IdempotencyScope.php
+│
+├── Modules
+│   ├── IdentityAccess
+│   │   ├── Application                              # create DTOs/Commands/Queries/Contracts on first real use
+│   │   │   ├── UseCases
+│   │   │   │   ├── Authentication
+│   │   │   │   │   ├── LoginCustomerHandler.php
+│   │   │   │   │   ├── RefreshCustomerSessionHandler.php
+│   │   │   │   │   ├── LogoutCustomerHandler.php
+│   │   │   │   │   └── LoginStaffHandler.php
+│   │   │   │   ├── ApiKeys
+│   │   │   │   │   ├── IssueStaffApiKeyHandler.php
+│   │   │   │   │   └── RevokeStaffApiKeyHandler.php
+│   │   │   │   └── AccessGrants
+│   │   │   │       └── GrantReservationSessionAccessHandler.php
+│   │   │   └── Workflows
+│   │   │       └── ReservationSessionAccessWorkflow.php
+│   │   ├── Domain                                   # create Enums/Policies/Rules/Events/ValueObjects/Factories on first real use
+│   │   │   └── Models
+│   │   │       ├── User.php
+│   │   │       ├── Role.php
+│   │   │       ├── CustomerAccessSession.php
+│   │   │       └── StaffApiKey.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   ├── Customer
+│   │   │   │   │   └── AuthController.php
+│   │   │   │   └── Staff
+│   │   │   │       └── AuthController.php
+│   │   │   ├── Requests
+│   │   │   │   ├── Customer
+│   │   │   │   │   ├── LoginRequest.php
+│   │   │   │   │   └── RefreshSessionRequest.php
+│   │   │   │   └── Staff
+│   │   │   │       └── LoginRequest.php
+│   │   │   └── Resources
+│   │   │       ├── Customer
+│   │   │       │   └── AccessSessionResource.php
+│   │   │       └── Staff
+│   │   │           └── AuthenticatedActorResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── Hashing
+│   │       ├── Tokenization
+│   │       └── Internal
+│   │
+│   ├── Catalog
+│   │   ├── Application
+│   │   │   ├── UseCases
+│   │   │   │   ├── Browsing
+│   │   │   │   │   ├── BrowseCustomerMenuCatalogHandler.php
+│   │   │   │   │   └── BrowseStaffMenuCatalogHandler.php
+│   │   │   │   ├── Categories
+│   │   │   │   │   ├── CreateMenuCategoryHandler.php
+│   │   │   │   │   └── UpdateMenuCategoryHandler.php
+│   │   │   │   ├── Items
+│   │   │   │   │   ├── CreateMenuItemHandler.php
+│   │   │   │   │   ├── UpdateMenuItemHandler.php
+│   │   │   │   │   └── UpdateMenuItemPriceHandler.php
+│   │   │   │   └── PolicyPreview
+│   │   │   │       └── PreviewReservationPreorderPolicyHandler.php
+│   │   │   └── Workflows
+│   │   │       └── ReservationPreorderWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   ├── MenuCategory.php
+│   │   │   │   ├── MenuItem.php
+│   │   │   │   ├── MenuItemPrice.php
+│   │   │   │   └── MenuItemRecipe.php
+│   │   │   ├── Rules
+│   │   │   │   └── MenuVisibilityRule.php
+│   │   │   └── Specifications
+│   │   │       └── ReservationPreorderEligibility.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   ├── Customer
+│   │   │   │   │   └── MenuCatalogController.php
+│   │   │   │   ├── Staff
+│   │   │   │   │   └── MenuCatalogController.php
+│   │   │   │   └── Admin
+│   │   │   │       ├── MenuCategoryController.php
+│   │   │   │       ├── MenuItemController.php
+│   │   │   │       ├── MenuItemPriceController.php
+│   │   │   │       └── MenuVisibilityController.php
+│   │   │   ├── Requests
+│   │   │   │   └── Admin
+│   │   │   │       ├── CreateMenuCategoryRequest.php
+│   │   │   │       ├── CreateMenuItemRequest.php
+│   │   │   │       ├── UpdateMenuItemRequest.php
+│   │   │   │       └── UpdateMenuItemPriceRequest.php
+│   │   │   └── Resources
+│   │   │       ├── Customer
+│   │   │       │   ├── MenuCategoryResource.php
+│   │   │       │   └── MenuItemResource.php
+│   │   │       └── Admin
+│   │   │           ├── MenuCategoryResource.php
+│   │   │           ├── MenuItemResource.php
+│   │   │           └── MenuItemPriceResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── Caching
+│   │       ├── ReadModels
+│   │       └── Internal
+│   │
+│   ├── InventoryProcurement
+│   │   ├── Application
+│   │   │   ├── UseCases
+│   │   │   │   ├── Inventory
+│   │   │   │   │   ├── AdjustInventoryStockHandler.php
+│   │   │   │   │   ├── ConsumeInventoryForOrderHandler.php
+│   │   │   │   │   └── RecountInventoryHandler.php
+│   │   │   │   └── Procurement
+│   │   │   │       ├── CreatePurchaseOrderHandler.php
+│   │   │   │       ├── ReceivePurchaseOrderHandler.php
+│   │   │   │       └── ReconcilePurchaseOrderHandler.php
+│   │   │   └── Workflows
+│   │   │       └── PurchaseOrderReconciliationWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   ├── Ingredient.php
+│   │   │   │   ├── IngredientStockMovement.php
+│   │   │   │   ├── Supplier.php
+│   │   │   │   ├── PurchaseOrder.php
+│   │   │   │   ├── PurchaseOrderLine.php
+│   │   │   │   ├── PurchaseReceipt.php
+│   │   │   │   └── PurchaseReceiptLine.php
+│   │   │   ├── Rules
+│   │   │   │   └── PurchaseOrderReconciliationRule.php
+│   │   │   └── IntegrationEvents
+│   │   │       └── InventoryAdjusted.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   └── Admin
+│   │   │   │       ├── InventoryAdjustmentController.php
+│   │   │   │       ├── PurchaseOrderController.php
+│   │   │   │       ├── PurchaseReceiptController.php
+│   │   │   │       └── SupplierController.php
+│   │   │   ├── Requests
+│   │   │   │   └── Admin
+│   │   │   │       ├── AdjustInventoryStockRequest.php
+│   │   │   │       ├── CreatePurchaseOrderRequest.php
+│   │   │   │       └── ReceivePurchaseOrderRequest.php
+│   │   │   └── Resources
+│   │   │       └── Admin
+│   │   │           ├── IngredientResource.php
+│   │   │           ├── IngredientStockMovementResource.php
+│   │   │           ├── PurchaseOrderResource.php
+│   │   │           ├── PurchaseReceiptResource.php
+│   │   │           └── SupplierResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── ReadModels
+│   │       ├── Integrations
+│   │       │   └── InventoryLedger
+│   │       └── Internal
+│   │
+│   ├── BranchScheduling
+│   │   ├── Application
+│   │   │   ├── UseCases
+│   │   │   │   ├── Branches
+│   │   │   │   │   ├── CreateBranchHandler.php
+│   │   │   │   │   ├── UpdateBranchHandler.php
+│   │   │   │   │   └── ArchiveBranchHandler.php
+│   │   │   │   ├── Tables
+│   │   │   │   │   ├── CreateRestaurantTableHandler.php
+│   │   │   │   │   ├── UpdateRestaurantTableHandler.php
+│   │   │   │   │   ├── CreateRestaurantZoneHandler.php
+│   │   │   │   │   ├── UpdateRestaurantZoneHandler.php
+│   │   │   │   │   └── UpsertTableTemplateHandler.php
+│   │   │   │   ├── Availability
+│   │   │   │   │   └── CheckTableAvailabilityHandler.php
+│   │   │   │   └── Holds
+│   │   │   │       ├── CreateTableHoldHandler.php
+│   │   │   │       ├── RefreshTableHoldHandler.php
+│   │   │   │       └── ReleaseTableHoldHandler.php
+│   │   │   └── Workflows
+│   │   │       ├── TableAvailabilityWorkflow.php
+│   │   │       └── TableHoldLifecycleWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   ├── Branch.php
+│   │   │   │   ├── RestaurantTable.php
+│   │   │   │   ├── RestaurantZone.php
+│   │   │   │   ├── TableTemplate.php
+│   │   │   │   ├── TableHold.php
+│   │   │   │   └── TableHoldDetail.php
+│   │   │   ├── StateMachines
+│   │   │   │   └── TableHoldStateMachine.php
+│   │   │   └── IntegrationEvents
+│   │   │       └── TableHoldCreated.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   ├── Guest
+│   │   │   │   │   ├── TableAvailabilityController.php
+│   │   │   │   │   └── TableHoldController.php
+│   │   │   │   └── Admin
+│   │   │   │       ├── BranchController.php
+│   │   │   │       ├── RestaurantTableController.php
+│   │   │   │       ├── RestaurantZoneController.php
+│   │   │   │       └── TableTemplateController.php
+│   │   │   ├── Requests
+│   │   │   │   ├── Guest
+│   │   │   │   │   ├── CheckTableAvailabilityRequest.php
+│   │   │   │   │   ├── CreateTableHoldRequest.php
+│   │   │   │   │   └── RefreshTableHoldRequest.php
+│   │   │   │   └── Admin
+│   │   │   │       ├── CreateBranchRequest.php
+│   │   │   │       ├── UpdateBranchRequest.php
+│   │   │   │       ├── CreateRestaurantTableRequest.php
+│   │   │   │       ├── UpdateRestaurantTableRequest.php
+│   │   │   │       └── UpsertTableTemplateRequest.php
+│   │   │   └── Resources
+│   │   │       ├── Guest
+│   │   │       │   ├── BranchResource.php
+│   │   │       │   ├── RestaurantTableResource.php
+│   │   │       │   └── TableHoldResource.php
+│   │   │       └── Admin
+│   │   │           ├── BranchResource.php
+│   │   │           ├── RestaurantTableResource.php
+│   │   │           ├── RestaurantZoneResource.php
+│   │   │           └── TableTemplateResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── Caching
+│   │       ├── ReadModels
+│   │       └── Internal
+│   │
+│   ├── Reservations
+│   │   ├── Application
+│   │   │   ├── UseCases
+│   │   │   │   ├── Lifecycle
+│   │   │   │   │   ├── CreateReservationHandler.php
+│   │   │   │   │   ├── CancelReservationHandler.php
+│   │   │   │   │   └── RescheduleReservationHandler.php
+│   │   │   │   ├── Allocation
+│   │   │   │   │   ├── AssignReservationTablesHandler.php
+│   │   │   │   │   └── OverrideReservationConflictHandler.php
+│   │   │   │   └── FinancePreview
+│   │   │   │       └── PreviewReservationDepositHandler.php
+│   │   │   └── Workflows
+│   │   │       ├── ReservationSelfServiceWorkflow.php
+│   │   │       └── ReservationConflictResolutionWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   ├── Reservation.php
+│   │   │   │   └── ReservationTable.php
+│   │   │   ├── StateMachines
+│   │   │   │   └── ReservationStateMachine.php
+│   │   │   ├── IntegrationEvents
+│   │   │   │   ├── ReservationCreated.php
+│   │   │   │   ├── ReservationCancelled.php
+│   │   │   │   └── ReservationRescheduled.php
+│   │   │   └── Factories
+│   │   │       └── ReservationFactory.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   ├── Customer
+│   │   │   │   │   ├── ReservationController.php
+│   │   │   │   │   └── ReservationSelfServiceController.php
+│   │   │   │   └── Staff
+│   │   │   │       ├── ReservationController.php
+│   │   │   │       └── ReservationRescheduleController.php
+│   │   │   ├── Requests
+│   │   │   │   ├── Customer
+│   │   │   │   │   ├── CreateReservationRequest.php
+│   │   │   │   │   └── CancelReservationRequest.php
+│   │   │   │   └── Staff
+│   │   │   │       ├── AssignReservationTablesRequest.php
+│   │   │   │       └── RescheduleReservationRequest.php
+│   │   │   ├── Resources
+│   │   │   │   ├── Customer
+│   │   │   │   │   └── DepositPreviewResource.php
+│   │   │   │   └── ReservationResource.php
+│   │   │   └── Concerns
+│   │   │       └── RespondsWithReservationNotFound.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── ReadModels
+│   │       ├── Projections
+│   │       └── Internal
+│   │
+│   ├── Waitlist
+│   │   ├── Application
+│   │   │   ├── UseCases
+│   │   │   │   ├── Entries
+│   │   │   │   │   └── JoinWaitlistHandler.php
+│   │   │   │   ├── Invitations
+│   │   │   │   │   └── InviteWaitlistCustomerHandler.php
+│   │   │   │   ├── Conversion
+│   │   │   │   │   └── ConvertWaitlistToReservationHandler.php
+│   │   │   │   └── Lifecycle
+│   │   │   │       └── ExpireWaitlistInviteHandler.php
+│   │   │   └── Workflows
+│   │   │       └── WaitlistInvitationLifecycleWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   └── WaitlistEntry.php
+│   │   │   ├── StateMachines
+│   │   │   │   └── WaitlistInvitationStateMachine.php
+│   │   │   └── IntegrationEvents
+│   │   │       └── WaitlistConvertedToReservation.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   ├── Customer
+│   │   │   │   │   └── WaitlistController.php
+│   │   │   │   └── Staff
+│   │   │   │       └── WaitlistController.php
+│   │   │   ├── Requests
+│   │   │   │   ├── Customer
+│   │   │   │   │   └── JoinWaitlistRequest.php
+│   │   │   │   └── Staff
+│   │   │   │       └── InviteWaitlistCustomerRequest.php
+│   │   │   └── Resources
+│   │   │       ├── Customer
+│   │   │       │   └── WaitlistResource.php
+│   │   │       └── WaitlistResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── ReadModels
+│   │       └── Internal
+│   │
+│   ├── FloorOperations
+│   │   ├── Application
+│   │   │   ├── UseCases
+│   │   │   │   ├── CheckIn
+│   │   │   │   │   └── CheckInReservationHandler.php
+│   │   │   │   ├── ServiceSessions
+│   │   │   │   │   ├── StartServiceSessionHandler.php
+│   │   │   │   │   └── CompleteServiceSessionHandler.php
+│   │   │   │   ├── Boards
+│   │   │   │   │   ├── AssignBoardHandler.php
+│   │   │   │   │   └── ReleaseBoardHandler.php
+│   │   │   │   └── Timeline
+│   │   │   │       └── GetReservationTimelineHandler.php
+│   │   │   └── Workflows
+│   │   │       ├── ReservationCheckInWorkflow.php
+│   │   │       └── TableBoardWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   └── ServiceSession.php
+│   │   │   ├── Rules
+│   │   │   │   └── CheckInEligibilityRule.php
+│   │   │   └── IntegrationEvents
+│   │   │       ├── ReservationCheckedIn.php
+│   │   │       └── ServiceSessionStarted.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   └── Staff
+│   │   │   │       ├── ReservationTimelineController.php
+│   │   │   │       ├── ReservationWorkbenchController.php
+│   │   │   │       └── ServiceSessionController.php
+│   │   │   ├── Requests
+│   │   │   │   └── Staff
+│   │   │   │       ├── CheckInReservationRequest.php
+│   │   │   │       ├── AssignBoardRequest.php
+│   │   │   │       └── StartServiceSessionRequest.php
+│   │   │   └── Resources
+│   │   │       └── Staff
+│   │   │           └── ReservationTimelineItemResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── ReadModels
+│   │       └── Internal
+│   │
+│   ├── Ordering
+│   │   ├── Application
+│   │   │   ├── UseCases
+│   │   │   │   ├── Orders
+│   │   │   │   │   ├── CreateReservationOrderHandler.php
+│   │   │   │   │   ├── AddReservationOrderItemHandler.php
+│   │   │   │   │   ├── UpdateReservationOrderItemHandler.php
+│   │   │   │   │   └── RemoveReservationOrderItemHandler.php
+│   │   │   │   └── Preview
+│   │   │   │       └── PreviewOrderBillHandler.php
+│   │   │   └── Workflows
+│   │   │       └── OrderItemLifecycleWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   ├── ReservationOrder.php
+│   │   │   │   └── ReservationOrderItem.php
+│   │   │   ├── Rules
+│   │   │   │   └── OrderMutationRule.php
+│   │   │   └── IntegrationEvents
+│   │   │       ├── ReservationOrderCreated.php
+│   │   │       ├── ReservationOrderItemAdded.php
+│   │   │       └── ReservationOrderItemUpdated.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   └── Staff
+│   │   │   │       └── ReservationOrderController.php
+│   │   │   ├── Requests
+│   │   │   │   └── Staff
+│   │   │   │       ├── CreateReservationOrderRequest.php
+│   │   │   │       ├── AddReservationOrderItemRequest.php
+│   │   │   │       └── UpdateReservationOrderItemRequest.php
+│   │   │   └── Resources
+│   │   │       └── Staff
+│   │   │           └── ReservationOrderResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── ReadModels
+│   │       └── Internal
+│   │
+│   ├── KitchenDispatch
+│   │   ├── Application
+│   │   │   ├── UseCases
+│   │   │   │   ├── Tickets
+│   │   │   │   │   ├── DispatchKitchenTicketHandler.php
+│   │   │   │   │   ├── RouteKitchenTicketHandler.php
+│   │   │   │   │   └── CompleteKitchenTicketHandler.php
+│   │   │   │   └── Configuration
+│   │   │   │       ├── UpsertKitchenStationHandler.php
+│   │   │   │       └── AssignKitchenCategoryRouteHandler.php
+│   │   │   └── Workflows
+│   │   │       └── KitchenTicketLifecycleWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   ├── KitchenStation.php
+│   │   │   │   ├── KitchenStationCategoryRoute.php
+│   │   │   │   └── KitchenOrderItemTicket.php
+│   │   │   ├── Rules
+│   │   │   │   └── KitchenRoutingRule.php
+│   │   │   └── IntegrationEvents
+│   │   │       ├── KitchenTicketDispatched.php
+│   │   │       └── KitchenTicketCompleted.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   ├── Staff
+│   │   │   │   │   └── KitchenDispatchController.php
+│   │   │   │   └── Admin
+│   │   │   │       ├── KitchenStationController.php
+│   │   │   │       └── KitchenCategoryRouteController.php
+│   │   │   ├── Requests
+│   │   │   │   ├── Staff
+│   │   │   │   │   ├── DispatchKitchenTicketRequest.php
+│   │   │   │   │   └── CompleteKitchenTicketRequest.php
+│   │   │   │   └── Admin
+│   │   │   │       ├── UpsertKitchenStationRequest.php
+│   │   │   │       └── AssignKitchenCategoryRouteRequest.php
+│   │   │   └── Resources
+│   │   │       └── Staff
+│   │   │           └── KitchenTicketResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── Streaming
+│   │       ├── ReadModels
+│   │       └── Internal
+│   │
+│   ├── Billing
+│   │   ├── Application
+│   │   │   ├── UseCases
+│   │   │   │   ├── Previews
+│   │   │   │   │   ├── PreviewCustomerReservationBillHandler.php
+│   │   │   │   │   ├── PreviewCustomerReservationOrderBillHandler.php
+│   │   │   │   │   └── PreviewSettlementSummaryHandler.php
+│   │   │   │   ├── Invoices
+│   │   │   │   │   └── GenerateInvoiceHandler.php
+│   │   │   │   └── Synchronization
+│   │   │   │       └── SyncReservationFinancialStateHandler.php
+│   │   │   └── Workflows
+│   │   │       └── BillingSnapshotWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   ├── BillingInvoice.php
+│   │   │   │   ├── ReservationBill.php
+│   │   │   │   └── ReservationFinancialSummary.php
+│   │   │   ├── ValueObjects
+│   │   │   │   └── PaymentSummary.php
+│   │   │   └── IntegrationEvents
+│   │   │       ├── ReservationBillComputed.php
+│   │   │       └── InvoiceGenerated.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   ├── Customer
+│   │   │   │   │   └── ReservationBillController.php
+│   │   │   │   └── Staff
+│   │   │   │       └── InvoiceController.php
+│   │   │   ├── Requests
+│   │   │   │   └── Staff
+│   │   │   │       └── GenerateInvoiceRequest.php
+│   │   │   └── Resources
+│   │   │       ├── Customer
+│   │   │       │   └── ReservationBillResource.php
+│   │   │       └── Staff
+│   │   │           └── InvoiceResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── ReadModels
+│   │       ├── Projections
+│   │       └── Internal
+│   │
+│   ├── Payments
+│   │   ├── Application
+│   │   │   ├── UseCases
+│   │   │   │   ├── PaymentSessions
+│   │   │   │   │   ├── StartReservationDepositPaymentHandler.php
+│   │   │   │   │   └── StartReservationBillPaymentHandler.php
+│   │   │   │   ├── Capture
+│   │   │   │   │   └── CapturePaymentHandler.php
+│   │   │   │   ├── Refunds
+│   │   │   │   │   ├── PlanRefundHandler.php
+│   │   │   │   │   └── ExecuteRefundHandler.php
+│   │   │   │   └── ProviderReceipts
+│   │   │   │       └── VerifyProviderWebhookReceiptHandler.php
+│   │   │   └── Workflows
+│   │   │       ├── ReservationDepositPaymentWorkflow.php
+│   │   │       ├── ReservationBillPaymentWorkflow.php
+│   │   │       └── PaymentWebhookIngestionWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   ├── Payment.php
+│   │   │   │   ├── ReservationBillPaymentSession.php
+│   │   │   │   ├── ReservationDepositPaymentSession.php
+│   │   │   │   └── PaymentProviderWebhookReceipt.php
+│   │   │   ├── Guards
+│   │   │   │   └── PaymentSessionScopeGuard.php
+│   │   │   └── IntegrationEvents
+│   │   │       ├── PaymentCaptured.php
+│   │   │       ├── PaymentRefunded.php
+│   │   │       └── ProviderWebhookReceiptRecorded.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   ├── Customer
+│   │   │   │   │   ├── ReservationBillPaymentController.php
+│   │   │   │   │   └── ReservationDepositPaymentController.php
+│   │   │   │   └── Webhook
+│   │   │   │       └── PaymentProviderWebhookController.php
+│   │   │   ├── Requests
+│   │   │   │   ├── Customer
+│   │   │   │   │   ├── StartReservationBillPaymentRequest.php
+│   │   │   │   │   └── StartReservationDepositPaymentRequest.php
+│   │   │   │   └── Webhook
+│   │   │   │       └── PaymentProviderWebhookRequest.php
+│   │   │   └── Resources
+│   │   │       └── Customer
+│   │   │           ├── ReservationBillPaymentSessionResource.php
+│   │   │           └── ReservationDepositPaymentSessionResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── ReadModels
+│   │       ├── Integrations
+│   │       │   ├── PaymentProviders
+│   │       │   │   ├── PaymentProviderAdapter.php
+│   │       │   │   ├── PaymentProviderRegistry.php
+│   │       │   │   ├── PaymentProviderRolloutConfig.php
+│   │       │   │   ├── GenericHttpHmacPaymentProviderAdapter.php
+│   │       │   │   └── SimulatedPaymentProviderAdapter.php
+│   │       │   └── WebhookIngestion
+│   │       │       └── PaymentWebhookIngester.php
+│   │       └── Internal
+│   │           └── PaymentProviderPayloadSanitizer.php
+│   │
+│   ├── Cashiering
+│   │   ├── Application
+│   │   │   ├── UseCases
+│   │   │   │   ├── Shifts
+│   │   │   │   │   ├── OpenCashierShiftHandler.php
+│   │   │   │   │   └── CloseCashierShiftHandler.php
+│   │   │   │   ├── Checkout
+│   │   │   │   │   └── CheckoutHandler.php
+│   │   │   │   └── Reconciliation
+│   │   │   │       ├── ReconcileFinancialStatementHandler.php
+│   │   │   │       └── FinalizeSettlementHandler.php
+│   │   │   └── Workflows
+│   │   │       └── OrderSettlementWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   ├── CashierShift.php
+│   │   │   │   └── SettlementBatch.php
+│   │   │   ├── Guards
+│   │   │   │   └── ActiveCashierShiftGuard.php
+│   │   │   └── IntegrationEvents
+│   │   │       ├── CashierShiftOpened.php
+│   │   │       ├── CashierShiftClosed.php
+│   │   │       └── SettlementFinalized.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   └── Staff
+│   │   │   │       ├── CashierShiftController.php
+│   │   │   │       ├── CheckoutController.php
+│   │   │   │       └── SettlementReconciliationController.php
+│   │   │   ├── Requests
+│   │   │   │   └── Staff
+│   │   │   │       ├── OpenCashierShiftRequest.php
+│   │   │   │       ├── CheckoutRequest.php
+│   │   │   │       └── ReconcileSettlementRequest.php
+│   │   │   └── Resources
+│   │   │       └── Staff
+│   │   │           ├── CashierShiftResource.php
+│   │   │           └── SettlementBatchResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── ReadModels
+│   │       └── Internal
+│   │
+│   ├── Loyalty
+│   │   ├── Application
+│   │   │   ├── UseCases
+│   │   │   │   ├── Summaries
+│   │   │   │   │   └── GetCustomerLoyaltySummaryHandler.php
+│   │   │   │   ├── Points
+│   │   │   │   │   ├── AdjustLoyaltyPointsHandler.php
+│   │   │   │   │   └── RedeemLoyaltyPointsHandler.php
+│   │   │   │   └── Tiers
+│   │   │   │       └── SyncLoyaltyTierHandler.php
+│   │   │   └── Workflows
+│   │   │       ├── LoyaltyCompletionSyncWorkflow.php
+│   │   │       ├── LoyaltyRefundSyncWorkflow.php
+│   │   │       └── LoyaltyLedgerWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   ├── LoyaltyTier.php
+│   │   │   │   ├── UserPoint.php
+│   │   │   │   ├── UserTierHistory.php
+│   │   │   │   └── LoyaltyPointTransaction.php
+│   │   │   ├── ValueObjects
+│   │   │   │   └── LoyaltyEarnReconciliation.php
+│   │   │   └── IntegrationEvents
+│   │   │       ├── LoyaltyPointsAdjusted.php
+│   │   │       └── LoyaltyTierSynced.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   ├── Customer
+│   │   │   │   │   └── LoyaltySummaryController.php
+│   │   │   │   ├── Staff
+│   │   │   │   │   └── LoyaltyLedgerController.php
+│   │   │   │   └── Admin
+│   │   │   │       └── LoyaltyTierController.php
+│   │   │   ├── Requests
+│   │   │   │   ├── Staff
+│   │   │   │   │   └── AdjustLoyaltyPointsRequest.php
+│   │   │   │   └── Admin
+│   │   │   │       └── SyncLoyaltyTierRequest.php
+│   │   │   └── Resources
+│   │   │       ├── Customer
+│   │   │       │   └── LoyaltySummaryResource.php
+│   │   │       ├── Staff
+│   │   │       │   └── LoyaltyPointTransactionResource.php
+│   │   │       └── Admin
+│   │   │           └── LoyaltyTierResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── ReadModels
+│   │       ├── Integrations
+│   │       │   └── Synchronization
+│   │       └── Internal
+│   │
+│   ├── Promotions
+│   │   ├── Application
+│   │   │   ├── UseCases
+│   │   │   │   ├── Vouchers
+│   │   │   │   │   ├── CreateVoucherHandler.php
+│   │   │   │   │   ├── AssignVoucherToCustomerHandler.php
+│   │   │   │   │   └── PreviewReservationVoucherHandler.php
+│   │   │   │   ├── Benefits
+│   │   │   │   │   ├── GetCustomerBenefitsHandler.php
+│   │   │   │   │   └── PreviewReservationBenefitsHandler.php
+│   │   │   │   └── PolicyEvaluation
+│   │   │   │       └── EvaluatePromotionPolicyHandler.php
+│   │   │   └── Workflows
+│   │   │       └── ReservationPromotionApplicationWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   ├── Voucher.php
+│   │   │   │   ├── UserVoucher.php
+│   │   │   │   └── PromotionPolicy.php
+│   │   │   ├── Guards
+│   │   │   │   └── VoucherRedemptionGuard.php
+│   │   │   └── IntegrationEvents
+│   │   │       ├── VoucherAssigned.php
+│   │   │       └── PromotionAppliedToReservation.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   ├── Customer
+│   │   │   │   │   ├── BenefitsController.php
+│   │   │   │   │   └── ReservationBenefitsActionController.php
+│   │   │   │   ├── Staff
+│   │   │   │   │   └── ReservationVoucherController.php
+│   │   │   │   └── Admin
+│   │   │   │       ├── PromotionPolicyController.php
+│   │   │   │       └── VoucherController.php
+│   │   │   ├── Requests
+│   │   │   │   ├── Customer
+│   │   │   │   │   └── ApplyReservationBenefitsRequest.php
+│   │   │   │   ├── Staff
+│   │   │   │   │   └── PreviewReservationVoucherRequest.php
+│   │   │   │   └── Admin
+│   │   │   │       ├── CreateVoucherRequest.php
+│   │   │   │       └── UpdatePromotionPolicyRequest.php
+│   │   │   └── Resources
+│   │   │       ├── Customer
+│   │   │       │   ├── ReservationBenefitsPreviewResource.php
+│   │   │       │   └── VoucherResource.php
+│   │   │       └── Admin
+│   │   │           ├── PromotionPolicyResource.php
+│   │   │           └── VoucherResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── ReadModels
+│   │       ├── Integrations
+│   │       │   └── Synchronization
+│   │       └── Internal
+│   │
+│   ├── Conversations
+│   │   ├── Application
+│   │   │   ├── UseCases
+│   │   │   │   ├── Inbox
+│   │   │   │   │   ├── GetConversationInboxHandler.php
+│   │   │   │   │   └── GetReservationInboxHandler.php
+│   │   │   │   ├── Agenting
+│   │   │   │   │   ├── AssignConversationAgentHandler.php
+│   │   │   │   │   └── ChangeConversationStatusHandler.php
+│   │   │   │   ├── Messaging
+│   │   │   │   │   └── ReplyConversationHandler.php
+│   │   │   │   └── Attachments
+│   │   │   │       └── GetConversationFileAccessHandler.php
+│   │   │   └── Workflows
+│   │   │       └── ConversationWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   ├── Conversation.php
+│   │   │   │   ├── AgentAssignment.php
+│   │   │   │   ├── ConversationMessage.php
+│   │   │   │   ├── ConversationFile.php
+│   │   │   │   ├── ConversationEvent.php
+│   │   │   │   ├── ConversationAnalysis.php
+│   │   │   │   └── ConversationAggregate.php
+│   │   │   └── IntegrationEvents
+│   │   │       └── ConversationReplied.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   └── Staff
+│   │   │   │       ├── ConversationInboxController.php
+│   │   │   │       ├── ReservationInboxController.php
+│   │   │   │       └── ConversationReplyController.php
+│   │   │   ├── Requests
+│   │   │   │   └── Staff
+│   │   │   │       ├── AssignConversationAgentRequest.php
+│   │   │   │       └── ReplyConversationRequest.php
+│   │   │   └── Resources
+│   │   │       └── Staff
+│   │   │           └── ConversationResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── Files
+│   │       ├── ReadModels
+│   │       └── Internal
+│   │
+│   ├── Notifications
+│   │   ├── Application
+│   │   │   ├── UseCases
+│   │   │   │   ├── Delivery
+│   │   │   │   │   ├── EnqueueNotificationHandler.php
+│   │   │   │   │   └── RetryNotificationDeliveryHandler.php
+│   │   │   │   ├── Preferences
+│   │   │   │   │   └── UpdateNotificationPreferenceHandler.php
+│   │   │   │   └── Operations
+│   │   │   │       └── GetNotificationOperationsSnapshotHandler.php
+│   │   │   └── Workflows
+│   │   │       ├── NotificationDeliveryWorkflow.php
+│   │   │       └── NotificationOutboxDrainWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   ├── NotificationOutbox.php
+│   │   │   │   ├── NotificationDeliveryAttempt.php
+│   │   │   │   └── NotificationPreference.php
+│   │   │   └── IntegrationEvents
+│   │   │       ├── NotificationEnqueued.php
+│   │   │       └── NotificationDelivered.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   └── Admin
+│   │   │   │       ├── NotificationDeliveryOpsController.php
+│   │   │   │       └── NotificationPreferenceController.php
+│   │   │   ├── Requests
+│   │   │   │   └── Admin
+│   │   │   │       └── UpdateNotificationPreferenceRequest.php
+│   │   │   └── Resources
+│   │   │       └── Admin
+│   │   │           └── NotificationOpsSnapshotResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── Queue
+│   │       ├── Integrations
+│   │       │   └── Channels
+│   │       │       ├── Email
+│   │       │       ├── Sms
+│   │       │       └── Zalo
+│   │       └── Internal
+│   │
+│   ├── PrivacyCompliance
+│   │   ├── Application
+│   │   │   ├── UseCases
+│   │   │   │   ├── Requests
+│   │   │   │   │   ├── CreatePrivacyRequestHandler.php
+│   │   │   │   │   └── ReviewPrivacyRequestHandler.php
+│   │   │   │   ├── Audit
+│   │   │   │   │   └── RecordAuditTrailHandler.php
+│   │   │   │   └── Redaction
+│   │   │   │       └── RedactSensitiveDataHandler.php
+│   │   │   └── Workflows
+│   │   │       └── PrivacyReviewWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   ├── PrivacyRequest.php
+│   │   │   │   ├── AuditLog.php
+│   │   │   │   └── AuditLogSubject.php
+│   │   │   └── IntegrationEvents
+│   │   │       └── PrivacyRequestReviewed.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   ├── Customer
+│   │   │   │   │   └── PrivacyRequestController.php
+│   │   │   │   └── Admin
+│   │   │   │       └── PrivacyController.php
+│   │   │   ├── Requests
+│   │   │   │   ├── Customer
+│   │   │   │   │   └── CreatePrivacyRequestRequest.php
+│   │   │   │   └── Admin
+│   │   │   │       └── ReviewPrivacyRequestRequest.php
+│   │   │   └── Resources
+│   │   │       ├── Customer
+│   │   │       │   └── PrivacyRequestResource.php
+│   │   │       └── Admin
+│   │   │           └── PrivacyReviewResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── ReadModels
+│   │       ├── Integrations
+│   │       │   └── Redaction
+│   │       └── Internal
+│   │
+│   ├── Reporting
+│   │   ├── Application                              # create DTOs/Contracts only on first real use
+│   │   │   ├── Queries
+│   │   │   │   ├── Sales
+│   │   │   │   │   └── GetSalesReportHandler.php
+│   │   │   │   ├── Operations
+│   │   │   │   │   └── GetOperationsReportHandler.php
+│   │   │   │   ├── Inventory
+│   │   │   │   │   └── GetInventoryReportHandler.php
+│   │   │   │   └── Reconciliation
+│   │   │   │       └── GetSettlementReconciliationReportHandler.php
+│   │   │   └── Workflows
+│   │   │       └── ReportingSnapshotWorkflow.php
+│   │   ├── Domain
+│   │   │   ├── Models
+│   │   │   │   ├── DailySalesSnapshot.php
+│   │   │   │   ├── DailyOperationsSnapshot.php
+│   │   │   │   ├── DailyInventoryMovementSnapshot.php
+│   │   │   │   └── SettlementReconciliationSnapshot.php
+│   │   │   └── Factories
+│   │   │       └── ReportingSnapshotFactory.php
+│   │   ├── Http
+│   │   │   ├── Controllers
+│   │   │   │   ├── Admin
+│   │   │   │   │   ├── SalesReportController.php
+│   │   │   │   │   ├── OperationsReportController.php
+│   │   │   │   │   └── InventoryReportController.php
+│   │   │   │   └── Staff
+│   │   │   │       └── SettlementReconciliationReportController.php
+│   │   │   ├── Requests
+│   │   │   │   ├── Admin
+│   │   │   │   │   ├── SalesReportRequest.php
+│   │   │   │   │   ├── OperationsReportRequest.php
+│   │   │   │   │   └── InventoryReportRequest.php
+│   │   │   │   └── Staff
+│   │   │   │       └── SettlementReconciliationReportRequest.php
+│   │   │   └── Resources
+│   │   │       ├── Admin
+│   │   │       │   ├── DailySalesSnapshotResource.php
+│   │   │       │   ├── DailyOperationsSnapshotResource.php
+│   │   │       │   └── DailyInventoryMovementSnapshotResource.php
+│   │   │       └── Staff
+│   │   │           └── SettlementReconciliationSnapshotResource.php
+│   │   └── Infrastructure
+│   │       ├── Persistence
+│   │       ├── ReadModels
+│   │       ├── Projections
+│   │       └── Internal
+│   │
+│   └── MasterDataExchange
+│       ├── Application
+│       │   ├── UseCases
+│       │   │   ├── Export
+│       │   │   │   └── ExportMasterDataHandler.php
+│       │   │   ├── Import
+│       │   │   │   ├── ImportMasterDataHandler.php
+│       │   │   │   └── ValidateMasterDataImportHandler.php
+│       │   │   └── Registry
+│       │   │       └── ResolveMasterDataDomainHandler.php
+│       │   └── Workflows
+│       │       └── MasterDataImportWorkflow.php
+│       ├── Domain
+│       │   ├── Contracts
+│       │   │   └── MasterDataDomain.php
+│       │   ├── Registries
+│       │   │   ├── BranchesMasterDataDomain.php
+│       │   │   ├── MenuCategoriesMasterDataDomain.php
+│       │   │   ├── MenuItemsMasterDataDomain.php
+│       │   │   ├── MenuPricesMasterDataDomain.php
+│       │   │   ├── LoyaltyTiersMasterDataDomain.php
+│       │   │   ├── RestaurantTablesMasterDataDomain.php
+│       │   │   └── VouchersMasterDataDomain.php
+│       │   └── ValueObjects
+│       │       └── MasterDataImportResult.php
+│       ├── Http
+│       │   ├── Controllers
+│       │   │   └── Admin
+│       │   │       ├── MasterDataExportController.php
+│       │   │       └── MasterDataImportController.php
+│       │   ├── Requests
+│       │   │   └── Admin
+│       │   │       ├── ExportMasterDataRequest.php
+│       │   │       └── ImportMasterDataRequest.php
+│       │   └── Resources
+│       │       └── Admin
+│       │           └── MasterDataImportResultResource.php
+│       └── Infrastructure
+│           ├── Persistence
+│           ├── Files
+│           │   └── Parsers
+│           │       └── MasterDataImportSourceParser.php
+│           └── Internal
+│               └── AbstractMasterDataDomain.php
+│
+├── Platform
+│   ├── ApiContracts
+│   │   ├── Application
+│   │   │   ├── Builders
+│   │   │   │   ├── FormRequestSchemaFactory.php
+│   │   │   │   └── OpenApiSpecBuilder.php
+│   │   │   ├── Inspectors
+│   │   │   │   └── DatabaseContractInspector.php
+│   │   │   ├── Reconcilers
+│   │   │   │   └── RouteContractReconciler.php
+│   │   │   └── Gates
+│   │   │       └── RouteInventoryGate.php
+│   │   └── Artifacts
+│   │       └── Builders
+│   │           ├── ApiConsumerArtifactBuilder.php
+│   │           └── ApiEnumStateArtifactBuilder.php
+│   ├── RuntimeControl
+│   │   ├── FeatureFlags
+│   │   │   ├── Application
+│   │   │   │   ├── Mutators
+│   │   │   │   │   └── FeatureFlagMutator.php
+│   │   │   │   └── Resolvers
+│   │   │   │       └── FeatureFlagResolver.php
+│   │   │   ├── Domain
+│   │   │   │   └── Models
+│   │   │   │       └── FeatureFlag.php
+│   │   │   └── Infrastructure
+│   │   │       └── Persistence
+│   │   └── RuntimeSettings
+│   │       ├── Application
+│   │       │   └── Resolvers
+│   │       │       └── RuntimeSettingResolver.php
+│   │       └── Infrastructure
+│   │           └── Persistence
+│   ├── Observability
+│   │   ├── Health
+│   │   │   ├── Http
+│   │   │   │   └── Controllers
+│   │   │   │       └── HealthController.php
+│   │   │   └── Application
+│   │   │       ├── Inspectors
+│   │   │       │   ├── RuntimeEnvironmentInspector.php
+│   │   │       │   └── RuntimeHealthInspector.php
+│   │   │       ├── Coordinators
+│   │   │       │   └── MaintenanceModeCoordinator.php
+│   │   │       └── Reporters
+│   │   │           └── OpsHeartbeatReporter.php
+│   │   ├── Metrics
+│   │   │   ├── Http
+│   │   │   │   └── Controllers
+│   │   │   │       └── MetricsController.php
+│   │   │   └── Application
+│   │   │       ├── Collectors
+│   │   │       │   └── MetricsCollector.php
+│   │   │       ├── Evaluators
+│   │   │       │   └── OperationalAlertEvaluator.php
+│   │   │       └── Projectors
+│   │   │           └── OperationalInsightsProjector.php
+│   │   └── Tracing
+│   │       └── Application
+│   │           └── Propagators
+│   │               └── TraceContextPropagator.php
+│   ├── Resilience
+│   │   └── Backup
+│   │       ├── Application
+│   │       │   └── Coordinators
+│   │       │       └── DisasterRecoveryDrillCoordinator.php
+│   │       ├── Domain
+│   │       │   └── ValueObjects
+│   │       └── Infrastructure
+│   │           ├── Integrations
+│   │           │   └── DisasterRecoveryDatabaseProbe.php
+│   │           ├── Internal
+│   │           └── Processes
+│   │               └── DisasterRecoveryProcessRunner.php
+│   ├── Delivery
+│   │   └── Release
+│   │       └── Application
+│   │           ├── Gates
+│   │           │   ├── OperationsReadinessGate.php
+│   │           │   └── ReleasePromotionGate.php
+│   │           ├── Verifiers
+│   │           │   ├── DeploySafetyVerifier.php
+│   │           │   └── LaunchReadinessVerifier.php
+│   │           ├── Builders
+│   │           │   ├── ReleaseArtifactManifestBuilder.php
+│   │           │   ├── ReleaseBuildMetadataBuilder.php
+│   │           │   └── ReleaseBuilder.php
+│   │           ├── Packagers
+│   │           │   └── ReleasePackager.php
+│   │           └── Bootstrappers
+│   │               └── SiteBootstrapper.php
+│   └── QualityAssurance
+│       ├── Verification
+│       │   └── Application
+│       │       ├── Selectors
+│       │       │   └── VerificationSelector.php
+│       │       └── Verifiers
+│       │           └── ContractVerifier.php
+│       ├── Uat
+│       │   └── Application
+│       │       └── Builders
+│       │           └── UatScenarioPackBuilder.php
+│       ├── Harness
+│       │   └── Application
+│       │       └── Builders
+│       │           └── HarnessSuiteBuilder.php
+│       └── Performance
+│           └── Application
+│               └── Verifiers
+│                   └── PerformanceVerifier.php
+│
+├── Support
+│   ├── Api
+│   │   ├── ApiErrorResponse.php
+│   │   └── ApiResponseFactory.php
+│   ├── Auth
+│   │   └── RequestActorContext.php
+│   ├── Concurrency
+│   │   └── DatabaseWriteConflictMapper.php
+│   ├── Listing
+│   │   ├── ListingQueryNormalizer.php
+│   │   └── PaginationFactory.php
+│   ├── Serialization
+│   │   └── JsonEncodingNormalizer.php
+│   ├── Validation
+│   │   └── ValidationExceptionFactory.php
+│   └── Observability
+│       ├── CorrelationIdContext.php
+│       └── TraceContext.php
+│
+└── Providers
+    ├── AppServiceProvider.php
+    ├── AuthServiceProvider.php
+    ├── EventServiceProvider.php
+    └── RouteServiceProvider.php
+
+FORBIDDEN / REMOVED FROM TARGET STRUCTURE
+- app/Models/*                                  -> forbidden for business models
+- app/Services/*                                -> forbidden for business services
+- app/Http/Controllers/Api/*                    -> forbidden
+- app/Http/Requests/*                           -> forbidden for business requests
+- app/Http/Resources/*                          -> forbidden for business resources
+- top-level actor folders                       -> forbidden
+- generic business helper classes in Support    -> forbidden
+- module-private technical helpers in Support   -> forbidden; use Infrastructure/Internal
+- cross-module direct Infrastructure imports    -> forbidden
+- reporting-owned business mutations            -> forbidden
+- master-data-owned business runtime            -> forbidden
+- module Http pseudo-lanes Shared/Common        -> forbidden
+- Platform/Application/Services                 -> forbidden
+- generic manage/report/read-model artifacts    -> forbidden when sharper ownership is possible
+
+PLACEMENT LAW
+- New business code                             -> app/Modules/<Domain>/...
+- New module HTTP adapter                       -> app/Modules/<Domain>/Http/*
+- New framework-edge middleware / renderer      -> app/Http/*
+- New pure domain rule / policy / spec          -> app/Modules/<Domain>/Domain/*
+- New orchestration / transaction script        -> app/Modules/<Domain>/Application/UseCases or Workflows
+- New external adapter / persistence / cache    -> app/Modules/<Domain>/Infrastructure/*
+- New stable cross-domain business primitive    -> app/SharedKernel/*
+- New technical helper with no business owner   -> app/Support/*
+- New operational / governance capability       -> app/Platform/*
+
+FINAL QUALITY BAR
+To stay 10/10 over time, every pull request should be rejectable on folder ownership alone if it violates:
+- domain ownership
+- layer intent
+- actor-lane discipline
+- module boundary rules
+- shared/support/platform laws
+- no-empty-ceremony rule
+- no-actor-lane-leakage rule
+- no-pseudo-lane-inside-Http rule
+- no-generic-umbrella-artifact rule

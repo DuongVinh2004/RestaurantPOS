@@ -13,7 +13,7 @@ class StaffCapabilitiesConfigContractTest extends TestCase
         $knownCapabilities = config('staff_capabilities.known_capabilities');
         $routeCapabilities = config('staff_capabilities.route_capabilities');
 
-        $this->assertIsBool(config('staff_capabilities.enforce_known_capabilities'));
+        $this->assertTrue(config('staff_capabilities.enforce_known_capabilities'));
         $this->assertIsArray($knownCapabilities);
         $this->assertIsArray(config('staff_capabilities.role_id_capabilities'));
         $this->assertIsArray(config('staff_capabilities.role_capabilities'));

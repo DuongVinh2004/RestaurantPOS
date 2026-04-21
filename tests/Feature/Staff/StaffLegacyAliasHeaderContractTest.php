@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Modules\CheckoutPayments\Http\Controllers\Staff\StaffCheckoutController;
-use App\Modules\BenefitsLoyalty\Http\Controllers\Staff\StaffLoyaltyController;
-use App\Modules\BenefitsLoyalty\Http\Controllers\Staff\StaffReservationVoucherController;
-use App\Modules\CheckoutPayments\Http\Requests\Staff\CheckoutOrderRequest;
-use App\Modules\BenefitsLoyalty\Http\Requests\Staff\ReleaseReservationPointsRequest;
-use App\Modules\BenefitsLoyalty\Http\Requests\Staff\RemoveReservationVoucherRequest;
+use App\Modules\Cashiering\Http\Controllers\Staff\CheckoutController;
+use App\Modules\Loyalty\Http\Controllers\Staff\LoyaltyLedgerController;
+use App\Modules\Promotions\Http\Controllers\Staff\ReservationVoucherController;
+use App\Modules\Cashiering\Http\Requests\Staff\CheckoutOrderRequest;
+use App\Modules\Loyalty\Http\Requests\Staff\ReleaseReservationPointsRequest;
+use App\Modules\Promotions\Http\Requests\Staff\RemoveReservationVoucherRequest;
 use Illuminate\Http\JsonResponse;
 use Tests\TestCase;
 
@@ -17,7 +17,7 @@ class StaffLegacyAliasHeaderContractTest extends TestCase
 {
     public function test_checkout_alias_adds_deprecation_headers(): void
     {
-        $controller = new class extends StaffCheckoutController {
+        $controller = new class extends CheckoutController {
             public function __construct() {}
             public function store(int $order_id, CheckoutOrderRequest $request): JsonResponse
             {
@@ -34,7 +34,7 @@ class StaffLegacyAliasHeaderContractTest extends TestCase
 
     public function test_voucher_release_alias_adds_deprecation_headers(): void
     {
-        $controller = new class extends StaffReservationVoucherController {
+        $controller = new class extends ReservationVoucherController {
             public function __construct() {}
             public function remove(int $reservation_id, RemoveReservationVoucherRequest $request): JsonResponse
             {
@@ -51,7 +51,7 @@ class StaffLegacyAliasHeaderContractTest extends TestCase
 
     public function test_loyalty_release_alias_adds_deprecation_headers(): void
     {
-        $controller = new class extends StaffLoyaltyController {
+        $controller = new class extends LoyaltyLedgerController {
             public function __construct() {}
             public function releaseReservation(int $reservation_id, ReleaseReservationPointsRequest $request): JsonResponse
             {

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Unit\Http;
 
 use App\Http\Middleware\CustomerOrStaffMiddleware;
-use App\Services\CustomerReservationSessionAccessService;
-use App\Support\CustomerSessionRouteContract;
-use App\Support\StaffActorResolver;
+use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
+use App\Modules\IdentityAccess\Infrastructure\Internal\CustomerSessionRouteContract;
+use App\Modules\IdentityAccess\Infrastructure\Tokenization\StaffApiKeyActorResolver;
 use Illuminate\Http\Request;
 use Tests\TestCase;
 
@@ -15,10 +15,10 @@ class CustomerOrStaffMiddlewareSessionContractTest extends TestCase
 {
     public function test_post_reservations_session_flow_requires_an_owned_hold_that_resolves_to_a_user(): void
     {
-        $resolver = $this->createMock(StaffActorResolver::class);
+        $resolver = $this->createMock(StaffApiKeyActorResolver::class);
         $resolver->method('extractProvidedKey')->willReturn('');
 
-        $accessService = $this->createMock(CustomerReservationSessionAccessService::class);
+        $accessService = $this->createMock(ReservationSessionAccessWorkflow::class);
         $accessService->expects(self::once())
             ->method('resolveUserIdFromOwnedHold')
             ->with('hold-1', 'session-1')
@@ -46,10 +46,10 @@ class CustomerOrStaffMiddlewareSessionContractTest extends TestCase
 
     public function test_post_reservations_session_flow_is_rejected_when_hold_is_not_owned_by_a_real_user(): void
     {
-        $resolver = $this->createMock(StaffActorResolver::class);
+        $resolver = $this->createMock(StaffApiKeyActorResolver::class);
         $resolver->method('extractProvidedKey')->willReturn('');
 
-        $accessService = $this->createMock(CustomerReservationSessionAccessService::class);
+        $accessService = $this->createMock(ReservationSessionAccessWorkflow::class);
         $accessService->expects(self::once())
             ->method('resolveUserIdFromOwnedHold')
             ->with('guest-hold', 'guest-session')

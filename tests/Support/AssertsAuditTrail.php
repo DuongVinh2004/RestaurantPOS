@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
-use App\Modules\PrivacyAudit\Domain\Models\AuditLog;
+use App\Modules\PrivacyCompliance\Domain\Models\AuditLog;
 
 trait AssertsAuditTrail
 {

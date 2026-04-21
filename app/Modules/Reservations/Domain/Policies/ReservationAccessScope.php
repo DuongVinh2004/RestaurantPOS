@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Reservations\Domain\Policies;
 
-use App\Support\RequestActorContext;
+use App\Support\Auth\RequestActorContext;
 use Illuminate\Http\Request;
 
 class ReservationAccessScope

@@ -13,30 +13,30 @@ final class AdminInventoryKitchenPurchasingRouteSurfaceTest extends TestCase
     public function test_admin_inventory_kitchen_and_purchasing_routes_are_registered(): void
     {
         $expected = [
-            ['GET', 'v1/admin/inventory/ingredients', 'App\Http\Controllers\Api\Admin\AdminInventoryController@listIngredients'],
-            ['POST', 'v1/admin/inventory/ingredients', 'App\Http\Controllers\Api\Admin\AdminInventoryController@createIngredient'],
-            ['GET', 'v1/admin/inventory/ingredients/{id}', 'App\Http\Controllers\Api\Admin\AdminInventoryController@showIngredient'],
-            ['PATCH', 'v1/admin/inventory/ingredients/{id}', 'App\Http\Controllers\Api\Admin\AdminInventoryController@updateIngredient'],
-            ['GET', 'v1/admin/inventory/menu-items/{id}/recipe', 'App\Http\Controllers\Api\Admin\AdminInventoryController@showMenuItemRecipe'],
-            ['PUT', 'v1/admin/inventory/menu-items/{id}/recipe', 'App\Http\Controllers\Api\Admin\AdminInventoryController@upsertMenuItemRecipe'],
-            ['GET', 'v1/admin/inventory/ingredients/{id}/movements', 'App\Http\Controllers\Api\Admin\AdminInventoryController@listIngredientMovements'],
-            ['POST', 'v1/admin/inventory/ingredients/{id}/movements', 'App\Http\Controllers\Api\Admin\AdminInventoryController@createIngredientMovement'],
-            ['GET', 'v1/admin/inventory/suppliers', 'App\Http\Controllers\Api\Admin\AdminPurchasingController@listSuppliers'],
-            ['POST', 'v1/admin/inventory/suppliers', 'App\Http\Controllers\Api\Admin\AdminPurchasingController@createSupplier'],
-            ['GET', 'v1/admin/inventory/suppliers/{id}', 'App\Http\Controllers\Api\Admin\AdminPurchasingController@showSupplier'],
-            ['PATCH', 'v1/admin/inventory/suppliers/{id}', 'App\Http\Controllers\Api\Admin\AdminPurchasingController@updateSupplier'],
-            ['GET', 'v1/admin/inventory/purchase-orders', 'App\Http\Controllers\Api\Admin\AdminPurchasingController@listPurchaseOrders'],
-            ['POST', 'v1/admin/inventory/purchase-orders', 'App\Http\Controllers\Api\Admin\AdminPurchasingController@createPurchaseOrder'],
-            ['GET', 'v1/admin/inventory/purchase-orders/{id}', 'App\Http\Controllers\Api\Admin\AdminPurchasingController@showPurchaseOrder'],
-            ['PATCH', 'v1/admin/inventory/purchase-orders/{id}', 'App\Http\Controllers\Api\Admin\AdminPurchasingController@updatePurchaseOrder'],
-            ['GET', 'v1/admin/inventory/purchase-orders/{id}/receipts', 'App\Http\Controllers\Api\Admin\AdminPurchasingController@listPurchaseOrderReceipts'],
-            ['POST', 'v1/admin/inventory/purchase-orders/{id}/receipts', 'App\Http\Controllers\Api\Admin\AdminPurchasingController@createPurchaseOrderReceipt'],
-            ['GET', 'v1/admin/kitchen/stations', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\AdminKitchenRoutingController@index'],
-            ['POST', 'v1/admin/kitchen/stations', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\AdminKitchenRoutingController@store'],
-            ['GET', 'v1/admin/kitchen/stations/{station_id}', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\AdminKitchenRoutingController@show'],
-            ['PATCH', 'v1/admin/kitchen/stations/{station_id}', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\AdminKitchenRoutingController@update'],
-            ['GET', 'v1/admin/kitchen/stations/{station_id}/category-routes', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\AdminKitchenRoutingController@routes'],
-            ['PUT', 'v1/admin/kitchen/stations/{station_id}/category-routes', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\AdminKitchenRoutingController@syncRoutes'],
+            ['GET', 'v1/admin/inventory/ingredients', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\InventoryAdjustmentController@listIngredients'],
+            ['POST', 'v1/admin/inventory/ingredients', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\InventoryAdjustmentController@createIngredient'],
+            ['GET', 'v1/admin/inventory/ingredients/{id}', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\InventoryAdjustmentController@showIngredient'],
+            ['PATCH', 'v1/admin/inventory/ingredients/{id}', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\InventoryAdjustmentController@updateIngredient'],
+            ['GET', 'v1/admin/inventory/menu-items/{id}/recipe', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\InventoryAdjustmentController@showMenuItemRecipe'],
+            ['PUT', 'v1/admin/inventory/menu-items/{id}/recipe', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\InventoryAdjustmentController@upsertMenuItemRecipe'],
+            ['GET', 'v1/admin/inventory/ingredients/{id}/movements', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\InventoryAdjustmentController@listIngredientMovements'],
+            ['POST', 'v1/admin/inventory/ingredients/{id}/movements', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\InventoryAdjustmentController@createIngredientMovement'],
+            ['GET', 'v1/admin/inventory/suppliers', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\ProcurementController@listSuppliers'],
+            ['POST', 'v1/admin/inventory/suppliers', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\ProcurementController@createSupplier'],
+            ['GET', 'v1/admin/inventory/suppliers/{id}', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\ProcurementController@showSupplier'],
+            ['PATCH', 'v1/admin/inventory/suppliers/{id}', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\ProcurementController@updateSupplier'],
+            ['GET', 'v1/admin/inventory/purchase-orders', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\ProcurementController@listPurchaseOrders'],
+            ['POST', 'v1/admin/inventory/purchase-orders', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\ProcurementController@createPurchaseOrder'],
+            ['GET', 'v1/admin/inventory/purchase-orders/{id}', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\ProcurementController@showPurchaseOrder'],
+            ['PATCH', 'v1/admin/inventory/purchase-orders/{id}', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\ProcurementController@updatePurchaseOrder'],
+            ['GET', 'v1/admin/inventory/purchase-orders/{id}/receipts', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\ProcurementController@listPurchaseOrderReceipts'],
+            ['POST', 'v1/admin/inventory/purchase-orders/{id}/receipts', 'App\Modules\InventoryProcurement\Http\Controllers\Admin\ProcurementController@createPurchaseOrderReceipt'],
+            ['GET', 'v1/admin/kitchen/stations', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\KitchenStationController@index'],
+            ['POST', 'v1/admin/kitchen/stations', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\KitchenStationController@store'],
+            ['GET', 'v1/admin/kitchen/stations/{station_id}', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\KitchenStationController@show'],
+            ['PATCH', 'v1/admin/kitchen/stations/{station_id}', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\KitchenStationController@update'],
+            ['GET', 'v1/admin/kitchen/stations/{station_id}/category-routes', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\KitchenCategoryRouteController@index'],
+            ['PUT', 'v1/admin/kitchen/stations/{station_id}/category-routes', 'App\Modules\KitchenDispatch\Http\Controllers\Admin\KitchenCategoryRouteController@update'],
         ];
 
         foreach ($expected as [$method, $uri, $action]) {
@@ -71,3 +71,4 @@ final class AdminInventoryKitchenPurchasingRouteSurfaceTest extends TestCase
         return array_values(array_unique($candidates));
     }
 }
+

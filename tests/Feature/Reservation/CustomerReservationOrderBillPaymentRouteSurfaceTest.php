@@ -16,19 +16,19 @@ final class CustomerReservationOrderBillPaymentRouteSurfaceTest extends TestCase
             [
                 'method' => 'POST',
                 'uri' => 'v1/reservations/{reservation_id}/bill/payment-sessions',
-                'action' => 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationBillPaymentController@store',
+                'action' => 'App\\Modules\\Payments\\Http\\Controllers\\Customer\\ReservationBillPaymentController@store',
                 'idempotency' => 'idempotency:customer.reservation-bill-payment-sessions.create',
             ],
             [
                 'method' => 'POST',
                 'uri' => 'v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/refresh',
-                'action' => 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationBillPaymentController@refresh',
+                'action' => 'App\\Modules\\Payments\\Http\\Controllers\\Customer\\ReservationBillPaymentController@refresh',
                 'idempotency' => 'idempotency:customer.reservation-bill-payment-sessions.refresh',
             ],
             [
                 'method' => 'POST',
                 'uri' => 'v1/reservations/{reservation_id}/bill/payment-sessions/{session_id}/confirm',
-                'action' => 'App\\Modules\\CheckoutPayments\\Http\\Controllers\\Customer\\CustomerReservationBillPaymentController@confirm',
+                'action' => 'App\\Modules\\Payments\\Http\\Controllers\\Customer\\ReservationBillPaymentController@confirm',
                 'idempotency' => 'idempotency:customer.reservation-bill-payment-sessions.confirm',
             ],
         ];

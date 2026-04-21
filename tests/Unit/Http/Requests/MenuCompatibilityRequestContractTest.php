@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Http\Requests;
 
-use App\Http\Requests\Admin\UpdateMenuCategoryRequest;
-use App\Http\Requests\Admin\UpdateMenuItemRequest;
+use App\Modules\Catalog\Http\Requests\Admin\UpdateMenuCategoryRequest;
+use App\Modules\Catalog\Http\Requests\Admin\UpdateMenuItemRequest;
 use Tests\TestCase;
 
 final class MenuCompatibilityRequestContractTest extends TestCase

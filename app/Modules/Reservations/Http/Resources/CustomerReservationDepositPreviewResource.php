@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Reservations\Http\Resources;
 
-use App\Modules\CheckoutPayments\Domain\Models\Payment;
-use App\Support\Money;
+use App\Modules\Payments\Domain\Models\Payment;
+use App\SharedKernel\Money\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Collection;

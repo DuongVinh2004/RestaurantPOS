@@ -9,14 +9,14 @@ use App\Enums\PurchaseOrderStatus;
 use App\Enums\StaffConversationWorkflowState;
 use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
 use App\Modules\Conversations\Application\Services\StaffConversationInboxService;
-use App\Modules\KitchenDispatch\Application\Services\KitchenTicketReconciliationService;
+use App\Modules\KitchenDispatch\Application\Workflows\KitchenTicketReconciliationService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxHealthService;
-use App\Modules\Reporting\Application\Services\StaffOperationalRealtimeService;
+use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Platform\ApiContract\Services\DatabaseContractInspector;
 use App\Platform\Health\Support\OperationalHealthEvaluator;
-use App\Services\Inventory\PurchaseOrderReconciliationService;
-use App\Support\Money;
-use App\Support\StaffMutationRowVersionContract;
+use App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService;
+use App\SharedKernel\Money\Money;
+use App\Platform\QualityAssurance\Verification\Application\Verifiers\StaffMutationRowVersionContract;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +29,7 @@ class OperationalInsightsService
         private readonly DatabaseContractInspector $databaseContractInspector,
         private readonly KitchenTicketReconciliationService $kitchenTicketReconciliationService,
         private readonly PurchaseOrderReconciliationService $purchaseOrderReconciliationService,
-        private readonly StaffOperationalRealtimeService $staffOperationalRealtimeService,
+        private readonly OperationalRealtimeService $staffOperationalRealtimeService,
         private readonly BranchSchedulingPolicyService $branchSchedulingPolicyService,
     ) {}
 
@@ -1365,3 +1365,4 @@ class OperationalInsightsService
         }
     }
 }
+

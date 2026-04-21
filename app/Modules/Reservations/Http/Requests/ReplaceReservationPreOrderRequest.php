@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Reservations\Http\Requests;
 
-use App\Support\RequestActorContext;
+use App\Support\Auth\RequestActorContext;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ReplaceReservationPreOrderRequest extends FormRequest

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Support\StaffCapabilityResolver;
+use App\Modules\IdentityAccess\Application\Queries\StaffCapabilityResolver;
 use Tests\TestCase;
 
 class StaffCapabilityResolverTest extends TestCase

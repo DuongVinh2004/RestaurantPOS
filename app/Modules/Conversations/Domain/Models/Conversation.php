@@ -7,11 +7,11 @@ namespace App\Modules\Conversations\Domain\Models;
 use App\Enums\ConversationChannel;
 use App\Enums\ConversationStatus;
 use App\Enums\StaffConversationWorkflowState;
-use App\Models\Concerns\UsesUuidPrimaryKey;
+use App\Support\Persistence\UsesUuidPrimaryKey;
 use App\Modules\BranchScheduling\Domain\Models\Branch;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Models\User;
-use App\Modules\WaitingList\Domain\Models\WaitingList;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Waitlist\Domain\Models\WaitlistEntry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -261,7 +261,7 @@ class Conversation extends Model
 
     public function linkedWaitingList(): BelongsTo
     {
-        return $this->belongsTo(WaitingList::class, 'linked_waiting_list_id', 'waiting_id');
+        return $this->belongsTo(WaitlistEntry::class, 'linked_waiting_list_id', 'waiting_id');
     }
 
     public function assignments(): HasMany

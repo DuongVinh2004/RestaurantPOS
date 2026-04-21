@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Unit\Http\Middleware;
 
 use App\Http\Middleware\CustomerOrStaffMiddleware;
-use App\Services\CustomerReservationSessionAccessService;
-use App\Support\CustomerSessionRouteContract;
-use App\Support\StaffActorResolver;
+use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
+use App\Modules\IdentityAccess\Infrastructure\Internal\CustomerSessionRouteContract;
+use App\Modules\IdentityAccess\Infrastructure\Tokenization\StaffApiKeyActorResolver;
 use Illuminate\Http\Request;
 use Tests\TestCase;
 
@@ -98,8 +98,8 @@ final class CustomerOrStaffMiddlewareSessionFlowHotfixTest extends TestCase
     private function middleware(): CustomerOrStaffMiddleware
     {
         return new CustomerOrStaffMiddleware(
-            new StaffActorResolver(),
-            new CustomerSessionRouteContract($this->createMock(CustomerReservationSessionAccessService::class)),
+            new StaffApiKeyActorResolver(),
+            new CustomerSessionRouteContract($this->createMock(ReservationSessionAccessWorkflow::class)),
         );
     }
 

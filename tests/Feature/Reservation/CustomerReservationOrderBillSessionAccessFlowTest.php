@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Reservation;
 
-use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
+use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\BuildsBookingScenario;
@@ -157,7 +157,7 @@ class CustomerReservationOrderBillSessionAccessFlowTest extends TestCase
         ]);
 
         if ($lockBill) {
-            app(StaffCheckoutService::class)->lockBill(
+            app(OrderSettlementWorkflow::class)->lockBill(
                 orderId: $orderId,
                 discountAmount: null,
                 notes: 'lock bill for session-linked customer self-payment',

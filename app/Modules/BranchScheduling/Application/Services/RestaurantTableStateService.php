@@ -7,7 +7,7 @@ namespace App\Modules\BranchScheduling\Application\Services;
 use App\Enums\RestaurantTableStatus;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Support\AvailabilityCacheVersion;
-use App\Modules\FloorOps\Domain\Audit\TableStateAuditLogger;
+use App\Modules\FloorOperations\Domain\Audit\TableStateAuditLogger;
 use Illuminate\Support\Carbon;
 
 class RestaurantTableStateService
@@ -192,3 +192,4 @@ class RestaurantTableStateService
         return array_values(array_filter($normalized, static fn (int $id) => $id > 0));
     }
 }
+

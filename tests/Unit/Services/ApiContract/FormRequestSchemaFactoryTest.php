@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\ApiContract;
 
-use App\Http\Requests\Admin\ListAdminBranchesRequest;
-use App\Modules\CheckoutPayments\Http\Requests\Customer\CreateCustomerReservationDepositPaymentSessionRequest;
-use App\Modules\Reservations\Http\Requests\StoreReservationRequest;
+use App\Modules\Payments\Http\Requests\Customer\StartReservationDepositPaymentRequest;
+use App\Modules\BranchScheduling\Http\Requests\Admin\ListBranchesRequest;
+use App\Modules\Reservations\Http\Requests\Customer\CreateReservationRequest;
 use App\Platform\ApiContract\Services\FormRequestSchemaFactory;
 use Tests\TestCase;
 
@@ -14,9 +14,9 @@ final class FormRequestSchemaFactoryTest extends TestCase
 {
     public function test_it_describes_nested_store_reservation_payloads_without_resolving_validation(): void
     {
-        $description = app(FormRequestSchemaFactory::class)->describe(StoreReservationRequest::class);
+        $description = app(FormRequestSchemaFactory::class)->describe(CreateReservationRequest::class);
 
-        $this->assertSame('StoreReservationRequest', $description['schema_name']);
+        $this->assertSame('CreateReservationRequest', $description['schema_name']);
         $this->assertSame(['end_time', 'guest_count', 'start_time'], $description['schema']['required']);
         $this->assertSame('array', $description['schema']['properties']['pre_order_items']['type']);
         $this->assertSame(
@@ -28,7 +28,7 @@ final class FormRequestSchemaFactoryTest extends TestCase
 
     public function test_it_extracts_query_parameters_for_branch_listing_requests(): void
     {
-        $description = app(FormRequestSchemaFactory::class)->describe(ListAdminBranchesRequest::class);
+        $description = app(FormRequestSchemaFactory::class)->describe(ListBranchesRequest::class);
         $parameters = collect($description['query_parameters'])->keyBy('name');
 
         $this->assertSame(['is_active', 'q'], $parameters->keys()->all());
@@ -40,7 +40,7 @@ final class FormRequestSchemaFactoryTest extends TestCase
 
     public function test_it_handles_required_row_version_requests_without_throwing_validation_exceptions(): void
     {
-        $description = app(FormRequestSchemaFactory::class)->describe(CreateCustomerReservationDepositPaymentSessionRequest::class);
+        $description = app(FormRequestSchemaFactory::class)->describe(StartReservationDepositPaymentRequest::class);
 
         $this->assertSame(
             ['row_version'],

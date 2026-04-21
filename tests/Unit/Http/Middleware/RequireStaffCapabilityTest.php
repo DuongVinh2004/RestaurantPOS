@@ -19,7 +19,7 @@ final class RequireStaffCapabilityTest extends TestCase
         $request = Request::create('/__testing__/staff-capability', 'POST');
         $request->attributes->set('staff_actor_role_name', 'Staff');
 
-        $response = (new RequireStaffCapability())->handle($request, function () {
+        $response = (new RequireStaffCapability)->handle($request, function () {
             return response()->json(['ok' => true], 200);
         }, 'reservation.manage');
 
@@ -36,14 +36,13 @@ final class RequireStaffCapabilityTest extends TestCase
         $request = Request::create('/__testing__/staff-capability', 'POST');
         $request->attributes->set('staff_actor_role_name', 'Admin');
 
-        $response = (new RequireStaffCapability())->handle($request, function () {
+        $response = (new RequireStaffCapability)->handle($request, function () {
             return response()->json(['ok' => true], 200);
         }, 'payment.refund');
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame(['ok' => true], $response->getData(true));
     }
-
 
     public function test_it_prefers_role_id_capabilities_when_present(): void
     {
@@ -58,7 +57,7 @@ final class RequireStaffCapabilityTest extends TestCase
         $request->attributes->set('staff_actor_role_id', 7);
         $request->attributes->set('staff_actor_role_name', 'Staff');
 
-        $response = (new RequireStaffCapability())->handle($request, function () {
+        $response = (new RequireStaffCapability)->handle($request, function () {
             return response()->json(['ok' => true], 200);
         }, 'payment.refund');
 
@@ -75,12 +74,33 @@ final class RequireStaffCapabilityTest extends TestCase
         $request = Request::create('/__testing__/staff-capability', 'POST');
         $request->attributes->set('staff_actor_role_name', 'Staff');
 
-        $response = (new RequireStaffCapability())->handle($request, function () {
+        $response = (new RequireStaffCapability)->handle($request, function () {
             $this->fail('Middleware should not allow the downstream handler when capability is missing.');
         }, 'payment.refund');
 
         $this->assertSame(403, $response->getStatusCode());
         $this->assertSame('forbidden', $response->getData(true)['error_code'] ?? null);
         $this->assertSame('payment.refund', $response->getData(true)['required_capability'] ?? null);
+    }
+
+    public function test_it_rejects_unknown_capability_even_for_wildcard_role_when_contract_enforcement_is_enabled(): void
+    {
+        config()->set('staff_capabilities.enforce_known_capabilities', true);
+        config()->set('staff_capabilities.known_capabilities', ['reservation.manage']);
+        config()->set('staff_capabilities.role_capabilities', [
+            'Admin' => ['*'],
+        ]);
+
+        $request = Request::create('/__testing__/staff-capability', 'POST');
+        $request->attributes->set('staff_actor_role_name', 'Admin');
+
+        $response = (new RequireStaffCapability)->handle($request, function () {
+            $this->fail('Middleware should not allow an unregistered capability contract.');
+        }, 'money.teleport');
+
+        $this->assertSame(500, $response->getStatusCode());
+        $this->assertSame('staff_capability_not_registered', $response->getData(true)['error_code'] ?? null);
+        $this->assertSame('money.teleport', $response->getData(true)['required_capability'] ?? null);
+        $this->assertSame('capability_contract_missing', $response->getData(true)['state_reason'] ?? null);
     }
 }

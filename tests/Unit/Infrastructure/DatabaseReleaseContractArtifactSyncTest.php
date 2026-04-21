@@ -64,6 +64,18 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
         }
     }
 
+    public function test_release_gate_artifact_upload_excludes_transient_stage_directories(): void
+    {
+        $workflowPath = base_path('.github/workflows/booking-release-gate.yml');
+
+        $this->assertTrue(File::exists($workflowPath), sprintf('Workflow file is missing: %s', $workflowPath));
+
+        $workflow = (string) File::get($workflowPath);
+
+        $this->assertStringContainsString('build/booking-release/**', $workflow);
+        $this->assertStringContainsString('!build/booking-release/stage/**', $workflow);
+    }
+
     public function test_release_contract_verification_and_docs_cover_april_five_foundations(): void
     {
         $verifySqlPath = base_path('tools/mysql/verify_release_contract.sql');

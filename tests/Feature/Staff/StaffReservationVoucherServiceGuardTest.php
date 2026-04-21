@@ -10,7 +10,7 @@ use Mockery;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
-class StaffReservationVoucherServiceGuardTest extends TestCase
+class ReservationVoucherWorkflowGuardTest extends TestCase
 {
     use BuildsBookingScenario;
     use DatabaseTransactions;

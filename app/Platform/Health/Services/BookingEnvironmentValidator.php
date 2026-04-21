@@ -3,7 +3,7 @@
 namespace App\Platform\Health\Services;
 
 use App\Enums\PaymentSessionScope;
-use App\Modules\CheckoutPayments\Infrastructure\PaymentProviders\PaymentProviderRolloutConfig;
+use App\Modules\Payments\Infrastructure\Integrations\PaymentProviders\PaymentProviderRolloutConfig;
 
 class BookingEnvironmentValidator
 {

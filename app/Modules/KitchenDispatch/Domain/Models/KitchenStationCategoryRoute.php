@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\KitchenDispatch\Domain\Models;
 
-use App\Models\MenuCategory;
+use App\Modules\Catalog\Domain\Models\MenuCategory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 

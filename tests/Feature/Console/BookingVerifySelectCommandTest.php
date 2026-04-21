@@ -13,7 +13,7 @@ class BookingVerifySelectCommandTest extends TestCase
     {
         $exitCode = Artisan::call('booking:verify-select', [
             '--json' => true,
-            '--path' => ['app/Services/Staff/StaffCheckoutService.php'],
+            '--path' => ['app/Modules/Cashiering/Application/Workflows/OrderSettlementWorkflow.php'],
         ]);
 
         $payload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
@@ -22,7 +22,7 @@ class BookingVerifySelectCommandTest extends TestCase
 
         $this->assertSame(0, $exitCode);
         $this->assertTrue($payload['ok']);
-        $this->assertSame(['app/Services/Staff/StaffCheckoutService.php'], $payload['paths']);
+        $this->assertSame(['app/Modules/Cashiering/Application/Workflows/OrderSettlementWorkflow.php'], $payload['paths']);
         $this->assertContains('checkout_finance', $domainKeys);
         $this->assertContains('php artisan booking:round5-gate --json', $commands);
     }

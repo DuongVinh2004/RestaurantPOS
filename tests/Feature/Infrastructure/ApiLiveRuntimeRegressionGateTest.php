@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Infrastructure;
 
-use App\Models\User;
-use App\Modules\CheckoutPayments\Application\Services\StaffCheckoutService;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
@@ -165,7 +165,7 @@ final class ApiLiveRuntimeRegressionGateTest extends TestCase
         $adminId = $this->createUser(['role_name' => 'Admin']);
         $headers = $this->withIdempotencyKey($this->staffAuthHeaders($adminId, 'gate-live-checkout-staff'), 'gate-live-checkout-alias-1');
 
-        $service = Mockery::mock(StaffCheckoutService::class);
+        $service = Mockery::mock(OrderSettlementWorkflow::class);
         $service->shouldReceive('checkout')
             ->once()
             ->andReturn([
@@ -173,7 +173,7 @@ final class ApiLiveRuntimeRegressionGateTest extends TestCase
                 'status' => 'Completed',
                 'payments' => [],
             ]);
-        $this->app->instance(StaffCheckoutService::class, $service);
+        $this->app->instance(OrderSettlementWorkflow::class, $service);
 
         $payload = [
             'payment_method' => 'Cash',

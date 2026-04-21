@@ -10,9 +10,9 @@ use App\Modules\Conversations\Domain\Models\Conversation;
 use App\Modules\Conversations\Domain\Models\ConversationAnalysis;
 use App\Modules\Conversations\Domain\Models\ConversationEvent;
 use App\Modules\Conversations\Domain\Models\ConversationMessage;
-use App\Modules\FloorOps\Application\Services\StaffBranchContextService;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Platform\FeatureFlags\Services\FeatureFlagService;
-use App\Services\AI\ConversationThreadAssistService;
+use App\Modules\Conversations\Infrastructure\Internal\ConversationAiAssistBuilder;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -443,3 +443,4 @@ class StaffConversationInboxService
         return $branchIds;
     }
 }
+

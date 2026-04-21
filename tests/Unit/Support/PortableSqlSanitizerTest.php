@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
-use App\Support\PortableSqlSanitizer;
+use App\Platform\Delivery\Release\Application\Verifiers\PortableSqlSanitizer;
 use PHPUnit\Framework\TestCase;
 
 final class PortableSqlSanitizerTest extends TestCase

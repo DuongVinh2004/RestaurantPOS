@@ -145,5 +145,6 @@ jobs:
           path: |
             build/booking-ci/**
             build/booking-release/**
+            !build/booking-release/stage/**
             storage/app/booking_release/**
             storage/logs/**
