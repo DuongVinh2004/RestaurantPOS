@@ -7,10 +7,11 @@ namespace Tests\Feature\Staff;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Validation\ValidationException;
 use Mockery;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
-class ReservationVoucherWorkflowGuardTest extends TestCase
+class StaffReservationVoucherServiceGuardTest extends TestCase
 {
     use BuildsBookingScenario;
     use DatabaseTransactions;
@@ -27,6 +28,7 @@ class ReservationVoucherWorkflowGuardTest extends TestCase
         parent::tearDown();
     }
 
+    #[Group('booking-smoke')]
     public function test_cannot_apply_voucher_after_final_payment_has_been_recorded(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
