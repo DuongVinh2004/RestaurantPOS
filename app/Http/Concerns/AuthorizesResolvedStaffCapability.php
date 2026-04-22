@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Concerns;
 
-use App\Support\ApiErrorResponse;
 use App\Modules\IdentityAccess\Application\Queries\StaffCapabilityResolver;
+use App\Support\ApiErrorResponse;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 

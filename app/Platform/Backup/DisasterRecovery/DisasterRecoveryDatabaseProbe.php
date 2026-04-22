@@ -12,7 +12,7 @@ use Throwable;
 class DisasterRecoveryDatabaseProbe
 {
     /**
-     * @param array{host: string, port: string, username: string, password: string, database: string} $targetConnection
+     * @param  array{host: string, port: string, username: string, password: string, database: string}  $targetConnection
      * @return array<string, mixed>
      */
     public function inspect(array $targetConnection): array
@@ -117,21 +117,21 @@ class DisasterRecoveryDatabaseProbe
     }
 
     /**
-     * @param array{host: string, port: string, username: string, password: string, database: string} $targetConnection
-     * @param callable(string, ConnectionInterface): array<string, mixed> $callback
+     * @param  array{host: string, port: string, username: string, password: string, database: string}  $targetConnection
+     * @param  callable(string, ConnectionInterface): array<string, mixed>  $callback
      * @return array<string, mixed>
      */
     private function withProbeConnection(array $targetConnection, callable $callback): array
     {
         $default = (string) config('database.default');
-        $baseConfig = config('database.connections.' . $default);
+        $baseConfig = config('database.connections.'.$default);
         if (! is_array($baseConfig)) {
             throw new \RuntimeException(sprintf('Base database connection [%s] is not configured.', $default));
         }
 
         $connectionName = 'drill_restore_probe';
         config([
-            'database.connections.' . $connectionName => array_merge($baseConfig, [
+            'database.connections.'.$connectionName => array_merge($baseConfig, [
                 'host' => $targetConnection['host'],
                 'port' => $targetConnection['port'],
                 'database' => $targetConnection['database'],
@@ -148,7 +148,7 @@ class DisasterRecoveryDatabaseProbe
             return $callback($connectionName, $connection);
         } finally {
             DB::purge($connectionName);
-            config(['database.connections.' . $connectionName => null]);
+            config(['database.connections.'.$connectionName => null]);
         }
     }
 }

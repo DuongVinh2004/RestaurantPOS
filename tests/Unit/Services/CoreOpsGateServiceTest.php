@@ -12,7 +12,7 @@ class CoreOpsGateServiceTest extends TestCase
 {
     public function test_definition_reads_canonical_core_ops_suite(): void
     {
-        $service = new CoreOpsGateService();
+        $service = new CoreOpsGateService;
 
         $definition = $service->definition();
 
@@ -28,7 +28,8 @@ class CoreOpsGateServiceTest extends TestCase
 
     public function test_build_artisan_test_command_uses_supported_arguments_only(): void
     {
-        $service = new class extends CoreOpsGateService {
+        $service = new class extends CoreOpsGateService
+        {
             /**
              * @return list<string>
              */
@@ -49,7 +50,8 @@ class CoreOpsGateServiceTest extends TestCase
 
     public function test_testing_subprocess_environment_uses_phpunit_contract_values(): void
     {
-        $service = new class extends CoreOpsGateService {
+        $service = new class extends CoreOpsGateService
+        {
             /**
              * @return array<string, string>
              */
@@ -73,7 +75,8 @@ class CoreOpsGateServiceTest extends TestCase
         $snapshotPath = 'storage/framework/testing/core_ops_gate/test_snapshot.json';
         config()->set('booking_release.core_ops_gate.snapshot_path', $snapshotPath);
 
-        $service = new class extends CoreOpsGateService {
+        $service = new class extends CoreOpsGateService
+        {
             protected function runSingleTest(array $test): array
             {
                 return array_merge($test, [

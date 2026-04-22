@@ -7,11 +7,11 @@ namespace App\Modules\Conversations\Domain\Models;
 use App\Enums\ConversationChannel;
 use App\Enums\ConversationStatus;
 use App\Enums\StaffConversationWorkflowState;
-use App\Support\Persistence\UsesUuidPrimaryKey;
 use App\Modules\BranchScheduling\Domain\Models\Branch;
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Waitlist\Domain\Models\WaitlistEntry;
+use App\Support\Persistence\UsesUuidPrimaryKey;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -24,6 +24,7 @@ class Conversation extends Model
     use UsesUuidPrimaryKey;
 
     protected $table = 'conversations';
+
     protected $primaryKey = 'conversation_id';
 
     public const UPDATED_AT = null;

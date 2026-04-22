@@ -61,5 +61,3 @@ class OrderItemLifecycleController extends Controller
         ]);
     }
 }
-
-

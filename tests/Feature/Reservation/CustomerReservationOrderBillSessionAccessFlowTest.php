@@ -33,7 +33,7 @@ class CustomerReservationOrderBillSessionAccessFlowTest extends TestCase
         $this->withHeaders([
             'Accept' => 'application/json',
             'X-Session-Id' => $sessionId,
-        ])->getJson('/api/v1/reservations/' . $reservationId . '/active-order')
+        ])->getJson('/api/v1/reservations/'.$reservationId.'/active-order')
             ->assertOk()
             ->assertJsonPath('data.reservation_id', $reservationId)
             ->assertJsonPath('data.active_order.order_id', $orderId)
@@ -42,7 +42,7 @@ class CustomerReservationOrderBillSessionAccessFlowTest extends TestCase
         $this->withHeaders([
             'Accept' => 'application/json',
             'X-Session-Id' => $sessionId,
-        ])->getJson('/api/v1/reservations/' . $reservationId . '/bill-preview')
+        ])->getJson('/api/v1/reservations/'.$reservationId.'/bill-preview')
             ->assertOk()
             ->assertJsonPath('data.reservation_id', $reservationId)
             ->assertJsonPath('data.bill_preview.snapshot_mode', 'locked')
@@ -61,7 +61,7 @@ class CustomerReservationOrderBillSessionAccessFlowTest extends TestCase
             'Accept' => 'application/json',
             'Idempotency-Key' => 'cust-bill-session-create-1',
             'X-Session-Id' => $sessionId,
-        ])->postJson('/api/v1/reservations/' . $reservationId . '/bill/payment-sessions', [
+        ])->postJson('/api/v1/reservations/'.$reservationId.'/bill/payment-sessions', [
             'row_version' => (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version'),
             'provider_code' => 'simulated',
             'currency' => 'VND',
@@ -79,7 +79,7 @@ class CustomerReservationOrderBillSessionAccessFlowTest extends TestCase
         $this->withHeaders([
             'Accept' => 'application/json',
             'X-Session-Id' => $sessionId,
-        ])->getJson('/api/v1/reservations/' . $reservationId . '/bill/payment-sessions/' . $paymentSessionId)
+        ])->getJson('/api/v1/reservations/'.$reservationId.'/bill/payment-sessions/'.$paymentSessionId)
             ->assertOk()
             ->assertJsonPath('data.payment_session.bill_payment_session_id', $paymentSessionId);
 
@@ -87,7 +87,7 @@ class CustomerReservationOrderBillSessionAccessFlowTest extends TestCase
             'Accept' => 'application/json',
             'Idempotency-Key' => 'cust-bill-session-confirm-1',
             'X-Session-Id' => $sessionId,
-        ])->postJson('/api/v1/reservations/' . $reservationId . '/bill/payment-sessions/' . $paymentSessionId . '/confirm', [
+        ])->postJson('/api/v1/reservations/'.$reservationId.'/bill/payment-sessions/'.$paymentSessionId.'/confirm', [
             'row_version' => $paymentSessionRowVersion,
             'simulation_outcome' => 'succeeded',
         ])->assertOk()
@@ -116,12 +116,12 @@ class CustomerReservationOrderBillSessionAccessFlowTest extends TestCase
         );
 
         $this->withHeaders($headers)
-            ->getJson('/api/v1/reservations/' . $reservationId . '/active-order')
+            ->getJson('/api/v1/reservations/'.$reservationId.'/active-order')
             ->assertStatus(403)
             ->assertJsonPath('error_code', 'forbidden');
 
         $this->withHeaders($headers)
-            ->getJson('/api/v1/reservations/' . $reservationId . '/bill-preview')
+            ->getJson('/api/v1/reservations/'.$reservationId.'/bill-preview')
             ->assertStatus(403)
             ->assertJsonPath('error_code', 'forbidden');
     }
@@ -166,7 +166,7 @@ class CustomerReservationOrderBillSessionAccessFlowTest extends TestCase
             );
         }
 
-        $sessionId = 'sess-bill-linked-' . $reservationId;
+        $sessionId = 'sess-bill-linked-'.$reservationId;
         $this->createTableHold([
             'session_id' => $sessionId,
             'user_id' => $customerId,

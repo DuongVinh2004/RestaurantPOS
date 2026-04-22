@@ -7,33 +7,32 @@ use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
 use App\Enums\TableHoldStatus;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\BranchScheduling\Application\Services\TableHoldService;
 use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
+use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\BranchScheduling\Domain\Models\TableHold;
+use App\Modules\Catalog\Application\UseCases\PolicyPreview\MenuPreorderPolicyService;
 use App\Modules\Catalog\Domain\Models\MenuItem;
-use App\Modules\Catalog\Domain\Models\MenuItemPrice;
-use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\Reservations\Domain\Policies\ReservationStatusTransitionPolicy;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
-use App\Modules\Reservations\Domain\Models\ReservationTable;
-use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
-use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Promotions\Domain\Models\UserVoucher;
-use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
-use App\Modules\Catalog\Application\UseCases\PolicyPreview\MenuPreorderPolicyService;
-use App\Modules\Notifications\Application\Services\NotificationOutboxService;
-use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\Promotions\Domain\Policies\VoucherRedemptionSupport;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Reservations\Domain\Models\ReservationTable;
+use App\Modules\Reservations\Domain\Policies\ReservationStatusTransitionPolicy;
+use App\SharedKernel\Money\Money;
 use App\Support\AuditEvent;
 use App\Support\AvailabilityCacheVersion;
 use App\Support\DatabaseWriteConflictMapper;
-use App\SharedKernel\Money\Money;
-use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
-use App\Modules\Promotions\Domain\Policies\VoucherRedemptionSupport;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -42,15 +41,25 @@ use Illuminate\Validation\ValidationException;
 class ReservationService
 {
     private TableHoldService $tableHoldService;
+
     private ReservationLockService $lockService;
+
     private ReservationCodeGenerator $codeGenerator;
+
     private NotificationOutboxService $notificationOutboxService;
+
     private LoyaltyPointsService $loyaltyPointsService;
+
     private RestaurantTableStateService $tableStateService;
+
     private TableTimeConflictService $tableTimeConflictService;
+
     private ReservationFinancialSyncService $reservationFinancialSyncService;
+
     private BranchContextService $branchContextService;
+
     private BranchSchedulingPolicyService $branchSchedulingPolicyService;
+
     private MenuPreorderPolicyService $menuPreorderPolicyService;
 
     public function __construct(
@@ -156,7 +165,7 @@ class ReservationService
                 $deletedTables = $tables->where('is_deleted', 1)->pluck('table_id')->values()->all();
                 if (! empty($deletedTables)) {
                     throw ValidationException::withMessages([
-                        'table_ids' => ['Có bàn đã bị xoá: ' . implode(',', $deletedTables)],
+                        'table_ids' => ['Có bàn đã bị xoá: '.implode(',', $deletedTables)],
                     ]);
                 }
 
@@ -164,7 +173,7 @@ class ReservationService
                     ->pluck('table_id')->values()->all();
                 if (! empty($nonAllocatable)) {
                     throw ValidationException::withMessages([
-                        'table_ids' => ['Có bàn không ở trạng thái Available: ' . implode(',', $nonAllocatable)],
+                        'table_ids' => ['Có bàn không ở trạng thái Available: '.implode(',', $nonAllocatable)],
                     ]);
                 }
 
@@ -208,18 +217,18 @@ class ReservationService
                 $holdConflicts = $this->tableTimeConflictService->findHoldConflictTableIds($tableIds, $startUtc, $endUtc, $trustedHoldIds, null, true);
                 if (! empty($holdConflicts)) {
                     throw ValidationException::withMessages([
-                        'table_ids' => ['Bàn đang bị giữ chỗ bởi session khác: ' . implode(',', $holdConflicts)],
+                        'table_ids' => ['Bàn đang bị giữ chỗ bởi session khác: '.implode(',', $holdConflicts)],
                     ]);
                 }
 
                 $conflictTableIds = $this->tableTimeConflictService->findReservationConflictTableIds($tableIds, $startUtc, $endUtc, null, true);
                 if (! empty($conflictTableIds)) {
                     throw ValidationException::withMessages([
-                        'table_ids' => ['Bàn bị trùng lịch (overlap reservation): ' . implode(',', $conflictTableIds)],
+                        'table_ids' => ['Bàn bị trùng lịch (overlap reservation): '.implode(',', $conflictTableIds)],
                     ]);
                 }
 
-                $reservation = new Reservation();
+                $reservation = new Reservation;
                 $reservation->branch_id = $tableBranchId;
                 $reservation->user_id = $userId;
                 $reservation->guest_name = $guestSnapshot['guest_name'];
@@ -256,7 +265,7 @@ class ReservationService
                     $menuItems = $preparedPreorder['menu_items'];
                     $priceRows = $preparedPreorder['price_rows'];
 
-                    $order = new ReservationOrder();
+                    $order = new ReservationOrder;
                     $order->reservation_id = $reservation->reservation_id;
                     $order->setAttribute('order_type', ReservationOrderType::PreOrder);
                     $order->status = ReservationOrderStatus::Active;
@@ -272,7 +281,7 @@ class ReservationService
                         $currency = (string) $priceRow->currency;
                         $quantity = (int) $row['quantity'];
 
-                        $item = new ReservationOrderItem();
+                        $item = new ReservationOrderItem;
                         $item->order_id = $order->order_id;
                         $item->item_id = (int) $row['item_id'];
                         $item->quantity = $quantity;
@@ -640,7 +649,6 @@ class ReservationService
         });
     }
 
-
     private function releaseReservationVoucherForStatusLocked(Reservation $reservation, ?int $actorUserId = null): void
     {
         $userVoucherId = (int) ($reservation->applied_user_voucher_id ?? 0);
@@ -657,6 +665,7 @@ class ReservationService
 
         if (! $userVoucher) {
             $reservation->applied_user_voucher_id = null;
+
             return;
         }
 
@@ -845,7 +854,7 @@ class ReservationService
         $nullTemplate = $tables->whereNull('template_id')->pluck('table_id')->values()->all();
         if (! empty($nullTemplate)) {
             throw ValidationException::withMessages([
-                'table_ids' => ['Các bàn thiếu template_id (không tính được seats): ' . implode(',', $nullTemplate)],
+                'table_ids' => ['Các bàn thiếu template_id (không tính được seats): '.implode(',', $nullTemplate)],
             ]);
         }
 
@@ -860,6 +869,7 @@ class ReservationService
             $tid = (int) $t->template_id;
             if (! $seatsByTemplate->has($tid)) {
                 $missingTemplates[] = $tid;
+
                 continue;
             }
             $totalSeats += (int) $seatsByTemplate->get($tid);
@@ -868,7 +878,7 @@ class ReservationService
         if (! empty($missingTemplates)) {
             $missingTemplates = array_values(array_unique($missingTemplates));
             throw ValidationException::withMessages([
-                'table_ids' => ['Template không tồn tại để tính seats: ' . implode(',', $missingTemplates)],
+                'table_ids' => ['Template không tồn tại để tính seats: '.implode(',', $missingTemplates)],
             ]);
         }
 
@@ -939,5 +949,4 @@ class ReservationService
 
         return $trimmed === '' ? null : $trimmed;
     }
-
 }

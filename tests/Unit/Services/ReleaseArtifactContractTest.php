@@ -30,7 +30,7 @@ class ReleaseArtifactContractTest extends TestCase
             }
         }
 
-        $this->assertSame([], $missing, 'Schema dump is missing required contract fragments: ' . implode(', ', $missing));
+        $this->assertSame([], $missing, 'Schema dump is missing required contract fragments: '.implode(', ', $missing));
     }
 
     public function test_optional_full_dump_when_present_contains_required_contract_fragments(): void
@@ -54,7 +54,7 @@ class ReleaseArtifactContractTest extends TestCase
             }
         }
 
-        $this->assertSame([], $missing, 'Full dump is missing required contract fragments: ' . implode(', ', $missing));
+        $this->assertSame([], $missing, 'Full dump is missing required contract fragments: '.implode(', ', $missing));
     }
 
     public function test_required_sql_patch_inventory_contains_release_critical_late_round_patches(): void

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use App\Modules\Promotions\Application\Workflows\ReservationVoucherWorkflow;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Mockery;
@@ -110,18 +110,18 @@ final class StaffMutationAliasReplayHttpFlowTest extends TestCase
         ];
 
         $first = $this->withHeaders($headers)
-            ->postJson('/api/v1/staff/reservations/' . $reservationId . '/voucher/release', $payload);
+            ->postJson('/api/v1/staff/reservations/'.$reservationId.'/voucher/release', $payload);
 
         $first->assertOk()
             ->assertHeader('Idempotency-Replayed', 'false')
             ->assertHeader('Deprecation', 'true')
             ->assertHeader('X-Deprecated-Route-Alias', '/api/v1/staff/reservations/{reservation_id}/voucher/release')
-            ->assertHeader('X-Canonical-Route', '/api/v1/staff/reservations/' . $reservationId . '/voucher/remove')
+            ->assertHeader('X-Canonical-Route', '/api/v1/staff/reservations/'.$reservationId.'/voucher/remove')
             ->assertJsonPath('data.reservation.reservation_id', $reservationId)
             ->assertJsonPath('data.removed_voucher.user_voucher_id', 77);
 
         $second = $this->withHeaders($headers)
-            ->postJson('/api/v1/staff/reservations/' . $reservationId . '/voucher/remove', $payload);
+            ->postJson('/api/v1/staff/reservations/'.$reservationId.'/voucher/remove', $payload);
 
         $second->assertOk()
             ->assertHeader('Idempotency-Replayed', 'true')
@@ -154,18 +154,18 @@ final class StaffMutationAliasReplayHttpFlowTest extends TestCase
         ];
 
         $first = $this->withHeaders($headers)
-            ->postJson('/api/v1/staff/reservations/' . $reservationId . '/loyalty/release', $payload);
+            ->postJson('/api/v1/staff/reservations/'.$reservationId.'/loyalty/release', $payload);
 
         $first->assertOk()
             ->assertHeader('Idempotency-Replayed', 'false')
             ->assertHeader('Deprecation', 'true')
             ->assertHeader('X-Deprecated-Route-Alias', '/api/v1/staff/reservations/{reservation_id}/loyalty/release')
-            ->assertHeader('X-Canonical-Route', '/api/v1/staff/reservations/' . $reservationId . '/loyalty/redeem/release')
+            ->assertHeader('X-Canonical-Route', '/api/v1/staff/reservations/'.$reservationId.'/loyalty/redeem/release')
             ->assertJsonPath('data.reservation.reservation_id', $reservationId)
             ->assertJsonPath('data.reservation.loyalty.redeemed_points', 0);
 
         $second = $this->withHeaders($headers)
-            ->postJson('/api/v1/staff/reservations/' . $reservationId . '/loyalty/redeem/release', $payload);
+            ->postJson('/api/v1/staff/reservations/'.$reservationId.'/loyalty/redeem/release', $payload);
 
         $second->assertOk()
             ->assertHeader('Idempotency-Replayed', 'true')

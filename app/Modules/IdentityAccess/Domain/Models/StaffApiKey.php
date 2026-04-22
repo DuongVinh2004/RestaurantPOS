@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class StaffApiKey extends Model
 {
     protected $table = 'staff_api_keys';
+
     protected $primaryKey = 'staff_api_key_id';
 
     protected $fillable = [

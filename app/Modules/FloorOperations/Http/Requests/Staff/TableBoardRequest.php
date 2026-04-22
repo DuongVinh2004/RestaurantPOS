@@ -76,5 +76,3 @@ class TableBoardRequest extends FormRequest
         ];
     }
 }
-
-

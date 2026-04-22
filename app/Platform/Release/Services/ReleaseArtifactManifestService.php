@@ -168,7 +168,6 @@ class ReleaseArtifactManifestService
         ];
     }
 
-
     /**
      * @return array{
      *   ok: bool,
@@ -233,6 +232,7 @@ class ReleaseArtifactManifestService
                 }
 
                 $artifacts[$key] = $artifact;
+
                 continue;
             }
 
@@ -413,15 +413,9 @@ class ReleaseArtifactManifestService
 
         $absolutePath = base_path($relativePath);
         File::ensureDirectoryExists(dirname($absolutePath));
-
-        if (File::exists($absolutePath)) {
-            $inspection = $this->inspectFrozenSnapshot($snapshot, $relativePath);
-            if (($inspection['ok'] ?? false) === true) {
-                return $snapshot;
-            }
-        }
-
-        File::put($absolutePath, json_encode($snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+        // Keep the frozen snapshot file timestamp aligned with the last explicit refresh.
+        // Package integrity and packaging flows treat that timestamp as release truth.
+        File::put($absolutePath, json_encode($snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
 
         return $snapshot;
     }
@@ -529,8 +523,6 @@ class ReleaseArtifactManifestService
     }
 
     /**
-     * @param  mixed  $expected
-     * @param  mixed  $actual
      * @return list<string>
      */
     private function collectMismatchPaths(mixed $expected, mixed $actual, string $path = ''): array
@@ -541,12 +533,13 @@ class ReleaseArtifactManifestService
             sort($keys);
 
             foreach ($keys as $key) {
-                $childPath = $path === '' ? (string) $key : $path . '.' . (string) $key;
+                $childPath = $path === '' ? (string) $key : $path.'.'.(string) $key;
                 $expectedHasKey = array_key_exists($key, $expected);
                 $actualHasKey = array_key_exists($key, $actual);
 
                 if (! $expectedHasKey || ! $actualHasKey) {
                     $mismatches[] = $childPath;
+
                     continue;
                 }
 
@@ -559,10 +552,6 @@ class ReleaseArtifactManifestService
         return $expected === $actual ? [] : [$path === '' ? '<root>' : $path];
     }
 
-    /**
-     * @param  mixed  $value
-     * @return mixed
-     */
     private function sortRecursive(mixed $value): mixed
     {
         if (! is_array($value)) {

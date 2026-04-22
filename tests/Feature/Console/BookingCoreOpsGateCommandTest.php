@@ -12,7 +12,8 @@ class BookingCoreOpsGateCommandTest extends TestCase
 {
     public function test_booking_core_ops_gate_supports_json_output(): void
     {
-        $this->app->instance(CoreOpsGateService::class, new class extends CoreOpsGateService {
+        $this->app->instance(CoreOpsGateService::class, new class extends CoreOpsGateService
+        {
             public function run(bool $write = false): array
             {
                 return [
@@ -55,7 +56,8 @@ class BookingCoreOpsGateCommandTest extends TestCase
 
     public function test_booking_core_ops_gate_reports_failure_in_table_mode(): void
     {
-        $this->app->instance(CoreOpsGateService::class, new class extends CoreOpsGateService {
+        $this->app->instance(CoreOpsGateService::class, new class extends CoreOpsGateService
+        {
             public function run(bool $write = false): array
             {
                 return [

@@ -6,10 +6,10 @@ namespace Tests\Unit\Support;
 
 use App\Enums\ReservationStatus;
 use App\Enums\RestaurantTableStatus;
-use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\FloorOperations\Domain\Guards\StaffReservationOperationGuard;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -76,7 +76,7 @@ final class StaffReservationOperationGuardTest extends TestCase
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('Table is blocked/maintenance. Operational states are preserved by release flow.');
 
-        StaffReservationOperationGuard::assertTableReleaseAllowed($table, new RestaurantTableStateService(), false);
+        StaffReservationOperationGuard::assertTableReleaseAllowed($table, new RestaurantTableStateService, false);
     }
 
     public function test_table_row_version_guard_uses_shared_message(): void
@@ -92,4 +92,3 @@ final class StaffReservationOperationGuardTest extends TestCase
         StaffReservationOperationGuard::assertExpectedTableRowVersion($table, 3);
     }
 }
-

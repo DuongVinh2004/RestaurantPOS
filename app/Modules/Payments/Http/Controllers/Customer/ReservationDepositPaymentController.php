@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace App\Modules\Payments\Http\Controllers\Customer;
 
-use App\Modules\Payments\Domain\Models\Payment;
 use App\Http\Concerns\RespondsWithCustomerReservationNotFound;
 use App\Http\Controllers\Controller;
 use App\Modules\Payments\Application\UseCases\PaymentSessions\CustomerReservationDepositPaymentService;
-use App\Modules\Payments\Http\Requests\Customer\StartReservationDepositPaymentRequest;
 use App\Modules\Payments\Http\Requests\Customer\MutateReservationDepositPaymentSessionRequest;
+use App\Modules\Payments\Http\Requests\Customer\StartReservationDepositPaymentRequest;
 use App\Modules\Payments\Http\Resources\Customer\ReservationDepositPaymentSessionResource;
+use App\Modules\Reservations\Domain\Policies\ReservationAccessScope;
 use App\Support\ApiErrorResponse;
 use App\Support\Auth\RequestActorContext;
-use App\Modules\Reservations\Domain\Policies\ReservationAccessScope;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;

@@ -122,7 +122,7 @@ describe('package integrity report', () => {
         }),
         expect.objectContaining({
           path: 'storage/app/booking_release/release_manifest_snapshot.json',
-          failure: expect.stringContaining('no longer matches storage/app/booking_release/openapi-v1.json'),
+          failure: expect.stringContaining('older than storage/app/booking_release/openapi-v1.json'),
         }),
       ]),
     );
@@ -177,6 +177,7 @@ function seedCanonicalFixture(
     createFile(rootDir, 'build/api-consumer/sdk/typescript/restaurantpos-sdk.ts', 'export const sdk = true;');
   }
   createFile(rootDir, 'build/api-consumer/sdk/typescript/restaurantpos-enums.ts', 'export const enums = true;');
+  createFile(rootDir, 'build/api-consumer/enum-state-map.json', '{"enums":{}}');
   createFile(rootDir, 'build/api-consumer/mutation-contracts.md', '# contracts');
   createFile(rootDir, 'storage/app/booking_release/release_manifest_snapshot.json', '{}');
 
@@ -212,6 +213,7 @@ function writeReleaseManifestSnapshot(rootDir) {
     'storage/app/booking_release/openapi-v1.json',
     'build/api-consumer/sdk/typescript/restaurantpos-sdk.ts',
     'build/api-consumer/sdk/typescript/restaurantpos-enums.ts',
+    'build/api-consumer/enum-state-map.json',
     'build/api-consumer/mutation-contracts.md',
   ];
 
@@ -232,7 +234,7 @@ function writeReleaseManifestSnapshot(rootDir) {
       artifacts[artifactKey] = {
         path: artifactPath,
         sha256,
-        modified_epoch: Math.trunc(stats.mtimeMs),
+        modified_epoch: Math.trunc(stats.mtimeMs / 1000),
       };
     } catch {
       // Skip artifacts intentionally omitted by the fixture variant.

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class TableHoldDetail extends Model
 {
     protected $table = 'table_hold_details';
+
     protected $primaryKey = 'hold_detail_id';
 
     public $timestamps = false;

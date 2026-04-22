@@ -66,6 +66,7 @@ class CustomerOrStaffMiddlewareSessionContractTest extends TestCase
         $called = false;
         $response = $middleware->handle($request, function () use (&$called) {
             $called = true;
+
             return response()->json(['ok' => true]);
         });
 

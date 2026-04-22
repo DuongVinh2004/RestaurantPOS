@@ -13,6 +13,7 @@ class CustomerAccessSession extends Model
     use HasRowVersion;
 
     protected $table = 'customer_access_sessions';
+
     protected $primaryKey = 'access_session_id';
 
     protected $fillable = [

@@ -105,8 +105,8 @@ class WaitlistResource extends JsonResource
     }
 
     /**
-     * @param array<string,mixed> $inviteSemantics
-     * @param array<string,mixed> $inviteHold
+     * @param  array<string,mixed>  $inviteSemantics
+     * @param  array<string,mixed>  $inviteHold
      * @return array<string,mixed>
      */
     private function buildFallbackOrchestration(?WaitingListStatus $status, string $currentResponseState, array $inviteSemantics, array $inviteHold): array

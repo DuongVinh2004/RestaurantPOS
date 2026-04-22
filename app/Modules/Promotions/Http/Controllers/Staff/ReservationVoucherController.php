@@ -7,10 +7,10 @@ namespace App\Modules\Promotions\Http\Controllers\Staff;
 use App\Http\Concerns\AppliesDeprecatedRouteHeaders;
 use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
-use App\Modules\Reservations\Http\Resources\ReservationResource;
 use App\Modules\Promotions\Application\Workflows\ReservationVoucherWorkflow;
 use App\Modules\Promotions\Http\Requests\Staff\ApplyReservationVoucherRequest;
 use App\Modules\Promotions\Http\Requests\Staff\RemoveReservationVoucherRequest;
+use App\Modules\Reservations\Http\Resources\ReservationResource;
 use Illuminate\Http\JsonResponse;
 
 class ReservationVoucherController extends Controller

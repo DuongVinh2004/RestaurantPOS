@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class NotificationPreference extends Model
 {
     protected $table = 'notification_preferences';
+
     protected $primaryKey = 'notification_preference_id';
 
     protected $fillable = [

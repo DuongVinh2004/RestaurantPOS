@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Modules\Catalog\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Catalog\Application\UseCases\Browsing\MenuCatalogBrowser;
 use App\Modules\Catalog\Http\Requests\ListMenuCategoriesRequest;
 use App\Modules\Catalog\Http\Requests\ListMenuItemsRequest;
 use App\Modules\Catalog\Http\Requests\PreviewMenuPreorderRequest;
 use App\Modules\Catalog\Http\Requests\ShowMenuItemRequest;
 use App\Modules\Catalog\Http\Resources\Customer\MenuCategoryResource;
 use App\Modules\Catalog\Http\Resources\Customer\MenuItemResource;
-use App\Modules\Catalog\Application\UseCases\Browsing\MenuCatalogBrowser;
 use App\Support\ApiErrorResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Pagination\LengthAwarePaginator;

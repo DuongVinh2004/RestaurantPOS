@@ -2,6 +2,7 @@
 
 namespace App\Platform\Health\Services;
 
+use Illuminate\Cache\Repository;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 
@@ -9,12 +10,12 @@ class OpsHeartbeatService
 {
     private function key(string $name): string
     {
-        return 'ops:heartbeat:' . $name;
+        return 'ops:heartbeat:'.$name;
     }
 
     public function touch(string $name, int $ttlSeconds = 300): void
     {
-        /** @var \Illuminate\Cache\Repository $redis */
+        /** @var Repository $redis */
         $redis = Cache::store('redis');
 
         $ttlSeconds = max(30, $ttlSeconds);
@@ -24,7 +25,7 @@ class OpsHeartbeatService
 
     public function getLastRun(string $name): ?Carbon
     {
-        /** @var \Illuminate\Cache\Repository $redis */
+        /** @var Repository $redis */
         $redis = Cache::store('redis');
 
         $val = $redis->get($this->key($name));

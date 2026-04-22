@@ -15,7 +15,7 @@ class BackupRestoreManifestTest extends TestCase
     {
         parent::setUp();
 
-        $this->workspace = sys_get_temp_dir() . '/backup_restore_manifest_' . bin2hex(random_bytes(8));
+        $this->workspace = sys_get_temp_dir().'/backup_restore_manifest_'.bin2hex(random_bytes(8));
         mkdir($this->workspace, 0777, true);
     }
 
@@ -28,10 +28,10 @@ class BackupRestoreManifestTest extends TestCase
 
     public function test_load_and_resolve_relative_artifact_path(): void
     {
-        $artifactPath = $this->workspace . '/full.sql';
+        $artifactPath = $this->workspace.'/full.sql';
         file_put_contents($artifactPath, "SELECT 1;\nSELECT 2;\n");
 
-        $manifestPath = $this->workspace . '/manifest.json';
+        $manifestPath = $this->workspace.'/manifest.json';
         file_put_contents($manifestPath, json_encode([
             'artifacts' => [
                 'full' => [
@@ -53,7 +53,7 @@ class BackupRestoreManifestTest extends TestCase
 
     public function test_validate_resolved_artifact_reports_hash_mismatch(): void
     {
-        $artifactPath = $this->workspace . '/schema.sql';
+        $artifactPath = $this->workspace.'/schema.sql';
         file_put_contents($artifactPath, "CREATE TABLE test (id INT);\n");
 
         $resolved = [
@@ -75,7 +75,7 @@ class BackupRestoreManifestTest extends TestCase
     {
         $path = BackupRestoreManifest::locateLatest($this->workspace);
 
-        $this->assertSame($this->workspace . '/latest-manifest.json', $path);
+        $this->assertSame($this->workspace.'/latest-manifest.json', $path);
     }
 
     private function deleteDirectory(string $directory): void
@@ -94,7 +94,7 @@ class BackupRestoreManifestTest extends TestCase
                 continue;
             }
 
-            $path = $directory . '/' . $item;
+            $path = $directory.'/'.$item;
             if (is_dir($path)) {
                 $this->deleteDirectory($path);
             } elseif (is_file($path)) {

@@ -12,7 +12,7 @@ class RoundFiveGateServiceTest extends TestCase
 {
     public function test_definition_reads_canonical_round5_suite(): void
     {
-        $service = new RoundFiveGateService();
+        $service = new RoundFiveGateService;
 
         $definition = $service->definition();
 
@@ -29,10 +29,10 @@ class RoundFiveGateServiceTest extends TestCase
         $this->assertContains('tests/Unit/Services/PaymentIntegration/GenericHttpHmacPaymentProviderAdapterTest.php', $paths);
     }
 
-
     public function test_build_artisan_test_command_uses_supported_arguments_only(): void
     {
-        $service = new class extends RoundFiveGateService {
+        $service = new class extends RoundFiveGateService
+        {
             /**
              * @return list<string>
              */
@@ -56,7 +56,8 @@ class RoundFiveGateServiceTest extends TestCase
         $snapshotPath = 'storage/framework/testing/round5_gate/test_snapshot.json';
         config()->set('booking_release.round5_gate.snapshot_path', $snapshotPath);
 
-        $service = new class extends RoundFiveGateService {
+        $service = new class extends RoundFiveGateService
+        {
             protected function runSingleTest(array $test): array
             {
                 return array_merge($test, [

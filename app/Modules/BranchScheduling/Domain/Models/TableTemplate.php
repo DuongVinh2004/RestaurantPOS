@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class TableTemplate extends Model
 {
     protected $table = 'table_templates';
+
     protected $primaryKey = 'template_id';
 
     public $timestamps = false;

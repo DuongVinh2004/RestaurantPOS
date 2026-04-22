@@ -52,7 +52,7 @@ trait AssertsAuditTrail
             'Expected audit subject %s:%s%s on audit #%d.',
             $subjectType,
             (string) $subjectId,
-            $role !== null ? ' [' . $role . ']' : '',
+            $role !== null ? ' ['.$role.']' : '',
             (int) $log->audit_id,
         );
 

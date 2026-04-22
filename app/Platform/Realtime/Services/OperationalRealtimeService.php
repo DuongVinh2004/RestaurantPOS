@@ -12,7 +12,9 @@ use Throwable;
 class OperationalRealtimeService
 {
     public const TOPIC_BOARD = 'board';
+
     public const TOPIC_WAITING_LIST = 'waiting_list';
+
     public const TOPIC_KITCHEN = 'kitchen';
 
     /**
@@ -105,8 +107,8 @@ class OperationalRealtimeService
     }
 
     /**
-     * @param array<string,mixed> $payload
-     * @param list<string> $refreshTargets
+     * @param  array<string,mixed>  $payload
+     * @param  list<string>  $refreshTargets
      * @return array<string,mixed>|null
      */
     public function publishBoardEvent(string $eventType, array $payload = [], array $refreshTargets = ['board']): ?array
@@ -115,8 +117,8 @@ class OperationalRealtimeService
     }
 
     /**
-     * @param array<string,mixed> $payload
-     * @param list<string> $refreshTargets
+     * @param  array<string,mixed>  $payload
+     * @param  list<string>  $refreshTargets
      * @return array<string,mixed>|null
      */
     public function publishWaitingListEvent(string $eventType, array $payload = [], array $refreshTargets = ['waiting_list']): ?array
@@ -125,8 +127,8 @@ class OperationalRealtimeService
     }
 
     /**
-     * @param array<string,mixed> $payload
-     * @param list<string> $refreshTargets
+     * @param  array<string,mixed>  $payload
+     * @param  list<string>  $refreshTargets
      * @return array<string,mixed>|null
      */
     public function publishKitchenEvent(string $eventType, array $payload = [], array $refreshTargets = ['kitchen']): ?array
@@ -243,8 +245,8 @@ class OperationalRealtimeService
     }
 
     /**
-     * @param array<string,mixed> $payload
-     * @param list<string> $refreshTargets
+     * @param  array<string,mixed>  $payload
+     * @param  list<string>  $refreshTargets
      * @return array<string,mixed>|null
      */
     private function publish(string $topic, string $eventType, array $payload, array $refreshTargets): ?array

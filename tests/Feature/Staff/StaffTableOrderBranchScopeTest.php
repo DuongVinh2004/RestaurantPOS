@@ -235,4 +235,3 @@ final class StaffTableOrderBranchScopeTest extends TestCase
         return new StaffTableOrderService($locks, new BranchContextService, $staffBranchContextService);
     }
 }
-

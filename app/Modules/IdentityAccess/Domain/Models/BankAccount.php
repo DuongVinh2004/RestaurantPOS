@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class BankAccount extends Model
 {
     protected $table = 'bank_accounts';
+
     protected $primaryKey = 'bank_account_id';
 
     public $timestamps = false;

@@ -17,7 +17,7 @@ class RedisThrottleMiddleware
         $id = $this->resolveIdentity($request, $identity);
 
         $bucket = (int) floor(time() / $windowSeconds);
-        $key = 'rt:' . $scope . ':' . sha1($id) . ':' . $bucket;
+        $key = 'rt:'.$scope.':'.sha1($id).':'.$bucket;
 
         // Use Redis store explicitly (HA)
         $cache = Cache::store('redis');
@@ -31,23 +31,23 @@ class RedisThrottleMiddleware
             $retryAfter = $windowSeconds - (time() % $windowSeconds);
 
             Log::channel('audit')->warning('redis_throttle_limited', [
-                'scope'       => $scope,
-                'identity'    => $identity,
-                'limit'       => $limit,
-                'window_sec'  => $windowSeconds,
-                'path'        => $request->path(),
-                'ip'          => $request->ip(),
-                'user_id'     => $request->user()?->user_id,
+                'scope' => $scope,
+                'identity' => $identity,
+                'limit' => $limit,
+                'window_sec' => $windowSeconds,
+                'path' => $request->path(),
+                'ip' => $request->ip(),
+                'user_id' => $request->user()?->user_id,
                 'staff_actor_user_id' => $request->attributes->get('staff_actor_user_id'),
             ]);
 
             return response()->json([
-                'message'      => 'Too many requests. Please retry later.',
-                'error'        => 'rate_limited',
-                'scope'        => $scope,
-                'limit'        => $limit,
-                'window_sec'   => $windowSeconds,
-                'retry_after'  => $retryAfter,
+                'message' => 'Too many requests. Please retry later.',
+                'error' => 'rate_limited',
+                'scope' => $scope,
+                'limit' => $limit,
+                'window_sec' => $windowSeconds,
+                'retry_after' => $retryAfter,
             ], 429)->withHeaders([
                 'Retry-After' => (string) $retryAfter,
             ]);
@@ -63,23 +63,23 @@ class RedisThrottleMiddleware
         if ($mode === 'either') {
             $uid = $request->user()?->user_id;
             if ($uid) {
-                return 'u:' . (int) $uid;
+                return 'u:'.(int) $uid;
             }
 
             $staffActorUserId = $request->attributes->get('staff_actor_user_id');
             if ($staffActorUserId) {
-                return 's:' . (int) $staffActorUserId;
+                return 's:'.(int) $staffActorUserId;
             }
 
             $sessionId = trim((string) ($request->input('session_id') ?? $request->query('session_id', '')));
             if ($sessionId !== '') {
-                return 'sess:' . hash_hmac('sha256', $sessionId, (string) config('app.key', 'app'));
+                return 'sess:'.hash_hmac('sha256', $sessionId, (string) config('app.key', 'app'));
             }
 
-            return 'ip:' . (string) $request->ip();
+            return 'ip:'.(string) $request->ip();
         }
 
         // default ip
-        return 'ip:' . (string) $request->ip();
+        return 'ip:'.(string) $request->ip();
     }
 }

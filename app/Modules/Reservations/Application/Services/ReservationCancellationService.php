@@ -8,25 +8,23 @@ use App\Enums\ReservationOrderItemStatus;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationStatus;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
-use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\Reservations\Domain\Policies\ReservationStatusTransitionPolicy;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Reservations\Domain\Policies\ReservationStatusTransitionPolicy;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ReservationCancellationService
 {
     public function __construct(
         private readonly RestaurantTableStateService $tableStateService,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param Collection<int,ReservationOrder> $orders
-     * @param array<int,int> $tableIds
+     * @param  Collection<int,ReservationOrder>  $orders
+     * @param  array<int,int>  $tableIds
      */
     public function cancelAfterPaymentLocked(
         Reservation $reservation,

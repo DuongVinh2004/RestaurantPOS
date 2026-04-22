@@ -64,4 +64,3 @@ class TableStateAuditLoggerTest extends TestCase
         $this->assertSame([], $records);
     }
 }
-

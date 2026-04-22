@@ -8,21 +8,20 @@ use App\Enums\ReservationOrderItemStatus;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
+use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
+use App\Modules\BranchScheduling\Application\Services\ReservationBranchScopeService;
+use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
+use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\Catalog\Domain\Models\MenuItem;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Reservations\Domain\Models\ReservationTable;
-use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
-use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
-use App\Modules\BranchScheduling\Application\Services\ReservationBranchScopeService;
-use App\Modules\Notifications\Application\Services\NotificationOutboxService;
-use App\Modules\Reservations\Application\Services\ReservationLockService;
-use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
+use App\SharedKernel\Money\Money;
 use App\Support\AuditEvent;
 use App\Support\AvailabilityCacheVersion;
 use App\Support\DatabaseWriteConflictMapper;
-use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
-use App\SharedKernel\Money\Money;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
@@ -37,12 +36,11 @@ class ReservationRescheduleService
         private readonly TableTimeConflictService $tableTimeConflictService,
         private readonly ReservationBranchScopeService $reservationBranchScopeService,
         private readonly BranchSchedulingPolicyService $branchSchedulingPolicyService,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string,mixed> $payload
-     * @param array<string,mixed> $actorContext
+     * @param  array<string,mixed>  $payload
+     * @param  array<string,mixed>  $actorContext
      */
     public function reschedule(int $reservationId, array $payload, array $actorContext = []): Reservation
     {
@@ -59,8 +57,8 @@ class ReservationRescheduleService
         sort($lockTableIds);
 
         $lockKeys = array_merge([
-            config('booking.reservation_lock_reservation_prefix', 'booking:lock:reservation') . ':' . $reservationId,
-        ], array_map(fn (int $id) => config('booking.reservation_lock_prefix', 'booking:lock:table') . ':' . $id, $lockTableIds));
+            config('booking.reservation_lock_reservation_prefix', 'booking:lock:reservation').':'.$reservationId,
+        ], array_map(fn (int $id) => config('booking.reservation_lock_prefix', 'booking:lock:table').':'.$id, $lockTableIds));
 
         $resolvedActor = $this->resolveActorContext($actorContext);
         $actorUserId = $resolvedActor['user_id'];
@@ -200,7 +198,7 @@ class ReservationRescheduleService
                     $deletedTables = $tables->where('is_deleted', true)->pluck('table_id')->map(fn ($value) => (int) $value)->all();
                     if ($deletedTables !== []) {
                         throw ValidationException::withMessages([
-                            'table_ids' => ['Some target tables are deleted: ' . implode(',', $deletedTables)],
+                            'table_ids' => ['Some target tables are deleted: '.implode(',', $deletedTables)],
                         ]);
                     }
 
@@ -217,11 +215,12 @@ class ReservationRescheduleService
 
                     $blocked = $tables->filter(function (RestaurantTable $table): bool {
                         $status = $table->status?->value ?? (string) $table->status;
+
                         return in_array($status, ['Blocked', 'Maintenance'], true);
                     })->pluck('table_id')->map(fn ($value) => (int) $value)->all();
                     if ($blocked !== []) {
                         throw ValidationException::withMessages([
-                            'table_ids' => ['Some target tables are Blocked/Maintenance: ' . implode(',', $blocked)],
+                            'table_ids' => ['Some target tables are Blocked/Maintenance: '.implode(',', $blocked)],
                         ]);
                     }
 
@@ -237,7 +236,7 @@ class ReservationRescheduleService
                         );
                         if ($reservationConflictIds !== []) {
                             throw ValidationException::withMessages([
-                                'table_ids' => ['Target tables have overlapping reservations: ' . implode(',', $reservationConflictIds)],
+                                'table_ids' => ['Target tables have overlapping reservations: '.implode(',', $reservationConflictIds)],
                             ]);
                         }
 
@@ -249,7 +248,7 @@ class ReservationRescheduleService
                         );
                         if ($holdConflictIds !== []) {
                             throw ValidationException::withMessages([
-                                'table_ids' => ['Target tables still have active overlapping holds: ' . implode(',', $holdConflictIds)],
+                                'table_ids' => ['Target tables still have active overlapping holds: '.implode(',', $holdConflictIds)],
                             ]);
                         }
                     }
@@ -357,7 +356,7 @@ class ReservationRescheduleService
     }
 
     /**
-     * @param iterable<int,RestaurantTable> $tables
+     * @param  iterable<int,RestaurantTable>  $tables
      */
     private function assertCapacityEnough(iterable $tables, int $guestCount): void
     {
@@ -368,7 +367,7 @@ class ReservationRescheduleService
             ->all();
         if ($nullTemplate !== []) {
             throw ValidationException::withMessages([
-                'table_ids' => ['Some target tables are missing template_id: ' . implode(',', $nullTemplate)],
+                'table_ids' => ['Some target tables are missing template_id: '.implode(',', $nullTemplate)],
             ]);
         }
 
@@ -383,6 +382,7 @@ class ReservationRescheduleService
             $templateId = (int) $table->template_id;
             if (! $seatsByTemplate->has($templateId)) {
                 $missingTemplates[] = $templateId;
+
                 continue;
             }
             $totalSeats += (int) $seatsByTemplate->get($templateId);
@@ -391,7 +391,7 @@ class ReservationRescheduleService
         if ($missingTemplates !== []) {
             $missingTemplates = array_values(array_unique($missingTemplates));
             throw ValidationException::withMessages([
-                'table_ids' => ['Some target table templates are missing: ' . implode(',', $missingTemplates)],
+                'table_ids' => ['Some target table templates are missing: '.implode(',', $missingTemplates)],
             ]);
         }
 
@@ -403,7 +403,6 @@ class ReservationRescheduleService
     }
 
     /**
-     * @param mixed $tableIds
      * @return array<int,int>
      */
     private function normalizeTableIds(mixed $tableIds): array
@@ -420,7 +419,7 @@ class ReservationRescheduleService
     }
 
     /**
-     * @param array<int,int> $tableIds
+     * @param  array<int,int>  $tableIds
      * @return array<int,string>
      */
     private function fetchTableLabels(array $tableIds): array
@@ -433,7 +432,7 @@ class ReservationRescheduleService
             ->whereIn('table_id', $tableIds)
             ->orderBy('table_code')
             ->get(['table_id', 'table_code'])
-            ->map(fn (RestaurantTable $table) => (string) ($table->table_code ?? ('#' . $table->table_id)))
+            ->map(fn (RestaurantTable $table) => (string) ($table->table_code ?? ('#'.$table->table_id)))
             ->values()
             ->all();
     }
@@ -545,7 +544,7 @@ class ReservationRescheduleService
     }
 
     /**
-     * @param array<string,mixed> $actorContext
+     * @param  array<string,mixed>  $actorContext
      * @return array{type:string,user_id:int|null,audit_event:string,audit_actor_key:string}
      */
     private function resolveActorContext(array $actorContext): array

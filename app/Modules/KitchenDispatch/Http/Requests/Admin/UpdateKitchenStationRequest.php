@@ -38,5 +38,3 @@ class UpdateKitchenStationRequest extends FormRequest
         ];
     }
 }
-
-

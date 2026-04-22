@@ -14,20 +14,20 @@ class CheckTableAvailabilityRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'from'        => ['required', 'date'],
-            'to'          => ['required', 'date', 'after:from'],
+            'from' => ['required', 'date'],
+            'to' => ['required', 'date', 'after:from'],
 
-            'branch_id'   => ['nullable', 'integer', 'min:1', 'exists:branches,branch_id'],
-            'zone'        => ['nullable', 'string', 'max:50'],
+            'branch_id' => ['nullable', 'integer', 'min:1', 'exists:branches,branch_id'],
+            'zone' => ['nullable', 'string', 'max:50'],
             'template_id' => ['nullable', 'integer', 'exists:table_templates,template_id'],
-            'min_seats'   => ['nullable', 'integer', 'min:1'],
+            'min_seats' => ['nullable', 'integer', 'min:1'],
             'guest_count' => ['nullable', 'integer', 'min:1'],
 
             // session_id để bỏ qua hold của chính session khi xem available
-            'session_id'  => ['nullable', 'string', 'max:100'],
+            'session_id' => ['nullable', 'string', 'max:100'],
 
             // gợi ý combo bàn
-            'suggest'         => ['nullable', 'boolean'],
+            'suggest' => ['nullable', 'boolean'],
             'max_suggestions' => ['nullable', 'integer', 'min:1', 'max:30'],
         ];
     }

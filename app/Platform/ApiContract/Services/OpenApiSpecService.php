@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Platform\ApiContract\Services;
 
-use App\Platform\ApiContract\Services\RouteInventoryGateService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Routing\Route as IlluminateRoute;
 use Illuminate\Support\Facades\File;

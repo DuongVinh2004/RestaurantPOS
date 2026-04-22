@@ -54,4 +54,3 @@ final class TableReleaseGuardTest extends TestCase
         self::assertSame([11, 12, 13], $ids);
     }
 }
-

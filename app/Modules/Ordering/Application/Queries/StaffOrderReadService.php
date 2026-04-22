@@ -6,12 +6,12 @@ namespace App\Modules\Ordering\Application\Queries;
 
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationOrderType;
-use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\Ordering\Domain\Models\ReservationOrder;
-use App\Modules\BranchScheduling\Application\Services\ReservationBranchScopeService;
-use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\Billing\Application\UseCases\Previews\SettlementAmountCalculator;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\BranchScheduling\Application\Services\ReservationBranchScopeService;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
+use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Collection;
@@ -234,5 +234,3 @@ class StaffOrderReadService
         );
     }
 }
-
-

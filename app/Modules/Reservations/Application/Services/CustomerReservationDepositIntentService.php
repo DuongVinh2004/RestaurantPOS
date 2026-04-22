@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace App\Modules\Reservations\Application\Services;
 
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
+use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
+use App\Modules\Payments\Application\UseCases\Capture\StaffReservationDepositService;
 use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
-use App\Modules\Reservations\Application\Services\ReservationDepositSelfServiceStateService;
-use App\Modules\Reservations\Application\Services\ReservationLockService;
-use App\Modules\Payments\Application\UseCases\Capture\StaffReservationDepositService;
 use App\Support\AuditEvent;
-use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -210,7 +208,7 @@ class CustomerReservationDepositIntentService
                 return $reservation;
             }
 
-            throw (new ModelNotFoundException())->setModel(Reservation::class, [$reservationId]);
+            throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
         }
 
         $resolvedSessionId = trim((string) $sessionId);
@@ -221,7 +219,7 @@ class CustomerReservationDepositIntentService
             ->first();
 
         if (! $reservation instanceof Reservation || $resolvedSessionId === '' || ! $this->customerSessionAccessService->canAccessReservationBySession($reservation, $resolvedSessionId)) {
-            throw (new ModelNotFoundException())->setModel(Reservation::class, [$reservationId]);
+            throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
         }
 
         return $reservation;

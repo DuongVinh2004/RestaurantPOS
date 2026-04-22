@@ -18,8 +18,7 @@ class TableAvailabilityController extends Controller
         private readonly TableHoldService $tableHoldService,
         private readonly TableAvailabilityService $tableAvailabilityService,
         private readonly BranchSchedulingPolicyService $branchSchedulingPolicyService,
-    ) {
-    }
+    ) {}
 
     public function available(CheckTableAvailabilityRequest $request): AnonymousResourceCollection
     {
@@ -32,20 +31,20 @@ class TableAvailabilityController extends Controller
         }
 
         $fromInput = (string) $validated['from'];
-        $toInput   = (string) $validated['to'];
+        $toInput = (string) $validated['to'];
 
         $fromUtc = CarbonImmutable::parse($fromInput)->utc();
-        $toUtc   = CarbonImmutable::parse($toInput)->utc();
+        $toUtc = CarbonImmutable::parse($toInput)->utc();
 
-        $branchId   = isset($validated['branch_id']) ? (int) $validated['branch_id'] : null;
-        $zone       = $validated['zone'] ?? null;
+        $branchId = isset($validated['branch_id']) ? (int) $validated['branch_id'] : null;
+        $zone = $validated['zone'] ?? null;
         $templateId = $validated['template_id'] ?? null;
-        $minSeats   = $validated['min_seats'] ?? null;
+        $minSeats = $validated['min_seats'] ?? null;
         $guestCount = $validated['guest_count'] ?? null;
-        $sessionId  = $validated['session_id'] ?? null;
-        $suggest    = (bool) ($validated['suggest'] ?? false);
-        $maxSug     = (int) ($validated['max_suggestions'] ?? 10);
-        $maxSug     = $maxSug > 0 ? min($maxSug, 50) : 10;
+        $sessionId = $validated['session_id'] ?? null;
+        $suggest = (bool) ($validated['suggest'] ?? false);
+        $maxSug = (int) ($validated['max_suggestions'] ?? 10);
+        $maxSug = $maxSug > 0 ? min($maxSug, 50) : 10;
         $resolvedBranchId = $this->branchSchedulingPolicyService->resolveBranchId($branchId);
         $branchTimezone = $this->branchSchedulingPolicyService->branchTimezone($resolvedBranchId);
         $policyEvaluation = $this->branchSchedulingPolicyService->evaluateAvailabilityWindow($resolvedBranchId, $fromUtc, $toUtc);
@@ -59,7 +58,7 @@ class TableAvailabilityController extends Controller
             'session_id' => $sessionId,
             'suggest' => $suggest,
         ]))->map(function (array $row) {
-            $table = new RestaurantTable();
+            $table = new RestaurantTable;
             $table->forceFill($row);
             $table->exists = true;
 
@@ -77,30 +76,30 @@ class TableAvailabilityController extends Controller
 
         return RestaurantTableResource::collection($tables)->additional([
             'meta' => [
-                'timezone'   => 'UTC',
-                'branch_id'  => $resolvedBranchId,
+                'timezone' => 'UTC',
+                'branch_id' => $resolvedBranchId,
                 'branch_timezone' => $branchTimezone,
-                'from_utc'   => $fromUtc->toIso8601String(),
-                'to_utc'     => $toUtc->toIso8601String(),
+                'from_utc' => $fromUtc->toIso8601String(),
+                'to_utc' => $toUtc->toIso8601String(),
                 'from_input' => $fromInput,
-                'to_input'   => $toInput,
+                'to_input' => $toInput,
                 'availability_policy' => [
                     'allowed' => (bool) ($policyEvaluation['allowed'] ?? true),
                     'reason' => $policyEvaluation['reason'] ?? null,
                     'message' => $policyEvaluation['message'] ?? null,
                 ],
-                'filters'    => [
-                    'branch_id'       => $resolvedBranchId,
-                    'zone'            => is_string($zone) ? $zone : null,
-                    'template_id'     => $templateId !== null ? (int) $templateId : null,
-                    'min_seats'       => $minSeats !== null ? (int) $minSeats : null,
-                    'guest_count'     => $guestCount !== null ? (int) $guestCount : null,
-                    'session_id'      => is_string($sessionId) ? $sessionId : null,
-                    'suggest'         => $suggest,
+                'filters' => [
+                    'branch_id' => $resolvedBranchId,
+                    'zone' => is_string($zone) ? $zone : null,
+                    'template_id' => $templateId !== null ? (int) $templateId : null,
+                    'min_seats' => $minSeats !== null ? (int) $minSeats : null,
+                    'guest_count' => $guestCount !== null ? (int) $guestCount : null,
+                    'session_id' => is_string($sessionId) ? $sessionId : null,
+                    'suggest' => $suggest,
                     'max_suggestions' => $maxSug,
                 ],
-                'count'      => $tables->count(),
-                'suggestions'=> $suggestions,
+                'count' => $tables->count(),
+                'suggestions' => $suggestions,
             ],
         ]);
     }
@@ -117,9 +116,9 @@ class TableAvailabilityController extends Controller
                 continue;
             }
             $items[] = [
-                'table_id'   => (int) ($t['table_id'] ?? 0),
+                'table_id' => (int) ($t['table_id'] ?? 0),
                 'table_code' => (string) ($t['table_code'] ?? ''),
-                'seats'      => $seats,
+                'seats' => $seats,
             ];
         }
 
@@ -149,13 +148,13 @@ class TableAvailabilityController extends Controller
             $seen[$key] = true;
 
             $suggestions[] = [
-                'table_ids'   => $ids,
+                'table_ids' => $ids,
                 'total_seats' => $total,
-                'over'        => $total - $guestCount,
-                'tables'      => array_values(array_map(fn ($x) => [
-                    'table_id'   => $x['table_id'],
+                'over' => $total - $guestCount,
+                'tables' => array_values(array_map(fn ($x) => [
+                    'table_id' => $x['table_id'],
                     'table_code' => $x['table_code'],
-                    'seats'      => $x['seats'],
+                    'seats' => $x['seats'],
                 ], $combo)),
             ];
 

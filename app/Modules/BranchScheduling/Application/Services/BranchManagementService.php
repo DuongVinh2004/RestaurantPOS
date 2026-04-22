@@ -15,11 +15,10 @@ class BranchManagementService
     public function __construct(
         private readonly BranchContextService $branchContextService,
         private readonly BranchSchedulingPolicyService $branchSchedulingPolicyService,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string,mixed> $filters
+     * @param  array<string,mixed>  $filters
      * @return Collection<int, Branch>
      */
     public function listBranches(array $filters = []): Collection
@@ -32,7 +31,7 @@ class BranchManagementService
         $branches = Branch::query()
             ->when(array_key_exists('is_active', $filters), static fn ($query) => $query->where('is_active', (bool) $filters['is_active']))
             ->when($keyword !== '', static function ($query) use ($keyword): void {
-                $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $keyword) . '%';
+                $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $keyword).'%';
                 $query->where(function ($inner) use ($like): void {
                     $inner->where('branch_code', 'like', $like)
                         ->orWhere('branch_name', 'like', $like)
@@ -55,7 +54,7 @@ class BranchManagementService
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      */
     public function createBranch(array $payload, ?int $actorUserId = null): Branch
     {
@@ -69,7 +68,7 @@ class BranchManagementService
                 ]);
             }
 
-            $branch = new Branch();
+            $branch = new Branch;
             $branch->fill($this->normalizePayload($payload, true));
             $branch->save();
 
@@ -101,7 +100,7 @@ class BranchManagementService
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      */
     public function updateBranch(int $branchId, array $payload, ?int $actorUserId = null): Branch
     {
@@ -176,7 +175,7 @@ class BranchManagementService
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      * @return array<string,mixed>
      */
     private function normalizePayload(array $payload, bool $creating): array
@@ -276,7 +275,7 @@ class BranchManagementService
         return [
             'type' => 'staff_user',
             'user_id' => $actorUserId,
-            'key' => 'staff_user:' . $actorUserId,
+            'key' => 'staff_user:'.$actorUserId,
         ];
     }
 }

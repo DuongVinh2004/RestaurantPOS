@@ -7,9 +7,9 @@ namespace App\Modules\Conversations\Application\Services;
 use App\Enums\StaffConversationWorkflowState;
 use App\Modules\Conversations\Domain\Models\AgentAssignment;
 use App\Modules\Conversations\Domain\Models\Conversation;
-use App\Modules\Notifications\Application\Services\NotificationPreferenceService;
-use App\Modules\Notifications\Application\Services\NotificationChannelManager;
 use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Notifications\Application\Services\NotificationChannelManager;
+use App\Modules\Notifications\Application\Services\NotificationPreferenceService;
 use Illuminate\Support\Carbon;
 
 class StaffConversationOutboundReplySupportService
@@ -241,7 +241,7 @@ class StaffConversationOutboundReplySupportService
                 return str_repeat('*', strlen($recipient));
             }
 
-            return substr($recipient, 0, 2) . str_repeat('*', max(1, strlen($recipient) - 4)) . substr($recipient, -2);
+            return substr($recipient, 0, 2).str_repeat('*', max(1, strlen($recipient) - 4)).substr($recipient, -2);
         }
 
         $local = substr($recipient, 0, $at);
@@ -251,10 +251,10 @@ class StaffConversationOutboundReplySupportService
         $localMasked = match (true) {
             $localLength <= 0 => '',
             $localLength === 1 => '*',
-            $localLength === 2 => $local[0] . '*',
-            default => $local[0] . str_repeat('*', $localLength - 2) . $local[$localLength - 1],
+            $localLength === 2 => $local[0].'*',
+            default => $local[0].str_repeat('*', $localLength - 2).$local[$localLength - 1],
         };
 
-        return $localMasked . '@' . $domain;
+        return $localMasked.'@'.$domain;
     }
 }

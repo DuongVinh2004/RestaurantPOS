@@ -10,7 +10,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class TableTemplateResource extends JsonResource
 {
     /**
-     * @param Request $request
+     * @param  Request  $request
      */
     public function toArray($request): array
     {

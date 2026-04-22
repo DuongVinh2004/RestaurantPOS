@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Modules\PrivacyCompliance\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\PrivacyCompliance\Application\UseCases\Requests\CustomerDataExportHandler;
 use App\Modules\PrivacyCompliance\Application\Workflows\Requests\PrivacyRequestWorkflow;
 use App\Modules\PrivacyCompliance\Http\Requests\Customer\CreatePrivacyRequestRequest;
 use App\Modules\PrivacyCompliance\Http\Requests\Customer\ListPrivacyRequestsRequest;
-use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Support\ApiErrorResponse;
 use App\Support\AuditEvent;
 use App\Support\Auth\RequestActorContext;

@@ -4,9 +4,9 @@ namespace App\Modules\BranchScheduling\Application\Services;
 
 use App\Enums\ReservationStatus;
 use App\Enums\RestaurantTableStatus;
-use App\Support\AvailabilityCacheVersion;
 use App\Modules\BranchScheduling\Domain\Guards\HoldConflictScope;
 use App\Platform\Metrics\Services\MetricsService;
+use App\Support\AvailabilityCacheVersion;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;

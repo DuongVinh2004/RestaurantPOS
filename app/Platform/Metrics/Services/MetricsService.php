@@ -9,8 +9,7 @@ class MetricsService
 {
     public function __construct(
         private readonly RedisFactory $redis
-    ) {
-    }
+    ) {}
 
     private function labelsToKey(array $labels): string
     {
@@ -24,7 +23,7 @@ class MetricsService
             // escape separators
             $v = str_replace(['\\', '|', ','], ['\\\\', '\|', '\,'], $v);
 
-            $parts[] = $k . '=' . $v;
+            $parts[] = $k.'='.$v;
         }
 
         return implode(',', $parts);
@@ -35,7 +34,7 @@ class MetricsService
         $field = $this->labelsToKey($labels);
 
         try {
-            $this->redis->connection()->hincrby('m:' . $metric, $field, $by);
+            $this->redis->connection()->hincrby('m:'.$metric, $field, $by);
         } catch (\Throwable $e) {
             Log::debug('metrics_inc_failed', ['metric' => $metric, 'error' => $e->getMessage()]);
         }
@@ -46,7 +45,7 @@ class MetricsService
         $field = $this->labelsToKey($labels);
 
         try {
-            $this->redis->connection()->hincrbyfloat('m:' . $metric, $field, $by);
+            $this->redis->connection()->hincrbyfloat('m:'.$metric, $field, $by);
         } catch (\Throwable $e) {
             Log::debug('metrics_add_float_failed', ['metric' => $metric, 'error' => $e->getMessage()]);
         }
@@ -56,7 +55,7 @@ class MetricsService
     {
         $labels = [
             'method' => strtoupper($method),
-            'route'  => $route,
+            'route' => $route,
             'status' => (string) $status,
         ];
 

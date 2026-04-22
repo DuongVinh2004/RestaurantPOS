@@ -33,7 +33,6 @@ class TableHoldServiceRowVersionTest extends TestCase
         parent::tearDown();
     }
 
-
     public function test_expire_stale_holds_bumps_row_version_and_marks_hold_expired(): void
     {
         $tableId = $this->createRestaurantTable(['status' => 'Available']);
@@ -119,8 +118,8 @@ class TableHoldServiceRowVersionTest extends TestCase
     {
         return new TableHoldService(
             $this->mockReservationLocks(),
-            new RestaurantTableStateService(),
-            new TableTimeConflictService(),
+            new RestaurantTableStateService,
+            new TableTimeConflictService,
             $this->mockRuntimeSettings(),
         );
     }

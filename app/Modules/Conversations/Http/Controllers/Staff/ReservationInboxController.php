@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Conversations\Http\Controllers\Staff;
 
-use App\Http\Controllers\Controller;
 use App\Http\Concerns\ResolvesStaffActor;
+use App\Http\Controllers\Controller;
 use App\Modules\Conversations\Application\Services\StaffReservationInboxService;
 use App\Modules\Conversations\Http\Requests\Staff\ListStaffReservationsRequest;
 use App\Modules\Conversations\Http\Resources\StaffReservationDetailResource;

@@ -9,9 +9,9 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 final class ListingMetaFactory
 {
     /**
-     * @param list<string> $allowedFilters
-     * @param list<string> $allowedSorts
-     * @param array<string, string> $legacyAliases
+     * @param  list<string>  $allowedFilters
+     * @param  list<string>  $allowedSorts
+     * @param  array<string, string>  $legacyAliases
      * @return array<string, mixed>
      */
     public static function contract(
@@ -41,10 +41,10 @@ final class ListingMetaFactory
     }
 
     /**
-     * @param array<string, mixed> $filters
-     * @param array<string, mixed> $sort
-     * @param array<string, mixed> $contract
-     * @param array<string, mixed> $extra
+     * @param  array<string, mixed>  $filters
+     * @param  array<string, mixed>  $sort
+     * @param  array<string, mixed>  $contract
+     * @param  array<string, mixed>  $extra
      * @return array<string, mixed>
      */
     public static function paginated(
@@ -72,10 +72,10 @@ final class ListingMetaFactory
     }
 
     /**
-     * @param array<string, mixed> $filters
-     * @param array<string, mixed> $sort
-     * @param array<string, mixed> $contract
-     * @param array<string, mixed> $extra
+     * @param  array<string, mixed>  $filters
+     * @param  array<string, mixed>  $sort
+     * @param  array<string, mixed>  $contract
+     * @param  array<string, mixed>  $extra
      * @return array<string, mixed>
      */
     public static function legacyCollection(
@@ -112,10 +112,10 @@ final class ListingMetaFactory
     }
 
     /**
-     * @param array<string, mixed> $filters
-     * @param array<string, mixed> $sort
-     * @param array<string, mixed> $contract
-     * @param array<string, mixed> $extra
+     * @param  array<string, mixed>  $filters
+     * @param  array<string, mixed>  $sort
+     * @param  array<string, mixed>  $contract
+     * @param  array<string, mixed>  $extra
      * @return array<string, mixed>
      */
     public static function collection(

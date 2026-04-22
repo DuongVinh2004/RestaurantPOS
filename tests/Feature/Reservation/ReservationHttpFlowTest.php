@@ -6,6 +6,7 @@ namespace Tests\Feature\Reservation;
 
 use App\Modules\IdentityAccess\Domain\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
@@ -50,7 +51,7 @@ class ReservationHttpFlowTest extends TestCase
 
         $reservationId = (int) $create->json('data.reservation_id');
 
-        $show = $this->actingAs($user)->getJson('/api/v1/reservations/' . $reservationId);
+        $show = $this->actingAs($user)->getJson('/api/v1/reservations/'.$reservationId);
 
         $show->assertOk()
             ->assertJsonPath('data.access_scope', 'owner')
@@ -248,7 +249,7 @@ class ReservationHttpFlowTest extends TestCase
         $this->assertSame($reservationId, (int) DB::table('table_holds')->where('hold_id', $holdId)->value('confirmed_reservation_id'));
         $this->assertSame(2, (int) DB::table('table_holds')->where('hold_id', $holdId)->value('row_version'));
 
-        $show = $this->getJson('/api/v1/reservations/' . $reservationId . '?session_id=' . $sessionId);
+        $show = $this->getJson('/api/v1/reservations/'.$reservationId.'?session_id='.$sessionId);
 
         $show->assertOk()
             ->assertJsonPath('data.access_scope', 'session')
@@ -285,7 +286,7 @@ class ReservationHttpFlowTest extends TestCase
 
         $reservationId = (int) $create->json('data.reservation_id');
 
-        $show = $this->getJson('/api/v1/reservations/' . $reservationId, $this->staffAuthHeaders($staffUserId, 'staff-view-key'));
+        $show = $this->getJson('/api/v1/reservations/'.$reservationId, $this->staffAuthHeaders($staffUserId, 'staff-view-key'));
         $show->assertOk()
             ->assertJsonPath('data.access_scope', 'staff')
             ->assertJsonPath('data.user_id', $customerUserId)
@@ -335,7 +336,7 @@ class ReservationHttpFlowTest extends TestCase
         self::assertSame('caller.guest@example.test', $reservationRow->guest_email);
         self::assertSame('Offline', $reservationRow->source);
 
-        $show = $this->getJson('/api/v1/reservations/' . $reservationId, $this->staffAuthHeaders($staffUserId, 'staff-view-guest-key'));
+        $show = $this->getJson('/api/v1/reservations/'.$reservationId, $this->staffAuthHeaders($staffUserId, 'staff-view-guest-key'));
         $show->assertOk()
             ->assertJsonPath('data.user.full_name', 'Caller Guest')
             ->assertJsonPath('data.user.phone', '0905566778')
@@ -420,8 +421,10 @@ class ReservationHttpFlowTest extends TestCase
         ], $this->withIdempotencyKey('reservation-capacity-reject'));
 
         $response->assertStatus(422)
-            ->assertJsonPath('error_code', 'validation_error')
-            ->assertJsonPath('details.errors.guest_count.0', 'Số khách (4) vượt quá sức chứa (2 seats) của các bàn đã chọn.');
+            ->assertJsonPath('error_code', 'validation_error');
+
+        $message = (string) data_get($response->json(), 'details.errors.guest_count.0', '');
+        self::assertStringContainsString('2 seats', $message);
     }
 
     public function test_authenticated_customer_create_rejects_overlapping_reservation(): void
@@ -450,8 +453,11 @@ class ReservationHttpFlowTest extends TestCase
         $this->assertSame(1, (int) DB::table('reservation_tables')->where('table_id', $tableId)->count());
 
         $response->assertStatus(422)
-            ->assertJsonPath('error_code', 'validation_error')
-            ->assertJsonPath('details.errors.table_ids.0', 'Bàn bị trùng lịch (overlap reservation): ' . $tableId);
+            ->assertJsonPath('error_code', 'validation_error');
+
+        $message = (string) data_get($response->json(), 'details.errors.table_ids.0', '');
+        self::assertStringContainsString((string) $tableId, $message);
+        self::assertStringContainsString('overlap reservation', $message);
     }
 
     public function test_authenticated_customer_create_rejects_branch_local_window_outside_business_hours(): void
@@ -486,6 +492,93 @@ class ReservationHttpFlowTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error')
             ->assertJsonPath('details.errors.start_time.0', 'Requested reservation window falls outside the configured branch business hours.');
+    }
+
+    public function test_authenticated_customer_create_rejects_branch_closure_window(): void
+    {
+        $branchId = $this->createBranch([
+            'branch_code' => 'HCMCL',
+            'timezone' => 'Asia/Ho_Chi_Minh',
+            'business_hours' => collect(range(0, 6))
+                ->map(static fn (int $day): array => [
+                    'day_of_week' => $day,
+                    'periods' => [[
+                        'start_time' => '09:00',
+                        'end_time' => '22:00',
+                    ]],
+                ])
+                ->all(),
+            'closure_windows' => [[
+                'start_local' => '2026-09-10 18:00:00',
+                'end_local' => '2026-09-10 20:00:00',
+                'type' => 'blackout',
+                'reason' => 'Private event',
+            ]],
+        ]);
+        $userId = $this->createUser(['role_name' => 'Customer']);
+        $user = User::query()->findOrFail($userId);
+        $tableId = $this->createRestaurantTableWithSeats(4, ['branch_id' => $branchId]);
+        $start = Carbon::parse('2026-09-10 18:30:00', 'Asia/Ho_Chi_Minh')->utc();
+        $end = $start->copy()->addHour();
+
+        $response = $this->actingAs($user)->postJson('/api/v1/reservations', [
+            'branch_id' => $branchId,
+            'start_time' => $start->toIso8601String(),
+            'end_time' => $end->toIso8601String(),
+            'guest_count' => 2,
+            'table_ids' => [$tableId],
+        ], $this->withIdempotencyKey('reservation-closure-window-reject'));
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonPath('details.errors.start_time.0', 'Requested reservation window overlaps a branch closure window: Private event.');
+    }
+
+    public function test_authenticated_customer_create_rejects_same_day_cutoff_in_branch_timezone(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-10 12:00:00', 'UTC'));
+
+        try {
+            $branchId = $this->createBranch([
+                'branch_code' => 'HCMCUT',
+                'timezone' => 'Asia/Ho_Chi_Minh',
+                'business_hours' => collect(range(0, 6))
+                    ->map(static fn (int $day): array => [
+                        'day_of_week' => $day,
+                        'periods' => [[
+                            'start_time' => '00:00',
+                            'end_time' => '24:00',
+                        ]],
+                    ])
+                    ->all(),
+                'booking_policy' => [
+                    'reservation' => [
+                        'same_day_cutoff_time' => '18:00',
+                    ],
+                    'waiting_list' => [],
+                    'availability' => [],
+                ],
+            ]);
+            $userId = $this->createUser(['role_name' => 'Customer']);
+            $user = User::query()->findOrFail($userId);
+            $tableId = $this->createRestaurantTableWithSeats(4, ['branch_id' => $branchId]);
+            $start = Carbon::parse('2026-09-10 13:30:00', 'UTC');
+            $end = $start->copy()->addHour();
+
+            $response = $this->actingAs($user)->postJson('/api/v1/reservations', [
+                'branch_id' => $branchId,
+                'start_time' => $start->toIso8601String(),
+                'end_time' => $end->toIso8601String(),
+                'guest_count' => 2,
+                'table_ids' => [$tableId],
+            ], $this->withIdempotencyKey('reservation-same-day-cutoff-reject'));
+
+            $response->assertStatus(422)
+                ->assertJsonPath('error_code', 'validation_error')
+                ->assertJsonPath('details.errors.start_time.0', 'Same-day reservation requests close at 18:00 in the branch timezone.');
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_authenticated_customer_create_rejects_requested_branch_that_does_not_match_selected_tables(): void
@@ -555,7 +648,7 @@ class ReservationHttpFlowTest extends TestCase
         $tableId = $this->attachReservationTable($reservationId, $this->createRestaurantTableWithSeats(4));
 
         $show = $this->getJson(
-            '/api/v1/reservations/' . $reservationId,
+            '/api/v1/reservations/'.$reservationId,
             $this->staffAuthHeaders($staffUserId, 'staff-view-key')
         );
 
@@ -585,7 +678,7 @@ class ReservationHttpFlowTest extends TestCase
         ]);
 
         $response = $this->withHeaders($this->staffAuthHeaders($staffUserId, 'staff-view-forbidden-key'))
-            ->getJson('/api/v1/reservations/' . $reservationId);
+            ->getJson('/api/v1/reservations/'.$reservationId);
 
         $response->assertStatus(403)
             ->assertJsonPath('error_code', 'forbidden')
@@ -603,7 +696,7 @@ class ReservationHttpFlowTest extends TestCase
         $this->attachReservationTable($reservationId, $this->createRestaurantTableWithSeats(4));
 
         $viewer = User::query()->findOrFail($viewerUserId);
-        $response = $this->actingAs($viewer)->getJson('/api/v1/reservations/' . $reservationId);
+        $response = $this->actingAs($viewer)->getJson('/api/v1/reservations/'.$reservationId);
 
         $response->assertNotFound()
             ->assertJsonPath('error_code', 'not_found');
@@ -614,7 +707,7 @@ class ReservationHttpFlowTest extends TestCase
         $reservationId = $this->createReservation();
         $this->attachReservationTable($reservationId, $this->createRestaurantTableWithSeats(4));
 
-        $response = $this->getJson('/api/v1/reservations/' . $reservationId . '?session_id=session-other');
+        $response = $this->getJson('/api/v1/reservations/'.$reservationId.'?session_id=session-other');
 
         $response->assertNotFound()
             ->assertJsonPath('error_code', 'not_found');

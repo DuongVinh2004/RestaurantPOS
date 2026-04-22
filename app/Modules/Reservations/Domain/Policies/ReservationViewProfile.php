@@ -7,7 +7,9 @@ namespace App\Modules\Reservations\Domain\Policies;
 class ReservationViewProfile
 {
     public const STAFF = 'staff';
+
     public const OWNER = 'owner';
+
     public const SESSION = 'session';
 
     /**

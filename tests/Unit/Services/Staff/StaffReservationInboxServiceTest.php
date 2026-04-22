@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\Staff;
 
 use App\Modules\Conversations\Application\Services\StaffReservationInboxService;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use Tests\TestCase;
 
 class StaffReservationInboxServiceTest extends TestCase
 {
     public function test_apply_common_filters_omits_guest_snapshot_columns_when_runtime_schema_lags(): void
     {
-        $service = new class extends StaffReservationInboxService
+        $branchContext = $this->createMock(StaffBranchContextService::class);
+
+        $service = new class($branchContext) extends StaffReservationInboxService
         {
             protected function supportsGuestSnapshotColumns(): bool
             {
@@ -36,7 +39,9 @@ class StaffReservationInboxServiceTest extends TestCase
 
     public function test_apply_common_filters_keeps_guest_snapshot_search_when_schema_support_exists(): void
     {
-        $service = new class extends StaffReservationInboxService
+        $branchContext = $this->createMock(StaffBranchContextService::class);
+
+        $service = new class($branchContext) extends StaffReservationInboxService
         {
             protected function supportsGuestSnapshotColumns(): bool
             {

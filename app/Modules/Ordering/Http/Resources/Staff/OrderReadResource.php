@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Ordering\Http\Resources\Staff;
 
 use App\Enums\ReservationOrderItemStatus;
-use App\Modules\BranchScheduling\Http\Resources\Guest\RestaurantTableResource;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
+use App\Modules\BranchScheduling\Http\Resources\Guest\RestaurantTableResource;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Http\Resources\ReservationOrderResource;
 use App\Modules\Reservations\Http\Resources\ReservationResource;
@@ -130,5 +130,3 @@ class OrderReadResource extends JsonResource
         ];
     }
 }
-
-

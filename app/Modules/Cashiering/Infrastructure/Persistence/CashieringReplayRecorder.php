@@ -11,6 +11,7 @@ use Illuminate\Validation\ValidationException;
 class CashieringReplayRecorder
 {
     public const SCOPE_STAFF_CHECKOUT = 'staff.checkout';
+
     public const SCOPE_STAFF_PAY_ORDER = 'staff.pay_order';
 
     public function assertReplayMatches(

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Payments\Infrastructure\Integrations\CustomerBillPayment;
 
 use App\Enums\PaymentSessionScope;
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Payments\Domain\Models\ReservationBillPaymentSession;
 use App\Modules\Payments\Infrastructure\Integrations\PaymentProviders\SimulatedPaymentProviderAdapter;
+use App\Modules\Reservations\Domain\Models\Reservation;
 
 class SimulatedCustomerBillPaymentProvider implements CustomerBillPaymentProvider
 {

@@ -13,8 +13,7 @@ class TableTemplateController extends Controller
 {
     public function __construct(
         private readonly RestaurantTableManagementService $tableService,
-    ) {
-    }
+    ) {}
 
     public function index(): JsonResponse
     {

@@ -89,6 +89,7 @@ enum ReservationStatus: string
 
     /**
      * Trả về giá trị DB của trạng thái "checked-in".
+     *
      * @return string Luôn trả về 'Reserved'
      */
     public static function checkedInDbValue(): string
@@ -127,7 +128,7 @@ enum ReservationStatus: string
     /**
      * Kiểm tra xem giá trị string có phải là trạng thái "checked-in" hay không.
      *
-     * @param string $value Giá trị cần kiểm tra (ví dụ: 'Reserved')
+     * @param  string  $value  Giá trị cần kiểm tra (ví dụ: 'Reserved')
      * @return bool true nếu là trạng thái checked-in
      */
     public static function isCheckedInDbValue(string $value): bool
@@ -138,7 +139,7 @@ enum ReservationStatus: string
     /**
      * Kiểm tra xem giá trị string có phải là trạng thái "hoạt động" (active) hay không.
      *
-     * @param string $value Giá trị cần kiểm tra
+     * @param  string  $value  Giá trị cần kiểm tra
      * @return bool true nếu là Confirmed hoặc Reserved
      */
     public static function isActiveDbValue(string $value): bool

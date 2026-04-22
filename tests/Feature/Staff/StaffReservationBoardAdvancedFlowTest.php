@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
+use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
@@ -225,7 +225,7 @@ class StaffReservationBoardAdvancedFlowTest extends TestCase
 
     public function test_non_staff_cannot_view_board(): void
     {
-        $customer = \App\Modules\IdentityAccess\Domain\Models\User::query()->findOrFail($this->createUser(['role_name' => 'Customer']));
+        $customer = User::query()->findOrFail($this->createUser(['role_name' => 'Customer']));
 
         $response = $this->actingAs($customer)->getJson('/api/v1/staff/tables/board');
 

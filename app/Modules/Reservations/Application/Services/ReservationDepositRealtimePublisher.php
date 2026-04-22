@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Reservations\Application\Services;
 
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Payments\Domain\Models\Payment;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\SharedKernel\Money\Money;
 use Illuminate\Support\Carbon;

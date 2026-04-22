@@ -87,7 +87,6 @@ class PaymentSummaryTest extends TestCase
         $this->assertSame(0.0, $summary['deposit_net_amount']);
     }
 
-
     public function test_it_can_resolve_refund_target_from_provider_payload_when_relation_is_missing(): void
     {
         $refund = [

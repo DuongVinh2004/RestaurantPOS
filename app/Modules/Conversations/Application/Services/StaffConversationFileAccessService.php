@@ -16,8 +16,7 @@ class StaffConversationFileAccessService
 
     public function __construct(
         private readonly StaffConversationInboxService $inboxService,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{
@@ -110,7 +109,7 @@ class StaffConversationFileAccessService
             ->first();
 
         if (! $file instanceof ConversationFile) {
-            throw (new ModelNotFoundException())->setModel(ConversationFile::class, [$fileId]);
+            throw (new ModelNotFoundException)->setModel(ConversationFile::class, [$fileId]);
         }
 
         return $this->validatedStoredUrl((string) ($file->file_url ?? ''));
@@ -127,7 +126,7 @@ class StaffConversationFileAccessService
             ->first();
 
         if (! $message instanceof ConversationMessage) {
-            throw (new ModelNotFoundException())->setModel(ConversationMessage::class, [$messageId]);
+            throw (new ModelNotFoundException)->setModel(ConversationMessage::class, [$messageId]);
         }
 
         return $this->validatedStoredUrl((string) ($message->legacyAttachmentUrl() ?? ''));
@@ -142,13 +141,13 @@ class StaffConversationFileAccessService
     {
         $normalized = trim($url);
         if ($normalized === '' || str_starts_with($normalized, 'redacted://')) {
-            throw (new ModelNotFoundException())->setModel(ConversationFile::class);
+            throw (new ModelNotFoundException)->setModel(ConversationFile::class);
         }
 
         $validated = filter_var($normalized, FILTER_VALIDATE_URL);
         $scheme = strtolower((string) parse_url($normalized, PHP_URL_SCHEME));
         if ($validated === false || ! in_array($scheme, ['http', 'https'], true)) {
-            throw (new ModelNotFoundException())->setModel(ConversationFile::class);
+            throw (new ModelNotFoundException)->setModel(ConversationFile::class);
         }
 
         return $normalized;

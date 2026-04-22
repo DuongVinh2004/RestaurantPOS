@@ -43,7 +43,6 @@ class OperationalHealthEvaluatorTest extends TestCase
         $this->assertContains('payment_over_refund_detected', $result['reasons']);
     }
 
-
     public function test_payment_integrity_snapshot_becomes_fail_when_currency_or_scope_mismatch_exists(): void
     {
         $result = OperationalHealthEvaluator::forPaymentIntegrity([
@@ -89,7 +88,6 @@ class OperationalHealthEvaluatorTest extends TestCase
         $this->assertSame([], $result['reasons']);
     }
 
-
     public function test_staff_api_key_snapshot_fails_when_database_store_has_no_active_keys(): void
     {
         $result = OperationalHealthEvaluator::forStaffApiKeys([
@@ -134,5 +132,4 @@ class OperationalHealthEvaluatorTest extends TestCase
         $this->assertSame('fail', $result['status']);
         $this->assertContains('staff_mutation_row_version_contract_missing', $result['reasons']);
     }
-
 }

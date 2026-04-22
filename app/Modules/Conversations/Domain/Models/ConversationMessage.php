@@ -6,9 +6,9 @@ namespace App\Modules\Conversations\Domain\Models;
 
 use App\Enums\MessageSender;
 use App\Enums\MessageType;
-use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -17,6 +17,7 @@ use Illuminate\Validation\ValidationException;
 class ConversationMessage extends Model
 {
     protected $table = 'conversation_messages';
+
     protected $primaryKey = 'message_id';
 
     public const UPDATED_AT = null;
@@ -78,6 +79,7 @@ class ConversationMessage extends Model
         }
 
         $normalized = strtolower(trim((string) $value));
+
         return match ($normalized) {
             'user', 'agent', 'system' => $normalized,
             default => throw ValidationException::withMessages([
@@ -93,6 +95,7 @@ class ConversationMessage extends Model
         }
 
         $normalized = strtolower(trim((string) $value));
+
         return match ($normalized) {
             'text', 'image', 'file', 'location', 'unknown' => $normalized,
             default => throw ValidationException::withMessages([
@@ -112,7 +115,7 @@ class ConversationMessage extends Model
             return null;
         }
 
-        if (!in_array($normalized, self::ALLOWED_PROCESSING_STATUSES, true)) {
+        if (! in_array($normalized, self::ALLOWED_PROCESSING_STATUSES, true)) {
             throw ValidationException::withMessages([
                 'processing_status' => 'Unsupported processing status.',
             ]);

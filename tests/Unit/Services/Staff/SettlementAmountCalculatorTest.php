@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Staff;
 
-use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Billing\Application\UseCases\Previews\SettlementAmountCalculator;
+use App\Modules\Payments\Domain\Models\Payment;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -13,15 +13,15 @@ class SettlementAmountCalculatorTest extends TestCase
 {
     public function test_build_settlement_amounts_applies_deposit_before_final_payments(): void
     {
-        $calculator = new SettlementAmountCalculator();
+        $calculator = new SettlementAmountCalculator;
 
-        $deposit = new Payment();
+        $deposit = new Payment;
         $deposit->payment_type = 'Deposit';
         $deposit->status = 'Success';
         $deposit->amount = 100000;
         $deposit->currency = 'VND';
 
-        $final = new Payment();
+        $final = new Payment;
         $final->payment_type = 'Final';
         $final->status = 'Success';
         $final->amount = 50000;
@@ -38,12 +38,12 @@ class SettlementAmountCalculatorTest extends TestCase
 
     public function test_assert_single_currency_rejects_mixed_currencies(): void
     {
-        $calculator = new SettlementAmountCalculator();
+        $calculator = new SettlementAmountCalculator;
 
-        $first = new Payment();
+        $first = new Payment;
         $first->currency = 'VND';
 
-        $second = new Payment();
+        $second = new Payment;
         $second->currency = 'USD';
 
         $this->expectException(ValidationException::class);
@@ -53,15 +53,15 @@ class SettlementAmountCalculatorTest extends TestCase
 
     public function test_build_settlement_amounts_is_exact_for_small_values(): void
     {
-        $calculator = new SettlementAmountCalculator();
+        $calculator = new SettlementAmountCalculator;
 
-        $deposit = new Payment();
+        $deposit = new Payment;
         $deposit->payment_type = 'Deposit';
         $deposit->status = 'Success';
         $deposit->amount = '0.10';
         $deposit->currency = 'VND';
 
-        $final = new Payment();
+        $final = new Payment;
         $final->payment_type = 'Final';
         $final->status = 'Success';
         $final->amount = '0.20';

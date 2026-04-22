@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Modules\Billing\Application\UseCases\Previews;
 
-use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Enums\PaymentSessionScope;
 use App\Enums\ReservationStatus;
-use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
-use App\Modules\Payments\Infrastructure\Integrations\PaymentProviders\PaymentProviderRolloutConfig;
-use App\Modules\Ordering\Domain\Models\ReservationOrder;
-use App\Platform\FeatureFlags\Services\FeatureFlagService;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use App\Modules\Ordering\Application\Queries\StaffOrderReadService;
+use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Payments\Infrastructure\Integrations\PaymentProviders\PaymentProviderRolloutConfig;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use App\SharedKernel\Money\Money;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Collection;
@@ -335,4 +335,3 @@ class CustomerReservationOrderBillService
         return 'awaiting_customer_payment';
     }
 }
-

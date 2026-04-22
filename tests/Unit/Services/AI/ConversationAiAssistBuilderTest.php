@@ -7,9 +7,9 @@ namespace Tests\Unit\Services\AI;
 use App\Modules\Conversations\Domain\Models\Conversation;
 use App\Modules\Conversations\Domain\Models\ConversationAnalysis;
 use App\Modules\Conversations\Domain\Models\ConversationMessage;
+use App\Modules\Conversations\Infrastructure\Internal\ConversationAiAssistBuilder;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Waitlist\Domain\Models\WaitlistEntry;
-use App\Modules\Conversations\Infrastructure\Internal\ConversationAiAssistBuilder;
 use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -29,7 +29,7 @@ class ConversationAiAssistBuilderTest extends TestCase
                 'message' => 'Feature flag is enabled by config default.',
             ]);
 
-        $service = new ConversationThreadAssistService($featureFlags);
+        $service = new ConversationAiAssistBuilder($featureFlags);
         $conversation = new Conversation([
             'conversation_id' => 'conv-ai-1',
             'branch_id' => 5,
@@ -103,7 +103,7 @@ class ConversationAiAssistBuilderTest extends TestCase
                 'message' => 'Conversation AI assist is disabled for this rollout. Use the canonical timeline instead.',
             ]);
 
-        $service = new ConversationThreadAssistService($featureFlags);
+        $service = new ConversationAiAssistBuilder($featureFlags);
         $conversation = new Conversation([
             'conversation_id' => 'conv-ai-off',
             'branch_id' => 9,
@@ -140,7 +140,7 @@ class ConversationAiAssistBuilderTest extends TestCase
                 'message' => 'Feature flag is enabled by config default.',
             ]);
 
-        $service = new ConversationThreadAssistService($featureFlags);
+        $service = new ConversationAiAssistBuilder($featureFlags);
         $conversation = new Conversation([
             'conversation_id' => 'conv-ai-wl-history',
             'branch_id' => 12,

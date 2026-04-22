@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\PaymentIntegration;
 
 use App\Enums\PaymentSessionScope;
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Payments\Infrastructure\Integrations\PaymentProviders\GenericHttpHmacPaymentProviderAdapter;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -30,7 +31,7 @@ final class GenericHttpHmacPaymentProviderAdapterTest extends TestCase
             ], 200),
         ]);
 
-        $reservation = new Reservation();
+        $reservation = new Reservation;
         $reservation->reservation_id = 123;
         $reservation->reservation_code = 'RSV-123';
         $reservation->branch_id = 2;
@@ -77,11 +78,11 @@ final class GenericHttpHmacPaymentProviderAdapterTest extends TestCase
             ], 200),
         ]);
 
-        $reservation = new Reservation();
+        $reservation = new Reservation;
         $reservation->reservation_id = 321;
         $reservation->reservation_code = 'RSV-321';
 
-        $session = new class extends \Illuminate\Database\Eloquent\Model
+        $session = new class extends Model
         {
             protected $guarded = [];
         };

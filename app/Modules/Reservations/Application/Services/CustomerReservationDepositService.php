@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Reservations\Application\Services;
 
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
 use App\Modules\Payments\Application\UseCases\Capture\StaffReservationDepositService;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class CustomerReservationDepositService
@@ -28,7 +28,7 @@ class CustomerReservationDepositService
         $resolvedSessionId = trim((string) $sessionId);
         $reservation = Reservation::query()->where('reservation_id', $reservationId)->first();
         if (! $reservation instanceof Reservation || $resolvedSessionId === '' || ! $this->customerSessionAccessService->canAccessReservationBySession($reservation, $resolvedSessionId)) {
-            throw (new ModelNotFoundException())->setModel(Reservation::class, [$reservationId]);
+            throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
         }
 
         return $this->staffReservationDepositService->previewDeposit($reservationId, $fallbackCurrency);

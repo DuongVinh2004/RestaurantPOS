@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Payments\Domain\Guards;
 
-use App\Modules\Payments\Domain\Models\Payment;
 use App\Enums\PaymentSessionScope;
 use App\Modules\Payments\Domain\Models\ReservationBillPaymentSession;
 use App\Modules\Payments\Domain\Models\ReservationDepositPaymentSession;

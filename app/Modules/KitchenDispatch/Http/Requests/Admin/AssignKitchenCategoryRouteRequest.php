@@ -45,5 +45,3 @@ class AssignKitchenCategoryRouteRequest extends FormRequest
         ];
     }
 }
-
-

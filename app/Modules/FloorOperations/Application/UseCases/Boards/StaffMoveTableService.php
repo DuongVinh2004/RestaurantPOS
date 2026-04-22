@@ -10,6 +10,7 @@ use App\Modules\BranchScheduling\Application\Services\ReservationBranchScopeServ
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\FloorOperations\Domain\Guards\TableReleaseGuard;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Domain\Models\Reservation;
@@ -26,13 +27,17 @@ class StaffMoveTableService
 {
     private readonly ReservationBranchScopeService $reservationBranchScopeService;
 
+    private readonly ?StaffBranchContextService $staffBranchContextService;
+
     public function __construct(
         private readonly ReservationLockService $locks,
         private readonly RestaurantTableStateService $tableStateService,
         private readonly TableTimeConflictService $tableTimeConflictService,
         ?ReservationBranchScopeService $reservationBranchScopeService = null,
+        ?StaffBranchContextService $staffBranchContextService = null,
     ) {
         $this->reservationBranchScopeService = $reservationBranchScopeService ?? app(ReservationBranchScopeService::class);
+        $this->staffBranchContextService = $staffBranchContextService;
     }
 
     public function move(
@@ -197,6 +202,14 @@ class StaffMoveTableService
                         ]);
                     }
 
+                    $this->assertOperationalBranchAccessible(
+                        $this->resolveOperationalBranchId(
+                            $reservation->branch_id,
+                            $tables->get($fromTableId),
+                        ),
+                        $staffUserId,
+                    );
+
                     DB::table('reservation_tables')
                         ->where('reservation_id', $reservationId)
                         ->where('table_id', $fromTableId)
@@ -302,7 +315,7 @@ class StaffMoveTableService
 
         if ($currentRowVersion !== $expectedRowVersion) {
             throw ValidationException::withMessages([
-                'row_version' => ['DÃ¡Â»Â¯ liÃ¡Â»â€¡u Ã„â€˜ÃƒÂ£ thay Ã„â€˜Ã¡Â»â€¢i (row_version mismatch). HÃƒÂ£y reload rÃ¡Â»â€œi thÃ¡Â»Â­ lÃ¡ÂºÂ¡i.'],
+                'row_version' => ['Data changed (row_version mismatch). Reload and try again.'],
             ]);
         }
     }
@@ -365,6 +378,30 @@ class StaffMoveTableService
             ]);
         }
     }
+
+    private function resolveOperationalBranchId(mixed $reservationBranchId, ?RestaurantTable $fromTable): ?int
+    {
+        $resolvedReservationBranchId = (int) ($reservationBranchId ?? 0);
+        if ($resolvedReservationBranchId > 0) {
+            return $resolvedReservationBranchId;
+        }
+
+        $fromTableBranchId = (int) ($fromTable?->branch_id ?? 0);
+
+        return $fromTableBranchId > 0 ? $fromTableBranchId : null;
+    }
+
+    private function assertOperationalBranchAccessible(?int $branchId, ?int $staffUserId): void
+    {
+        if ($staffUserId === null || $staffUserId <= 0 || $branchId === null || $branchId <= 0) {
+            return;
+        }
+
+        $this->staffBranchContextService()->assertAccessibleBranch($staffUserId, $branchId);
+    }
+
+    private function staffBranchContextService(): StaffBranchContextService
+    {
+        return $this->staffBranchContextService ?? app(StaffBranchContextService::class);
+    }
 }
-
-

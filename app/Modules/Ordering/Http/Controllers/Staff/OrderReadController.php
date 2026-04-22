@@ -8,8 +8,8 @@ use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
 use App\Modules\Ordering\Application\Queries\StaffOrderReadService;
 use App\Modules\Ordering\Http\Resources\Staff\OrderReadResource;
-use App\Support\ApiErrorResponse;
 use App\Modules\Reservations\Domain\Policies\ReservationAccessScope;
+use App\Support\ApiErrorResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -76,5 +76,3 @@ class OrderReadController extends Controller
         );
     }
 }
-
-

@@ -16,8 +16,8 @@ final class AuditTrailRecorder
     ) {}
 
     /**
-     * @param array<string,mixed> $structured
-     * @param array<string,mixed> $logContext
+     * @param  array<string,mixed>  $structured
+     * @param  array<string,mixed>  $logContext
      */
     public function record(string $eventName, array $structured, array $logContext = [], string $level = 'info'): void
     {
@@ -76,7 +76,7 @@ final class AuditTrailRecorder
     }
 
     /**
-     * @param array<string,mixed> $structured
+     * @param  array<string,mixed>  $structured
      * @return list<array{type:string,id:string,role:?string}>
      */
     private function normalizeSubjects(array $structured): array
@@ -115,7 +115,7 @@ final class AuditTrailRecorder
         $deduplicated = [];
         $seen = [];
         foreach ($subjects as $subject) {
-            $key = $subject['type'] . '|' . $subject['id'] . '|' . ($subject['role'] ?? '');
+            $key = $subject['type'].'|'.$subject['id'].'|'.($subject['role'] ?? '');
             if (isset($seen[$key])) {
                 continue;
             }
@@ -128,7 +128,7 @@ final class AuditTrailRecorder
     }
 
     /**
-     * @param array<string,mixed> $subject
+     * @param  array<string,mixed>  $subject
      * @return array{type:string,id:string,role:?string}|null
      */
     private function normalizeSubject(array $subject, mixed $defaultRole): ?array
@@ -190,9 +190,9 @@ final class AuditTrailRecorder
     }
 
     /**
-     * @param array<string,mixed> $structured
-     * @param array<string,mixed> $logContext
-     * @param array<string,mixed> $requestContext
+     * @param  array<string,mixed>  $structured
+     * @param  array<string,mixed>  $logContext
+     * @param  array<string,mixed>  $requestContext
      * @return array<string,mixed>|null
      */
     private function buildMeta(string $eventName, string $level, array $structured, array $logContext, array $requestContext): ?array

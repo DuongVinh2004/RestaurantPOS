@@ -7,25 +7,23 @@ namespace App\Modules\Reservations\Application\Services;
 use App\Enums\ReservationOrderItemStatus;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationStatus;
-use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\Ordering\Domain\Models\ReservationOrder;
-use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
-use App\Modules\Reservations\Domain\Policies\ReservationStatusTransitionPolicy;
-use App\Modules\Reservations\Domain\Models\ReservationTable;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
-use App\Modules\Promotions\Domain\Models\UserVoucher;
 use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
-use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
-use App\Modules\Reservations\Application\Services\ReservationLockService;
-use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
+use App\Modules\Payments\Domain\Models\Payment;
+use App\Modules\Promotions\Domain\Models\UserVoucher;
+use App\Modules\Promotions\Domain\Policies\ReservationVoucherLifecycleSupport;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Reservations\Domain\Models\ReservationTable;
+use App\Modules\Reservations\Domain\Policies\ReservationStatusTransitionPolicy;
+use App\SharedKernel\Money\Money;
 use App\Support\AuditEvent;
 use App\Support\AvailabilityCacheVersion;
-use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
-use App\SharedKernel\Money\Money;
-use App\Modules\Promotions\Domain\Policies\ReservationVoucherLifecycleSupport;
-use App\Modules\Promotions\Domain\Policies\VoucherRedemptionSupport;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -38,8 +36,7 @@ class ReservationStatusTransitionService
         private readonly LoyaltyPointsService $loyaltyPointsService,
         private readonly RestaurantTableStateService $tableStateService,
         private readonly ReservationFinancialSyncService $reservationFinancialSyncService,
-    ) {
-    }
+    ) {}
 
     public function updateReservationStatus(
         int $reservationId,
@@ -377,7 +374,7 @@ class ReservationStatusTransitionService
     }
 
     /**
-     * @param list<int> $tableIds
+     * @param  list<int>  $tableIds
      */
     private function releaseTables(array $tableIds): void
     {

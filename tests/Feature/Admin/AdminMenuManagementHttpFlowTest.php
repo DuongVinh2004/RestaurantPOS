@@ -106,7 +106,7 @@ class AdminMenuManagementHttpFlowTest extends TestCase
             ->assertJsonCount(2, 'data.prices');
 
         $listItemsResponse = $this->withHeaders($this->staffHeaders('admin-menu-key'))
-            ->getJson('/api/v1/admin/menu/items?category_id=' . $categoryId);
+            ->getJson('/api/v1/admin/menu/items?category_id='.$categoryId);
 
         $listItemsResponse->assertOk()
             ->assertJsonPath('data.0.item_id', $itemId)
@@ -191,7 +191,6 @@ class AdminMenuManagementHttpFlowTest extends TestCase
         $this->assertSame('VND', (string) $prepared['price_rows']->get($itemId)->currency);
     }
 
-
     public function test_booking_config_declares_admin_menu_idempotency_scopes(): void
     {
         $scopes = (array) config('booking.idempotency_required_scopes', []);
@@ -212,7 +211,7 @@ class AdminMenuManagementHttpFlowTest extends TestCase
         return [
             'X-Staff-Key' => $staffKey,
             'Accept' => 'application/json',
-            'Idempotency-Key' => 'idem-' . $staffKey . '-' . bin2hex(random_bytes(6)),
+            'Idempotency-Key' => 'idem-'.$staffKey.'-'.bin2hex(random_bytes(6)),
         ];
     }
 }

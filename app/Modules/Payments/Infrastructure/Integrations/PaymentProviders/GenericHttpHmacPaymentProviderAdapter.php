@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Payments\Infrastructure\Integrations\PaymentProviders;
 
-use App\Modules\Payments\Domain\Models\Payment;
 use App\Enums\PaymentSessionScope;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Database\Eloquent\Model;

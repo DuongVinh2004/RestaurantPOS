@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Http\Controllers;
 
+use App\Modules\FloorOperations\Application\Queries\StaffTableBoardService;
 use App\Modules\FloorOperations\Http\Controllers\Staff\TableBoardController;
 use App\Modules\FloorOperations\Http\Requests\Staff\TableBoardRequest;
 use App\Platform\Realtime\Services\OperationalRealtimeService;
-use App\Modules\FloorOperations\Application\Queries\StaffTableBoardService;
 use Mockery;
 use Tests\TestCase;
 
@@ -57,5 +57,3 @@ class StaffLegacyRouteDeprecationHeadersTest extends TestCase
         self::assertSame('/api/v1/staff/tables/board', $response->getData(true)['meta']['canonical_route']);
     }
 }
-
-

@@ -20,7 +20,7 @@ class ReleaseArtifactNormalizerServiceTest extends TestCase
 
     public function test_normalize_strips_definers_and_promotes_guard_columns(): void
     {
-        $schemaPath = base_path($this->root . '/schema.sql');
+        $schemaPath = base_path($this->root.'/schema.sql');
         File::ensureDirectoryExists(dirname($schemaPath));
         File::put($schemaPath, <<<'SQL'
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_cleanup_expired_holds`()
@@ -65,7 +65,7 @@ SQL);
 
         config()->set('booking_release.artifacts', [
             'schema_dump' => [
-                'path' => $this->root . '/schema.sql',
+                'path' => $this->root.'/schema.sql',
                 'optional' => false,
                 'required_fragments' => [],
             ],

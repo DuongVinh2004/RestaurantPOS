@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class MessageEntity extends Model
 {
     protected $table = 'message_entities';
+
     protected $primaryKey = 'message_entity_id';
 
     public const UPDATED_AT = null;

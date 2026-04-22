@@ -232,6 +232,12 @@ class StaffCapabilityHttpGuardTest extends TestCase
         $customerHeaders = $this->customerAuthHeaders($customerId, 'sess-customer-bleed-deny');
 
         $this->withHeaders($customerHeaders)
+            ->getJson('/api/v1/staff/branches')
+            ->assertStatus(401)
+            ->assertJsonPath('error_code', 'unauthorized')
+            ->assertJsonMissingPath('required_capability');
+
+        $this->withHeaders($customerHeaders)
             ->getJson('/api/v1/staff/conversations')
             ->assertStatus(401)
             ->assertJsonPath('error_code', 'unauthorized')
@@ -262,6 +268,13 @@ class StaffCapabilityHttpGuardTest extends TestCase
             'branch_name' => 'Wrong Role Branch',
         ]);
         config()->set('staff_auth.api_keys', ['customer-mapped-staff-key' => $customerId]);
+
+        $this->withHeaders($this->staffHeaders('customer-mapped-staff-key'))
+            ->getJson('/api/v1/staff/branches')
+            ->assertStatus(403)
+            ->assertJsonPath('error_code', 'forbidden')
+            ->assertJsonPath('category_code', 'policy_denied')
+            ->assertJsonMissingPath('required_capability');
 
         $this->withHeaders($this->staffHeaders('customer-mapped-staff-key'))
             ->getJson('/api/v1/staff/conversations')
@@ -341,6 +354,7 @@ class StaffCapabilityHttpGuardTest extends TestCase
         ]);
 
         $expectations = [
+            ['/api/v1/staff/branches', 'reservation.manage'],
             ['/api/v1/staff/tables/board', 'table.board.view'],
             ['/api/v1/staff/reservations', 'reservation.manage'],
             ['/api/v1/staff/reservations/999999', 'reservation.manage'],

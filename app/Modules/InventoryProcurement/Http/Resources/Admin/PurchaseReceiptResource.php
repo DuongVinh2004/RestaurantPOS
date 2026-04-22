@@ -7,6 +7,7 @@ namespace App\Modules\InventoryProcurement\Http\Resources\Admin;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class PurchaseReceiptResource extends JsonResource
 {
@@ -16,7 +17,7 @@ class PurchaseReceiptResource extends JsonResource
     public function toArray(Request $request): array
     {
         $lines = $this->whenLoaded('lines');
-        $lineCollection = $lines instanceof \Illuminate\Support\Collection ? $lines : collect();
+        $lineCollection = $lines instanceof Collection ? $lines : collect();
 
         return [
             'receipt_id' => (int) $this->receipt_id,

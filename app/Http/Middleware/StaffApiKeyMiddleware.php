@@ -3,9 +3,9 @@
 namespace App\Http\Middleware;
 
 use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\IdentityAccess\Infrastructure\Tokenization\StaffApiKeyActorResolver;
 use App\Support\ApiErrorResponse;
 use App\Support\Auth\RequestActorContext;
-use App\Modules\IdentityAccess\Infrastructure\Tokenization\StaffApiKeyActorResolver;
 use Closure;
 use Illuminate\Http\Request;
 

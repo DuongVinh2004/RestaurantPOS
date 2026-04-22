@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Reservation;
 
-use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Payments\Domain\Models\Payment;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\BuildsBookingScenario;
@@ -61,7 +61,6 @@ class CustomerReservationDepositVisibilityFlowTest extends TestCase
             ->assertJsonPath('data.deposit.self_service.can_acknowledge', true)
             ->assertJsonPath('data.deposit.self_service.can_submit_intent', false);
     }
-
 
     public function test_session_linked_customer_can_preview_accessible_reservation_deposit_snapshot(): void
     {

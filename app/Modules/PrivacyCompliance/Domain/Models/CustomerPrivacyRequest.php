@@ -13,11 +13,15 @@ class CustomerPrivacyRequest extends Model
     public const TYPE_ANONYMIZE = 'Anonymize';
 
     public const STATUS_REQUESTED = 'Requested';
+
     public const STATUS_REJECTED = 'Rejected';
+
     public const STATUS_COMPLETED = 'Completed';
+
     public const STATUS_FAILED = 'Failed';
 
     protected $table = 'customer_privacy_requests';
+
     protected $primaryKey = 'customer_privacy_request_id';
 
     protected $fillable = [

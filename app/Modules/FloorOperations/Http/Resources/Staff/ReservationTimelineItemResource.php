@@ -7,9 +7,9 @@ namespace App\Modules\FloorOperations\Http\Resources\Staff;
 use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
 use App\Modules\Conversations\Http\Resources\StaffReservationInboxResource;
+use App\Modules\FloorOperations\Application\Workflows\StaffReservationTimelineWorkbenchService;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\FloorOperations\Application\Workflows\StaffReservationTimelineWorkbenchService;
 use App\SharedKernel\Money\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -249,6 +249,3 @@ class ReservationTimelineItemResource extends JsonResource
         return Arr::only($tables[0], ['table_id', 'table_code', 'zone', 'seats', 'status']);
     }
 }
-
-
-

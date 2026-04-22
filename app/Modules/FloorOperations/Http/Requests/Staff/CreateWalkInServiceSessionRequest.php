@@ -30,5 +30,3 @@ class CreateWalkInServiceSessionRequest extends FormRequest
         ];
     }
 }
-
-

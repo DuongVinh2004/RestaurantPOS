@@ -32,7 +32,7 @@ trait InteractsWithListingQuery
     }
 
     /**
-     * @param list<string> $allowedFields
+     * @param  list<string>  $allowedFields
      * @return array{sort:string,sort_by:string,sort_dir:string}
      */
     protected function normalizeListingSort(string $defaultField, array $allowedFields, string $defaultDirection = 'asc'): array
@@ -59,14 +59,14 @@ trait InteractsWithListingQuery
         }
 
         return [
-            'sort' => $sortDir === 'desc' ? '-' . $sortBy : $sortBy,
+            'sort' => $sortDir === 'desc' ? '-'.$sortBy : $sortBy,
             'sort_by' => $sortBy,
             'sort_dir' => $sortDir,
         ];
     }
 
     /**
-     * @param list<string> $allowedFields
+     * @param  list<string>  $allowedFields
      * @return list<string>
      */
     protected function listingSortRuleValues(array $allowedFields): array
@@ -75,14 +75,14 @@ trait InteractsWithListingQuery
 
         foreach ($allowedFields as $field) {
             $values[] = $field;
-            $values[] = '-' . $field;
+            $values[] = '-'.$field;
         }
 
         return $values;
     }
 
     /**
-     * @param list<string> $allowedKeys
+     * @param  list<string>  $allowedKeys
      * @return list<string>
      */
     protected function listingFilterContainerRules(array $allowedKeys): array
@@ -91,7 +91,7 @@ trait InteractsWithListingQuery
             return ['sometimes', 'array'];
         }
 
-        return ['sometimes', 'array:' . implode(',', $allowedKeys)];
+        return ['sometimes', 'array:'.implode(',', $allowedKeys)];
     }
 
     protected function listingFilterInput(string $key, mixed $default = null): mixed
@@ -146,16 +146,16 @@ trait InteractsWithListingQuery
 
     protected function normalizeListingBoolean(string $key, ?bool $default = null, bool $defaultWhenMissing = false): ?bool
     {
-        if (! $this->has($key) && ! $this->has('filter.' . $key) && ! $this->has('filters.' . $key)) {
+        if (! $this->has($key) && ! $this->has('filter.'.$key) && ! $this->has('filters.'.$key)) {
             return $defaultWhenMissing ? $default : null;
         }
 
-        if ($this->has('filter.' . $key)) {
-            return $this->boolean('filter.' . $key);
+        if ($this->has('filter.'.$key)) {
+            return $this->boolean('filter.'.$key);
         }
 
-        if ($this->has('filters.' . $key)) {
-            return $this->boolean('filters.' . $key);
+        if ($this->has('filters.'.$key)) {
+            return $this->boolean('filters.'.$key);
         }
 
         return $this->boolean($key);

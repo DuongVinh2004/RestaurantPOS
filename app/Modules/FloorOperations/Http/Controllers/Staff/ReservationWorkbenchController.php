@@ -6,12 +6,12 @@ namespace App\Modules\FloorOperations\Http\Controllers\Staff;
 
 use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
+use App\Modules\FloorOperations\Application\UseCases\Boards\StaffReservationBoardAssignmentService;
+use App\Modules\FloorOperations\Application\UseCases\CheckIn\StaffCheckInService;
 use App\Modules\FloorOperations\Http\Requests\Staff\AssignBestFitTableRequest;
 use App\Modules\FloorOperations\Http\Requests\Staff\AssignSuggestedTableRequest;
 use App\Modules\FloorOperations\Http\Requests\Staff\CheckInReservationRequest;
 use App\Modules\Reservations\Http\Resources\ReservationResource;
-use App\Modules\FloorOperations\Application\UseCases\CheckIn\StaffCheckInService;
-use App\Modules\FloorOperations\Application\UseCases\Boards\StaffReservationBoardAssignmentService;
 use Illuminate\Http\JsonResponse;
 
 class ReservationWorkbenchController extends Controller
@@ -98,6 +98,3 @@ class ReservationWorkbenchController extends Controller
         return $zone === '' ? null : $zone;
     }
 }
-
-
-

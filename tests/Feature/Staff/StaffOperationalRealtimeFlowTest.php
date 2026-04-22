@@ -4,19 +4,20 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Modules\BranchScheduling\Application\Services\TableHoldService;
+use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
+use App\Modules\FloorOperations\Application\UseCases\CheckIn\StaffCheckInService;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Reservations\Application\Services\ReservationCodeGenerator;
-use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Application\Services\ReservationService;
-use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
-use App\Platform\FeatureFlags\Services\RuntimeSettingService;
-use App\Modules\FloorOperations\Application\UseCases\CheckIn\StaffCheckInService;
-use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Modules\Waitlist\Application\Services\StaffWaitingListService;
-use App\Modules\BranchScheduling\Application\Services\TableHoldService;
-use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
+use App\Platform\Realtime\Services\OperationalRealtimeService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -56,15 +57,15 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         $locks = $this->mockReservationLocks();
         $notifications = $this->mockNotificationOutbox();
         $runtime = $this->mockRuntimeSettings();
-        $tableState = new RestaurantTableStateService();
-        $conflicts = new TableTimeConflictService();
-        $financialSync = new ReservationFinancialSyncService();
+        $tableState = new RestaurantTableStateService;
+        $conflicts = new TableTimeConflictService;
+        $financialSync = new ReservationFinancialSyncService;
         $loyalty = new LoyaltyPointsService($financialSync, $runtime);
         $tableHoldService = new TableHoldService($locks, $tableState, $conflicts, $runtime);
         $reservationService = new ReservationService(
             $tableHoldService,
             $locks,
-            new ReservationCodeGenerator(),
+            new ReservationCodeGenerator,
             $notifications,
             $loyalty,
             $tableState,
@@ -243,7 +244,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         $beforeVersion = (int) $board->json('meta.realtime.current_version');
 
         $assign = $this->withHeaders($this->withIdempotencyKey('staff-realtime-board-assign', $staffHeaders))
-            ->postJson('/api/v1/staff/reservations/' . $reservationId . '/assign-table', [
+            ->postJson('/api/v1/staff/reservations/'.$reservationId.'/assign-table', [
                 'table_id' => $tableId,
                 'row_version' => 1,
             ]);
@@ -251,7 +252,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         $assign->assertOk()->assertJsonPath('data.table_ids.0', $tableId);
 
         $changes = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $beforeVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$beforeVersion);
 
         $changes->assertOk()
             ->assertJsonPath('data.topic', 'board')
@@ -273,7 +274,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             'full_name' => 'Realtime Waiting Customer',
             'phone' => '0909444001',
         ]);
-        $customer = \App\Modules\IdentityAccess\Domain\Models\User::query()->findOrFail($customerId);
+        $customer = User::query()->findOrFail($customerId);
         $staffHeaders = $this->staffAuthHeaders($staffId);
 
         $tableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available']);
@@ -300,7 +301,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         $boardBeforeVersion = (int) $boardBefore->json('data.current_version');
 
         $notify = $this->withHeaders($this->withIdempotencyKey('staff-realtime-waiting-notify', $staffHeaders))
-            ->postJson('/api/v1/staff/waiting-list/' . $waitingId . '/notify', [
+            ->postJson('/api/v1/staff/waiting-list/'.$waitingId.'/notify', [
                 'table_id' => $tableId,
                 'hold_minutes' => 10,
                 'row_version' => 1,
@@ -310,7 +311,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
 
         $confirm = $this->actingAs($customer)
             ->withHeaders(['Idempotency-Key' => 'customer-realtime-confirm-arrival'])
-            ->postJson('/api/v1/waiting-list/' . $waitingId . '/confirm-arrival', [
+            ->postJson('/api/v1/waiting-list/'.$waitingId.'/confirm-arrival', [
                 'row_version' => (int) $notify->json('data.row_version'),
             ]);
 
@@ -319,7 +320,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             ->assertJsonPath('meta.staff_seat_required', true);
 
         $waitingChanges = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/waiting-list/changes?after_version=' . $waitingBeforeVersion);
+            ->getJson('/api/v1/staff/waiting-list/changes?after_version='.$waitingBeforeVersion);
 
         $waitingChanges->assertOk()->assertJsonPath('data.has_changes', true);
         $waitingEvents = collect($waitingChanges->json('data.events'));
@@ -328,7 +329,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         self::assertNotNull($waitingEvents->firstWhere('type', 'waiting_list.customer_arrival_confirmed'));
 
         $boardChanges = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $boardBeforeVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$boardBeforeVersion);
 
         $boardChanges->assertOk()->assertJsonPath('data.has_changes', true);
         $boardEvents = collect($boardChanges->json('data.events'));
@@ -352,7 +353,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             'full_name' => 'Advance Next',
             'phone' => '0909555002',
         ]);
-        $sourceCustomer = \App\Modules\IdentityAccess\Domain\Models\User::query()->findOrFail($sourceCustomerId);
+        $sourceCustomer = User::query()->findOrFail($sourceCustomerId);
 
         $tableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available']);
         $sourceWaitingId = $this->createWaitingListEntry([
@@ -378,7 +379,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         $beforeVersion = (int) $waitingBefore->json('data.current_version');
 
         $notify = $this->withHeaders($this->withIdempotencyKey('staff-realtime-advance-notify', $staffHeaders))
-            ->postJson('/api/v1/staff/waiting-list/' . $sourceWaitingId . '/notify', [
+            ->postJson('/api/v1/staff/waiting-list/'.$sourceWaitingId.'/notify', [
                 'table_id' => $tableId,
                 'hold_minutes' => 10,
                 'row_version' => 1,
@@ -387,13 +388,13 @@ class StaffOperationalRealtimeFlowTest extends TestCase
 
         $decline = $this->actingAs($sourceCustomer)
             ->withHeaders(['Idempotency-Key' => 'customer-realtime-advance-decline'])
-            ->postJson('/api/v1/waiting-list/' . $sourceWaitingId . '/decline', [
+            ->postJson('/api/v1/waiting-list/'.$sourceWaitingId.'/decline', [
                 'row_version' => (int) $notify->json('data.row_version'),
             ]);
         $decline->assertOk();
 
         $advance = $this->withHeaders($this->withIdempotencyKey('staff-realtime-advance-run', $staffHeaders))
-            ->postJson('/api/v1/staff/waiting-list/' . $sourceWaitingId . '/advance', [
+            ->postJson('/api/v1/staff/waiting-list/'.$sourceWaitingId.'/advance', [
                 'row_version' => (int) $decline->json('data.row_version'),
             ]);
 
@@ -403,7 +404,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             ->assertJsonPath('data.automation.result', 'notified_next_candidate');
 
         $changes = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/waiting-list/changes?after_version=' . $beforeVersion);
+            ->getJson('/api/v1/staff/waiting-list/changes?after_version='.$beforeVersion);
 
         $changes->assertOk()->assertJsonPath('data.has_changes', true);
         $event = collect($changes->json('data.events'))->firstWhere('type', 'waiting_list.queue_advanced');
@@ -449,7 +450,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             ->assertJsonPath('error_code', 'not_found');
 
         $changes = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $beforeVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$beforeVersion);
 
         $changes->assertOk()->assertJsonPath('data.has_changes', true);
 
@@ -493,7 +494,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         self::assertSame('Available', (string) $this->table('restaurant_tables')->where('table_id', $tableId)->value('status'));
 
         $changes = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $beforeVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$beforeVersion);
 
         $changes->assertOk()->assertJsonPath('data.has_changes', true);
 
@@ -534,7 +535,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             ->assertJsonPath('data.outstanding_amount', 0);
 
         $firstChanges = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $beforeVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$beforeVersion);
 
         $firstChanges->assertOk()->assertJsonPath('data.has_changes', true);
         $afterFirstVersion = (int) $firstChanges->json('data.current_version');
@@ -553,7 +554,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             ->assertJsonPath('data.outstanding_amount', 0);
 
         $replayChanges = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $afterFirstVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$afterFirstVersion);
 
         $replayChanges->assertOk()
             ->assertJsonPath('data.has_changes', false)
@@ -601,7 +602,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             ->assertJsonPath('data.payment_status', 'Success');
 
         $firstChanges = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $beforeVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$beforeVersion);
 
         $firstChanges->assertOk()->assertJsonPath('data.has_changes', true);
         $afterFirstVersion = (int) $firstChanges->json('data.current_version');
@@ -620,7 +621,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             ->assertJsonPath('data.payment_status', 'Success');
 
         $replayChanges = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $afterFirstVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$afterFirstVersion);
 
         $replayChanges->assertOk()
             ->assertJsonPath('data.has_changes', false)
@@ -678,7 +679,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             ->assertJsonPath('error_code', 'not_found');
 
         $changes = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $beforeVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$beforeVersion);
 
         $changes->assertOk()->assertJsonPath('data.has_changes', true);
 
@@ -722,7 +723,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             ->assertJsonPath('data.reservation.status', 'Cancelled');
 
         $firstChanges = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $beforeVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$beforeVersion);
 
         $firstChanges->assertOk()->assertJsonPath('data.has_changes', true);
         $afterFirstVersion = (int) $firstChanges->json('data.current_version');
@@ -734,7 +735,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             ->assertJsonPath('data.reservation.status', 'Cancelled');
 
         $replayChanges = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $afterFirstVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$afterFirstVersion);
 
         $replayChanges->assertOk()
             ->assertJsonPath('data.has_changes', false)
@@ -777,7 +778,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         self::assertSame('60000.00', number_format((float) $this->table('reservations')->where('reservation_id', $reservationId)->value('deposit_paid_amount'), 2, '.', ''));
 
         $changes = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $beforeVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$beforeVersion);
 
         $changes->assertOk()->assertJsonPath('data.has_changes', true);
 
@@ -818,7 +819,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             ->assertJsonPath('data.deposit.status', 'Paid');
 
         $firstChanges = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $beforeVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$beforeVersion);
 
         $firstChanges->assertOk()->assertJsonPath('data.has_changes', true);
         $afterFirstVersion = (int) $firstChanges->json('data.current_version');
@@ -830,7 +831,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             ->assertJsonPath('data.deposit.status', 'Paid');
 
         $replayChanges = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/tables/board/changes?after_version=' . $afterFirstVersion);
+            ->getJson('/api/v1/staff/tables/board/changes?after_version='.$afterFirstVersion);
 
         $replayChanges->assertOk()
             ->assertJsonPath('data.has_changes', false)
@@ -849,7 +850,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $tableId = $this->createRestaurantTable([
             'status' => 'Occupied',
-            'table_code' => $reservationCode . '-T4',
+            'table_code' => $reservationCode.'-T4',
             'zone' => 'Main',
         ]);
         $reservationId = $this->createReservation([
@@ -893,7 +894,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $tableId = $this->createRestaurantTable([
             'status' => 'Occupied',
-            'table_code' => $reservationCode . '-T4',
+            'table_code' => $reservationCode.'-T4',
             'zone' => 'Main',
         ]);
         $reservationId = $this->createReservation([
@@ -930,7 +931,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             'status' => 'Success',
             'amount' => '60000.00',
             'currency' => 'VND',
-            'transaction_code' => $reservationCode . '-DEP-1',
+            'transaction_code' => $reservationCode.'-DEP-1',
         ]);
 
         return [$staffId, $tableId, $reservationId];
@@ -945,7 +946,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $tableId = $this->createRestaurantTable([
             'status' => 'Reserved',
-            'table_code' => $reservationCode . '-T4',
+            'table_code' => $reservationCode.'-T4',
             'zone' => 'Main',
         ]);
         $reservationId = $this->createReservation([
@@ -963,4 +964,3 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         return [$staffId, $tableId, $reservationId];
     }
 }
-

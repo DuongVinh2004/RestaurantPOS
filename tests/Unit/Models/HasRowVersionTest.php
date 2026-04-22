@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Models;
 
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;

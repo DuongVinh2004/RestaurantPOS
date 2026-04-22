@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\MasterDataExchange\Domain\Registries;
 
+use App\Modules\Catalog\Application\UseCases\Management\MenuCatalogManagementService;
 use App\Modules\Catalog\Domain\Models\MenuItem;
 use App\Modules\Catalog\Domain\Models\MenuItemPrice;
-use App\Modules\Catalog\Application\UseCases\Management\MenuCatalogManagementService;
 use App\Modules\MasterDataExchange\Domain\Contracts\MasterDataDomain;
 use App\Modules\MasterDataExchange\Infrastructure\Internal\AbstractMasterDataDomain;
 use Illuminate\Support\Facades\Validator;
@@ -16,8 +16,7 @@ final class MenuPricesMasterDataDomain extends AbstractMasterDataDomain implemen
 {
     public function __construct(
         private readonly MenuCatalogManagementService $menuService,
-    ) {
-    }
+    ) {}
 
     public function key(): string
     {
@@ -95,7 +94,7 @@ final class MenuPricesMasterDataDomain extends AbstractMasterDataDomain implemen
                 ])->validate();
 
                 if (! $items->has($itemCode)) {
-                    $errors[] = $this->error('item_code', 'Menu item [' . $itemCode . '] does not exist.');
+                    $errors[] = $this->error('item_code', 'Menu item ['.$itemCode.'] does not exist.');
                 }
 
                 $normalized = [
@@ -197,6 +196,7 @@ final class MenuPricesMasterDataDomain extends AbstractMasterDataDomain implemen
 
             if ($operation === 'noop') {
                 $unchanged++;
+
                 continue;
             }
 
@@ -254,6 +254,6 @@ final class MenuPricesMasterDataDomain extends AbstractMasterDataDomain implemen
 
     private function compositeKey(string $itemCode, ?string $effectiveFrom): string
     {
-        return $itemCode . '|' . ($effectiveFrom ?? '');
+        return $itemCode.'|'.($effectiveFrom ?? '');
     }
 }

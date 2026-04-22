@@ -28,7 +28,7 @@ final class MenuCompatibilityRequestContractTest extends TestCase
 
     private function makeUpdateMenuCategoryRequest(string $parameter, int $value): UpdateMenuCategoryRequest
     {
-        $request = UpdateMenuCategoryRequest::create('/admin/menu/categories/' . $value, 'PATCH');
+        $request = UpdateMenuCategoryRequest::create('/admin/menu/categories/'.$value, 'PATCH');
         $request->setRouteResolver(fn (): object => $this->makeRouteStub($parameter, $value));
 
         return $request;
@@ -36,7 +36,7 @@ final class MenuCompatibilityRequestContractTest extends TestCase
 
     private function makeUpdateMenuItemRequest(string $parameter, int $value): UpdateMenuItemRequest
     {
-        $request = UpdateMenuItemRequest::create('/admin/menu/items/' . $value, 'PATCH');
+        $request = UpdateMenuItemRequest::create('/admin/menu/items/'.$value, 'PATCH');
         $request->setRouteResolver(fn (): object => $this->makeRouteStub($parameter, $value));
 
         return $request;
@@ -59,7 +59,7 @@ final class MenuCompatibilityRequestContractTest extends TestCase
     }
 
     /**
-     * @param array<string,mixed> $rules
+     * @param  array<string,mixed>  $rules
      * @return array<string,mixed>
      */
     private function normalizeRules(array $rules): array

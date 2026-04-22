@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\InventoryProcurement\Application\UseCases\Inventory;
 
-use App\Modules\InventoryProcurement\Domain\Models\Ingredient;
-use App\Modules\InventoryProcurement\Domain\Models\IngredientStockMovement;
 use App\Modules\Catalog\Domain\Models\MenuItem;
 use App\Modules\Catalog\Domain\Models\MenuItemRecipe;
-use App\Modules\InventoryProcurement\Application\UseCases\Inventory\InventoryStockMovementService;
+use App\Modules\InventoryProcurement\Domain\Models\Ingredient;
+use App\Modules\InventoryProcurement\Domain\Models\IngredientStockMovement;
 use App\Support\Listing\SafeLike;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;

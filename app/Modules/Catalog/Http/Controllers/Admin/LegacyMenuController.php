@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Catalog\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Catalog\Application\UseCases\Management\MenuCatalogManagementService;
 use App\Modules\Catalog\Http\Requests\Admin\ListMenuCategoriesRequest;
 use App\Modules\Catalog\Http\Requests\Admin\ListMenuItemPricesRequest;
 use App\Modules\Catalog\Http\Requests\Admin\ListMenuItemsRequest;
@@ -16,7 +17,6 @@ use App\Modules\Catalog\Http\Requests\Admin\UpdateMenuItemRequest;
 use App\Modules\Catalog\Http\Resources\Admin\MenuCategoryResource;
 use App\Modules\Catalog\Http\Resources\Admin\MenuItemPriceResource;
 use App\Modules\Catalog\Http\Resources\Admin\MenuItemResource;
-use App\Modules\Catalog\Application\UseCases\Management\MenuCatalogManagementService;
 use App\Support\ApiErrorResponse;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;

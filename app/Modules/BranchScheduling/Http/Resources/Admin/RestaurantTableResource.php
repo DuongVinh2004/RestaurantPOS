@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Modules\BranchScheduling\Http\Resources\Admin;
 
+use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Modules\BranchScheduling\Domain\Models\RestaurantTable */
+/** @mixin RestaurantTable */
 class RestaurantTableResource extends JsonResource
 {
     public function toArray(Request $request): array

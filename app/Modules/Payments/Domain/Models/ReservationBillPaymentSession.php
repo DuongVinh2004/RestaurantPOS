@@ -6,10 +6,10 @@ namespace App\Modules\Payments\Domain\Models;
 
 use App\Enums\ReservationBillPaymentSessionStatus;
 use App\Enums\ReservationBillPaymentSettlementStatus;
-use App\Support\Persistence\HasRowVersion;
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Support\Persistence\HasRowVersion;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 

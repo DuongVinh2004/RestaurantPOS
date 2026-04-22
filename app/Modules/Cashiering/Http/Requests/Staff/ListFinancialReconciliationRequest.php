@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Cashiering\Http\Requests\Staff;
 
 use App\Enums\ReservationStatus;
-use App\Support\Listing\InteractsWithListingQuery;
 use App\Modules\FloorOperations\Http\Requests\Staff\BranchScopeRequest;
+use App\Support\Listing\InteractsWithListingQuery;
 
 class ListFinancialReconciliationRequest extends BranchScopeRequest
 {
@@ -94,5 +94,3 @@ class ListFinancialReconciliationRequest extends BranchScopeRequest
         ];
     }
 }
-
-

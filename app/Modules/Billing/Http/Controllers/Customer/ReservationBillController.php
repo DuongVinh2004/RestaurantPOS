@@ -6,12 +6,12 @@ namespace App\Modules\Billing\Http\Controllers\Customer;
 
 use App\Http\Concerns\RespondsWithCustomerReservationNotFound;
 use App\Http\Controllers\Controller;
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Billing\Application\UseCases\Previews\CustomerReservationBillService;
 use App\Modules\Billing\Application\UseCases\Previews\CustomerReservationOrderBillService;
 use App\Modules\Billing\Http\Resources\Customer\ReservationBillResource;
-use App\Modules\Ordering\Http\Resources\ReservationOrderResource;
 use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
+use App\Modules\Ordering\Http\Resources\ReservationOrderResource;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Support\ApiErrorResponse;
 use App\Support\Auth\RequestActorContext;
 use Illuminate\Database\Eloquent\ModelNotFoundException;

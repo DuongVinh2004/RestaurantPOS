@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Services;
 
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Validation\ValidationException;
 use Tests\Support\BuildsBookingScenario;
@@ -41,7 +41,7 @@ class ReservationFinancialSyncServiceFeatureTest extends TestCase
             'line_total' => 20,
         ]);
 
-        $service = new ReservationFinancialSyncService();
+        $service = new ReservationFinancialSyncService;
 
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('Mixed currency is not supported');
@@ -66,7 +66,7 @@ class ReservationFinancialSyncServiceFeatureTest extends TestCase
         ]);
 
         $reservation = Reservation::query()->findOrFail($reservationId);
-        $service = new ReservationFinancialSyncService();
+        $service = new ReservationFinancialSyncService;
         $service->syncReservationDiscountSnapshot($reservation, 10000.0, false);
 
         $this->assertSame(10000.0, (float) $reservation->discount_amount);
@@ -80,7 +80,7 @@ class ReservationFinancialSyncServiceFeatureTest extends TestCase
             'deposit_required_amount' => 100000.0,
         ]);
 
-        $service = new ReservationFinancialSyncService();
+        $service = new ReservationFinancialSyncService;
         $service->syncDepositSnapshot($reservation, [
             'deposit_captured_amount' => 100000.0,
             'deposit_refunded_amount' => 40000.0,

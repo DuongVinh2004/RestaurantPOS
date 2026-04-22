@@ -74,6 +74,7 @@ const ARTIFACT_REQUIREMENTS = [
   { scope: 'artifacts', group: 'required_for_build_test_smoke', type: 'directory', path: 'build/api-consumer', label: 'generated API consumer artifact root' },
   { scope: 'artifacts', group: 'required_for_build_test_smoke', type: 'file', path: 'build/api-consumer/sdk/typescript/restaurantpos-sdk.ts', label: 'generated TypeScript SDK' },
   { scope: 'artifacts', group: 'required_for_build_test_smoke', type: 'file', path: 'build/api-consumer/sdk/typescript/restaurantpos-enums.ts', label: 'generated TypeScript enums' },
+  { scope: 'artifacts', group: 'required_for_build_test_smoke', type: 'file', path: 'build/api-consumer/enum-state-map.json', label: 'generated enum/state map artifact' },
   { scope: 'artifacts', group: 'required_for_build_test_smoke', type: 'file', path: 'build/api-consumer/mutation-contracts.md', label: 'generated mutation contract artifact' },
   { scope: 'artifacts', group: 'required_for_build_test_smoke', type: 'file', path: 'storage/app/booking_release/openapi-v1.json', label: 'frozen OpenAPI release artifact' },
   { scope: 'artifacts', group: 'required_for_build_test_smoke', type: 'file', path: RELEASE_MANIFEST_SNAPSHOT_PATH, label: 'frozen release manifest snapshot' },
@@ -107,6 +108,13 @@ const FRESHNESS_RULES = [
     path: 'build/api-consumer/sdk/typescript/restaurantpos-enums.ts',
     depends_on: 'storage/app/booking_release/openapi-v1.json',
     label: 'generated TypeScript enums freshness',
+  },
+  {
+    scope: 'artifacts',
+    group: 'required_for_build_test_smoke',
+    path: 'build/api-consumer/enum-state-map.json',
+    depends_on: 'storage/app/booking_release/openapi-v1.json',
+    label: 'generated enum/state map freshness',
   },
   {
     scope: 'artifacts',
@@ -241,27 +249,16 @@ function evaluateFreshnessRule(rootDir, rule, releaseManifestSnapshot, hashCache
     };
   }
 
-  const snapshotFreshness = evaluateFreshnessFromSnapshot(rule, resolvedPath, resolvedDependencyPath, releaseManifestSnapshot, hashCache);
-  if (snapshotFreshness) {
-    return {
-      scope: rule.scope,
-      group: rule.group,
-      group_label: group.label,
-      blocking: group.blocking,
-      label: rule.label,
-      path: rule.path,
-      resolved_path: resolvedPath,
-      depends_on: rule.depends_on,
-      dependency_resolved_path: resolvedDependencyPath,
-      ok: snapshotFreshness.ok,
-      skipped: false,
-      failure: snapshotFreshness.failure,
-    };
-  }
-
   const targetStat = statSync(resolvedPath);
   const dependencyStat = statSync(resolvedDependencyPath);
-  const ok = targetStat.mtimeMs >= dependencyStat.mtimeMs;
+  const targetModifiedEpoch = Math.trunc(targetStat.mtimeMs / 1000);
+  const dependencyModifiedEpoch = Math.trunc(dependencyStat.mtimeMs / 1000);
+  const freshnessFailure = targetModifiedEpoch >= dependencyModifiedEpoch
+    ? null
+    : `stale generated artifact: ${rule.path} is older than ${rule.depends_on}; ${FRESHNESS_REMEDIATION}`;
+
+  const snapshotFreshness = evaluateFreshnessFromSnapshot(rule, resolvedPath, resolvedDependencyPath, releaseManifestSnapshot, hashCache);
+  const failure = freshnessFailure ?? snapshotFreshness?.failure ?? null;
 
   return {
     scope: rule.scope,
@@ -273,11 +270,9 @@ function evaluateFreshnessRule(rootDir, rule, releaseManifestSnapshot, hashCache
     resolved_path: resolvedPath,
     depends_on: rule.depends_on,
     dependency_resolved_path: resolvedDependencyPath,
-    ok,
+    ok: failure === null,
     skipped: false,
-    failure: ok
-      ? null
-      : `stale generated artifact: ${rule.path} is older than ${rule.depends_on}; ${FRESHNESS_REMEDIATION}`,
+    failure,
   };
 }
 

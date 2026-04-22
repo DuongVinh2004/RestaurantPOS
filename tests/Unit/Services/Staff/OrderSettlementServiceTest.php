@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Staff;
 
-use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Billing\Application\UseCases\Previews\OrderSettlementService;
+use App\Modules\Payments\Domain\Models\Payment;
 use Illuminate\Support\Collection;
 use Tests\TestCase;
 
@@ -13,15 +13,15 @@ class OrderSettlementServiceTest extends TestCase
 {
     public function test_build_settlement_amounts_applies_deposit_before_final_payment(): void
     {
-        $service = new OrderSettlementService();
+        $service = new OrderSettlementService;
 
-        $deposit = new Payment();
+        $deposit = new Payment;
         $deposit->payment_id = 1;
         $deposit->payment_type = 'Deposit';
         $deposit->status = 'Success';
         $deposit->amount = 30000.0;
 
-        $final = new Payment();
+        $final = new Payment;
         $final->payment_id = 2;
         $final->payment_type = 'Final';
         $final->status = 'Success';

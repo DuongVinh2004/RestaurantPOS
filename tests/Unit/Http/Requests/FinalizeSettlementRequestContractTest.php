@@ -12,8 +12,8 @@ final class FinalizeSettlementRequestContractTest extends TestCase
 {
     public function test_finalize_settlement_request_reuses_checkout_contract(): void
     {
-        $checkoutRules = $this->normalizeRules((new CheckoutOrderRequest())->rules());
-        $finalizeRules = $this->normalizeRules((new FinalizeSettlementRequest())->rules());
+        $checkoutRules = $this->normalizeRules((new CheckoutOrderRequest)->rules());
+        $finalizeRules = $this->normalizeRules((new FinalizeSettlementRequest)->rules());
 
         self::assertSame($checkoutRules, $finalizeRules);
         self::assertContains('required', (array) $finalizeRules['payment_method']);
@@ -22,7 +22,7 @@ final class FinalizeSettlementRequestContractTest extends TestCase
     }
 
     /**
-     * @param array<string,mixed> $rules
+     * @param  array<string,mixed>  $rules
      * @return array<string,mixed>
      */
     private function normalizeRules(array $rules): array

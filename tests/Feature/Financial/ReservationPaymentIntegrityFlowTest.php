@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Financial;
 
-use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -85,7 +85,7 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
         $depositCreate = $this->actingAs($customer)->withHeaders([
             'Idempotency-Key' => 'dep-int-create-1',
             'Accept' => 'application/json',
-        ])->postJson('/api/v1/reservations/' . $reservationId . '/deposit/payment-sessions', [
+        ])->postJson('/api/v1/reservations/'.$reservationId.'/deposit/payment-sessions', [
             'row_version' => (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version'),
             'amount' => 50000,
             'provider_code' => 'simulated',
@@ -98,7 +98,7 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
         $this->actingAs($customer)->withHeaders([
             'Idempotency-Key' => 'dep-int-confirm-1',
             'Accept' => 'application/json',
-        ])->postJson('/api/v1/reservations/' . $reservationId . '/deposit/payment-sessions/' . $depositSessionId . '/confirm', [
+        ])->postJson('/api/v1/reservations/'.$reservationId.'/deposit/payment-sessions/'.$depositSessionId.'/confirm', [
             'row_version' => (int) $depositCreate->json('data.payment_session.row_version'),
             'simulation_outcome' => 'succeeded',
         ])->assertOk()
@@ -109,7 +109,7 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
         $billCreate = $this->actingAs($customer)->withHeaders([
             'Idempotency-Key' => 'bill-int-create-1',
             'Accept' => 'application/json',
-        ])->postJson('/api/v1/reservations/' . $reservationId . '/bill/payment-sessions', [
+        ])->postJson('/api/v1/reservations/'.$reservationId.'/bill/payment-sessions', [
             'row_version' => (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version'),
             'amount' => 150000,
             'provider_code' => 'simulated',
@@ -122,7 +122,7 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
         $this->actingAs($customer)->withHeaders([
             'Idempotency-Key' => 'bill-int-confirm-1',
             'Accept' => 'application/json',
-        ])->postJson('/api/v1/reservations/' . $reservationId . '/bill/payment-sessions/' . $billSessionId . '/confirm', [
+        ])->postJson('/api/v1/reservations/'.$reservationId.'/bill/payment-sessions/'.$billSessionId.'/confirm', [
             'row_version' => (int) $billCreate->json('data.payment_session.row_version'),
             'simulation_outcome' => 'succeeded',
         ])->assertOk()
@@ -132,7 +132,7 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
             ->assertJsonPath('data.bill.outstanding_amount', '0.00');
 
         $refundCancel = $this->withHeaders($this->withIdempotencyKey('staff-refund-cancel-session-payments-1', $this->staffAuthHeaders($staffId, 'staff-refund-cancel-session-payments')))
-            ->postJson('/api/v1/staff/reservations/' . $reservationId . '/refund-cancel', [
+            ->postJson('/api/v1/staff/reservations/'.$reservationId.'/refund-cancel', [
                 'row_version' => (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version'),
                 'payment_method' => 'Cash',
                 'refund_scope' => 'all',

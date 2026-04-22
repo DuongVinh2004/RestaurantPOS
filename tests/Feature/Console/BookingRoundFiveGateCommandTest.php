@@ -12,7 +12,8 @@ class BookingRoundFiveGateCommandTest extends TestCase
 {
     public function test_booking_round5_gate_supports_json_output(): void
     {
-        $this->app->instance(RoundFiveGateService::class, new class extends RoundFiveGateService {
+        $this->app->instance(RoundFiveGateService::class, new class extends RoundFiveGateService
+        {
             public function run(bool $write = false): array
             {
                 return [
@@ -55,7 +56,8 @@ class BookingRoundFiveGateCommandTest extends TestCase
 
     public function test_booking_round5_gate_reports_failure_in_table_mode(): void
     {
-        $this->app->instance(RoundFiveGateService::class, new class extends RoundFiveGateService {
+        $this->app->instance(RoundFiveGateService::class, new class extends RoundFiveGateService
+        {
             public function run(bool $write = false): array
             {
                 return [

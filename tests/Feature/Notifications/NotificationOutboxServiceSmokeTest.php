@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Notifications;
 
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Notifications\Domain\Models\NotificationDeliveryAttempt;
 use App\Modules\Notifications\Domain\Models\NotificationOutbox;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;

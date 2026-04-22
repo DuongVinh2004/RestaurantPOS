@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Modules\BranchScheduling\Application\Services;
 
 use App\Enums\ReservationStatus;
-use App\Enums\TableHoldStatus;
 use App\Modules\BranchScheduling\Domain\Guards\HoldConflictScope;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 class TableTimeConflictService
 {
     /**
-     * @param array<int,int> $tableIds
+     * @param  array<int,int>  $tableIds
      * @return array<int,int>
      */
     public function findReservationConflictTableIds(
@@ -53,8 +52,8 @@ class TableTimeConflictService
     }
 
     /**
-     * @param array<int,int> $tableIds
-     * @param array<int,string> $ignoredHoldIds
+     * @param  array<int,int>  $tableIds
+     * @param  array<int,string>  $ignoredHoldIds
      * @return array<int,int>
      */
     public function findHoldConflictTableIds(
@@ -110,7 +109,7 @@ class TableTimeConflictService
     }
 
     /**
-     * @param array<int,int> $tableIds
+     * @param  array<int,int>  $tableIds
      * @return array<int,int>
      */
     private function normalizeTableIds(array $tableIds): array

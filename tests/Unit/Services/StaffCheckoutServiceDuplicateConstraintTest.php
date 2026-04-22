@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
-use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
-use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
 use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 use Mockery;
@@ -39,7 +39,7 @@ class StaffCheckoutServiceDuplicateConstraintTest extends TestCase
             $this->fail('Expected ValidationException was not thrown.');
         } catch (ValidationException $e) {
             $this->assertSame(
-                'Mã giao dịch này đã tồn tại cho payment provider hiện tại. Vui lòng kiểm tra lại đối soát hoặc dùng mã khác.',
+                'Transaction code already exists for this payment provider. Check reconciliation or use a different code.',
                 $e->errors()['transaction_code'][0] ?? null
             );
         }
@@ -80,7 +80,7 @@ class StaffCheckoutServiceDuplicateConstraintTest extends TestCase
             $this->fail('Expected ValidationException was not thrown.');
         } catch (ValidationException $e) {
             $this->assertSame(
-                'Mã giao dịch này đã tồn tại cho payment provider hiện tại. Vui lòng kiểm tra lại đối soát hoặc dùng mã khác.',
+                'Transaction code already exists for this payment provider. Check reconciliation or use a different code.',
                 $e->errors()['transaction_code'][0] ?? null
             );
         }

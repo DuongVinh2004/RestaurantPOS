@@ -185,7 +185,7 @@ final class BookingRuntimeConfigCoverageContractTest extends TestCase
             'OPS_ALERTS_TIMEOUT_SECONDS',
             'WAITING_LIST_NOTIFY_HOLD_MINUTES',
         ] as $envName) {
-            self::assertStringContainsString($envName . '=', $envExample, $envName);
+            self::assertStringContainsString($envName.'=', $envExample, $envName);
         }
     }
 
@@ -200,12 +200,12 @@ final class BookingRuntimeConfigCoverageContractTest extends TestCase
     }
 
     /**
-     * @param list<string> $paths
+     * @param  list<string>  $paths
      */
     private function assertConfigPathsExist(array $paths): void
     {
         foreach ($paths as $path) {
-            self::assertTrue(config()->has('booking.' . $path), $path);
+            self::assertTrue(config()->has('booking.'.$path), $path);
         }
     }
 }

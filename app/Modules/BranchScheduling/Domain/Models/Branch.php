@@ -12,6 +12,7 @@ class Branch extends Model
     use HasRowVersion;
 
     protected $table = 'branches';
+
     protected $primaryKey = 'branch_id';
 
     protected $fillable = [

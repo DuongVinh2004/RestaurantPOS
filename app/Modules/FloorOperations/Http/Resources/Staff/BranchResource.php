@@ -35,4 +35,3 @@ class BranchResource extends JsonResource
         ];
     }
 }
-

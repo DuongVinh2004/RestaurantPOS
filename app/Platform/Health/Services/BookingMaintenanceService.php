@@ -3,6 +3,9 @@
 namespace App\Platform\Health\Services;
 
 use App\Enums\ReservationStatus;
+use App\Modules\BranchScheduling\Application\Services\TableHoldService;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
+use App\Modules\Reservations\Application\Services\ReservationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -13,8 +16,7 @@ class BookingMaintenanceService
         private readonly TableHoldService $tableHoldService,
         private readonly ReservationService $reservationService,
         private readonly NotificationOutboxService $notificationOutboxService,
-    ) {
-    }
+    ) {}
 
     public function expireHolds(): int
     {

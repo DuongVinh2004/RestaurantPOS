@@ -71,6 +71,7 @@ function scaffoldPackageIntegrityRoot() {
   }
 
   const artifactFiles = {
+    'build/api-consumer/enum-state-map.json': '{"enums":{}}\n',
     'build/api-consumer/sdk/typescript/README.md': '# sdk\n',
     'build/api-consumer/sdk/typescript/restaurantpos-sdk.ts': 'export const canonicalSdk = true;\n',
     'build/api-consumer/sdk/typescript/restaurantpos-enums.ts': 'export const canonicalEnums = true;\n',
@@ -91,6 +92,7 @@ function scaffoldPackageIntegrityRoot() {
       openapi_v1_spec: createArtifactRecord(rootDir, 'storage/app/booking_release/openapi-v1.json', 1000),
       api_consumer_sdk_typescript: createArtifactRecord(rootDir, 'build/api-consumer/sdk/typescript/restaurantpos-sdk.ts', 2000),
       api_consumer_sdk_enums_typescript: createArtifactRecord(rootDir, 'build/api-consumer/sdk/typescript/restaurantpos-enums.ts', 2000),
+      api_consumer_enum_state_json: createArtifactRecord(rootDir, 'build/api-consumer/enum-state-map.json', 2000),
       api_consumer_mutation_contract: createArtifactRecord(rootDir, 'build/api-consumer/mutation-contracts.md', 2000),
     },
   };
@@ -127,17 +129,21 @@ test('full package integrity blocks when customer-web runtime files are missing'
   assert.ok(report.blocking_missing.some((check) => check.path === 'customer-web/package.json'));
 });
 
-test('release manifest freshness honors snapshot metadata instead of raw filesystem mtimes', (t) => {
+test('release manifest freshness uses raw filesystem mtimes even when snapshot metadata looks fresh', (t) => {
   const rootDir = scaffoldPackageIntegrityRoot();
   t.after(() => rmSync(rootDir, { force: true, recursive: true }));
 
-  const snapshotPath = path.join(rootDir, 'storage/app/booking_release/release_manifest_snapshot.json');
+  const openApiPath = path.join(rootDir, 'storage/app/booking_release/openapi-v1.json');
   const enumsPath = path.join(rootDir, 'build/api-consumer/sdk/typescript/restaurantpos-enums.ts');
-  utimesSync(snapshotPath, new Date('2026-04-19T10:00:00Z'), new Date('2026-04-19T10:00:00Z'));
+  const enumStateMapPath = path.join(rootDir, 'build/api-consumer/enum-state-map.json');
+
+  utimesSync(openApiPath, new Date('2026-04-19T14:00:00Z'), new Date('2026-04-19T14:00:00Z'));
   utimesSync(enumsPath, new Date('2026-04-19T12:00:00Z'), new Date('2026-04-19T12:00:00Z'));
+  utimesSync(enumStateMapPath, new Date('2026-04-19T12:00:00Z'), new Date('2026-04-19T12:00:00Z'));
 
   const report = collectPackageIntegrityReport({ rootDir });
 
-  assert.equal(report.ok, true);
-  assert.equal(report.stale.some((check) => check.label === 'frozen release manifest freshness (enums)'), false);
+  assert.equal(report.ok, false);
+  assert.equal(report.stale.some((check) => check.label === 'generated TypeScript enums freshness'), true);
+  assert.equal(report.stale.some((check) => check.label === 'generated enum/state map freshness'), true);
 });

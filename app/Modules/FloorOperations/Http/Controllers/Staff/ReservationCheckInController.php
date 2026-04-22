@@ -17,8 +17,7 @@ class ReservationCheckInController extends Controller
 
     public function __construct(
         private readonly StaffCheckInService $checkInService,
-    ) {
-    }
+    ) {}
 
     public function store(int $id, CheckInReservationRequest $request): JsonResponse
     {
@@ -37,5 +36,3 @@ class ReservationCheckInController extends Controller
         ]);
     }
 }
-
-

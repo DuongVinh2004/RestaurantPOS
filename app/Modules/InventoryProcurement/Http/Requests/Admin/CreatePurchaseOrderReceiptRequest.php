@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Modules\InventoryProcurement\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class CreatePurchaseOrderReceiptRequest extends FormRequest
 {
@@ -17,7 +16,7 @@ class CreatePurchaseOrderReceiptRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'receipt_code' => ['nullable', 'string', 'max:50', Rule::unique('purchase_receipts', 'receipt_code')],
+            'receipt_code' => ['nullable', 'string', 'max:50'],
             'received_at' => ['nullable', 'date'],
             'supplier_document_no' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:500'],

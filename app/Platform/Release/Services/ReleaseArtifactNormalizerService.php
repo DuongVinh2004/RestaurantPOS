@@ -47,6 +47,7 @@ class ReleaseArtifactNormalizerService
 
             if (! $exists) {
                 $artifacts[$key] = $artifact;
+
                 continue;
             }
 
@@ -80,7 +81,7 @@ class ReleaseArtifactNormalizerService
     }
 
     /**
-     * @param list<string> $normalizations
+     * @param  list<string>  $normalizations
      */
     private function stripDefiners(string $contents, array &$normalizations): string
     {
@@ -100,7 +101,7 @@ class ReleaseArtifactNormalizerService
     }
 
     /**
-     * @param list<string> $normalizations
+     * @param  list<string>  $normalizations
      */
     private function promoteGuardColumnsToTableDefinitions(string $contents, array &$normalizations): string
     {

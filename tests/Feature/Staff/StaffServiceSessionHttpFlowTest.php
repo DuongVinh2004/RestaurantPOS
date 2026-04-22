@@ -6,9 +6,10 @@ namespace Tests\Feature\Staff;
 
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
-use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
+use App\Platform\Realtime\Services\OperationalRealtimeService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Mockery;
@@ -347,6 +348,101 @@ class StaffServiceSessionHttpFlowTest extends TestCase
         self::assertSame(0, (int) DB::table('reservations')->where('source', 'WalkIn')->count());
         self::assertSame('Available', (string) DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
         self::assertSame(0, (int) DB::table('notification_outbox')->count());
+    }
+
+    public function test_walk_in_create_rejects_branch_closure_window(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $branchId = $this->createBranch([
+            'branch_code' => 'WICLOSE',
+            'branch_name' => 'Walk In Closure Branch',
+            'timezone' => 'Asia/Ho_Chi_Minh',
+            'business_hours' => collect(range(0, 6))
+                ->map(static fn (int $day): array => [
+                    'day_of_week' => $day,
+                    'periods' => [[
+                        'start_time' => '09:00',
+                        'end_time' => '22:00',
+                    ]],
+                ])
+                ->all(),
+            'closure_windows' => [[
+                'start_local' => '2026-09-10 18:00:00',
+                'end_local' => '2026-09-10 20:00:00',
+                'type' => 'closure',
+                'reason' => 'Private event',
+            ]],
+        ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $branchId]);
+        $tableId = $this->createRestaurantTableWithSeats(4, [
+            'branch_id' => $branchId,
+            'status' => 'Available',
+        ]);
+        $startedAt = Carbon::parse('2026-09-10 18:30:00', 'Asia/Ho_Chi_Minh')->utc();
+
+        $response = $this->withHeaders($this->withIdempotencyKey(
+            $this->staffAuthHeaders($staffId, 'staff-service-session-closure'),
+            'staff-service-session-closure-1',
+        ))->postJson('/api/v1/staff/service-sessions/walk-in', [
+            'branch_id' => $branchId,
+            'user_id' => $customerId,
+            'table_ids' => [$tableId],
+            'guest_count' => 2,
+            'started_at' => $startedAt->toIso8601String(),
+            'service_minutes' => 60,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonPath('details.errors.branch_id.0', 'Walk-in service sessions are unavailable because the branch is closed: Private event.');
+
+        self::assertSame(0, (int) DB::table('reservations')->where('source', 'WalkIn')->count());
+        self::assertSame('Available', (string) DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
+    }
+
+    public function test_walk_in_create_uses_branch_policy_default_service_minutes_when_service_minutes_is_omitted(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $branchId = $this->createBranch([
+            'branch_code' => 'WIPOLI',
+            'branch_name' => 'Walk In Policy Branch',
+            'booking_policy' => [
+                'reservation' => [],
+                'waiting_list' => [
+                    'enabled' => true,
+                    'default_service_minutes' => 150,
+                ],
+                'availability' => [],
+            ],
+        ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $branchId]);
+        $tableId = $this->createRestaurantTableWithSeats(4, [
+            'branch_id' => $branchId,
+            'status' => 'Available',
+        ]);
+        $startedAt = $this->nowUtc()->copy()->addMinutes(45)->startOfMinute();
+
+        $response = $this->withHeaders($this->withIdempotencyKey(
+            $this->staffAuthHeaders($staffId, 'staff-service-session-policy'),
+            'staff-service-session-policy-1',
+        ))->postJson('/api/v1/staff/service-sessions/walk-in', [
+            'branch_id' => $branchId,
+            'user_id' => $customerId,
+            'table_ids' => [$tableId],
+            'guest_count' => 2,
+            'started_at' => $startedAt->toIso8601String(),
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.branch_id', $branchId)
+            ->assertJsonPath('data.table_ids.0', $tableId);
+
+        $reservationId = (int) $response->json('data.reservation_id');
+        $endAt = Carbon::parse((string) DB::table('reservations')->where('reservation_id', $reservationId)->value('end_time'))->utc();
+
+        self::assertSame(150, (int) $startedAt->diffInMinutes($endAt));
     }
 
     public function test_walk_in_create_replays_idempotently_without_duplicate_reservations(): void

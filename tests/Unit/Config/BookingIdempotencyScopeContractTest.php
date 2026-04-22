@@ -31,7 +31,7 @@ class BookingIdempotencyScopeContractTest extends TestCase
         ];
 
         foreach ($required as $scope) {
-            self::assertContains($scope, $scopes, 'Missing required idempotency scope: ' . $scope);
+            self::assertContains($scope, $scopes, 'Missing required idempotency scope: '.$scope);
         }
     }
 }

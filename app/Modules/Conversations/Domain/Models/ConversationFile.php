@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ConversationFile extends Model
 {
     protected $table = 'conversation_files';
+
     protected $primaryKey = 'file_id';
 
     // Schema tóm tắt: chỉ có created_at

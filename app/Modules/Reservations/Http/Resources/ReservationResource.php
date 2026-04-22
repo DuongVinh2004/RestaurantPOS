@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Modules\Reservations\Http\Resources;
 
 use App\Enums\ReservationStatus;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
 use App\Modules\BranchScheduling\Http\Resources\Guest\RestaurantTableResource;
 use App\Modules\Payments\Infrastructure\Internal\PaymentProviderPayloadSanitizer;
 use App\Modules\Reservations\Application\Services\ReservationDepositReadService;
 use App\Modules\Reservations\Domain\Policies\ReservationAccessScope;
-use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use App\SharedKernel\Money\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -243,7 +243,6 @@ class ReservationResource extends JsonResource
         ];
     }
 
-
     /**
      * @return array<string,mixed>
      */
@@ -263,7 +262,7 @@ class ReservationResource extends JsonResource
         return [
             'count' => $tables->count(),
             'table_ids' => $tables->pluck('table_id')->filter()->map(fn ($id) => (int) $id)->values()->all(),
-            'table_codes' => $tables->map(fn ($table) => (string) ($table->table_code ?? ('#' . $table->table_id)))->values()->all(),
+            'table_codes' => $tables->map(fn ($table) => (string) ($table->table_code ?? ('#'.$table->table_id)))->values()->all(),
             'zones' => $tables->pluck('zone')->filter(fn ($zone) => $zone !== null && $zone !== '')->map(fn ($zone) => (string) $zone)->unique()->values()->all(),
         ];
     }
@@ -390,7 +389,7 @@ class ReservationResource extends JsonResource
     }
 
     /**
-     * @param array<string,mixed> $summary
+     * @param  array<string,mixed>  $summary
      * @return array<string,mixed>
      */
     private function presentCustomerFacingDepositSummary(array $summary, string $accessScope): array
@@ -460,7 +459,6 @@ class ReservationResource extends JsonResource
         return $this->resource->guestSnapshot();
     }
 
-
     private function formatMoney(mixed $value): ?string
     {
         if ($value === null || $value === '') {
@@ -469,7 +467,6 @@ class ReservationResource extends JsonResource
 
         return Money::format($value, true);
     }
-
 
     private function iso(mixed $value): ?string
     {

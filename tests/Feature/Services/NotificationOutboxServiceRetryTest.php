@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Services;
 
+use App\Modules\Notifications\Application\Services\NotificationChannelManager;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
+use App\Modules\Notifications\Application\Services\NotificationPreferenceService;
 use App\Modules\Notifications\Domain\Models\NotificationDeliveryAttempt;
 use App\Modules\Notifications\Domain\Models\NotificationOutbox;
 use App\Modules\Notifications\Domain\Models\NotificationPreference;
-use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Notifications\Infrastructure\Contracts\NotificationChannelDriver;
-use App\Modules\Notifications\Application\Services\NotificationChannelManager;
-use App\Modules\Notifications\Application\Services\NotificationPreferenceService;
+use App\Modules\Notifications\Infrastructure\NotificationDeliveryResult;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -141,7 +142,6 @@ final class NotificationOutboxServiceRetryTest extends TestCase
         self::assertSame('mail', $attempt->provider_key);
     }
 
-
     public function test_claiming_messages_does_not_increment_attempt_count_before_delivery(): void
     {
         NotificationOutbox::query()->create([
@@ -186,7 +186,7 @@ final class NotificationOutboxServiceRetryTest extends TestCase
                 return 'mail';
             }
 
-            public function send(NotificationOutbox $message, array $dispatchPayload): \App\Modules\Notifications\Infrastructure\NotificationDeliveryResult
+            public function send(NotificationOutbox $message, array $dispatchPayload): NotificationDeliveryResult
             {
                 throw new RuntimeException('provider timeout');
             }

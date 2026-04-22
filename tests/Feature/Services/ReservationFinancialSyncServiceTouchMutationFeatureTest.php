@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Services;
 
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Tests\Support\BuildsBookingScenario;
@@ -36,7 +36,7 @@ final class ReservationFinancialSyncServiceTouchMutationFeatureTest extends Test
             $reservation = Reservation::query()->findOrFail($reservationId);
             $beforeVersion = (int) $reservation->row_version;
 
-            $service = new ReservationFinancialSyncService();
+            $service = new ReservationFinancialSyncService;
             $service->touchFinancialMutation($reservation, null);
 
             $reservation->refresh();

@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Payments\Infrastructure\Integrations\PaymentProviders;
 
-use App\Modules\Payments\Domain\Models\Payment;
 use App\Enums\PaymentSessionScope;
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Payments\Infrastructure\Integrations\Drivers\SimulatedCustomerPaymentSessionDriver;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;

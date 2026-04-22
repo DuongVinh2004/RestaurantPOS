@@ -25,6 +25,8 @@ final class RequireStaffCapabilityTest extends TestCase
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame(['ok' => true], $response->getData(true));
+        $this->assertSame('reservation.manage', $request->attributes->get('staff_required_capability'));
+        $this->assertSame('role_capabilities', $request->attributes->get('staff_capability_resolution_source'));
     }
 
     public function test_it_allows_request_when_role_has_wildcard_capability(): void
@@ -63,6 +65,7 @@ final class RequireStaffCapabilityTest extends TestCase
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame(['ok' => true], $response->getData(true));
+        $this->assertSame('role_id_capabilities', $request->attributes->get('staff_capability_resolution_source'));
     }
 
     public function test_it_rejects_request_when_role_lacks_required_capability(): void
@@ -81,6 +84,8 @@ final class RequireStaffCapabilityTest extends TestCase
         $this->assertSame(403, $response->getStatusCode());
         $this->assertSame('forbidden', $response->getData(true)['error_code'] ?? null);
         $this->assertSame('payment.refund', $response->getData(true)['required_capability'] ?? null);
+        $this->assertSame('payment.refund', $request->attributes->get('staff_required_capability'));
+        $this->assertSame('role_capabilities', $request->attributes->get('staff_capability_resolution_source'));
     }
 
     public function test_it_rejects_unknown_capability_even_for_wildcard_role_when_contract_enforcement_is_enabled(): void
@@ -102,5 +107,7 @@ final class RequireStaffCapabilityTest extends TestCase
         $this->assertSame('staff_capability_not_registered', $response->getData(true)['error_code'] ?? null);
         $this->assertSame('money.teleport', $response->getData(true)['required_capability'] ?? null);
         $this->assertSame('capability_contract_missing', $response->getData(true)['state_reason'] ?? null);
+        $this->assertSame('money.teleport', $request->attributes->get('staff_required_capability'));
+        $this->assertSame('role_capabilities', $request->attributes->get('staff_capability_resolution_source'));
     }
 }

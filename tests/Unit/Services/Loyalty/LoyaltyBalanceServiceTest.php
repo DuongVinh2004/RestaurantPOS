@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Loyalty;
 
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyBalanceService;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Mockery;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
@@ -23,7 +23,7 @@ final class LoyaltyBalanceServiceTest extends TestCase
     public function test_earn_basis_ignores_deposit_net_amount_when_final_payment_exists(): void
     {
         $service = new LoyaltyBalanceService($this->mockRuntimeSettings());
-        $reservation = new Reservation();
+        $reservation = new Reservation;
         $reservation->final_bill_amount = 150000.0;
 
         $summary = [
@@ -39,7 +39,7 @@ final class LoyaltyBalanceServiceTest extends TestCase
     public function test_earn_basis_is_capped_by_final_bill_even_if_final_net_is_higher(): void
     {
         $service = new LoyaltyBalanceService($this->mockRuntimeSettings());
-        $reservation = new Reservation();
+        $reservation = new Reservation;
         $reservation->final_bill_amount = 80000.0;
 
         $summary = [
@@ -55,7 +55,7 @@ final class LoyaltyBalanceServiceTest extends TestCase
     public function test_deposit_only_capture_does_not_create_earn_basis(): void
     {
         $service = new LoyaltyBalanceService($this->mockRuntimeSettings());
-        $reservation = new Reservation();
+        $reservation = new Reservation;
         $reservation->final_bill_amount = 150000.0;
 
         $summary = [

@@ -57,7 +57,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
             ->assertJsonPath('data.cashier_shift_id', $shiftId)
             ->assertJsonPath('data.status', 'Open');
 
-        $this->postJson('/api/v1/staff/orders/' . $orderId . '/pay', [
+        $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', [
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
             'paid_amount' => 40000,
@@ -66,7 +66,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
             'row_version' => 1,
         ], $this->withIdempotencyKey('idem-cashier-shift-pay-cash-a', $headers))->assertOk();
 
-        $this->postJson('/api/v1/staff/orders/' . $orderId . '/pay', [
+        $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', [
             'payment_method' => 'Card',
             'payment_provider' => 'Card',
             'paid_amount' => 60000,
@@ -77,13 +77,13 @@ class StaffCashierShiftHttpFlowTest extends TestCase
 
         self::assertSame(2, (int) DB::table('payments')->where('reservation_id', $reservationId)->count());
 
-        $showOpen = $this->getJson('/api/v1/staff/cashier/shifts/' . $shiftId, $headers);
+        $showOpen = $this->getJson('/api/v1/staff/cashier/shifts/'.$shiftId, $headers);
         $showOpen->assertOk()
             ->assertJsonPath('data.summary.payments.captured_total', '100000.00')
             ->assertJsonPath('data.summary.payments.final_net', '100000.00')
             ->assertJsonPath('data.summary.cash.expected_cash_amount', '140000.00');
 
-        $close = $this->postJson('/api/v1/staff/cashier/shifts/' . $shiftId . '/close', [
+        $close = $this->postJson('/api/v1/staff/cashier/shifts/'.$shiftId.'/close', [
             'actual_cash_amount' => 139500,
             'row_version' => $rowVersion,
             'notes' => 'Closing shift',
@@ -132,7 +132,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
         $firstShiftId = (int) $firstOpen->json('data.cashier_shift_id');
         $firstRowVersion = (int) $firstOpen->json('data.row_version');
 
-        $this->postJson('/api/v1/staff/cashier/shifts/' . $firstShiftId . '/close', [
+        $this->postJson('/api/v1/staff/cashier/shifts/'.$firstShiftId.'/close', [
             'actual_cash_amount' => 50000,
             'row_version' => $firstRowVersion,
         ], $this->withIdempotencyKey('idem-cashier-shift-lookup-close-a', $headers))->assertOk();
@@ -154,7 +154,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
             'terminal_code' => 'LOOKUP-OTHER',
         ], $otherHeaders)->assertCreated();
 
-        $response = $this->getJson('/api/v1/staff/cashier/shifts?branch_id=' . $branchA . '&status=Closed', $headers);
+        $response = $this->getJson('/api/v1/staff/cashier/shifts?branch_id='.$branchA.'&status=Closed', $headers);
 
         $response
             ->assertOk()
@@ -192,12 +192,12 @@ class StaffCashierShiftHttpFlowTest extends TestCase
         $open->assertCreated()
             ->assertJsonPath('data.branch_id', $branchA);
 
-        $this->getJson('/api/v1/staff/cashier/shifts/current?branch_id=' . $branchA, $headers)
+        $this->getJson('/api/v1/staff/cashier/shifts/current?branch_id='.$branchA, $headers)
             ->assertOk()
             ->assertJsonPath('data.branch_id', $branchA)
             ->assertJsonPath('meta.branch_id', $branchA);
 
-        $this->getJson('/api/v1/staff/cashier/shifts/current?branch_id=' . $branchB, $headers)
+        $this->getJson('/api/v1/staff/cashier/shifts/current?branch_id='.$branchB, $headers)
             ->assertStatus(404);
     }
 
@@ -216,10 +216,10 @@ class StaffCashierShiftHttpFlowTest extends TestCase
         $shiftId = (int) $open->json('data.cashier_shift_id');
         $rowVersion = (int) $open->json('data.row_version');
 
-        $this->getJson('/api/v1/staff/cashier/shifts/' . $shiftId, $otherHeaders)
+        $this->getJson('/api/v1/staff/cashier/shifts/'.$shiftId, $otherHeaders)
             ->assertStatus(404);
 
-        $this->postJson('/api/v1/staff/cashier/shifts/' . $shiftId . '/close', [
+        $this->postJson('/api/v1/staff/cashier/shifts/'.$shiftId.'/close', [
             'actual_cash_amount' => 25000,
             'row_version' => $rowVersion,
         ], $otherHeaders)->assertStatus(404);
@@ -235,7 +235,6 @@ class StaffCashierShiftHttpFlowTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error');
     }
-
 
     public function test_cashier_shift_summary_only_includes_same_branch_and_currency_payments(): void
     {
@@ -314,14 +313,14 @@ class StaffCashierShiftHttpFlowTest extends TestCase
             'transaction_code' => 'SHIFT-SCOPE-USD',
         ]);
 
-        $show = $this->getJson('/api/v1/staff/cashier/shifts/' . $shiftId, $headers);
+        $show = $this->getJson('/api/v1/staff/cashier/shifts/'.$shiftId, $headers);
         $show->assertOk()
             ->assertJsonPath('data.branch_id', $branchA)
             ->assertJsonPath('data.summary.payments.captured_total', '40000.00')
             ->assertJsonPath('data.summary.cash.captured_amount', '40000.00')
             ->assertJsonPath('data.summary.cash.expected_cash_amount', '140000.00');
 
-        $close = $this->postJson('/api/v1/staff/cashier/shifts/' . $shiftId . '/close', [
+        $close = $this->postJson('/api/v1/staff/cashier/shifts/'.$shiftId.'/close', [
             'actual_cash_amount' => 140000,
             'row_version' => $rowVersion,
         ], $this->withIdempotencyKey('idem-cashier-shift-close-scope', $headers));
@@ -352,19 +351,50 @@ class StaffCashierShiftHttpFlowTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error');
 
-        $this->postJson('/api/v1/staff/cashier/shifts/' . $shiftId . '/close', [
+        $this->postJson('/api/v1/staff/cashier/shifts/'.$shiftId.'/close', [
             'actual_cash_amount' => 50000,
             'row_version' => $rowVersion,
         ], $this->withIdempotencyKey('idem-cashier-shift-close-b', $headers))
             ->assertOk()
             ->assertJsonPath('data.status', 'Closed');
 
-        $this->postJson('/api/v1/staff/cashier/shifts/' . $shiftId . '/close', [
+        $this->postJson('/api/v1/staff/cashier/shifts/'.$shiftId.'/close', [
             'actual_cash_amount' => 50000,
             'row_version' => $rowVersion,
         ], $this->withIdempotencyKey('idem-cashier-shift-close-c', $headers))
             ->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error');
+    }
+
+    public function test_close_cashier_shift_rejects_stale_row_version_with_clear_message(): void
+    {
+        [$staffId] = $this->seedActiveOrderScenario();
+        $headers = $this->withIdempotencyKey('idem-cashier-shift-open-stale', $this->staffAuthHeaders($staffId, 'staff-cashier-shift-stale'));
+
+        $open = $this->postJson('/api/v1/staff/cashier/shifts/open', [
+            'opening_float_amount' => 50000,
+            'currency' => 'VND',
+        ], $headers);
+
+        $open->assertCreated();
+        $shiftId = (int) $open->json('data.cashier_shift_id');
+        $staleRowVersion = (int) $open->json('data.row_version');
+
+        DB::table('cashier_shifts')
+            ->where('cashier_shift_id', $shiftId)
+            ->update(['row_version' => $staleRowVersion + 1]);
+
+        $response = $this->postJson('/api/v1/staff/cashier/shifts/'.$shiftId.'/close', [
+            'actual_cash_amount' => 50000,
+            'row_version' => $staleRowVersion,
+        ], $this->withIdempotencyKey('idem-cashier-shift-close-stale', $headers));
+
+        $response->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
+            ->assertJsonPath('category_code', 'stale_write')
+            ->assertJsonPath('details.errors.row_version.0', 'The row_version is stale (row_version mismatch). Reload the resource and try again.');
+
+        self::assertSame('Open', (string) DB::table('cashier_shifts')->where('cashier_shift_id', $shiftId)->value('status'));
     }
 
     /**

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../app/Support/BackupArtifactManifest.php';
-require_once __DIR__ . '/../../app/Platform/Delivery/Release/Application/Verifiers/PortableSqlSanitizer.php';
+require_once __DIR__.'/../../app/Support/BackupArtifactManifest.php';
+require_once __DIR__.'/../../app/Platform/Delivery/Release/Application/Verifiers/PortableSqlSanitizer.php';
 
 use App\Platform\Backup\Support\BackupArtifactManifest;
 use App\Platform\Delivery\Release\Application\Verifiers\PortableSqlSanitizer;
 
-$rootDir = realpath(__DIR__ . '/../../');
+$rootDir = realpath(__DIR__.'/../../');
 if ($rootDir === false) {
     fwrite(STDERR, "Unable to resolve project root.\n");
     exit(1);
@@ -20,7 +20,7 @@ $dbPort = (int) envOr('DB_PORT', envOr('MYSQL_PORT', '3306'));
 $dbUser = envOr('DB_USERNAME', envOr('MYSQL_USER', 'root'));
 $dbPassword = envOr('DB_PASSWORD', envOr('MYSQL_PASSWORD', ''));
 $dbDatabase = envOr('DB_DATABASE', envOr('MYSQL_DATABASE', ''));
-$backupRootInput = (string) ($options['output-dir'] ?? envOr('BOOKING_BACKUP_ROOT', $rootDir . '/storage/app/booking_backups'));
+$backupRootInput = (string) ($options['output-dir'] ?? envOr('BOOKING_BACKUP_ROOT', $rootDir.'/storage/app/booking_backups'));
 $backupRoot = normalizePath($backupRootInput, $rootDir);
 $retentionDays = max(0, (int) ($options['retention-days'] ?? envOr('BOOKING_BACKUP_RETENTION_DAYS', '14')));
 $compress = parseBool($options['compress'] ?? envOr('BOOKING_BACKUP_COMPRESS', 'true'));
@@ -42,8 +42,8 @@ if (! is_dir($backupRoot) && ! mkdir($backupRoot, 0777, true) && ! is_dir($backu
 }
 
 $timestamp = gmdate('Ymd\THis\Z');
-$directoryName = $timestamp . '-' . preg_replace('/[^A-Za-z0-9_.-]+/', '-', $dbDatabase);
-$backupDir = $backupRoot . DIRECTORY_SEPARATOR . $directoryName;
+$directoryName = $timestamp.'-'.preg_replace('/[^A-Za-z0-9_.-]+/', '-', $dbDatabase);
+$backupDir = $backupRoot.DIRECTORY_SEPARATOR.$directoryName;
 if (! mkdir($backupDir, 0777, true) && ! is_dir($backupDir)) {
     fail(sprintf('Unable to create backup directory: %s', $backupDir), $json);
 }
@@ -72,7 +72,7 @@ try {
         );
 
         $sanitized = PortableSqlSanitizer::sanitize($schemaSql);
-        $schemaPath = $backupDir . DIRECTORY_SEPARATOR . 'schema.sql';
+        $schemaPath = $backupDir.DIRECTORY_SEPARATOR.'schema.sql';
         writeContents($schemaPath, $sanitized['sql']);
         $finalSchemaPath = $compress ? gzipFile($schemaPath) : $schemaPath;
         if ($compress) {
@@ -85,7 +85,7 @@ try {
             'compressed' => $compress,
             'sanitized' => (bool) $sanitized['changed'],
         ];
-        $checksumLines[] = $artifacts['schema']['sha256'] . '  ' . basename($finalSchemaPath);
+        $checksumLines[] = $artifacts['schema']['sha256'].'  '.basename($finalSchemaPath);
     }
 
     if ($includeFull) {
@@ -105,7 +105,7 @@ try {
             $dbDatabase,
         );
 
-        $fullPath = $backupDir . DIRECTORY_SEPARATOR . 'full.sql';
+        $fullPath = $backupDir.DIRECTORY_SEPARATOR.'full.sql';
         writeContents($fullPath, $fullSql);
         $finalFullPath = $compress ? gzipFile($fullPath) : $fullPath;
         if ($compress) {
@@ -117,7 +117,7 @@ try {
             'portable' => false,
             'compressed' => $compress,
         ];
-        $checksumLines[] = $artifacts['full']['sha256'] . '  ' . basename($finalFullPath);
+        $checksumLines[] = $artifacts['full']['sha256'].'  '.basename($finalFullPath);
     }
 
     $pruned = $prune ? pruneOldBackups($backupRoot, $backupDir, $retentionDays, $rootDir) : [];
@@ -134,11 +134,11 @@ try {
         'issues' => $issues,
     ], $artifacts, $pruned);
 
-    $manifestPath = $backupDir . DIRECTORY_SEPARATOR . 'manifest.json';
-    writeContents($manifestPath, json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
-    $checksumLines[] = hash_file('sha256', $manifestPath) . '  manifest.json';
-    writeContents($backupDir . DIRECTORY_SEPARATOR . 'checksums.sha256', implode(PHP_EOL, $checksumLines) . PHP_EOL);
-    writeContents($backupRoot . DIRECTORY_SEPARATOR . 'latest-manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+    $manifestPath = $backupDir.DIRECTORY_SEPARATOR.'manifest.json';
+    writeContents($manifestPath, json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
+    $checksumLines[] = hash_file('sha256', $manifestPath).'  manifest.json';
+    writeContents($backupDir.DIRECTORY_SEPARATOR.'checksums.sha256', implode(PHP_EOL, $checksumLines).PHP_EOL);
+    writeContents($backupRoot.DIRECTORY_SEPARATOR.'latest-manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
 
     $result = [
         'ok' => true,
@@ -156,7 +156,7 @@ try {
     ];
 
     if ($json) {
-        fwrite(STDOUT, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+        fwrite(STDOUT, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
     } else {
         fwrite(STDOUT, sprintf("Backup written to %s\n", $result['backup_directory']));
         foreach ($artifacts as $name => $artifact) {
@@ -166,7 +166,7 @@ try {
         if ($pruned !== []) {
             fwrite(STDOUT, "Pruned:\n");
             foreach ($pruned as $path) {
-                fwrite(STDOUT, ' - ' . $path . PHP_EOL);
+                fwrite(STDOUT, ' - '.$path.PHP_EOL);
             }
         }
     }
@@ -192,6 +192,7 @@ function parseOptions(array $argv): array
         if (str_contains($trimmed, '=')) {
             [$key, $value] = explode('=', $trimmed, 2);
             $options[$key] = $value;
+
             continue;
         }
 
@@ -223,14 +224,14 @@ function parseBool(mixed $value): bool
 function normalizePath(string $path, string $rootDir): string
 {
     if ($path === '') {
-        return $rootDir . DIRECTORY_SEPARATOR . 'storage/app/booking_backups';
+        return $rootDir.DIRECTORY_SEPARATOR.'storage/app/booking_backups';
     }
 
     if ($path[0] === '/' || preg_match('/^[A-Za-z]:[\\\/]/', $path) === 1) {
-        return rtrim($path, "\\/");
+        return rtrim($path, '\\/');
     }
 
-    return rtrim($rootDir . DIRECTORY_SEPARATOR . ltrim($path, "\\/"), "\\/");
+    return rtrim($rootDir.DIRECTORY_SEPARATOR.ltrim($path, '\\/'), '\\/');
 }
 
 function dumpDatabase(array $dumpOptions, string $host, int $port, string $user, string $password, string $database): string
@@ -298,7 +299,7 @@ function gzipFile(string $path): string
         throw new RuntimeException(sprintf('Unable to compress file: %s', $path));
     }
 
-    $target = $path . '.gz';
+    $target = $path.'.gz';
     writeContents($target, $compressed);
 
     return $target;
@@ -343,6 +344,7 @@ function rrmdir(string $path): void
 {
     if (! is_dir($path)) {
         @unlink($path);
+
         return;
     }
 
@@ -356,9 +358,10 @@ function rrmdir(string $path): void
             continue;
         }
 
-        $child = $path . DIRECTORY_SEPARATOR . $item;
+        $child = $path.DIRECTORY_SEPARATOR.$item;
         if (is_dir($child)) {
             rrmdir($child);
+
             continue;
         }
 
@@ -373,7 +376,7 @@ function relativePath(string $path, string $rootDir): string
     $normalizedPath = str_replace('\\', '/', $path);
     $normalizedRoot = rtrim(str_replace('\\', '/', $rootDir), '/');
 
-    if (str_starts_with($normalizedPath, $normalizedRoot . '/')) {
+    if (str_starts_with($normalizedPath, $normalizedRoot.'/')) {
         return substr($normalizedPath, strlen($normalizedRoot) + 1);
     }
 
@@ -387,9 +390,9 @@ function fail(string $message, bool $json): void
             'ok' => false,
             'status' => 'fail',
             'error' => $message,
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
     } else {
-        fwrite(STDERR, $message . PHP_EOL);
+        fwrite(STDERR, $message.PHP_EOL);
     }
 
     exit(1);

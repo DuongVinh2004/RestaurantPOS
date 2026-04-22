@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\Staff;
 
 use App\Enums\PaymentStatus;
-use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
+use App\Modules\Billing\Application\UseCases\Previews\SettlementAmountCalculator;
 use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
-use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use App\Modules\Payments\Application\UseCases\Refunds\RefundExecutionService;
 use App\Modules\Payments\Application\UseCases\Refunds\RefundPlannerService;
-use App\Modules\Billing\Application\UseCases\Previews\SettlementAmountCalculator;
+use App\Modules\Payments\Domain\Models\Payment;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -30,11 +31,11 @@ final class RefundExecutionServiceTest extends TestCase
 
     public function test_build_refund_plan_rejects_amount_exceeding_available_scope(): void
     {
-        $planner = new RefundPlannerService(new SettlementAmountCalculator());
+        $planner = new RefundPlannerService(new SettlementAmountCalculator);
         $runtime = Mockery::mock(RuntimeSettingService::class);
         $runtime->shouldIgnoreMissing();
-        $loyalty = new LoyaltyPointsService(new ReservationFinancialSyncService(), $runtime);
-        $service = new RefundExecutionService($planner, new SettlementAmountCalculator(), $loyalty);
+        $loyalty = new LoyaltyPointsService(new ReservationFinancialSyncService, $runtime);
+        $service = new RefundExecutionService($planner, new SettlementAmountCalculator, $loyalty);
 
         $this->expectException(ValidationException::class);
         $service->buildRefundPlan('deposit', 120.0, ['deposit' => 100.0, 'final' => 0.0], false);
@@ -42,11 +43,11 @@ final class RefundExecutionServiceTest extends TestCase
 
     public function test_allocate_refund_payments_prefers_latest_captured_payment_first(): void
     {
-        $planner = new RefundPlannerService(new SettlementAmountCalculator());
+        $planner = new RefundPlannerService(new SettlementAmountCalculator);
         $runtime = Mockery::mock(RuntimeSettingService::class);
         $runtime->shouldIgnoreMissing();
-        $loyalty = new LoyaltyPointsService(new ReservationFinancialSyncService(), $runtime);
-        $service = new RefundExecutionService($planner, new SettlementAmountCalculator(), $loyalty);
+        $loyalty = new LoyaltyPointsService(new ReservationFinancialSyncService, $runtime);
+        $service = new RefundExecutionService($planner, new SettlementAmountCalculator, $loyalty);
 
         $older = new Payment([
             'payment_type' => 'Final',
@@ -75,10 +76,10 @@ final class RefundExecutionServiceTest extends TestCase
 
     public function test_resolve_reservation_branch_id_rejects_payments_from_other_branch(): void
     {
-        $planner = new RefundPlannerService(new SettlementAmountCalculator());
+        $planner = new RefundPlannerService(new SettlementAmountCalculator);
         $runtime = Mockery::mock(RuntimeSettingService::class);
         $runtime->shouldIgnoreMissing();
-        $loyalty = new LoyaltyPointsService(new ReservationFinancialSyncService(), $runtime);
+        $loyalty = new LoyaltyPointsService(new ReservationFinancialSyncService, $runtime);
 
         $branchContext = Mockery::mock(BranchContextService::class);
         $branchContext->shouldReceive('assertSingleBranch')
@@ -96,8 +97,8 @@ final class RefundExecutionServiceTest extends TestCase
                 'payment_id' => ['Payments do not belong to the reservation branch.'],
             ]));
 
-        $service = new RefundExecutionService($planner, new SettlementAmountCalculator(), $loyalty, $branchContext);
-        $reservation = new \App\Modules\Reservations\Domain\Models\Reservation(['branch_id' => 1]);
+        $service = new RefundExecutionService($planner, new SettlementAmountCalculator, $loyalty, $branchContext);
+        $reservation = new Reservation(['branch_id' => 1]);
         $payments = new Collection([new Payment(['branch_id' => 2])]);
 
         $method = new ReflectionMethod($service, 'resolveReservationBranchId');

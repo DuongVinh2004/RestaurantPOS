@@ -14,6 +14,5 @@ class NotificationDeliveryResult
         public readonly string $providerStatus,
         public readonly ?string $providerMessageId = null,
         public readonly array $responsePayload = [],
-    ) {
-    }
+    ) {}
 }

@@ -33,7 +33,7 @@ class VoucherRedemptionSupportTest extends TestCase
             'status' => 'Cancelled',
         ]);
 
-        $order = new ReservationOrder();
+        $order = new ReservationOrder;
         $order->setRelation('items', new Collection([$active, $cancelled]));
 
         $summary = VoucherRedemptionSupport::summarizeOrders([$order]);
@@ -54,7 +54,7 @@ class VoucherRedemptionSupportTest extends TestCase
             'status' => 'Ordered',
         ]);
 
-        $order = new ReservationOrder();
+        $order = new ReservationOrder;
         $order->setRelation('items', new Collection([$item]));
 
         $voucher = new Voucher([
@@ -82,7 +82,7 @@ class VoucherRedemptionSupportTest extends TestCase
             'status' => 'Ordered',
         ]);
 
-        $order = new ReservationOrder();
+        $order = new ReservationOrder;
         $order->setRelation('items', new Collection([$item]));
 
         $voucher = new Voucher([

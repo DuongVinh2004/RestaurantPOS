@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\FloorOperations\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
+use App\Modules\FloorOperations\Application\Queries\Timeline\StaffReservationTimelineService;
 use App\Modules\FloorOperations\Http\Requests\Staff\ReservationTimelineRequest;
 use App\Modules\FloorOperations\Http\Resources\Staff\ReservationTimelineItemResource;
 use App\Platform\Realtime\Services\OperationalRealtimeService;
-use App\Modules\FloorOperations\Application\Queries\Timeline\StaffReservationTimelineService;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
@@ -341,6 +341,3 @@ class ReservationTimelineController extends Controller
         ];
     }
 }
-
-
-

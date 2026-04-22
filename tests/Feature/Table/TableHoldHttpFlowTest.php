@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Table;
 
-use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
-use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -156,7 +156,8 @@ class TableHoldHttpFlowTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error');
 
-        self::assertStringContainsString((string) $tableId, (string) data_get($response->json(), 'details.errors.table_ids.0', ''));
+        $message = (string) data_get($response->json(), 'details.errors.table_ids.0', '');
+        self::assertStringContainsString((string) $tableId, $message);
         self::assertSame(1, (int) DB::table('table_holds')->whereIn('hold_status', ['Holding', 'Pending'])->count());
         self::assertSame(1, (int) DB::table('table_hold_details')->where('table_id', $tableId)->count());
     }
@@ -205,7 +206,7 @@ class TableHoldHttpFlowTest extends TestCase
             'expire_at' => $this->nowUtc()->copy()->addMinutes(10),
         ], [$tableId]);
 
-        $this->withHeaders($this->withIdempotencyKey('table-hold-refresh-stale'))
+        $response = $this->withHeaders($this->withIdempotencyKey('table-hold-refresh-stale'))
             ->patchJson('/api/v1/table-holds/'.$holdId.'/refresh', [
                 'session_id' => 'sess-table-hold-stale',
                 'extend_minutes' => 5,
@@ -214,6 +215,8 @@ class TableHoldHttpFlowTest extends TestCase
             ->assertStatus(409)
             ->assertJsonPath('error_code', 'stale_row_version')
             ->assertJsonValidationErrors(['row_version']);
+
+        self::assertStringContainsString('row_version mismatch', (string) data_get($response->json(), 'details.errors.row_version.0', ''));
     }
 
     public function test_confirmed_hold_artifact_does_not_block_new_live_hold_for_same_session(): void

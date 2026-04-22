@@ -5,15 +5,13 @@ declare(strict_types=1);
 namespace App\Modules\Catalog\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Catalog\Application\UseCases\Management\MenuCatalogManagementService;
 use App\Modules\Catalog\Http\Requests\Admin\ListMenuCategoriesRequest;
 use App\Modules\Catalog\Http\Requests\Admin\StoreMenuCategoryRequest;
 use App\Modules\Catalog\Http\Requests\Admin\UpdateMenuCategoryRequest;
 use App\Modules\Catalog\Http\Resources\Admin\MenuCategoryResource;
-use App\Modules\Catalog\Application\UseCases\Management\MenuCatalogManagementService;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Http\JsonResponse;
-
-
 
 class MenuCategoryController extends Controller
 {

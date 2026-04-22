@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Concerns\MapsFrameworkValidationFailure;
 use App\Http\Middleware\AuditRequestMiddleware;
 use App\Http\Middleware\IdempotencyMiddleware;
 use App\Http\Middleware\NormalizeApiJsonResponseEncodingMiddleware;
@@ -10,7 +11,6 @@ use App\Http\Middleware\RequireStaffCapability;
 use App\Http\Middleware\TableHoldRateLimitMiddleware;
 use App\Support\ApiErrorCategory;
 use App\Support\ApiErrorResponse;
-use App\Http\Concerns\MapsFrameworkValidationFailure;
 use App\Support\DatabaseWriteConflictMapper;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;

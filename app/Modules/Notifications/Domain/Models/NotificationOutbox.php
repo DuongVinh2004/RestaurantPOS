@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Notifications\Domain\Models;
 
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,7 +13,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class NotificationOutbox extends Model
 {
     protected $table = 'notification_outbox';
+
     protected $primaryKey = 'outbox_id';
+
     public $timestamps = false;
 
     protected $fillable = [

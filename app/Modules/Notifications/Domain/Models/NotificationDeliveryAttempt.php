@@ -10,7 +10,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class NotificationDeliveryAttempt extends Model
 {
     protected $table = 'notification_delivery_attempts';
+
     protected $primaryKey = 'attempt_id';
+
     public $timestamps = false;
 
     protected $fillable = [

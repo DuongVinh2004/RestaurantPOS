@@ -13,6 +13,7 @@ class MenuCategory extends Model
     use HasIsDeletedFlag;
 
     protected $table = 'menu_categories';
+
     protected $primaryKey = 'category_id';
 
     public $timestamps = false;

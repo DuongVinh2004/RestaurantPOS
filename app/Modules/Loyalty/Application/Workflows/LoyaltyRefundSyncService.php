@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Loyalty\Application\Workflows;
 
 use App\Enums\ReservationStatus;
-use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyBalanceService;
 use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyRedemptionService;
@@ -13,7 +13,7 @@ use App\Modules\Loyalty\Application\UseCases\Tiers\LoyaltyTierSyncService;
 use App\Modules\Loyalty\Domain\Models\UserPoint;
 use App\Modules\Loyalty\Domain\ValueObjects\LoyaltyEarnReconciliation;
 use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Platform\Metrics\Services\MetricsService;
 use App\Support\AuditEvent;
 use Illuminate\Support\Collection;

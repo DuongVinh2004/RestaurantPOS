@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Resources;
 
-use App\Modules\Ordering\Http\Resources\ReservationOrderResource;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Ordering\Http\Resources\ReservationOrderResource;
 use Illuminate\Http\Request;
 use Tests\TestCase;
 
@@ -13,7 +13,7 @@ class ReservationOrderResourceContractTest extends TestCase
 {
     public function test_resource_exposes_workflow_metadata_for_reservation_scoped_settlement(): void
     {
-        $order = new ReservationOrder();
+        $order = new ReservationOrder;
         $order->order_id = 123;
         $order->reservation_id = 456;
         $order->order_type = 'OnSpot';

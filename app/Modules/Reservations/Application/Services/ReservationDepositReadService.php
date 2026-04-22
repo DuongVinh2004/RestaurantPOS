@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\Reservations\Application\Services;
 
-use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\Payments\Domain\Models\ReservationDepositPaymentSession;
 use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
+use App\Modules\Payments\Domain\Models\Payment;
+use App\Modules\Payments\Domain\Models\ReservationDepositPaymentSession;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -19,9 +19,9 @@ class ReservationDepositReadService
     ) {}
 
     /**
-     * @param iterable<int,Payment>|null $payments
-     * @param iterable<int,ReservationDepositPaymentSession>|null $paymentSessions
-     * @param array<string,mixed>|null $paymentSummary
+     * @param  iterable<int,Payment>|null  $payments
+     * @param  iterable<int,ReservationDepositPaymentSession>|null  $paymentSessions
+     * @param  array<string,mixed>|null  $paymentSummary
      * @return array<string,mixed>
      */
     public function buildSnapshot(
@@ -86,7 +86,7 @@ class ReservationDepositReadService
     }
 
     /**
-     * @param Collection<int,ReservationDepositPaymentSession> $sessions
+     * @param  Collection<int,ReservationDepositPaymentSession>  $sessions
      * @return array<string,mixed>
      */
     private function buildPaymentSessionSummary(Collection $sessions): array
@@ -142,7 +142,7 @@ class ReservationDepositReadService
     }
 
     /**
-     * @param iterable<int,Payment>|null $payments
+     * @param  iterable<int,Payment>|null  $payments
      * @return Collection<int,Payment>
      */
     private function normalizePayments(?iterable $payments): Collection
@@ -155,7 +155,7 @@ class ReservationDepositReadService
     }
 
     /**
-     * @param iterable<int,ReservationDepositPaymentSession>|null $paymentSessions
+     * @param  iterable<int,ReservationDepositPaymentSession>|null  $paymentSessions
      * @return Collection<int,ReservationDepositPaymentSession>
      */
     private function normalizeSessions(?iterable $paymentSessions): Collection

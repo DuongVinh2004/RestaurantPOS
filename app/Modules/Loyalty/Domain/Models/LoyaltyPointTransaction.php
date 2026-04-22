@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Loyalty\Domain\Models;
 
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Validation\ValidationException;

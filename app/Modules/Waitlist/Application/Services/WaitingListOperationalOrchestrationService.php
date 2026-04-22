@@ -6,17 +6,15 @@ namespace App\Modules\Waitlist\Application\Services;
 
 use App\Enums\RestaurantTableStatus;
 use App\Enums\TableHoldStatus;
-use App\Enums\WaitingListCustomerResponseStatus;
 use App\Enums\WaitingListStatus;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\BranchScheduling\Domain\Models\TableHold;
-use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Modules\Waitlist\Domain\Models\WaitlistEntry;
 use App\Modules\Waitlist\Domain\StateMachines\WaitlistInvitationStateMachine;
 use App\Platform\FeatureFlags\Services\FeatureFlagService;
+use App\Platform\Realtime\Services\OperationalRealtimeService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -81,6 +79,7 @@ class WaitingListOperationalOrchestrationService
 
             if ($actionableState === 'seat_customer') {
                 $readyToSeat++;
+
                 continue;
             }
 
@@ -96,6 +95,7 @@ class WaitingListOperationalOrchestrationService
 
             if ($actionableState === 'await_customer_response' || $actionableState === 'await_customer_arrival') {
                 $awaitingCustomer++;
+
                 continue;
             }
 
@@ -318,7 +318,7 @@ class WaitingListOperationalOrchestrationService
     }
 
     /**
-     * @param array<int,array<string,mixed>> $tableMap
+     * @param  array<int,array<string,mixed>>  $tableMap
      * @return array<string,mixed>
      */
     private function buildOrchestrationContext(WaitlistEntry $entry, array $tableMap): array
@@ -411,8 +411,8 @@ class WaitingListOperationalOrchestrationService
     }
 
     /**
-     * @param array<int,array<string,mixed>> $tableMap
-     * @param array<string,mixed>|null $latestHold
+     * @param  array<int,array<string,mixed>>  $tableMap
+     * @param  array<string,mixed>|null  $latestHold
      * @return array<string,mixed>|null
      */
     private function resolveReleasedTableContext(?array $latestHold, array $tableMap): ?array
@@ -448,7 +448,7 @@ class WaitingListOperationalOrchestrationService
     }
 
     /**
-     * @param array<int,array<string,mixed>> $tableMap
+     * @param  array<int,array<string,mixed>>  $tableMap
      * @return list<array<string,mixed>>
      */
     private function buildActionHints(WaitlistEntry $entry, string $actionableState, bool $canStaffSeatNow, array $advanceQueue, ?array $releasedTable): array
@@ -459,7 +459,7 @@ class WaitingListOperationalOrchestrationService
         $actions[] = [
             'key' => 'seat',
             'method' => 'POST',
-            'href' => '/api/v1/staff/waiting-list/' . $waitingId . '/seat',
+            'href' => '/api/v1/staff/waiting-list/'.$waitingId.'/seat',
             'enabled' => $canStaffSeatNow,
             'reason' => $canStaffSeatNow ? 'canonical_staff_seat_flow' : 'seat_not_ready',
         ];
@@ -468,7 +468,7 @@ class WaitingListOperationalOrchestrationService
             $actions[] = [
                 'key' => 'advance_queue',
                 'method' => 'POST',
-                'href' => '/api/v1/staff/waiting-list/' . $waitingId . '/advance',
+                'href' => '/api/v1/staff/waiting-list/'.$waitingId.'/advance',
                 'enabled' => (bool) ($advanceQueue['can_apply_now'] ?? false),
                 'reason' => ! (bool) ($advanceQueue['supported'] ?? false)
                     ? 'feature_disabled'
@@ -628,7 +628,7 @@ class WaitingListOperationalOrchestrationService
 
     private function withWaitingEntryLock(int $waitingId, callable $callback): mixed
     {
-        $lockKey = 'booking:lock:waiting-list:' . $waitingId;
+        $lockKey = 'booking:lock:waiting-list:'.$waitingId;
         $ttlSeconds = max(5, (int) config('booking.reservation_lock_ttl_seconds', 60));
         $waitSeconds = max(0, (int) config('booking.reservation_lock_wait_seconds', 10));
 
@@ -639,6 +639,6 @@ class WaitingListOperationalOrchestrationService
 
     private function buildWaitingSessionId(int $waitingId): string
     {
-        return 'waiting-list:' . $waitingId;
+        return 'waiting-list:'.$waitingId;
     }
 }

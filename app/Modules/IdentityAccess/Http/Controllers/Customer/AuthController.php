@@ -7,6 +7,7 @@ namespace App\Modules\IdentityAccess\Http\Controllers\Customer;
 use App\Http\Controllers\Controller;
 use App\Modules\IdentityAccess\Application\UseCases\Authentication\LoginCustomerHandler;
 use App\Modules\IdentityAccess\Application\UseCases\Authentication\LogoutCustomerHandler;
+use App\Modules\IdentityAccess\Application\UseCases\Authentication\ProductAuthConfigurationException;
 use App\Modules\IdentityAccess\Application\UseCases\Authentication\RefreshCustomerSessionHandler;
 use App\Modules\IdentityAccess\Application\UseCases\Authentication\ShowCurrentCustomerSessionHandler;
 use App\Modules\IdentityAccess\Http\Requests\Customer\LoginRequest;
@@ -27,19 +28,31 @@ class AuthController extends Controller
 
     public function login(LoginRequest $request): JsonResponse
     {
-        $payload = $this->loginCustomer->handle(
-            (string) $request->input('identifier'),
-            (string) $request->input('password'),
-            array_filter([
-                'session_id' => $request->input('session_id'),
-                'guest_name' => $request->input('guest_name'),
-                'phone' => $request->input('phone'),
-                'device_id' => $request->input('device_id'),
-                'session_label' => $request->input('session_label'),
-                'ip' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ], static fn (mixed $value): bool => $value !== null && $value !== ''),
-        );
+        try {
+            $payload = $this->loginCustomer->handle(
+                (string) $request->input('identifier'),
+                (string) $request->input('password'),
+                array_filter([
+                    'session_id' => $request->input('session_id'),
+                    'guest_name' => $request->input('guest_name'),
+                    'phone' => $request->input('phone'),
+                    'device_id' => $request->input('device_id'),
+                    'session_label' => $request->input('session_label'),
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ], static fn (mixed $value): bool => $value !== null && $value !== ''),
+            );
+        } catch (ProductAuthConfigurationException $exception) {
+            return ApiErrorResponse::json(
+                $request,
+                $exception->status(),
+                $exception->errorCode(),
+                $exception->getMessage(),
+                extra: [
+                    'state_reason' => $exception->errorCode(),
+                ],
+            );
+        }
 
         return $this->respond($request, $payload);
     }

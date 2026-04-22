@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\InventoryProcurement\Domain\Models;
 
+use App\Modules\Catalog\Domain\Models\MenuItemRecipe;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Ingredient extends Model
 {
     protected $table = 'ingredients';
+
     protected $primaryKey = 'ingredient_id';
 
     protected $fillable = [

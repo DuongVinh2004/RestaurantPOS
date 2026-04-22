@@ -7,7 +7,6 @@ namespace App\Modules\Waitlist\Http\Controllers\Staff;
 use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
 use App\Modules\Reservations\Http\Resources\ReservationResource;
-use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Modules\Waitlist\Application\Services\StaffWaitingListService;
 use App\Modules\Waitlist\Application\Services\WaitingListOperationalOrchestrationService;
 use App\Modules\Waitlist\Http\Requests\Staff\AdvanceWaitlistRequest;
@@ -17,6 +16,7 @@ use App\Modules\Waitlist\Http\Requests\Staff\InviteWaitlistCustomerRequest;
 use App\Modules\Waitlist\Http\Requests\Staff\ListWaitlistRequest;
 use App\Modules\Waitlist\Http\Requests\Staff\SeatWaitlistRequest;
 use App\Modules\Waitlist\Http\Resources\WaitlistResource;
+use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Http\JsonResponse;
 

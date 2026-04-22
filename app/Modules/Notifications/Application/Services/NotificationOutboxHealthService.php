@@ -14,8 +14,7 @@ class NotificationOutboxHealthService
 {
     public function __construct(
         private readonly NotificationChannelManager $channelManager,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{
@@ -266,7 +265,7 @@ class NotificationOutboxHealthService
 
     private function runtimeFailureMessage(Throwable $exception): string
     {
-        return 'notification outbox health inspection failed: ' . trim($exception->getMessage());
+        return 'notification outbox health inspection failed: '.trim($exception->getMessage());
     }
 
     /**
@@ -283,7 +282,7 @@ class NotificationOutboxHealthService
             }
 
             $breakdown[$channel]['total_count']++;
-            $key = strtolower((string) $row->status) . '_count';
+            $key = strtolower((string) $row->status).'_count';
             if (array_key_exists($key, $breakdown[$channel])) {
                 $breakdown[$channel][$key]++;
             }
@@ -370,17 +369,17 @@ class NotificationOutboxHealthService
         if ($at === false) {
             return strlen($recipient) <= 4
                 ? str_repeat('*', strlen($recipient))
-                : substr($recipient, 0, 2) . str_repeat('*', max(1, strlen($recipient) - 4)) . substr($recipient, -2);
+                : substr($recipient, 0, 2).str_repeat('*', max(1, strlen($recipient) - 4)).substr($recipient, -2);
         }
 
         $local = substr($recipient, 0, $at);
         $domain = substr($recipient, $at + 1);
 
         return match (strlen($local)) {
-            0 => '@' . $domain,
-            1 => '*@' . $domain,
-            2 => substr($local, 0, 1) . '*@' . $domain,
-            default => substr($local, 0, 1) . str_repeat('*', max(1, strlen($local) - 2)) . substr($local, -1) . '@' . $domain,
+            0 => '@'.$domain,
+            1 => '*@'.$domain,
+            2 => substr($local, 0, 1).'*@'.$domain,
+            default => substr($local, 0, 1).str_repeat('*', max(1, strlen($local) - 2)).substr($local, -1).'@'.$domain,
         };
     }
 }

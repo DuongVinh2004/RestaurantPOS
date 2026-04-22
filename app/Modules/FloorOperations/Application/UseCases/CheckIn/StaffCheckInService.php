@@ -10,24 +10,28 @@ use App\Modules\BranchScheduling\Application\Services\ReservationBranchScopeServ
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\FloorOperations\Application\Queries\StaffCheckInReadinessService;
 use App\Modules\FloorOperations\Domain\Guards\StaffReservationOperationGuard;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\Notifications\Application\Services\NotificationOutboxService;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Support\AuditEvent;
 use App\Support\DatabaseWriteConflictMapper;
-use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class StaffCheckInService
 {
     private readonly StaffCheckInReadinessService $checkInReadinessService;
+
+    private readonly ?StaffBranchContextService $staffBranchContextService;
 
     public function __construct(
         private readonly ReservationLockService $locks,
@@ -36,7 +40,10 @@ class StaffCheckInService
         mixed $checkInReadinessServiceOrConflicts = null,
         ?RuntimeSettingService $runtimeSettings = null,
         ?ReservationBranchScopeService $reservationBranchScopeService = null,
+        ?StaffBranchContextService $staffBranchContextService = null,
     ) {
+        $this->staffBranchContextService = $staffBranchContextService;
+
         if ($checkInReadinessServiceOrConflicts instanceof StaffCheckInReadinessService) {
             $this->checkInReadinessService = $checkInReadinessServiceOrConflicts;
 
@@ -114,6 +121,11 @@ class StaffCheckInService
                     updatedBy: $staffUserId,
                 );
 
+                $this->assertOperationalBranchAccessible(
+                    $this->resolveOperationalBranchId($reservation, $tables),
+                    $staffUserId,
+                );
+
                 $reservation->status = ReservationStatus::checkedIn();
                 $reservation->checked_in_at = $checkedInAt;
                 $reservation->updated_by = $staffUserId;
@@ -164,8 +176,8 @@ class StaffCheckInService
                 sort($lockTableIds);
 
                 $lockKeys = array_merge([
-                    config('booking.reservation_lock_reservation_prefix', 'booking:lock:reservation') . ':' . $reservationId,
-                ], array_map(fn (int $id) => config('booking.reservation_lock_prefix', 'booking:lock:table') . ':' . $id, $lockTableIds));
+                    config('booking.reservation_lock_reservation_prefix', 'booking:lock:reservation').':'.$reservationId,
+                ], array_map(fn (int $id) => config('booking.reservation_lock_prefix', 'booking:lock:table').':'.$id, $lockTableIds));
 
                 $result = $this->locks->withLockKeys($lockKeys, $runner);
             }
@@ -196,7 +208,7 @@ class StaffCheckInService
     }
 
     /**
-     * @param array<int,int> $tableIds
+     * @param  array<int,int>  $tableIds
      * @return array<int,string>
      */
     private function resolveConfirmedHoldIdsForReservation(Reservation $reservation, array $tableIds, bool $lock = false): array
@@ -229,6 +241,42 @@ class StaffCheckInService
             ->values()
             ->all();
     }
+
+    /**
+     * @param  Collection<int, RestaurantTable>  $tables
+     */
+    private function resolveOperationalBranchId(Reservation $reservation, Collection $tables): ?int
+    {
+        $reservationBranchId = (int) ($reservation->branch_id ?? 0);
+        if ($reservationBranchId > 0) {
+            return $reservationBranchId;
+        }
+
+        $tableBranchIds = $tables
+            ->pluck('branch_id')
+            ->map(static fn (mixed $branchId): int => (int) $branchId)
+            ->filter(static fn (int $branchId): bool => $branchId > 0)
+            ->unique()
+            ->values();
+
+        if ($tableBranchIds->count() !== 1) {
+            return null;
+        }
+
+        return (int) $tableBranchIds->first();
+    }
+
+    private function assertOperationalBranchAccessible(?int $branchId, ?int $staffUserId): void
+    {
+        if ($staffUserId === null || $staffUserId <= 0 || $branchId === null || $branchId <= 0) {
+            return;
+        }
+
+        $this->staffBranchContextService()->assertAccessibleBranch($staffUserId, $branchId);
+    }
+
+    private function staffBranchContextService(): StaffBranchContextService
+    {
+        return $this->staffBranchContextService ?? app(StaffBranchContextService::class);
+    }
 }
-
-

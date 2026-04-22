@@ -243,29 +243,29 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
         $this->assertNotContains($reservationB, $reservationIds);
 
         $this->withHeaders($headers)
-            ->getJson('/api/v1/staff/finance/reconciliation?branch_id=' . $branchA)
+            ->getJson('/api/v1/staff/finance/reconciliation?branch_id='.$branchA)
             ->assertOk()
             ->assertJsonPath('meta.filters.branch_id', $branchA)
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.reservation.reservation_id', $reservationA);
 
         $this->withHeaders($headers)
-            ->getJson('/api/v1/staff/finance/reconciliation?branch_id=' . $branchB)
+            ->getJson('/api/v1/staff/finance/reconciliation?branch_id='.$branchB)
             ->assertStatus(404)
             ->assertJsonPath('error_code', 'not_found');
 
         $this->withHeaders($headers)
-            ->getJson('/api/v1/staff/finance/reconciliation/' . $reservationA . '?branch_id=' . $branchA)
+            ->getJson('/api/v1/staff/finance/reconciliation/'.$reservationA.'?branch_id='.$branchA)
             ->assertOk()
             ->assertJsonPath('meta.branch_id', $branchA)
             ->assertJsonPath('data.reservation.reservation_id', $reservationA);
 
         $this->withHeaders($headers)
-            ->getJson('/api/v1/staff/finance/reconciliation/' . $reservationB)
+            ->getJson('/api/v1/staff/finance/reconciliation/'.$reservationB)
             ->assertStatus(404);
 
         $this->withHeaders($headers)
-            ->getJson('/api/v1/staff/finance/reconciliation/' . $reservationB . '?branch_id=' . $branchA)
+            ->getJson('/api/v1/staff/finance/reconciliation/'.$reservationB.'?branch_id='.$branchA)
             ->assertStatus(404);
     }
 

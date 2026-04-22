@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ReportingDailyOperationSnapshot extends Model
 {
     protected $table = 'reporting_daily_operation_snapshots';
+
     protected $primaryKey = 'snapshot_id';
 
     protected $fillable = [

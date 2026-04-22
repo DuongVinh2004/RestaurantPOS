@@ -7,7 +7,7 @@ namespace App\Support\AuditTrail;
 final class AuditTrailActorResolver
 {
     /**
-     * @param array<string,mixed> $override
+     * @param  array<string,mixed>  $override
      * @return array{type:?string,key:?string,user_id:?int}
      */
     public function resolve(array $override = []): array
@@ -62,7 +62,7 @@ final class AuditTrailActorResolver
 
             return [
                 'type' => $staffApiKeyId > 0 ? 'staff_api_key' : 'staff_user',
-                'key' => $staffApiKeyId > 0 ? 'staff_api_key:' . $staffApiKeyId : 'staff_user:' . $staffUserId,
+                'key' => $staffApiKeyId > 0 ? 'staff_api_key:'.$staffApiKeyId : 'staff_user:'.$staffUserId,
                 'user_id' => $staffUserId,
             ];
         }
@@ -74,8 +74,8 @@ final class AuditTrailActorResolver
             return [
                 'type' => $accessSessionId > 0 ? 'customer_access_session' : 'customer_account',
                 'key' => $accessSessionId > 0
-                    ? 'customer_access_session:' . $accessSessionId
-                    : 'customer_user:' . $customerUserId,
+                    ? 'customer_access_session:'.$accessSessionId
+                    : 'customer_user:'.$customerUserId,
                 'user_id' => $customerUserId,
             ];
         }
@@ -105,7 +105,7 @@ final class AuditTrailActorResolver
         if ($type === 'customer_session') {
             return str_starts_with($key, 'customer_session:')
                 ? $key
-                : 'customer_session:' . substr(sha1($key), 0, 16);
+                : 'customer_session:'.substr(sha1($key), 0, 16);
         }
 
         return $key;

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -25,8 +25,8 @@ class StaffReservationBoardAssignmentFlowTest extends TestCase
         $this->requireBookingSchema();
 
         $this->app->instance(ReservationLockService::class, $this->mockReservationLocks());
-        $this->app->instance(RestaurantTableStateService::class, new RestaurantTableStateService());
-        $this->app->instance(TableTimeConflictService::class, new TableTimeConflictService());
+        $this->app->instance(RestaurantTableStateService::class, new RestaurantTableStateService);
+        $this->app->instance(TableTimeConflictService::class, new TableTimeConflictService);
     }
 
     protected function tearDown(): void
@@ -336,6 +336,31 @@ class StaffReservationBoardAssignmentFlowTest extends TestCase
             ->assertJsonPath('data.table_ids.0', $tableId)
             ->assertJsonPath('data.row_version', 2);
         self::assertSame(1, DB::table('reservation_tables')->where('reservation_id', $reservationId)->count());
+    }
+
+    public function test_assign_table_rejects_stale_row_version(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->withIdempotencyKey('board-assign-stale-row-version', $this->staffAuthHeaders($staffId));
+
+        $tableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available']);
+        $reservationId = $this->createReservation([
+            'guest_count' => 4,
+            'status' => 'Confirmed',
+            'row_version' => 2,
+        ]);
+
+        $response = $this->withHeaders($headers)->postJson("/api/v1/staff/reservations/{$reservationId}/assign-table", [
+            'table_id' => $tableId,
+            'row_version' => 1,
+        ]);
+
+        $response->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
+            ->assertJsonValidationErrors(['row_version']);
+
+        self::assertStringContainsString('row_version mismatch', (string) data_get($response->json(), 'details.errors.row_version.0', ''));
+        self::assertSame([], DB::table('reservation_tables')->where('reservation_id', $reservationId)->pluck('table_id')->all());
     }
 
     public function test_assign_table_rejects_when_reservation_already_has_other_assigned_table(): void

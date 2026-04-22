@@ -25,4 +25,3 @@ class AddOrderItemsRequest extends FormRequest
         ];
     }
 }
-

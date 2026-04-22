@@ -24,7 +24,7 @@ final class DataLifecycleRouteSurfaceTest extends TestCase
         foreach ($expected as [$method, $uri, $action]) {
             $route = collect(Route::getRoutes()->getRoutes())
                 ->first(static fn (IlluminateRoute $route): bool => in_array($method, $route->methods(), true)
-                    && in_array(trim($route->uri(), '/'), [trim($uri, '/'), 'api/' . trim($uri, '/')], true));
+                    && in_array(trim($route->uri(), '/'), [trim($uri, '/'), 'api/'.trim($uri, '/')], true));
 
             self::assertNotNull($route, sprintf('Expected route [%s %s] is not registered.', $method, $uri));
             self::assertSame($action, $route->getActionName(), sprintf('Route [%s %s] drifted to unexpected action.', $method, $uri));

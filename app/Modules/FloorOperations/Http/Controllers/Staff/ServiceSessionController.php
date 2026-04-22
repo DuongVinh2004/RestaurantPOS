@@ -63,5 +63,3 @@ class ServiceSessionController extends Controller
         );
     }
 }
-
-

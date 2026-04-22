@@ -6,10 +6,10 @@ namespace App\Modules\Billing\Http\Controllers\Staff;
 
 use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
-use App\Modules\FloorOperations\Http\Requests\Staff\BranchScopeRequest;
 use App\Modules\Billing\Application\UseCases\Invoices\StaffInvoiceService;
 use App\Modules\Billing\Http\Requests\Staff\ListAccountingExportRequest;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
+use App\Modules\FloorOperations\Http\Requests\Staff\BranchScopeRequest;
 use App\Support\ApiErrorResponse;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -140,5 +140,3 @@ class InvoiceController extends Controller
         );
     }
 }
-
-

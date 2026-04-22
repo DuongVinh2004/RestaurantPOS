@@ -303,6 +303,7 @@ class StaffApiKeyActorResolver
     private function isCurrentEnvironmentAllowListed(): bool
     {
         $environment = (string) config('app.env', 'production');
+
         return in_array($environment, $this->fallbackAllowedEnvironments(), true);
     }
 

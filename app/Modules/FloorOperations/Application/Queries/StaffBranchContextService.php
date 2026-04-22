@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\FloorOperations\Application\Queries;
 
-use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Modules\BranchScheduling\Domain\Models\Branch;
 use App\Modules\IdentityAccess\Application\Queries\StaffCapabilityResolver;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
@@ -318,5 +318,3 @@ class StaffBranchContextService
         return $tokens;
     }
 }
-
-

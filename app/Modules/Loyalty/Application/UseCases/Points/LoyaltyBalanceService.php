@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Loyalty\Application\UseCases\Points;
 
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Loyalty\Domain\Models\LoyaltyPointTransaction;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use App\SharedKernel\Money\Money;
 

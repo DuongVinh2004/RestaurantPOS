@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class AgentAssignment extends Model
 {
     protected $table = 'agent_assignments';
+
     protected $primaryKey = 'assignment_id';
 
     public $timestamps = false;

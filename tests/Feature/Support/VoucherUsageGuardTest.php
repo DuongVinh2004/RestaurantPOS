@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Support;
 
+use App\Modules\Promotions\Domain\Guards\VoucherUsageGuard;
 use App\Modules\Promotions\Domain\Models\UserVoucher;
 use App\Modules\Promotions\Domain\Models\Voucher;
-use App\Modules\Promotions\Domain\Guards\VoucherUsageGuard;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;

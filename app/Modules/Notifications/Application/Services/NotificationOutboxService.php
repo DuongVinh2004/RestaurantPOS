@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Notifications\Application\Services;
 
 use App\Enums\ReservationStatus;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\Notifications\Domain\Models\NotificationDeliveryAttempt;
 use App\Modules\Notifications\Domain\Models\NotificationOutbox;
@@ -12,9 +13,8 @@ use App\Modules\Notifications\Infrastructure\NotificationDeliveryException;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Waitlist\Domain\Models\WaitlistEntry;
 use App\Platform\Metrics\Services\MetricsService;
-use App\Support\AuditEvent;
 use App\SharedKernel\Money\Money;
-use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
+use App\Support\AuditEvent;
 use DateTimeZone;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -621,20 +621,20 @@ class NotificationOutboxService
             AuditEvent::warning($nonRetryable
                 ? 'notification_outbox_cancelled_non_retryable'
                 : ($exhausted ? 'notification_outbox_cancelled_after_max_attempts' : 'notification_outbox_failed'), [
-                'outbox_id' => (int) $message->outbox_id,
-                'reservation_id' => (int) ($message->related_reservation_id ?? 0),
-                'channel' => (string) $message->channel,
-                'template_key' => (string) $message->template_key,
-                'recipient_masked' => $this->maskRecipientForAudit((string) $message->recipient),
-                'attempt_count' => (int) $message->attempt_count,
-                'max_attempts' => $maxAttempts,
-                'next_retry_at' => $message->next_retry_at?->toIso8601String(),
-                'provider_key' => $providerKey,
-                'worker_id' => $workerId,
-                'error' => $e->getMessage(),
-                'error_code' => $errorCode,
-                'retryable' => ! $nonRetryable,
-            ]);
+                    'outbox_id' => (int) $message->outbox_id,
+                    'reservation_id' => (int) ($message->related_reservation_id ?? 0),
+                    'channel' => (string) $message->channel,
+                    'template_key' => (string) $message->template_key,
+                    'recipient_masked' => $this->maskRecipientForAudit((string) $message->recipient),
+                    'attempt_count' => (int) $message->attempt_count,
+                    'max_attempts' => $maxAttempts,
+                    'next_retry_at' => $message->next_retry_at?->toIso8601String(),
+                    'provider_key' => $providerKey,
+                    'worker_id' => $workerId,
+                    'error' => $e->getMessage(),
+                    'error_code' => $errorCode,
+                    'retryable' => ! $nonRetryable,
+                ]);
             $this->recordMetric($exhausted ? 'notification_outbox_cancelled_total' : 'notification_outbox_failed_total', [
                 'channel' => (string) $message->channel,
                 'template_key' => (string) $message->template_key,

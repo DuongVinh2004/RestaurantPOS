@@ -6,11 +6,11 @@ namespace App\Modules\Cashiering\Http\Controllers\Staff;
 
 use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
-use App\Modules\FloorOperations\Http\Requests\Staff\BranchScopeRequest;
 use App\Modules\Cashiering\Application\UseCases\Shifts\StaffCashierShiftService;
 use App\Modules\Cashiering\Http\Requests\Staff\CloseCashierShiftRequest;
 use App\Modules\Cashiering\Http\Requests\Staff\ListStaffCashierShiftsRequest;
 use App\Modules\Cashiering\Http\Requests\Staff\OpenCashierShiftRequest;
+use App\Modules\FloorOperations\Http\Requests\Staff\BranchScopeRequest;
 use App\Support\ApiErrorResponse;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Http\JsonResponse;
@@ -156,5 +156,3 @@ class CashierShiftController extends Controller
         ]);
     }
 }
-
-

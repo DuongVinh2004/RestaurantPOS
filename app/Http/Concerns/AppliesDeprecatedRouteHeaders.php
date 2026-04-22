@@ -63,7 +63,7 @@ trait AppliesDeprecatedRouteHeaders
             }
 
             if (is_scalar($value)) {
-                $resolved = str_replace('{' . (string) $key . '}', (string) $value, $resolved);
+                $resolved = str_replace('{'.(string) $key.'}', (string) $value, $resolved);
             }
         }
 

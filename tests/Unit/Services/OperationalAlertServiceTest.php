@@ -21,7 +21,7 @@ class OperationalAlertServiceTest extends TestCase
 
     public function test_build_alerts_maps_fail_and_degraded_sections_into_prioritized_alerts(): void
     {
-        $service = new OperationalAlertService();
+        $service = new OperationalAlertService;
 
         config(['ops_alerts.max_alerts_per_run' => 10]);
 
@@ -68,7 +68,7 @@ class OperationalAlertServiceTest extends TestCase
             'ops_alerts.channels.webhook.enabled' => false,
         ]);
 
-        $service = new OperationalAlertService();
+        $service = new OperationalAlertService;
 
         $alert = [
             'fingerprint' => 'abc123',

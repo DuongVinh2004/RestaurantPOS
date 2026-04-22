@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Payments\Application\Queries;
 
-use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Reservations\Application\Services\ReservationDepositSelfServiceStateService;
+use App\Modules\Reservations\Domain\Models\Reservation;
 
 class StaffReservationDepositOperationalReadService
 {

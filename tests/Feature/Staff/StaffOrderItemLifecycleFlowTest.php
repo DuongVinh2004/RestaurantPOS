@@ -168,6 +168,56 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             ->count());
     }
 
+    public function test_serving_item_rejects_drifted_inventory_consumption_reference(): void
+    {
+        [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario();
+
+        $itemId = (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('item_id');
+        $reservationId = (int) $this->table('reservation_orders')->where('order_id', $orderId)->value('reservation_id');
+        $branchId = (int) $this->table('reservations')->where('reservation_id', $reservationId)->value('branch_id');
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-CONSUME-DRIFT',
+            'name' => 'Consumed Drift Chili',
+            'unit_code' => 'g',
+        ]);
+        $recipeLineId = $this->createMenuItemRecipeLine([
+            'item_id' => $itemId,
+            'ingredient_id' => $ingredientId,
+            'quantity' => '12.500',
+            'unit_code' => 'g',
+            'sort_order' => 1,
+        ]);
+        $referenceId = $orderItemId.':'.$recipeLineId.':'.$ingredientId;
+
+        $this->createIngredientStockMovement([
+            'branch_id' => $branchId,
+            'ingredient_id' => $ingredientId,
+            'movement_type' => 'StockOut',
+            'quantity_delta' => '-1.000',
+            'unit_code' => 'g',
+            'reference_type' => 'ReservationOrderItemConsumption',
+            'reference_id' => $referenceId,
+        ]);
+
+        $response = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-consume-drift'))
+            ->postJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}/status", [
+                'order_row_version' => 1,
+                'row_version' => 1,
+                'status' => 'Served',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['reference_id'])
+            ->assertJsonPath('details.errors.reference_id.0', 'System stock movement reference [ReservationOrderItemConsumption:'.$referenceId.'] is already recorded with different movement details.');
+
+        self::assertSame('Ordered', (string) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('status'));
+        self::assertSame(1, (int) $this->table('ingredient_stock_movements')
+            ->where('ingredient_id', $ingredientId)
+            ->where('reference_type', 'ReservationOrderItemConsumption')
+            ->where('reference_id', $referenceId)
+            ->count());
+    }
+
     public function test_staff_can_cancel_unserved_item(): void
     {
         [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario();
@@ -203,6 +253,24 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             ->assertJsonPath('error_code', 'stale_row_version')
             ->assertJsonPath('category_code', 'stale_write')
             ->assertJsonPath('details.errors.row_version.0', 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.');
+    }
+
+    public function test_stale_order_row_version_is_rejected_before_order_item_mutation(): void
+    {
+        [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario();
+
+        $response = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-row-stale'))
+            ->patchJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}", [
+                'order_row_version' => 99,
+                'row_version' => 1,
+                'qty' => 2,
+            ]);
+
+        $response
+            ->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
+            ->assertJsonPath('category_code', 'stale_write')
+            ->assertJsonPath('details.errors.order_row_version.0', 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.');
     }
 
     public function test_order_item_mutation_rejects_branch_outside_staff_operational_scope(): void

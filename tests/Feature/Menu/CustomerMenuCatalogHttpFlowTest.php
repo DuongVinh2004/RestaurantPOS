@@ -68,7 +68,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);
 
-        $response = $this->getJson('/api/v1/menu/categories?service_time=' . urlencode($serviceTime->toIso8601String()));
+        $response = $this->getJson('/api/v1/menu/categories?service_time='.urlencode($serviceTime->toIso8601String()));
 
         $response->assertOk()
             ->assertJsonPath('meta.item_count', 2)
@@ -112,7 +112,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);
 
-        $response = $this->getJson('/api/v1/menu/items?preorder_only=1&q=Pho&service_time=' . urlencode($serviceTime->toIso8601String()));
+        $response = $this->getJson('/api/v1/menu/items?preorder_only=1&q=Pho&service_time='.urlencode($serviceTime->toIso8601String()));
 
         $response->assertOk()
             ->assertJsonPath('meta.total', 1)
@@ -141,7 +141,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);
 
-        $response = $this->getJson('/api/v1/menu/items/' . $itemId . '?service_time=' . urlencode($serviceTime->toIso8601String()));
+        $response = $this->getJson('/api/v1/menu/items/'.$itemId.'?service_time='.urlencode($serviceTime->toIso8601String()));
 
         $response->assertOk()
             ->assertJsonPath('data.item_id', $itemId)
@@ -169,7 +169,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);
 
-        $response = $this->getJson('/api/v1/menu/items/' . $itemId . '?service_time=' . urlencode($serviceTime->toIso8601String()));
+        $response = $this->getJson('/api/v1/menu/items/'.$itemId.'?service_time='.urlencode($serviceTime->toIso8601String()));
 
         $response->assertNotFound()
             ->assertJsonPath('error_code', 'not_found');

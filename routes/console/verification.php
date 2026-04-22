@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 use App\Platform\Verification\VerificationSelectorService;
 use Illuminate\Console\Command as ConsoleCommand;
-
-use function Symfony\Component\String\u;
-
 use Illuminate\Support\Facades\Artisan;
+
 Artisan::command('booking:verify-select
     {--path=* : Explicit changed paths to analyze}
     {--base= : Optional Git base ref for branch diff collection}

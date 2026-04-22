@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Modules\Catalog\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Catalog\Application\UseCases\Management\MenuCatalogManagementService;
 use App\Modules\Catalog\Http\Requests\Admin\ListMenuItemsRequest;
 use App\Modules\Catalog\Http\Requests\Admin\StoreMenuItemRequest;
 use App\Modules\Catalog\Http\Requests\Admin\UpdateMenuItemRequest;
 use App\Modules\Catalog\Http\Resources\Admin\MenuItemResource;
-use App\Modules\Catalog\Application\UseCases\Management\MenuCatalogManagementService;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Http\JsonResponse;
 

@@ -29,7 +29,7 @@ class BuildsBookingScenarioGeneratedColumnGuardTest extends TestCase
     public function test_create_reservation_ignores_generated_column_overrides_when_schema_is_mysql_truth(): void
     {
         if (! Schema::hasColumn('reservations', 'active_applied_user_voucher_id')) {
-$this->failOrSkipBookingSchemaContract('Generated reservation active voucher column is not present on this test schema.');
+            $this->failOrSkipBookingSchemaContract('Generated reservation active voucher column is not present on this test schema.');
         }
 
         $reservationId = $this->createReservation([
@@ -49,7 +49,7 @@ $this->failOrSkipBookingSchemaContract('Generated reservation active voucher col
     public function test_create_table_hold_ignores_generated_column_overrides_when_schema_is_mysql_truth(): void
     {
         if (! Schema::hasColumn('table_holds', 'active_session_hold_key')) {
-$this->failOrSkipBookingSchemaContract('Generated active session hold column is not present on this test schema.');
+            $this->failOrSkipBookingSchemaContract('Generated active session hold column is not present on this test schema.');
         }
 
         $sessionId = 'sess-generated-guard';

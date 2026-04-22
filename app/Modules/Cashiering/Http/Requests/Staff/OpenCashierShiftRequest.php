@@ -53,4 +53,3 @@ class OpenCashierShiftRequest extends FormRequest
         });
     }
 }
-

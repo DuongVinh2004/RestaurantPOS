@@ -43,6 +43,7 @@ class RescheduleReservationRequest extends FormRequest
 
             if (! $hasChange) {
                 $validator->errors()->add('payload', 'At least one reschedulable field is required.');
+
                 return;
             }
 

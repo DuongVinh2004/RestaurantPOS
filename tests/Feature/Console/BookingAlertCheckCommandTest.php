@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use App\Platform\Metrics\Services\OperationalAlertService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
@@ -12,12 +13,11 @@ class BookingAlertCheckCommandTest extends TestCase
 {
     public function test_booking_alert_check_supports_json_output_in_dry_run_mode(): void
     {
-        $service = new class extends OperationalAlertService {
-            public function __construct()
-            {
-            }
+        $service = new class extends OperationalAlertService
+        {
+            public function __construct() {}
 
-            public function snapshot(?\Illuminate\Support\Carbon $now = null, int $paymentSampleLimit = 10): array
+            public function snapshot(?Carbon $now = null, int $paymentSampleLimit = 10): array
             {
                 return [
                     'payment_integrity' => [
@@ -28,7 +28,7 @@ class BookingAlertCheckCommandTest extends TestCase
                 ];
             }
 
-            public function buildAlerts(array $snapshot, ?\Illuminate\Support\Carbon $now = null): array
+            public function buildAlerts(array $snapshot, ?Carbon $now = null): array
             {
                 return [[
                     'fingerprint' => 'abc123',
@@ -43,7 +43,7 @@ class BookingAlertCheckCommandTest extends TestCase
                 ]];
             }
 
-            public function dispatchAlerts(array $alerts, bool $dryRun = false, ?\Illuminate\Support\Carbon $now = null): array
+            public function dispatchAlerts(array $alerts, bool $dryRun = false, ?Carbon $now = null): array
             {
                 return [
                     'enabled' => true,
@@ -83,12 +83,11 @@ class BookingAlertCheckCommandTest extends TestCase
 
     public function test_booking_alert_check_fails_when_fail_on_alert_is_requested(): void
     {
-        $service = new class extends OperationalAlertService {
-            public function __construct()
-            {
-            }
+        $service = new class extends OperationalAlertService
+        {
+            public function __construct() {}
 
-            public function snapshot(?\Illuminate\Support\Carbon $now = null, int $paymentSampleLimit = 10): array
+            public function snapshot(?Carbon $now = null, int $paymentSampleLimit = 10): array
             {
                 return [
                     'notification_outbox' => [
@@ -99,7 +98,7 @@ class BookingAlertCheckCommandTest extends TestCase
                 ];
             }
 
-            public function buildAlerts(array $snapshot, ?\Illuminate\Support\Carbon $now = null): array
+            public function buildAlerts(array $snapshot, ?Carbon $now = null): array
             {
                 return [[
                     'fingerprint' => 'warn123',
@@ -114,7 +113,7 @@ class BookingAlertCheckCommandTest extends TestCase
                 ]];
             }
 
-            public function dispatchAlerts(array $alerts, bool $dryRun = false, ?\Illuminate\Support\Carbon $now = null): array
+            public function dispatchAlerts(array $alerts, bool $dryRun = false, ?Carbon $now = null): array
             {
                 return [
                     'enabled' => true,

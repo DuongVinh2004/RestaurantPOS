@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-$rootDir = realpath(__DIR__ . '/../../');
+$rootDir = realpath(__DIR__.'/../../');
 if ($rootDir === false) {
     fwrite(STDERR, "Unable to resolve project root.\n");
     exit(1);
@@ -25,9 +25,9 @@ if ($dbDatabase === '') {
     fail('DB_DATABASE (or MYSQL_DATABASE) is required.', $json);
 }
 
-$schemaSql = $rootDir . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'schema' . DIRECTORY_SEPARATOR . 'mysql-schema.sql';
-$patchDir = $rootDir . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'patches';
-$verifyContractSql = $rootDir . DIRECTORY_SEPARATOR . 'tools' . DIRECTORY_SEPARATOR . 'mysql' . DIRECTORY_SEPARATOR . 'verify_release_contract.sql';
+$schemaSql = $rootDir.DIRECTORY_SEPARATOR.'database'.DIRECTORY_SEPARATOR.'schema'.DIRECTORY_SEPARATOR.'mysql-schema.sql';
+$patchDir = $rootDir.DIRECTORY_SEPARATOR.'database'.DIRECTORY_SEPARATOR.'patches';
+$verifyContractSql = $rootDir.DIRECTORY_SEPARATOR.'tools'.DIRECTORY_SEPARATOR.'mysql'.DIRECTORY_SEPARATOR.'verify_release_contract.sql';
 if (! is_file($schemaSql)) {
     fail(sprintf('Schema dump not found at [%s].', relativePath($schemaSql, $rootDir)), $json);
 }
@@ -36,7 +36,7 @@ if (! is_file($verifyContractSql)) {
     fail(sprintf('Release contract verification script not found at [%s].', relativePath($verifyContractSql, $rootDir)), $json);
 }
 
-$patchFiles = glob($patchDir . DIRECTORY_SEPARATOR . '*.sql') ?: [];
+$patchFiles = glob($patchDir.DIRECTORY_SEPARATOR.'*.sql') ?: [];
 sort($patchFiles, SORT_NATURAL | SORT_FLAG_CASE);
 
 try {
@@ -86,7 +86,7 @@ $payload = [
 ];
 
 if ($json) {
-    fwrite(STDOUT, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+    fwrite(STDOUT, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
 } else {
     fwrite(STDOUT, sprintf(
         "Release database bootstrap completed for %s using %s, %d patch(es), and contract verification via %s.\n",
@@ -115,6 +115,7 @@ function parseOptions(array $argv): array
         if (str_contains($trimmed, '=')) {
             [$key, $value] = explode('=', $trimmed, 2);
             $options[$key] = $value;
+
             continue;
         }
 
@@ -167,7 +168,7 @@ function loadEnvFile(string $path): array
 }
 
 /**
- * @param array<string,string> $envFromFile
+ * @param  array<string,string>  $envFromFile
  */
 function resolveEnvValue(string $primaryKey, string $secondaryKey, string $default, array $envFromFile): string
 {
@@ -194,14 +195,14 @@ function resolveEnvValue(string $primaryKey, string $secondaryKey, string $defau
 function normalizeEnvFile(string $envFile, string $rootDir): string
 {
     if ($envFile === '') {
-        return $rootDir . DIRECTORY_SEPARATOR . '.env';
+        return $rootDir.DIRECTORY_SEPARATOR.'.env';
     }
 
     if ($envFile[0] === '/' || preg_match('/^[A-Za-z]:[\\\\\\/]/', $envFile) === 1) {
         return $envFile;
     }
 
-    return $rootDir . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $envFile);
+    return $rootDir.DIRECTORY_SEPARATOR.str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $envFile);
 }
 
 function runMysqlStatement(
@@ -214,7 +215,7 @@ function runMysqlStatement(
     ?string $database,
 ): void {
     $command = buildMysqlCommand($mysqlBinary, $host, $port, $user, $password, $database);
-    $command[] = '--execute=' . $statement;
+    $command[] = '--execute='.$statement;
 
     runProcess($command, '');
 }
@@ -299,7 +300,7 @@ function relativePath(string $path, string $rootDir): string
     $normalizedPath = str_replace('\\', '/', $path);
     $normalizedRoot = rtrim(str_replace('\\', '/', $rootDir), '/');
 
-    if (str_starts_with($normalizedPath, $normalizedRoot . '/')) {
+    if (str_starts_with($normalizedPath, $normalizedRoot.'/')) {
         return substr($normalizedPath, strlen($normalizedRoot) + 1);
     }
 
@@ -315,9 +316,9 @@ function fail(string $message, bool $json): void
     ];
 
     if ($json) {
-        fwrite(STDOUT, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+        fwrite(STDOUT, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
     } else {
-        fwrite(STDERR, $message . PHP_EOL);
+        fwrite(STDERR, $message.PHP_EOL);
     }
 
     exit(1);

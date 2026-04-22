@@ -112,7 +112,7 @@ class AdminMasterDataValidationEnvelopeAndPriceWindowTest extends TestCase
         return [
             'X-Staff-Key' => $staffKey,
             'Accept' => 'application/json',
-            'Idempotency-Key' => 'idem-' . $staffKey . '-' . bin2hex(random_bytes(6)),
+            'Idempotency-Key' => 'idem-'.$staffKey.'-'.bin2hex(random_bytes(6)),
         ];
     }
 }

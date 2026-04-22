@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace Tests\Feature\Staff;
 
 use App\Enums\WaitingListStatus;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Modules\BranchScheduling\Application\Services\TableHoldService;
+use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
+use App\Modules\FloorOperations\Application\UseCases\CheckIn\StaffCheckInService;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Reservations\Application\Services\ReservationCodeGenerator;
-use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Application\Services\ReservationService;
-use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
-use App\Platform\FeatureFlags\Services\RuntimeSettingService;
-use App\Modules\FloorOperations\Application\UseCases\CheckIn\StaffCheckInService;
 use App\Modules\Waitlist\Application\Services\StaffWaitingListService;
-use App\Modules\BranchScheduling\Application\Services\TableHoldService;
-use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -48,15 +48,15 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
         $locks = $this->mockReservationLocks();
         $notifications = $this->mockNotificationOutbox();
         $runtime = $this->mockRuntimeSettings();
-        $tableState = new RestaurantTableStateService();
-        $conflicts = new TableTimeConflictService();
-        $financialSync = new ReservationFinancialSyncService();
+        $tableState = new RestaurantTableStateService;
+        $conflicts = new TableTimeConflictService;
+        $financialSync = new ReservationFinancialSyncService;
         $loyalty = new LoyaltyPointsService($financialSync, $runtime);
         $tableHoldService = new TableHoldService($locks, $tableState, $conflicts, $runtime);
         $reservationService = new ReservationService(
             $tableHoldService,
             $locks,
-            new ReservationCodeGenerator(),
+            new ReservationCodeGenerator,
             $notifications,
             $loyalty,
             $tableState,
@@ -104,7 +104,7 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
 
         $staffHeaders = $this->staffAuthHeaders($staffId);
         $notify = $this->withHeaders($this->withIdempotencyKey('waiting-list-semi-auto-decline-notify', $staffHeaders))
-            ->postJson('/api/v1/staff/waiting-list/' . $sourceWaitingId . '/notify', [
+            ->postJson('/api/v1/staff/waiting-list/'.$sourceWaitingId.'/notify', [
                 'table_id' => $tableId,
                 'hold_minutes' => 10,
                 'row_version' => 1,
@@ -114,13 +114,13 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
         $sourceCustomer = User::query()->findOrFail($sourceCustomerId);
         $decline = $this->actingAs($sourceCustomer)
             ->withHeaders(['Idempotency-Key' => 'cust-waiting-semi-auto-decline'])
-            ->postJson('/api/v1/waiting-list/' . $sourceWaitingId . '/decline', [
+            ->postJson('/api/v1/waiting-list/'.$sourceWaitingId.'/decline', [
                 'row_version' => (int) $notify->json('data.row_version'),
             ]);
         $decline->assertOk();
 
         $advance = $this->withHeaders($this->withIdempotencyKey('waiting-list-semi-auto-advance', $staffHeaders))
-            ->postJson('/api/v1/staff/waiting-list/' . $sourceWaitingId . '/advance', [
+            ->postJson('/api/v1/staff/waiting-list/'.$sourceWaitingId.'/advance', [
                 'row_version' => (int) $decline->json('data.row_version'),
             ]);
 
@@ -132,7 +132,7 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
             ->assertJsonPath('data.advanced_waiting_list.status', WaitingListStatus::Notified->value)
             ->assertJsonPath('data.advanced_waiting_list.invite_hold.has_active_hold', true);
 
-        self::assertSame('Holding', DB::table('table_holds')->where('session_id', 'waiting-list:' . $nextWaitingId)->latest('created_at')->value('hold_status'));
+        self::assertSame('Holding', DB::table('table_holds')->where('session_id', 'waiting-list:'.$nextWaitingId)->latest('created_at')->value('hold_status'));
     }
 
     public function test_staff_queue_surfaces_seat_action_for_arrival_confirmed_entry(): void
@@ -154,7 +154,7 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
 
         $staffHeaders = $this->staffAuthHeaders($staffId);
         $notify = $this->withHeaders($this->withIdempotencyKey('waiting-list-semi-auto-arrival-notify', $staffHeaders))
-            ->postJson('/api/v1/staff/waiting-list/' . $waitingId . '/notify', [
+            ->postJson('/api/v1/staff/waiting-list/'.$waitingId.'/notify', [
                 'table_id' => $tableId,
                 'hold_minutes' => 10,
                 'row_version' => 1,
@@ -163,14 +163,14 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
 
         $accept = $this->actingAs($customer)
             ->withHeaders(['Idempotency-Key' => 'cust-waiting-semi-auto-arrival-accept'])
-            ->postJson('/api/v1/waiting-list/' . $waitingId . '/accept', [
+            ->postJson('/api/v1/waiting-list/'.$waitingId.'/accept', [
                 'row_version' => (int) $notify->json('data.row_version'),
             ]);
         $accept->assertOk();
 
         $confirm = $this->actingAs($customer)
             ->withHeaders(['Idempotency-Key' => 'cust-waiting-semi-auto-arrival-confirm'])
-            ->postJson('/api/v1/waiting-list/' . $waitingId . '/confirm-arrival', [
+            ->postJson('/api/v1/waiting-list/'.$waitingId.'/confirm-arrival', [
                 'row_version' => (int) $accept->json('data.row_version'),
             ]);
         $confirm->assertOk();
@@ -217,7 +217,7 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
 
         $staffHeaders = $this->staffAuthHeaders($staffId);
         $notify = $this->withHeaders($this->withIdempotencyKey('waiting-list-semi-auto-expire-notify', $staffHeaders))
-            ->postJson('/api/v1/staff/waiting-list/' . $sourceWaitingId . '/notify', [
+            ->postJson('/api/v1/staff/waiting-list/'.$sourceWaitingId.'/notify', [
                 'table_id' => $tableId,
                 'hold_minutes' => 5,
                 'row_version' => 1,
@@ -230,7 +230,7 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
         ]);
 
         $advance = $this->withHeaders($this->withIdempotencyKey('waiting-list-semi-auto-expire-advance', $staffHeaders))
-            ->postJson('/api/v1/staff/waiting-list/' . $sourceWaitingId . '/advance', [
+            ->postJson('/api/v1/staff/waiting-list/'.$sourceWaitingId.'/advance', [
                 'row_version' => (int) DB::table('waiting_list')->where('waiting_id', $sourceWaitingId)->value('row_version'),
             ]);
 
@@ -242,7 +242,7 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
             ->assertJsonPath('data.advanced_waiting_list.waiting_id', $nextWaitingId)
             ->assertJsonPath('data.advanced_waiting_list.status', WaitingListStatus::Notified->value);
 
-        self::assertSame('Cancelled', DB::table('table_holds')->where('session_id', 'waiting-list:' . $sourceWaitingId)->latest('created_at')->value('hold_status'));
+        self::assertSame('Cancelled', DB::table('table_holds')->where('session_id', 'waiting-list:'.$sourceWaitingId)->latest('created_at')->value('hold_status'));
         self::assertNull(DB::table('waiting_list')->where('waiting_id', $sourceWaitingId)->value('notified_at'));
         self::assertNull(DB::table('waiting_list')->where('waiting_id', $sourceWaitingId)->value('notify_expires_at'));
     }
@@ -295,7 +295,7 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
 
         $staffHeaders = $this->staffAuthHeaders($staffId);
         $notify = $this->withHeaders($this->withIdempotencyKey('waiting-list-feature-flag-notify', $staffHeaders))
-            ->postJson('/api/v1/staff/waiting-list/' . $sourceWaitingId . '/notify', [
+            ->postJson('/api/v1/staff/waiting-list/'.$sourceWaitingId.'/notify', [
                 'table_id' => $tableId,
                 'hold_minutes' => 10,
                 'row_version' => 1,
@@ -305,13 +305,13 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
         $sourceCustomer = User::query()->findOrFail($sourceCustomerId);
         $decline = $this->actingAs($sourceCustomer)
             ->withHeaders(['Idempotency-Key' => 'cust-waiting-feature-flag-decline'])
-            ->postJson('/api/v1/waiting-list/' . $sourceWaitingId . '/decline', [
+            ->postJson('/api/v1/waiting-list/'.$sourceWaitingId.'/decline', [
                 'row_version' => (int) $notify->json('data.row_version'),
             ]);
         $decline->assertOk();
 
         $queue = $this->withHeaders($staffHeaders)
-            ->getJson('/api/v1/staff/waiting-list?status=Cancelled&active_only=0&branch_id=' . $branchId);
+            ->getJson('/api/v1/staff/waiting-list?status=Cancelled&active_only=0&branch_id='.$branchId);
 
         $queue->assertOk()
             ->assertJsonPath('data.0.waiting_id', $sourceWaitingId)
@@ -323,7 +323,7 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
             ->assertJsonPath('data.0.orchestration.actions.1.reason', 'feature_disabled');
 
         $this->withHeaders($this->withIdempotencyKey('waiting-list-feature-flag-advance', $staffHeaders))
-            ->postJson('/api/v1/staff/waiting-list/' . $sourceWaitingId . '/advance', [
+            ->postJson('/api/v1/staff/waiting-list/'.$sourceWaitingId.'/advance', [
                 'row_version' => (int) $decline->json('data.row_version'),
             ])
             ->assertStatus(422)
@@ -361,7 +361,7 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
 
         $staffHeaders = $this->staffAuthHeaders($staffId);
         $notify = $this->withHeaders($this->withIdempotencyKey('waiting-list-semi-auto-replay-notify', $staffHeaders))
-            ->postJson('/api/v1/staff/waiting-list/' . $sourceWaitingId . '/notify', [
+            ->postJson('/api/v1/staff/waiting-list/'.$sourceWaitingId.'/notify', [
                 'table_id' => $tableId,
                 'hold_minutes' => 10,
                 'row_version' => 1,
@@ -371,7 +371,7 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
         $sourceCustomer = User::query()->findOrFail($sourceCustomerId);
         $decline = $this->actingAs($sourceCustomer)
             ->withHeaders(['Idempotency-Key' => 'cust-waiting-semi-auto-replay-decline'])
-            ->postJson('/api/v1/waiting-list/' . $sourceWaitingId . '/decline', [
+            ->postJson('/api/v1/waiting-list/'.$sourceWaitingId.'/decline', [
                 'row_version' => (int) $notify->json('data.row_version'),
             ]);
         $decline->assertOk();
@@ -379,14 +379,14 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
         $staleRowVersion = (int) $decline->json('data.row_version');
 
         $this->withHeaders($this->withIdempotencyKey('waiting-list-semi-auto-replay-advance-1', $staffHeaders))
-            ->postJson('/api/v1/staff/waiting-list/' . $sourceWaitingId . '/advance', [
+            ->postJson('/api/v1/staff/waiting-list/'.$sourceWaitingId.'/advance', [
                 'row_version' => $staleRowVersion,
             ])
             ->assertOk()
             ->assertJsonPath('data.automation.result', 'notified_next_candidate');
 
         $this->withHeaders($this->withIdempotencyKey('waiting-list-semi-auto-replay-advance-2', $staffHeaders))
-            ->postJson('/api/v1/staff/waiting-list/' . $sourceWaitingId . '/advance', [
+            ->postJson('/api/v1/staff/waiting-list/'.$sourceWaitingId.'/advance', [
                 'row_version' => $staleRowVersion,
             ])
             ->assertStatus(409)
@@ -395,4 +395,3 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
             ->assertJsonValidationErrors(['row_version']);
     }
 }
-

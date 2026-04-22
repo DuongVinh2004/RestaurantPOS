@@ -65,7 +65,8 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         ], $secondHeaders);
 
         $duplicate->assertStatus(422)
-            ->assertJsonPath('error_code', 'validation_error');
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonPath('details.errors.transaction_code.0', 'Transaction code already exists for this payment provider. Check reconciliation or use a different code.');
 
         self::assertSame(1, (int) DB::table('payments')
             ->where('reservation_id', $reservationId)
@@ -383,7 +384,8 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
         ], $secondHeaders);
 
         $duplicate->assertStatus(422)
-            ->assertJsonPath('error_code', 'validation_error');
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonPath('details.errors.transaction_code.0', 'Transaction code already exists for this payment provider. Check reconciliation or use a different code.');
 
         self::assertSame(1, (int) DB::table('payments')
             ->where('reservation_id', $reservationId)

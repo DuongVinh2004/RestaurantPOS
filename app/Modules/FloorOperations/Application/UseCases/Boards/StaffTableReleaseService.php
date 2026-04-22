@@ -9,6 +9,7 @@ use App\Enums\ReservationStatus;
 use App\Modules\BranchScheduling\Application\Services\ReservationBranchScopeService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\FloorOperations\Domain\Guards\StaffReservationOperationGuard;
 use App\Modules\FloorOperations\Domain\Guards\TableReleaseGuard;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
@@ -21,12 +22,16 @@ class StaffTableReleaseService
 {
     private readonly ReservationBranchScopeService $reservationBranchScopeService;
 
+    private readonly ?StaffBranchContextService $staffBranchContextService;
+
     public function __construct(
         private readonly ReservationLockService $locks,
         private readonly RestaurantTableStateService $tableStateService,
         ?ReservationBranchScopeService $reservationBranchScopeService = null,
+        ?StaffBranchContextService $staffBranchContextService = null,
     ) {
         $this->reservationBranchScopeService = $reservationBranchScopeService ?? app(ReservationBranchScopeService::class);
+        $this->staffBranchContextService = $staffBranchContextService;
     }
 
     public function release(int $tableId, ?int $staffUserId = null, bool $force = false, ?string $notes = null, ?int $expectedRowVersion = null): RestaurantTable
@@ -86,6 +91,8 @@ class StaffTableReleaseService
                     ]);
                 }
 
+                $this->assertOperationalBranchAccessible($tableBranchId, $staffUserId);
+
                 $table = $this->tableStateService->releaseModelSafely(
                     $table,
                     null,
@@ -122,6 +129,18 @@ class StaffTableReleaseService
 
         return $table;
     }
+
+    private function assertOperationalBranchAccessible(int $branchId, ?int $staffUserId): void
+    {
+        if ($staffUserId === null || $staffUserId <= 0 || $branchId <= 0) {
+            return;
+        }
+
+        $this->staffBranchContextService()->assertAccessibleBranch($staffUserId, $branchId);
+    }
+
+    private function staffBranchContextService(): StaffBranchContextService
+    {
+        return $this->staffBranchContextService ?? app(StaffBranchContextService::class);
+    }
 }
-
-

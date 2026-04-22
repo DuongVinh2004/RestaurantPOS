@@ -34,5 +34,3 @@ class CreateKitchenStationRequest extends FormRequest
         ];
     }
 }
-
-

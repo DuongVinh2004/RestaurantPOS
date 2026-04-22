@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\Cashiering\Application\UseCases\Shifts;
 
-use App\Modules\IdentityAccess\Domain\Models\User;
-use App\Modules\Cashiering\Domain\Models\CashierShift;
-use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
+use App\Modules\Cashiering\Domain\Models\CashierShift;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Payments\Domain\Models\Payment;
+use App\SharedKernel\Money\Money;
 use App\Support\AuditEvent;
 use App\Support\Listing\SafeLike;
-use App\SharedKernel\Money\Money;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -22,6 +22,8 @@ use Illuminate\Validation\ValidationException;
 
 class StaffCashierShiftService
 {
+    private const STALE_ROW_VERSION_MESSAGE = 'The row_version is stale (row_version mismatch). Reload the resource and try again.';
+
     public function __construct(
         private readonly StaffBranchContextService $staffBranchContextService,
     ) {}
@@ -528,7 +530,7 @@ class StaffCashierShiftService
 
         if ((int) ($shift->row_version ?? 1) !== $expectedRowVersion) {
             throw ValidationException::withMessages([
-                'row_version' => ['Dá»¯ liá»‡u Ä‘Ã£ thay Ä‘á»•i (row_version mismatch). HÃ£y reload rá»“i thá»­ láº¡i.'],
+                'row_version' => [self::STALE_ROW_VERSION_MESSAGE],
             ]);
         }
     }
@@ -611,4 +613,3 @@ class StaffCashierShiftService
         ];
     }
 }
-

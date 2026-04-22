@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
 class MenuPreorderPolicyService
 {
     /**
-     * @param array<int, array{item_id:int, quantity:int}> $requestedItems
+     * @param  array<int, array{item_id:int, quantity:int}>  $requestedItems
      * @return array{
      *   rows: array<int, array{item_id:int, quantity:int}>,
      *   menu_items: Collection<int, MenuItem>,
@@ -170,7 +170,7 @@ class MenuPreorderPolicyService
     }
 
     /**
-     * @param array<int, array<string, mixed>> $requestedItems
+     * @param  array<int, array<string, mixed>>  $requestedItems
      * @return array<int, array{item_id:int, quantity:int}>
      */
     public function normalizeRequestedItems(array $requestedItems): array
@@ -194,7 +194,7 @@ class MenuPreorderPolicyService
     }
 
     /**
-     * @param array<int, int> $itemIds
+     * @param  array<int, int>  $itemIds
      * @return array<int, int>
      */
     private function existingDailyPreorderQuantities(array $itemIds, Carbon $serviceStart, ?int $ignoreReservationId = null): array

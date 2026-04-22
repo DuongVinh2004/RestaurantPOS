@@ -25,5 +25,3 @@ class AssignSuggestedTableRequest extends FormRequest
         ];
     }
 }
-
-

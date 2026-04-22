@@ -8,11 +8,11 @@ use App\Enums\ReservationOrderItemStatus;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
+use App\Modules\Catalog\Application\UseCases\PolicyPreview\MenuPreorderPolicyService;
 use App\Modules\Catalog\Domain\Models\MenuItem;
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
-use App\Modules\Catalog\Application\UseCases\PolicyPreview\MenuPreorderPolicyService;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -22,8 +22,7 @@ class ReservationPreorderService
 {
     public function __construct(
         private readonly MenuPreorderPolicyService $menuPreorderPolicyService,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -101,7 +100,7 @@ class ReservationPreorderService
     }
 
     /**
-     * @param array<int, array<string, mixed>> $requestedItems
+     * @param  array<int, array<string, mixed>>  $requestedItems
      * @return array<string, mixed>
      */
     public function replaceForReservation(Reservation $reservation, array $requestedItems, ?int $actorUserId = null): array
@@ -148,7 +147,7 @@ class ReservationPreorderService
             $now = Carbon::now('UTC');
 
             if (! $order instanceof ReservationOrder) {
-                $order = new ReservationOrder();
+                $order = new ReservationOrder;
                 $order->reservation_id = $reservationId;
                 $order->setAttribute('order_type', ReservationOrderType::PreOrder);
                 $order->status = ReservationOrderStatus::Active;
@@ -178,7 +177,7 @@ class ReservationPreorderService
                 $menuItem = $prepared['menu_items']->get($itemId);
                 $priceRow = $prepared['price_rows']->get($itemId);
 
-                $item = new ReservationOrderItem();
+                $item = new ReservationOrderItem;
                 $item->order_id = (int) $order->order_id;
                 $item->item_id = $itemId;
                 $item->quantity = $quantity;

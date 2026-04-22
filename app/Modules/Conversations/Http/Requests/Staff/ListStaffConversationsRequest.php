@@ -51,10 +51,10 @@ class ListStaffConversationsRequest extends FormRequest
         $channels = array_map(static fn (ConversationChannel $channel): string => $channel->value, ConversationChannel::cases());
 
         return [
-            'status' => ['nullable', 'string', 'in:' . implode(',', $statuses)],
-            'workflow_state' => ['nullable', 'string', 'in:' . implode(',', StaffConversationWorkflowState::values())],
+            'status' => ['nullable', 'string', 'in:'.implode(',', $statuses)],
+            'workflow_state' => ['nullable', 'string', 'in:'.implode(',', StaffConversationWorkflowState::values())],
             'inbox_view' => ['nullable', 'string', 'in:all,unassigned,overdue,waiting_on_customer,resolved_today'],
-            'channel' => ['nullable', 'string', 'in:' . implode(',', $channels)],
+            'channel' => ['nullable', 'string', 'in:'.implode(',', $channels)],
             'assigned_agent_user_id' => ['nullable', 'integer', 'min:1', 'exists:users,user_id'],
             'assignment_state' => ['nullable', 'string', 'in:all,assigned,unassigned,mine'],
             'branch_id' => ['nullable', 'integer', 'min:1', 'exists:branches,branch_id'],

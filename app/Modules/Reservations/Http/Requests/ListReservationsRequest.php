@@ -23,7 +23,7 @@ class ListReservationsRequest extends FormRequest
             'status.*' => ['string', Rule::in(array_map(static fn (ReservationStatus $status) => $status->value, ReservationStatus::cases()))],
             'from' => ['sometimes', 'date'],
             'to' => ['sometimes', 'date'],
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:' . max(1, (int) config('booking.customer_reservation_self_service_page_max', 20))],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:'.max(1, (int) config('booking.customer_reservation_self_service_page_max', 20))],
             'page' => ['sometimes', 'integer', 'min:1'],
             'session_id' => ['sometimes', 'string', 'max:100'],
         ];

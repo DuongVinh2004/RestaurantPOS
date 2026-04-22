@@ -6,10 +6,10 @@ namespace App\Modules\Cashiering\Http\Controllers\Staff;
 
 use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
-use App\Modules\FloorOperations\Http\Requests\Staff\BranchScopeRequest;
 use App\Modules\Cashiering\Application\UseCases\Reconciliation\StaffFinancialReconciliationService;
 use App\Modules\Cashiering\Http\Requests\Staff\ListFinancialReconciliationRequest;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
+use App\Modules\FloorOperations\Http\Requests\Staff\BranchScopeRequest;
 use App\Support\ApiErrorResponse;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -202,5 +202,3 @@ class SettlementReconciliationController extends Controller
         );
     }
 }
-
-

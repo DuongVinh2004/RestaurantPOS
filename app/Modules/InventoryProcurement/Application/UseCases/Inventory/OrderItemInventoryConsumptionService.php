@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Modules\InventoryProcurement\Application\UseCases\Inventory;
 
 use App\Enums\ReservationOrderItemStatus;
-use App\Modules\InventoryProcurement\Domain\Models\IngredientStockMovement;
 use App\Modules\Catalog\Domain\Models\MenuItemRecipe;
-use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\InventoryProcurement\Domain\Models\IngredientStockMovement;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Support\Carbon;
 
 class OrderItemInventoryConsumptionService
@@ -55,16 +55,6 @@ class OrderItemInventoryConsumptionService
             }
 
             $referenceId = sprintf('%d:%d:%d', (int) $item->order_item_id, (int) $recipeLine->recipe_line_id, $ingredientId);
-
-            $alreadyRecorded = IngredientStockMovement::query()
-                ->where('ingredient_id', $ingredientId)
-                ->where('reference_type', 'ReservationOrderItemConsumption')
-                ->where('reference_id', $referenceId)
-                ->exists();
-
-            if ($alreadyRecorded) {
-                continue;
-            }
 
             $this->stockMovementService->recordMovement($ingredientId, [
                 'branch_id' => (int) ($reservation->branch_id ?? 0),

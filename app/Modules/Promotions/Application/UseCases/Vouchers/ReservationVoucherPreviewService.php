@@ -6,11 +6,11 @@ namespace App\Modules\Promotions\Application\UseCases\Vouchers;
 
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationStatus;
-use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Promotions\Domain\Models\UserVoucher;
 use App\Modules\Promotions\Domain\Models\Voucher;
 use App\Modules\Promotions\Domain\Policies\VoucherRedemptionSupport;
-use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;

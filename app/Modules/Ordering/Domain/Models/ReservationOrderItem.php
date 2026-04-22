@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Ordering\Domain\Models;
 
 use App\Enums\ReservationOrderItemStatus;
-use App\Support\Persistence\HasRowVersion;
 use App\Modules\Catalog\Domain\Models\MenuItem;
 use App\SharedKernel\Money\Money;
+use App\Support\Persistence\HasRowVersion;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 

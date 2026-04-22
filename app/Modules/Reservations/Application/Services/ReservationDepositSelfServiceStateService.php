@@ -14,7 +14,7 @@ use Illuminate\Validation\ValidationException;
 class ReservationDepositSelfServiceStateService
 {
     /**
-     * @param array<string,mixed> $paymentSummary
+     * @param  array<string,mixed>  $paymentSummary
      * @return array<string,mixed>
      */
     public function buildState(Reservation $reservation, array $paymentSummary = []): array
@@ -68,7 +68,7 @@ class ReservationDepositSelfServiceStateService
     }
 
     /**
-     * @param array<string,mixed> $paymentSummary
+     * @param  array<string,mixed>  $paymentSummary
      */
     public function assertCanAcknowledge(Reservation $reservation, array $paymentSummary = []): void
     {
@@ -86,7 +86,7 @@ class ReservationDepositSelfServiceStateService
     }
 
     /**
-     * @param array<string,mixed> $paymentSummary
+     * @param  array<string,mixed>  $paymentSummary
      */
     public function assertCanSubmitIntent(Reservation $reservation, array $paymentSummary = []): void
     {
@@ -110,7 +110,7 @@ class ReservationDepositSelfServiceStateService
     }
 
     /**
-     * @param array<string,mixed> $paymentSummary
+     * @param  array<string,mixed>  $paymentSummary
      */
     public function assertCanRevokeIntent(Reservation $reservation, array $paymentSummary = []): void
     {

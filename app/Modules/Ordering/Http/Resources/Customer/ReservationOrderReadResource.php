@@ -114,4 +114,3 @@ class ReservationOrderReadResource extends JsonResource
         return false;
     }
 }
-

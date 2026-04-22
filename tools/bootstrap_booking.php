@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-$rootDir = realpath(__DIR__ . '/..');
+$rootDir = realpath(__DIR__.'/..');
 if ($rootDir === false) {
     fwrite(STDERR, "Unable to resolve project root.\n");
     exit(1);
@@ -21,7 +21,7 @@ try {
         $steps[] = runPhpScript(
             $rootDir,
             $phpBinary,
-            ['tools/mysql/bootstrap_release.php', '--env-file=' . $envFile, '--json'],
+            ['tools/mysql/bootstrap_release.php', '--env-file='.$envFile, '--json'],
             'bootstrap_release_db',
         );
     }
@@ -65,7 +65,7 @@ $payload = [
 ];
 
 if ($json) {
-    fwrite(STDOUT, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+    fwrite(STDOUT, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
 } else {
     fwrite(STDOUT, "Booking bootstrap completed.\n");
     foreach ($steps as $step) {
@@ -91,6 +91,7 @@ function parseOptions(array $argv): array
         if (str_contains($trimmed, '=')) {
             [$key, $value] = explode('=', $trimmed, 2);
             $options[$key] = $value;
+
             continue;
         }
 
@@ -101,39 +102,39 @@ function parseOptions(array $argv): array
 }
 
 /**
- * @param list<string> $arguments
+ * @param  list<string>  $arguments
  * @return array{step:string,command:string,output:mixed}
  */
 function runArtisan(string $rootDir, string $phpBinary, ?string $artisanEnvironment, array $arguments, string $step): array
 {
     $command = ['artisan'];
     if ($artisanEnvironment !== null) {
-        $command[] = '--env=' . $artisanEnvironment;
+        $command[] = '--env='.$artisanEnvironment;
     }
     $command = array_merge($command, $arguments);
 
     return [
         'step' => $step,
-        'command' => basename($phpBinary) . ' ' . implode(' ', $command),
+        'command' => basename($phpBinary).' '.implode(' ', $command),
         'output' => runPhpCommand($rootDir, $phpBinary, $command),
     ];
 }
 
 /**
- * @param list<string> $arguments
+ * @param  list<string>  $arguments
  * @return array{step:string,command:string,output:mixed}
  */
 function runPhpScript(string $rootDir, string $phpBinary, array $arguments, string $step): array
 {
     return [
         'step' => $step,
-        'command' => basename($phpBinary) . ' ' . implode(' ', $arguments),
+        'command' => basename($phpBinary).' '.implode(' ', $arguments),
         'output' => runPhpCommand($rootDir, $phpBinary, $arguments),
     ];
 }
 
 /**
- * @param list<string> $arguments
+ * @param  list<string>  $arguments
  */
 function runPhpCommand(string $rootDir, string $phpBinary, array $arguments): mixed
 {
@@ -201,9 +202,9 @@ function fail(string $message, bool $json): void
     ];
 
     if ($json) {
-        fwrite(STDOUT, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+        fwrite(STDOUT, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
     } else {
-        fwrite(STDERR, $message . PHP_EOL);
+        fwrite(STDERR, $message.PHP_EOL);
     }
 
     exit(1);

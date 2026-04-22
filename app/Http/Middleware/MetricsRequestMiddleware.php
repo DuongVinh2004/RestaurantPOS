@@ -10,8 +10,7 @@ class MetricsRequestMiddleware
 {
     public function __construct(
         private readonly MetricsService $metrics
-    ) {
-    }
+    ) {}
 
     public function handle(Request $request, Closure $next)
     {

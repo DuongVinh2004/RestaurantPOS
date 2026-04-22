@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace App\Modules\IdentityAccess\Domain\Models;
 
-use App\Modules\IdentityAccess\Domain\Models\BankAccount;
-use App\Support\Persistence\HasRowVersion;
+use App\Modules\Conversations\Domain\Models\Conversation;
 use App\Modules\Loyalty\Domain\Models\LoyaltyPointTransaction;
 use App\Modules\Loyalty\Domain\Models\LoyaltyTier;
 use App\Modules\Loyalty\Domain\Models\UserPoint;
 use App\Modules\Loyalty\Domain\Models\UserTierHistory;
 use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Conversations\Domain\Models\Conversation;
 use App\Modules\PrivacyCompliance\Domain\Models\CustomerPrivacyRequest;
 use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Support\Persistence\HasRowVersion;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Catalog\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Catalog\Application\UseCases\Browsing\MenuCatalogBrowser;
 use App\Modules\Catalog\Http\Requests\ListMenuItemsRequest;
 use App\Modules\Catalog\Http\Resources\Customer\MenuItemResource;
-use App\Modules\Catalog\Application\UseCases\Browsing\MenuCatalogBrowser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;

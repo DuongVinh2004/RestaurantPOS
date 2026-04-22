@@ -18,14 +18,14 @@ final class StaffCashierShiftMoneyTest extends TestCase
         $method = new \ReflectionMethod(StaffCashierShiftService::class, 'cashSummary');
         $method->setAccessible(true);
 
-        $cashCapture = new Payment();
+        $cashCapture = new Payment;
         $cashCapture->payment_method = 'Cash';
         $cashCapture->payment_type = 'Final';
         $cashCapture->status = 'Success';
         $cashCapture->amount = '0.20';
         $cashCapture->currency = 'VND';
 
-        $cashRefund = new Payment();
+        $cashRefund = new Payment;
         $cashRefund->payment_method = 'Cash';
         $cashRefund->payment_type = 'Refund';
         $cashRefund->status = 'Refunded';

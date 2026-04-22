@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\Waitlist\Http\Resources\Customer;
 
 use App\Enums\WaitingListStatus;
+use DateTimeInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
-use DateTimeInterface;
 
 class WaitlistResource extends JsonResource
 {

@@ -7,9 +7,9 @@ namespace App\Platform\Backup\Support;
 final class BackupArtifactManifest
 {
     /**
-     * @param array<string,mixed> $meta
-     * @param array<string,array<string,mixed>> $artifacts
-     * @param list<string> $pruned
+     * @param  array<string,mixed>  $meta
+     * @param  array<string,array<string,mixed>>  $artifacts
+     * @param  list<string>  $pruned
      * @return array<string,mixed>
      */
     public static function build(array $meta, array $artifacts, array $pruned = []): array

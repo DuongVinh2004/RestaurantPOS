@@ -13,7 +13,7 @@ final class MasterDataImportSourceParser
     private const MAX_ROWS = 500;
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      * @return array{format:string,columns:list<string>,rows:list<array<string,mixed>>}
      */
     public function parse(array $payload): array
@@ -42,7 +42,7 @@ final class MasterDataImportSourceParser
     }
 
     /**
-     * @param list<array<string,mixed>> $rows
+     * @param  list<array<string,mixed>>  $rows
      * @return array{format:string,columns:list<string>,rows:list<array<string,mixed>>}
      */
     private function parseRowsArray(array $rows): array
@@ -207,7 +207,7 @@ final class MasterDataImportSourceParser
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      */
     private function resolveContent(array $payload, mixed $file): string
     {

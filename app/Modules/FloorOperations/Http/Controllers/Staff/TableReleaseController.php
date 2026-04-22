@@ -17,8 +17,7 @@ class TableReleaseController extends Controller
 
     public function __construct(
         private readonly StaffTableReleaseService $releaseService,
-    ) {
-    }
+    ) {}
 
     public function store(int $table_id, ReleaseTableRequest $request): JsonResponse
     {
@@ -37,5 +36,3 @@ class TableReleaseController extends Controller
         ]);
     }
 }
-
-

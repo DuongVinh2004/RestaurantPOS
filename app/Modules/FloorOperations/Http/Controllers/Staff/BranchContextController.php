@@ -6,8 +6,8 @@ namespace App\Modules\FloorOperations\Http\Controllers\Staff;
 
 use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
-use App\Modules\FloorOperations\Http\Resources\Staff\BranchResource;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
+use App\Modules\FloorOperations\Http\Resources\Staff\BranchResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -39,5 +39,3 @@ class BranchContextController extends Controller
         ]);
     }
 }
-
-

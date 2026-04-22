@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\MasterDataExchange\Domain\Registries;
 
+use App\Modules\BranchScheduling\Application\Services\BranchManagementService;
 use App\Modules\BranchScheduling\Domain\Models\Branch;
 use App\Modules\MasterDataExchange\Domain\Contracts\MasterDataDomain;
 use App\Modules\MasterDataExchange\Infrastructure\Internal\AbstractMasterDataDomain;
-use App\Modules\BranchScheduling\Application\Services\BranchManagementService;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -16,8 +15,7 @@ final class BranchesMasterDataDomain extends AbstractMasterDataDomain implements
 {
     public function __construct(
         private readonly BranchManagementService $branchManagementService,
-    ) {
-    }
+    ) {}
 
     public function key(): string
     {
@@ -206,6 +204,7 @@ final class BranchesMasterDataDomain extends AbstractMasterDataDomain implements
             $operation = (string) ($row['operation'] ?? 'invalid');
             if ($operation === 'noop') {
                 $unchanged++;
+
                 continue;
             }
 

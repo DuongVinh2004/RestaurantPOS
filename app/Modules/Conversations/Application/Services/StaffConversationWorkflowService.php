@@ -11,13 +11,13 @@ use App\Modules\Conversations\Domain\Models\Conversation;
 use App\Modules\Conversations\Domain\Models\ConversationEvent;
 use App\Modules\Conversations\Domain\Models\ConversationMessage;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
+use App\Modules\IdentityAccess\Application\Queries\StaffCapabilityResolver;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Waitlist\Domain\Models\WaitlistEntry;
-use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use App\Support\AuditEvent;
-use App\Modules\IdentityAccess\Application\Queries\StaffCapabilityResolver;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -873,7 +873,7 @@ class StaffConversationWorkflowService
             ->first();
 
         if (! $conversation instanceof Conversation) {
-            throw (new ModelNotFoundException())->setModel(Conversation::class, [$conversationId]);
+            throw (new ModelNotFoundException)->setModel(Conversation::class, [$conversationId]);
         }
 
         return $conversation;
@@ -904,7 +904,7 @@ class StaffConversationWorkflowService
         $user = User::query()->with('role')->find($userId);
 
         if (! $user instanceof User) {
-            throw (new ModelNotFoundException())->setModel(User::class, [$userId]);
+            throw (new ModelNotFoundException)->setModel(User::class, [$userId]);
         }
 
         $roleName = $user->relationLoaded('role') && $user->role !== null
@@ -933,7 +933,7 @@ class StaffConversationWorkflowService
         if (! empty($payload['reservation_id'])) {
             $reservation = Reservation::query()->find((int) $payload['reservation_id']);
             if (! $reservation instanceof Reservation) {
-                throw (new ModelNotFoundException())->setModel(Reservation::class, [(int) $payload['reservation_id']]);
+                throw (new ModelNotFoundException)->setModel(Reservation::class, [(int) $payload['reservation_id']]);
             }
         }
 
@@ -941,7 +941,7 @@ class StaffConversationWorkflowService
         if (! empty($payload['waiting_list_id'])) {
             $waitingList = WaitlistEntry::query()->find((int) $payload['waiting_list_id']);
             if (! $waitingList instanceof WaitlistEntry) {
-                throw (new ModelNotFoundException())->setModel(WaitlistEntry::class, [(int) $payload['waiting_list_id']]);
+                throw (new ModelNotFoundException)->setModel(WaitlistEntry::class, [(int) $payload['waiting_list_id']]);
             }
         }
 
@@ -949,7 +949,7 @@ class StaffConversationWorkflowService
         if (! empty($payload['customer_user_id'])) {
             $customer = User::query()->find((int) $payload['customer_user_id']);
             if (! $customer instanceof User) {
-                throw (new ModelNotFoundException())->setModel(User::class, [(int) $payload['customer_user_id']]);
+                throw (new ModelNotFoundException)->setModel(User::class, [(int) $payload['customer_user_id']]);
             }
         }
 
@@ -1315,4 +1315,3 @@ class StaffConversationWorkflowService
         $this->branchContextService->assertAccessibleBranch($staffActorUserId, $branchId);
     }
 }
-

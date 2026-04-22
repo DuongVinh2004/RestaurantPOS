@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
-use App\Support\ApiErrorResponse;
 use App\Modules\IdentityAccess\Application\Queries\StaffCapabilityResolver;
+use App\Support\ApiErrorResponse;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,7 +16,13 @@ class RequireStaffCapability
     {
         $resolved = app(StaffCapabilityResolver::class)->resolveForRequest($request);
         $roleName = trim((string) ($resolved['role_name'] ?? $request->attributes->get('staff_actor_role_name', '')));
+        $resolutionSource = trim((string) ($resolved['source'] ?? 'deny_by_default'));
         $knownCapabilities = array_values(array_filter(array_map('strval', (array) ($resolved['known_capabilities'] ?? config('staff_capabilities.known_capabilities', [])))));
+        $request->attributes->set('staff_required_capability', $capability);
+
+        if ($resolutionSource !== '') {
+            $request->attributes->set('staff_capability_resolution_source', $resolutionSource);
+        }
 
         if ((bool) config('staff_capabilities.enforce_known_capabilities', false)
             && $knownCapabilities !== []

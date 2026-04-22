@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Payments\Infrastructure\Integrations\PaymentProviders;
 
-use App\Modules\Payments\Domain\Models\Payment;
 use App\Enums\PaymentSessionScope;
 use Illuminate\Support\Arr;
 

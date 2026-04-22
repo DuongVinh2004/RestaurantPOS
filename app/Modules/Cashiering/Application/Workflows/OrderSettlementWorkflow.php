@@ -4,36 +4,36 @@ declare(strict_types=1);
 
 namespace App\Modules\Cashiering\Application\Workflows;
 
-use App\Modules\Billing\Application\UseCases\Previews\BillLockService;
-use App\Modules\Billing\Application\UseCases\Previews\CheckoutResponseFactory;
-use App\Modules\Billing\Application\UseCases\Previews\SettlementAmountCalculator;
-use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
-use App\Modules\Cashiering\Application\UseCases\Reconciliation\SettlementFinalizerService;
-use App\Modules\Cashiering\Application\UseCases\Shifts\StaffCashierShiftService;
-use App\Modules\Cashiering\Infrastructure\Persistence\CashieringReplayRecorder;
-use App\Modules\Payments\Application\UseCases\Capture\PaymentCaptureService;
-use App\Modules\Payments\Application\UseCases\Refunds\RefundExecutionService;
 use App\Enums\PaymentStatus;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
-use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
-use App\Modules\Promotions\Domain\Models\UserVoucher;
-use App\Modules\Promotions\Domain\Policies\ReservationVoucherLifecycleSupport;
-use App\Modules\Promotions\Domain\Policies\VoucherRedemptionSupport;
+use App\Modules\Billing\Application\UseCases\Previews\BillLockService;
+use App\Modules\Billing\Application\UseCases\Previews\CheckoutResponseFactory;
+use App\Modules\Billing\Application\UseCases\Previews\SettlementAmountCalculator;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
-use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
+use App\Modules\Cashiering\Application\UseCases\Reconciliation\SettlementFinalizerService;
+use App\Modules\Cashiering\Application\UseCases\Shifts\StaffCashierShiftService;
+use App\Modules\Cashiering\Infrastructure\Persistence\CashieringReplayRecorder;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
-use App\Platform\Realtime\Services\OperationalRealtimeService;
+use App\Modules\Payments\Application\UseCases\Capture\PaymentCaptureService;
+use App\Modules\Payments\Application\UseCases\Refunds\RefundExecutionService;
+use App\Modules\Payments\Domain\Models\Payment;
+use App\Modules\Promotions\Domain\Models\UserVoucher;
+use App\Modules\Promotions\Domain\Policies\ReservationVoucherLifecycleSupport;
+use App\Modules\Promotions\Domain\Policies\VoucherRedemptionSupport;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Support\DatabaseWriteConflictMapper;
+use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\SharedKernel\Money\Money;
+use App\Support\DatabaseWriteConflictMapper;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
@@ -48,6 +48,10 @@ class OrderSettlementWorkflow
     private const SETTLEMENT_READ_RESERVATION_RELATIONS = [
         'payments.refundOfPayment',
     ];
+
+    private const STALE_ROW_VERSION_MESSAGE = 'The row_version is stale (row_version mismatch). Reload the resource and try again.';
+
+    private const DUPLICATE_PROVIDER_TRANSACTION_MESSAGE = 'Transaction code already exists for this payment provider. Check reconciliation or use a different code.';
 
     private ReservationLockService $locks;
 
@@ -770,7 +774,7 @@ class OrderSettlementWorkflow
                 $beforeVersion = (int) ($reservation->row_version ?? 1);
                 if ($expectedRowVersion !== null && $beforeVersion !== (int) $expectedRowVersion) {
                     throw ValidationException::withMessages([
-                        'row_version' => ['DÃ¡Â»Â¯ liÃ¡Â»â€¡u Ã„â€˜ÃƒÂ£ thay Ã„â€˜Ã¡Â»â€¢i (row_version mismatch). HÃƒÂ£y reload rÃ¡Â»â€œi thÃ¡Â»Â­ lÃ¡ÂºÂ¡i.'],
+                        'row_version' => [self::STALE_ROW_VERSION_MESSAGE],
                     ]);
                 }
 
@@ -915,7 +919,7 @@ class OrderSettlementWorkflow
 
         if ((int) ($order->row_version ?? 1) !== $expectedRowVersion) {
             throw ValidationException::withMessages([
-                'row_version' => ['DÃ¡Â»Â¯ liÃ¡Â»â€¡u Ã„â€˜ÃƒÂ£ thay Ã„â€˜Ã¡Â»â€¢i (row_version mismatch). HÃƒÂ£y reload rÃ¡Â»â€œi thÃ¡Â»Â­ lÃ¡ÂºÂ¡i.'],
+                'row_version' => [self::STALE_ROW_VERSION_MESSAGE],
             ]);
         }
     }
@@ -1925,11 +1929,10 @@ class OrderSettlementWorkflow
             || str_contains($message, 'uq_payments_transaction_code')
             || DatabaseWriteConflictMapper::isPaymentProviderTransactionConflict($e)
         ) {
-            throw ValidationException::withMessages(['transaction_code' => 'MÃƒÂ£ giao dÃ¡Â»â€¹ch nÃƒÂ y Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i cho payment provider hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i. Vui lÃƒÂ²ng kiÃ¡Â»Æ’m tra lÃ¡ÂºÂ¡i Ã„â€˜Ã¡Â»â€˜i soÃƒÂ¡t hoÃ¡ÂºÂ·c dÃƒÂ¹ng mÃƒÂ£ khÃƒÂ¡c.']);
+            throw ValidationException::withMessages(['transaction_code' => self::DUPLICATE_PROVIDER_TRANSACTION_MESSAGE]);
         }
         if (DatabaseWriteConflictMapper::isPaymentIdempotencyConflict($e)) {
             throw ValidationException::withMessages(['idempotency_key' => 'idempotency key already used.']);
         }
     }
 }
-
