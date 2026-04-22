@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Reservation;
 
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Payments\Application\UseCases\PaymentSessions\CustomerReservationDepositPaymentService;
 use App\Modules\Payments\Domain\Models\ReservationDepositPaymentSession;
 use App\Modules\Payments\Infrastructure\Integrations\CustomerDepositPayment\CustomerDepositPaymentProvider;
 use App\Modules\Payments\Infrastructure\Integrations\CustomerDepositPayment\CustomerDepositPaymentProviderRegistry;
-use App\Modules\Payments\Application\UseCases\PaymentSessions\CustomerReservationDepositPaymentService;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;

@@ -10,8 +10,7 @@ class MetricsController extends Controller
 {
     public function __construct(
         private readonly MetricsService $metrics
-    ) {
-    }
+    ) {}
 
     public function index(): Response
     {
@@ -70,7 +69,7 @@ class MetricsController extends Controller
         $lines[] = '# TYPE loyalty_clawback_shortfall_points_total counter';
         $this->emitHash($lines, 'loyalty_clawback_shortfall_points_total', $all['m:loyalty_clawback_shortfall_points_total'] ?? []);
 
-        $body = implode("\n", $lines) . "\n";
+        $body = implode("\n", $lines)."\n";
 
         return new Response($body, 200, [
             'Content-Type' => 'text/plain; version=0.0.4; charset=utf-8',
@@ -78,13 +77,13 @@ class MetricsController extends Controller
     }
 
     /**
-     * @param array<string, int|float|string> $hash
+     * @param  array<string, int|float|string>  $hash
      */
     private function emitHash(array &$lines, string $metric, array $hash): void
     {
         foreach ($hash as $labelKey => $val) {
             $labels = $this->parseLabels((string) $labelKey);
-            $lines[] = $metric . $this->formatLabels($labels) . ' ' . $val;
+            $lines[] = $metric.$this->formatLabels($labels).' '.$val;
         }
     }
 
@@ -111,7 +110,7 @@ class MetricsController extends Controller
     }
 
     /**
-     * @param array<string,string> $labels
+     * @param  array<string,string>  $labels
      */
     private function formatLabels(array $labels): string
     {
@@ -122,10 +121,10 @@ class MetricsController extends Controller
         $parts = [];
         foreach ($labels as $k => $v) {
             $v = str_replace(['\\', '"', "\n"], ['\\\\', '\\"', ''], $v);
-            $parts[] = $k . '="' . $v . '"';
+            $parts[] = $k.'="'.$v.'"';
         }
 
-        return '{' . implode(',', $parts) . '}';
+        return '{'.implode(',', $parts).'}';
     }
 
     /**
@@ -144,17 +143,20 @@ class MetricsController extends Controller
             if ($escaped) {
                 $current .= $char;
                 $escaped = false;
+
                 continue;
             }
 
             if ($char === '\\') {
                 $escaped = true;
+
                 continue;
             }
 
             if ($char === $delimiter && ($limit === null || count($parts) < $limit - 1)) {
                 $parts[] = $current;
                 $current = '';
+
                 continue;
             }
 

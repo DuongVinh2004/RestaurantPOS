@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\MasterDataExchange\Domain\Registries;
 
+use App\Modules\Catalog\Application\UseCases\Management\MenuCatalogManagementService;
 use App\Modules\Catalog\Domain\Models\MenuCategory;
 use App\Modules\Catalog\Domain\Models\MenuItem;
-use App\Modules\Catalog\Application\UseCases\Management\MenuCatalogManagementService;
 use App\Modules\MasterDataExchange\Domain\Contracts\MasterDataDomain;
 use App\Modules\MasterDataExchange\Infrastructure\Internal\AbstractMasterDataDomain;
 use Illuminate\Support\Facades\Validator;
@@ -16,8 +16,7 @@ final class MenuItemsMasterDataDomain extends AbstractMasterDataDomain implement
 {
     public function __construct(
         private readonly MenuCatalogManagementService $menuService,
-    ) {
-    }
+    ) {}
 
     public function key(): string
     {
@@ -103,7 +102,7 @@ final class MenuItemsMasterDataDomain extends AbstractMasterDataDomain implement
                 ])->validate();
 
                 if ($categoryName !== null && ! $categories->has($categoryName)) {
-                    $errors[] = $this->error('category_name', 'Menu category [' . $categoryName . '] does not exist.');
+                    $errors[] = $this->error('category_name', 'Menu category ['.$categoryName.'] does not exist.');
                 }
 
                 $normalized = [
@@ -205,6 +204,7 @@ final class MenuItemsMasterDataDomain extends AbstractMasterDataDomain implement
 
             if ($operation === 'noop') {
                 $unchanged++;
+
                 continue;
             }
 

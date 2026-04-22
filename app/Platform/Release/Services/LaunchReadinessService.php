@@ -92,6 +92,7 @@ class LaunchReadinessService
         );
         $blockingFailures = $this->flattenFindings(array_merge($checks, $manualChecks), 'blocking');
         $majorWarnings = $this->flattenFindings(array_merge($checks, $manualChecks), 'major');
+        $baseline = $this->buildBaselineBuckets($checks, $manualChecks, $runtimeBaselineBlocked);
         $informationalFindings = $this->buildInformationalFindings($checks, $manualChecks, $manualEvidence);
         $followUpActions = $this->buildFollowUpActions($target, $manualChecks, $manualEvidence, $evaluatedAt);
         $releaseHandoff = $this->buildReleaseHandoff(
@@ -131,6 +132,7 @@ class LaunchReadinessService
             'groups' => $groups,
             'checks' => $checks,
             'manual_checks' => $manualChecks,
+            'baseline' => $baseline,
             'blocking_failures' => $blockingFailures,
             'major_warnings' => $majorWarnings,
             'informational_findings' => $informationalFindings,
@@ -686,6 +688,287 @@ class LaunchReadinessService
     /**
      * @param  array<int, array<string, mixed>>  $checks
      * @param  array<int, array<string, mixed>>  $manualChecks
+     * @return array<string, array<string, mixed>>
+     */
+    private function buildBaselineBuckets(array $checks, array $manualChecks, bool $runtimeBaselineBlocked): array
+    {
+        $launchPathChecks = array_values(array_filter(
+            $checks,
+            static fn (array $check): bool => in_array((string) ($check['group'] ?? ''), [
+                'booking_core_flows',
+                'payment_checkout_financial_flows',
+                'notifications_alerts',
+            ], true)
+        ));
+        $nonLaunchChecks = array_values(array_filter(
+            $checks,
+            static fn (array $check): bool => (string) ($check['group'] ?? '') === 'api_surface_contract'
+        ));
+        $artifactChecks = array_values(array_filter(
+            $checks,
+            static fn (array $check): bool => in_array((string) ($check['key'] ?? ''), [
+                'openapi_release_contract',
+                'release_manifest_snapshot',
+                'release_manifest_frozen',
+                'release_package_integrity',
+            ], true)
+        ));
+        $externalChecks = array_values(array_filter(
+            $checks,
+            static fn (array $check): bool => (string) ($check['group'] ?? '') === 'environment_runtime'
+        ));
+
+        return [
+            'launch_path_diff' => $this->summarizeCheckBucket(
+                label: 'Launch-path checks',
+                checks: $launchPathChecks,
+                clearSummary: 'Launch-path automated checks did not report drift.',
+                warningSummary: 'Launch-path automated checks reported warnings that should be reviewed before promotion.',
+                failSummary: 'Launch-path automated checks reported drift or hard failures.',
+                blockedSummary: 'Launch-path automated checks are blocked by external runtime prerequisites; no launch-path drift is proven yet.',
+                treatSkippedChecksAsExternal: $runtimeBaselineBlocked,
+            ),
+            'non_launch_diff' => $this->summarizeCheckBucket(
+                label: 'Non-launch contract checks',
+                checks: $nonLaunchChecks,
+                clearSummary: 'Non-launch contract checks did not report drift.',
+                warningSummary: 'Non-launch contract checks reported warnings that should be reviewed.',
+                failSummary: 'Non-launch contract checks reported drift.',
+            ),
+            'artifact_drift' => $this->summarizeArtifactDriftBucket($artifactChecks),
+            'external_blockers' => $this->summarizeExternalBlockersBucket($externalChecks, $checks, $runtimeBaselineBlocked),
+            'manual_blockers' => $this->summarizeManualBlockersBucket($manualChecks),
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $checks
+     * @return array<string, mixed>
+     */
+    private function summarizeCheckBucket(
+        string $label,
+        array $checks,
+        string $clearSummary,
+        string $warningSummary,
+        string $failSummary,
+        ?string $blockedSummary = null,
+        bool $treatSkippedChecksAsExternal = false,
+    ): array {
+        $passCheckKeys = [];
+        $warnCheckKeys = [];
+        $failCheckKeys = [];
+        $skipCheckKeys = [];
+        $skippedReasons = [];
+        $blockingFindings = [];
+        $majorWarnings = [];
+
+        foreach ($checks as $check) {
+            $key = (string) ($check['key'] ?? '');
+            $status = (string) ($check['status'] ?? 'unknown');
+
+            match ($status) {
+                'pass' => $passCheckKeys[] = $key,
+                'warn' => $warnCheckKeys[] = $key,
+                'fail' => $failCheckKeys[] = $key,
+                'skip' => $skipCheckKeys[] = $key,
+                default => null,
+            };
+
+            if ($status === 'skip') {
+                $skippedReasons[$key] = trim((string) data_get($check, 'evidence.reason', $check['summary'] ?? 'Skipped.'));
+            }
+
+            foreach ((array) ($check['findings'] ?? []) as $finding) {
+                if (! is_array($finding)) {
+                    continue;
+                }
+
+                $row = [
+                    'check_key' => $key,
+                    'check_label' => (string) ($check['label'] ?? $key),
+                    'message' => (string) ($finding['message'] ?? ''),
+                ];
+
+                if ((string) ($finding['severity'] ?? '') === 'blocking') {
+                    $blockingFindings[] = $row;
+                }
+
+                if ((string) ($finding['severity'] ?? '') === 'major') {
+                    $majorWarnings[] = $row;
+                }
+            }
+        }
+
+        if ($checks === []) {
+            return [
+                'label' => $label,
+                'status' => 'not_applicable',
+                'summary' => 'No checks were mapped into this baseline bucket.',
+                'pass_check_keys' => [],
+                'warn_check_keys' => [],
+                'fail_check_keys' => [],
+                'skip_check_keys' => [],
+                'skipped_reasons' => [],
+                'blocking_findings' => [],
+                'major_warnings' => [],
+            ];
+        }
+
+        $status = 'clear';
+        $summary = $clearSummary;
+
+        if ($blockingFindings !== [] || $failCheckKeys !== []) {
+            $status = 'drift_detected';
+            $summary = $failSummary;
+        } elseif ($majorWarnings !== [] || $warnCheckKeys !== []) {
+            $status = 'warnings';
+            $summary = $warningSummary;
+        } elseif ($treatSkippedChecksAsExternal && $skipCheckKeys !== []) {
+            $status = 'blocked_external';
+            $summary = $blockedSummary ?? 'Checks are blocked by external prerequisites.';
+        }
+
+        return [
+            'label' => $label,
+            'status' => $status,
+            'summary' => $summary,
+            'pass_check_keys' => $passCheckKeys,
+            'warn_check_keys' => $warnCheckKeys,
+            'fail_check_keys' => $failCheckKeys,
+            'skip_check_keys' => $skipCheckKeys,
+            'skipped_reasons' => $skippedReasons,
+            'blocking_findings' => $blockingFindings,
+            'major_warnings' => $majorWarnings,
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $checks
+     * @return array<string, mixed>
+     */
+    private function summarizeArtifactDriftBucket(array $checks): array
+    {
+        $bucket = $this->summarizeCheckBucket(
+            label: 'Artifact drift',
+            checks: $checks,
+            clearSummary: 'Frozen release artifacts are aligned; no artifact refresh is required for this baseline.',
+            warningSummary: 'Artifact checks emitted warnings that should be reviewed before release truth is reused.',
+            failSummary: 'Artifact drift was detected in the frozen release chain.',
+        );
+
+        $touchRequired = in_array((string) ($bucket['status'] ?? 'clear'), ['warnings', 'drift_detected'], true);
+        $skipCheckKeys = array_values((array) ($bucket['skip_check_keys'] ?? []));
+
+        $bucket['touch_required'] = $touchRequired;
+        $bucket['touch_paths'] = [
+            'build/api-consumer/**',
+            'storage/app/booking_release/**',
+        ];
+        $bucket['pending_external_check_keys'] = $skipCheckKeys;
+        $bucket['recommended_owner_hint'] = $touchRequired
+            ? 'Keep any artifact refresh isolated to the dedicated freeze/release-truth lane before opening parallel work.'
+            : 'Do not touch the frozen artifact chain in downstream lanes unless a new contract or release-truth change reopens it.';
+
+        if (! $touchRequired && $skipCheckKeys !== []) {
+            $bucket['summary'] = 'Frozen release artifacts are aligned. Package-level verification is still blocked by external runtime prerequisites, so no artifact refresh is justified from this result alone.';
+        }
+
+        return $bucket;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $externalChecks
+     * @param  array<int, array<string, mixed>>  $allChecks
+     * @return array<string, mixed>
+     */
+    private function summarizeExternalBlockersBucket(array $externalChecks, array $allChecks, bool $runtimeBaselineBlocked): array
+    {
+        $bucket = $this->summarizeCheckBucket(
+            label: 'External blockers',
+            checks: $externalChecks,
+            clearSummary: 'No external runtime blockers were detected.',
+            warningSummary: 'External runtime checks emitted warnings that should be reviewed.',
+            failSummary: 'External runtime prerequisites are blocking this readiness result.',
+        );
+
+        $downstreamBlockedChecks = [];
+        foreach ($allChecks as $check) {
+            if ((string) ($check['status'] ?? '') !== 'skip') {
+                continue;
+            }
+
+            $reason = trim((string) data_get($check, 'evidence.reason', $check['summary'] ?? ''));
+            if ($reason === '' || ! str_contains(strtolower($reason), 'runtime dependency blockers')) {
+                continue;
+            }
+
+            $downstreamBlockedChecks[] = [
+                'check_key' => (string) ($check['key'] ?? ''),
+                'check_label' => (string) ($check['label'] ?? $check['key'] ?? ''),
+                'reason' => $reason,
+            ];
+        }
+
+        $bucket['runtime_baseline_blocked'] = $runtimeBaselineBlocked;
+        $bucket['blocked_dependent_checks'] = $downstreamBlockedChecks;
+
+        if ($runtimeBaselineBlocked) {
+            $bucket['status'] = 'blocking';
+            $bucket['summary'] = 'External runtime prerequisites are blocking launch-readiness and preventing downstream launch-path/package checks from running.';
+        }
+
+        return $bucket;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $manualChecks
+     * @return array<string, mixed>
+     */
+    private function summarizeManualBlockersBucket(array $manualChecks): array
+    {
+        $requiredMissing = [];
+        $recommendedMissing = [];
+
+        foreach ($manualChecks as $check) {
+            $row = [
+                'check_key' => (string) ($check['key'] ?? ''),
+                'check_label' => (string) ($check['label'] ?? $check['key'] ?? ''),
+                'status' => (string) ($check['status'] ?? 'unknown'),
+                'summary' => (string) ($check['summary'] ?? ''),
+            ];
+
+            if ((string) ($check['severity'] ?? '') === 'blocking' && (string) ($check['status'] ?? '') !== 'pass') {
+                $requiredMissing[] = $row;
+            }
+
+            if ((string) ($check['severity'] ?? '') !== 'blocking' && (string) ($check['status'] ?? '') !== 'pass') {
+                $recommendedMissing[] = $row;
+            }
+        }
+
+        $status = 'clear';
+        $summary = 'No manual evidence blockers are currently open.';
+
+        if ($requiredMissing !== []) {
+            $status = 'blocking';
+            $summary = 'Required manual evidence is still blocking promotion.';
+        } elseif ($recommendedMissing !== []) {
+            $status = 'warnings';
+            $summary = 'Recommended manual evidence is still outstanding.';
+        }
+
+        return [
+            'label' => 'Manual blockers',
+            'status' => $status,
+            'summary' => $summary,
+            'required_missing' => $requiredMissing,
+            'recommended_missing' => $recommendedMissing,
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $checks
+     * @param  array<int, array<string, mixed>>  $manualChecks
      * @param  array<string, mixed>  $manualEvidence
      * @return array<int, array<string, mixed>>
      */
@@ -793,33 +1076,48 @@ class LaunchReadinessService
     private function buildFollowUpActions(string $target, array $manualChecks, array $manualEvidence, Carbon $evaluatedAt): array
     {
         $actions = [];
+        $manualEvidenceCandidate = $this->manualEvidenceCandidate($evaluatedAt);
+        $manualEvidenceResolvedPath = is_string($manualEvidence['resolved_path'] ?? null) && trim((string) ($manualEvidence['resolved_path'] ?? '')) !== ''
+            ? (string) $manualEvidence['resolved_path']
+            : $this->defaultManualEvidencePath($target, $manualEvidenceCandidate);
         $manualEvidencePath = $this->displayPath(
             is_string($manualEvidence['resolved_path'] ?? null) && trim((string) ($manualEvidence['resolved_path'] ?? '')) !== ''
                 ? (string) $manualEvidence['resolved_path']
-                : base_path(sprintf(
-                    'storage/app/booking_release/manual_evidence/%s-%s.json',
-                    $target,
-                    $evaluatedAt->copy()->utc()->format('Ymd')
-                ))
+                : $manualEvidenceResolvedPath
         );
+        $defaultTemplateExists = ! (bool) ($manualEvidence['provided'] ?? false) && File::exists($manualEvidenceResolvedPath);
 
         if (! (bool) ($manualEvidence['provided'] ?? false)) {
             $actions[] = [
                 'kind' => 'manual_evidence_template',
-                'label' => 'Scaffold operator-owned manual evidence template',
-                'reason' => 'No manual evidence file was supplied for this launch-readiness run.',
+                'label' => $defaultTemplateExists
+                    ? 'Use existing operator-owned manual evidence template'
+                    : 'Scaffold operator-owned manual evidence template',
+                'reason' => $defaultTemplateExists
+                    ? sprintf('No manual evidence file was supplied, but an operator-owned template already exists at %s.', $manualEvidencePath)
+                    : 'No manual evidence file was supplied for this launch-readiness run.',
                 'runbook_path' => 'docs/runbooks/booking-launch-readiness.md',
-                'commands' => [
+                'commands' => $defaultTemplateExists ? [
                     sprintf(
-                        'php artisan booking:manual-evidence:init --target=%s --candidate=%s --json',
+                        'php artisan booking:launch-readiness --target=%s --manual-evidence=%s --json',
                         $target,
-                        $evaluatedAt->copy()->utc()->format('Ymd')
+                        $manualEvidencePath
                     ),
+                ] : [
+                    $this->buildManualEvidenceInitCommand($target, $manualEvidenceCandidate, $manualEvidencePath),
                 ],
-                'notes' => [
+                'notes' => $defaultTemplateExists ? [
+                    sprintf('Update the existing template at %s with the pending operator evidence before the next promotion review.', $manualEvidencePath),
+                    sprintf(
+                        'Run `%s` only if you intentionally want to reset %s to a blank template.',
+                        $this->buildManualEvidenceInitCommand($target, $manualEvidenceCandidate, $manualEvidencePath, overwrite: true),
+                        $manualEvidencePath
+                    ),
+                ] : [
                     sprintf('Use the generated template at %s to record operator evidence before the next promotion review.', $manualEvidencePath),
                 ],
                 'manual_evidence_path' => $manualEvidencePath,
+                'template_exists' => $defaultTemplateExists,
             ];
         }
 
@@ -830,11 +1128,7 @@ class LaunchReadinessService
                 'reason' => (string) $issue,
                 'runbook_path' => 'docs/runbooks/booking-launch-readiness.md',
                 'commands' => [
-                    sprintf(
-                        'php artisan booking:manual-evidence:init --target=%s --candidate=%s --overwrite --json',
-                        $target,
-                        $evaluatedAt->copy()->utc()->format('Ymd')
-                    ),
+                    $this->buildManualEvidenceInitCommand($target, $manualEvidenceCandidate, $manualEvidencePath, overwrite: true),
                 ],
                 'notes' => [
                     sprintf('Re-run booking:launch-readiness with --manual-evidence=%s after repairing the file.', $manualEvidencePath),
@@ -886,6 +1180,38 @@ class LaunchReadinessService
         }
 
         return $actions;
+    }
+
+    private function manualEvidenceCandidate(Carbon $evaluatedAt): string
+    {
+        return $evaluatedAt->copy()->utc()->format('Ymd');
+    }
+
+    private function defaultManualEvidencePath(string $target, string $candidate): string
+    {
+        return base_path(sprintf('storage/app/booking_release/manual_evidence/%s-%s.json', $target, $candidate));
+    }
+
+    private function buildManualEvidenceInitCommand(
+        string $target,
+        string $candidate,
+        string $outputPath,
+        bool $overwrite = false,
+    ): string {
+        $command = [
+            'php artisan booking:manual-evidence:init',
+            '--target='.$target,
+            '--candidate='.$candidate,
+            '--output='.$outputPath,
+        ];
+
+        if ($overwrite) {
+            $command[] = '--overwrite';
+        }
+
+        $command[] = '--json';
+
+        return implode(' ', $command);
     }
 
     /**
@@ -1154,6 +1480,39 @@ class LaunchReadinessService
         $lines[] = sprintf('- Target: `%s`', (string) (($report['target'] ?? [])['label'] ?? ($report['target'] ?? [])['key'] ?? 'staging'));
         $lines[] = sprintf('- Decision: `%s`', strtoupper((string) ($report['decision'] ?? 'unknown')));
         $lines[] = sprintf('- Exit code: `%s`', (string) ($report['exit_code'] ?? '1'));
+        $lines[] = '';
+        $lines[] = '## Baseline Buckets';
+        $lines[] = '';
+        $lines[] = '| Bucket | Status | Summary |';
+        $lines[] = '| --- | --- | --- |';
+        foreach ((array) ($report['baseline'] ?? []) as $bucketKey => $bucket) {
+            if (! is_array($bucket)) {
+                continue;
+            }
+
+            $lines[] = sprintf(
+                '| %s | %s | %s |',
+                str_replace('|', '\|', (string) ($bucket['label'] ?? $bucketKey)),
+                strtoupper((string) ($bucket['status'] ?? 'unknown')),
+                str_replace('|', '\|', (string) ($bucket['summary'] ?? ''))
+            );
+        }
+        $artifactDrift = (array) (($report['baseline'] ?? [])['artifact_drift'] ?? []);
+        $lines[] = '';
+        $lines[] = sprintf(
+            '- Artifact chain touch required: `%s`',
+            ((bool) ($artifactDrift['touch_required'] ?? false)) ? 'yes' : 'no'
+        );
+        foreach ((array) ($artifactDrift['touch_paths'] ?? []) as $path) {
+            $lines[] = sprintf('- Artifact chain path: `%s`', (string) $path);
+        }
+        $recommendedOwnerHint = trim((string) ($artifactDrift['recommended_owner_hint'] ?? ''));
+        if ($recommendedOwnerHint !== '') {
+            $lines[] = '- '.$recommendedOwnerHint;
+        }
+        foreach ((array) ($artifactDrift['pending_external_check_keys'] ?? []) as $checkKey) {
+            $lines[] = sprintf('- Pending external artifact check: `%s`', (string) $checkKey);
+        }
         $lines[] = '';
         $lines[] = '## Group Summary';
         $lines[] = '';

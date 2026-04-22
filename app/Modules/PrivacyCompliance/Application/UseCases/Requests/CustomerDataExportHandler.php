@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\PrivacyCompliance\Application\UseCases\Requests;
 
 use App\Modules\IdentityAccess\Domain\Models\User;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
@@ -691,7 +693,7 @@ class CustomerDataExportHandler
     }
 
     /**
-     * @param callable(\Illuminate\Database\Query\Builder):void $scope
+     * @param  callable(Builder):void  $scope
      * @return list<int|string>
      */
     private function ids(string $table, string $column, callable $scope): array
@@ -707,7 +709,7 @@ class CustomerDataExportHandler
     }
 
     /**
-     * @param \Illuminate\Support\Collection<int,object>|\Illuminate\Support\Collection<int,mixed> $rows
+     * @param  Collection<int,object>|Collection<int,mixed>  $rows
      * @return list<array<string,mixed>>
      */
     private function sanitizeTableRows(string $table, $rows): array
@@ -716,7 +718,7 @@ class CustomerDataExportHandler
     }
 
     /**
-     * @param \Illuminate\Support\Collection<int,object>|\Illuminate\Support\Collection<int,mixed> $rows
+     * @param  Collection<int,object>|Collection<int,mixed>  $rows
      * @param  list<string>  $allowedFields
      * @return list<array<string,mixed>>
      */
@@ -729,7 +731,7 @@ class CustomerDataExportHandler
     }
 
     /**
-     * @param \Illuminate\Support\Collection<int,object>|\Illuminate\Support\Collection<int,mixed> $rows
+     * @param  Collection<int,object>|Collection<int,mixed>  $rows
      * @param  list<string>  $allowedFields
      * @return array<string,mixed>|null
      */

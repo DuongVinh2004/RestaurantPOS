@@ -6,12 +6,12 @@ namespace App\Modules\Payments\Http\Controllers\Staff;
 
 use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
-use App\Modules\Reservations\Http\Resources\ReservationResource;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use App\Modules\Payments\Application\UseCases\Capture\StaffReservationDepositService;
 use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use App\Modules\Payments\Http\Requests\Staff\PayReservationDepositRequest;
 use App\Modules\Payments\Infrastructure\Internal\PaymentProviderPayloadSanitizer;
+use App\Modules\Reservations\Http\Resources\ReservationResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;

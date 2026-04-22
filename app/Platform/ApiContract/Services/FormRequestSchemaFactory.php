@@ -26,7 +26,7 @@ class FormRequestSchemaFactory
         }
 
         /** @var FormRequest $instance */
-        $instance = new $formRequestClass();
+        $instance = new $formRequestClass;
         $rules = $instance->rules();
 
         return [
@@ -397,7 +397,7 @@ class FormRequestSchemaFactory
         if (str_ends_with($rule::class, '\\In')) {
             $values = $this->readObjectProperty($rule, 'values');
             if (is_array($values)) {
-                return 'in:' . implode(',', array_map(static fn (mixed $value): string => (string) $value, $values));
+                return 'in:'.implode(',', array_map(static fn (mixed $value): string => (string) $value, $values));
             }
         }
 

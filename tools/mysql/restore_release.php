@@ -5,11 +5,11 @@ declare(strict_types=1);
 use App\Platform\Backup\Support\BackupRestoreManifest;
 
 $repoRoot = dirname(__DIR__, 2);
-$autoload = $repoRoot . '/vendor/autoload.php';
+$autoload = $repoRoot.'/vendor/autoload.php';
 if (is_file($autoload)) {
     require_once $autoload;
 } else {
-    require_once $repoRoot . '/app/Support/BackupRestoreManifest.php';
+    require_once $repoRoot.'/app/Support/BackupRestoreManifest.php';
 }
 
 if (! function_exists('restore_exit')) {
@@ -21,18 +21,18 @@ if (! function_exists('restore_exit')) {
         $json = in_array('--json', $_SERVER['argv'] ?? [], true);
 
         if ($json) {
-            echo json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+            echo json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL;
         } else {
             foreach (($payload['errors'] ?? []) as $line) {
-                fwrite(STDERR, '[ERROR] ' . $line . PHP_EOL);
+                fwrite(STDERR, '[ERROR] '.$line.PHP_EOL);
             }
             foreach (($payload['warnings'] ?? []) as $line) {
-                fwrite(STDOUT, '[WARN] ' . $line . PHP_EOL);
+                fwrite(STDOUT, '[WARN] '.$line.PHP_EOL);
             }
             foreach (($payload['steps'] ?? []) as $name => $step) {
                 $status = strtoupper((string) ($step['status'] ?? 'unknown'));
                 $message = (string) ($step['message'] ?? '');
-                fwrite(STDOUT, sprintf('[%s] %s: %s', $status, $name, $message) . PHP_EOL);
+                fwrite(STDOUT, sprintf('[%s] %s: %s', $status, $name, $message).PHP_EOL);
             }
         }
 
@@ -66,7 +66,7 @@ if (! function_exists('restore_exit')) {
 
     function restore_sql_identifier(string $value): string
     {
-        return '`' . str_replace('`', '``', $value) . '`';
+        return '`'.str_replace('`', '``', $value).'`';
     }
 
     /**
@@ -74,7 +74,7 @@ if (! function_exists('restore_exit')) {
      * @param  array<string, string>  $envOverrides
      * @return array{exit_code: int, stdout: string, stderr: string}
      */
-    function restore_run_process(array $args, array $envOverrides = [], ?string $stdinPath = null, string $cwd = null): array
+    function restore_run_process(array $args, array $envOverrides = [], ?string $stdinPath = null, ?string $cwd = null): array
     {
         $descriptors = [
             0 => $stdinPath ? ['file', $stdinPath, 'r'] : ['pipe', 'r'],
@@ -120,9 +120,9 @@ if (! function_exists('restore_exit')) {
         $args = [
             $mysqlBinary,
             '--protocol=TCP',
-            '-h' . $connection['host'],
-            '-P' . $connection['port'],
-            '-u' . $connection['username'],
+            '-h'.$connection['host'],
+            '-P'.$connection['port'],
+            '-u'.$connection['username'],
             '--batch',
             '--skip-column-names',
             '--default-character-set=utf8mb4',
@@ -175,7 +175,7 @@ if (! function_exists('restore_exit')) {
             throw new RuntimeException('Unable to create temporary SQL staging file.');
         }
 
-        $targetPath = $tempPath . '.sql';
+        $targetPath = $tempPath.'.sql';
         if (! @rename($tempPath, $targetPath)) {
             @unlink($tempPath);
             $targetPath = $tempPath;
@@ -229,7 +229,7 @@ if (! function_exists('restore_exit')) {
     function restore_run_artisan(string $repoRoot, array $targetConnection, array $command): array
     {
         $phpBinary = restore_env('PHP_BINARY_PATH', PHP_BINARY ?: 'php') ?? 'php';
-        $artisanPath = $repoRoot . '/artisan';
+        $artisanPath = $repoRoot.'/artisan';
         $env = [
             'DB_HOST' => $targetConnection['host'],
             'DB_PORT' => $targetConnection['port'],
@@ -266,13 +266,13 @@ $options = getopt('', [
 $payload = restore_default_payload($repoRoot);
 
 try {
-    $backupRoot = (string) ($options['backup-root'] ?? restore_env('BOOKING_BACKUP_ROOT', $repoRoot . '/storage/app/booking_backups') ?? ($repoRoot . '/storage/app/booking_backups'));
+    $backupRoot = (string) ($options['backup-root'] ?? restore_env('BOOKING_BACKUP_ROOT', $repoRoot.'/storage/app/booking_backups') ?? ($repoRoot.'/storage/app/booking_backups'));
     $backupDir = isset($options['backup-dir']) ? trim((string) $options['backup-dir']) : '';
     $manifestPath = isset($options['manifest']) ? trim((string) $options['manifest']) : '';
 
     if ($manifestPath === '') {
         if ($backupDir !== '') {
-            $manifestPath = rtrim($backupDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'manifest.json';
+            $manifestPath = rtrim($backupDir, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'manifest.json';
         } else {
             $manifestPath = BackupRestoreManifest::locateLatest($backupRoot);
         }
@@ -305,7 +305,7 @@ try {
     }
 
     foreach ($integrity as $artifactName => $report) {
-        $payload['steps']['artifact_integrity.' . $artifactName] = [
+        $payload['steps']['artifact_integrity.'.$artifactName] = [
             'status' => ($report['ok'] ?? false) ? 'ok' : 'fail',
             'message' => ($report['ok'] ?? false)
                 ? sprintf('Artifact %s integrity validated.', $artifactName)
@@ -350,7 +350,7 @@ try {
     $createResult = restore_mysql_query(
         $mysqlBinary,
         $serverConnection,
-        'CREATE DATABASE IF NOT EXISTS ' . restore_sql_identifier($targetConnection['database']) . ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci',
+        'CREATE DATABASE IF NOT EXISTS '.restore_sql_identifier($targetConnection['database']).' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci',
         false
     );
 
@@ -371,13 +371,13 @@ try {
         $dropResult = restore_mysql_query(
             $mysqlBinary,
             $serverConnection,
-            'DROP DATABASE IF EXISTS ' . restore_sql_identifier($targetConnection['database']),
+            'DROP DATABASE IF EXISTS '.restore_sql_identifier($targetConnection['database']),
             false
         );
         $recreateResult = restore_mysql_query(
             $mysqlBinary,
             $serverConnection,
-            'CREATE DATABASE IF NOT EXISTS ' . restore_sql_identifier($targetConnection['database']) . ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci',
+            'CREATE DATABASE IF NOT EXISTS '.restore_sql_identifier($targetConnection['database']).' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci',
             false
         );
 
@@ -476,7 +476,7 @@ try {
         restore_exit($payload, 1);
     }
 
-    $verifyContractPath = $repoRoot . '/tools/mysql/verify_release_contract.sql';
+    $verifyContractPath = $repoRoot.'/tools/mysql/verify_release_contract.sql';
     if (! isset($options['skip-verify-contract']) && is_file($verifyContractPath)) {
         $verifyResult = restore_mysql_import($mysqlBinary, $targetConnection, $verifyContractPath);
         $payload['steps']['verify.release_contract'] = [
@@ -495,7 +495,7 @@ try {
         $payload['warnings'][] = 'tools/mysql/verify_release_contract.sql not found; SQL contract verification skipped.';
     }
 
-    $artisanPath = $repoRoot . '/artisan';
+    $artisanPath = $repoRoot.'/artisan';
     if (! isset($options['skip-artisan-checks']) && is_file($artisanPath)) {
         $doctorResult = restore_run_artisan($repoRoot, $targetConnection, ['booking:doctor', '--json', '--strict']);
         $deployResult = restore_run_artisan($repoRoot, $targetConnection, ['booking:deploy-check', '--mode=postflight', '--json', '--strict']);

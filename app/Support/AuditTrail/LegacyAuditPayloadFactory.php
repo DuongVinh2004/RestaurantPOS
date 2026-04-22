@@ -9,7 +9,7 @@ use App\SharedKernel\Money\Money;
 final class LegacyAuditPayloadFactory
 {
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     public function make(string $eventName, array $context): ?array
@@ -47,7 +47,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function reservationCreated(array $context): ?array
@@ -84,7 +84,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function reservationStatusChanged(array $context): ?array
@@ -120,7 +120,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function reservationRescheduled(array $context): ?array
@@ -176,7 +176,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function reservationCheckedIn(array $context): ?array
@@ -210,7 +210,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function reservationTableMoved(array $context): ?array
@@ -251,7 +251,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function tableReleased(array $context): ?array
@@ -278,7 +278,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function waitingListCreated(array $context): ?array
@@ -307,7 +307,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function waitingListNotified(array $context): ?array
@@ -344,7 +344,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function waitingListAccepted(array $context): ?array
@@ -360,7 +360,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function waitingListDeclined(array $context): ?array
@@ -376,7 +376,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function waitingListArrivalConfirmed(array $context): ?array
@@ -392,7 +392,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function waitingListSeated(array $context): ?array
@@ -432,7 +432,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function waitingListCancelled(array $context): ?array
@@ -460,7 +460,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function reservationVoucherApplied(array $context): ?array
@@ -497,7 +497,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function reservationVoucherRemoved(array $context): ?array
@@ -531,7 +531,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function loyaltyRedeemed(array $context): ?array
@@ -562,7 +562,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function loyaltyReleased(array $context): ?array
@@ -593,7 +593,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function finalPaymentRecorded(array $context): ?array
@@ -630,7 +630,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function paymentRefunded(array $context): ?array
@@ -656,7 +656,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function refundCancelled(array $context): ?array
@@ -674,7 +674,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function cashierShiftOpened(array $context): ?array
@@ -707,7 +707,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function cashierShiftClosed(array $context): ?array
@@ -742,7 +742,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>|null
      */
     private function paymentWebhook(array $context): ?array
@@ -784,15 +784,15 @@ final class LegacyAuditPayloadFactory
             'actor' => $providerCode !== null
                 ? [
                     'type' => 'webhook_provider',
-                    'key' => 'webhook_provider:' . $providerCode,
+                    'key' => 'webhook_provider:'.$providerCode,
                 ]
                 : null,
         ];
     }
 
     /**
-     * @param array<string,mixed> $context
-     * @param array<string,mixed> $after
+     * @param  array<string,mixed>  $context
+     * @param  array<string,mixed>  $after
      * @return array<string,mixed>|null
      */
     private function waitingListCustomerResponse(array $context, string $action, array $after): ?array
@@ -815,7 +815,6 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param mixed $value
      * @return array<int,array{type:string,id:string,role:string}>
      */
     private function subjectsFromIds(string $type, mixed $value, string $role): array
@@ -912,7 +911,7 @@ final class LegacyAuditPayloadFactory
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      */
     private function ownerType(array $context): string
     {
@@ -940,7 +939,7 @@ final class LegacyAuditPayloadFactory
         return [
             'type' => 'staff_user',
             'user_id' => $id,
-            'key' => 'staff_user:' . $id,
+            'key' => 'staff_user:'.$id,
         ];
     }
 
@@ -969,7 +968,7 @@ final class LegacyAuditPayloadFactory
             return [
                 'type' => 'customer_account',
                 'user_id' => $id,
-                'key' => 'customer_user:' . $id,
+                'key' => 'customer_user:'.$id,
             ];
         }
 

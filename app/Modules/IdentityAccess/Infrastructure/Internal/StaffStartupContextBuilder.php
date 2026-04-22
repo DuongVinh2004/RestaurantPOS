@@ -9,6 +9,7 @@ use App\Modules\BranchScheduling\Domain\Models\Branch;
 use App\Modules\Cashiering\Application\UseCases\Shifts\StaffCashierShiftService;
 use App\Modules\Cashiering\Domain\Models\CashierShift;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
+use App\Modules\IdentityAccess\Application\Queries\StaffCapabilityResolver;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -347,4 +348,3 @@ class StaffStartupContextBuilder
         return in_array('*', $capabilities, true) || in_array($capability, $capabilities, true);
     }
 }
-

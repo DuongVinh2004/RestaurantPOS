@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
+use App\Modules\Payments\Domain\Models\Payment;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Mockery;
@@ -449,7 +449,6 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
         ]);
     }
 
-
     public function test_refund_cancel_replays_same_idempotency_key_without_double_loyalty_or_voucher_release(): void
     {
         $tierId = $this->createLoyaltyTier();
@@ -586,7 +585,6 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
         ]);
     }
 
-
     public function test_finalize_replays_same_idempotency_key_without_double_loyalty_earn_or_voucher_consume(): void
     {
         $tierId = $this->createLoyaltyTier();
@@ -696,6 +694,4 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
             'payment.refunded' => 0,
         ]);
     }
-
-
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Platform\Health\Services;
 
 use App\Modules\Notifications\Application\Services\NotificationOutboxHealthService;
+use Illuminate\Cache\Repository;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -15,8 +16,7 @@ class BookingDoctorService
         private readonly BookingEnvironmentValidator $environmentValidator,
         private readonly OpsHeartbeatService $opsHeartbeatService,
         private readonly NotificationOutboxHealthService $notificationOutboxHealthService,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{
@@ -49,12 +49,12 @@ class BookingDoctorService
         }
 
         try {
-            /** @var \Illuminate\Cache\Repository $redis */
+            /** @var Repository $redis */
             $redis = Cache::store('redis');
-            $key = 'doctor:redis:' . now('UTC')->format('YmdHis') . ':' . random_int(1000, 9999);
+            $key = 'doctor:redis:'.now('UTC')->format('YmdHis').':'.random_int(1000, 9999);
             $redis->put($key, 'pong', 10);
             $valueOk = ($redis->get($key) === 'pong');
-            $lock = $redis->lock('doctor:redis-lock:' . $key, 3);
+            $lock = $redis->lock('doctor:redis-lock:'.$key, 3);
             $lockOk = $lock->get();
             if ($lockOk) {
                 $lock->release();

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\IdentityAccess\Application\UseCases\ApiKeys;
 
+use App\Modules\IdentityAccess\Domain\Models\StaffApiKey;
 use App\Modules\IdentityAccess\Infrastructure\Persistence\StaffApiKeyStore;
 use Carbon\CarbonInterface;
 
@@ -15,8 +16,8 @@ class RotateStaffApiKeyHandler
 
     /**
      * @return array{
-     *   revoked:\App\Modules\IdentityAccess\Domain\Models\StaffApiKey,
-     *   record:\App\Modules\IdentityAccess\Domain\Models\StaffApiKey,
+     *   revoked:StaffApiKey,
+     *   record:StaffApiKey,
      *   plaintext_key:string
      * }
      */

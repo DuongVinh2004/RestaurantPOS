@@ -7,9 +7,9 @@ namespace App\Modules\IdentityAccess\Infrastructure\Persistence;
 use App\Modules\IdentityAccess\Domain\Models\StaffApiKey;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Support\AuditEvent;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -54,7 +54,7 @@ class StaffApiKeyStore
             /** @var StaffApiKey|null $record */
             $record = StaffApiKey::query()->lockForUpdate()->find($staffApiKeyId);
             if (! $record instanceof StaffApiKey) {
-                throw (new ModelNotFoundException())->setModel(StaffApiKey::class, [$staffApiKeyId]);
+                throw (new ModelNotFoundException)->setModel(StaffApiKey::class, [$staffApiKeyId]);
             }
 
             if ($record->revoked_at === null) {
@@ -81,7 +81,7 @@ class StaffApiKeyStore
             /** @var StaffApiKey|null $record */
             $record = StaffApiKey::query()->lockForUpdate()->find($staffApiKeyId);
             if (! $record instanceof StaffApiKey) {
-                throw (new ModelNotFoundException())->setModel(StaffApiKey::class, [$staffApiKeyId]);
+                throw (new ModelNotFoundException)->setModel(StaffApiKey::class, [$staffApiKeyId]);
             }
 
             if ($record->revoked_at !== null) {
@@ -155,7 +155,7 @@ class StaffApiKeyStore
 
     private function generatePlaintextKey(): string
     {
-        return 'spk_' . Str::lower(Str::random(48));
+        return 'spk_'.Str::lower(Str::random(48));
     }
 
     private function hashKey(string $plaintextKey): string

@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\PrivacyCompliance\Application\Workflows\Requests;
 
-use App\Modules\PrivacyCompliance\Domain\Models\CustomerPrivacyRequest;
 use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\PrivacyCompliance\Application\Workflows\Redaction\CustomerAnonymizationWorkflow;
+use App\Modules\PrivacyCompliance\Domain\Models\CustomerPrivacyRequest;
 use App\Support\AuditEvent;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -14,11 +15,11 @@ use Illuminate\Validation\ValidationException;
 class PrivacyRequestWorkflow
 {
     public function __construct(
-        private readonly \App\Modules\PrivacyCompliance\Application\Workflows\Redaction\CustomerAnonymizationWorkflow $anonymizationService,
+        private readonly CustomerAnonymizationWorkflow $anonymizationService,
     ) {}
 
     /**
-     * @param array<string,mixed> $filters
+     * @param  array<string,mixed>  $filters
      */
     public function listForCustomer(int $userId, array $filters = []): LengthAwarePaginator
     {
@@ -28,7 +29,7 @@ class PrivacyRequestWorkflow
     }
 
     /**
-     * @param array<string,mixed> $filters
+     * @param  array<string,mixed>  $filters
      */
     public function listForAdmin(array $filters = []): LengthAwarePaginator
     {
@@ -38,7 +39,7 @@ class PrivacyRequestWorkflow
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      * @return array{request:CustomerPrivacyRequest,created:bool}
      */
     public function submitAnonymizationRequest(int $userId, array $payload = []): array
@@ -88,7 +89,7 @@ class PrivacyRequestWorkflow
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      * @return array{status:int,data:array<string,mixed>}
      */
     public function reviewRequest(int $requestId, array $payload, int $actorUserId): array
@@ -264,6 +265,7 @@ class PrivacyRequestWorkflow
     private function nullableString(mixed $value): ?string
     {
         $normalized = trim((string) ($value ?? ''));
+
         return $normalized !== '' ? $normalized : null;
     }
 }

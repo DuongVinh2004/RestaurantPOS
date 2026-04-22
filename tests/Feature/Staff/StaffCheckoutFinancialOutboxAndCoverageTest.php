@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
+use App\Modules\Payments\Domain\Models\Payment;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Mockery;
@@ -541,7 +541,6 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
             'payment.refunded' => 0,
         ]);
     }
-
 
     public function test_refund_cancel_emits_reservation_cancelled_but_not_payment_refunded_outbox(): void
     {

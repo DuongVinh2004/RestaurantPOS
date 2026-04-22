@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Mockery;
@@ -206,6 +206,7 @@ class StaffMoveTableFlowTest extends TestCase
         $response->assertStatus(409);
         $response->assertJsonPath('error_code', 'stale_row_version');
         $response->assertJsonValidationErrors(['row_version']);
+        self::assertStringContainsString('row_version mismatch', (string) data_get($response->json(), 'details.errors.row_version.0', ''));
         self::assertSame([$fromTableId], DB::table('reservation_tables')->where('reservation_id', $reservationId)->pluck('table_id')->map(fn ($id) => (int) $id)->all());
     }
 
@@ -355,5 +356,46 @@ class StaffMoveTableFlowTest extends TestCase
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['status']);
         self::assertSame([$fromTableId], DB::table('reservation_tables')->where('reservation_id', $reservationId)->pluck('table_id')->map(fn ($id) => (int) $id)->all());
+    }
+
+    public function test_move_table_returns_not_found_for_reservation_outside_staff_operational_branch_scope(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->withIdempotencyKey('move-table-branch-scope-hidden', $this->staffAuthHeaders($staffId));
+        $annexBranchId = $this->createBranch([
+            'branch_code' => 'MOVHIDE',
+            'branch_name' => 'Move Hidden Branch',
+        ]);
+
+        $fromTableId = $this->createRestaurantTableWithSeats(2, [
+            'status' => 'Occupied',
+            'branch_id' => $annexBranchId,
+        ]);
+        $toTableId = $this->createRestaurantTableWithSeats(4, [
+            'status' => 'Available',
+            'branch_id' => $annexBranchId,
+        ]);
+        $reservationId = $this->createReservation([
+            'branch_id' => $annexBranchId,
+            'status' => 'Reserved',
+            'checked_in_at' => $this->nowUtc(),
+        ]);
+        $this->attachReservationTable($reservationId, $fromTableId);
+
+        $response = $this->withHeaders($headers)->postJson("/api/v1/staff/reservations/{$reservationId}/move-table", [
+            'from_table_id' => $fromTableId,
+            'to_table_id' => $toTableId,
+            'row_version' => 1,
+        ]);
+
+        $response->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        self::assertSame(
+            [$fromTableId],
+            DB::table('reservation_tables')->where('reservation_id', $reservationId)->pluck('table_id')->map(fn ($id) => (int) $id)->all()
+        );
+        self::assertSame('Occupied', DB::table('restaurant_tables')->where('table_id', $fromTableId)->value('status'));
+        self::assertSame('Available', DB::table('restaurant_tables')->where('table_id', $toTableId)->value('status'));
     }
 }

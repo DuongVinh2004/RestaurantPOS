@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 final class CustomerAccessSessionFoundationTest extends TestCase
@@ -180,7 +181,7 @@ final class CustomerAccessSessionFoundationTest extends TestCase
     {
         $staffUser = $this->createUser(roleId: 2, username: 'customer-auth-staff');
 
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectException(ValidationException::class);
 
         app(CustomerAccessSessionStore::class)->issueForUser($staffUser, now('UTC')->addHour());
     }

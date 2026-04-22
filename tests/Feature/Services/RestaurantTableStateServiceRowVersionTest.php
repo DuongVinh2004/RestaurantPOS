@@ -29,7 +29,7 @@ class RestaurantTableStateServiceRowVersionTest extends TestCase
             'row_version' => 1,
         ]);
 
-        $service = new RestaurantTableStateService();
+        $service = new RestaurantTableStateService;
         $service->occupyTables([$tableId], Carbon::now('UTC'), 11, [
             'source' => 'row_version_test',
             'reason' => 'occupy',

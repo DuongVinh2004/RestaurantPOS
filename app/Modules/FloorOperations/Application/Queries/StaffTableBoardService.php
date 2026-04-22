@@ -7,17 +7,17 @@ namespace App\Modules\FloorOperations\Application\Queries;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationStatus;
 use App\Enums\RestaurantTableStatus;
-use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Modules\BranchScheduling\Application\Services\ReservationBranchScopeService;
 use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use App\Modules\BranchScheduling\Domain\Guards\HoldConflictScope;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\BranchScheduling\Domain\Models\TableHold;
+use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Payments\Application\Queries\StaffReservationDepositOperationalReadService;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
-use App\Modules\Payments\Application\Queries\StaffReservationDepositOperationalReadService;
-use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use App\SharedKernel\Money\Money;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
@@ -1241,5 +1241,3 @@ class StaffTableBoardService
         return $this->branchContextService->resolveBranchId($branchId);
     }
 }
-
-

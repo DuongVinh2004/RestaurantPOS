@@ -38,7 +38,7 @@ class WaitingListStateMachineTest extends TestCase
 
     public function test_apply_expired_to_waiting_clears_notify_and_customer_response_fields(): void
     {
-        $entry = new WaitlistEntry();
+        $entry = new WaitlistEntry;
         $entry->status = WaitingListStatus::Notified;
         $entry->notified_at = Carbon::parse('2026-03-21T10:00:00Z');
         $entry->notify_expires_at = Carbon::parse('2026-03-21T10:10:00Z');
@@ -60,7 +60,7 @@ class WaitingListStateMachineTest extends TestCase
 
     public function test_apply_customer_declined_preserves_customer_response_context(): void
     {
-        $entry = new WaitlistEntry();
+        $entry = new WaitlistEntry;
         $entry->status = WaitingListStatus::Notified;
         $entry->notify_expires_at = Carbon::parse('2026-03-21T10:10:00Z');
 
@@ -76,7 +76,7 @@ class WaitingListStateMachineTest extends TestCase
 
     public function test_assert_can_seat_rejects_expired_notify_window(): void
     {
-        $entry = new WaitlistEntry();
+        $entry = new WaitlistEntry;
         $entry->status = WaitingListStatus::Notified;
         $entry->notify_expires_at = Carbon::now('UTC')->subMinute();
 

@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class StaffReservationOperationGuard
 {
-    private const ROW_VERSION_MESSAGE = 'Dá»¯ liá»‡u Ä‘Ã£ thay Ä‘á»•i (row_version mismatch). HÃ£y reload rá»“i thá»­ láº¡i.';
+    private const ROW_VERSION_MESSAGE = 'Data changed (row_version mismatch). Reload and try again.';
 
     public static function reservationStatusValue(Reservation $reservation): string
     {
@@ -114,4 +114,3 @@ class StaffReservationOperationGuard
         }
     }
 }
-

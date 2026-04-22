@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\ApiContract;
 
-use App\Modules\Payments\Http\Requests\Customer\StartReservationDepositPaymentRequest;
 use App\Modules\BranchScheduling\Http\Requests\Admin\ListBranchesRequest;
+use App\Modules\Payments\Http\Requests\Customer\StartReservationDepositPaymentRequest;
 use App\Modules\Reservations\Http\Requests\Customer\CreateReservationRequest;
 use App\Platform\ApiContract\Services\FormRequestSchemaFactory;
 use Tests\TestCase;

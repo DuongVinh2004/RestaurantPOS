@@ -31789,8 +31789,7 @@
                         "x-laravel-rules": [
                             "nullable",
                             "string",
-                            "max:50",
-                            "unique:purchase_receipts,receipt_code,NULL,id"
+                            "max:50"
                         ],
                         "maxLength": 50
                     },
@@ -31899,8 +31898,7 @@
                     "receipt_code": [
                         "nullable",
                         "string",
-                        "max:50",
-                        "unique:purchase_receipts,receipt_code,NULL,id"
+                        "max:50"
                     ],
                     "received_at": [
                         "nullable",

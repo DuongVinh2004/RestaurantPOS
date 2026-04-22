@@ -9,6 +9,8 @@ use Illuminate\Validation\ValidationException;
 
 final class DatabaseWriteConflictMapper
 {
+    private const DUPLICATE_PROVIDER_TRANSACTION_MESSAGE = 'Transaction code already exists for this payment provider. Check reconciliation or use a different code.';
+
     public static function toValidationException(QueryException $exception): ?ValidationException
     {
         $sqlState = (string) ($exception->errorInfo[0] ?? '');
@@ -59,7 +61,7 @@ final class DatabaseWriteConflictMapper
                 'voucher' => ['This voucher is already applied to another active reservation. Reload data and try again.'],
             ]),
             self::isPaymentProviderTransactionConflictMessage($message) => ValidationException::withMessages([
-                'transaction_code' => ['Mã giao dịch này đã tồn tại cho payment provider hiện tại. Vui lòng kiểm tra lại đối soát hoặc dùng mã khác.'],
+                'transaction_code' => [self::DUPLICATE_PROVIDER_TRANSACTION_MESSAGE],
             ]),
             self::isPaymentIdempotencyConflictMessage($message) => ValidationException::withMessages([
                 'idempotency_key' => ['idempotency key already used.'],
@@ -139,7 +141,7 @@ final class DatabaseWriteConflictMapper
     }
 
     /**
-     * @param array<int,string> $needles
+     * @param  array<int,string>  $needles
      */
     private static function containsAny(string $message, array $needles): bool
     {

@@ -9,8 +9,8 @@ use Symfony\Component\Process\Process;
 class DisasterRecoveryProcessRunner
 {
     /**
-     * @param list<string> $arguments
-     * @param array<string, string> $environment
+     * @param  list<string>  $arguments
+     * @param  array<string, string>  $environment
      * @return array{exit_code: int, stdout: string, stderr: string, command: list<string>}
      */
     public function runPhpTool(string $relativeScriptPath, array $arguments = [], array $environment = []): array
@@ -28,8 +28,8 @@ class DisasterRecoveryProcessRunner
     }
 
     /**
-     * @param list<string> $arguments
-     * @param array<string, string> $environment
+     * @param  list<string>  $arguments
+     * @param  array<string, string>  $environment
      * @return array{exit_code: int, stdout: string, stderr: string, command: list<string>}
      */
     public function runArtisan(array $arguments, array $environment = []): array
@@ -47,8 +47,8 @@ class DisasterRecoveryProcessRunner
     }
 
     /**
-     * @param list<string> $command
-     * @param array<string, string> $environment
+     * @param  list<string>  $command
+     * @param  array<string, string>  $environment
      * @return array{exit_code: int, stdout: string, stderr: string, command: list<string>}
      */
     protected function run(array $command, string $workingDirectory, array $environment = []): array

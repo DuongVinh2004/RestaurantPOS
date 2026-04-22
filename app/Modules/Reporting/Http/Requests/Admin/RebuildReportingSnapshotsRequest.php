@@ -50,7 +50,7 @@ class RebuildReportingSnapshotsRequest extends FormRequest
             $endDate = new \DateTimeImmutable($end);
             $days = (int) $startDate->diff($endDate)->days;
             if ($days > (int) config('booking.reporting_snapshot_rebuild_max_days', 90)) {
-                $validator->errors()->add('end_date', 'Reporting rebuild date range cannot exceed ' . (int) config('booking.reporting_snapshot_rebuild_max_days', 90) . ' days.');
+                $validator->errors()->add('end_date', 'Reporting rebuild date range cannot exceed '.(int) config('booking.reporting_snapshot_rebuild_max_days', 90).' days.');
             }
         });
     }

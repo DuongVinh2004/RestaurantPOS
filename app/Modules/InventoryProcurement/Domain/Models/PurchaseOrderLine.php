@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class PurchaseOrderLine extends Model
 {
     protected $table = 'purchase_order_lines';
+
     protected $primaryKey = 'po_line_id';
 
     protected $fillable = [

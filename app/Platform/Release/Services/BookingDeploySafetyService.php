@@ -4,9 +4,9 @@ namespace App\Platform\Release\Services;
 
 use App\Enums\DepositStatus;
 use App\Enums\ReservationStatus;
+use App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService;
 use App\Platform\Health\Services\BookingEnvironmentValidator;
 use App\Platform\Metrics\Services\OperationalInsightsService;
-use App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService;
 use Illuminate\Database\Migrations\DatabaseMigrationRepository;
 use Illuminate\Database\Migrations\Migrator;
 use Illuminate\Support\Carbon;
@@ -21,8 +21,7 @@ class BookingDeploySafetyService
         private readonly BookingEnvironmentValidator $environmentValidator,
         private readonly OperationalInsightsService $operationalInsightsService,
         private readonly PurchaseOrderReconciliationService $purchaseOrderReconciliationService,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{
@@ -50,30 +49,41 @@ class BookingDeploySafetyService
         }
         $this->addCheck($checks, 'environment', $this->summarizeEnvironmentValidation($environment));
 
-        $migrationStatus = $this->inspectMigrations($mode);
+        $databaseRuntime = $this->inspectDatabaseRuntime();
+        $this->addCheck($checks, 'runtime.database', $databaseRuntime);
+
+        $migrationStatus = ($databaseRuntime['ok'] ?? false)
+            ? $this->inspectMigrations($mode)
+            : $this->skippedDatabaseMigrationStatus((string) ($databaseRuntime['message'] ?? 'Database runtime is unavailable.'));
         $this->addCheck($checks, 'migrations.repository', $migrationStatus['repository']);
         $this->addCheck($checks, 'migrations.files', $migrationStatus['files']);
         $this->addCheck($checks, 'migrations.pending', $migrationStatus['pending']);
 
-        foreach ($this->safeGuardSet(
-            resolver: fn () => $this->inspectDataGuards(),
-            failureLabel: 'Data guard inspection',
-        ) as $name => $check) {
-            $this->addCheck($checks, 'data.' . $name, $check);
+        $dataGuards = ($databaseRuntime['ok'] ?? false)
+            ? $this->safeGuardSet(
+                resolver: fn () => $this->inspectDataGuards(),
+                failureLabel: 'Data guard inspection',
+            )
+            : $this->skippedDatabaseGuardSet('Data guard inspection', (string) ($databaseRuntime['message'] ?? 'Database runtime is unavailable.'));
+        foreach ($dataGuards as $name => $check) {
+            $this->addCheck($checks, 'data.'.$name, $check);
         }
 
         foreach ($this->safeGuardSet(
             resolver: fn () => $this->inspectArtifactGuards(),
             failureLabel: 'Artifact guard inspection',
         ) as $name => $check) {
-            $this->addCheck($checks, 'artifacts.' . $name, $check);
+            $this->addCheck($checks, 'artifacts.'.$name, $check);
         }
 
-        foreach ($this->safeGuardSet(
-            resolver: fn () => $this->inspectOperationalGuards(),
-            failureLabel: 'Operational guard inspection',
-        ) as $name => $check) {
-            $this->addCheck($checks, 'ops.' . $name, $check);
+        $operationalGuards = ($databaseRuntime['ok'] ?? false)
+            ? $this->safeGuardSet(
+                resolver: fn () => $this->inspectOperationalGuards(),
+                failureLabel: 'Operational guard inspection',
+            )
+            : $this->skippedDatabaseGuardSet('Operational guard inspection', (string) ($databaseRuntime['message'] ?? 'Database runtime is unavailable.'));
+        foreach ($operationalGuards as $name => $check) {
+            $this->addCheck($checks, 'ops.'.$name, $check);
         }
 
         $errors = [];
@@ -99,6 +109,12 @@ class BookingDeploySafetyService
             'summary' => [
                 'environment_error_count' => count($environment['errors'] ?? []),
                 'environment_warning_count' => count($environment['warnings'] ?? []),
+                'runtime_error_count' => collect($checks)
+                    ->filter(fn (array $check, string $name) => str_starts_with($name, 'runtime.') && ! ($check['ok'] ?? false) && ($check['severity'] ?? 'error') !== 'warning')
+                    ->count(),
+                'runtime_warning_count' => collect($checks)
+                    ->filter(fn (array $check, string $name) => str_starts_with($name, 'runtime.') && ! ($check['ok'] ?? false) && ($check['severity'] ?? 'error') === 'warning')
+                    ->count(),
                 'pending_migration_count' => (int) ($migrationStatus['pending']['meta']['pending_count'] ?? 0),
                 'data_guard_error_count' => collect($checks)
                     ->filter(fn (array $check, string $name) => str_starts_with($name, 'data.') && ! ($check['ok'] ?? false) && ($check['severity'] ?? 'error') !== 'warning')
@@ -119,6 +135,62 @@ class BookingDeploySafetyService
                     ->filter(fn (array $check, string $name) => str_starts_with($name, 'ops.') && ! ($check['ok'] ?? false) && ($check['severity'] ?? 'error') === 'warning')
                     ->count(),
             ],
+        ];
+    }
+
+    /**
+     * @return array{ok: bool, severity: string, message: string, meta?: array<string, mixed>}
+     */
+    protected function inspectDatabaseRuntime(): array
+    {
+        try {
+            DB::selectOne('SELECT 1');
+        } catch (Throwable $exception) {
+            return $this->error('Database runtime is unavailable; skipped database-dependent deploy guards.', [
+                'connection' => (string) config('database.default'),
+                'exception_class' => $exception::class,
+                'error' => trim($exception->getMessage()),
+            ]);
+        }
+
+        return $this->ok('Database runtime is reachable for deploy guard inspection.', [
+            'connection' => (string) config('database.default'),
+        ]);
+    }
+
+    /**
+     * @return array{
+     *   repository: array{ok: bool, severity: string, message: string, meta?: array<string, mixed>},
+     *   files: array{ok: bool, severity: string, message: string, meta?: array<string, mixed>},
+     *   pending: array{ok: bool, severity: string, message: string, meta?: array<string, mixed>}
+     * }
+     */
+    private function skippedDatabaseMigrationStatus(string $reason): array
+    {
+        return [
+            'repository' => $this->warning('Skipped migration repository inspection because database runtime is unavailable.', [
+                'runtime_reason' => $reason,
+            ]),
+            'files' => $this->warning('Skipped migration file inspection because database runtime is unavailable.', [
+                'runtime_reason' => $reason,
+            ]),
+            'pending' => $this->warning('Skipped pending migration inspection because database runtime is unavailable.', [
+                'pending_count' => 0,
+                'pending_migrations' => [],
+                'runtime_reason' => $reason,
+            ]),
+        ];
+    }
+
+    /**
+     * @return array<string, array{ok: bool, severity: string, message: string, meta?: array<string, mixed>}>
+     */
+    private function skippedDatabaseGuardSet(string $label, string $reason): array
+    {
+        return [
+            'runtime' => $this->warning(sprintf('Skipped %s because database runtime is unavailable.', $label), [
+                'runtime_reason' => $reason,
+            ]),
         ];
     }
 
@@ -148,8 +220,8 @@ class BookingDeploySafetyService
     }
 
     /**
-     * @param array<string, array{ok: bool, severity: string, message: string, meta?: array<string, mixed>}> $checks
-     * @param array{ok: bool, severity: string, message: string, meta?: array<string, mixed>} $result
+     * @param  array<string, array{ok: bool, severity: string, message: string, meta?: array<string, mixed>}>  $checks
+     * @param  array{ok: bool, severity: string, message: string, meta?: array<string, mixed>}  $result
      */
     private function addCheck(array &$checks, string $name, array $result): void
     {
@@ -157,7 +229,7 @@ class BookingDeploySafetyService
     }
 
     /**
-     * @param array{ok: bool, errors: list<string>, warnings: list<string>} $validation
+     * @param  array{ok: bool, errors: list<string>, warnings: list<string>}  $validation
      * @return array{ok: bool, severity: string, message: string, meta?: array<string, mixed>}
      */
     private function summarizeEnvironmentValidation(array $validation): array
@@ -277,13 +349,12 @@ class BookingDeploySafetyService
             ];
         } catch (Throwable $e) {
             return [
-                'repository' => $this->error('Migration inspection failed: ' . $e->getMessage()),
+                'repository' => $this->error('Migration inspection failed: '.$e->getMessage()),
                 'files' => $this->warning('Skipped migration file inspection because migration inspection failed.'),
                 'pending' => $this->warning('Skipped pending migration inspection because migration inspection failed.'),
             ];
         }
     }
-
 
     /**
      * @return array<string, array{ok: bool, severity: string, message: string, meta?: array<string, mixed>}>
@@ -353,7 +424,7 @@ class BookingDeploySafetyService
     }
 
     /**
-     * @param array<string, mixed> $snapshot
+     * @param  array<string, mixed>  $snapshot
      * @return array{ok: bool, severity: string, message: string, meta?: array<string, mixed>}
      */
     private function fromOperationalSnapshot(array $snapshot, string $okMessage, string $degradedMessage, string $failMessage): array
@@ -604,6 +675,7 @@ class BookingDeploySafetyService
         foreach ($candidates as $candidate) {
             if ($this->isIgnoredMirroredBootstrapCacheTempFile($candidate)) {
                 $ignoredMirroredFiles[] = $candidate;
+
                 continue;
             }
 
@@ -631,7 +703,7 @@ class BookingDeploySafetyService
     private function normalizeReleaseRelativePath(string $path): string
     {
         $normalizedPath = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $path);
-        $basePathPrefix = rtrim(str_replace(['\\', '/'], DIRECTORY_SEPARATOR, base_path()), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        $basePathPrefix = rtrim(str_replace(['\\', '/'], DIRECTORY_SEPARATOR, base_path()), DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
 
         if (str_starts_with($normalizedPath, $basePathPrefix)) {
             $normalizedPath = substr($normalizedPath, strlen($basePathPrefix));
@@ -809,19 +881,19 @@ class BookingDeploySafetyService
         $overRefundSourceCount = 0;
         if (Schema::hasColumn('payments', 'amount')) {
             $overRefundSourceCount = (int) DB::query()
-            ->fromSub(
-            DB::table('payments as source')
-                ->join('payments as refund', 'refund.refund_of_payment_id', '=', 'source.payment_id')
-                ->where('refund.payment_type', 'Refund')
-                ->where('refund.status', 'Refunded')
-                ->groupBy('source.payment_id', 'source.amount')
-                ->selectRaw('source.payment_id')
-                ->selectRaw('source.amount')
-                ->havingRaw('ROUND(COALESCE(SUM(refund.amount), 0), 2) > ROUND(source.amount, 2)'),
-            'over_refund_scan'
-        )
-        ->count();
-}
+                ->fromSub(
+                    DB::table('payments as source')
+                        ->join('payments as refund', 'refund.refund_of_payment_id', '=', 'source.payment_id')
+                        ->where('refund.payment_type', 'Refund')
+                        ->where('refund.status', 'Refunded')
+                        ->groupBy('source.payment_id', 'source.amount')
+                        ->selectRaw('source.payment_id')
+                        ->selectRaw('source.amount')
+                        ->havingRaw('ROUND(COALESCE(SUM(refund.amount), 0), 2) > ROUND(source.amount, 2)'),
+                    'over_refund_scan'
+                )
+                ->count();
+        }
         if ($invalidRefundCount > 0 || $invalidNonRefundCount > 0 || $invalidTargetCount > 0 || $crossReservationCount > 0 || $currencyMismatchCount > 0 || $overRefundSourceCount > 0) {
             return $this->error('payments contains refund lineage rows that will fail integrity checks.', [
                 'invalid_refund_count' => $invalidRefundCount,
@@ -1001,7 +1073,6 @@ class BookingDeploySafetyService
         ]);
     }
 
-
     /**
      * @return array{ok: bool, severity: string, message: string, meta?: array<string, mixed>}
      */
@@ -1011,12 +1082,15 @@ class BookingDeploySafetyService
             return $this->warning('Skipped bank_accounts default guard because the table is not available in this schema.');
         }
 
-        $duplicateDefaultUsers = DB::table('bank_accounts')
-            ->select('user_id')
-            ->where('is_default', 1)
-            ->groupBy('user_id')
-            ->havingRaw('COUNT(*) > 1')
-            ->get()
+        $duplicateDefaultUsers = DB::query()
+            ->fromSub(
+                DB::table('bank_accounts')
+                    ->select('user_id')
+                    ->where('is_default', 1)
+                    ->groupBy('user_id')
+                    ->havingRaw('COUNT(*) > 1'),
+                'duplicate_default_users'
+            )
             ->count();
 
         if ($duplicateDefaultUsers > 0) {
@@ -1039,12 +1113,15 @@ class BookingDeploySafetyService
             return $this->warning('Skipped active agent assignment guard because the table is not available in this schema.');
         }
 
-        $duplicateActiveConversations = DB::table('agent_assignments')
-            ->select('conversation_id')
-            ->where('is_active', 1)
-            ->groupBy('conversation_id')
-            ->havingRaw('COUNT(*) > 1')
-            ->get()
+        $duplicateActiveConversations = DB::query()
+            ->fromSub(
+                DB::table('agent_assignments')
+                    ->select('conversation_id')
+                    ->where('is_active', 1)
+                    ->groupBy('conversation_id')
+                    ->havingRaw('COUNT(*) > 1'),
+                'duplicate_active_conversations'
+            )
             ->count();
 
         if ($duplicateActiveConversations > 0) {

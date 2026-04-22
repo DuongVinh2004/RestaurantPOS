@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Enums\PaymentSessionScope;
-use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Billing\Application\UseCases\Previews\CustomerReservationOrderBillService;
-use App\Platform\FeatureFlags\Services\FeatureFlagService;
-use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
-use App\Modules\Payments\Infrastructure\Integrations\PaymentProviders\PaymentProviderRolloutConfig;
-use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\Billing\Application\UseCases\Previews\SettlementAmountCalculator;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use App\Modules\Ordering\Application\Queries\StaffOrderReadService;
+use App\Modules\Payments\Infrastructure\Integrations\PaymentProviders\PaymentProviderRolloutConfig;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use Illuminate\Support\Collection;
 use Mockery;
 use Tests\TestCase;
@@ -164,4 +164,3 @@ class CustomerReservationOrderBillServiceTest extends TestCase
         $this->assertNull($result['active_order']);
     }
 }
-

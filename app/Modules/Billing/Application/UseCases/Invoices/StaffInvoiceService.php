@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Modules\Billing\Application\UseCases\Invoices;
 
+use App\Modules\Billing\Application\Workflows\FinanceTaxProfileWorkflow;
+use App\Modules\Billing\Domain\Models\BillingInvoice;
+use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Modules\Cashiering\Application\UseCases\Reconciliation\StaffFinancialReconciliationService;
 use App\Modules\Cashiering\Application\UseCases\Shifts\StaffCashierShiftService;
-use App\Modules\BranchScheduling\Application\Services\BranchContextService;
-use App\Modules\Billing\Domain\Models\BillingInvoice;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\Billing\Application\Workflows\FinanceTaxProfileWorkflow;
 use App\SharedKernel\Money\Money;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
@@ -383,4 +383,3 @@ class StaffInvoiceService
         ]);
     }
 }
-

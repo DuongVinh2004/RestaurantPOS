@@ -7,6 +7,7 @@ namespace App\Modules\PrivacyCompliance\Application\Workflows\Redaction;
 use App\Enums\ReservationBillPaymentSessionStatus;
 use App\Enums\ReservationDepositPaymentSessionStatus;
 use App\Modules\IdentityAccess\Domain\Models\User;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -144,7 +145,7 @@ class CustomerAnonymizationWorkflow
         $redactedFileUrl = (string) config('data_lifecycle.anonymization.redacted_file_url', 'redacted://privacy/file');
         $redactedJson = json_encode(['redacted' => true, 'reason' => (string) config('data_lifecycle.anonymization.redacted_json_reason', 'privacy_anonymized')], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $displayName = sprintf((string) config('data_lifecycle.anonymization.display_name_template', 'Deleted Customer #%d'), $userId);
-        $username = (string) config('data_lifecycle.anonymization.username_prefix', 'anon_user_') . $userId;
+        $username = (string) config('data_lifecycle.anonymization.username_prefix', 'anon_user_').$userId;
 
         $updated = [];
         $purged = [];
@@ -308,7 +309,7 @@ class CustomerAnonymizationWorkflow
     }
 
     /**
-     * @param list<int|string> $ids
+     * @param  list<int|string>  $ids
      */
     private function updateByIds(string $table, string $column, array $ids, array $payload): int
     {
@@ -356,7 +357,7 @@ class CustomerAnonymizationWorkflow
     }
 
     /**
-     * @param list<int|string> $ids
+     * @param  list<int|string>  $ids
      */
     private function countByIds(string $table, string $column, array $ids): int
     {
@@ -368,7 +369,7 @@ class CustomerAnonymizationWorkflow
     }
 
     /**
-     * @param callable(\Illuminate\Database\Query\Builder):void $scope
+     * @param  callable(Builder):void  $scope
      * @return list<int|string>
      */
     private function ids(string $table, string $column, callable $scope): array
@@ -384,7 +385,7 @@ class CustomerAnonymizationWorkflow
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      * @return array<string,mixed>
      */
     private function touch(string $table, array $payload): array

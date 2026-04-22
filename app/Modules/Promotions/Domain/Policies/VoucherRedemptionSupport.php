@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Promotions\Domain\Policies;
 
 use App\Enums\ReservationOrderItemStatus;
-use App\Modules\Promotions\Domain\Models\Voucher;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Promotions\Domain\Models\Voucher;
 use App\SharedKernel\Money\Money;
 use BackedEnum;
 use Illuminate\Validation\ValidationException;

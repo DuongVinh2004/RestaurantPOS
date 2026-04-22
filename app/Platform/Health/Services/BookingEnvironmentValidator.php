@@ -65,6 +65,7 @@ class BookingEnvironmentValidator
         if ($meta !== []) {
             $result['meta'] = $meta;
         }
+
         return $result;
     }
 
@@ -74,6 +75,7 @@ class BookingEnvironmentValidator
         if ($meta !== []) {
             $result['meta'] = $meta;
         }
+
         return $result;
     }
 
@@ -83,6 +85,7 @@ class BookingEnvironmentValidator
         if ($meta !== []) {
             $result['meta'] = $meta;
         }
+
         return $result;
     }
 

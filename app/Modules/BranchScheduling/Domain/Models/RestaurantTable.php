@@ -16,6 +16,7 @@ class RestaurantTable extends Model
     use HasRowVersion;
 
     protected $table = 'restaurant_tables';
+
     protected $primaryKey = 'table_id';
 
     protected $fillable = [

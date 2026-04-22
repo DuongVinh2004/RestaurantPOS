@@ -10,6 +10,8 @@ use Throwable;
 
 class ReleasePackageService
 {
+    private const PACKAGE_STREAM_CHUNK_BYTES = 1048576;
+
     public function __construct(
         private readonly ReleaseArtifactManifestService $manifestService,
         private readonly ReleaseBuildMetadataService $releaseBuildMetadataService,
@@ -489,13 +491,13 @@ class ReleasePackageService
 
         foreach ($this->collectStageFiles($absoluteStagePath) as $relativePath) {
             $absolutePath = $absoluteStagePath.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
-            $contents = (string) File::get($absolutePath);
+            $fileStats = $this->inspectInventoryFile($absolutePath);
             $entries[] = [
                 'source_path' => $relativePath,
                 'archive_path' => $packageBasename.'/'.$relativePath,
-                'bytes' => strlen($contents),
-                'sha256' => hash('sha256', $contents),
-                'line_count' => $this->lineCount($contents),
+                'bytes' => $fileStats['bytes'],
+                'sha256' => $fileStats['sha256'],
+                'line_count' => $fileStats['line_count'],
             ];
         }
 
@@ -631,20 +633,193 @@ class ReleasePackageService
 
     private function buildDeterministicTarGz(string $stageAbsolutePath, string $packageBasename, string $packageAbsolutePath): void
     {
-        $tar = '';
-
-        foreach ($this->collectStageFiles($stageAbsolutePath) as $relativePath) {
-            $absolutePath = $stageAbsolutePath.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
-            $contents = (string) File::get($absolutePath);
-            $archivePath = $packageBasename.'/'.$relativePath;
-            $tar .= $this->tarHeader($archivePath, strlen($contents), (int) filemtime($absolutePath));
-            $tar .= $contents;
-            $tar .= str_repeat("\0", $this->tarPaddingLength(strlen($contents)));
+        $packageHandle = fopen($packageAbsolutePath, 'wb');
+        if ($packageHandle === false) {
+            throw new RuntimeException(sprintf('Unable to open release package [%s] for writing.', $packageAbsolutePath));
         }
 
-        $tar .= str_repeat("\0", 1024);
+        $deflateContext = deflate_init(ZLIB_ENCODING_RAW, ['level' => 9]);
+        if (! $deflateContext instanceof \DeflateContext) {
+            fclose($packageHandle);
+            File::delete($packageAbsolutePath);
 
-        File::put($packageAbsolutePath, $this->deterministicGzip($tar));
+            throw new RuntimeException('Unable to initialize release package gzip stream.');
+        }
+
+        $crcContext = hash_init('crc32b');
+        $uncompressedSize = 0;
+
+        try {
+            $this->writeAll($packageHandle, "\x1f\x8b\x08\x00".pack('V', 0)."\x02\xff");
+
+            foreach ($this->collectStageFiles($stageAbsolutePath) as $relativePath) {
+                $absolutePath = $stageAbsolutePath.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+                $bytes = filesize($absolutePath);
+                if (! is_int($bytes)) {
+                    throw new RuntimeException(sprintf('Unable to inspect staged release file [%s].', $absolutePath));
+                }
+
+                $archivePath = $packageBasename.'/'.$relativePath;
+                $this->writeGzipTarChunk(
+                    packageHandle: $packageHandle,
+                    deflateContext: $deflateContext,
+                    crcContext: $crcContext,
+                    uncompressedSize: $uncompressedSize,
+                    contents: $this->tarHeader($archivePath, $bytes, (int) filemtime($absolutePath)),
+                );
+                $this->writeFileToGzipTar(
+                    packageHandle: $packageHandle,
+                    deflateContext: $deflateContext,
+                    crcContext: $crcContext,
+                    uncompressedSize: $uncompressedSize,
+                    absolutePath: $absolutePath,
+                );
+
+                $paddingLength = $this->tarPaddingLength($bytes);
+                if ($paddingLength > 0) {
+                    $this->writeGzipTarChunk(
+                        packageHandle: $packageHandle,
+                        deflateContext: $deflateContext,
+                        crcContext: $crcContext,
+                        uncompressedSize: $uncompressedSize,
+                        contents: str_repeat("\0", $paddingLength),
+                    );
+                }
+            }
+
+            $this->writeGzipTarChunk(
+                packageHandle: $packageHandle,
+                deflateContext: $deflateContext,
+                crcContext: $crcContext,
+                uncompressedSize: $uncompressedSize,
+                contents: str_repeat("\0", 1024),
+            );
+
+            $finalChunk = deflate_add($deflateContext, '', ZLIB_FINISH);
+            if (! is_string($finalChunk)) {
+                throw new RuntimeException('Unable to finalize release package gzip stream.');
+            }
+
+            $this->writeAll($packageHandle, $finalChunk);
+            $this->writeAll(
+                $packageHandle,
+                pack('V', (int) hexdec(hash_final($crcContext))).pack('V', $uncompressedSize),
+            );
+            fclose($packageHandle);
+        } catch (Throwable $exception) {
+            fclose($packageHandle);
+            File::delete($packageAbsolutePath);
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * @return array{bytes: int, sha256: string, line_count: int}
+     */
+    private function inspectInventoryFile(string $absolutePath): array
+    {
+        $handle = fopen($absolutePath, 'rb');
+        if ($handle === false) {
+            throw new RuntimeException(sprintf('Unable to open staged release file [%s] for inventory.', $absolutePath));
+        }
+
+        $hashContext = hash_init('sha256');
+        $bytes = 0;
+        $lineCount = 0;
+        $lastByte = '';
+
+        try {
+            while (! feof($handle)) {
+                $chunk = fread($handle, self::PACKAGE_STREAM_CHUNK_BYTES);
+                if ($chunk === false) {
+                    throw new RuntimeException(sprintf('Unable to read staged release file [%s] for inventory.', $absolutePath));
+                }
+
+                if ($chunk === '') {
+                    continue;
+                }
+
+                hash_update($hashContext, $chunk);
+                $bytes += strlen($chunk);
+                $lineCount += substr_count($chunk, "\n");
+                $lastByte = substr($chunk, -1);
+            }
+        } finally {
+            fclose($handle);
+        }
+
+        return [
+            'bytes' => $bytes,
+            'sha256' => hash_final($hashContext),
+            'line_count' => $bytes === 0 ? 0 : $lineCount + ($lastByte === "\n" ? 0 : 1),
+        ];
+    }
+
+    /**
+     * @param  resource  $packageHandle
+     */
+    private function writeFileToGzipTar($packageHandle, \DeflateContext $deflateContext, \HashContext $crcContext, int &$uncompressedSize, string $absolutePath): void
+    {
+        $fileHandle = fopen($absolutePath, 'rb');
+        if ($fileHandle === false) {
+            throw new RuntimeException(sprintf('Unable to open staged release file [%s] for packaging.', $absolutePath));
+        }
+
+        try {
+            while (! feof($fileHandle)) {
+                $chunk = fread($fileHandle, self::PACKAGE_STREAM_CHUNK_BYTES);
+                if ($chunk === false) {
+                    throw new RuntimeException(sprintf('Unable to read staged release file [%s] for packaging.', $absolutePath));
+                }
+
+                if ($chunk === '') {
+                    continue;
+                }
+
+                $this->writeGzipTarChunk($packageHandle, $deflateContext, $crcContext, $uncompressedSize, $chunk);
+            }
+        } finally {
+            fclose($fileHandle);
+        }
+    }
+
+    /**
+     * @param  resource  $packageHandle
+     */
+    private function writeGzipTarChunk($packageHandle, \DeflateContext $deflateContext, \HashContext $crcContext, int &$uncompressedSize, string $contents): void
+    {
+        if ($contents === '') {
+            return;
+        }
+
+        hash_update($crcContext, $contents);
+        $uncompressedSize = ($uncompressedSize + strlen($contents)) % 4294967296;
+
+        $compressedChunk = deflate_add($deflateContext, $contents, ZLIB_NO_FLUSH);
+        if (! is_string($compressedChunk)) {
+            throw new RuntimeException('Unable to write release package gzip stream.');
+        }
+
+        $this->writeAll($packageHandle, $compressedChunk);
+    }
+
+    /**
+     * @param  resource  $handle
+     */
+    private function writeAll($handle, string $contents): void
+    {
+        $length = strlen($contents);
+        $offset = 0;
+
+        while ($offset < $length) {
+            $written = fwrite($handle, substr($contents, $offset));
+            if ($written === false || $written === 0) {
+                throw new RuntimeException('Unable to write release package stream.');
+            }
+
+            $offset += $written;
+        }
     }
 
     private function tarHeader(string $archivePath, int $bytes, int $mtime): string
@@ -710,28 +885,49 @@ class ReleasePackageService
         return $remainder === 0 ? 0 : 512 - $remainder;
     }
 
-    private function deterministicGzip(string $contents): string
-    {
-        $deflated = gzdeflate($contents, 9);
-        if (! is_string($deflated)) {
-            throw new RuntimeException('Unable to gzip release package contents.');
-        }
-
-        return "\x1f\x8b\x08\x00".pack('V', 0)."\x02\xff".$deflated.pack('V', crc32($contents)).pack('V', strlen($contents));
-    }
-
     private function cleanupStageDirectory(string $absoluteStagePath, string $stagePath): ?string
     {
         if (! File::exists($absoluteStagePath)) {
             return null;
         }
 
-        File::deleteDirectory($absoluteStagePath);
-        clearstatcache();
+        for ($attempt = 1; $attempt <= 3; $attempt++) {
+            File::deleteDirectory($absoluteStagePath);
+            $this->pruneEmptyDirectories($absoluteStagePath);
+            clearstatcache();
+
+            if (! File::exists($absoluteStagePath)) {
+                return null;
+            }
+
+            usleep(100000);
+        }
 
         return File::exists($absoluteStagePath)
             ? sprintf('Release stage directory [%s] could not be removed after packaging; clean it up manually to reclaim disk space.', $stagePath)
             : null;
+    }
+
+    private function pruneEmptyDirectories(string $absolutePath): void
+    {
+        if (! is_dir($absolutePath)) {
+            return;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($absolutePath, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($iterator as $item) {
+            if (! $item instanceof \SplFileInfo || ! $item->isDir()) {
+                continue;
+            }
+
+            @rmdir($item->getPathname());
+        }
+
+        @rmdir($absolutePath);
     }
 
     /**
@@ -821,15 +1017,6 @@ class ReleasePackageService
         }
 
         return $warnings;
-    }
-
-    private function lineCount(string $contents): int
-    {
-        if ($contents === '') {
-            return 0;
-        }
-
-        return substr_count($contents, "\n") + (! str_ends_with($contents, "\n") ? 1 : 0);
     }
 
     private function ensureDirectoryExists(string $absolutePath): void

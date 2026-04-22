@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
-use Illuminate\Support\Facades\DB;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Mockery;
 use Tests\Support\BuildsBookingScenario;
@@ -184,14 +184,14 @@ class StaffCheckoutRefundAndCancelServiceTest extends TestCase
 
     private function makeCheckoutServiceWithRealTableState(): OrderSettlementWorkflow
     {
-        $financialSync = new ReservationFinancialSyncService();
+        $financialSync = new ReservationFinancialSyncService;
         $loyalty = new LoyaltyPointsService($financialSync, $this->mockRuntimeSettings());
 
         return new OrderSettlementWorkflow(
             $this->mockReservationLocks(),
             $this->mockNotificationOutbox(),
             $loyalty,
-            new RestaurantTableStateService(),
+            new RestaurantTableStateService,
             $financialSync,
         );
     }

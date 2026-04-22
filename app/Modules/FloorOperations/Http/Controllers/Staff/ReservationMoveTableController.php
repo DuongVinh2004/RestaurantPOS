@@ -17,8 +17,7 @@ class ReservationMoveTableController extends Controller
 
     public function __construct(
         private readonly StaffMoveTableService $moveTableService,
-    ) {
-    }
+    ) {}
 
     public function store(int $id, MoveTableRequest $request): JsonResponse
     {
@@ -38,5 +37,3 @@ class ReservationMoveTableController extends Controller
         ]);
     }
 }
-
-

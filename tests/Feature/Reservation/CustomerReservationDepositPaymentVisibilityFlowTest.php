@@ -37,14 +37,14 @@ class CustomerReservationDepositPaymentVisibilityFlowTest extends TestCase
         ]);
 
         $response = $this->withHeaders(
-    $this->withIdempotencyKey(
-        $this->staffAuthHeaders($staffId),
-        'customer-deposit-session-staff-block'
-    )
-)->postJson('/api/v1/reservations/' . $reservationId . '/deposit/payment-sessions', [
-    'row_version' => 1,
-    'provider_code' => 'simulated',
-]);
+            $this->withIdempotencyKey(
+                $this->staffAuthHeaders($staffId),
+                'customer-deposit-session-staff-block'
+            )
+        )->postJson('/api/v1/reservations/'.$reservationId.'/deposit/payment-sessions', [
+            'row_version' => 1,
+            'provider_code' => 'simulated',
+        ]);
 
         $response->assertStatus(403)
             ->assertJsonPath('error_code', 'forbidden');

@@ -7,11 +7,11 @@ namespace Tests\Unit\Services\Staff;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
-use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Billing\Application\UseCases\Previews\CheckoutResponseFactory;
 use App\Modules\Billing\Application\UseCases\Previews\SettlementAmountCalculator;
+use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Payments\Domain\Models\Payment;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
@@ -71,7 +71,7 @@ class CheckoutResponseFactoryTest extends TestCase
         $order->exists = true;
         $order->setRelation('reservation', $reservation);
 
-        $factory = new CheckoutResponseFactory(new SettlementAmountCalculator());
+        $factory = new CheckoutResponseFactory(new SettlementAmountCalculator);
         $hydrated = $factory->attachTotals($order, 100.0, 10.0, 90.0, 'VND');
         $payload = $factory->buildCheckoutResponse($hydrated, 'VND');
 
@@ -101,7 +101,7 @@ class CheckoutResponseFactoryTest extends TestCase
             'checked_out_at' => Carbon::parse('2026-03-18 21:05:00', 'UTC'),
         ]);
 
-        $factory = new CheckoutResponseFactory(new SettlementAmountCalculator());
+        $factory = new CheckoutResponseFactory(new SettlementAmountCalculator);
         $payload = $factory->buildRefundResponse(
             reservation: $reservation,
             summary: [

@@ -8,7 +8,7 @@ final class SafeLike
 {
     public static function contains(string $value): string
     {
-        return '%' . self::escape($value) . '%';
+        return '%'.self::escape($value).'%';
     }
 
     public static function escape(string $value): string

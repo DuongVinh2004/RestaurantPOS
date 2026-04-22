@@ -5,16 +5,15 @@ declare(strict_types=1);
 namespace App\Modules\Billing\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Modules\Billing\Http\Requests\Admin\UpsertFinanceTaxProfileRequest;
 use App\Modules\Billing\Application\Workflows\FinanceTaxProfileWorkflow;
+use App\Modules\Billing\Http\Requests\Admin\UpsertFinanceTaxProfileRequest;
 use Illuminate\Http\JsonResponse;
 
 class FinanceTaxProfileController extends Controller
 {
     public function __construct(
         private readonly FinanceTaxProfileWorkflow $taxProfileService,
-    ) {
-    }
+    ) {}
 
     public function showTaxProfile(): JsonResponse
     {

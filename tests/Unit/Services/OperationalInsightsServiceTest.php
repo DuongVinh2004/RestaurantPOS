@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
+use App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService;
 use App\Modules\KitchenDispatch\Application\Workflows\KitchenTicketReconciliationService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxHealthService;
-use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Platform\ApiContract\Services\DatabaseContractInspector;
 use App\Platform\Metrics\Services\OperationalInsightsService;
-use App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService;
+use App\Platform\Realtime\Services\OperationalRealtimeService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -1038,4 +1038,3 @@ class OperationalInsightsServiceTest extends TestCase
         }
     }
 }
-

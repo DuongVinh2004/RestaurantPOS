@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Billing\Application\UseCases\Previews;
 
 use App\Enums\PaymentStatus;
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
 
 class CheckoutResponseFactory

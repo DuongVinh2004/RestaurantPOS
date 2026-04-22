@@ -526,5 +526,3 @@ class StaffReservationTimelineService
         return $this->branchContextService->resolveBranchId($branchId);
     }
 }
-
-

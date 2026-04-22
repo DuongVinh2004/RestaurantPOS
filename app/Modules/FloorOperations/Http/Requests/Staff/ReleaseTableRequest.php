@@ -23,5 +23,3 @@ class ReleaseTableRequest extends FormRequest
         ];
     }
 }
-
-

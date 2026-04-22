@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Promotions\Domain\Models;
 
-use App\Support\Persistence\HasRowVersion;
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Support\Persistence\HasRowVersion;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 

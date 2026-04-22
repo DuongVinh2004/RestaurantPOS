@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Reservation;
 
-use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
-use App\Modules\Catalog\Application\UseCases\PolicyPreview\MenuPreorderPolicyService;
-use App\Modules\Notifications\Application\Services\NotificationOutboxService;
-use App\Modules\Reservations\Application\Services\ReservationCodeGenerator;
 use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
-use App\Modules\Reservations\Application\Services\ReservationLockService;
-use App\Modules\Reservations\Application\Services\ReservationService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\BranchScheduling\Application\Services\TableHoldService;
 use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
+use App\Modules\Catalog\Application\UseCases\PolicyPreview\MenuPreorderPolicyService;
+use App\Modules\Catalog\Domain\Models\MenuItem;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
+use App\Modules\Reservations\Application\Services\ReservationCodeGenerator;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
+use App\Modules\Reservations\Application\Services\ReservationService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -204,7 +205,7 @@ class ReservationServicePreorderPricingGuardTest extends TestCase
             'updated_at' => Carbon::now('UTC'),
         ]);
 
-        $ref = new ReflectionClass(\App\Modules\Catalog\Domain\Models\MenuItem::class);
+        $ref = new ReflectionClass(MenuItem::class);
         $property = $ref->getProperty('supportsPreorderColumns');
         $property->setAccessible(true);
         $property->setValue(null, null);

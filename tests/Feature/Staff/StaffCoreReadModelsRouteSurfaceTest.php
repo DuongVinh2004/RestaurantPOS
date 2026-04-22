@@ -51,5 +51,3 @@ final class StaffCoreReadModelsRouteSurfaceTest extends TestCase
         return array_values(array_unique($candidates));
     }
 }
-
-

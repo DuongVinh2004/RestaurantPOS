@@ -45,6 +45,7 @@ class StaffTableReleaseServiceTest extends TestCase
             'checked_in_at' => null,
         ]);
         $this->attachReservationTable($reservationId, $tableId);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $annexBranchId]);
 
         $locks = $this->mockReservationLocks();
         $tableStateService = Mockery::mock(RestaurantTableStateService::class);
@@ -61,4 +62,3 @@ class StaffTableReleaseServiceTest extends TestCase
         $this->assertSame('Available', (string) ($released->status->value ?? $released->status));
     }
 }
-

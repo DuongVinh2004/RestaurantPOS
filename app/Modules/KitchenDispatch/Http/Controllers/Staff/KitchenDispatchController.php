@@ -6,13 +6,13 @@ namespace App\Modules\KitchenDispatch\Http\Controllers\Staff;
 
 use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\FloorOperations\Http\Requests\Staff\BranchScopeRequest;
 use App\Modules\KitchenDispatch\Application\Workflows\KitchenRoutingService;
 use App\Modules\KitchenDispatch\Http\Requests\Staff\DispatchKitchenTicketRequest;
 use App\Modules\KitchenDispatch\Http\Requests\Staff\ListKitchenStationTicketsRequest;
-use App\Modules\KitchenDispatch\Http\Resources\Staff\KitchenTicketResource;
 use App\Modules\KitchenDispatch\Http\Resources\KitchenStationResource;
-use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
+use App\Modules\KitchenDispatch\Http\Resources\Staff\KitchenTicketResource;
 use App\Platform\Realtime\Http\Requests\ListOperationalChangeFeedRequest;
 use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Support\ApiErrorResponse;
@@ -188,5 +188,3 @@ class KitchenDispatchController extends Controller
         ];
     }
 }
-
-

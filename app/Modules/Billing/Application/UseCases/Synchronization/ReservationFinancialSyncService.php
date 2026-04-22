@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\Billing\Application\UseCases\Synchronization;
 
-use App\Modules\Payments\Domain\Models\Payment;
 use App\Enums\ReservationOrderItemStatus;
 use App\Enums\ReservationOrderStatus;
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
 use App\Support\ValidationExceptionFactory;
 use Illuminate\Support\Facades\DB;

@@ -9,14 +9,14 @@ use App\Enums\PurchaseOrderStatus;
 use App\Enums\StaffConversationWorkflowState;
 use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
 use App\Modules\Conversations\Application\Services\StaffConversationInboxService;
+use App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService;
 use App\Modules\KitchenDispatch\Application\Workflows\KitchenTicketReconciliationService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxHealthService;
-use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Platform\ApiContract\Services\DatabaseContractInspector;
 use App\Platform\Health\Support\OperationalHealthEvaluator;
-use App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService;
-use App\SharedKernel\Money\Money;
 use App\Platform\QualityAssurance\Verification\Application\Verifiers\StaffMutationRowVersionContract;
+use App\Platform\Realtime\Services\OperationalRealtimeService;
+use App\SharedKernel\Money\Money;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -1299,11 +1299,14 @@ class OperationalInsightsService
             'active_count' => $activeCount,
             'default_count' => $defaultCount,
             'inactive_default_count' => (int) $defaultBranches->where('is_active', 0)->count(),
-            'duplicate_code_count' => (int) DB::table('branches')
-                ->select('branch_code')
-                ->groupBy('branch_code')
-                ->havingRaw('COUNT(*) > 1')
-                ->get()
+            'duplicate_code_count' => (int) DB::query()
+                ->fromSub(
+                    DB::table('branches')
+                        ->select('branch_code')
+                        ->groupBy('branch_code')
+                        ->havingRaw('COUNT(*) > 1'),
+                    'duplicate_branch_codes'
+                )
                 ->count(),
             'default_branch_id' => $defaultBranch !== null ? (int) $defaultBranch->branch_id : null,
             'default_branch_code' => $defaultBranch !== null ? (string) $defaultBranch->branch_code : null,
@@ -1365,4 +1368,3 @@ class OperationalInsightsService
         }
     }
 }
-

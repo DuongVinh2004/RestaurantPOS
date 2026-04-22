@@ -36,14 +36,14 @@ class BackupRestoreManifest
     }
 
     public static function locateLatest(string $backupRoot): string
-{
-    $backupRoot = rtrim($backupRoot, "\\/");
-    if ($backupRoot === '') {
-        throw new InvalidArgumentException('Backup root cannot be empty.');
-    }
+    {
+        $backupRoot = rtrim($backupRoot, '\\/');
+        if ($backupRoot === '') {
+            throw new InvalidArgumentException('Backup root cannot be empty.');
+        }
 
-    return $backupRoot . '/latest-manifest.json';
-}
+        return $backupRoot.'/latest-manifest.json';
+    }
 
     /**
      * @param  array<string, mixed>  $manifest
@@ -120,18 +120,18 @@ class BackupRestoreManifest
     }
 
     public static function resolvePath(string $path, string $baseDir): string
-{
-    $path = trim($path);
-    if ($path === '') {
-        return '';
-    }
+    {
+        $path = trim($path);
+        if ($path === '') {
+            return '';
+        }
 
-    if (self::isAbsolutePath($path)) {
-        return $path;
-    }
+        if (self::isAbsolutePath($path)) {
+            return $path;
+        }
 
-    return rtrim($baseDir, "\\/") . '/' . ltrim($path, "\\/");
-}
+        return rtrim($baseDir, '\\/').'/'.ltrim($path, '\\/');
+    }
 
     private static function isAbsolutePath(string $path): bool
     {

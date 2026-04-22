@@ -7,8 +7,8 @@ namespace App\Modules\IdentityAccess\Infrastructure\Persistence;
 use App\Modules\IdentityAccess\Domain\Models\CustomerAccessSession;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Support\AuditEvent;
-use Illuminate\Database\QueryException;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -295,7 +295,7 @@ class CustomerAccessSessionStore
 
     private function generateSessionId(): string
     {
-        return 'cas_' . Str::lower(Str::random(24));
+        return 'cas_'.Str::lower(Str::random(24));
     }
 
     private function normalizeCreatedIp(mixed $value): ?string

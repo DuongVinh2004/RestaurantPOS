@@ -6,20 +6,20 @@ namespace App\Modules\FloorOperations\Application\UseCases\ServiceSessions;
 
 use App\Enums\ReservationStatus;
 use App\Enums\RestaurantTableStatus;
-use App\Modules\IdentityAccess\Domain\Models\Role;
-use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
 use App\Modules\BranchScheduling\Application\Services\ReservationBranchScopeService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
+use App\Modules\IdentityAccess\Domain\Models\Role;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
-use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Modules\Reservations\Application\Services\ReservationCodeGenerator;
 use App\Modules\Reservations\Application\Services\ReservationConflictValidator;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Support\AuditEvent;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
@@ -430,5 +430,3 @@ class StaffServiceSessionService
         return $this->staffBranchContextService ?? app(StaffBranchContextService::class);
     }
 }
-
-

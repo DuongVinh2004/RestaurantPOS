@@ -15,7 +15,7 @@ class TableHoldRateLimitMiddleware
         if ($sessionId === '') {
             return response()->json([
                 'message' => 'Missing session_id.',
-                'error'   => 'session_id_required',
+                'error' => 'session_id_required',
             ], 422);
         }
 
@@ -25,7 +25,7 @@ class TableHoldRateLimitMiddleware
         $window = max(10, (int) config('booking.hold_rate_limit_window_seconds', 60));
 
         $bucket = (int) floor(time() / $window);
-        $key = 'rl:hold:' . hash_hmac('sha256', $sessionId . '|' . $ip, (string) config('app.key', 'app')) . ':' . $bucket;
+        $key = 'rl:hold:'.hash_hmac('sha256', $sessionId.'|'.$ip, (string) config('app.key', 'app')).':'.$bucket;
 
         $cache = Cache::store('redis');
 
@@ -46,11 +46,11 @@ class TableHoldRateLimitMiddleware
             ]);
 
             return response()->json([
-                'message'      => 'Too many requests. Please retry later.',
-                'error'        => 'rate_limited',
-                'limit'        => $limit,
-                'window_sec'   => $window,
-                'retry_after'  => $retryAfter,
+                'message' => 'Too many requests. Please retry later.',
+                'error' => 'rate_limited',
+                'limit' => $limit,
+                'window_sec' => $window,
+                'retry_after' => $retryAfter,
             ], 429)->withHeaders([
                 'Retry-After' => (string) $retryAfter,
             ]);

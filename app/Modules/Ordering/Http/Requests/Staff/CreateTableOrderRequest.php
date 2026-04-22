@@ -67,4 +67,3 @@ class CreateTableOrderRequest extends FormRequest
         });
     }
 }
-

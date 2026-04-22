@@ -6,8 +6,8 @@ namespace App\Modules\BranchScheduling\Application\Services;
 
 use App\Enums\RestaurantTableStatus;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
-use App\Support\AvailabilityCacheVersion;
 use App\Modules\FloorOperations\Domain\Audit\TableStateAuditLogger;
+use App\Support\AvailabilityCacheVersion;
 use Illuminate\Support\Carbon;
 
 class RestaurantTableStateService
@@ -181,7 +181,7 @@ class RestaurantTableStateService
     }
 
     /**
-     * @param array<int|string> $tableIds
+     * @param  array<int|string>  $tableIds
      * @return array<int,int>
      */
     private function normalizeTableIds(array $tableIds): array
@@ -192,4 +192,3 @@ class RestaurantTableStateService
         return array_values(array_filter($normalized, static fn (int $id) => $id > 0));
     }
 }
-

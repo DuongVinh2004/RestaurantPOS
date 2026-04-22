@@ -237,7 +237,7 @@ class AuditTrailQueryHandler
             return;
         }
 
-        $like = '%' . $term . '%';
+        $like = '%'.$term.'%';
 
         $query->where(function ($searchQuery) use ($like): void {
             $searchQuery
@@ -337,4 +337,3 @@ class AuditTrailQueryHandler
         return ($endOfDay ? $carbon->endOfDay() : $carbon->startOfDay())->utc()->toDateTimeString();
     }
 }
-

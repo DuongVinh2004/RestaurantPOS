@@ -13,8 +13,6 @@ class CancelTableHoldRequest extends FormRequest
         return true;
     }
 
-
-
     protected function prepareForValidation(): void
     {
         $sessionId = trim((string) ($this->input('session_id')

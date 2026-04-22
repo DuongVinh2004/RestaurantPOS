@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 class ConversationAggregate extends Model
 {
     protected $table = 'conversation_aggregates';
+
     protected $primaryKey = 'agg_id';
 
     public const UPDATED_AT = null;

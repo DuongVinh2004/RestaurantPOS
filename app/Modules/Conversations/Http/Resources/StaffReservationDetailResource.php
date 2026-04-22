@@ -24,7 +24,7 @@ class StaffReservationDetailResource extends JsonResource
             ? $this->tables->map(static function ($table): array {
                 return [
                     'table_id' => (int) $table->table_id,
-                    'table_code' => (string) ($table->table_code ?? ('#' . $table->table_id)),
+                    'table_code' => (string) ($table->table_code ?? ('#'.$table->table_id)),
                     'zone' => $table->zone,
                     'status' => $table->status?->value ?? (string) $table->status,
                     'seats' => isset($table->seats) ? (int) $table->seats : null,

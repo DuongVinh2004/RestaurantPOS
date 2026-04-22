@@ -3,13 +3,13 @@
 namespace App\Modules\BranchScheduling\Http\Controllers\Guest;
 
 use App\Http\Controllers\Controller;
-use App\Modules\IdentityAccess\Infrastructure\Tokenization\StaffApiKeyActorResolver;
-use App\Modules\IdentityAccess\Application\Queries\StaffCapabilityResolver;
 use App\Modules\BranchScheduling\Application\Services\TableHoldService;
 use App\Modules\BranchScheduling\Http\Requests\Guest\CancelTableHoldRequest;
 use App\Modules\BranchScheduling\Http\Requests\Guest\CreateTableHoldRequest;
 use App\Modules\BranchScheduling\Http\Requests\Guest\RefreshTableHoldRequest;
 use App\Modules\BranchScheduling\Http\Resources\Guest\TableHoldResource;
+use App\Modules\IdentityAccess\Application\Queries\StaffCapabilityResolver;
+use App\Modules\IdentityAccess\Infrastructure\Tokenization\StaffApiKeyActorResolver;
 use App\Support\ApiErrorResponse;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;

@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\Staff;
 
 use App\Enums\PaymentStatus;
-use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Billing\Application\UseCases\Previews\CheckoutResponseFactory;
+use App\Modules\Billing\Application\UseCases\Previews\SettlementAmountCalculator;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
-use App\Modules\Billing\Application\UseCases\Previews\CheckoutResponseFactory;
 use App\Modules\Payments\Application\UseCases\Capture\PaymentCaptureService;
-use App\Modules\Billing\Application\UseCases\Previews\SettlementAmountCalculator;
+use App\Modules\Payments\Domain\Models\Payment;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use Illuminate\Validation\ValidationException;
 use Mockery;
 use ReflectionMethod;
 use Tests\TestCase;
-use Illuminate\Validation\ValidationException;
 
 final class PaymentCaptureServiceTest extends TestCase
 {
@@ -28,8 +28,8 @@ final class PaymentCaptureServiceTest extends TestCase
     public function test_determine_payment_status_marks_partial_until_remaining_due_is_covered(): void
     {
         $service = new PaymentCaptureService(
-            new SettlementAmountCalculator(),
-            new CheckoutResponseFactory(new SettlementAmountCalculator()),
+            new SettlementAmountCalculator,
+            new CheckoutResponseFactory(new SettlementAmountCalculator),
             Mockery::mock(NotificationOutboxService::class),
         );
 
@@ -41,8 +41,8 @@ final class PaymentCaptureServiceTest extends TestCase
     public function test_is_settled_uses_same_tolerance_as_checkout_flow(): void
     {
         $service = new PaymentCaptureService(
-            new SettlementAmountCalculator(),
-            new CheckoutResponseFactory(new SettlementAmountCalculator()),
+            new SettlementAmountCalculator,
+            new CheckoutResponseFactory(new SettlementAmountCalculator),
             Mockery::mock(NotificationOutboxService::class),
         );
 
@@ -70,8 +70,8 @@ final class PaymentCaptureServiceTest extends TestCase
             ]));
 
         $service = new PaymentCaptureService(
-            new SettlementAmountCalculator(),
-            new CheckoutResponseFactory(new SettlementAmountCalculator()),
+            new SettlementAmountCalculator,
+            new CheckoutResponseFactory(new SettlementAmountCalculator),
             Mockery::mock(NotificationOutboxService::class),
             $branchContext,
         );

@@ -13,9 +13,9 @@ use Throwable;
 class TableStateAuditLogger
 {
     /**
-     * @param array<int,mixed> $beforeRows
-     * @param array<int,mixed> $afterRows
-     * @param array<string,mixed> $context
+     * @param  array<int,mixed>  $beforeRows
+     * @param  array<int,mixed>  $afterRows
+     * @param  array<string,mixed>  $context
      */
     public static function insertTransitions(array $beforeRows, array $afterRows, string $action, ?int $actorUserId = null, array $context = [], ?Carbon $occurredAt = null): void
     {
@@ -46,9 +46,9 @@ class TableStateAuditLogger
     }
 
     /**
-     * @param array<int,mixed> $beforeRows
-     * @param array<int,mixed> $afterRows
-     * @param array<string,mixed> $context
+     * @param  array<int,mixed>  $beforeRows
+     * @param  array<int,mixed>  $afterRows
+     * @param  array<string,mixed>  $context
      * @return array<int,array<string,mixed>>
      */
     public static function buildTransitionRecords(array $beforeRows, array $afterRows, string $action, ?int $actorUserId = null, array $context = [], ?Carbon $occurredAt = null): array
@@ -116,7 +116,7 @@ class TableStateAuditLogger
     }
 
     /**
-     * @param array<int,mixed> $rows
+     * @param  array<int,mixed>  $rows
      * @return array<int,array{table_id:int,status:?string,row_version:?int,updated_at:?string}>
      */
     private static function normalizeRows(array $rows): array
@@ -198,4 +198,3 @@ class TableStateAuditLogger
         return null;
     }
 }
-

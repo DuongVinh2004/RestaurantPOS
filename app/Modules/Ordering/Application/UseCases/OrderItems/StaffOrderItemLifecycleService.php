@@ -8,16 +8,16 @@ use App\Enums\ReservationOrderItemStatus;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationStatus;
 use App\Enums\RestaurantTableStatus;
-use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\BranchScheduling\Application\Services\ReservationBranchScopeService;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
+use App\Modules\InventoryProcurement\Application\UseCases\Inventory\OrderItemInventoryConsumptionService;
 use App\Modules\KitchenDispatch\Application\Workflows\KitchenRoutingService;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 use App\Modules\Ordering\Domain\Policies\ReservationOrderItemStatusTransitionPolicy;
-use App\Modules\BranchScheduling\Application\Services\ReservationBranchScopeService;
-use App\Modules\InventoryProcurement\Application\UseCases\Inventory\OrderItemInventoryConsumptionService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
-use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Support\AuditEvent;
 use App\Support\DatabaseWriteConflictMapper;
 use Illuminate\Database\QueryException;
@@ -26,6 +26,8 @@ use Illuminate\Validation\ValidationException;
 
 class StaffOrderItemLifecycleService
 {
+    private const STALE_ROW_VERSION_MESSAGE = 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.';
+
     private readonly ReservationBranchScopeService $reservationBranchScopeService;
 
     private readonly StaffBranchContextService $staffBranchContextService;
@@ -334,7 +336,7 @@ class StaffOrderItemLifecycleService
 
         if ((int) ($order->row_version ?? 1) !== $expectedRowVersion) {
             throw ValidationException::withMessages([
-                'order_row_version' => ['Dá»¯ liá»‡u Ä‘Ã£ thay Ä‘á»•i (row_version mismatch). HÃ£y reload rá»“i thá»­ láº¡i.'],
+                'order_row_version' => [self::STALE_ROW_VERSION_MESSAGE],
             ]);
         }
     }
@@ -347,7 +349,7 @@ class StaffOrderItemLifecycleService
 
         if ((int) ($item->row_version ?? 1) !== $expectedRowVersion) {
             throw ValidationException::withMessages([
-                'row_version' => ['Dá»¯ liá»‡u Ä‘Ã£ thay Ä‘á»•i (row_version mismatch). HÃ£y reload rá»“i thá»­ láº¡i.'],
+                'row_version' => [self::STALE_ROW_VERSION_MESSAGE],
             ]);
         }
     }
@@ -372,5 +374,3 @@ class StaffOrderItemLifecycleService
             ->firstOrFail();
     }
 }
-
-

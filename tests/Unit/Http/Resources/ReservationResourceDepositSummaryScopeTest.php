@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Http\Resources;
 
-use App\Modules\Reservations\Http\Resources\ReservationResource;
 use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Payments\Domain\Models\ReservationDepositPaymentSession;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Reservations\Http\Resources\ReservationResource;
 use Illuminate\Http\Request;
 use Tests\TestCase;
 

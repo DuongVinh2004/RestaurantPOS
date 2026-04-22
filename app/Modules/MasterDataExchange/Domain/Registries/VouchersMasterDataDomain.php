@@ -6,10 +6,10 @@ namespace App\Modules\MasterDataExchange\Domain\Registries;
 
 use App\Enums\VoucherDiscountType;
 use App\Modules\Catalog\Domain\Models\MenuItem;
-use App\Modules\Promotions\Domain\Models\Voucher;
 use App\Modules\MasterDataExchange\Domain\Contracts\MasterDataDomain;
 use App\Modules\MasterDataExchange\Infrastructure\Internal\AbstractMasterDataDomain;
 use App\Modules\Promotions\Application\UseCases\Vouchers\VoucherManagementService;
+use App\Modules\Promotions\Domain\Models\Voucher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -19,8 +19,7 @@ final class VouchersMasterDataDomain extends AbstractMasterDataDomain implements
 {
     public function __construct(
         private readonly VoucherManagementService $voucherService,
-    ) {
-    }
+    ) {}
 
     public function key(): string
     {
@@ -114,7 +113,7 @@ final class VouchersMasterDataDomain extends AbstractMasterDataDomain implements
                 ])->validate();
 
                 if ($freeItemCode !== null && ! $menuItems->has($freeItemCode)) {
-                    $errors[] = $this->error('free_item_code', 'Menu item [' . $freeItemCode . '] does not exist.');
+                    $errors[] = $this->error('free_item_code', 'Menu item ['.$freeItemCode.'] does not exist.');
                 }
 
                 if ($discountType === VoucherDiscountType::FreeItem->value && $freeItemCode === null) {
@@ -209,6 +208,7 @@ final class VouchersMasterDataDomain extends AbstractMasterDataDomain implements
             if ($prepared[$index]['errors'] !== []) {
                 $prepared[$index]['operation'] = 'invalid';
                 $prepared[$index]['status'] = 'invalid';
+
                 continue;
             }
 
@@ -257,6 +257,7 @@ final class VouchersMasterDataDomain extends AbstractMasterDataDomain implements
 
             if ($operation === 'noop') {
                 $unchanged++;
+
                 continue;
             }
 

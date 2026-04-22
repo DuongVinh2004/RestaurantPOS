@@ -1,23 +1,23 @@
 <?php
 
-use App\Modules\Catalog\Http\Controllers\Customer\MenuCatalogController;
 use App\Http\Middleware\CustomerOrStaffMiddleware;
 use App\Http\Middleware\MetricsRequestMiddleware;
 use App\Http\Middleware\ResolveCustomerAuthMiddleware;
-use App\Modules\Loyalty\Http\Controllers\Customer\LoyaltySummaryController;
-use App\Modules\Loyalty\Http\Controllers\Customer\ReservationLoyaltyController;
-use App\Modules\Promotions\Http\Controllers\Customer\BenefitsController;
-use App\Modules\Promotions\Http\Controllers\Customer\ReservationBenefitsActionController;
+use App\Modules\Billing\Http\Controllers\Customer\ReservationBillController;
 use App\Modules\BranchScheduling\Http\Controllers\Guest\TableAvailabilityController;
 use App\Modules\BranchScheduling\Http\Controllers\Guest\TableHoldController;
+use App\Modules\Catalog\Http\Controllers\Customer\MenuCatalogController;
+use App\Modules\Loyalty\Http\Controllers\Customer\LoyaltySummaryController;
+use App\Modules\Loyalty\Http\Controllers\Customer\ReservationLoyaltyController;
 use App\Modules\Payments\Http\Controllers\Customer\ReservationBillPaymentController;
 use App\Modules\Payments\Http\Controllers\Customer\ReservationDepositPaymentController;
-use App\Modules\Billing\Http\Controllers\Customer\ReservationBillController;
 use App\Modules\PrivacyCompliance\Http\Controllers\Customer\PrivacyRequestController;
-use App\Modules\Reservations\Http\Controllers\CustomerReservationDepositController;
-use App\Modules\Reservations\Http\Controllers\CustomerReservationPreorderController;
+use App\Modules\Promotions\Http\Controllers\Customer\BenefitsController;
+use App\Modules\Promotions\Http\Controllers\Customer\ReservationBenefitsActionController;
 use App\Modules\Reservations\Http\Controllers\Customer\ReservationController;
 use App\Modules\Reservations\Http\Controllers\Customer\ReservationSelfServiceController;
+use App\Modules\Reservations\Http\Controllers\CustomerReservationDepositController;
+use App\Modules\Reservations\Http\Controllers\CustomerReservationPreorderController;
 use App\Modules\Waitlist\Http\Controllers\Customer\WaitlistController as CustomerWaitlistController;
 use Illuminate\Support\Facades\Route;
 

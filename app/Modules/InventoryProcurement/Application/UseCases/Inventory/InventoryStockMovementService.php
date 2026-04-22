@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\InventoryProcurement\Application\UseCases\Inventory;
 
+use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Modules\InventoryProcurement\Domain\Models\Ingredient;
 use App\Modules\InventoryProcurement\Domain\Models\IngredientStockMovement;
-use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;

@@ -65,7 +65,7 @@ class WaitingListInviteLifecycleService
 
             $waitingId = (int) $entry->waiting_id;
             $sessionId = (string) ($sessionIdByWaitingId[$waitingId] ?? $this->buildWaitingSessionId($waitingId));
-            $sessionHolds = $holdsBySession->get($sessionId, new Collection());
+            $sessionHolds = $holdsBySession->get($sessionId, new Collection);
             $latestHold = $sessionHolds->first();
             $activeHold = $sessionHolds->first(fn (TableHold $hold) => $this->isActiveHold($hold, $now));
 
@@ -193,6 +193,6 @@ class WaitingListInviteLifecycleService
 
     private function buildWaitingSessionId(int $waitingId): string
     {
-        return 'waiting-list:' . $waitingId;
+        return 'waiting-list:'.$waitingId;
     }
 }

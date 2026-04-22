@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Http\Middleware;
 
-use PHPUnit\Framework\Attributes\Group;
 use App\Http\Middleware\IdempotencyMiddleware;
 use Illuminate\Cache\Repository;
 use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Mockery;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class IdempotencyMiddlewareLockingTest extends TestCase
@@ -55,7 +55,7 @@ class IdempotencyMiddlewareLockingTest extends TestCase
         ]);
         $request->headers->set('Idempotency-Key', 'idem-lock-1');
 
-        $middleware = new IdempotencyMiddleware();
+        $middleware = new IdempotencyMiddleware;
         $response = $middleware->handle($request, function () {
             $this->fail('Middleware should not call downstream handler when lock acquisition fails.');
         }, 'test.lock');
@@ -98,7 +98,7 @@ class IdempotencyMiddlewareLockingTest extends TestCase
         ]);
         $request->headers->set('Idempotency-Key', 'idem-lock-pending-1');
 
-        $middleware = new IdempotencyMiddleware();
+        $middleware = new IdempotencyMiddleware;
         $response = $middleware->handle($request, function () {
             $this->fail('Middleware should not call downstream handler when a pending marker exists.');
         }, 'test.lock');

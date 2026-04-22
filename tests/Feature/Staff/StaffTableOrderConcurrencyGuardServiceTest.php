@@ -107,6 +107,7 @@ class StaffTableOrderConcurrencyGuardServiceTest extends TestCase
             self::fail('Expected ValidationException was not thrown.');
         } catch (ValidationException $e) {
             self::assertArrayHasKey('row_version', $e->errors());
+            self::assertSame('Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.', $e->errors()['row_version'][0]);
         }
     }
 
@@ -136,6 +137,7 @@ class StaffTableOrderConcurrencyGuardServiceTest extends TestCase
             self::fail('Expected ValidationException was not thrown.');
         } catch (ValidationException $e) {
             self::assertArrayHasKey('row_version', $e->errors());
+            self::assertSame('Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.', $e->errors()['row_version'][0]);
         }
     }
 

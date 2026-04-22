@@ -17,8 +17,7 @@ class ReservationRescheduleController extends Controller
 
     public function __construct(
         private readonly ReservationRescheduleService $rescheduleService,
-    ) {
-    }
+    ) {}
 
     public function store(int $id, RescheduleReservationRequest $request): JsonResponse
     {

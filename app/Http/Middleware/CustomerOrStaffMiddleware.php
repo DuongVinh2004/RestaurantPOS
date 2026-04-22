@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Modules\IdentityAccess\Domain\Models\User;
-use App\Support\ApiErrorResponse;
 use App\Modules\IdentityAccess\Infrastructure\Internal\CustomerSessionRouteContract;
-use App\Support\Auth\RequestActorContext;
 use App\Modules\IdentityAccess\Infrastructure\Tokenization\StaffApiKeyActorResolver;
+use App\Support\ApiErrorResponse;
+use App\Support\Auth\RequestActorContext;
 use Closure;
 use Illuminate\Http\Request;
 

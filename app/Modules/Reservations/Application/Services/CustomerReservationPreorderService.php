@@ -8,18 +8,16 @@ use App\Enums\ReservationOrderItemStatus;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
+use App\Modules\Catalog\Application\UseCases\PolicyPreview\MenuPreorderPolicyService;
 use App\Modules\Catalog\Domain\Models\MenuItem;
 use App\Modules\Catalog\Domain\Models\MenuItemPrice;
-use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
-use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
-use App\Modules\Catalog\Application\UseCases\PolicyPreview\MenuPreorderPolicyService;
-use App\Modules\Reservations\Application\Services\ReservationLockService;
-use App\Support\AuditEvent;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
+use App\Support\AuditEvent;
 use App\Support\ValidationExceptionFactory;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -31,8 +29,7 @@ class CustomerReservationPreorderService
         private readonly ReservationSessionAccessWorkflow $customerSessionAccessService,
         private readonly MenuPreorderPolicyService $menuPreorderPolicyService,
         private readonly ReservationLockService $locks,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{reservation:Reservation,pre_order:array<string,mixed>,management_policy:array<string,mixed>}
@@ -50,7 +47,7 @@ class CustomerReservationPreorderService
     }
 
     /**
-     * @param array<int, array<string,mixed>> $requestedItems
+     * @param  array<int, array<string,mixed>>  $requestedItems
      * @return array{reservation:Reservation,current_pre_order:array<string,mixed>,management_policy:array<string,mixed>,preview:array<string,mixed>}
      */
     public function previewAccessiblePreorderUpdate(int $reservationId, ?int $customerUserId, ?string $sessionId, array $requestedItems): array
@@ -81,7 +78,7 @@ class CustomerReservationPreorderService
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      * @return array{reservation:Reservation,pre_order:array<string,mixed>,management_policy:array<string,mixed>}
      */
     public function replaceAccessiblePreorder(int $reservationId, ?int $customerUserId, ?string $sessionId, array $payload): array
@@ -113,7 +110,7 @@ class CustomerReservationPreorderService
                     $order->updated_by = $customerUserId;
                     $order->save();
                 } else {
-                    $order = new ReservationOrder();
+                    $order = new ReservationOrder;
                     $order->reservation_id = (int) $reservation->reservation_id;
                     $order->order_type = ReservationOrderType::PreOrder;
                     $order->status = ReservationOrderStatus::Active;
@@ -146,7 +143,7 @@ class CustomerReservationPreorderService
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      * @return array{reservation:Reservation,pre_order:array<string,mixed>,management_policy:array<string,mixed>}
      */
     public function clearAccessiblePreorder(int $reservationId, ?int $customerUserId, ?string $sessionId, array $payload): array
@@ -221,12 +218,12 @@ class CustomerReservationPreorderService
                 return $reservation;
             }
 
-            throw (new ModelNotFoundException())->setModel(Reservation::class, [$reservationId]);
+            throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
         }
 
         $trimmedSessionId = trim((string) $sessionId);
         if ($trimmedSessionId === '') {
-            throw (new ModelNotFoundException())->setModel(Reservation::class, [$reservationId]);
+            throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
         }
 
         $query = Reservation::query()
@@ -239,7 +236,7 @@ class CustomerReservationPreorderService
 
         $reservation = $query->first();
         if (! $reservation instanceof Reservation || ! $this->customerSessionAccessService->canAccessReservationBySession($reservation, $trimmedSessionId)) {
-            throw (new ModelNotFoundException())->setModel(Reservation::class, [$reservationId]);
+            throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
         }
 
         return $reservation;
@@ -394,7 +391,7 @@ class CustomerReservationPreorderService
     }
 
     /**
-     * @param array<int, array<string,mixed>> $requestedItems
+     * @param  array<int, array<string,mixed>>  $requestedItems
      * @return array<string,mixed>
      */
     private function buildRequestedPreorderPreview(array $requestedItems, Carbon $serviceStart, ?int $ignoreReservationId = null): array
@@ -462,7 +459,7 @@ class CustomerReservationPreorderService
     }
 
     /**
-     * @param array{rows:array<int, array{item_id:int, quantity:int}>,menu_items:Collection<int, MenuItem>,price_rows:Collection<int, MenuItemPrice>} $prepared
+     * @param  array{rows:array<int, array{item_id:int, quantity:int}>,menu_items:Collection<int, MenuItem>,price_rows:Collection<int, MenuItemPrice>}  $prepared
      */
     private function persistPreparedRows(ReservationOrder $order, array $prepared, ?int $customerUserId): void
     {
@@ -480,7 +477,7 @@ class CustomerReservationPreorderService
             $priceRow = $priceRows->get($itemId);
 
             $unitPriceMinor = Money::minorUnits($priceRow->price, true);
-            $item = new ReservationOrderItem();
+            $item = new ReservationOrderItem;
             $item->order_id = (int) $order->order_id;
             $item->item_id = $itemId;
             $item->quantity = $quantity;

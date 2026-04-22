@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\InventoryProcurement\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Modules\InventoryProcurement\Application\UseCases\Procurement\ProcurementManagementService;
 use App\Modules\InventoryProcurement\Http\Requests\Admin\CreatePurchaseOrderReceiptRequest;
 use App\Modules\InventoryProcurement\Http\Requests\Admin\CreatePurchaseOrderRequest;
 use App\Modules\InventoryProcurement\Http\Requests\Admin\CreateSupplierRequest;
@@ -15,7 +16,6 @@ use App\Modules\InventoryProcurement\Http\Requests\Admin\UpdateSupplierRequest;
 use App\Modules\InventoryProcurement\Http\Resources\Admin\PurchaseOrderResource;
 use App\Modules\InventoryProcurement\Http\Resources\Admin\PurchaseReceiptResource;
 use App\Modules\InventoryProcurement\Http\Resources\Admin\SupplierResource;
-use App\Modules\InventoryProcurement\Application\UseCases\Procurement\ProcurementManagementService;
 use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use App\Support\ApiErrorResponse;
 use App\Support\Listing\ListingMetaFactory;

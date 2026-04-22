@@ -6,8 +6,8 @@ use App\Http\Concerns\AuthorizesResolvedStaffCapability;
 use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
 use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
-use App\Modules\Reservations\Application\Services\ReservationService;
 use App\Modules\Reservations\Application\Services\ReservationPreorderService;
+use App\Modules\Reservations\Application\Services\ReservationService;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Reservations\Domain\Policies\ReservationAccessScope;
 use App\Modules\Reservations\Http\Requests\Customer\CreateReservationRequest;
@@ -27,8 +27,7 @@ class ReservationController extends Controller
         private readonly ReservationService $service,
         private readonly ReservationSessionAccessWorkflow $customerSessionAccessService,
         private readonly ReservationPreorderService $reservationPreorderService,
-    ) {
-    }
+    ) {}
 
     public function store(CreateReservationRequest $request): JsonResponse
     {

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Infrastructure;
 
-use App\Modules\IdentityAccess\Domain\Models\User;
-use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
-use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
-use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
+use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;

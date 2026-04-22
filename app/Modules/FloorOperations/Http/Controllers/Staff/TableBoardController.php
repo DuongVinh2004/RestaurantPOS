@@ -6,8 +6,8 @@ namespace App\Modules\FloorOperations\Http\Controllers\Staff;
 
 use App\Http\Concerns\AppliesDeprecatedRouteHeaders;
 use App\Http\Controllers\Controller;
-use App\Modules\FloorOperations\Http\Requests\Staff\TableBoardRequest;
 use App\Modules\FloorOperations\Application\Queries\StaffTableBoardService;
+use App\Modules\FloorOperations\Http\Requests\Staff\TableBoardRequest;
 use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Http\JsonResponse;
@@ -19,8 +19,7 @@ class TableBoardController extends Controller
     public function __construct(
         private readonly StaffTableBoardService $boardService,
         private readonly OperationalRealtimeService $realtimeService,
-    ) {
-    }
+    ) {}
 
     public function legacyIndex(TableBoardRequest $request): JsonResponse
     {
@@ -110,5 +109,3 @@ class TableBoardController extends Controller
         ]));
     }
 }
-
-

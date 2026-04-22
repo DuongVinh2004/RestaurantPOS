@@ -86,14 +86,13 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
         self::assertGreaterThan($secondBefore, (int) DB::table('restaurant_tables')->where('table_id', $secondTableId)->value('row_version'));
     }
 
-
     public function test_admin_can_show_single_table_details(): void
     {
         $adminId = $this->createUser(['role_name' => 'Admin']);
         $tableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'ADM-SHOW-01', 'zone' => 'Main']);
 
         $response = $this->withHeaders($this->staffHeaders($adminId, 'admin-table-show'))
-            ->getJson('/api/v1/admin/restaurant/tables/' . $tableId);
+            ->getJson('/api/v1/admin/restaurant/tables/'.$tableId);
 
         $response
             ->assertOk()
@@ -121,7 +120,7 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
         $table = DB::table('restaurant_tables')->where('table_id', $tableId)->first();
 
         $response = $this->withHeaders($this->staffHeaders($adminId, 'admin-table-live-order-guard'))
-            ->patchJson('/api/v1/admin/restaurant/tables/' . $tableId, [
+            ->patchJson('/api/v1/admin/restaurant/tables/'.$tableId, [
                 'row_version' => (int) $table->row_version,
                 'zone' => 'Patio',
             ]);
@@ -185,7 +184,7 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
         $rowVersion = (int) $createResponse->json('data.row_version');
 
         $updateResponse = $this->withHeaders($this->staffHeaders($adminId, 'admin-table-update'))
-            ->patchJson('/api/v1/admin/restaurant/tables/' . $tableId, [
+            ->patchJson('/api/v1/admin/restaurant/tables/'.$tableId, [
                 'row_version' => $rowVersion,
                 'zone' => 'Garden VIP',
                 'description' => 'Garden booth updated',
@@ -219,7 +218,7 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
         $newTemplateId = $this->seedTableTemplate('ADM-TPL-10', 10);
 
         $response = $this->withHeaders($this->staffHeaders($adminId, 'admin-table-linked-guard'))
-            ->patchJson('/api/v1/admin/restaurant/tables/' . $tableId, [
+            ->patchJson('/api/v1/admin/restaurant/tables/'.$tableId, [
                 'row_version' => (int) $table->row_version,
                 'template_id' => $newTemplateId,
                 'is_deleted' => true,
@@ -262,7 +261,7 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
         $newTemplateId = $this->seedTableTemplate('ADM-TPL-HOLD-06', 6);
 
         $this->withHeaders($this->staffHeaders($adminId, 'admin-table-confirmed-hold-guard'))
-            ->patchJson('/api/v1/admin/restaurant/tables/' . $tableId, [
+            ->patchJson('/api/v1/admin/restaurant/tables/'.$tableId, [
                 'row_version' => (int) $table->row_version,
                 'template_id' => $newTemplateId,
             ])
@@ -302,7 +301,7 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
             'template_code' => $templateCode,
         ], [
             'seats' => $seats,
-            'description' => 'Template ' . $templateCode,
+            'description' => 'Template '.$templateCode,
         ]);
 
         return (int) DB::table('table_templates')->where('template_code', $templateCode)->value('template_id');
@@ -310,7 +309,7 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
 
     private function createRestaurantTableWithSeats(int $seats, array $overrides = []): int
     {
-        $templateId = $this->seedTableTemplate('TPL-' . $seats . '-' . substr(md5((string) microtime(true) . random_int(1, 999999)), 0, 6), $seats);
+        $templateId = $this->seedTableTemplate('TPL-'.$seats.'-'.substr(md5((string) microtime(true).random_int(1, 999999)), 0, 6), $seats);
         $overrides['template_id'] = $overrides['template_id'] ?? $templateId;
 
         return $this->createRestaurantTable($overrides);

@@ -8,14 +8,14 @@ use App\Casts\LenientDepositStatusCast;
 use App\Enums\ReservationDepositIntentStatus;
 use App\Enums\ReservationStatus;
 use App\Modules\Billing\Domain\Models\BillingInvoice;
-use App\Support\Persistence\HasRowVersion;
+use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Loyalty\Domain\Models\LoyaltyPointTransaction;
+use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Payments\Domain\Models\ReservationDepositPaymentSession;
-use App\Modules\Ordering\Domain\Models\ReservationOrder;
-use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Promotions\Domain\Models\UserVoucher;
-use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
+use App\Support\Persistence\HasRowVersion;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -27,6 +27,7 @@ class Reservation extends Model
     use HasRowVersion;
 
     protected $table = 'reservations';
+
     protected $primaryKey = 'reservation_id';
 
     protected $fillable = [

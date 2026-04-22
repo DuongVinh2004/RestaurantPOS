@@ -30,5 +30,3 @@ class BranchScopeRequest extends FormRequest
         ];
     }
 }
-
-

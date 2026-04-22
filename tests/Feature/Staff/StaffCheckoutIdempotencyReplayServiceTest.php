@@ -3,12 +3,13 @@
 declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
-use PHPUnit\Framework\Attributes\Group;
-use Illuminate\Support\Facades\DB;
+
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Mockery;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 

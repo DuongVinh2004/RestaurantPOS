@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Payments\Infrastructure\Integrations\CustomerDepositPayment;
 
-use App\Modules\Payments\Domain\Models\Payment;
 use App\Enums\PaymentSessionScope;
 use App\Modules\Payments\Infrastructure\Integrations\PaymentProviders\PaymentProviderRolloutConfig;
 use Illuminate\Validation\ValidationException;

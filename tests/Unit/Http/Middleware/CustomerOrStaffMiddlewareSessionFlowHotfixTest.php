@@ -98,7 +98,7 @@ final class CustomerOrStaffMiddlewareSessionFlowHotfixTest extends TestCase
     private function middleware(): CustomerOrStaffMiddleware
     {
         return new CustomerOrStaffMiddleware(
-            new StaffApiKeyActorResolver(),
+            new StaffApiKeyActorResolver,
             new CustomerSessionRouteContract($this->createMock(ReservationSessionAccessWorkflow::class)),
         );
     }

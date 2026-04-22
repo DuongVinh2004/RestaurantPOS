@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
-use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
-use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Mockery;

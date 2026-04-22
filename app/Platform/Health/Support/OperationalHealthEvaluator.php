@@ -7,8 +7,8 @@ namespace App\Platform\Health\Support;
 final class OperationalHealthEvaluator
 {
     /**
-     * @param array<string,int|float|string|null> $snapshot
-     * @param array<string,int> $thresholds
+     * @param  array<string,int|float|string|null>  $snapshot
+     * @param  array<string,int>  $thresholds
      * @return array{status:string,reasons:array<int,string>}
      */
     public static function forNotificationOutbox(array $snapshot, array $thresholds): array
@@ -54,8 +54,8 @@ final class OperationalHealthEvaluator
     }
 
     /**
-     * @param array<string,int|float|string|null|array<int,array<string,mixed>>> $snapshot
-     * @param array<string,int> $thresholds
+     * @param  array<string,int|float|string|null|array<int,array<string,mixed>>>  $snapshot
+     * @param  array<string,int>  $thresholds
      * @return array{status:string,reasons:array<int,string>}
      */
     public static function forPaymentIntegrity(array $snapshot, array $thresholds): array
@@ -97,8 +97,8 @@ final class OperationalHealthEvaluator
     }
 
     /**
-     * @param array<string,int|float|string|bool|null> $snapshot
-     * @param array<string,int> $thresholds
+     * @param  array<string,int|float|string|bool|null>  $snapshot
+     * @param  array<string,int>  $thresholds
      * @return array{status:string,reasons:array<int,string>}
      */
     public static function forSessionLinkage(array $snapshot, array $thresholds): array
@@ -127,14 +127,14 @@ final class OperationalHealthEvaluator
     }
 
     /**
-     * @param array<string,int|float|string|null> $snapshot
-     * @param array<string,int> $thresholds
+     * @param  array<string,int|float|string|null>  $snapshot
+     * @param  array<string,int>  $thresholds
      * @return array{status:string,reasons:array<int,string>}
      */
 
     /**
-     * @param array<string,int|float|string|bool|null> $snapshot
-     * @param array<string,int> $thresholds
+     * @param  array<string,int|float|string|bool|null>  $snapshot
+     * @param  array<string,int>  $thresholds
      * @return array{status:string,reasons:array<int,string>}
      */
     public static function forStaffApiKeys(array $snapshot, array $thresholds): array
@@ -178,8 +178,8 @@ final class OperationalHealthEvaluator
     }
 
     /**
-     * @param array<string,int|float|string|bool|null> $snapshot
-     * @param array<string,int> $thresholds
+     * @param  array<string,int|float|string|bool|null>  $snapshot
+     * @param  array<string,int>  $thresholds
      * @return array{status:string,reasons:array<int,string>}
      */
     public static function forTableStateAudit(array $snapshot, array $thresholds): array
@@ -209,10 +209,9 @@ final class OperationalHealthEvaluator
         ];
     }
 
-
     /**
-     * @param array<string,int|float|string|bool|null|array<int,array<string,mixed>>> $snapshot
-     * @param array<string,int> $thresholds
+     * @param  array<string,int|float|string|bool|null|array<int,array<string,mixed>>>  $snapshot
+     * @param  array<string,int>  $thresholds
      * @return array{status:string,reasons:array<int,string>}
      */
     public static function forRowVersionContract(array $snapshot, array $thresholds): array
@@ -252,8 +251,8 @@ final class OperationalHealthEvaluator
     }
 
     /**
-     * @param array<string,mixed> $snapshot
-     * @param array<string,int> $thresholds
+     * @param  array<string,mixed>  $snapshot
+     * @param  array<string,int>  $thresholds
      * @return array{status:string,reasons:array<int,string>}
      */
     public static function forReportingSnapshots(array $snapshot, array $thresholds): array
@@ -327,8 +326,8 @@ final class OperationalHealthEvaluator
     }
 
     /**
-     * @param array<string,mixed> $snapshot
-     * @param array<string,int> $thresholds
+     * @param  array<string,mixed>  $snapshot
+     * @param  array<string,int>  $thresholds
      * @return array{status:string,reasons:array<int,string>}
      */
     public static function forBranchDefaults(array $snapshot, array $thresholds): array
@@ -393,8 +392,8 @@ final class OperationalHealthEvaluator
     }
 
     /**
-     * @param array<string,mixed> $snapshot
-     * @param array<string,int> $thresholds
+     * @param  array<string,mixed>  $snapshot
+     * @param  array<string,int>  $thresholds
      * @return array{status:string,reasons:array<int,string>}
      */
     public static function forKitchenKds(array $snapshot, array $thresholds): array
@@ -442,8 +441,8 @@ final class OperationalHealthEvaluator
     }
 
     /**
-     * @param array<string,mixed> $snapshot
-     * @param array<string,int> $thresholds
+     * @param  array<string,mixed>  $snapshot
+     * @param  array<string,int>  $thresholds
      * @return array{status:string,reasons:array<int,string>}
      */
     public static function forInventoryPurchasing(array $snapshot, array $thresholds): array
@@ -491,8 +490,8 @@ final class OperationalHealthEvaluator
     }
 
     /**
-     * @param array<string,mixed> $snapshot
-     * @param array<string,int> $thresholds
+     * @param  array<string,mixed>  $snapshot
+     * @param  array<string,int>  $thresholds
      * @return array{status:string,reasons:array<int,string>}
      */
     public static function forConversationInbox(array $snapshot, array $thresholds): array

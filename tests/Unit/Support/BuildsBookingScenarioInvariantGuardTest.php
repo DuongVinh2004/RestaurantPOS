@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -117,7 +118,7 @@ class BuildsBookingScenarioInvariantGuardTest extends TestCase
             'status' => 'Confirmed',
         ]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         $this->createReservation([
             'applied_user_voucher_id' => $userVoucherId,
@@ -136,7 +137,7 @@ class BuildsBookingScenarioInvariantGuardTest extends TestCase
             'requested_at' => $now,
         ]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         $this->createWaitingListEntry([
             'user_id' => $ownerId,

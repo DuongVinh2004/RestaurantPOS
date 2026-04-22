@@ -20,20 +20,20 @@ class ReleaseArtifactManifestServiceTest extends TestCase
 
     public function test_snapshot_is_ok_when_required_artifacts_and_patches_are_present(): void
     {
-        $schemaPath = base_path($this->root . '/schema.sql');
-        $fullDumpPath = base_path($this->root . '/db_all.sql');
+        $schemaPath = base_path($this->root.'/schema.sql');
+        $fullDumpPath = base_path($this->root.'/db_all.sql');
         File::ensureDirectoryExists(dirname($schemaPath));
         File::put($schemaPath, "alpha\nbeta\n");
         File::put($fullDumpPath, "gamma\ndelta\n");
 
         config()->set('booking_release.artifacts', [
             'schema_dump' => [
-                'path' => $this->root . '/schema.sql',
+                'path' => $this->root.'/schema.sql',
                 'optional' => false,
                 'required_fragments' => ['alpha', 'beta'],
             ],
             'full_dump' => [
-                'path' => $this->root . '/db_all.sql',
+                'path' => $this->root.'/db_all.sql',
                 'optional' => true,
                 'required_fragments' => ['gamma'],
             ],
@@ -42,7 +42,7 @@ class ReleaseArtifactManifestServiceTest extends TestCase
             '2026_03_15_000022_staff_auth_and_integrity_hardening.sql',
         ]);
         config()->set('booking_release.release_manifest.definition_path', 'config/booking_release.php');
-        config()->set('booking_release.release_manifest.snapshot_path', $this->root . '/release_manifest_snapshot.json');
+        config()->set('booking_release.release_manifest.snapshot_path', $this->root.'/release_manifest_snapshot.json');
 
         $snapshot = app(ReleaseArtifactManifestService::class)->snapshot();
 
@@ -52,24 +52,24 @@ class ReleaseArtifactManifestServiceTest extends TestCase
         $this->assertSame([], $snapshot['artifacts']['schema_dump']['missing_fragments']);
         $this->assertSame([], $snapshot['patches']['missing']);
         $this->assertArrayHasKey('sha256', $snapshot['artifacts']['schema_dump']);
-        $this->assertSame($this->root . '/release_manifest_snapshot.json', $snapshot['snapshot_path']);
+        $this->assertSame($this->root.'/release_manifest_snapshot.json', $snapshot['snapshot_path']);
         $this->assertSame('config/booking_release.php', $snapshot['definition_path']);
     }
 
     public function test_snapshot_fails_when_required_artifact_is_missing_fragments_or_patch_inventory_is_incomplete(): void
     {
-        $schemaPath = base_path($this->root . '/schema.sql');
+        $schemaPath = base_path($this->root.'/schema.sql');
         File::ensureDirectoryExists(dirname($schemaPath));
         File::put($schemaPath, "alpha\n");
 
         config()->set('booking_release.artifacts', [
             'schema_dump' => [
-                'path' => $this->root . '/schema.sql',
+                'path' => $this->root.'/schema.sql',
                 'optional' => false,
                 'required_fragments' => ['alpha', 'beta'],
             ],
             'full_dump' => [
-                'path' => $this->root . '/missing-db.sql',
+                'path' => $this->root.'/missing-db.sql',
                 'optional' => true,
                 'required_fragments' => ['gamma'],
             ],
@@ -86,11 +86,10 @@ class ReleaseArtifactManifestServiceTest extends TestCase
         $this->assertSame(['missing_patch.sql'], $snapshot['patches']['missing']);
     }
 
-
     public function test_snapshot_fails_when_gate_snapshot_is_semantically_empty_even_if_required_fragments_exist(): void
     {
-        $definitionPath = base_path($this->root . '/core_ops_gate_suite.json');
-        $snapshotPath = base_path($this->root . '/core_ops_gate_snapshot.json');
+        $definitionPath = base_path($this->root.'/core_ops_gate_suite.json');
+        $snapshotPath = base_path($this->root.'/core_ops_gate_snapshot.json');
         File::ensureDirectoryExists(dirname($definitionPath));
         File::put($definitionPath, json_encode([
             'suite' => 'core_ops',
@@ -98,32 +97,32 @@ class ReleaseArtifactManifestServiceTest extends TestCase
                 ['path' => 'tests/Feature/Table/TableAvailabilityFeatureTest.php'],
                 ['path' => 'tests/Feature/Table/TableHoldHttpFlowTest.php'],
             ],
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
         File::put($snapshotPath, json_encode([
             'suite' => 'core_ops',
-            'definition_path' => $this->root . '/core_ops_gate_suite.json',
-            'snapshot_path' => $this->root . '/core_ops_gate_snapshot.json',
+            'definition_path' => $this->root.'/core_ops_gate_suite.json',
+            'snapshot_path' => $this->root.'/core_ops_gate_snapshot.json',
             'summary' => [
                 'total' => 0,
                 'passed' => 0,
                 'failed' => 0,
             ],
             'tests' => [],
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
 
         config()->set('booking_release.artifacts', [
             'core_ops_gate_snapshot' => [
-                'path' => $this->root . '/core_ops_gate_snapshot.json',
+                'path' => $this->root.'/core_ops_gate_snapshot.json',
                 'optional' => false,
                 'required_fragments' => [
                     '"suite": "core_ops"',
-                    '"definition_path": "' . $this->root . '/core_ops_gate_suite.json"',
-                    '"snapshot_path": "' . $this->root . '/core_ops_gate_snapshot.json"',
+                    '"definition_path": "'.$this->root.'/core_ops_gate_suite.json"',
+                    '"snapshot_path": "'.$this->root.'/core_ops_gate_snapshot.json"',
                 ],
             ],
         ]);
-        config()->set('booking_release.core_ops_gate.definition_path', $this->root . '/core_ops_gate_suite.json');
-        config()->set('booking_release.core_ops_gate.snapshot_path', $this->root . '/core_ops_gate_snapshot.json');
+        config()->set('booking_release.core_ops_gate.definition_path', $this->root.'/core_ops_gate_suite.json');
+        config()->set('booking_release.core_ops_gate.snapshot_path', $this->root.'/core_ops_gate_snapshot.json');
         config()->set('booking_release.required_sql_patches', []);
 
         $snapshot = app(ReleaseArtifactManifestService::class)->snapshot();
@@ -132,30 +131,30 @@ class ReleaseArtifactManifestServiceTest extends TestCase
         $this->assertSame('fail', $snapshot['status']);
         $this->assertArrayHasKey('semantic_issues', $snapshot['artifacts']['core_ops_gate_snapshot']);
         $this->assertContains(
-            sprintf('Core ops gate snapshot %s summary.total must be greater than zero.', $this->root . '/core_ops_gate_snapshot.json'),
+            sprintf('Core ops gate snapshot %s summary.total must be greater than zero.', $this->root.'/core_ops_gate_snapshot.json'),
             $snapshot['artifacts']['core_ops_gate_snapshot']['semantic_issues']
         );
         $this->assertContains(
-            sprintf('Core ops gate snapshot %s does not contain any executed test entries.', $this->root . '/core_ops_gate_snapshot.json'),
+            sprintf('Core ops gate snapshot %s does not contain any executed test entries.', $this->root.'/core_ops_gate_snapshot.json'),
             $snapshot['artifacts']['core_ops_gate_snapshot']['semantic_issues']
         );
     }
 
     public function test_snapshot_accepts_json_contract_fragments_when_only_whitespace_differs(): void
     {
-        $definitionPath = base_path($this->root . '/route_inventory_gate.json');
+        $definitionPath = base_path($this->root.'/route_inventory_gate.json');
         File::ensureDirectoryExists(dirname($definitionPath));
-        File::put($definitionPath, <<<JSON
+        File::put($definitionPath, <<<'JSON'
 {
     "suite":  "route_inventory",
     "expected_routes":  [],
     "smoke_requests":  []
 }
-JSON . PHP_EOL);
+JSON.PHP_EOL);
 
         config()->set('booking_release.artifacts', [
             'route_inventory_gate_definition' => [
-                'path' => $this->root . '/route_inventory_gate.json',
+                'path' => $this->root.'/route_inventory_gate.json',
                 'optional' => false,
                 'required_fragments' => [
                     '"suite": "route_inventory"',
@@ -176,13 +175,13 @@ JSON . PHP_EOL);
 
     public function test_snapshot_normalizes_text_artifact_line_endings_before_hashing(): void
     {
-        $definitionPath = base_path($this->root . '/route_inventory_gate.json');
+        $definitionPath = base_path($this->root.'/route_inventory_gate.json');
         File::ensureDirectoryExists(dirname($definitionPath));
         File::put($definitionPath, "{\r\n  \"suite\": \"route_inventory\"\r\n}\r\n");
 
         config()->set('booking_release.artifacts', [
             'route_inventory_gate_definition' => [
-                'path' => $this->root . '/route_inventory_gate.json',
+                'path' => $this->root.'/route_inventory_gate.json',
                 'optional' => false,
                 'required_fragments' => [
                     '"suite": "route_inventory"',
@@ -202,10 +201,10 @@ JSON . PHP_EOL);
 
     public function test_snapshot_fails_when_generated_consumer_artifacts_are_stale_relative_to_openapi_or_manifest(): void
     {
-        $openApiPath = base_path($this->root . '/openapi-v1.json');
-        $sdkPath = base_path($this->root . '/restaurantpos-sdk.ts');
-        $enumsPath = base_path($this->root . '/restaurantpos-enums.ts');
-        $mutationContractPath = base_path($this->root . '/mutation-contracts.md');
+        $openApiPath = base_path($this->root.'/openapi-v1.json');
+        $sdkPath = base_path($this->root.'/restaurantpos-sdk.ts');
+        $enumsPath = base_path($this->root.'/restaurantpos-enums.ts');
+        $mutationContractPath = base_path($this->root.'/mutation-contracts.md');
         File::ensureDirectoryExists(dirname($openApiPath));
         File::put($openApiPath, "{\"openapi\":\"3.1.0\"}\n");
         File::put($sdkPath, "export class RestaurantPosClient {}\n");
@@ -221,22 +220,22 @@ JSON . PHP_EOL);
 
         config()->set('booking_release.artifacts', [
             'openapi_v1_spec' => [
-                'path' => $this->root . '/openapi-v1.json',
+                'path' => $this->root.'/openapi-v1.json',
                 'optional' => false,
                 'required_fragments' => ['"openapi":"3.1.0"'],
             ],
             'api_consumer_sdk_typescript' => [
-                'path' => $this->root . '/restaurantpos-sdk.ts',
+                'path' => $this->root.'/restaurantpos-sdk.ts',
                 'optional' => false,
                 'required_fragments' => ['RestaurantPosClient'],
             ],
             'api_consumer_sdk_enums_typescript' => [
-                'path' => $this->root . '/restaurantpos-enums.ts',
+                'path' => $this->root.'/restaurantpos-enums.ts',
                 'optional' => false,
                 'required_fragments' => ['reservationStatusValues'],
             ],
             'api_consumer_mutation_contract' => [
-                'path' => $this->root . '/mutation-contracts.md',
+                'path' => $this->root.'/mutation-contracts.md',
                 'optional' => false,
                 'required_fragments' => ['Mutation Contract Matrix'],
             ],
@@ -256,8 +255,8 @@ JSON . PHP_EOL);
         $this->assertContains(
             sprintf(
                 'Generated artifact %s is stale relative to %s. Regenerate the API consumer artifacts before refreshing the release manifest or packaging the handoff.',
-                $this->root . '/restaurantpos-sdk.ts',
-                $this->root . '/openapi-v1.json',
+                $this->root.'/restaurantpos-sdk.ts',
+                $this->root.'/openapi-v1.json',
             ),
             $snapshot['artifacts']['api_consumer_sdk_typescript']['freshness_issues']
         );
@@ -265,28 +264,28 @@ JSON . PHP_EOL);
 
     public function test_inspect_frozen_snapshot_ignores_self_referential_release_manifest_metadata(): void
     {
-        $schemaPath = base_path($this->root . '/schema.sql');
-        $snapshotPath = base_path($this->root . '/release_manifest_snapshot.json');
+        $schemaPath = base_path($this->root.'/schema.sql');
+        $snapshotPath = base_path($this->root.'/release_manifest_snapshot.json');
         File::ensureDirectoryExists(dirname($schemaPath));
         File::put($schemaPath, "alpha\nbeta\n");
 
         config()->set('booking_release.artifacts', [
             'schema_dump' => [
-                'path' => $this->root . '/schema.sql',
+                'path' => $this->root.'/schema.sql',
                 'optional' => false,
                 'required_fragments' => ['alpha', 'beta'],
             ],
             'release_manifest_snapshot' => [
-                'path' => $this->root . '/release_manifest_snapshot.json',
+                'path' => $this->root.'/release_manifest_snapshot.json',
                 'optional' => false,
                 'required_fragments' => ['"artifacts"'],
             ],
         ]);
         config()->set('booking_release.required_sql_patches', []);
         config()->set('booking_release.release_manifest.definition_path', 'config/booking_release.php');
-        config()->set('booking_release.release_manifest.snapshot_path', $this->root . '/release_manifest_snapshot.json');
+        config()->set('booking_release.release_manifest.snapshot_path', $this->root.'/release_manifest_snapshot.json');
 
-        File::put($snapshotPath, json_encode(['placeholder' => true], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+        File::put($snapshotPath, json_encode(['placeholder' => true], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
 
         $service = app(ReleaseArtifactManifestService::class);
         $frozen = $service->snapshot();
@@ -304,7 +303,7 @@ JSON . PHP_EOL);
         $frozen['artifacts']['release_manifest_snapshot']['line_count'] = 1;
         $frozen['artifacts']['release_manifest_snapshot']['missing_fragments'] = ['"artifacts"'];
 
-        File::put($snapshotPath, json_encode($frozen, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+        File::put($snapshotPath, json_encode($frozen, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
 
         $report = $service->inspectFrozenSnapshot();
 
@@ -312,26 +311,26 @@ JSON . PHP_EOL);
         $this->assertSame('ok', $report['status']);
         $this->assertSame([], $report['issues']);
         $this->assertSame([], $report['mismatch_paths']);
-        $this->assertSame($this->root . '/release_manifest_snapshot.json', $report['snapshot_path']);
+        $this->assertSame($this->root.'/release_manifest_snapshot.json', $report['snapshot_path']);
     }
 
-    public function test_write_snapshot_does_not_rewrite_when_only_volatile_metadata_changes(): void
+    public function test_write_snapshot_persists_the_explicit_snapshot_payload(): void
     {
-        $schemaPath = base_path($this->root . '/schema.sql');
-        $snapshotPath = base_path($this->root . '/release_manifest_snapshot.json');
+        $schemaPath = base_path($this->root.'/schema.sql');
+        $snapshotPath = base_path($this->root.'/release_manifest_snapshot.json');
         File::ensureDirectoryExists(dirname($schemaPath));
         File::put($schemaPath, "alpha\nbeta\n");
 
         config()->set('booking_release.artifacts', [
             'schema_dump' => [
-                'path' => $this->root . '/schema.sql',
+                'path' => $this->root.'/schema.sql',
                 'optional' => false,
                 'required_fragments' => ['alpha', 'beta'],
             ],
         ]);
         config()->set('booking_release.required_sql_patches', []);
         config()->set('booking_release.release_manifest.definition_path', 'config/booking_release.php');
-        config()->set('booking_release.release_manifest.snapshot_path', $this->root . '/release_manifest_snapshot.json');
+        config()->set('booking_release.release_manifest.snapshot_path', $this->root.'/release_manifest_snapshot.json');
 
         $service = app(ReleaseArtifactManifestService::class);
         $service->writeSnapshot($service->snapshot());
@@ -341,6 +340,41 @@ JSON . PHP_EOL);
         $snapshot['meta']['generated_at_utc'] = '2099-01-01T00:00:00Z';
         $service->writeSnapshot($snapshot);
 
-        $this->assertSame($firstContents, (string) File::get($snapshotPath));
+        $written = (string) File::get($snapshotPath);
+
+        $this->assertNotSame($firstContents, $written);
+        $this->assertStringContainsString('"generated_at_utc": "2099-01-01T00:00:00Z"', $written);
+    }
+
+    public function test_write_snapshot_refreshes_snapshot_timestamp_even_when_contents_match(): void
+    {
+        $schemaPath = base_path($this->root.'/schema.sql');
+        $snapshotPath = base_path($this->root.'/release_manifest_snapshot.json');
+        File::ensureDirectoryExists(dirname($schemaPath));
+        File::put($schemaPath, "alpha\nbeta\n");
+
+        config()->set('booking_release.artifacts', [
+            'schema_dump' => [
+                'path' => $this->root.'/schema.sql',
+                'optional' => false,
+                'required_fragments' => ['alpha', 'beta'],
+            ],
+        ]);
+        config()->set('booking_release.required_sql_patches', []);
+        config()->set('booking_release.release_manifest.definition_path', 'config/booking_release.php');
+        config()->set('booking_release.release_manifest.snapshot_path', $this->root.'/release_manifest_snapshot.json');
+
+        $service = app(ReleaseArtifactManifestService::class);
+        $service->writeSnapshot($service->snapshot());
+        clearstatcache(true, $snapshotPath);
+        $firstModified = File::lastModified($snapshotPath);
+
+        sleep(1);
+
+        $service->writeSnapshot($service->snapshot());
+        clearstatcache(true, $snapshotPath);
+        $secondModified = File::lastModified($snapshotPath);
+
+        $this->assertGreaterThan($firstModified, $secondModified);
     }
 }

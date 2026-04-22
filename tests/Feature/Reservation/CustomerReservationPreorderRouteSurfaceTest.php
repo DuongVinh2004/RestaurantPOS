@@ -63,7 +63,7 @@ final class CustomerReservationPreorderRouteSurfaceTest extends TestCase
         $candidates = [$normalized];
 
         if (! str_starts_with($normalized, 'api/')) {
-            $candidates[] = 'api/' . $normalized;
+            $candidates[] = 'api/'.$normalized;
         }
 
         return array_values(array_unique($candidates));

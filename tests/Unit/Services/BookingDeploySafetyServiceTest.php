@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use PHPUnit\Framework\Attributes\Group;
+use App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService;
+use App\Platform\Health\Services\BookingEnvironmentValidator;
+use App\Platform\Metrics\Services\OperationalInsightsService;
 use App\Platform\Release\Services\BookingDeploySafetyService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class BookingDeploySafetyServiceTest extends TestCase
@@ -76,11 +79,7 @@ class BookingDeploySafetyServiceTest extends TestCase
     #[Group('booking-smoke')]
     public function test_preflight_passes_when_guard_tables_are_clean(): void
     {
-        $service = new class(
-            app(\App\Platform\Health\Services\BookingEnvironmentValidator::class),
-            app(\App\Platform\Metrics\Services\OperationalInsightsService::class),
-            app(\App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService::class),
-        ) extends BookingDeploySafetyService
+        $service = new class(app(BookingEnvironmentValidator::class), app(OperationalInsightsService::class), app(PurchaseOrderReconciliationService::class)) extends BookingDeploySafetyService
         {
             protected function inspectOperationalGuards(): array
             {
@@ -136,11 +135,7 @@ class BookingDeploySafetyServiceTest extends TestCase
     #[Group('booking-smoke')]
     public function test_preflight_reports_structured_runtime_error_when_data_guards_throw(): void
     {
-        $service = new class(
-            app(\App\Platform\Health\Services\BookingEnvironmentValidator::class),
-            app(\App\Platform\Metrics\Services\OperationalInsightsService::class),
-            app(\App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService::class),
-        ) extends BookingDeploySafetyService
+        $service = new class(app(BookingEnvironmentValidator::class), app(OperationalInsightsService::class), app(PurchaseOrderReconciliationService::class)) extends BookingDeploySafetyService
         {
             protected function inspectDataGuards(): array
             {
@@ -157,14 +152,53 @@ class BookingDeploySafetyServiceTest extends TestCase
         $this->assertStringContainsString('Data guard inspection failed: mysql runtime unavailable', $report['checks']['data.runtime']['message']);
     }
 
+    #[Group('booking-smoke')]
+    public function test_preflight_fails_fast_when_database_runtime_is_unavailable(): void
+    {
+        $service = new class(app(BookingEnvironmentValidator::class), app(OperationalInsightsService::class), app(PurchaseOrderReconciliationService::class)) extends BookingDeploySafetyService
+        {
+            protected function inspectDatabaseRuntime(): array
+            {
+                return [
+                    'ok' => false,
+                    'severity' => 'error',
+                    'message' => 'Database runtime is unavailable; skipped database-dependent deploy guards.',
+                    'meta' => [
+                        'connection' => 'mysql',
+                    ],
+                ];
+            }
+
+            protected function inspectDataGuards(): array
+            {
+                throw new \RuntimeException('data guards should have been skipped');
+            }
+
+            protected function inspectOperationalGuards(): array
+            {
+                throw new \RuntimeException('operational guards should have been skipped');
+            }
+        };
+
+        $report = $service->inspect('preflight');
+
+        $this->assertFalse($report['ok']);
+        $this->assertArrayHasKey('runtime.database', $report['checks']);
+        $this->assertArrayHasKey('data.runtime', $report['checks']);
+        $this->assertArrayHasKey('ops.runtime', $report['checks']);
+        $this->assertFalse($report['checks']['runtime.database']['ok']);
+        $this->assertSame('error', $report['checks']['runtime.database']['severity']);
+        $this->assertSame('warning', $report['checks']['data.runtime']['severity']);
+        $this->assertSame('warning', $report['checks']['ops.runtime']['severity']);
+        $this->assertSame(1, $report['summary']['runtime_error_count'] ?? null);
+        $this->assertStringNotContainsString('should have been skipped', implode("\n", $report['errors']));
+        $this->assertStringNotContainsString('should have been skipped', implode("\n", $report['warnings']));
+    }
+
     #[Group('booking-ops')]
     public function test_preflight_surfaces_runtime_incompatible_payment_refund_trigger_guard(): void
     {
-        $service = new class(
-            app(\App\Platform\Health\Services\BookingEnvironmentValidator::class),
-            app(\App\Platform\Metrics\Services\OperationalInsightsService::class),
-            app(\App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService::class),
-        ) extends BookingDeploySafetyService
+        $service = new class(app(BookingEnvironmentValidator::class), app(OperationalInsightsService::class), app(PurchaseOrderReconciliationService::class)) extends BookingDeploySafetyService
         {
             protected function inspectDataGuards(): array
             {
@@ -227,7 +261,6 @@ class BookingDeploySafetyServiceTest extends TestCase
             'locked_until' => null,
         ]);
 
-
         DB::table('bank_accounts')->insert([
             ['bank_account_id' => 1, 'user_id' => 50, 'is_default' => 1],
             ['bank_account_id' => 2, 'user_id' => 50, 'is_default' => 1],
@@ -248,6 +281,7 @@ class BookingDeploySafetyServiceTest extends TestCase
         DB::table('audit_logs')->insert([
             'audit_id' => 1,
             'actor_user_id' => null,
+            'actor_key' => null,
             'entity_type' => 'restaurant_table',
             'entity_id' => '5',
             'action' => 'table_state_released',
@@ -287,11 +321,7 @@ class BookingDeploySafetyServiceTest extends TestCase
             ],
         ]);
 
-        $service = new class(
-            app(\App\Platform\Health\Services\BookingEnvironmentValidator::class),
-            app(\App\Platform\Metrics\Services\OperationalInsightsService::class),
-            app(\App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService::class),
-        ) extends BookingDeploySafetyService
+        $service = new class(app(BookingEnvironmentValidator::class), app(OperationalInsightsService::class), app(PurchaseOrderReconciliationService::class)) extends BookingDeploySafetyService
         {
             protected function inspectOperationalGuards(): array
             {
@@ -351,8 +381,6 @@ class BookingDeploySafetyServiceTest extends TestCase
         $this->assertSame(1, $report['checks']['data.payment_refund_lineage']['meta']['over_refund_source_count'] ?? null);
     }
 
-
-
     #[Group('booking-ops')]
     public function test_preflight_fails_when_refund_lineage_crosses_reservation_or_currency_scope(): void
     {
@@ -387,8 +415,8 @@ class BookingDeploySafetyServiceTest extends TestCase
     #[Group('booking-smoke')]
     public function test_preflight_fails_when_full_dump_contains_definers(): void
     {
-        File::put(base_path('db_all.sql'), "CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_bad`() SELECT 1;
-");
+        File::put(base_path('db_all.sql'), 'CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_bad`() SELECT 1;
+');
 
         $report = app(BookingDeploySafetyService::class)->inspect('preflight');
 
@@ -406,7 +434,7 @@ class BookingDeploySafetyServiceTest extends TestCase
             static fn (string $fragment): bool => $fragment !== ''
         ));
 
-        File::put($dumpPath, "-- portable test dump\n" . implode("\n", $fragments) . "\n");
+        File::put($dumpPath, "-- portable test dump\n".implode("\n", $fragments)."\n");
     }
 
     private function restoreFullDumpArtifact(): void
@@ -415,12 +443,12 @@ class BookingDeploySafetyServiceTest extends TestCase
 
         if ($this->fullDumpBackup === null) {
             File::delete($dumpPath);
+
             return;
         }
 
         File::put($dumpPath, $this->fullDumpBackup);
     }
-
 
     private function ensureMigrationRepository(): void
     {
@@ -480,7 +508,6 @@ class BookingDeploySafetyServiceTest extends TestCase
             });
         }
 
-
         if (! Schema::hasTable('bank_accounts')) {
             Schema::create('bank_accounts', function (Blueprint $table): void {
                 $table->unsignedBigInteger('bank_account_id')->primary();
@@ -523,12 +550,19 @@ class BookingDeploySafetyServiceTest extends TestCase
             Schema::create('audit_logs', function (Blueprint $table): void {
                 $table->unsignedBigInteger('audit_id')->primary();
                 $table->unsignedBigInteger('actor_user_id')->nullable();
+                $table->string('actor_key', 120)->nullable();
                 $table->string('entity_type', 50);
                 $table->string('entity_id', 64);
                 $table->string('action', 50);
                 $table->text('before_json')->nullable();
                 $table->text('after_json')->nullable();
                 $table->timestamp('created_at')->nullable();
+            });
+        }
+
+        if (Schema::hasTable('audit_logs') && ! Schema::hasColumn('audit_logs', 'actor_key')) {
+            Schema::table('audit_logs', function (Blueprint $table): void {
+                $table->string('actor_key', 120)->nullable()->after('actor_user_id');
             });
         }
 

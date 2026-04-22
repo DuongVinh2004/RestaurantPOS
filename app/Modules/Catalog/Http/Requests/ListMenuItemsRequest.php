@@ -24,7 +24,7 @@ class ListMenuItemsRequest extends FormRequest
             'preorder_only' => ['nullable', 'boolean'],
             'q' => ['nullable', 'string', 'max:100'],
             'page' => ['nullable', 'integer', 'min:1'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:' . (int) config('booking.customer_menu_page_max', 100)],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:'.(int) config('booking.customer_menu_page_max', 100)],
         ];
     }
 

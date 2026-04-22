@@ -39,8 +39,8 @@ final class ReservationStatusIdempotencyScopeTest extends TestCase
                     'row_version' => $request->input('row_version'),
                     'nonce' => Str::uuid()->toString(),
                 ]);
-            })->middleware(IdempotencyMiddleware::class . ':staff.reservation-status')
-              ->name('testing.reservation-status.idem');
+            })->middleware(IdempotencyMiddleware::class.':staff.reservation-status')
+                ->name('testing.reservation-status.idem');
         }
     }
 
@@ -51,7 +51,7 @@ final class ReservationStatusIdempotencyScopeTest extends TestCase
             'status' => 'Cancelled',
             'row_version' => 2,
         ])->assertStatus(422)
-          ->assertJsonPath('error', 'idempotency_key_required');
+            ->assertJsonPath('error', 'idempotency_key_required');
     }
 
     #[Test]

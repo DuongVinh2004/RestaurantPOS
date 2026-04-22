@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ConversationAnalysis extends Model
 {
     protected $table = 'conversation_analyses';
+
     protected $primaryKey = 'analysis_id';
 
     public const UPDATED_AT = null;

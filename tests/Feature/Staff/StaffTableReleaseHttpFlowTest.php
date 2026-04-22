@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
-use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Mockery;
@@ -168,6 +168,29 @@ class StaffTableReleaseHttpFlowTest extends TestCase
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['table_id']);
+
+        self::assertSame('Occupied', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
+    }
+
+    public function test_release_returns_not_found_for_idle_table_outside_staff_operational_branch_scope(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $annexBranchId = $this->createBranch([
+            'branch_code' => 'RELHIDE',
+            'branch_name' => 'Release Hidden Branch',
+        ]);
+        $tableId = $this->createRestaurantTable([
+            'status' => 'Occupied',
+            'row_version' => 1,
+            'branch_id' => $annexBranchId,
+        ]);
+
+        $this->withHeaders($this->withIdempotencyKey('staff-table-release-hidden-branch', $this->staffAuthHeaders($staffId)))
+            ->postJson('/api/v1/staff/tables/'.$tableId.'/release', [
+                'row_version' => 1,
+            ])
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
 
         self::assertSame('Occupied', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
     }

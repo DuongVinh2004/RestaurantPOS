@@ -24,5 +24,3 @@ class CheckInReservationRequest extends FormRequest
         ];
     }
 }
-
-

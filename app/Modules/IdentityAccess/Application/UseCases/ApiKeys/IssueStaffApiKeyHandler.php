@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\IdentityAccess\Application\UseCases\ApiKeys;
 
+use App\Modules\IdentityAccess\Domain\Models\StaffApiKey;
 use App\Modules\IdentityAccess\Infrastructure\Persistence\StaffApiKeyStore;
 use Carbon\CarbonInterface;
 
@@ -14,7 +15,7 @@ class IssueStaffApiKeyHandler
     ) {}
 
     /**
-     * @return array{record:\App\Modules\IdentityAccess\Domain\Models\StaffApiKey, plaintext_key:string}
+     * @return array{record:StaffApiKey, plaintext_key:string}
      */
     public function handle(int $userId, string $label, ?CarbonInterface $expiresAt = null): array
     {

@@ -33,7 +33,7 @@ class StaffLegacyRouteAliasContractTest extends TestCase
     private function findRouteByUriSuffix(string $suffix): ?IlluminateRoute
     {
         foreach (Route::getRoutes()->getRoutes() as $route) {
-            if ($route->uri() === $suffix || str_ends_with($route->uri(), '/' . $suffix)) {
+            if ($route->uri() === $suffix || str_ends_with($route->uri(), '/'.$suffix)) {
                 return $route;
             }
         }

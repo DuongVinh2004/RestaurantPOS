@@ -6,8 +6,8 @@ namespace Tests\Feature\Console;
 
 use App\Modules\Notifications\Application\Services\NotificationOutboxHealthService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
-use App\Platform\Metrics\Services\OperationalInsightsService;
 use App\Modules\Waitlist\Application\Services\StaffWaitingListService;
+use App\Platform\Metrics\Services\OperationalInsightsService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Mockery;
@@ -150,7 +150,6 @@ class NotificationOpsCommandsTest extends TestCase
         $this->assertSame(99, $payload['rows'][0]['outbox_id'] ?? null);
         $this->assertSame('channel_disabled', $payload['rows'][0]['latest_error_code'] ?? null);
     }
-
 
     #[Group('booking-ops')]
     public function test_booking_ops_snapshot_command_supports_json_output_and_fail_exit_code(): void

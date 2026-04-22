@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Modules\Loyalty\Application\UseCases\Points;
 
-use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Loyalty\Application\UseCases\Tiers\LoyaltyTierSyncService;
 use App\Modules\Loyalty\Application\Workflows\LoyaltyLedgerWriter;
 use App\Modules\Loyalty\Domain\Models\UserPoint;
-use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
-use App\Support\AuditEvent;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
+use App\Support\AuditEvent;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 

@@ -13,7 +13,7 @@ final class ApiRouteSurfaceIntegrityTest extends TestCase
     {
         $fixture = json_decode((string) file_get_contents(base_path('tests/fixtures/route_inventory_gate.json')), true, 512, JSON_THROW_ON_ERROR);
         $expected = collect((array) ($fixture['expected_routes'] ?? []))
-            ->map(fn (array $route): string => strtoupper((string) $route['method']) . ' ' . (string) $route['uri'])
+            ->map(fn (array $route): string => strtoupper((string) $route['method']).' '.(string) $route['uri'])
             ->sort()
             ->values()
             ->all();
@@ -27,7 +27,7 @@ final class ApiRouteSurfaceIntegrityTest extends TestCase
 
                 return collect($route->methods())
                     ->reject(fn (string $method): bool => strtoupper($method) === 'HEAD')
-                    ->map(fn (string $method): string => strtoupper($method) . ' ' . $uri)
+                    ->map(fn (string $method): string => strtoupper($method).' '.$uri)
                     ->values()
                     ->all();
             })
@@ -47,11 +47,11 @@ final class ApiRouteSurfaceIntegrityTest extends TestCase
             $canonical = (string) ($group['canonical'] ?? '');
             $canonicalRoute = $routes->get($canonical);
 
-            $this->assertNotNull($canonicalRoute, 'Missing canonical route [' . $canonical . '].');
+            $this->assertNotNull($canonicalRoute, 'Missing canonical route ['.$canonical.'].');
 
             $expectedCanonicalAction = (string) ($group['canonical_action'] ?? '');
             if ($expectedCanonicalAction !== '') {
-                $this->assertSame($expectedCanonicalAction, $canonicalRoute->getActionName(), 'Canonical route [' . $canonical . '] drifted from its expected action.');
+                $this->assertSame($expectedCanonicalAction, $canonicalRoute->getActionName(), 'Canonical route ['.$canonical.'] drifted from its expected action.');
             }
 
             foreach ((array) ($group['aliases'] ?? []) as $aliasDefinition) {
@@ -62,16 +62,16 @@ final class ApiRouteSurfaceIntegrityTest extends TestCase
                 $alias = (string) ($aliasDefinition['uri'] ?? '');
                 $aliasRoute = $routes->get($alias);
 
-                $this->assertNotNull($aliasRoute, 'Missing alias route [' . $alias . '].');
+                $this->assertNotNull($aliasRoute, 'Missing alias route ['.$alias.'].');
                 $this->assertSame(
                     $this->controllerClassFromActionName($canonicalRoute->getActionName()),
                     $this->controllerClassFromActionName($aliasRoute->getActionName()),
-                    'Alias route [' . $alias . '] drifted away from canonical controller [' . $canonical . '].'
+                    'Alias route ['.$alias.'] drifted away from canonical controller ['.$canonical.'].'
                 );
 
                 $expectedAliasAction = (string) ($aliasDefinition['action'] ?? '');
                 if ($expectedAliasAction !== '') {
-                    $this->assertSame($expectedAliasAction, $aliasRoute->getActionName(), 'Alias route [' . $alias . '] drifted from its expected wrapper action.');
+                    $this->assertSame($expectedAliasAction, $aliasRoute->getActionName(), 'Alias route ['.$alias.'] drifted from its expected wrapper action.');
                 }
             }
         }

@@ -8,16 +8,14 @@ use App\Enums\ReservationOrderItemStatus;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
+use App\Modules\BranchScheduling\Application\Services\TableHoldService;
 use App\Modules\Catalog\Domain\Models\MenuItem;
 use App\Modules\Catalog\Domain\Models\MenuItemPrice;
-use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\Ordering\Domain\Models\ReservationOrder;
-use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
-use App\Modules\Reservations\Application\Services\ReservationCodeGenerator;
-use App\Modules\Reservations\Application\Services\ReservationLockService;
-use App\Modules\BranchScheduling\Application\Services\TableHoldService;
+use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Support\AuditEvent;
 use App\Support\AvailabilityCacheVersion;
 use App\Support\DatabaseWriteConflictMapper;
@@ -35,8 +33,7 @@ class ReservationCreateService
         private readonly NotificationOutboxService $notificationOutboxService,
         private readonly ReservationConflictValidator $conflictValidator,
         private readonly ReservationTableAssignmentService $tableAssignmentService,
-    ) {
-    }
+    ) {}
 
     public function createReservation(array $payload, ?int $actorUserId = null, array $options = []): Reservation
     {
@@ -73,7 +70,7 @@ class ReservationCreateService
                     ->first();
                 if ($userId !== null && ! $user) {
                     throw ValidationException::withMessages([
-                        'user_id' => ['User không tồn tại hoặc đã bị xoá.'],
+                        'user_id' => ['User does not exist or was deleted.'],
                     ]);
                 }
 
@@ -86,7 +83,7 @@ class ReservationCreateService
                 $this->conflictValidator->assertTablesAllocatableAndCapacity($tables, $tableIds, $guestCount);
                 $this->conflictValidator->assertNoCreateConflicts($tableIds, $startUtc, $endUtc, $trustedHoldIds);
 
-                $reservation = new Reservation();
+                $reservation = new Reservation;
                 $reservation->user_id = $userId;
                 $reservation->guest_name = $guestSnapshot['guest_name'];
                 $reservation->guest_phone = $guestSnapshot['guest_phone'];
@@ -178,7 +175,7 @@ class ReservationCreateService
 
         if (count($normalizedPreOrderItems) === 0) {
             throw ValidationException::withMessages([
-                'pre_order_items' => ['Danh sách pre-order không hợp lệ.'],
+                'pre_order_items' => ['Danh sÃ¡ch pre-order khÃ´ng há»£p lá»‡.'],
             ]);
         }
 
@@ -189,7 +186,7 @@ class ReservationCreateService
 
         if (! MenuItem::supportsPreorderColumns()) {
             throw ValidationException::withMessages([
-                'pre_order_items' => ['Hệ thống chưa được đồng bộ contract pre-order. Vui lòng áp dụng patch database mới nhất rồi thử lại.'],
+                'pre_order_items' => ['Há»‡ thá»‘ng chÆ°a Ä‘Æ°á»£c Ä‘á»“ng bá»™ contract pre-order. Vui lÃ²ng Ã¡p dá»¥ng patch database má»›i nháº¥t rá»“i thá»­ láº¡i.'],
             ]);
         }
 
@@ -201,7 +198,7 @@ class ReservationCreateService
 
         if ($menuItems->count() !== count($itemIds)) {
             throw ValidationException::withMessages([
-                'pre_order_items' => ['Có món không tồn tại hoặc đang unavailable.'],
+                'pre_order_items' => ['CÃ³ mÃ³n khÃ´ng tá»“n táº¡i hoáº·c Ä‘ang unavailable.'],
             ]);
         }
 
@@ -220,20 +217,20 @@ class ReservationCreateService
             $menuItem = $menuItems->get((int) $row['item_id']);
             if (! $menuItem) {
                 throw ValidationException::withMessages([
-                    'pre_order_items' => ['Có món không tồn tại hoặc đang unavailable.'],
+                    'pre_order_items' => ['CÃ³ mÃ³n khÃ´ng tá»“n táº¡i hoáº·c Ä‘ang unavailable.'],
                 ]);
             }
 
             if (! (bool) ($menuItem->is_preorder_enabled ?? false)) {
                 throw ValidationException::withMessages([
-                    'pre_order_items' => [sprintf('Món %s không cho phép pre-order.', (string) $menuItem->name)],
+                    'pre_order_items' => [sprintf('MÃ³n %s khÃ´ng cho phÃ©p pre-order.', (string) $menuItem->name)],
                 ]);
             }
 
             $cutoffMinutes = (int) ($menuItem->preorder_cutoff_minutes ?? 0);
             if ($cutoffMinutes > 0 && Carbon::now('UTC')->addMinutes($cutoffMinutes)->gt($startUtc)) {
                 throw ValidationException::withMessages([
-                    'pre_order_items' => [sprintf('Món %s đã quá hạn pre-order.', (string) $menuItem->name)],
+                    'pre_order_items' => [sprintf('MÃ³n %s Ä‘Ã£ quÃ¡ háº¡n pre-order.', (string) $menuItem->name)],
                 ]);
             }
 
@@ -254,13 +251,13 @@ class ReservationCreateService
 
                 if ($existingQty + (int) $row['quantity'] > $quotaPerDay) {
                     throw ValidationException::withMessages([
-                        'pre_order_items' => [sprintf('Món %s đã vượt quota pre-order trong ngày.', (string) $menuItem->name)],
+                        'pre_order_items' => [sprintf('MÃ³n %s Ä‘Ã£ vÆ°á»£t quota pre-order trong ngÃ y.', (string) $menuItem->name)],
                     ]);
                 }
             }
         }
 
-        $order = new ReservationOrder();
+        $order = new ReservationOrder;
         $order->reservation_id = $reservation->reservation_id;
         $order->order_type = ReservationOrderType::PreOrder;
         $order->status = ReservationOrderStatus::Active;
@@ -276,7 +273,7 @@ class ReservationCreateService
             $currency = $priceRow ? (string) $priceRow->currency : 'VND';
             $quantity = (int) $row['quantity'];
 
-            $item = new ReservationOrderItem();
+            $item = new ReservationOrderItem;
             $item->order_id = $order->order_id;
             $item->item_id = (int) $row['item_id'];
             $item->quantity = $quantity;
@@ -307,7 +304,7 @@ class ReservationCreateService
             ->first();
         if (! $user) {
             throw ValidationException::withMessages([
-                'user_id' => ['User khong ton tai hoac da bi xoa.'],
+                'user_id' => ['User does not exist or was deleted.'],
             ]);
         }
 

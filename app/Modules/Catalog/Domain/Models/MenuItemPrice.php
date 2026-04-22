@@ -11,6 +11,7 @@ use Illuminate\Validation\ValidationException;
 class MenuItemPrice extends Model
 {
     protected $table = 'menu_item_prices';
+
     protected $primaryKey = 'price_id';
 
     public $timestamps = false;
@@ -35,7 +36,7 @@ class MenuItemPrice extends Model
     protected static function booted(): void
     {
         static::saving(function (self $model): void {
-            if (!$model->item_id || !$model->effective_from) {
+            if (! $model->item_id || ! $model->effective_from) {
                 return;
             }
 

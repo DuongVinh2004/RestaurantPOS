@@ -55,6 +55,7 @@ class KitchenTicketResource extends JsonResource
                 'item_id' => (int) $orderItem->item_id,
                 'quantity' => (int) $orderItem->quantity,
                 'status' => $orderItem->status?->value ?? (string) $orderItem->status,
+                'row_version' => isset($orderItem->row_version) ? (int) $orderItem->row_version : null,
                 'notes' => $orderItem->notes !== null ? (string) $orderItem->notes : null,
                 'item_name_snapshot' => $orderItem->item_name_snapshot !== null ? (string) $orderItem->item_name_snapshot : null,
             ] : null,
@@ -85,6 +86,3 @@ class KitchenTicketResource extends JsonResource
         ];
     }
 }
-
-
-

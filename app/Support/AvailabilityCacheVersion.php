@@ -35,6 +35,7 @@ final class AvailabilityCacheVersion
 
         if (! is_numeric($next) || (int) $next <= 0) {
             $store->forever(self::GENERATION_KEY, 2);
+
             return 2;
         }
 

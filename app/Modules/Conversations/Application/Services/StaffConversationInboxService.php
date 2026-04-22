@@ -10,9 +10,9 @@ use App\Modules\Conversations\Domain\Models\Conversation;
 use App\Modules\Conversations\Domain\Models\ConversationAnalysis;
 use App\Modules\Conversations\Domain\Models\ConversationEvent;
 use App\Modules\Conversations\Domain\Models\ConversationMessage;
+use App\Modules\Conversations\Infrastructure\Internal\ConversationAiAssistBuilder;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Platform\FeatureFlags\Services\FeatureFlagService;
-use App\Modules\Conversations\Infrastructure\Internal\ConversationAiAssistBuilder;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -25,7 +25,7 @@ class StaffConversationInboxService
     public function __construct(
         private readonly FeatureFlagService $featureFlags,
         private readonly StaffConversationOutboundReplySupportService $outboundReplySupportService,
-        private readonly ConversationThreadAssistService $conversationThreadAssistService,
+        private readonly ConversationAiAssistBuilder $conversationAiAssistBuilder,
         private readonly StaffBranchContextService $branchContextService,
     ) {}
 
@@ -153,7 +153,7 @@ class StaffConversationInboxService
             'messages' => $messages,
             'events' => $events,
             'analyses' => $analyses,
-            'ai_assist' => $this->conversationThreadAssistService->buildForConversationDetail($conversation, $messages, $analyses),
+            'ai_assist' => $this->conversationAiAssistBuilder->buildForConversationDetail($conversation, $messages, $analyses),
             'assignment_history' => $assignmentHistoryQuery->get(),
             'capabilities' => [
                 'can_assign' => true,
@@ -443,4 +443,3 @@ class StaffConversationInboxService
         return $branchIds;
     }
 }
-

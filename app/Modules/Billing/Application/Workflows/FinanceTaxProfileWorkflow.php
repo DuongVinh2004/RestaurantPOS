@@ -45,7 +45,7 @@ class FinanceTaxProfileWorkflow
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      * @return array<string,mixed>
      */
     public function upsert(array $payload, ?int $actorUserId = null): array
@@ -130,7 +130,7 @@ class FinanceTaxProfileWorkflow
     }
 
     /**
-     * @param array<string,mixed> $profile
+     * @param  array<string,mixed>  $profile
      * @return array<string,mixed>
      */
     private function normalizeProfile(array $profile): array

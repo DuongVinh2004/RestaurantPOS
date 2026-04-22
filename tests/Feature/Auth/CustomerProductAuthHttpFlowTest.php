@@ -225,6 +225,40 @@ class CustomerProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('errors.identifier.0', 'Invalid credentials.');
     }
 
+    public function test_customer_login_fails_closed_when_customer_role_contract_is_missing(): void
+    {
+        DB::table('users')->insert([
+            'user_id' => 32,
+            'username' => 'customer-role-config-missing',
+            'password_hash' => Hash::make('secret-123'),
+            'full_name' => 'Customer Role Config Missing',
+            'email' => 'customer.role.config@example.test',
+            'phone' => '0902000002',
+            'role_id' => 3,
+            'current_tier_id' => null,
+            'language_pref' => 'vn',
+            'is_deleted' => 0,
+            'row_version' => 1,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]);
+
+        config()->set('customer_auth.allowed_role_ids', []);
+
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'X-Request-Id' => 'req-customer-role-config-missing',
+        ])->postJson('/api/v1/auth/customer/login', [
+            'identifier' => 'customer-role-config-missing',
+            'password' => 'secret-123',
+        ])->assertStatus(503)
+            ->assertHeader('X-Request-Id', 'req-customer-role-config-missing')
+            ->assertJsonPath('error_code', 'customer_role_configuration_missing')
+            ->assertJsonPath('category_code', 'customer_role_configuration_missing')
+            ->assertJsonPath('state_reason', 'customer_role_configuration_missing')
+            ->assertJsonPath('request_id', 'req-customer-role-config-missing');
+    }
+
     public function test_staff_api_authentication_does_not_bleed_into_customer_product_routes(): void
     {
         DB::table('users')->insert([
@@ -253,6 +287,20 @@ class CustomerProductAuthHttpFlowTest extends TestCase
             'Accept' => 'application/json',
             'X-Staff-Key' => 'staff-wrong-scope-key',
         ])->getJson('/api/v1/auth/customer/me')
+            ->assertStatus(401)
+            ->assertJsonPath('error_code', 'unauthorized');
+
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'X-Staff-Key' => 'staff-wrong-scope-key',
+        ])->postJson('/api/v1/auth/customer/refresh')
+            ->assertStatus(401)
+            ->assertJsonPath('error_code', 'unauthorized');
+
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'X-Staff-Key' => 'staff-wrong-scope-key',
+        ])->postJson('/api/v1/auth/customer/logout')
             ->assertStatus(401)
             ->assertJsonPath('error_code', 'unauthorized');
     }

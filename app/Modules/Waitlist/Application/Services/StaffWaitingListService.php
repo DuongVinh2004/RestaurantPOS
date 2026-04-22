@@ -10,20 +10,20 @@ use App\Enums\TableHoldStatus;
 use App\Enums\WaitingListStatus;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
+use App\Modules\BranchScheduling\Domain\Guards\HoldConflictScope;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\BranchScheduling\Domain\Models\TableHold;
 use App\Modules\FloorOperations\Application\UseCases\CheckIn\StaffCheckInService;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
-use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Application\Services\ReservationService;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Waitlist\Domain\Models\WaitlistEntry;
 use App\Modules\Waitlist\Domain\StateMachines\WaitlistInvitationStateMachine;
-use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
+use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Support\AuditEvent;
-use App\Modules\BranchScheduling\Domain\Guards\HoldConflictScope;
 use App\Support\Listing\SafeLike;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -37,6 +37,7 @@ use Illuminate\Validation\ValidationException;
 class StaffWaitingListService
 {
     private readonly BranchContextService $branchContextService;
+
     private readonly BranchSchedulingPolicyService $branchSchedulingPolicyService;
 
     public function __construct(
@@ -77,7 +78,7 @@ class StaffWaitingListService
             $branchId = $this->branchContextService->resolveBranchId($payload['branch_id'] ?? null);
             $this->branchSchedulingPolicyService->assertWaitingListEligible($branchId, Carbon::now('UTC'), 'branch_id', false);
 
-            $entry = new WaitlistEntry();
+            $entry = new WaitlistEntry;
             $entry->branch_id = $branchId;
             $entry->user_id = $userId;
             $entry->guest_name = $payload['guest_name'] ?? null;
@@ -150,7 +151,7 @@ class StaffWaitingListService
                 $this->assertNoActiveReservationConflict($tableId, $now, $expireAt);
                 $this->assertNoActiveHoldConflict($tableId, $now, $expireAt, $this->buildWaitingSessionId((int) $entry->waiting_id));
 
-                $hold = new TableHold();
+                $hold = new TableHold;
                 $hold->hold_id = (string) Str::uuid();
                 $hold->branch_id = (int) $entry->branch_id;
                 $hold->session_id = $this->buildWaitingSessionId((int) $entry->waiting_id);
@@ -408,6 +409,7 @@ class StaffWaitingListService
                         $lockedEntry->save();
 
                         $this->cancelExistingNotifyHold($lockedEntry);
+
                         return true;
                     });
                 });
@@ -416,6 +418,7 @@ class StaffWaitingListService
                     'waiting_id' => (int) $entry->waiting_id,
                     'message' => $e->getMessage(),
                 ]);
+
                 continue;
             }
 
@@ -532,7 +535,7 @@ class StaffWaitingListService
 
     private function withWaitingEntryLock(int $waitingId, callable $callback): mixed
     {
-        $lockKey = 'booking:lock:waiting-list:' . $waitingId;
+        $lockKey = 'booking:lock:waiting-list:'.$waitingId;
         $ttlSeconds = max(5, (int) config('booking.reservation_lock_ttl_seconds', 60));
         $waitSeconds = max(0, (int) config('booking.reservation_lock_wait_seconds', 10));
 
@@ -572,11 +575,11 @@ class StaffWaitingListService
 
     private function buildWaitingSessionId(int $waitingId): string
     {
-        return 'waiting-list:' . $waitingId;
+        return 'waiting-list:'.$waitingId;
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     private function baseQueueQuery(array $filters): Builder
     {
@@ -593,8 +596,8 @@ class StaffWaitingListService
     }
 
     /**
-     * @param Builder<WaitlistEntry> $query
-     * @param array<string, mixed> $filters
+     * @param  Builder<WaitlistEntry>  $query
+     * @param  array<string, mixed>  $filters
      */
     private function applyQueueFilters(Builder $query, array $filters): void
     {
@@ -607,7 +610,7 @@ class StaffWaitingListService
     }
 
     /**
-     * @param Builder<WaitlistEntry> $query
+     * @param  Builder<WaitlistEntry>  $query
      */
     private function applyQueueOrdering(Builder $query, string $sortBy, string $sortDir): void
     {
@@ -642,4 +645,3 @@ class StaffWaitingListService
         }
     }
 }
-

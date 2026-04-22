@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Http\Resources;
 
-use App\Modules\Reservations\Http\Resources\ReservationResource;
-use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Loyalty\Domain\Models\UserPoint;
+use App\Modules\Payments\Domain\Models\Payment;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Reservations\Http\Resources\ReservationResource;
 use Illuminate\Http\Request;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

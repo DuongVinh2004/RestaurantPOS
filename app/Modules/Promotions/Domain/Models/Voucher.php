@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Promotions\Domain\Models;
 
 use App\Enums\VoucherDiscountType;
-use App\Support\Persistence\HasRowVersion;
 use App\Modules\Catalog\Domain\Models\MenuItem;
 use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Support\Persistence\HasRowVersion;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;

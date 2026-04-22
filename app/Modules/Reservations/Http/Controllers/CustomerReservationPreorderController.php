@@ -6,14 +6,14 @@ namespace App\Modules\Reservations\Http\Controllers;
 
 use App\Http\Concerns\AppliesDeprecatedRouteHeaders;
 use App\Http\Controllers\Controller;
+use App\Modules\Reservations\Application\Services\CustomerReservationPreorderService;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Reservations\Domain\Policies\ReservationAccessScope;
 use App\Modules\Reservations\Http\Requests\ClearCustomerReservationPreorderRequest;
 use App\Modules\Reservations\Http\Requests\PreviewCustomerReservationPreorderRequest;
 use App\Modules\Reservations\Http\Requests\ReplaceCustomerReservationPreorderRequest;
-use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\Reservations\Application\Services\CustomerReservationPreorderService;
 use App\Support\ApiErrorResponse;
 use App\Support\Auth\RequestActorContext;
-use App\Modules\Reservations\Domain\Policies\ReservationAccessScope;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;

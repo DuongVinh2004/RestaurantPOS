@@ -40,7 +40,7 @@ class MenuCatalogManagementService
     }
 
     /**
-     * @param array<string,mixed> $attributes
+     * @param  array<string,mixed>  $attributes
      */
     public function createCategory(array $attributes, ?int $actorUserId = null): MenuCategory
     {
@@ -76,7 +76,7 @@ class MenuCatalogManagementService
     }
 
     /**
-     * @param array<string,mixed> $attributes
+     * @param  array<string,mixed>  $attributes
      */
     public function updateCategory(int $categoryId, array $attributes, ?int $actorUserId = null): MenuCategory
     {
@@ -144,7 +144,7 @@ class MenuCatalogManagementService
     }
 
     /**
-     * @param array<string,mixed> $attributes
+     * @param  array<string,mixed>  $attributes
      */
     public function createItem(array $attributes, ?int $actorUserId = null): MenuItem
     {
@@ -179,7 +179,7 @@ class MenuCatalogManagementService
     }
 
     /**
-     * @param array<string,mixed> $attributes
+     * @param  array<string,mixed>  $attributes
      */
     public function updateItem(int $itemId, array $attributes, ?int $actorUserId = null): MenuItem
     {
@@ -241,7 +241,7 @@ class MenuCatalogManagementService
     }
 
     /**
-     * @param array<string,mixed> $attributes
+     * @param  array<string,mixed>  $attributes
      */
     public function createPriceRow(int $itemId, array $attributes, ?int $actorUserId = null): MenuItemPrice
     {
@@ -294,7 +294,7 @@ class MenuCatalogManagementService
     }
 
     /**
-     * @param array<string,mixed> $attributes
+     * @param  array<string,mixed>  $attributes
      */
     public function updatePriceRow(int $priceId, array $attributes, ?int $actorUserId = null): MenuItemPrice
     {
@@ -346,7 +346,6 @@ class MenuCatalogManagementService
         });
     }
 
-
     private function reconcileFuturePriceWindow(int $itemId, Carbon $effectiveFrom, ?Carbon &$effectiveTo, ?int $excludePriceId = null): void
     {
         if (! $effectiveFrom->isFuture()) {
@@ -395,7 +394,7 @@ class MenuCatalogManagementService
     }
 
     /**
-     * @param array<string,mixed> $attributes
+     * @param  array<string,mixed>  $attributes
      * @return array<string,mixed>
      */
     private function normalizeItemAttributes(array $attributes): array
@@ -483,12 +482,12 @@ class MenuCatalogManagementService
         return [
             'type' => 'staff_user',
             'user_id' => $actorUserId,
-            'key' => 'staff_user:' . $actorUserId,
+            'key' => 'staff_user:'.$actorUserId,
         ];
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     private function baseCategoriesQuery(array $filters): Builder
     {
@@ -527,7 +526,7 @@ class MenuCatalogManagementService
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     private function baseItemsQuery(array $filters): Builder
     {
@@ -573,7 +572,7 @@ class MenuCatalogManagementService
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     private function basePriceRowsQuery(int $itemId, array $filters): Builder
     {

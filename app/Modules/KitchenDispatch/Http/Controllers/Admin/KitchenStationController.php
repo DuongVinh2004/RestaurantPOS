@@ -77,6 +77,3 @@ class KitchenStationController extends Controller
         );
     }
 }
-
-
-

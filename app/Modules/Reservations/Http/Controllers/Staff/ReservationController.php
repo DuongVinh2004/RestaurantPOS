@@ -18,8 +18,7 @@ class ReservationController extends Controller
 
     public function __construct(
         private readonly ReservationService $service,
-    ) {
-    }
+    ) {}
 
     public function updateStatus(int $id, UpdateReservationStatusRequest $request): JsonResponse
     {

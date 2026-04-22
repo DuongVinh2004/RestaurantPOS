@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\MasterDataExchange\Domain\Registries;
 
-use App\Modules\Catalog\Domain\Models\MenuCategory;
 use App\Modules\Catalog\Application\UseCases\Management\MenuCatalogManagementService;
+use App\Modules\Catalog\Domain\Models\MenuCategory;
 use App\Modules\MasterDataExchange\Domain\Contracts\MasterDataDomain;
 use App\Modules\MasterDataExchange\Infrastructure\Internal\AbstractMasterDataDomain;
 use Illuminate\Support\Facades\Validator;
@@ -15,8 +15,7 @@ final class MenuCategoriesMasterDataDomain extends AbstractMasterDataDomain impl
 {
     public function __construct(
         private readonly MenuCatalogManagementService $menuService,
-    ) {
-    }
+    ) {}
 
     public function key(): string
     {
@@ -153,6 +152,7 @@ final class MenuCategoriesMasterDataDomain extends AbstractMasterDataDomain impl
 
             if ($operation === 'noop') {
                 $unchanged++;
+
                 continue;
             }
 

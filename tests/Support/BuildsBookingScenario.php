@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\IdentityAccess\Infrastructure\Persistence\CustomerAccessSessionStore;
 use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use App\Modules\Loyalty\Application\UseCases\Points\ReservationLoyaltySummaryReader;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
-use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
-use App\Modules\Reservations\Application\Services\ReservationLockService;
-use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
-use App\Platform\FeatureFlags\Services\RuntimeSettingService;
-use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
-use App\Modules\Promotions\Application\Workflows\ReservationVoucherWorkflow;
 use App\Modules\Ordering\Application\UseCases\Orders\StaffTableOrderService;
-use Illuminate\Support\Carbon;
+use App\Modules\Promotions\Application\Workflows\ReservationVoucherWorkflow;
+use App\Modules\Reservations\Application\Services\ReservationLockService;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Str;
 use Mockery;
 use PHPUnit\Framework\Assert;
@@ -137,9 +137,8 @@ trait BuildsBookingScenario
         ];
     }
 
-
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      * @return array<string,mixed>
      */
     protected function stripGeneratedColumnsForInsert(string $table, array $payload): array
@@ -161,7 +160,7 @@ trait BuildsBookingScenario
         $connection = DB::connection();
         $driver = (string) $connection->getDriverName();
         $database = (string) ($connection->getDatabaseName() ?? '');
-        $cacheKey = $driver . '|' . $database . '|' . $table;
+        $cacheKey = $driver.'|'.$database.'|'.$table;
 
         if (array_key_exists($cacheKey, $cache)) {
             return $cache[$cacheKey];
@@ -209,7 +208,7 @@ trait BuildsBookingScenario
     }
 
     /**
-     * @param list<string> $candidates
+     * @param  list<string>  $candidates
      */
     protected function metadataField(object $row, array $candidates): ?string
     {
@@ -1309,7 +1308,6 @@ trait BuildsBookingScenario
             });
         }
 
-
         if (Schema::hasTable('waiting_list') && ! Schema::hasColumn('waiting_list', 'customer_response_status')) {
             Schema::table('waiting_list', function (Blueprint $table): void {
                 $table->string('customer_response_status', 30)->nullable();
@@ -1485,7 +1483,7 @@ trait BuildsBookingScenario
                 $table->dateTime('assigned_at')->nullable();
                 $table->dateTime('released_at')->nullable();
                 $table->boolean('is_active')->default(true);
-                $table->uuid('active_conversation_id')->nullable()->storedAs("CASE WHEN is_active = 1 THEN conversation_id ELSE NULL END");
+                $table->uuid('active_conversation_id')->nullable()->storedAs('CASE WHEN is_active = 1 THEN conversation_id ELSE NULL END');
                 $table->string('notes', 500)->nullable();
 
                 $table->index(['conversation_id', 'is_active']);
@@ -1749,7 +1747,7 @@ trait BuildsBookingScenario
     }
 
     /**
-     * @param list<string> $columns
+     * @param  list<string>  $columns
      */
     protected function ensureIndexIfMissing(string $table, string $indexName, array $columns, bool $unique = false): void
     {
@@ -1833,7 +1831,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createBranch(array $overrides = []): int
     {
@@ -1841,7 +1839,7 @@ SQL);
 
         $payload = array_merge([
             'branch_code' => strtoupper(Str::random(6)),
-            'branch_name' => 'Branch ' . Str::upper(Str::random(4)),
+            'branch_name' => 'Branch '.Str::upper(Str::random(4)),
             'description' => null,
             'timezone' => 'UTC',
             'currency' => 'VND',
@@ -1952,11 +1950,11 @@ SQL);
         $roleId = (int) ($overrides['role_id'] ?? $this->ensureRole($roleName));
 
         $payload = array_merge([
-            'username' => 'u_' . $suffix,
+            'username' => 'u_'.$suffix,
             'password_hash' => '$2y$12$abcdefghijklmnopqrstuv',
-            'full_name' => 'Test User ' . $suffix,
-            'email' => 'user.' . $suffix . '@example.test',
-            'phone' => '09' . str_pad((string) random_int(0, 99999999), 8, '0', STR_PAD_LEFT),
+            'full_name' => 'Test User '.$suffix,
+            'email' => 'user.'.$suffix.'@example.test',
+            'phone' => '09'.str_pad((string) random_int(0, 99999999), 8, '0', STR_PAD_LEFT),
             'role_id' => $roleId,
             'current_tier_id' => null,
             'language_pref' => 'vn',
@@ -2025,7 +2023,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createMenuItem(array $overrides = []): int
     {
@@ -2033,9 +2031,9 @@ SQL);
         $suffix = Str::upper(Str::random(6));
         $payload = array_merge([
             'category_id' => $this->ensureMenuCategory('Test Food'),
-            'code' => 'ITEM-' . $suffix,
-            'name' => 'Menu ' . $suffix,
-            'description' => 'Menu item ' . $suffix,
+            'code' => 'ITEM-'.$suffix,
+            'name' => 'Menu '.$suffix,
+            'description' => 'Menu item '.$suffix,
             'img_url' => null,
             'is_available' => 1,
             'is_preorder_enabled' => 0,
@@ -2049,7 +2047,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createMenuItemPrice(array $overrides = []): int
     {
@@ -2066,17 +2064,17 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createIngredient(array $overrides = []): int
     {
         $now = $this->nowUtc();
         $suffix = Str::upper(Str::random(6));
         $payload = array_merge([
-            'code' => 'ING-' . $suffix,
-            'name' => 'Ingredient ' . $suffix,
+            'code' => 'ING-'.$suffix,
+            'name' => 'Ingredient '.$suffix,
             'unit_code' => 'g',
-            'description' => 'Ingredient ' . $suffix,
+            'description' => 'Ingredient '.$suffix,
             'is_active' => 1,
             'created_at' => $now,
             'updated_at' => $now,
@@ -2086,7 +2084,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createMenuItemRecipeLine(array $overrides = []): int
     {
@@ -2107,7 +2105,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createIngredientStockMovement(array $overrides = []): int
     {
@@ -2128,7 +2126,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createCashierShift(array $overrides = []): int
     {
@@ -2137,7 +2135,7 @@ SQL);
         $now = $this->nowUtc();
         $cashierUserId = (int) ($overrides['cashier_user_id'] ?? $this->createUser(['role_name' => 'Staff']));
         $status = (string) ($overrides['status'] ?? 'Open');
-        $shiftCode = (string) ($overrides['shift_code'] ?? ('CSH-' . Str::upper(Str::random(8))));
+        $shiftCode = (string) ($overrides['shift_code'] ?? ('CSH-'.Str::upper(Str::random(8))));
         $payload = array_merge([
             'branch_id' => 1,
             'shift_code' => $shiftCode,
@@ -2170,19 +2168,19 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createSupplier(array $overrides = []): int
     {
         $now = $this->nowUtc();
         $suffix = Str::upper(Str::random(6));
         $payload = array_merge([
-            'code' => 'SUP-' . $suffix,
-            'name' => 'Supplier ' . $suffix,
-            'contact_name' => 'Contact ' . $suffix,
-            'phone' => '0900' . random_int(100000, 999999),
-            'email' => strtolower('supplier-' . $suffix . '@example.test'),
-            'notes' => 'Supplier ' . $suffix,
+            'code' => 'SUP-'.$suffix,
+            'name' => 'Supplier '.$suffix,
+            'contact_name' => 'Contact '.$suffix,
+            'phone' => '0900'.random_int(100000, 999999),
+            'email' => strtolower('supplier-'.$suffix.'@example.test'),
+            'notes' => 'Supplier '.$suffix,
             'is_active' => 1,
             'created_at' => $now,
             'updated_at' => $now,
@@ -2197,9 +2195,9 @@ SQL);
         $suffix = Str::upper(Str::random(5));
 
         $payload = array_merge([
-            'code' => 'KDS-' . $suffix,
-            'name' => 'Kitchen ' . $suffix,
-            'description' => 'Kitchen station ' . $suffix,
+            'code' => 'KDS-'.$suffix,
+            'name' => 'Kitchen '.$suffix,
+            'description' => 'Kitchen station '.$suffix,
             'output_mode' => 'KDS',
             'printer_target' => null,
             'is_active' => 1,
@@ -2211,7 +2209,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createKitchenStationRoute(array $overrides = []): int
     {
@@ -2229,7 +2227,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createKitchenOrderTicket(array $overrides = []): int
     {
@@ -2273,12 +2271,12 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createRestaurantTable(array $overrides = []): int
     {
         $now = $this->nowUtc();
-        $templateCode = 'TPL-' . Str::upper(Str::random(5));
+        $templateCode = 'TPL-'.Str::upper(Str::random(5));
         DB::table('table_templates')->updateOrInsert([
             'template_code' => $templateCode,
         ], [
@@ -2288,7 +2286,7 @@ SQL);
         $templateId = (int) DB::table('table_templates')->where('template_code', $templateCode)->value('template_id');
 
         $payload = array_merge([
-            'table_code' => 'TB-' . Str::upper(Str::random(6)),
+            'table_code' => 'TB-'.Str::upper(Str::random(6)),
             'template_id' => $templateId,
             'zone' => 'A',
             'pos_x' => 1,
@@ -2306,7 +2304,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createReservation(array $overrides = []): int
     {
@@ -2319,7 +2317,7 @@ SQL);
             'guest_name' => null,
             'guest_phone' => null,
             'guest_email' => null,
-            'reservation_code' => 'RSV-' . Str::upper(Str::random(10)),
+            'reservation_code' => 'RSV-'.Str::upper(Str::random(10)),
             'reserved_at' => $now,
             'start_time' => $start,
             'end_time' => $end,
@@ -2455,7 +2453,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createOrder(array $overrides = []): int
     {
@@ -2476,7 +2474,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createOrderItem(array $overrides = []): int
     {
@@ -2491,7 +2489,7 @@ SQL);
             'unit_price' => $unitPrice,
             'currency' => 'VND',
             'line_total' => round($quantity * $unitPrice, 2),
-            'item_name_snapshot' => 'Snapshot ' . $itemId,
+            'item_name_snapshot' => 'Snapshot '.$itemId,
             'status' => 'Ordered',
             'notes' => null,
             'updated_by' => null,
@@ -2504,7 +2502,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createPayment(array $overrides = []): int
     {
@@ -2519,7 +2517,7 @@ SQL);
             'payment_provider' => 'Other',
             'payment_type' => 'Final',
             'status' => 'Success',
-            'transaction_code' => 'TX-' . Str::upper(Str::random(8)),
+            'transaction_code' => 'TX-'.Str::upper(Str::random(8)),
             'idempotency_key' => null,
             'paid_at' => $now,
             'created_at' => $now,
@@ -2541,13 +2539,13 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createVoucher(array $overrides = []): int
     {
         $now = $this->nowUtc();
         $payload = array_merge([
-            'code' => 'VC-' . Str::upper(Str::random(8)),
+            'code' => 'VC-'.Str::upper(Str::random(8)),
             'description' => 'Test voucher',
             'discount_type' => 'Fixed',
             'discount_value' => '50000.00',
@@ -2570,7 +2568,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function assignVoucher(array $overrides = []): int
     {
@@ -2611,9 +2609,8 @@ SQL);
         return (int) DB::table('user_vouchers')->insertGetId($payload);
     }
 
-
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createWaitingListEntry(array $overrides = []): int
     {
@@ -2671,7 +2668,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createConversation(array $overrides = []): string
     {
@@ -2685,7 +2682,7 @@ SQL);
             'branch_id' => 1,
             'user_id' => null,
             'customer_session_id' => null,
-            'session_id' => 'sess-' . Str::lower(Str::random(12)),
+            'session_id' => 'sess-'.Str::lower(Str::random(12)),
             'channel' => 'WebChat',
             'status' => 'Open',
             'workflow_state' => 'Open',
@@ -2724,7 +2721,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createConversationMessage(array $overrides = []): int
     {
@@ -2753,7 +2750,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createConversationFile(array $overrides = []): int
     {
@@ -2770,7 +2767,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createConversationEvent(array $overrides = []): int
     {
@@ -2792,7 +2789,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createConversationAnalysis(array $overrides = []): int
     {
@@ -2815,7 +2812,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createAgentAssignment(array $overrides = []): int
     {
@@ -2855,7 +2852,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createMessageEntity(array $overrides = []): int
     {
@@ -2876,7 +2873,6 @@ SQL);
 
         return (int) DB::table('message_entities')->insertGetId($payload);
     }
-
 
     /** @param array<string,mixed> $payload */
     protected function assertPortableReservationPayloadMatchesCanonical(array $payload): void
@@ -3069,16 +3065,16 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     protected function createRestaurantTableWithSeats(int $seats, array $overrides = []): int
     {
-        $templateCode = 'TPL-' . Str::upper(Str::random(6));
+        $templateCode = 'TPL-'.Str::upper(Str::random(6));
 
         DB::table('table_templates')->insert([
             'template_code' => $templateCode,
             'seats' => $seats,
-            'description' => 'Test template seats ' . $seats,
+            'description' => 'Test template seats '.$seats,
         ]);
 
         $templateId = (int) DB::table('table_templates')
@@ -3091,8 +3087,8 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
-     * @param list<int> $tableIds
+     * @param  array<string,mixed>  $overrides
+     * @param  list<int>  $tableIds
      */
     protected function createTableHold(array $overrides = [], array $tableIds = []): string
     {
@@ -3108,7 +3104,7 @@ SQL);
 
         $payload = array_merge([
             'hold_id' => $holdId,
-            'session_id' => 'sess-' . Str::lower(Str::random(12)),
+            'session_id' => 'sess-'.Str::lower(Str::random(12)),
             'user_id' => null,
             'branch_id' => 1,
             'confirmed_reservation_id' => null,
@@ -3145,7 +3141,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      * @return array{0:int,1:int}
      */
     protected function seedDepositReservation(array $overrides = []): array
@@ -3232,7 +3228,7 @@ SQL);
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,string>
      */
     private function issueCustomerAuthHeaders(int $customerId, ?string $sessionId, array $context): array
@@ -3330,7 +3326,7 @@ SQL);
 
     protected function makeCheckoutService(?NotificationOutboxService $notificationOutboxService = null): OrderSettlementWorkflow
     {
-        $financialSync = new ReservationFinancialSyncService();
+        $financialSync = new ReservationFinancialSyncService;
         $loyalty = new LoyaltyPointsService($financialSync, $this->mockRuntimeSettings());
 
         return new OrderSettlementWorkflow(
@@ -3346,7 +3342,7 @@ SQL);
     {
         return new ReservationVoucherWorkflow(
             $this->mockReservationLocks(),
-            new ReservationFinancialSyncService(),
+            new ReservationFinancialSyncService,
             $this->mockRuntimeSettings(),
             new ReservationLoyaltySummaryReader($this->makeLoyaltyService()),
         );
@@ -3354,7 +3350,7 @@ SQL);
 
     protected function makeLoyaltyService(): LoyaltyPointsService
     {
-        return new LoyaltyPointsService(new ReservationFinancialSyncService(), $this->mockRuntimeSettings());
+        return new LoyaltyPointsService(new ReservationFinancialSyncService, $this->mockRuntimeSettings());
     }
 
     protected function makeTableOrderService(): StaffTableOrderService
@@ -3362,4 +3358,3 @@ SQL);
         return new StaffTableOrderService($this->mockReservationLocks());
     }
 }
-

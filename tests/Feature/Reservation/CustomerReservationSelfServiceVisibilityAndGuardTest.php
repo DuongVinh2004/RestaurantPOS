@@ -94,7 +94,7 @@ class CustomerReservationSelfServiceVisibilityAndGuardTest extends TestCase
             'expire_at' => $this->nowUtc()->copy()->addMinutes(30),
         ], [$tableId]);
 
-        $response = $this->getJson('/api/v1/reservations?bucket=all&session_id=' . $sessionId);
+        $response = $this->getJson('/api/v1/reservations?bucket=all&session_id='.$sessionId);
 
         $response->assertOk()
             ->assertJsonPath('meta.access_scope', 'session')
@@ -152,7 +152,7 @@ class CustomerReservationSelfServiceVisibilityAndGuardTest extends TestCase
         ]);
         $this->attachReservationTable($reservationId, $this->createRestaurantTableWithSeats(4));
 
-        $response = $this->getJson('/api/v1/reservations/' . $reservationId);
+        $response = $this->getJson('/api/v1/reservations/'.$reservationId);
 
         $response->assertStatus(401)
             ->assertJsonPath('error_code', 'unauthorized');
@@ -172,7 +172,7 @@ class CustomerReservationSelfServiceVisibilityAndGuardTest extends TestCase
         $this->attachReservationTable($reservationId, $this->createRestaurantTableWithSeats(4, ['zone' => 'VIP']));
 
         $response = $this->withHeaders($this->staffAuthHeaders($staffUserId))
-            ->getJson('/api/v1/reservations/' . $reservationId);
+            ->getJson('/api/v1/reservations/'.$reservationId);
 
         $response->assertOk()
             ->assertJsonPath('data.access_scope', 'staff')
@@ -196,7 +196,7 @@ class CustomerReservationSelfServiceVisibilityAndGuardTest extends TestCase
         $this->attachReservationTable($reservationId, $this->createRestaurantTableWithSeats(4));
 
         $response = $this->withHeaders($this->withIdempotencyKey('customer-self-service-staff-block', $this->staffAuthHeaders($staffUserId)))
-            ->postJson('/api/v1/reservations/' . $reservationId . '/cancel', [
+            ->postJson('/api/v1/reservations/'.$reservationId.'/cancel', [
                 'row_version' => 1,
             ]);
 
@@ -234,7 +234,7 @@ class CustomerReservationSelfServiceVisibilityAndGuardTest extends TestCase
         $newEnd = $newStart->copy()->addHours(2);
 
         $response = $this->actingAs($user)->postJson(
-            '/api/v1/reservations/' . $reservationId . '/reschedule',
+            '/api/v1/reservations/'.$reservationId.'/reschedule',
             [
                 'row_version' => 1,
                 'start_time' => $newStart->toIso8601String(),
@@ -263,7 +263,7 @@ class CustomerReservationSelfServiceVisibilityAndGuardTest extends TestCase
         $this->attachReservationTable($reservationId, $this->createRestaurantTableWithSeats(4, ['status' => 'Occupied']));
 
         $response = $this->actingAs($user)->postJson(
-            '/api/v1/reservations/' . $reservationId . '/cancel',
+            '/api/v1/reservations/'.$reservationId.'/cancel',
             ['row_version' => 2],
             $this->withIdempotencyKey('customer-self-service-cancel-checked-in')
         );

@@ -40,7 +40,7 @@ class OpsReleaseAuthorizationMatrixTest extends TestCase
     private function findRouteByUriSuffix(string $suffix): ?IlluminateRoute
     {
         foreach (Route::getRoutes()->getRoutes() as $route) {
-            if ($route->uri() === $suffix || str_ends_with($route->uri(), '/' . $suffix)) {
+            if ($route->uri() === $suffix || str_ends_with($route->uri(), '/'.$suffix)) {
                 return $route;
             }
         }
@@ -51,7 +51,7 @@ class OpsReleaseAuthorizationMatrixTest extends TestCase
     private function hasCapabilityMiddleware(IlluminateRoute $route, string $capability): bool
     {
         foreach ($route->gatherMiddleware() as $middleware) {
-            if ($middleware === 'staff.capability:' . $capability) {
+            if ($middleware === 'staff.capability:'.$capability) {
                 return true;
             }
         }

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\BranchScheduling\Domain\Models;
 
 use App\Enums\TableHoldStatus;
-use App\Support\Persistence\HasRowVersion;
-use App\Support\Persistence\UsesUuidPrimaryKey;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Support\Persistence\HasRowVersion;
+use App\Support\Persistence\UsesUuidPrimaryKey;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -20,6 +20,7 @@ class TableHold extends Model
     use UsesUuidPrimaryKey;
 
     protected $table = 'table_holds';
+
     protected $primaryKey = 'hold_id';
 
     protected $fillable = [

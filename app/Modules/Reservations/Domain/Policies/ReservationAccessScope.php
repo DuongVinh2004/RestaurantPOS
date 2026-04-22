@@ -10,7 +10,9 @@ use Illuminate\Http\Request;
 class ReservationAccessScope
 {
     public const STAFF = 'staff';
+
     public const OWNER = 'owner';
+
     public const SESSION = 'session';
 
     public static function resolve(Request $request): string

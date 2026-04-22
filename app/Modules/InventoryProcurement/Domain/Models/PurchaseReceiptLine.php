@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PurchaseReceiptLine extends Model
 {
     protected $table = 'purchase_receipt_lines';
+
     protected $primaryKey = 'receipt_line_id';
 
     public $timestamps = false;

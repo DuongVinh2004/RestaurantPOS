@@ -25,7 +25,6 @@ class StaffCapabilityResolverTest extends TestCase
         $this->assertSame('role_id_capabilities', $resolved['source']);
     }
 
-
     public function test_it_expands_configured_legacy_capability_aliases(): void
     {
         config()->set('staff_capabilities.known_capabilities', ['cashier.shift.manage', 'reporting.view']);

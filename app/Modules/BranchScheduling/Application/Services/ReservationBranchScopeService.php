@@ -14,7 +14,7 @@ class ReservationBranchScopeService
     ) {}
 
     /**
-     * @param iterable<mixed> $tableBranchIds
+     * @param  iterable<mixed>  $tableBranchIds
      */
     public function resolveTableBranchId(
         iterable $tableBranchIds,
@@ -58,7 +58,7 @@ class ReservationBranchScopeService
     }
 
     /**
-     * @param iterable<mixed> $tableBranchIds
+     * @param  iterable<mixed>  $tableBranchIds
      */
     public function assertReservationMatchesTableBranches(
         mixed $reservationBranchId,
@@ -100,7 +100,7 @@ class ReservationBranchScopeService
     }
 
     /**
-     * @param iterable<mixed> $tableBranchIds
+     * @param  iterable<mixed>  $tableBranchIds
      */
     public function assertReservationMatchesTableBranchesInMemory(
         mixed $reservationBranchId,
@@ -142,7 +142,7 @@ class ReservationBranchScopeService
     }
 
     /**
-     * @param iterable<mixed> $tableBranchIds
+     * @param  iterable<mixed>  $tableBranchIds
      */
     public function syncReservationBranchOrAssert(
         Reservation $reservation,

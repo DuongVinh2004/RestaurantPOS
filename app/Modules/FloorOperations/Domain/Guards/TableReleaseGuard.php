@@ -99,4 +99,3 @@ class TableReleaseGuard
         return Carbon::parse((string) $value)->utc();
     }
 }
-

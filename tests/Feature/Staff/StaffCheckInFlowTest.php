@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
-use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
-use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -255,6 +255,7 @@ class StaffCheckInFlowTest extends TestCase
         $response->assertStatus(409);
         $response->assertJsonPath('error_code', 'stale_row_version');
         $response->assertJsonValidationErrors(['row_version']);
+        self::assertStringContainsString('row_version mismatch', (string) data_get($response->json(), 'details.errors.row_version.0', ''));
         self::assertSame('Confirmed', DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
         self::assertSame('Available', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
     }
@@ -293,5 +294,40 @@ class StaffCheckInFlowTest extends TestCase
         self::assertSame('Reserved', DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
         self::assertTrue(Carbon::parse((string) DB::table('reservations')->where('reservation_id', $reservationId)->value('checked_in_at'))->utc()->equalTo($firstCheckedInAt));
         self::assertSame('Occupied', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
+    }
+
+    public function test_check_in_returns_not_found_for_reservation_outside_staff_operational_branch_scope(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->withIdempotencyKey('checkin-branch-scope-hidden', $this->staffAuthHeaders($staffId));
+        $annexBranchId = $this->createBranch([
+            'branch_code' => 'CHKHIDE',
+            'branch_name' => 'Check In Hidden Branch',
+        ]);
+
+        $tableId = $this->createRestaurantTable([
+            'status' => 'Available',
+            'branch_id' => $annexBranchId,
+        ]);
+        $start = $this->nowUtc()->copy()->addMinutes(5);
+        $reservationId = $this->createReservation([
+            'branch_id' => $annexBranchId,
+            'start_time' => $start,
+            'end_time' => $start->copy()->addHours(2),
+            'status' => 'Confirmed',
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+
+        $response = $this->withHeaders($headers)->postJson("/api/v1/staff/reservations/{$reservationId}/check-in", [
+            'table_ids' => [$tableId],
+            'checked_in_at' => $start->toIso8601String(),
+            'row_version' => 1,
+        ]);
+
+        $response->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        self::assertSame('Confirmed', DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
+        self::assertSame('Available', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
     }
 }

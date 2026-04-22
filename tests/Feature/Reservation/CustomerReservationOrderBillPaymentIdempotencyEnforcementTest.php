@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Reservation;
 
-use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -37,7 +37,7 @@ final class CustomerReservationOrderBillPaymentIdempotencyEnforcementTest extend
 
         $response = $this->actingAs($customer)
             ->withHeaders(['Accept' => 'application/json'])
-            ->postJson('/api/v1/reservations/' . $reservationId . '/bill/payment-sessions', [
+            ->postJson('/api/v1/reservations/'.$reservationId.'/bill/payment-sessions', [
                 'row_version' => (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version'),
                 'provider_code' => 'simulated',
                 'currency' => 'VND',
@@ -56,7 +56,7 @@ final class CustomerReservationOrderBillPaymentIdempotencyEnforcementTest extend
             ->withHeaders(['Accept' => 'application/json'])
             ->withoutHeader('Idempotency-Key')
             ->withoutHeader('X-Idempotency-Key')
-            ->postJson('/api/v1/reservations/' . $reservationId . '/bill/payment-sessions/' . $sessionId . '/refresh', [
+            ->postJson('/api/v1/reservations/'.$reservationId.'/bill/payment-sessions/'.$sessionId.'/refresh', [
                 'row_version' => (int) DB::table('reservation_bill_payment_sessions')->where('bill_payment_session_id', $sessionId)->value('row_version'),
                 'simulation_outcome' => 'pending',
             ]);
@@ -74,7 +74,7 @@ final class CustomerReservationOrderBillPaymentIdempotencyEnforcementTest extend
             ->withHeaders(['Accept' => 'application/json'])
             ->withoutHeader('Idempotency-Key')
             ->withoutHeader('X-Idempotency-Key')
-            ->postJson('/api/v1/reservations/' . $reservationId . '/bill/payment-sessions/' . $sessionId . '/confirm', [
+            ->postJson('/api/v1/reservations/'.$reservationId.'/bill/payment-sessions/'.$sessionId.'/confirm', [
                 'row_version' => (int) DB::table('reservation_bill_payment_sessions')->where('bill_payment_session_id', $sessionId)->value('row_version'),
                 'simulation_outcome' => 'succeeded',
             ]);
@@ -134,9 +134,9 @@ final class CustomerReservationOrderBillPaymentIdempotencyEnforcementTest extend
         $create = $this->actingAs($customer)
             ->withHeaders([
                 'Accept' => 'application/json',
-                'Idempotency-Key' => 'cust-bill-idem-enforcement-seed-' . $reservationId,
+                'Idempotency-Key' => 'cust-bill-idem-enforcement-seed-'.$reservationId,
             ])
-            ->postJson('/api/v1/reservations/' . $reservationId . '/bill/payment-sessions', [
+            ->postJson('/api/v1/reservations/'.$reservationId.'/bill/payment-sessions', [
                 'row_version' => (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version'),
                 'provider_code' => 'simulated',
                 'currency' => 'VND',

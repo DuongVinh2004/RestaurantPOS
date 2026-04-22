@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Modules\BranchScheduling\Application\Services\TableHoldService;
+use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
+use App\Modules\FloorOperations\Application\UseCases\CheckIn\StaffCheckInService;
 use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Reservations\Application\Services\ReservationCodeGenerator;
-use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Application\Services\ReservationService;
-use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
-use App\Platform\FeatureFlags\Services\RuntimeSettingService;
-use App\Modules\FloorOperations\Application\UseCases\CheckIn\StaffCheckInService;
 use App\Modules\Waitlist\Application\Services\StaffWaitingListService;
-use App\Modules\BranchScheduling\Application\Services\TableHoldService;
-use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
+use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -48,15 +48,15 @@ class StaffWaitingListLifecycleTest extends TestCase
         $locks = $this->mockReservationLocks();
         $notifications = $this->mockNotificationOutbox();
         $runtime = $this->mockRuntimeSettings();
-        $tableState = new RestaurantTableStateService();
-        $conflicts = new TableTimeConflictService();
-        $financialSync = new ReservationFinancialSyncService();
+        $tableState = new RestaurantTableStateService;
+        $conflicts = new TableTimeConflictService;
+        $financialSync = new ReservationFinancialSyncService;
         $loyalty = new LoyaltyPointsService($financialSync, $runtime);
         $tableHoldService = new TableHoldService($locks, $tableState, $conflicts, $runtime);
         $reservationService = new ReservationService(
             $tableHoldService,
             $locks,
-            new ReservationCodeGenerator(),
+            new ReservationCodeGenerator,
             $notifications,
             $loyalty,
             $tableState,
@@ -122,7 +122,7 @@ class StaffWaitingListLifecycleTest extends TestCase
             ->assertJsonPath('data.reservation.user_id', $guestUserId);
 
         self::assertSame('Seated', DB::table('waiting_list')->where('waiting_id', $waitingId)->value('status'));
-        self::assertSame('Cancelled', DB::table('table_holds')->where('session_id', 'waiting-list:' . $waitingId)->latest('created_at')->value('hold_status'));
+        self::assertSame('Cancelled', DB::table('table_holds')->where('session_id', 'waiting-list:'.$waitingId)->latest('created_at')->value('hold_status'));
         self::assertSame('Occupied', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
 
         $createdLog = $this->assertAuditLogRecorded('waiting_list.created', 'waiting_list', $waitingId);
@@ -160,6 +160,7 @@ class StaffWaitingListLifecycleTest extends TestCase
         ]);
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $guestUserId = $this->createUser(['role_name' => 'Customer']);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $branchId]);
         $tableId = $this->createRestaurantTableWithSeats(4, [
             'branch_id' => $branchId,
             'status' => 'Available',
@@ -268,7 +269,7 @@ class StaffWaitingListLifecycleTest extends TestCase
         self::assertNull(DB::table('waiting_list')->where('waiting_id', $waitingId)->value('customer_responded_at'));
         self::assertNull(DB::table('waiting_list')->where('waiting_id', $waitingId)->value('customer_confirmed_arrival_at'));
         self::assertNull(DB::table('waiting_list')->where('waiting_id', $waitingId)->value('notify_expires_at'));
-        self::assertSame('Cancelled', DB::table('table_holds')->where('session_id', 'waiting-list:' . $waitingId)->latest('created_at')->value('hold_status'));
+        self::assertSame('Cancelled', DB::table('table_holds')->where('session_id', 'waiting-list:'.$waitingId)->latest('created_at')->value('hold_status'));
 
         $log = $this->assertAuditLogRecorded('waiting_list.cancelled', 'waiting_list', $waitingId);
         self::assertSame($staffId, $log->actor_user_id);
@@ -378,7 +379,6 @@ class StaffWaitingListLifecycleTest extends TestCase
         self::assertSame('Notified', DB::table('waiting_list')->where('waiting_id', $waitingId)->value('status'));
     }
 
-
     public function test_expire_notified_entries_returns_entry_to_waiting_and_cancels_hold(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
@@ -416,7 +416,7 @@ class StaffWaitingListLifecycleTest extends TestCase
         self::assertNull($record->customer_response_status);
         self::assertNull($record->customer_responded_at);
         self::assertNull($record->customer_confirmed_arrival_at);
-        self::assertSame('Cancelled', DB::table('table_holds')->where('session_id', 'waiting-list:' . $waitingId)->latest('created_at')->value('hold_status'));
+        self::assertSame('Cancelled', DB::table('table_holds')->where('session_id', 'waiting-list:'.$waitingId)->latest('created_at')->value('hold_status'));
     }
 
     public function test_waiting_list_seat_rejects_expired_notify_window_even_if_hold_is_still_open(): void
@@ -442,7 +442,7 @@ class StaffWaitingListLifecycleTest extends TestCase
             'notify_expires_at' => Carbon::now('UTC')->subMinute(),
             'updated_at' => Carbon::now('UTC'),
         ]);
-        DB::table('table_holds')->where('session_id', 'waiting-list:' . $waitingId)->update([
+        DB::table('table_holds')->where('session_id', 'waiting-list:'.$waitingId)->update([
             'expire_at' => Carbon::now('UTC')->addMinutes(5),
             'end_time' => Carbon::now('UTC')->addMinutes(5),
             'updated_at' => Carbon::now('UTC'),
@@ -497,9 +497,9 @@ class StaffWaitingListLifecycleTest extends TestCase
             ->assertJsonPath('data.response.confirmed_arrival_at', null)
             ->assertJsonPath('data.invite_hold.has_active_hold', true);
 
-        self::assertSame('Cancelled', DB::table('table_holds')->where('session_id', 'waiting-list:' . $waitingId)->orderBy('created_at')->first()->hold_status);
+        self::assertSame('Cancelled', DB::table('table_holds')->where('session_id', 'waiting-list:'.$waitingId)->orderBy('created_at')->first()->hold_status);
         $activeHoldId = DB::table('table_holds')
-            ->where('session_id', 'waiting-list:' . $waitingId)
+            ->where('session_id', 'waiting-list:'.$waitingId)
             ->whereIn('hold_status', ['Holding', 'Pending', 'Confirmed'])
             ->value('hold_id');
 
@@ -543,6 +543,4 @@ class StaffWaitingListLifecycleTest extends TestCase
             ->assertJsonPath('data.0.invite_hold.has_active_hold', true)
             ->assertJsonPath('data.0.orchestration.actionable_state', 'seat_customer');
     }
-
 }
-

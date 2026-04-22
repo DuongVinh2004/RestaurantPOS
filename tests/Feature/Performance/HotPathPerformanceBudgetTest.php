@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Performance;
 
-use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -16,8 +16,8 @@ use Tests\TestCase;
 class HotPathPerformanceBudgetTest extends TestCase
 {
     use BuildsBookingScenario;
-    use ProfilesDatabaseQueries;
     use DatabaseTransactions;
+    use ProfilesDatabaseQueries;
 
     protected function setUp(): void
     {
@@ -45,7 +45,7 @@ class HotPathPerformanceBudgetTest extends TestCase
         $this->seedBoardCandidateScenario();
 
         $profile = $this->profileQueries(fn () => $this->withHeaders($headers)->getJson(
-            '/api/v1/staff/tables/board?from=' . urlencode($windowStart->toIso8601String()) . '&to=' . urlencode($windowEnd->toIso8601String())
+            '/api/v1/staff/tables/board?from='.urlencode($windowStart->toIso8601String()).'&to='.urlencode($windowEnd->toIso8601String())
         ));
 
         $profile['result']->assertOk();
@@ -102,7 +102,7 @@ class HotPathPerformanceBudgetTest extends TestCase
 
         $profile = $this->profileQueries(fn () => $this->actingAs($customer)
             ->withHeaders(['Accept' => 'application/json'])
-            ->getJson('/api/v1/reservations/' . $reservationId . '/active-order'));
+            ->getJson('/api/v1/reservations/'.$reservationId.'/active-order'));
 
         $profile['result']->assertOk();
 
@@ -128,7 +128,7 @@ class HotPathPerformanceBudgetTest extends TestCase
 
         $profile = $this->profileQueries(fn () => $this->actingAs($customer)
             ->withHeaders(['Accept' => 'application/json'])
-            ->getJson('/api/v1/reservations/' . $reservationId . '/bill-preview'));
+            ->getJson('/api/v1/reservations/'.$reservationId.'/bill-preview'));
 
         $profile['result']->assertOk();
 
@@ -156,7 +156,7 @@ class HotPathPerformanceBudgetTest extends TestCase
 
         $profile = $this->profileQueries(fn () => $this
             ->withHeaders($this->staffAuthHeaders($staffId, 'perf-active-order-staff'))
-            ->getJson('/api/v1/staff/tables/' . $tableId . '/active-order'));
+            ->getJson('/api/v1/staff/tables/'.$tableId.'/active-order'));
 
         $profile['result']->assertOk();
 
@@ -181,7 +181,7 @@ class HotPathPerformanceBudgetTest extends TestCase
 
         $profile = $this->profileQueries(fn () => $this
             ->withHeaders($this->staffAuthHeaders($staffId, 'perf-settlement-preview'))
-            ->getJson('/api/v1/staff/orders/' . $orderId . '/settlement-preview'));
+            ->getJson('/api/v1/staff/orders/'.$orderId.'/settlement-preview'));
 
         $profile['result']->assertOk();
 
@@ -267,7 +267,7 @@ class HotPathPerformanceBudgetTest extends TestCase
 
         $profile = $this->profileQueries(fn () => $this->actingAs($customer)
             ->withHeaders(['Accept' => 'application/json'])
-            ->getJson('/api/v1/reservations/' . $reservationId));
+            ->getJson('/api/v1/reservations/'.$reservationId));
 
         $profile['result']->assertOk();
 
@@ -399,7 +399,7 @@ class HotPathPerformanceBudgetTest extends TestCase
             ]);
 
             $this->createTableHold([
-                'session_id' => 'waiting-list:' . $waitingId,
+                'session_id' => 'waiting-list:'.$waitingId,
                 'start_time' => $now->copy()->subMinutes(5 + $index),
                 'end_time' => $now->copy()->addMinutes(10 - $index),
                 'expire_at' => $now->copy()->addMinutes(10 - $index),
@@ -480,19 +480,19 @@ class HotPathPerformanceBudgetTest extends TestCase
                 'currency' => 'VND',
                 'billed_reservation_count' => 10 + $index,
                 'billed_guest_count' => 20 + $index,
-                'gross_bill_amount' => (string) (250000 + ($index * 10000)) . '.00',
+                'gross_bill_amount' => (string) (250000 + ($index * 10000)).'.00',
                 'discount_amount' => '10000.00',
-                'billed_total_amount' => (string) (240000 + ($index * 10000)) . '.00',
+                'billed_total_amount' => (string) (240000 + ($index * 10000)).'.00',
                 'invoice_issued_count' => 2,
                 'invoiced_total_amount' => '240000.00',
                 'invoiced_tax_amount' => '24000.00',
                 'payment_row_count' => 12 + $index,
                 'refund_row_count' => 1,
-                'captured_amount' => (string) (240000 + ($index * 10000)) . '.00',
+                'captured_amount' => (string) (240000 + ($index * 10000)).'.00',
                 'refunded_amount' => '0.00',
-                'net_paid_amount' => (string) (240000 + ($index * 10000)) . '.00',
+                'net_paid_amount' => (string) (240000 + ($index * 10000)).'.00',
                 'deposit_net_amount' => '50000.00',
-                'final_net_amount' => (string) (190000 + ($index * 10000)) . '.00',
+                'final_net_amount' => (string) (190000 + ($index * 10000)).'.00',
                 'cashier_shift_closed_count' => 1,
                 'cash_discrepancy_amount' => '0.00',
                 'refreshed_at' => $now->copy()->subMinutes($index + 1),

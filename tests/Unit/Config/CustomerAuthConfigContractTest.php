@@ -20,6 +20,7 @@ class CustomerAuthConfigContractTest extends TestCase
         $this->assertGreaterThan(0, (int) config('customer_auth.login_throttle_window_seconds'));
         $this->assertGreaterThan(0, (int) config('customer_auth.password_reset_ttl_minutes'));
         $this->assertIsBool(config('customer_auth.touch_last_used_at'));
+        $this->assertSame([3], array_values(config('customer_auth.allowed_role_ids')));
 
         $contracts = (array) config('customer_auth.session_bound_route_contracts', []);
         $this->assertArrayHasKey('App\Modules\Reservations\Http\Controllers\Customer\ReservationController@store', $contracts);

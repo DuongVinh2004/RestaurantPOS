@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\TestCase;
 
@@ -13,7 +13,7 @@ final class ReservationFinancialSyncServiceHardeningTest extends TestCase
 {
     public function test_it_marks_terminal_deposit_as_forfeited_when_cancelled_or_no_show_without_refund(): void
     {
-        $service = new ReservationFinancialSyncService();
+        $service = new ReservationFinancialSyncService;
         $reservation = new Reservation([
             'deposit_required_amount' => 100,
         ]);
@@ -34,7 +34,7 @@ final class ReservationFinancialSyncServiceHardeningTest extends TestCase
     {
         $this->expectException(ValidationException::class);
 
-        $service = new ReservationFinancialSyncService();
+        $service = new ReservationFinancialSyncService;
         $reservation = new Reservation([
             'deposit_required_amount' => 100,
         ]);

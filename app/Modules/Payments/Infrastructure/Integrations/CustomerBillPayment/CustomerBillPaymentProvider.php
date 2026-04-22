@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Payments\Infrastructure\Integrations\CustomerBillPayment;
 
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Payments\Domain\Models\ReservationBillPaymentSession;
+use App\Modules\Reservations\Domain\Models\Reservation;
 
 interface CustomerBillPaymentProvider
 {

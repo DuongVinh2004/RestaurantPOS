@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Services;
 
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -96,7 +96,7 @@ final class ReservationSessionAccessWorkflowTest extends TestCase
             'updated_at' => $now->copy()->subDays(10),
         ]);
 
-        $service = new ReservationSessionAccessWorkflow();
+        $service = new ReservationSessionAccessWorkflow;
 
         self::assertTrue($service->canAccessReservationBySession($reservation, 'session-abc'));
 
@@ -135,13 +135,12 @@ final class ReservationSessionAccessWorkflowTest extends TestCase
             'updated_at' => $now->copy()->subDays(10),
         ]);
 
-        $service = new ReservationSessionAccessWorkflow();
+        $service = new ReservationSessionAccessWorkflow;
 
         self::assertFalse($service->canAccessReservationBySession($reservation, 'session-expired'));
 
         Carbon::setTestNow();
     }
-
 
     public function test_exact_linkage_rejects_session_from_another_user_even_with_matching_reservation_link(): void
     {
@@ -172,13 +171,12 @@ final class ReservationSessionAccessWorkflowTest extends TestCase
             'updated_at' => $now->copy()->subHours(2),
         ]);
 
-        $service = new ReservationSessionAccessWorkflow();
+        $service = new ReservationSessionAccessWorkflow;
 
         self::assertFalse($service->canAccessReservationBySession($reservation, 'session-wrong-user'));
 
         Carbon::setTestNow();
     }
-
 
     public function test_extract_session_id_prioritizes_validated_payload_over_request_query_and_headers(): void
     {
@@ -188,7 +186,7 @@ final class ReservationSessionAccessWorkflowTest extends TestCase
         $request->headers->set('X-Session-Id', 'sess-from-header');
         $request->query->set('session_id', 'sess-from-query');
 
-        $service = new ReservationSessionAccessWorkflow();
+        $service = new ReservationSessionAccessWorkflow;
 
         self::assertSame(
             'sess-from-validated-payload',
@@ -227,7 +225,7 @@ final class ReservationSessionAccessWorkflowTest extends TestCase
             ['hold_id' => 'hold-legacy-null-user', 'table_id' => 4],
         ]);
 
-        $service = new ReservationSessionAccessWorkflow();
+        $service = new ReservationSessionAccessWorkflow;
 
         self::assertTrue($service->canAccessReservationBySession($reservation, 'session-legacy-null-user'));
     }
@@ -262,11 +260,10 @@ final class ReservationSessionAccessWorkflowTest extends TestCase
             ['hold_id' => 'hold-legacy-recent', 'table_id' => 4],
         ]);
 
-        $service = new ReservationSessionAccessWorkflow();
+        $service = new ReservationSessionAccessWorkflow;
 
         self::assertTrue($service->canAccessReservationBySession($reservation, 'session-legacy'));
     }
-
 
     public function test_legacy_fallback_can_be_disabled_entirely(): void
     {
@@ -300,7 +297,7 @@ final class ReservationSessionAccessWorkflowTest extends TestCase
             ['hold_id' => 'hold-legacy-disabled', 'table_id' => 4],
         ]);
 
-        $service = new ReservationSessionAccessWorkflow();
+        $service = new ReservationSessionAccessWorkflow;
 
         self::assertFalse($service->canAccessReservationBySession($reservation, 'session-legacy-disabled'));
     }
@@ -337,7 +334,7 @@ final class ReservationSessionAccessWorkflowTest extends TestCase
             'table_id' => 8,
         ]);
 
-        $service = new ReservationSessionAccessWorkflow();
+        $service = new ReservationSessionAccessWorkflow;
 
         self::assertFalse($service->canAccessReservationBySession($reservation, 'session-old'));
     }
@@ -372,7 +369,7 @@ final class ReservationSessionAccessWorkflowTest extends TestCase
             ['hold_id' => 'hold-legacy-different-tables', 'table_id' => 9],
         ]);
 
-        $service = new ReservationSessionAccessWorkflow();
+        $service = new ReservationSessionAccessWorkflow;
 
         self::assertFalse($service->canAccessReservationBySession($reservation, 'session-different'));
     }

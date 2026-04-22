@@ -24,5 +24,3 @@ class MoveTableRequest extends FormRequest
         ];
     }
 }
-
-

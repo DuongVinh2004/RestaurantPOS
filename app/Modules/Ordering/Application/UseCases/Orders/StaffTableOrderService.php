@@ -9,10 +9,10 @@ use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
 use App\Enums\RestaurantTableStatus;
-use App\Modules\Catalog\Domain\Models\MenuItem;
-use App\Modules\Catalog\Domain\Models\MenuItemPrice;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
+use App\Modules\Catalog\Domain\Models\MenuItem;
+use App\Modules\Catalog\Domain\Models\MenuItemPrice;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
@@ -27,6 +27,10 @@ use Illuminate\Validation\ValidationException;
 
 class StaffTableOrderService
 {
+    private const STALE_ROW_VERSION_MESSAGE = 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.';
+
+    private const IDEMPOTENCY_KEY_REUSE_MESSAGE = 'Idempotency key has already been used with a different request payload. Retry with a new Idempotency-Key.';
+
     private readonly BranchContextService $branchContextService;
 
     public function __construct(
@@ -52,26 +56,28 @@ class StaffTableOrderService
         ?int $expectedRowVersion = null,
     ): ReservationOrder {
         $idempotencyKey = trim($idempotencyKey);
+        $createReplayPayload = $this->buildCreateOnSpotReplayPayload($items, $notes);
 
         // Idempotency (optional)
-        if ($idempotencyKey !== '') {
-            $cache = Cache::store('redis');
-            $hit = $cache->get('booking:idem:staff_order:'.$this->buildIdempotencyScopeSuffix($idempotencyKey, [
-                'table_id' => $tableId,
-                'reservation_id' => $reservationId,
-                'staff_user_id' => $staffUserId,
-            ]));
-            if ($hit) {
-                $existing = ReservationOrder::query()->where('order_id', (int) $hit)->first();
-                if ($existing) {
-                    return $existing;
-                }
+        if ($idempotencyKey !== '' && $reservationId > 0) {
+            $existing = $this->loadReplayedOrder(
+                cachePrefix: 'booking:idem:staff_order',
+                idempotencyKey: $idempotencyKey,
+                context: [
+                    'table_id' => $tableId,
+                    'reservation_id' => $reservationId,
+                    'staff_user_id' => $staffUserId,
+                ],
+                payload: $createReplayPayload,
+            );
+            if ($existing !== null) {
+                return $existing;
             }
         }
 
         try {
-            return $this->locks->withTableLocks([$tableId], function () use ($tableId, $reservationId, $items, $staffUserId, $idempotencyKey, $notes, $expectedRowVersion) {
-                return DB::transaction(function () use ($tableId, $reservationId, $items, $staffUserId, $idempotencyKey, $notes, $expectedRowVersion) {
+            return $this->locks->withTableLocks([$tableId], function () use ($tableId, $reservationId, $items, $staffUserId, $idempotencyKey, $notes, $expectedRowVersion, $createReplayPayload) {
+                return DB::transaction(function () use ($tableId, $reservationId, $items, $staffUserId, $idempotencyKey, $notes, $expectedRowVersion, $createReplayPayload) {
                     /** @var RestaurantTable $table */
                     $table = RestaurantTable::query()->where('table_id', $tableId)->lockForUpdate()->firstOrFail();
                     if (($table->status?->value ?? (string) $table->status) !== RestaurantTableStatus::Occupied->value) {
@@ -109,6 +115,22 @@ class StaffTableOrderService
                     $this->assertOperationalBranchAccessible($tableBranchId, $staffUserId);
                     $this->ensureReservationBranchAligned($reservation, $tableBranchId, $staffUserId);
 
+                    if ($idempotencyKey !== '') {
+                        $existing = $this->loadReplayedOrder(
+                            cachePrefix: 'booking:idem:staff_order',
+                            idempotencyKey: $idempotencyKey,
+                            context: [
+                                'table_id' => $tableId,
+                                'reservation_id' => $reservationId,
+                                'staff_user_id' => $staffUserId,
+                            ],
+                            payload: $createReplayPayload,
+                        );
+                        if ($existing !== null) {
+                            return $existing;
+                        }
+                    }
+
                     // Reuse active order if exists
                     $existing = ReservationOrder::query()
                         ->where('reservation_id', $reservationId)
@@ -136,14 +158,16 @@ class StaffTableOrderService
                         ]);
 
                         if ($idempotencyKey !== '') {
-                            Cache::store('redis')->set(
-                                'booking:idem:staff_order:'.$this->buildIdempotencyScopeSuffix($idempotencyKey, [
+                            $this->storeReplayedOrder(
+                                cachePrefix: 'booking:idem:staff_order',
+                                idempotencyKey: $idempotencyKey,
+                                context: [
                                     'table_id' => $tableId,
                                     'reservation_id' => $reservationId,
                                     'staff_user_id' => $staffUserId,
-                                ]),
-                                (string) $existing->order_id,
-                                3600
+                                ],
+                                payload: $createReplayPayload,
+                                orderId: (int) $existing->order_id,
                             );
                         }
 
@@ -166,14 +190,16 @@ class StaffTableOrderService
                     }
 
                     if ($idempotencyKey !== '') {
-                        Cache::store('redis')->set(
-                            'booking:idem:staff_order:'.$this->buildIdempotencyScopeSuffix($idempotencyKey, [
+                        $this->storeReplayedOrder(
+                            cachePrefix: 'booking:idem:staff_order',
+                            idempotencyKey: $idempotencyKey,
+                            context: [
                                 'table_id' => $tableId,
                                 'reservation_id' => $reservationId,
                                 'staff_user_id' => $staffUserId,
-                            ]),
-                            (string) $order->order_id,
-                            3600
+                            ],
+                            payload: $createReplayPayload,
+                            orderId: (int) $order->order_id,
                         );
                     }
 
@@ -198,16 +224,19 @@ class StaffTableOrderService
         ?int $expectedRowVersion = null,
     ): ReservationOrder {
         $idempotencyKey = trim($idempotencyKey);
+        $addItemsReplayPayload = $this->buildAddItemsReplayPayload($items);
         if ($idempotencyKey !== '') {
-            $hit = Cache::store('redis')->get('booking:idem:staff_order_items:'.$this->buildIdempotencyScopeSuffix($idempotencyKey, [
-                'order_id' => $orderId,
-                'staff_user_id' => $staffUserId,
-            ]));
-            if ($hit) {
-                $existing = ReservationOrder::query()->where('order_id', (int) $hit)->first();
-                if ($existing) {
-                    return $existing;
-                }
+            $existing = $this->loadReplayedOrder(
+                cachePrefix: 'booking:idem:staff_order_items',
+                idempotencyKey: $idempotencyKey,
+                context: [
+                    'order_id' => $orderId,
+                    'staff_user_id' => $staffUserId,
+                ],
+                payload: $addItemsReplayPayload,
+            );
+            if ($existing !== null) {
+                return $existing;
             }
         }
 
@@ -229,8 +258,8 @@ class StaffTableOrderService
                     [config('booking.reservation_lock_reservation_prefix', 'booking:lock:reservation').':'.$reservationId],
                     array_map(fn (int $id) => config('booking.reservation_lock_prefix', 'booking:lock:table').':'.$id, $tableIds),
                 ),
-                function () use ($orderId, $items, $staffUserId, $idempotencyKey, $reservationId, $tableIds, $expectedRowVersion) {
-                    return DB::transaction(function () use ($orderId, $items, $staffUserId, $idempotencyKey, $reservationId, $tableIds, $expectedRowVersion) {
+                function () use ($orderId, $items, $staffUserId, $idempotencyKey, $reservationId, $tableIds, $expectedRowVersion, $addItemsReplayPayload) {
+                    return DB::transaction(function () use ($orderId, $items, $staffUserId, $idempotencyKey, $reservationId, $tableIds, $expectedRowVersion, $addItemsReplayPayload) {
                         /** @var ReservationOrder $order */
                         $order = ReservationOrder::query()->where('order_id', $orderId)->lockForUpdate()->firstOrFail();
                         $this->assertExpectedOrderRowVersion($order, $expectedRowVersion);
@@ -285,13 +314,15 @@ class StaffTableOrderService
                         $order->save();
 
                         if ($idempotencyKey !== '') {
-                            Cache::store('redis')->set(
-                                'booking:idem:staff_order_items:'.$this->buildIdempotencyScopeSuffix($idempotencyKey, [
+                            $this->storeReplayedOrder(
+                                cachePrefix: 'booking:idem:staff_order_items',
+                                idempotencyKey: $idempotencyKey,
+                                context: [
                                     'order_id' => $orderId,
                                     'staff_user_id' => $staffUserId,
-                                ]),
-                                (string) $order->order_id,
-                                3600
+                                ],
+                                payload: $addItemsReplayPayload,
+                                orderId: (int) $order->order_id,
                             );
                         }
 
@@ -351,6 +382,68 @@ class StaffTableOrderService
         );
     }
 
+    /**
+     * @param  array<string,mixed>  $context
+     * @param  array<string,mixed>  $payload
+     */
+    private function loadReplayedOrder(string $cachePrefix, string $idempotencyKey, array $context, array $payload): ?ReservationOrder
+    {
+        $entry = Cache::store('redis')->get($cachePrefix.':'.$this->buildIdempotencyScopeSuffix($idempotencyKey, $context));
+        if (! is_string($entry) && ! is_int($entry)) {
+            return null;
+        }
+
+        $cachedPayloadHash = null;
+        $orderId = 0;
+
+        if (is_int($entry) || ctype_digit((string) $entry)) {
+            $orderId = (int) $entry;
+        } else {
+            $decoded = json_decode((string) $entry, true);
+            if (! is_array($decoded)) {
+                return null;
+            }
+
+            $orderId = (int) ($decoded['order_id'] ?? 0);
+            $cachedPayloadHash = is_string($decoded['payload_hash'] ?? null)
+                ? (string) $decoded['payload_hash']
+                : null;
+        }
+
+        if ($orderId <= 0) {
+            return null;
+        }
+
+        $existing = ReservationOrder::query()->where('order_id', $orderId)->first();
+        if (! $existing instanceof ReservationOrder) {
+            return null;
+        }
+
+        if ($cachedPayloadHash !== null && $cachedPayloadHash !== $this->hashIdempotencyPayload($payload)) {
+            throw ValidationException::withMessages([
+                'idempotency_key' => [self::IDEMPOTENCY_KEY_REUSE_MESSAGE],
+            ]);
+        }
+
+        return $existing;
+    }
+
+    /**
+     * @param  array<string,mixed>  $context
+     * @param  array<string,mixed>  $payload
+     */
+    private function storeReplayedOrder(string $cachePrefix, string $idempotencyKey, array $context, array $payload, int $orderId): void
+    {
+        Cache::store('redis')->set(
+            $cachePrefix.':'.$this->buildIdempotencyScopeSuffix($idempotencyKey, $context),
+            json_encode([
+                'order_id' => $orderId,
+                'payload_hash' => $this->hashIdempotencyPayload($payload),
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            3600
+        );
+    }
+
     private function buildIdempotencyScopeSuffix(string $idempotencyKey, array $context = []): string
     {
         $normalized = [];
@@ -369,6 +462,63 @@ class StaffTableOrderService
         }
 
         return $idempotencyKey.':'.hash('sha256', json_encode($normalized, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * @param  array<int,array<string,mixed>>  $items
+     * @return array{items:array<int,array{item_id:int,qty:int,note:string}>,notes:string}
+     */
+    private function buildCreateOnSpotReplayPayload(array $items, string $notes): array
+    {
+        return [
+            'items' => $this->normalizeIdempotencyItems($items),
+            'notes' => trim($notes),
+        ];
+    }
+
+    /**
+     * @param  array<int,array<string,mixed>>  $items
+     * @return array{items:array<int,array{item_id:int,qty:int,note:string}>}
+     */
+    private function buildAddItemsReplayPayload(array $items): array
+    {
+        return [
+            'items' => $this->normalizeIdempotencyItems($items),
+        ];
+    }
+
+    /**
+     * @param  array<int,array<string,mixed>>  $items
+     * @return array<int,array{item_id:int,qty:int,note:string}>
+     */
+    private function normalizeIdempotencyItems(array $items): array
+    {
+        $normalized = [];
+        foreach ($items as $row) {
+            $itemId = (int) ($row['menu_item_id'] ?? $row['item_id'] ?? 0);
+            $quantity = (int) ($row['qty'] ?? $row['quantity'] ?? 0);
+            if ($itemId <= 0 || $quantity <= 0) {
+                continue;
+            }
+
+            $normalized[] = [
+                'item_id' => $itemId,
+                'qty' => $quantity,
+                'note' => trim((string) ($row['note'] ?? $row['notes'] ?? '')),
+            ];
+        }
+
+        usort($normalized, static fn (array $left, array $right): int => [$left['item_id'], $left['qty'], $left['note']] <=> [$right['item_id'], $right['qty'], $right['note']]);
+
+        return $normalized;
+    }
+
+    /**
+     * @param  array<string,mixed>  $payload
+     */
+    private function hashIdempotencyPayload(array $payload): string
+    {
+        return hash('sha256', json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
     private function resolveActiveReservationIdForTable(int $tableId): int
@@ -500,7 +650,7 @@ class StaffTableOrderService
 
         if ((int) ($order->row_version ?? 1) !== $expectedRowVersion) {
             throw ValidationException::withMessages([
-                'row_version' => ['Dá»¯ liá»‡u Ä‘Ã£ thay Ä‘á»•i (row_version mismatch). HÃ£y reload rá»“i thá»­ láº¡i.'],
+                'row_version' => [self::STALE_ROW_VERSION_MESSAGE],
             ]);
         }
     }
@@ -513,7 +663,7 @@ class StaffTableOrderService
 
         if ((int) ($reservation->row_version ?? 1) !== $expectedRowVersion) {
             throw ValidationException::withMessages([
-                'row_version' => ['DÃ¡Â»Â¯ liÃ¡Â»â€¡u Ã„â€˜ÃƒÂ£ thay Ã„â€˜Ã¡Â»â€¢i (row_version mismatch). HÃƒÂ£y reload rÃ¡Â»â€œi thÃ¡Â»Â­ lÃ¡ÂºÂ¡i.'],
+                'row_version' => [self::STALE_ROW_VERSION_MESSAGE],
             ]);
         }
     }
@@ -525,5 +675,3 @@ class StaffTableOrderService
         return $normalized !== '' ? $normalized : 'VND';
     }
 }
-
-

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\Promotions\Domain\Policies;
 
-use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Modules\Promotions\Domain\Models\UserVoucher;
 use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Promotions\Domain\Models\UserVoucher;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
 
 final class ReservationVoucherLifecycleSupport

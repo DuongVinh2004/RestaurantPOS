@@ -22,6 +22,9 @@ class BookingLaunchReadinessCommandTest extends TestCase
 {
     private string $artifactRoot = 'storage/framework/testing/launch_readiness_command';
 
+    /** @var list<string> */
+    private array $manualEvidenceFixtures = [];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -31,6 +34,12 @@ class BookingLaunchReadinessCommandTest extends TestCase
 
     protected function tearDown(): void
     {
+        Carbon::setTestNow();
+
+        foreach ($this->manualEvidenceFixtures as $fixturePath) {
+            File::delete($fixturePath);
+        }
+
         File::deleteDirectory(base_path($this->artifactRoot));
         parent::tearDown();
     }
@@ -50,6 +59,12 @@ class BookingLaunchReadinessCommandTest extends TestCase
 
         $this->assertSame(0, $exitCode);
         $this->assertSame('ready', $payload['decision'] ?? null);
+        $this->assertSame('clear', data_get($payload, 'baseline.launch_path_diff.status'));
+        $this->assertSame('clear', data_get($payload, 'baseline.non_launch_diff.status'));
+        $this->assertSame('clear', data_get($payload, 'baseline.artifact_drift.status'));
+        $this->assertFalse((bool) data_get($payload, 'baseline.artifact_drift.touch_required'));
+        $this->assertSame('clear', data_get($payload, 'baseline.external_blockers.status'));
+        $this->assertSame('clear', data_get($payload, 'baseline.manual_blockers.status'));
         $manualStatuses = collect((array) ($payload['manual_checks'] ?? []))
             ->mapWithKeys(static fn (array $check): array => [(string) ($check['key'] ?? '') => (string) ($check['status'] ?? '')])
             ->all();
@@ -122,6 +137,9 @@ class BookingLaunchReadinessCommandTest extends TestCase
         $this->assertSame('warn', $manualStatuses['uat_scenario_pack_replay'] ?? null);
         $this->assertSame('warn', $manualStatuses['performance_verification_report'] ?? null);
         $this->assertSame('warn', $manualStatuses['notification_provider_external_e2e'] ?? null);
+        $this->assertSame('warnings', data_get($payload, 'baseline.manual_blockers.status'));
+        $this->assertSame('clear', data_get($payload, 'baseline.artifact_drift.status'));
+        $this->assertFalse((bool) data_get($payload, 'baseline.artifact_drift.touch_required'));
         $this->assertSame('manual_evidence_template', data_get($payload, 'follow_up_actions.0.kind'));
         $this->assertSame(
             'docs/runbooks/booking-launch-readiness.md',
@@ -153,11 +171,50 @@ class BookingLaunchReadinessCommandTest extends TestCase
         );
         $markdownPath = base_path((string) (($payload['artifacts'] ?? [])['markdown_path'] ?? ''));
         $markdown = (string) file_get_contents($markdownPath);
+        $this->assertStringContainsString('## Baseline Buckets', $markdown);
+        $this->assertStringContainsString('Artifact chain touch required: `no`', $markdown);
         $this->assertStringContainsString('## Release Handoff', $markdown);
         $this->assertStringContainsString('restaurantpos-backend-release-generated', $markdown);
         $this->assertStringContainsString('## Follow-up Actions', $markdown);
         $this->assertStringContainsString('MANUAL_EVIDENCE_TEMPLATE', $markdown);
         $this->assertStringContainsString('docs/runbooks/notification-platform-v2.md', $markdown);
+    }
+
+    #[Group('booking-smoke')]
+    public function test_booking_launch_readiness_reuses_existing_default_manual_evidence_template_in_follow_up_actions(): void
+    {
+        $this->bindHealthyDependencies();
+        Carbon::setTestNow(Carbon::parse('2099-12-31T10:00:00Z'));
+
+        $templatePath = base_path('storage/app/booking_release/manual_evidence/staging-20991231.json');
+        File::ensureDirectoryExists(dirname($templatePath));
+        File::put($templatePath, json_encode(['checks' => []], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+        $this->manualEvidenceFixtures[] = $templatePath;
+
+        $exitCode = Artisan::call('booking:launch-readiness', [
+            '--target' => 'staging',
+            '--json' => true,
+        ]);
+
+        $payload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+        $firstAction = (array) data_get($payload, 'follow_up_actions.0', []);
+
+        $this->assertSame(2, $exitCode);
+        $this->assertSame('manual_evidence_template', $firstAction['kind'] ?? null);
+        $this->assertSame('Use existing operator-owned manual evidence template', $firstAction['label'] ?? null);
+        $this->assertTrue((bool) ($firstAction['template_exists'] ?? false));
+        $this->assertSame(
+            'storage/app/booking_release/manual_evidence/staging-20991231.json',
+            $firstAction['manual_evidence_path'] ?? null
+        );
+        $this->assertSame(
+            'php artisan booking:launch-readiness --target=staging --manual-evidence=storage/app/booking_release/manual_evidence/staging-20991231.json --json',
+            data_get($firstAction, 'commands.0')
+        );
+        $this->assertStringContainsString(
+            '--output=storage/app/booking_release/manual_evidence/staging-20991231.json --overwrite --json',
+            (string) data_get($firstAction, 'notes.1')
+        );
     }
 
     #[Group('booking-smoke')]
@@ -215,6 +272,33 @@ class BookingLaunchReadinessCommandTest extends TestCase
                 static fn (string $message): bool => str_contains($message, 'Real notification delivery rehearsal')
             )
         );
+    }
+
+    #[Group('booking-smoke')]
+    public function test_booking_launch_readiness_repairs_manual_evidence_issues_using_the_same_path(): void
+    {
+        $this->bindHealthyDependencies();
+        Carbon::setTestNow(Carbon::parse('2099-12-30T10:00:00Z'));
+
+        $missingPath = $this->artifactRoot.'/missing/manual-evidence.json';
+
+        $exitCode = Artisan::call('booking:launch-readiness', [
+            '--target' => 'staging',
+            '--manual-evidence' => $missingPath,
+            '--json' => true,
+        ]);
+
+        $payload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+        $issueAction = collect((array) ($payload['follow_up_actions'] ?? []))
+            ->first(static fn (array $action): bool => (string) ($action['kind'] ?? '') === 'manual_evidence_issue');
+
+        $this->assertSame(2, $exitCode);
+        $this->assertIsArray($issueAction);
+        $this->assertSame(
+            'php artisan booking:manual-evidence:init --target=staging --candidate=20991230 --output=storage/framework/testing/launch_readiness_command/missing/manual-evidence.json --overwrite --json',
+            data_get($issueAction, 'commands.0')
+        );
+        $this->assertSame($missingPath, data_get($issueAction, 'manual_evidence_path'));
     }
 
     #[Group('booking-smoke')]
@@ -387,6 +471,18 @@ class BookingLaunchReadinessCommandTest extends TestCase
         $this->assertSame('skip', $checkStatuses['round5_financial_gate'] ?? null);
         $this->assertSame('skip', $checkStatuses['operational_alert_snapshot'] ?? null);
         $this->assertSame('skip', $checkStatuses['release_package_integrity'] ?? null);
+        $this->assertSame('blocked_external', data_get($payload, 'baseline.launch_path_diff.status'));
+        $this->assertSame('clear', data_get($payload, 'baseline.artifact_drift.status'));
+        $this->assertFalse((bool) data_get($payload, 'baseline.artifact_drift.touch_required'));
+        $this->assertSame(['release_package_integrity'], data_get($payload, 'baseline.artifact_drift.pending_external_check_keys'));
+        $this->assertSame('blocking', data_get($payload, 'baseline.external_blockers.status'));
+        $this->assertSame(
+            ['core_ops_flow_gate', 'round5_financial_gate', 'operational_alert_snapshot', 'release_package_integrity'],
+            array_values(array_map(
+                static fn (array $row): string => (string) ($row['check_key'] ?? ''),
+                (array) data_get($payload, 'baseline.external_blockers.blocked_dependent_checks', [])
+            ))
+        );
     }
 
     private function bindHealthyDependencies(): void

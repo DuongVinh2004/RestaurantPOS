@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Billing\Http\Requests\Staff;
 
 use App\Modules\Cashiering\Http\Requests\Staff\ListFinancialReconciliationRequest;
+
 class ListAccountingExportRequest extends ListFinancialReconciliationRequest
 {
     protected function prepareForValidation(): void

@@ -122,7 +122,7 @@ class CustomerBenefitsSelfServiceHttpFlowTest extends TestCase
         /** @var User $user */
         $user = User::query()->findOrFail($userId);
 
-        $response = $this->actingAs($user)->getJson('/api/v1/reservations/' . $reservationId . '/benefits-preview');
+        $response = $this->actingAs($user)->getJson('/api/v1/reservations/'.$reservationId.'/benefits-preview');
 
         $response->assertOk()
             ->assertJsonPath('data.reservation.reservation_id', $reservationId)
@@ -144,7 +144,7 @@ class CustomerBenefitsSelfServiceHttpFlowTest extends TestCase
         /** @var User $other */
         $other = User::query()->findOrFail($otherId);
 
-        $response = $this->actingAs($other)->getJson('/api/v1/reservations/' . $reservationId . '/benefits-preview');
+        $response = $this->actingAs($other)->getJson('/api/v1/reservations/'.$reservationId.'/benefits-preview');
 
         $response->assertNotFound();
     }
@@ -224,7 +224,7 @@ class CustomerBenefitsSelfServiceHttpFlowTest extends TestCase
         /** @var User $user */
         $user = User::query()->findOrFail($userId);
 
-        $response = $this->actingAs($user)->getJson('/api/v1/reservations/' . $reservationId . '/benefits-preview');
+        $response = $this->actingAs($user)->getJson('/api/v1/reservations/'.$reservationId.'/benefits-preview');
 
         $response->assertOk()
             ->assertJsonPath('data.available_vouchers.0.voucher_code', 'TERM-50')

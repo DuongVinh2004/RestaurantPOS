@@ -6,21 +6,21 @@ namespace App\Modules\Promotions\Application\Workflows;
 
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationStatus;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use App\Modules\Loyalty\Application\UseCases\Points\ReservationLoyaltySummaryReader;
-use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Ordering\Domain\Models\ReservationOrder;
+use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Promotions\Domain\Guards\VoucherUsageGuard;
 use App\Modules\Promotions\Domain\Models\UserVoucher;
 use App\Modules\Promotions\Domain\Models\Voucher;
 use App\Modules\Promotions\Domain\Policies\VoucherRedemptionSupport;
-use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
-use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
-use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
+use App\SharedKernel\Money\Money;
 use App\Support\AuditEvent;
 use App\Support\DatabaseWriteConflictMapper;
-use App\SharedKernel\Money\Money;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -98,7 +98,7 @@ class ReservationVoucherWorkflow
 
                     $orders = $this->loadOrdersForReservation($reservationId, true);
                     $currentVoucherDiscount = $this->currentAppliedVoucherDiscountAmount($reservation, $orders);
-        $currentLoyaltyDiscount = $this->reservationLoyaltySummaryReader->currentDiscountAmount($reservationId, true);
+                    $currentLoyaltyDiscount = $this->reservationLoyaltySummaryReader->currentDiscountAmount($reservationId, true);
                     $manualDiscountMinor = max(
                         0,
                         Money::minorUnits($reservation->discount_amount ?? 0, true)
@@ -216,7 +216,7 @@ class ReservationVoucherWorkflow
 
                     $orders = $this->loadOrdersForReservation($reservationId, true);
                     $currentVoucherDiscount = $this->currentAppliedVoucherDiscountAmount($reservation, $orders);
-        $currentLoyaltyDiscount = $this->reservationLoyaltySummaryReader->currentDiscountAmount($reservationId, true);
+                    $currentLoyaltyDiscount = $this->reservationLoyaltySummaryReader->currentDiscountAmount($reservationId, true);
                     $manualDiscountMinor = max(
                         0,
                         Money::minorUnits($reservation->discount_amount ?? 0, true)

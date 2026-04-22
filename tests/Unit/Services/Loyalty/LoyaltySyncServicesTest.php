@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Loyalty;
 
-use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyAdjustmentService;
 use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyBalanceService;
+use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyRedemptionService;
+use App\Modules\Loyalty\Application\UseCases\Tiers\LoyaltyTierSyncService;
 use App\Modules\Loyalty\Application\Workflows\LoyaltyCompletionSyncService;
 use App\Modules\Loyalty\Application\Workflows\LoyaltyLedgerWriter;
-use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyRedemptionService;
 use App\Modules\Loyalty\Application\Workflows\LoyaltyRefundSyncService;
-use App\Modules\Loyalty\Application\UseCases\Tiers\LoyaltyTierSyncService;
-use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
+use App\Modules\Payments\Domain\Models\Payment;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -51,10 +51,10 @@ final class LoyaltySyncServicesTest extends TestCase
 
         /** @var User $user */
         $user = User::query()->where('user_id', $customerId)->firstOrFail();
-        $ledgerWriter = new LoyaltyLedgerWriter();
+        $ledgerWriter = new LoyaltyLedgerWriter;
         $pointLedger = $ledgerWriter->lockUserPointLedger($user, $staffId);
 
-        $service = new LoyaltyAdjustmentService($ledgerWriter, new LoyaltyTierSyncService());
+        $service = new LoyaltyAdjustmentService($ledgerWriter, new LoyaltyTierSyncService);
         $service->adjustUserPointsLocked($user, $pointLedger, 15, 'batch2', $staffId);
 
         $this->assertSame(25, (int) DB::table('user_points')->where('user_id', $customerId)->value('total_points'));
@@ -96,9 +96,9 @@ final class LoyaltySyncServicesTest extends TestCase
 
         $runtime = $this->mockRuntimeSettings();
         $balanceService = new LoyaltyBalanceService($runtime);
-        $ledgerWriter = new LoyaltyLedgerWriter();
-        $tierSyncService = new LoyaltyTierSyncService();
-        $financialSync = new ReservationFinancialSyncService();
+        $ledgerWriter = new LoyaltyLedgerWriter;
+        $tierSyncService = new LoyaltyTierSyncService;
+        $financialSync = new ReservationFinancialSyncService;
         $redemptionService = new LoyaltyRedemptionService($financialSync, $ledgerWriter, $tierSyncService, $balanceService);
 
         $this->makeLoyaltyService()->redeemReservationPoints(
@@ -190,9 +190,9 @@ final class LoyaltySyncServicesTest extends TestCase
 
         $runtime = $this->mockRuntimeSettings();
         $balanceService = new LoyaltyBalanceService($runtime);
-        $ledgerWriter = new LoyaltyLedgerWriter();
-        $tierSyncService = new LoyaltyTierSyncService();
-        $financialSync = new ReservationFinancialSyncService();
+        $ledgerWriter = new LoyaltyLedgerWriter;
+        $tierSyncService = new LoyaltyTierSyncService;
+        $financialSync = new ReservationFinancialSyncService;
         $redemptionService = new LoyaltyRedemptionService($financialSync, $ledgerWriter, $tierSyncService, $balanceService);
 
         $this->makeLoyaltyService()->redeemReservationPoints(
@@ -247,7 +247,6 @@ final class LoyaltySyncServicesTest extends TestCase
             ->count());
     }
 
-
     public function test_refund_sync_keeps_earn_points_when_only_deposit_net_changes_after_completion(): void
     {
         $tierId = $this->createLoyaltyTier();
@@ -287,9 +286,9 @@ final class LoyaltySyncServicesTest extends TestCase
 
         $runtime = $this->mockRuntimeSettings();
         $balanceService = new LoyaltyBalanceService($runtime);
-        $ledgerWriter = new LoyaltyLedgerWriter();
-        $tierSyncService = new LoyaltyTierSyncService();
-        $financialSync = new ReservationFinancialSyncService();
+        $ledgerWriter = new LoyaltyLedgerWriter;
+        $tierSyncService = new LoyaltyTierSyncService;
+        $financialSync = new ReservationFinancialSyncService;
         $redemptionService = new LoyaltyRedemptionService($financialSync, $ledgerWriter, $tierSyncService, $balanceService);
 
         /** @var Reservation $reservation */
@@ -333,6 +332,4 @@ final class LoyaltySyncServicesTest extends TestCase
             ->where('reason', 'earn.sync.refund')
             ->count());
     }
-
-
 }

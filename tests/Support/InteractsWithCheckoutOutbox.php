@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
-use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
+use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Assert;
 
 trait InteractsWithCheckoutOutbox
 {
@@ -14,7 +15,7 @@ trait InteractsWithCheckoutOutbox
     {
         config()->set('notifications.outbox.enabled', true);
 
-        return $this->makeCheckoutService(new NotificationOutboxService());
+        return $this->makeCheckoutService(new NotificationOutboxService);
     }
 
     protected function outboxTemplateCount(int $reservationId, string $templateKey): int
@@ -26,12 +27,12 @@ trait InteractsWithCheckoutOutbox
     }
 
     /**
-     * @param array<string,int> $expectedCounts
+     * @param  array<string,int>  $expectedCounts
      */
     protected function assertOutboxTemplateCounts(int $reservationId, array $expectedCounts): void
     {
         foreach ($expectedCounts as $templateKey => $expectedCount) {
-            \PHPUnit\Framework\Assert::assertSame(
+            Assert::assertSame(
                 $expectedCount,
                 $this->outboxTemplateCount($reservationId, $templateKey),
                 sprintf('Unexpected outbox count for [%s] on reservation [%d].', $templateKey, $reservationId)

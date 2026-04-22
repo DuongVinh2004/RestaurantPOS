@@ -65,14 +65,14 @@ final class BranchContextServiceTest extends TestCase
 
     public function test_assert_single_branch_returns_only_branch_id(): void
     {
-        $service = new BranchContextService();
+        $service = new BranchContextService;
 
         self::assertSame(2, $service->assertSingleBranch([2, 2], activeOnly: false));
     }
 
     public function test_assert_single_branch_rejects_mixed_branch_ids(): void
     {
-        $service = new BranchContextService();
+        $service = new BranchContextService;
 
         $this->expectException(ValidationException::class);
         $service->assertSingleBranch([1, 2], 'Resources must belong to a single branch.', 'branch_id', false);
@@ -80,7 +80,7 @@ final class BranchContextServiceTest extends TestCase
 
     public function test_assert_same_branch_rejects_mismatch(): void
     {
-        $service = new BranchContextService();
+        $service = new BranchContextService;
 
         $this->expectException(ValidationException::class);
         $service->assertSameBranch(1, 2, 'Branch mismatch.', 'branch_id', false);

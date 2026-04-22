@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Staff;
 
-use App\Modules\Payments\Domain\Models\Payment;
-use App\Modules\Payments\Application\UseCases\Refunds\RefundPlannerService;
 use App\Modules\Billing\Application\UseCases\Previews\SettlementAmountCalculator;
+use App\Modules\Payments\Application\UseCases\Refunds\RefundPlannerService;
+use App\Modules\Payments\Domain\Models\Payment;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -14,15 +14,15 @@ class RefundPlannerServiceTest extends TestCase
 {
     public function test_allocate_refund_payments_prefers_latest_captured_payment_first(): void
     {
-        $planner = new RefundPlannerService(new SettlementAmountCalculator());
+        $planner = new RefundPlannerService(new SettlementAmountCalculator);
 
-        $older = new Payment();
+        $older = new Payment;
         $older->setAttribute('payment_id', 10);
         $older->payment_type = 'Final';
         $older->status = 'Success';
         $older->amount = 40000;
 
-        $newer = new Payment();
+        $newer = new Payment;
         $newer->setAttribute('payment_id', 20);
         $newer->payment_type = 'Final';
         $newer->status = 'Success';
@@ -37,7 +37,7 @@ class RefundPlannerServiceTest extends TestCase
 
     public function test_build_refund_plan_rejects_amount_exceeding_scope_balance(): void
     {
-        $planner = new RefundPlannerService(new SettlementAmountCalculator());
+        $planner = new RefundPlannerService(new SettlementAmountCalculator);
 
         $this->expectException(ValidationException::class);
 
@@ -49,15 +49,15 @@ class RefundPlannerServiceTest extends TestCase
 
     public function test_allocate_refund_payments_uses_exact_minor_units_across_sources(): void
     {
-        $planner = new RefundPlannerService(new SettlementAmountCalculator());
+        $planner = new RefundPlannerService(new SettlementAmountCalculator);
 
-        $older = new Payment();
+        $older = new Payment;
         $older->setAttribute('payment_id', 10);
         $older->payment_type = 'Final';
         $older->status = 'Success';
         $older->amount = '0.10';
 
-        $newer = new Payment();
+        $newer = new Payment;
         $newer->setAttribute('payment_id', 20);
         $newer->payment_type = 'Final';
         $newer->status = 'Success';

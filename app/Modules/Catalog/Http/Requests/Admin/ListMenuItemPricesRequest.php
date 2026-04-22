@@ -50,8 +50,8 @@ class ListMenuItemPricesRequest extends FormRequest
             'currency' => ['nullable', 'string', 'max:10'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'sort' => ['nullable', 'string', 'in:' . implode(',', $this->listingSortRuleValues(self::SORT_FIELDS))],
-            'sort_by' => ['nullable', 'string', 'in:' . implode(',', self::SORT_FIELDS)],
+            'sort' => ['nullable', 'string', 'in:'.implode(',', $this->listingSortRuleValues(self::SORT_FIELDS))],
+            'sort_by' => ['nullable', 'string', 'in:'.implode(',', self::SORT_FIELDS)],
             'sort_dir' => ['nullable', 'string', 'in:asc,desc'],
         ];
     }

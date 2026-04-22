@@ -37,7 +37,7 @@ class CustomerReservationPreorderSessionAccessTest extends TestCase
         $response = $this->withHeaders([
             'Accept' => 'application/json',
             'X-Session-Id' => $sessionId,
-        ])->getJson('/api/v1/reservations/' . $reservationId . '/preorder');
+        ])->getJson('/api/v1/reservations/'.$reservationId.'/preorder');
 
         $response->assertOk()
             ->assertJsonPath('data.reservation_id', $reservationId)
@@ -56,7 +56,7 @@ class CustomerReservationPreorderSessionAccessTest extends TestCase
             'Accept' => 'application/json',
             'X-Session-Id' => 'sess-preorder-wrong-session',
             'Idempotency-Key' => 'session-preorder-wrong-session-replace',
-        ])->putJson('/api/v1/reservations/' . $reservationId . '/preorder', [
+        ])->putJson('/api/v1/reservations/'.$reservationId.'/preorder', [
             'row_version' => (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version'),
             'pre_order_row_version' => (int) DB::table('reservation_orders')->where('order_id', $orderId)->value('row_version'),
             'pre_order_items' => [
@@ -120,7 +120,7 @@ class CustomerReservationPreorderSessionAccessTest extends TestCase
     {
         $itemId = $this->createMenuItem([
             'name' => $name,
-            'code' => strtoupper(substr(str_replace(' ', '-', $name), 0, 12)) . '-' . random_int(10, 99),
+            'code' => strtoupper(substr(str_replace(' ', '-', $name), 0, 12)).'-'.random_int(10, 99),
             'is_available' => 1,
             'is_preorder_enabled' => 1,
             'preorder_cutoff_minutes' => $cutoffMinutes,

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Billing\Domain\ValueObjects;
 
-use App\Modules\Payments\Domain\Models\Payment;
 use App\SharedKernel\Money\Money;
 use BackedEnum;
 

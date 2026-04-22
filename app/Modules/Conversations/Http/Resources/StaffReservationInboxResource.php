@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Conversations\Http\Resources;
 
 use App\Enums\ReservationStatus;
-use App\Modules\Payments\Application\Queries\StaffReservationDepositOperationalReadService;
 use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
+use App\Modules\Payments\Application\Queries\StaffReservationDepositOperationalReadService;
+use App\SharedKernel\Money\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
@@ -62,11 +63,11 @@ class StaffReservationInboxResource extends JsonResource
                     'description' => $voucher->description,
                 ] : null,
                 'payment_summary' => $paymentSummary ? [
-                    'captured_total' => \App\SharedKernel\Money\Money::format($paymentSummary['captured_amount'] ?? 0, true),
-                    'refunded_total' => \App\SharedKernel\Money\Money::format($paymentSummary['refunded_amount'] ?? 0, true),
-                    'net_paid_total' => \App\SharedKernel\Money\Money::format($paymentSummary['net_paid_amount'] ?? 0, true),
-                    'deposit_net' => \App\SharedKernel\Money\Money::format($paymentSummary['deposit_net_amount'] ?? 0, true),
-                    'final_net' => \App\SharedKernel\Money\Money::format($paymentSummary['final_net_amount'] ?? 0, true),
+                    'captured_total' => Money::format($paymentSummary['captured_amount'] ?? 0, true),
+                    'refunded_total' => Money::format($paymentSummary['refunded_amount'] ?? 0, true),
+                    'net_paid_total' => Money::format($paymentSummary['net_paid_amount'] ?? 0, true),
+                    'deposit_net' => Money::format($paymentSummary['deposit_net_amount'] ?? 0, true),
+                    'final_net' => Money::format($paymentSummary['final_net_amount'] ?? 0, true),
                 ] : null,
             ];
         }

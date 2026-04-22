@@ -16,8 +16,7 @@ class BranchController extends Controller
 {
     public function __construct(
         private readonly BranchManagementService $branchManagementService,
-    ) {
-    }
+    ) {}
 
     public function index(ListBranchesRequest $request): JsonResponse
     {

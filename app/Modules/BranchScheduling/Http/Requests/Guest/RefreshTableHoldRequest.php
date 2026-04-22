@@ -11,8 +11,6 @@ class RefreshTableHoldRequest extends FormRequest
         return true;
     }
 
-
-
     protected function prepareForValidation(): void
     {
         $sessionId = trim((string) ($this->input('session_id')
@@ -28,9 +26,9 @@ class RefreshTableHoldRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'session_id'     => ['nullable', 'string', 'max:100'],
+            'session_id' => ['nullable', 'string', 'max:100'],
             'extend_minutes' => ['nullable', 'integer', 'min:1', 'max:60'],
-            'row_version'    => ['nullable', 'integer', 'min:1'],
+            'row_version' => ['nullable', 'integer', 'min:1'],
         ];
     }
 }

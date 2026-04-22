@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace App\Platform\QualityAssurance\Verification\Application\Verifiers;
 
-use App\Modules\Ordering\Http\Requests\Staff\AddOrderItemsRequest;
-use App\Modules\Promotions\Http\Requests\Staff\ApplyReservationVoucherRequest;
-use App\Modules\Reservations\Http\Requests\Staff\RescheduleReservationRequest;
-use App\Modules\Waitlist\Http\Requests\Staff\CancelWaitlistRequest;
-use App\Modules\FloorOperations\Http\Requests\Staff\CheckInReservationRequest;
 use App\Modules\Cashiering\Http\Requests\Staff\CheckoutOrderRequest;
 use App\Modules\Cashiering\Http\Requests\Staff\CloseOrderRequest;
-use App\Modules\Ordering\Http\Requests\Staff\CreateTableOrderRequest;
-use App\Modules\FloorOperations\Http\Requests\Staff\MoveTableRequest;
-use App\Modules\Waitlist\Http\Requests\Staff\InviteWaitlistCustomerRequest;
 use App\Modules\Cashiering\Http\Requests\Staff\PayOrderRequest;
+use App\Modules\FloorOperations\Http\Requests\Staff\CheckInReservationRequest;
+use App\Modules\FloorOperations\Http\Requests\Staff\MoveTableRequest;
+use App\Modules\FloorOperations\Http\Requests\Staff\ReleaseTableRequest;
 use App\Modules\Loyalty\Http\Requests\Staff\RedeemReservationPointsRequest;
+use App\Modules\Loyalty\Http\Requests\Staff\ReleaseReservationPointsRequest;
+use App\Modules\Ordering\Http\Requests\Staff\AddOrderItemsRequest;
+use App\Modules\Ordering\Http\Requests\Staff\CreateTableOrderRequest;
 use App\Modules\Payments\Http\Requests\Staff\RefundAndCancelReservationRequest;
 use App\Modules\Payments\Http\Requests\Staff\RefundReservationRequest;
-use App\Modules\Loyalty\Http\Requests\Staff\ReleaseReservationPointsRequest;
-use App\Modules\FloorOperations\Http\Requests\Staff\ReleaseTableRequest;
+use App\Modules\Promotions\Http\Requests\Staff\ApplyReservationVoucherRequest;
 use App\Modules\Promotions\Http\Requests\Staff\RemoveReservationVoucherRequest;
+use App\Modules\Reservations\Http\Requests\Staff\RescheduleReservationRequest;
+use App\Modules\Waitlist\Http\Requests\Staff\CancelWaitlistRequest;
+use App\Modules\Waitlist\Http\Requests\Staff\InviteWaitlistCustomerRequest;
 use App\Modules\Waitlist\Http\Requests\Staff\SeatWaitlistRequest;
 
 final class StaffMutationRowVersionContract
@@ -61,7 +61,7 @@ final class StaffMutationRowVersionContract
         $compliant = [];
 
         foreach (self::requestMap() as $requestClass => $scope) {
-            $rules = self::normalizeRules((new $requestClass())->rules()['row_version'] ?? null);
+            $rules = self::normalizeRules((new $requestClass)->rules()['row_version'] ?? null);
 
             if (! in_array('required', $rules, true)) {
                 $missing[] = [
@@ -90,7 +90,6 @@ final class StaffMutationRowVersionContract
     }
 
     /**
-     * @param mixed $rules
      * @return list<string>
      */
     private static function normalizeRules(mixed $rules): array
@@ -109,5 +108,3 @@ final class StaffMutationRowVersionContract
         ));
     }
 }
-
-

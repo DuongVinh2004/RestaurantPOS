@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Platform\FeatureFlags\Domain\Models;
 
+use App\Modules\BranchScheduling\Domain\Models\Branch;
+use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Support\Persistence\HasRowVersion;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,6 +15,7 @@ class FeatureFlag extends Model
     use HasRowVersion;
 
     protected $table = 'feature_flags';
+
     protected $primaryKey = 'feature_flag_id';
 
     protected $fillable = [

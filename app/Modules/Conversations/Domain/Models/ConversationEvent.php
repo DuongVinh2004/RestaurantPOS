@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ConversationEvent extends Model
 {
     protected $table = 'conversation_events';
+
     protected $primaryKey = 'event_id';
 
     public const UPDATED_AT = null;

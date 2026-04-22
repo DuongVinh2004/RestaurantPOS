@@ -635,4 +635,3 @@ final class ApiOpenApiContractCoverageTest extends TestCase
         return strtoupper((string) ($route['method'] ?? 'GET')).' '.(string) ($route['uri'] ?? '');
     }
 }
-

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\MasterDataExchange\Domain\Registries;
 
+use App\Modules\Loyalty\Application\UseCases\Tiers\LoyaltyTierManagementService;
 use App\Modules\Loyalty\Domain\Models\LoyaltyTier;
 use App\Modules\MasterDataExchange\Domain\Contracts\MasterDataDomain;
 use App\Modules\MasterDataExchange\Infrastructure\Internal\AbstractMasterDataDomain;
-use App\Modules\Loyalty\Application\UseCases\Tiers\LoyaltyTierManagementService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -17,8 +17,7 @@ final class LoyaltyTiersMasterDataDomain extends AbstractMasterDataDomain implem
 {
     public function __construct(
         private readonly LoyaltyTierManagementService $tierService,
-    ) {
-    }
+    ) {}
 
     public function key(): string
     {
@@ -159,6 +158,7 @@ final class LoyaltyTiersMasterDataDomain extends AbstractMasterDataDomain implem
             if ($prepared[$index]['errors'] !== []) {
                 $prepared[$index]['operation'] = 'invalid';
                 $prepared[$index]['status'] = 'invalid';
+
                 continue;
             }
 
@@ -194,6 +194,7 @@ final class LoyaltyTiersMasterDataDomain extends AbstractMasterDataDomain implem
 
             if ($operation === 'noop') {
                 $unchanged++;
+
                 continue;
             }
 

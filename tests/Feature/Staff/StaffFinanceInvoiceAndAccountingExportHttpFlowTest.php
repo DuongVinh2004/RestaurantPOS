@@ -101,7 +101,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             ->value('row_version');
 
         $issue = $this->withHeaders($headers)
-            ->postJson('/api/v1/staff/finance/invoices/' . $reservationId . '/issue');
+            ->postJson('/api/v1/staff/finance/invoices/'.$reservationId.'/issue');
 
         $issue->assertCreated()
             ->assertJsonPath('meta.action', 'finance_invoice_issued')
@@ -116,7 +116,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             ->assertJsonPath('data.reconciliation.payment_summary.net_paid_amount', 180000.0);
 
         $show = $this->withHeaders($this->staffAuthHeaders($staffId, 'staff-finance-invoice-show'))
-            ->getJson('/api/v1/staff/finance/invoices/' . $reservationId);
+            ->getJson('/api/v1/staff/finance/invoices/'.$reservationId);
 
         $show->assertOk()
             ->assertJsonPath('meta.action', 'finance_invoice_show')
@@ -126,7 +126,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             ->assertJsonPath('data.invoice.seller.seller_tax_id', '0301234567');
 
         $export = $this->withHeaders($this->staffAuthHeaders($staffId, 'staff-finance-accounting-export'))
-            ->get('/api/v1/staff/finance/accounting-export?reservation_id=' . $reservationId . '&only_invoiced=1&format=csv');
+            ->get('/api/v1/staff/finance/accounting-export?reservation_id='.$reservationId.'&only_invoiced=1&format=csv');
 
         $export->assertOk();
         $this->assertStringContainsString('text/csv', (string) $export->headers->get('content-type'));
@@ -152,7 +152,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
         ]);
 
         $response = $this->withHeaders($this->withIdempotencyKey('idem-staff-finance-invoice-issue-b', $this->staffAuthHeaders($staffId, 'staff-finance-invoice-b')))
-            ->postJson('/api/v1/staff/finance/invoices/' . $reservationId . '/issue');
+            ->postJson('/api/v1/staff/finance/invoices/'.$reservationId.'/issue');
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['reservation']);
@@ -241,7 +241,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
         ]);
 
         $response = $this->withHeaders($this->withIdempotencyKey('idem-staff-finance-invoice-unsettled', $this->staffAuthHeaders($staffId, 'staff-finance-invoice-unsettled')))
-            ->postJson('/api/v1/staff/finance/invoices/' . $reservationId . '/issue');
+            ->postJson('/api/v1/staff/finance/invoices/'.$reservationId.'/issue');
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['reservation']);
@@ -303,7 +303,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
         ]);
 
         $response = $this->withHeaders($this->withIdempotencyKey('idem-staff-finance-invoice-no-shift', $this->staffAuthHeaders($staffId, 'staff-finance-invoice-no-shift')))
-            ->postJson('/api/v1/staff/finance/invoices/' . $reservationId . '/issue?branch_id=' . $branchA);
+            ->postJson('/api/v1/staff/finance/invoices/'.$reservationId.'/issue?branch_id='.$branchA);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['cashier_shift']);
@@ -365,18 +365,18 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
         $headers = $this->withHeaders($this->withIdempotencyKey('idem-staff-finance-invoice-branch', $this->staffAuthHeaders($staffId, 'staff-finance-invoice-branch')));
 
         $headers
-            ->postJson('/api/v1/staff/finance/invoices/' . $reservationId . '/issue?branch_id=' . $branchA)
+            ->postJson('/api/v1/staff/finance/invoices/'.$reservationId.'/issue?branch_id='.$branchA)
             ->assertCreated()
             ->assertJsonPath('meta.branch_id', $branchA)
             ->assertJsonPath('data.reservation.reservation_id', $reservationId);
 
         $headers
-            ->getJson('/api/v1/staff/finance/invoices/' . $reservationId . '?branch_id=' . $branchA)
+            ->getJson('/api/v1/staff/finance/invoices/'.$reservationId.'?branch_id='.$branchA)
             ->assertOk()
             ->assertJsonPath('meta.branch_id', $branchA);
 
         $headers
-            ->getJson('/api/v1/staff/finance/invoices/' . $reservationId . '?branch_id=' . $branchB)
+            ->getJson('/api/v1/staff/finance/invoices/'.$reservationId.'?branch_id='.$branchB)
             ->assertStatus(404);
     }
 
@@ -459,7 +459,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
         $issueHeadersA = $this->withIdempotencyKey('idem-staff-finance-invoice-ops-a', $this->staffAuthHeaders($staffId, 'staff-finance-invoice-ops'));
 
         $this->withHeaders($issueHeadersA)
-            ->postJson('/api/v1/staff/finance/invoices/' . $reservationA . '/issue')
+            ->postJson('/api/v1/staff/finance/invoices/'.$reservationA.'/issue')
             ->assertCreated();
 
         DB::table('billing_invoices')->insert([
@@ -492,12 +492,12 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
         $headers = $this->staffAuthHeaders($staffId, 'staff-finance-invoice-ops-read');
 
         $this->withHeaders($headers)
-            ->getJson('/api/v1/staff/finance/invoices/' . $reservationA)
+            ->getJson('/api/v1/staff/finance/invoices/'.$reservationA)
             ->assertOk()
             ->assertJsonPath('data.reservation.reservation_id', $reservationA);
 
         $this->withHeaders($headers)
-            ->getJson('/api/v1/staff/finance/invoices/' . $reservationB)
+            ->getJson('/api/v1/staff/finance/invoices/'.$reservationB)
             ->assertStatus(404);
 
         $export = $this->withHeaders($headers)

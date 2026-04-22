@@ -18,8 +18,7 @@ class ReservationBoardAssignmentController extends Controller
 
     public function __construct(
         private readonly StaffReservationBoardAssignmentService $assignmentService,
-    ) {
-    }
+    ) {}
 
     public function assignSuggested(int $id, AssignSuggestedTableRequest $request): JsonResponse
     {
@@ -67,5 +66,3 @@ class ReservationBoardAssignmentController extends Controller
         return $zone === '' ? null : $zone;
     }
 }
-
-

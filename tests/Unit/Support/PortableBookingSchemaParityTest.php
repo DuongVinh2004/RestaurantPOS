@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -57,7 +58,7 @@ class PortableBookingSchemaParityTest extends TestCase
             'hold_status' => 'Holding',
         ]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         $this->createTableHold([
             'session_id' => 'session-parity-live-hold',

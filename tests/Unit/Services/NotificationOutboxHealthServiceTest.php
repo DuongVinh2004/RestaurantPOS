@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use PHPUnit\Framework\Attributes\Group;
+use App\Modules\Notifications\Application\Services\NotificationOutboxHealthService;
 use App\Modules\Notifications\Domain\Models\NotificationDeliveryAttempt;
 use App\Modules\Notifications\Domain\Models\NotificationOutbox;
-use App\Modules\Notifications\Application\Services\NotificationOutboxHealthService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
@@ -40,7 +40,7 @@ class NotificationOutboxHealthServiceTest extends TestCase
         $this->ensureNotificationOutboxSchema();
 
         if (! Schema::hasTable('notification_outbox')) {
-$this->failOrSkipBookingSchemaContract('Required table [notification_outbox] is missing. Run booking migrations on the test database first.');
+            $this->failOrSkipBookingSchemaContract('Required table [notification_outbox] is missing. Run booking migrations on the test database first.');
         }
     }
 
@@ -55,7 +55,7 @@ $this->failOrSkipBookingSchemaContract('Required table [notification_outbox] is 
             'channel' => 'Email',
             'recipient' => 'pending@example.test',
             'template_key' => 'reservation.created',
-            'idempotency_key' => 'health:pending:' . uniqid('', true),
+            'idempotency_key' => 'health:pending:'.uniqid('', true),
             'payload_json' => ['x' => 1],
             'status' => 'Pending',
             'processing_token' => null,
@@ -73,7 +73,7 @@ $this->failOrSkipBookingSchemaContract('Required table [notification_outbox] is 
             'channel' => 'Email',
             'recipient' => 'processing@example.test',
             'template_key' => 'reservation.created',
-            'idempotency_key' => 'health:processing:' . uniqid('', true),
+            'idempotency_key' => 'health:processing:'.uniqid('', true),
             'payload_json' => ['x' => 2],
             'status' => 'Processing',
             'processing_token' => 'token-a',
@@ -91,7 +91,7 @@ $this->failOrSkipBookingSchemaContract('Required table [notification_outbox] is 
             'channel' => 'Email',
             'recipient' => 'failed@example.test',
             'template_key' => 'reservation.created',
-            'idempotency_key' => 'health:failed:' . uniqid('', true),
+            'idempotency_key' => 'health:failed:'.uniqid('', true),
             'payload_json' => ['x' => 3],
             'status' => 'Failed',
             'processing_token' => null,
@@ -143,7 +143,7 @@ $this->failOrSkipBookingSchemaContract('Required table [notification_outbox] is 
             'channel' => 'Email',
             'recipient' => 'failed@example.test',
             'template_key' => 'reservation.cancelled',
-            'idempotency_key' => 'health:dead-letter:' . uniqid('', true),
+            'idempotency_key' => 'health:dead-letter:'.uniqid('', true),
             'payload_json' => ['x' => 1],
             'status' => 'Cancelled',
             'attempt_count' => 2,

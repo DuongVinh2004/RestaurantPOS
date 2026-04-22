@@ -7,6 +7,7 @@ namespace App\Modules\IdentityAccess\Http\Controllers\Staff;
 use App\Http\Controllers\Controller;
 use App\Modules\IdentityAccess\Application\UseCases\Authentication\LoginStaffHandler;
 use App\Modules\IdentityAccess\Application\UseCases\Authentication\LogoutStaffHandler;
+use App\Modules\IdentityAccess\Application\UseCases\Authentication\ProductAuthConfigurationException;
 use App\Modules\IdentityAccess\Application\UseCases\Authentication\RefreshStaffSessionHandler;
 use App\Modules\IdentityAccess\Application\UseCases\Authentication\ShowCurrentStaffSessionHandler;
 use App\Modules\IdentityAccess\Http\Requests\Staff\LoginRequest;
@@ -26,14 +27,26 @@ class AuthController extends Controller
 
     public function login(LoginRequest $request): JsonResponse
     {
-        $payload = $this->loginStaff->handle(
-            (string) $request->input('identifier'),
-            (string) $request->input('password'),
-            array_filter([
-                'label' => $request->input('label'),
-                'device_name' => $request->input('device_name'),
-            ], static fn (mixed $value): bool => $value !== null && $value !== ''),
-        );
+        try {
+            $payload = $this->loginStaff->handle(
+                (string) $request->input('identifier'),
+                (string) $request->input('password'),
+                array_filter([
+                    'label' => $request->input('label'),
+                    'device_name' => $request->input('device_name'),
+                ], static fn (mixed $value): bool => $value !== null && $value !== ''),
+            );
+        } catch (ProductAuthConfigurationException $exception) {
+            return ApiErrorResponse::json(
+                $request,
+                $exception->status(),
+                $exception->errorCode(),
+                $exception->getMessage(),
+                extra: [
+                    'state_reason' => $exception->errorCode(),
+                ],
+            );
+        }
 
         return $this->respond($request, $payload);
     }

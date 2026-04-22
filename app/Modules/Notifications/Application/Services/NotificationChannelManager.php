@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\Notifications\Application\Services;
 
 use App\Modules\Notifications\Infrastructure\Contracts\NotificationChannelDriver;
-use App\Modules\Notifications\Infrastructure\NotificationDeliveryException;
 use App\Modules\Notifications\Infrastructure\Drivers\EmailNotificationChannelDriver;
 use App\Modules\Notifications\Infrastructure\Drivers\SmsStubNotificationChannelDriver;
 use App\Modules\Notifications\Infrastructure\Drivers\ZaloStubNotificationChannelDriver;
+use App\Modules\Notifications\Infrastructure\NotificationDeliveryException;
 
 class NotificationChannelManager
 {
@@ -16,8 +16,7 @@ class NotificationChannelManager
         private readonly EmailNotificationChannelDriver $emailDriver,
         private readonly SmsStubNotificationChannelDriver $smsStubDriver,
         private readonly ZaloStubNotificationChannelDriver $zaloStubDriver,
-    ) {
-    }
+    ) {}
 
     public function resolve(string $channel): NotificationChannelDriver
     {

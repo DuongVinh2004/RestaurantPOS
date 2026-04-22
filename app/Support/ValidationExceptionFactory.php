@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 final class ValidationExceptionFactory
 {
     /**
-     * @param array<string, string|array<int, string>> $messages
+     * @param  array<string, string|array<int, string>>  $messages
      */
     public static function make(array $messages): ValidationException
     {
@@ -30,8 +30,8 @@ final class ValidationExceptionFactory
             return ValidationException::withMessages($normalized);
         }
 
-        $container ??= new Container();
-        $factory = new ValidatorFactory(new Translator(new ArrayLoader(), 'en'), $container);
+        $container ??= new Container;
+        $factory = new ValidatorFactory(new Translator(new ArrayLoader, 'en'), $container);
         $validator = $factory->make([], []);
 
         foreach ($normalized as $key => $items) {

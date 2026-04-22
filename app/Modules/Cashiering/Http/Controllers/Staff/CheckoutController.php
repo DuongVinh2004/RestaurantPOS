@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Cashiering\Http\Controllers\Staff;
 
-use App\Modules\Payments\Domain\Models\Payment;
 use App\Http\Concerns\AppliesDeprecatedRouteHeaders;
 use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;

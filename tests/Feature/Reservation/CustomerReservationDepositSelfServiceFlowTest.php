@@ -26,7 +26,7 @@ class CustomerReservationDepositSelfServiceFlowTest extends TestCase
             'serialize' => false,
         ]);
         app('cache')->forgetDriver('redis');
-        Cache::store('redis')-> getStore() ->flush();
+        Cache::store('redis')->getStore()->flush();
 
         config()->set('staff_auth.database_store_enabled', false);
         config()->set('staff_auth.allow_env_fallback', true);
@@ -186,8 +186,6 @@ class CustomerReservationDepositSelfServiceFlowTest extends TestCase
             ->assertJsonValidationErrors(['reservation']);
     }
 
-
-
     public function test_session_linked_customer_can_acknowledge_submit_and_revoke_deposit_intent_without_impersonating_owner(): void
     {
         $ownerId = $this->createUser(['role_name' => 'Customer']);
@@ -342,7 +340,7 @@ class CustomerReservationDepositSelfServiceFlowTest extends TestCase
     }
 
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      * @return array{0:User,1:int}
      */
     private function seedOwnedPendingDepositReservation(array $overrides = []): array

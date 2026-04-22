@@ -47,8 +47,7 @@ class StaffReservationBoardAssignmentService
         ?\DateTimeInterface $boardFrom = null,
         ?\DateTimeInterface $boardTo = null,
         bool $includeSlotOnlyCandidates = true,
-    ): array
-    {
+    ): array {
         if ($tableId <= 0) {
             throw ValidationException::withMessages([
                 'table_id' => ['table_id must be a positive integer.'],
@@ -138,8 +137,7 @@ class StaffReservationBoardAssignmentService
         ?\DateTimeInterface $boardFrom = null,
         ?\DateTimeInterface $boardTo = null,
         bool $includeSlotOnlyCandidates = true,
-    ): array
-    {
+    ): array {
         $reservation = Reservation::query()->find($reservationId);
         if (! $reservation) {
             throw new ModelNotFoundException('Reservation not found');
@@ -197,8 +195,8 @@ class StaffReservationBoardAssignmentService
     private function commitAssignment(int $reservationId, int $tableId, ?int $staffUserId, ?int $expectedRowVersion): array
     {
         $lockKeys = [
-            config('booking.reservation_lock_reservation_prefix', 'booking:lock:reservation') . ':' . $reservationId,
-            config('booking.reservation_lock_prefix', 'booking:lock:table') . ':' . $tableId,
+            config('booking.reservation_lock_reservation_prefix', 'booking:lock:reservation').':'.$reservationId,
+            config('booking.reservation_lock_prefix', 'booking:lock:table').':'.$tableId,
         ];
 
         try {
@@ -216,7 +214,7 @@ class StaffReservationBoardAssignmentService
 
                     if ($expectedRowVersion !== null && (int) ($reservation->row_version ?? 1) !== $expectedRowVersion) {
                         throw ValidationException::withMessages([
-                            'row_version' => ['DÃ¡Â»Â¯ liÃ¡Â»â€¡u Ã„â€˜ÃƒÂ£ thay Ã„â€˜Ã¡Â»â€¢i (row_version mismatch). HÃƒÂ£y reload rÃ¡Â»â€œi thÃ¡Â»Â­ lÃ¡ÂºÂ¡i.'],
+                            'row_version' => ['Data changed (row_version mismatch). Reload and try again.'],
                         ]);
                     }
 
@@ -366,13 +364,12 @@ class StaffReservationBoardAssignmentService
     }
 
     /**
-     * @param array<string,mixed> $candidate
+     * @param  array<string,mixed>  $candidate
      * @return array<string,mixed>
      */
 
-
     /**
-     * @param list<array<string,mixed>> $candidates
+     * @param  list<array<string,mixed>>  $candidates
      * @return list<array<string,mixed>>
      */
     private function sortCandidateTables(array $candidates): array
@@ -472,5 +469,3 @@ class StaffReservationBoardAssignmentService
         ];
     }
 }
-
-

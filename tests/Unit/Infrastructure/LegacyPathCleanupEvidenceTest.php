@@ -164,5 +164,3 @@ class LegacyPathCleanupEvidenceTest extends TestCase
         self::assertSame($expectedClass, $type->getName(), sprintf('Expected %s::%s to use %s.', WaitlistController::class, $method, $expectedClass));
     }
 }
-
-

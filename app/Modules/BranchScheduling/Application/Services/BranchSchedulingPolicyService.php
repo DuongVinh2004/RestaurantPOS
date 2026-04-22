@@ -20,8 +20,7 @@ class BranchSchedulingPolicyService
 
     public function __construct(
         private readonly BranchContextService $branchContextService,
-    ) {
-    }
+    ) {}
 
     public function resolveBranch(mixed $branchId = null, bool $activeOnly = true): Branch
     {
@@ -31,7 +30,7 @@ class BranchSchedulingPolicyService
             /** @var Branch|null $branch */
             $branch = Branch::query()->find($resolvedBranchId);
             if (! $branch instanceof Branch) {
-                throw (new ModelNotFoundException())->setModel(Branch::class, [$resolvedBranchId]);
+                throw (new ModelNotFoundException)->setModel(Branch::class, [$resolvedBranchId]);
             }
 
             $this->branchCache[$resolvedBranchId] = $branch;
@@ -559,7 +558,7 @@ class BranchSchedulingPolicyService
     }
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array{allowed:bool,reason:?string,message:?string,branch_id:int,timezone:string}
      */
     private function windowDecision(array $context, bool $allowed, ?string $reason, ?string $message): array
@@ -574,7 +573,7 @@ class BranchSchedulingPolicyService
     }
 
     /**
-     * @param array<int,mixed> $value
+     * @param  array<int,mixed>  $value
      * @return array<int, array{day_of_week:int,periods:array<int, array{start_time:string,end_time:string}>>>
      */
     private function normalizeBusinessHoursArray(array $value, string $field): array
@@ -640,7 +639,7 @@ class BranchSchedulingPolicyService
         $normalized = [];
         for ($day = 0; $day <= 6; $day++) {
             $periods = collect($days[$day])
-                ->unique(static fn (array $period): string => $period['start_time'] . '|' . $period['end_time'])
+                ->unique(static fn (array $period): string => $period['start_time'].'|'.$period['end_time'])
                 ->sortBy(fn (array $period): int => $this->timeToMinutes($period['start_time'], $field))
                 ->values()
                 ->all();
@@ -655,7 +654,7 @@ class BranchSchedulingPolicyService
     }
 
     /**
-     * @param array<string,mixed> $value
+     * @param  array<string,mixed>  $value
      * @return array<string,mixed>
      */
     private function normalizeBookingPolicyArray(array $value, string $field): array
@@ -670,13 +669,13 @@ class BranchSchedulingPolicyService
         $availabilityInput = $value['availability'] ?? [];
 
         if (! is_array($reservationInput)) {
-            $this->throwValidation($field . '.reservation', 'booking_policy.reservation must be an object.');
+            $this->throwValidation($field.'.reservation', 'booking_policy.reservation must be an object.');
         }
         if (! is_array($waitingListInput)) {
-            $this->throwValidation($field . '.waiting_list', 'booking_policy.waiting_list must be an object.');
+            $this->throwValidation($field.'.waiting_list', 'booking_policy.waiting_list must be an object.');
         }
         if (! is_array($availabilityInput)) {
-            $this->throwValidation($field . '.availability', 'booking_policy.availability must be an object.');
+            $this->throwValidation($field.'.availability', 'booking_policy.availability must be an object.');
         }
 
         $reservation = array_merge($reservationDefaults, $reservationInput);
@@ -685,7 +684,7 @@ class BranchSchedulingPolicyService
 
         $sameDayCutoffTime = $reservation['same_day_cutoff_time'] ?? null;
         if ($sameDayCutoffTime !== null && trim((string) $sameDayCutoffTime) !== '') {
-            $sameDayCutoffTime = $this->normalizeTimeValue($sameDayCutoffTime, $field . '.reservation.same_day_cutoff_time');
+            $sameDayCutoffTime = $this->normalizeTimeValue($sameDayCutoffTime, $field.'.reservation.same_day_cutoff_time');
         } else {
             $sameDayCutoffTime = null;
         }
@@ -696,26 +695,26 @@ class BranchSchedulingPolicyService
                     $reservation['min_lead_time_minutes'] ?? 0,
                     0,
                     60 * 24 * 365,
-                    $field . '.reservation.min_lead_time_minutes'
+                    $field.'.reservation.min_lead_time_minutes'
                 ),
                 'max_advance_time_minutes' => $this->normalizeIntegerRange(
                     $reservation['max_advance_time_minutes'] ?? (60 * 24 * 365),
                     1,
                     60 * 24 * 365 * 5,
-                    $field . '.reservation.max_advance_time_minutes'
+                    $field.'.reservation.max_advance_time_minutes'
                 ),
                 'same_day_cutoff_time' => $sameDayCutoffTime,
                 'cancellation_cutoff_minutes' => $this->normalizeIntegerRange(
                     $reservation['cancellation_cutoff_minutes'] ?? config('booking.customer_reservation_cancellation_cutoff_minutes', 30),
                     0,
                     60 * 24 * 7,
-                    $field . '.reservation.cancellation_cutoff_minutes'
+                    $field.'.reservation.cancellation_cutoff_minutes'
                 ),
                 'reschedule_cutoff_minutes' => $this->normalizeIntegerRange(
                     $reservation['reschedule_cutoff_minutes'] ?? config('booking.customer_reservation_reschedule_cutoff_minutes', 120),
                     0,
                     60 * 24 * 7,
-                    $field . '.reservation.reschedule_cutoff_minutes'
+                    $field.'.reservation.reschedule_cutoff_minutes'
                 ),
             ],
             'waiting_list' => [
@@ -724,13 +723,13 @@ class BranchSchedulingPolicyService
                     $waitingList['notify_hold_minutes'] ?? config('booking.waiting_list_notify_hold_minutes', 10),
                     1,
                     60,
-                    $field . '.waiting_list.notify_hold_minutes'
+                    $field.'.waiting_list.notify_hold_minutes'
                 ),
                 'default_service_minutes' => $this->normalizeIntegerRange(
                     $waitingList['default_service_minutes'] ?? config('booking.waiting_list_service_minutes', 120),
                     30,
                     480,
-                    $field . '.waiting_list.default_service_minutes'
+                    $field.'.waiting_list.default_service_minutes'
                 ),
             ],
             'availability' => [
@@ -738,7 +737,7 @@ class BranchSchedulingPolicyService
                     $availability['service_buffer_minutes'] ?? config('booking.service_buffer_minutes', 0),
                     0,
                     240,
-                    $field . '.availability.service_buffer_minutes'
+                    $field.'.availability.service_buffer_minutes'
                 ),
             ],
         ];
@@ -813,12 +812,14 @@ class BranchSchedulingPolicyService
         foreach ($intervals as $interval) {
             if ($merged === []) {
                 $merged[] = $interval;
+
                 continue;
             }
 
             $lastIndex = array_key_last($merged);
             if ($lastIndex === null) {
                 $merged[] = $interval;
+
                 continue;
             }
 
@@ -892,7 +893,7 @@ class BranchSchedulingPolicyService
     }
 
     /**
-     * @param array<int, array{start_local:string,end_local:string,type:string,reason:?string}> $closureWindows
+     * @param  array<int, array{start_local:string,end_local:string,type:string,reason:?string}>  $closureWindows
      * @return array{start_local:string,end_local:string,type:string,reason:?string}|null
      */
     private function firstOverlappingClosureWindow(

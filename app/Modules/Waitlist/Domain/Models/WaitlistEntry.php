@@ -4,17 +4,19 @@ declare(strict_types=1);
 
 namespace App\Modules\Waitlist\Domain\Models;
 
-use App\Support\Persistence\HasRowVersion;
-use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Enums\WaitingListCustomerResponseStatus;
 use App\Enums\WaitingListStatus;
+use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Support\Persistence\HasRowVersion;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WaitlistEntry extends Model
 {
     use HasRowVersion;
+
     protected $table = 'waiting_list';
+
     protected $primaryKey = 'waiting_id';
 
     protected $fillable = [
@@ -65,7 +67,7 @@ class WaitlistEntry extends Model
         'notes' => 'string',
         'updated_at' => 'datetime',
         'updated_by' => 'integer',
-        'row_version' => 'integer',];
+        'row_version' => 'integer', ];
 
     public function user(): BelongsTo
     {

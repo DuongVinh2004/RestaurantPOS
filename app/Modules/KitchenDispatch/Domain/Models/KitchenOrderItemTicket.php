@@ -7,9 +7,9 @@ namespace App\Modules\KitchenDispatch\Domain\Models;
 use App\Enums\KitchenStationOutputMode;
 use App\Enums\KitchenTicketStatus;
 use App\Modules\Catalog\Domain\Models\MenuItem;
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 

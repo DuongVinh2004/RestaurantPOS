@@ -12,7 +12,8 @@ class BookingArtifactsNormalizeCommandTest extends TestCase
 {
     public function test_booking_artifacts_normalize_supports_json_output(): void
     {
-        $this->app->instance(ReleaseArtifactNormalizerService::class, new class extends ReleaseArtifactNormalizerService {
+        $this->app->instance(ReleaseArtifactNormalizerService::class, new class extends ReleaseArtifactNormalizerService
+        {
             public function normalize(): array
             {
                 return [

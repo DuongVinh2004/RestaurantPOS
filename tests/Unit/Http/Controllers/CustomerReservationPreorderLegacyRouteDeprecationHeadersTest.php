@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Http\Controllers;
 
-use App\Modules\Reservations\Http\Controllers\CustomerReservationPreorderController;
-use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Reservations\Application\Services\CustomerReservationPreorderService;
-use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Modules\Reservations\Http\Controllers\CustomerReservationPreorderController;
+use Illuminate\Http\Request;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use Tests\TestCase;
@@ -22,7 +23,7 @@ class CustomerReservationPreorderLegacyRouteDeprecationHeadersTest extends TestC
         $service = Mockery::mock(CustomerReservationPreorderService::class);
         $sessionAccess = Mockery::mock(ReservationSessionAccessWorkflow::class);
 
-        $reservation = new Reservation();
+        $reservation = new Reservation;
         $reservation->forceFill([
             'reservation_id' => 88,
             'reservation_code' => 'RSV-88',
@@ -62,9 +63,9 @@ class CustomerReservationPreorderLegacyRouteDeprecationHeadersTest extends TestC
 
         $controller = new CustomerReservationPreorderController($service, $sessionAccess);
 
-        $request = \Illuminate\Http\Request::create('/api/v1/reservations/88/pre-order', 'GET');
+        $request = Request::create('/api/v1/reservations/88/pre-order', 'GET');
         $request->setUserResolver(static function (): User {
-            $user = new User();
+            $user = new User;
             $user->forceFill(['user_id' => 501]);
 
             return $user;

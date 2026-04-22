@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Reservations\Application\Services;
 
 use App\Enums\ReservationStatus;
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
 use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
-use App\Modules\Reservations\Application\Services\ReservationService;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Reservations\Domain\Policies\ReservationAccessScope;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -25,11 +24,10 @@ class CustomerReservationSelfService
         private readonly ReservationService $reservationService,
         private readonly ReservationRescheduleService $reservationRescheduleService,
         private readonly BranchSchedulingPolicyService $branchSchedulingPolicyService,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string,mixed> $filters
+     * @param  array<string,mixed>  $filters
      * @return array{scope:string,paginator:LengthAwarePaginator}
      */
     public function listAccessibleReservations(?int $customerUserId, ?string $sessionId, array $filters = []): array
@@ -54,7 +52,7 @@ class CustomerReservationSelfService
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      */
     public function cancelAccessibleReservation(int $reservationId, ?int $customerUserId, ?string $sessionId, array $payload = []): Reservation
     {
@@ -85,7 +83,7 @@ class CustomerReservationSelfService
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      */
     public function rescheduleAccessibleReservation(int $reservationId, ?int $customerUserId, ?string $sessionId, array $payload = []): Reservation
     {
@@ -136,7 +134,7 @@ class CustomerReservationSelfService
     }
 
     /**
-     * @param array<string,mixed> $filters
+     * @param  array<string,mixed>  $filters
      */
     private function paginateOwnerReservations(int $customerUserId, array $filters): LengthAwarePaginator
     {
@@ -166,7 +164,7 @@ class CustomerReservationSelfService
     }
 
     /**
-     * @param array<string,mixed> $filters
+     * @param  array<string,mixed>  $filters
      */
     private function paginateSessionReservations(string $sessionId, array $filters): LengthAwarePaginator
     {
@@ -287,7 +285,7 @@ class CustomerReservationSelfService
     }
 
     /**
-     * @param array<string,mixed> $filters
+     * @param  array<string,mixed>  $filters
      */
     private function resolveBucket(array $filters): string
     {
@@ -297,7 +295,7 @@ class CustomerReservationSelfService
     }
 
     /**
-     * @param array<string,mixed> $filters
+     * @param  array<string,mixed>  $filters
      * @return list<string>
      */
     private function resolveStatuses(array $filters): array
@@ -323,6 +321,7 @@ class CustomerReservationSelfService
                     ReservationStatus::NoShow->value,
                 ])->where('end_time', '>=', $now);
             });
+
             return;
         }
 
@@ -339,7 +338,7 @@ class CustomerReservationSelfService
     }
 
     /**
-     * @param list<string> $statuses
+     * @param  list<string>  $statuses
      */
     private function applyStatusFilter($query, array $statuses): void
     {
@@ -352,16 +351,16 @@ class CustomerReservationSelfService
     {
         if ($bucket === 'upcoming') {
             $query->orderBy('start_time')->orderBy('reservation_id');
+
             return;
         }
 
         $query->orderByDesc('start_time')->orderByDesc('reservation_id');
     }
 
-
     /**
-     * @param Collection<int,Reservation> $items
-     * @param array<string,mixed> $filters
+     * @param  Collection<int,Reservation>  $items
+     * @param  array<string,mixed>  $filters
      */
     private function paginateCollection(Collection $items, int $perPage, int $page, array $filters): LengthAwarePaginator
     {

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Billing\Application\UseCases\Previews;
 
-use App\Modules\Payments\Domain\Models\Payment;
 use App\Enums\PaymentStatus;
 use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;

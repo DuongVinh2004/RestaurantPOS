@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\Catalog\Application\UseCases\Browsing;
 
+use App\Modules\Catalog\Application\UseCases\PolicyPreview\MenuPreorderPolicyService;
 use App\Modules\Catalog\Domain\Models\MenuCategory;
 use App\Modules\Catalog\Domain\Models\MenuItem;
 use App\Modules\Catalog\Domain\Models\MenuItemPrice;
-use App\Modules\Catalog\Application\UseCases\PolicyPreview\MenuPreorderPolicyService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -17,11 +17,10 @@ class MenuCatalogBrowser
 {
     public function __construct(
         private readonly MenuPreorderPolicyService $menuPreorderPolicyService,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return array{categories: Collection<int, MenuCategory>, meta: array<string, mixed>}
      */
     public function listCategories(array $filters = []): array
@@ -59,7 +58,7 @@ class MenuCatalogBrowser
 
         $uncategorizedItems = $itemsByCategory->get('uncategorized', collect())->values();
         if ($uncategorizedItems->isNotEmpty()) {
-            $pseudo = new MenuCategory();
+            $pseudo = new MenuCategory;
             $pseudo->exists = false;
             $pseudo->forceFill([
                 'category_id' => null,
@@ -86,7 +85,7 @@ class MenuCatalogBrowser
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     public function paginateItems(array $filters = []): LengthAwarePaginator
     {
@@ -94,6 +93,7 @@ class MenuCatalogBrowser
         $perPage = max(1, min((int) ($filters['per_page'] ?? config('booking.customer_menu_page_default', 20)), (int) config('booking.customer_menu_page_max', 100)));
 
         $query = $this->baseItemsQuery($serviceTime, $filters);
+
         return $query->paginate($perPage)->appends([
             'service_time' => $serviceTime->copy()->utc()->toIso8601String(),
             'category_id' => $filters['category_id'] ?? null,
@@ -104,7 +104,7 @@ class MenuCatalogBrowser
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     public function findVisibleItem(int $itemId, array $filters = []): MenuItem
     {
@@ -125,7 +125,7 @@ class MenuCatalogBrowser
     }
 
     /**
-     * @param array<int, array<string, mixed>> $requestedItems
+     * @param  array<int, array<string, mixed>>  $requestedItems
      * @return array<string, mixed>
      */
     public function previewPreorder(array $requestedItems, Carbon $serviceTime): array
@@ -186,7 +186,7 @@ class MenuCatalogBrowser
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     private function baseItemsQuery(Carbon $serviceTime, array $filters)
     {
@@ -232,7 +232,7 @@ class MenuCatalogBrowser
             })
             ->when(($filters['q'] ?? null) !== null && trim((string) $filters['q']) !== '', static function ($query) use ($filters): void {
                 $keyword = trim((string) $filters['q']);
-                $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $keyword) . '%';
+                $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $keyword).'%';
                 $query->where(function ($inner) use ($like): void {
                     $inner
                         ->where('menu_items.name', 'like', $like)

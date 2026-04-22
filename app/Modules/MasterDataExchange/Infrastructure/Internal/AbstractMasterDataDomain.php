@@ -37,7 +37,7 @@ abstract class AbstractMasterDataDomain
     }
 
     /**
-     * @param array<string,mixed> $row
+     * @param  array<string,mixed>  $row
      * @return array<string,mixed>
      */
     protected function rawRow(array $row): array
@@ -125,8 +125,8 @@ abstract class AbstractMasterDataDomain
     }
 
     /**
-     * @param array<string,mixed> $snapshot
-     * @param list<string> $columns
+     * @param  array<string,mixed>  $snapshot
+     * @param  list<string>  $columns
      * @return array<string,mixed>
      */
     protected function projectSnapshot(array $snapshot, array $columns): array
@@ -160,6 +160,7 @@ abstract class AbstractMasterDataDomain
             $operation = (string) ($row['operation'] ?? 'invalid');
             if ($operation === 'invalid') {
                 $summary['invalid_rows']++;
+
                 continue;
             }
 
@@ -167,11 +168,13 @@ abstract class AbstractMasterDataDomain
 
             if ($operation === 'create') {
                 $summary['create_count']++;
+
                 continue;
             }
 
             if ($operation === 'update') {
                 $summary['update_count']++;
+
                 continue;
             }
 
@@ -182,7 +185,7 @@ abstract class AbstractMasterDataDomain
     }
 
     /**
-     * @param list<array<string,mixed>> $rows
+     * @param  list<array<string,mixed>>  $rows
      */
     protected function applyDuplicateKeyErrors(array &$rows, string $keyField = 'match_key_value'): void
     {

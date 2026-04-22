@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class MenuItemRecipe extends Model
 {
     protected $table = 'menu_item_recipes';
+
     protected $primaryKey = 'recipe_line_id';
 
     protected $fillable = [

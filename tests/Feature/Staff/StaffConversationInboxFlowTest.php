@@ -1095,6 +1095,6 @@ class StaffConversationInboxFlowTest extends TestCase
         $path = (string) (parse_url($absoluteOrRelativeUrl, PHP_URL_PATH) ?? '');
         $query = parse_url($absoluteOrRelativeUrl, PHP_URL_QUERY);
 
-        return $path . ($query !== null && $query !== '' ? '?'.$query : '');
+        return $path.($query !== null && $query !== '' ? '?'.$query : '');
     }
 }

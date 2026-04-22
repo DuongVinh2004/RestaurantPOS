@@ -2,8 +2,8 @@
 
 namespace App\Support;
 
-use App\Support\AuditTrail\LegacyAuditPayloadFactory;
 use App\Support\AuditTrail\AuditTrailRecorder;
+use App\Support\AuditTrail\LegacyAuditPayloadFactory;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 

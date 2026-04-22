@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Loyalty\Domain\Models;
 
-use App\Support\Persistence\HasRowVersion;
 use App\Modules\IdentityAccess\Domain\Models\User;
+use App\Support\Persistence\HasRowVersion;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 

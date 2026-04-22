@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Platform\FeatureFlags\Services;
 
-use App\Platform\FeatureFlags\Domain\Models\FeatureFlag;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
+use App\Platform\FeatureFlags\Domain\Models\FeatureFlag;
 use App\Support\AuditEvent;
 use App\Support\ValidationExceptionFactory;
 use Illuminate\Support\Facades\DB;
@@ -78,7 +78,7 @@ class FeatureFlagManagementService
             $action = 'created';
 
             if (! $existing instanceof FeatureFlag) {
-                $existing = new FeatureFlag();
+                $existing = new FeatureFlag;
                 $existing->feature_key = $featureKey;
                 $existing->environment = $environment;
                 $existing->branch_id = $branchScopeId;
@@ -217,9 +217,9 @@ class FeatureFlagManagementService
     }
 
     /**
-     * @param array<string,mixed>|null $before
-     * @param array<string,mixed>|null $after
-     * @param array<string,mixed>|null $summary
+     * @param  array<string,mixed>|null  $before
+     * @param  array<string,mixed>|null  $after
+     * @param  array<string,mixed>|null  $summary
      */
     private function recordAudit(
         string $eventName,

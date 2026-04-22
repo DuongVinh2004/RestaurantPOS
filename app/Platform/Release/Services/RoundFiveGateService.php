@@ -130,7 +130,7 @@ class RoundFiveGateService
     }
 
     /**
-     * @param array{key: string, path: string, category: string} $test
+     * @param  array{key: string, path: string, category: string}  $test
      * @return array{key: string, path: string, category: string, ok: bool, exit_code: int, duration_ms: int, output_tail: string}
      */
     protected function runSingleTest(array $test): array
@@ -159,7 +159,7 @@ class RoundFiveGateService
                 'ok' => $process->isSuccessful(),
                 'exit_code' => (int) ($process->getExitCode() ?? 1),
                 'duration_ms' => (int) round((microtime(true) - $start) * 1000),
-                'output_tail' => $this->truncateOutput(trim($process->getOutput() . "\n" . $process->getErrorOutput())),
+                'output_tail' => $this->truncateOutput(trim($process->getOutput()."\n".$process->getErrorOutput())),
             ];
         } catch (Throwable $e) {
             return [
@@ -173,7 +173,6 @@ class RoundFiveGateService
             ];
         }
     }
-
 
     /**
      * @return list<string>
@@ -190,7 +189,7 @@ class RoundFiveGateService
     }
 
     /**
-     * @param array<string, mixed> $snapshot
+     * @param  array<string, mixed>  $snapshot
      */
     protected function writeSnapshot(array $snapshot, string $relativePath): void
     {

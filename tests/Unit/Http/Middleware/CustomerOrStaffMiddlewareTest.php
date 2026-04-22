@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Unit\Http\Middleware;
 
 use App\Http\Middleware\CustomerOrStaffMiddleware;
+use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
 use App\Modules\IdentityAccess\Domain\Models\Role;
 use App\Modules\IdentityAccess\Domain\Models\User;
-use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
 use App\Modules\IdentityAccess\Infrastructure\Internal\CustomerSessionRouteContract;
 use App\Modules\IdentityAccess\Infrastructure\Tokenization\StaffApiKeyActorResolver;
 use Illuminate\Http\Request;
@@ -62,7 +62,7 @@ final class CustomerOrStaffMiddlewareTest extends TestCase
                 'message' => 'Unauthorized.',
             ]);
 
-        $customer = new User();
+        $customer = new User;
         $customer->user_id = 42;
         $customer->role_id = 3;
         $customer->setRelation('role', new Role(['role_name' => 'Customer']));
@@ -86,7 +86,7 @@ final class CustomerOrStaffMiddlewareTest extends TestCase
             ->once()
             ->andReturn('valid-staff-key');
 
-        $staff = new User();
+        $staff = new User;
         $staff->user_id = 200;
         $staff->role_id = 2;
         $staff->setRelation('role', new Role(['role_name' => 'Staff']));
@@ -101,7 +101,7 @@ final class CustomerOrStaffMiddlewareTest extends TestCase
                 'mode' => 'mapped_key',
             ]);
 
-        $customer = new User();
+        $customer = new User;
         $customer->user_id = 42;
         $customer->role_id = 3;
         $customer->setRelation('role', new Role(['role_name' => 'Customer']));
@@ -170,7 +170,7 @@ final class CustomerOrStaffMiddlewareTest extends TestCase
             ->once()
             ->andReturn('valid-staff-key');
 
-        $user = new User();
+        $user = new User;
         $user->user_id = 200;
         $user->role_id = 2;
         $user->setRelation('role', new Role(['role_name' => 'Staff']));

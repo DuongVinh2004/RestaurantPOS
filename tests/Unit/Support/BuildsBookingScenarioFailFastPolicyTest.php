@@ -11,7 +11,8 @@ class BuildsBookingScenarioFailFastPolicyTest extends TestCase
 {
     public function test_fail_fast_on_missing_schema_defaults_to_enabled(): void
     {
-        $probe = new class {
+        $probe = new class
+        {
             use BuildsBookingScenario;
 
             public function policy(): bool
@@ -27,7 +28,8 @@ class BuildsBookingScenarioFailFastPolicyTest extends TestCase
     {
         config()->set('booking.testing.fail_fast_on_missing_schema', false);
 
-        $probe = new class {
+        $probe = new class
+        {
             use BuildsBookingScenario;
 
             public function policy(): bool

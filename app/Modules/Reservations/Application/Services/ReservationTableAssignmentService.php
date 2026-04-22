@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Reservations\Application\Services;
 
 use App\Enums\TableHoldStatus;
-use App\Modules\BranchScheduling\Domain\Models\TableHold;
 use App\Modules\BranchScheduling\Application\Services\TableHoldService;
+use App\Modules\BranchScheduling\Domain\Models\TableHold;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -15,11 +15,10 @@ class ReservationTableAssignmentService
 {
     public function __construct(
         private readonly TableHoldService $tableHoldService,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      * @return list<int>
      */
     public function resolveTableIdsFromPayloadOrHold(array $payload, ?string $holdId, ?string $sessionId, Carbon $start, Carbon $end): array

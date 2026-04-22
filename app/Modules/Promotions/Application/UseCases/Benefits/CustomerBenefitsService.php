@@ -6,8 +6,8 @@ namespace App\Modules\Promotions\Application\UseCases\Benefits;
 
 use App\Modules\Loyalty\Application\UseCases\Points\ReservationLoyaltySummaryReader;
 use App\Modules\Promotions\Application\UseCases\Vouchers\ReservationVoucherPreviewService;
-use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Promotions\Domain\Models\UserVoucher;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 

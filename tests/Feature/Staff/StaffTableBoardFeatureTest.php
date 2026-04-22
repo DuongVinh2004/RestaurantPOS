@@ -48,8 +48,8 @@ class StaffTableBoardFeatureTest extends TestCase
 
         $query = sprintf('?from=%s&to=%s&zone=A&include_holds=1', urlencode($start->toIso8601String()), urlencode($end->toIso8601String()));
 
-        $canonical = $this->withHeaders($headers)->getJson('/api/v1/staff/tables/board' . $query);
-        $alias = $this->withHeaders($headers)->getJson('/api/v1/staff/table-board' . $query);
+        $canonical = $this->withHeaders($headers)->getJson('/api/v1/staff/tables/board'.$query);
+        $alias = $this->withHeaders($headers)->getJson('/api/v1/staff/table-board'.$query);
 
         $canonical->assertOk();
         $alias->assertOk();
@@ -108,7 +108,6 @@ class StaffTableBoardFeatureTest extends TestCase
         self::assertSame('occupied_now', data_get($currentTable, 'board_state'));
         self::assertSame($reservationId, data_get($currentTable, 'reservation.reservation_id'));
     }
-
 
     private function resetBoardFixtures(): void
     {

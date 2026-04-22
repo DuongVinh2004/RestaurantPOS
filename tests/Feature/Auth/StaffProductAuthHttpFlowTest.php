@@ -322,6 +322,74 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('errors.identifier.0', 'Invalid credentials.');
     }
 
+    public function test_staff_login_fails_closed_when_staff_role_contract_is_missing(): void
+    {
+        DB::table('users')->insert([
+            'user_id' => 32,
+            'username' => 'staff-role-config-missing',
+            'password_hash' => Hash::make('secret-123'),
+            'full_name' => 'Staff Role Config Missing',
+            'email' => 'staff.role.config@example.test',
+            'phone' => '0904000002',
+            'role_id' => 2,
+            'current_tier_id' => null,
+            'language_pref' => 'vn',
+            'is_deleted' => 0,
+            'row_version' => 1,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]);
+
+        config()->set('staff_auth.allowed_role_ids', []);
+        config()->set('staff_auth.allow_role_name_fallback', false);
+
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'X-Request-Id' => 'req-staff-role-config-missing',
+        ])->postJson('/api/v1/auth/staff/login', [
+            'identifier' => 'staff-role-config-missing',
+            'password' => 'secret-123',
+        ])->assertStatus(503)
+            ->assertHeader('X-Request-Id', 'req-staff-role-config-missing')
+            ->assertJsonPath('error_code', 'staff_role_configuration_missing')
+            ->assertJsonPath('category_code', 'staff_role_configuration_missing')
+            ->assertJsonPath('state_reason', 'staff_role_configuration_missing')
+            ->assertJsonPath('request_id', 'req-staff-role-config-missing');
+    }
+
+    public function test_staff_login_blocks_role_name_fallback_in_production_like_environment(): void
+    {
+        DB::table('users')->insert([
+            'user_id' => 33,
+            'username' => 'staff-role-fallback-blocked',
+            'password_hash' => Hash::make('secret-123'),
+            'full_name' => 'Staff Role Fallback Blocked',
+            'email' => 'staff.role.fallback@example.test',
+            'phone' => '0904000003',
+            'role_id' => 2,
+            'current_tier_id' => null,
+            'language_pref' => 'vn',
+            'is_deleted' => 0,
+            'row_version' => 1,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]);
+
+        config()->set('app.env', 'production');
+        config()->set('staff_auth.allowed_role_ids', []);
+        config()->set('staff_auth.allow_role_name_fallback', true);
+        config()->set('staff_auth.production_like_environments', ['production']);
+        config()->set('staff_auth.deny_role_name_fallback_in_production_like', true);
+
+        $this->postJson('/api/v1/auth/staff/login', [
+            'identifier' => 'staff-role-fallback-blocked',
+            'password' => 'secret-123',
+        ])->assertStatus(503)
+            ->assertJsonPath('error_code', 'staff_role_name_fallback_blocked')
+            ->assertJsonPath('category_code', 'staff_role_name_fallback_blocked')
+            ->assertJsonPath('state_reason', 'staff_role_name_fallback_blocked');
+    }
+
     public function test_staff_startup_contract_resolves_ops_only_actor(): void
     {
         $login = $this->loginWorkspaceActor(11, 'OpsOnly', [
@@ -442,6 +510,20 @@ class StaffProductAuthHttpFlowTest extends TestCase
             'Accept' => 'application/json',
             'X-Customer-Token' => $customerToken,
         ])->getJson('/api/v1/auth/staff/me')
+            ->assertStatus(401)
+            ->assertJsonPath('error_code', 'unauthorized');
+
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'X-Customer-Token' => $customerToken,
+        ])->postJson('/api/v1/auth/staff/refresh')
+            ->assertStatus(401)
+            ->assertJsonPath('error_code', 'unauthorized');
+
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'X-Customer-Token' => $customerToken,
+        ])->postJson('/api/v1/auth/staff/logout')
             ->assertStatus(401)
             ->assertJsonPath('error_code', 'unauthorized');
     }

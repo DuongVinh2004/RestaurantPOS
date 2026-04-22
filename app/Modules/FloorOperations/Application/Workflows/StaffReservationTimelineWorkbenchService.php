@@ -19,7 +19,7 @@ class StaffReservationTimelineWorkbenchService
     private readonly RuntimeSettingService $runtimeSettings;
 
     /**
-     * @param array<string,mixed> $context
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>
      */
     public function build(Reservation $reservation, array $context = []): array
@@ -270,10 +270,10 @@ class StaffReservationTimelineWorkbenchService
     }
 
     /**
-     * @param list<string> $requiredFields
-     * @param array<string,mixed> $payloadDefaults
-     * @param array<string,mixed>|null $suggestedTable
-     * @param array<string,mixed> $context
+     * @param  list<string>  $requiredFields
+     * @param  array<string,mixed>  $payloadDefaults
+     * @param  array<string,mixed>|null  $suggestedTable
+     * @param  array<string,mixed>  $context
      * @return array<string,mixed>
      */
     private function makeAction(
@@ -330,4 +330,3 @@ class StaffReservationTimelineWorkbenchService
         ));
     }
 }
-

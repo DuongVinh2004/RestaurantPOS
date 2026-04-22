@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin;
 
 use App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
@@ -541,6 +541,134 @@ class AdminPurchasingFoundationHttpFlowTest extends TestCase
                 ->where('ingredient_id', $ingredientId)
                 ->where('reference_type', 'PurchaseReceipt')
                 ->count()
+        );
+    }
+
+    public function test_receipt_code_duplicate_replays_without_duplicate_receipt_or_stock_movement(): void
+    {
+        [, $headers] = $this->adminHeaders('admin-purchasing-receipt-code-replay-key');
+        $supplierId = $this->createSupplier([
+            'code' => 'SUP-RCODE-01',
+            'name' => 'Receipt Code Replay Supply',
+        ]);
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-RCODE-01',
+            'name' => 'Receipt Code Replay Rice',
+            'unit_code' => 'kg',
+        ]);
+
+        $purchaseOrder = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-po-rcode-create'))
+            ->postJson('/api/v1/admin/inventory/purchase-orders', [
+                'supplier_id' => $supplierId,
+                'order_code' => 'PO-RCODE-0001',
+                'lines' => [
+                    [
+                        'ingredient_id' => $ingredientId,
+                        'ordered_quantity' => '5.000',
+                        'unit_code' => 'kg',
+                    ],
+                ],
+            ]);
+
+        $purchaseOrder->assertCreated();
+
+        $purchaseOrderId = (int) $purchaseOrder->json('data.purchase_order_id');
+        $poLineId = (int) $purchaseOrder->json('data.lines.0.po_line_id');
+        $payload = [
+            'receipt_code' => 'GRN-RCODE-0001',
+            'lines' => [
+                [
+                    'purchase_order_line_id' => $poLineId,
+                    'received_quantity' => '5.000',
+                ],
+            ],
+        ];
+
+        $firstReceipt = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-po-rcode-receipt-a'))
+            ->postJson('/api/v1/admin/inventory/purchase-orders/'.$purchaseOrderId.'/receipts', $payload);
+
+        $replayedReceipt = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-po-rcode-receipt-b'))
+            ->postJson('/api/v1/admin/inventory/purchase-orders/'.$purchaseOrderId.'/receipts', $payload);
+
+        $firstReceipt->assertCreated()
+            ->assertJsonPath('meta.purchase_order.purchase_order_status', 'Received');
+        $replayedReceipt->assertCreated()
+            ->assertJsonPath('meta.purchase_order.purchase_order_status', 'Received');
+
+        $this->assertSame($firstReceipt->json('data.receipt_id'), $replayedReceipt->json('data.receipt_id'));
+        $this->assertSame($firstReceipt->json('data.lines.0.stock_movement_id'), $replayedReceipt->json('data.lines.0.stock_movement_id'));
+        $this->assertSame(1, DB::table('purchase_receipts')->where('purchase_order_id', $purchaseOrderId)->count());
+        $this->assertSame(1, DB::table('purchase_receipt_lines')->where('purchase_order_line_id', $poLineId)->count());
+        $this->assertSame(
+            1,
+            DB::table('ingredient_stock_movements')
+                ->where('ingredient_id', $ingredientId)
+                ->where('reference_type', 'PurchaseReceipt')
+                ->count()
+        );
+    }
+
+    public function test_receipt_code_duplicate_with_drifted_lines_is_rejected(): void
+    {
+        [, $headers] = $this->adminHeaders('admin-purchasing-receipt-code-drift-key');
+        $supplierId = $this->createSupplier([
+            'code' => 'SUP-RCODE-DRIFT-01',
+            'name' => 'Receipt Code Drift Supply',
+        ]);
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-RCODE-DRIFT-01',
+            'name' => 'Receipt Code Drift Rice',
+            'unit_code' => 'kg',
+        ]);
+
+        $purchaseOrder = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-po-rcode-drift-create'))
+            ->postJson('/api/v1/admin/inventory/purchase-orders', [
+                'supplier_id' => $supplierId,
+                'order_code' => 'PO-RCODE-DRIFT-0001',
+                'lines' => [
+                    [
+                        'ingredient_id' => $ingredientId,
+                        'ordered_quantity' => '5.000',
+                        'unit_code' => 'kg',
+                    ],
+                ],
+            ]);
+
+        $purchaseOrder->assertCreated();
+
+        $purchaseOrderId = (int) $purchaseOrder->json('data.purchase_order_id');
+        $poLineId = (int) $purchaseOrder->json('data.lines.0.po_line_id');
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-po-rcode-drift-receipt-a'))
+            ->postJson('/api/v1/admin/inventory/purchase-orders/'.$purchaseOrderId.'/receipts', [
+                'receipt_code' => 'GRN-RCODE-DRIFT-0001',
+                'lines' => [
+                    [
+                        'purchase_order_line_id' => $poLineId,
+                        'received_quantity' => '2.000',
+                    ],
+                ],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('meta.purchase_order.purchase_order_status', 'PartiallyReceived');
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-po-rcode-drift-receipt-b'))
+            ->postJson('/api/v1/admin/inventory/purchase-orders/'.$purchaseOrderId.'/receipts', [
+                'receipt_code' => 'GRN-RCODE-DRIFT-0001',
+                'lines' => [
+                    [
+                        'purchase_order_line_id' => $poLineId,
+                        'received_quantity' => '3.000',
+                    ],
+                ],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['receipt_code']);
+
+        $this->assertSame(1, DB::table('purchase_receipts')->where('purchase_order_id', $purchaseOrderId)->count());
+        $this->assertSame(
+            '2.000',
+            number_format((float) DB::table('purchase_order_lines')->where('po_line_id', $poLineId)->value('received_quantity'), 3, '.', '')
         );
     }
 

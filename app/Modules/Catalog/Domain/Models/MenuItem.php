@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Schema;
 class MenuItem extends Model
 {
     protected $table = 'menu_items';
+
     protected $primaryKey = 'item_id';
 
     protected $fillable = [

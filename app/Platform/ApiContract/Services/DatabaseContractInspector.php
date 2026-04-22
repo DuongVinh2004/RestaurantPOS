@@ -372,7 +372,7 @@ class DatabaseContractInspector
             $snapshot['checks']['staff_api_keys_label_check'] = in_array('staff_api_keys:chk_staff_api_keys__label_nonempty', $constraintNames, true);
         } catch (Throwable $e) {
             $snapshot['status'] = 'degraded';
-            $snapshot['issues'][] = 'Failed to inspect database contract metadata: ' . $e->getMessage();
+            $snapshot['issues'][] = 'Failed to inspect database contract metadata: '.$e->getMessage();
 
             return $snapshot;
         }
@@ -621,7 +621,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasVoucherUsageCapIndex(array $indexNames): bool
     {
@@ -629,7 +629,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param list<string> $triggerNames
+     * @param  list<string>  $triggerNames
      */
     public static function hasRuntimeIncompatiblePaymentRefundTriggers(array $triggerNames): bool
     {
@@ -647,9 +647,8 @@ class DatabaseContractInspector
         return false;
     }
 
-
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasAgentAssignmentActiveUniqueIndex(array $indexNames): bool
     {
@@ -657,16 +656,15 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasBankAccountDefaultUniqueIndex(array $indexNames): bool
     {
         return in_array('bank_accounts:uq_bank_accounts__default_user_id', $indexNames, true);
     }
 
-
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasPaymentProviderTransactionUniqueIndex(array $indexNames): bool
     {
@@ -674,7 +672,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasActiveReservationVoucherUniqueIndex(array $indexNames): bool
     {
@@ -682,7 +680,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasPaymentWebhookReceiptsUniqueIndex(array $indexNames): bool
     {
@@ -690,7 +688,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasReservationDepositLinkedPaymentUniqueIndex(array $indexNames): bool
     {
@@ -698,7 +696,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasReservationBillLinkedPaymentUniqueIndex(array $indexNames): bool
     {
@@ -706,7 +704,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasCustomerAccessSessionTokenHashUniqueIndex(array $indexNames): bool
     {
@@ -714,7 +712,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasNotificationOutboxOperationalIndexes(array $indexNames): bool
     {
@@ -731,7 +729,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasIngredientStockMovementReferenceUniqueIndex(array $indexNames): bool
     {
@@ -739,7 +737,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasNotificationDeliveryAttemptsOperationalIndexes(array $indexNames): bool
     {
@@ -757,7 +755,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasNotificationPreferencesUniqueIndex(array $indexNames): bool
     {
@@ -765,7 +763,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasAuditLogSubjectsLookupIndex(array $indexNames): bool
     {
@@ -773,7 +771,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasCustomerPrivacyRequestIndexes(array $indexNames): bool
     {
@@ -790,7 +788,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasFeatureFlagUniqueIndex(array $indexNames): bool
     {
@@ -808,7 +806,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param list<string> $indexNames
+     * @param  list<string>  $indexNames
      */
     public static function hasSessionReservationLookupIndex(array $indexNames): bool
     {
@@ -825,7 +823,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param array<string, array{column_type: string, is_nullable: string, column_default: mixed}> $columnMetadata
+     * @param  array<string, array{column_type: string, is_nullable: string, column_default: mixed}>  $columnMetadata
      */
     public static function hasAuditLogContextColumns(array $columnMetadata): bool
     {
@@ -843,7 +841,7 @@ class DatabaseContractInspector
     }
 
     /**
-     * @param array<string, array{column_type: string, is_nullable: string, column_default: mixed}> $columnMetadata
+     * @param  array<string, array{column_type: string, is_nullable: string, column_default: mixed}>  $columnMetadata
      */
     public static function hasBranchPolicyColumns(array $columnMetadata): bool
     {

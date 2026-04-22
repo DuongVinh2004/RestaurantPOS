@@ -6,6 +6,9 @@ namespace App\Modules\InventoryProcurement\Application\UseCases\Procurement;
 
 use App\Enums\PurchaseOrderStatus;
 use App\Enums\PurchaseReceiptStatus;
+use App\Modules\BranchScheduling\Application\Services\BranchContextService;
+use App\Modules\InventoryProcurement\Application\UseCases\Inventory\InventoryStockMovementService;
+use App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService;
 use App\Modules\InventoryProcurement\Domain\Models\Ingredient;
 use App\Modules\InventoryProcurement\Domain\Models\IngredientStockMovement;
 use App\Modules\InventoryProcurement\Domain\Models\PurchaseOrder;
@@ -13,9 +16,6 @@ use App\Modules\InventoryProcurement\Domain\Models\PurchaseOrderLine;
 use App\Modules\InventoryProcurement\Domain\Models\PurchaseReceipt;
 use App\Modules\InventoryProcurement\Domain\Models\PurchaseReceiptLine;
 use App\Modules\InventoryProcurement\Domain\Models\Supplier;
-use App\Modules\BranchScheduling\Application\Services\BranchContextService;
-use App\Modules\InventoryProcurement\Application\UseCases\Inventory\InventoryStockMovementService;
-use App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService;
 use App\Support\AuditEvent;
 use App\Support\Listing\SafeLike;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -415,11 +415,13 @@ class ProcurementManagementService
             /** @var list<array<string,mixed>> $receiptLines */
             $receiptLines = array_values((array) $payload['lines']);
             $this->assertDistinctReceiptLines($receiptLines);
+            $requestedReceiptCode = $this->normalizeNullableString($payload['receipt_code'] ?? null);
             $supplierDocumentNo = $this->normalizeNullableString($payload['supplier_document_no'] ?? null);
             $requestedReceiptSignature = $this->normalizeRequestedReceiptSignature($receiptLines, $orderLines);
             $replayedReceipt = $this->findReplayableReceipt(
                 purchaseOrderId: $purchaseOrderId,
                 supplierDocumentNo: $supplierDocumentNo,
+                receiptCode: $requestedReceiptCode,
                 requestedReceiptSignature: $requestedReceiptSignature,
             );
 
@@ -454,7 +456,7 @@ class ProcurementManagementService
             $receipt->fill([
                 'branch_id' => (int) $order->branch_id,
                 'purchase_order_id' => $purchaseOrderId,
-                'receipt_code' => $this->normalizeNullableString($payload['receipt_code'] ?? null) ?? $this->generateReceiptCode(),
+                'receipt_code' => $requestedReceiptCode ?? $this->generateReceiptCode(),
                 'receipt_status' => PurchaseReceiptStatus::Posted,
                 'received_at' => $receivedAt,
                 'supplier_document_no' => $supplierDocumentNo,
@@ -685,39 +687,31 @@ class ProcurementManagementService
     private function findReplayableReceipt(
         int $purchaseOrderId,
         ?string $supplierDocumentNo,
+        ?string $receiptCode,
         array $requestedReceiptSignature,
     ): ?PurchaseReceipt {
-        if ($supplierDocumentNo === null) {
+        if ($supplierDocumentNo === null && $receiptCode === null) {
             return null;
         }
 
         /** @var Collection<int, PurchaseReceipt> $candidateReceipts */
-        $candidateReceipts = PurchaseReceipt::query()
-            ->with([
-                'lines' => static function ($query): void {
-                    $query
-                        ->with(['ingredient' => static fn ($inner) => $inner->select('ingredient_id', 'code', 'name', 'unit_code', 'is_active')])
-                        ->orderBy('receipt_line_id');
-                },
-            ])
-            ->where('purchase_order_id', $purchaseOrderId)
-            ->where('supplier_document_no', $supplierDocumentNo)
-            ->orderByDesc('receipt_id')
-            ->get();
+        $candidateReceipts = $supplierDocumentNo !== null
+            ? PurchaseReceipt::query()
+                ->with([
+                    'lines' => static function ($query): void {
+                        $query
+                            ->with(['ingredient' => static fn ($inner) => $inner->select('ingredient_id', 'code', 'name', 'unit_code', 'is_active')])
+                            ->orderBy('receipt_line_id');
+                    },
+                ])
+                ->where('purchase_order_id', $purchaseOrderId)
+                ->where('supplier_document_no', $supplierDocumentNo)
+                ->orderByDesc('receipt_id')
+                ->get()
+            : new Collection;
 
         foreach ($candidateReceipts as $candidateReceipt) {
-            $existingSignature = $candidateReceipt->lines
-                ->map(fn (PurchaseReceiptLine $line): string => $this->receiptLineSignature(
-                    purchaseOrderLineId: (int) $line->purchase_order_line_id,
-                    receivedQuantity: (float) $line->received_quantity,
-                    unitCode: (string) $line->unit_code,
-                    unitCost: $line->unit_cost !== null ? (float) $line->unit_cost : null,
-                ))
-                ->sort()
-                ->values()
-                ->all();
-
-            if ($existingSignature === $requestedReceiptSignature) {
+            if ($this->receiptMatchesRequestedSignature($candidateReceipt, $requestedReceiptSignature)) {
                 return $candidateReceipt;
             }
         }
@@ -731,7 +725,64 @@ class ProcurementManagementService
             ]);
         }
 
-        return null;
+        if ($receiptCode === null) {
+            return null;
+        }
+
+        /** @var PurchaseReceipt|null $receipt */
+        $receipt = PurchaseReceipt::query()
+            ->with([
+                'lines' => static function ($query): void {
+                    $query
+                        ->with(['ingredient' => static fn ($inner) => $inner->select('ingredient_id', 'code', 'name', 'unit_code', 'is_active')])
+                        ->orderBy('receipt_line_id');
+                },
+            ])
+            ->where('receipt_code', $receiptCode)
+            ->first();
+
+        if (! $receipt instanceof PurchaseReceipt) {
+            return null;
+        }
+
+        if ((int) $receipt->purchase_order_id !== $purchaseOrderId) {
+            throw ValidationException::withMessages([
+                'receipt_code' => sprintf(
+                    'Receipt code [%s] is already posted for a different purchase order.',
+                    $receiptCode
+                ),
+            ]);
+        }
+
+        if ($this->receiptMatchesRequestedSignature($receipt, $requestedReceiptSignature)) {
+            return $receipt;
+        }
+
+        throw ValidationException::withMessages([
+            'receipt_code' => sprintf(
+                'Receipt code [%s] is already posted with different receipt details.',
+                $receiptCode
+            ),
+        ]);
+    }
+
+    /**
+     * @param  list<string>  $requestedReceiptSignature
+     */
+    private function receiptMatchesRequestedSignature(PurchaseReceipt $receipt, array $requestedReceiptSignature): bool
+    {
+        $existingSignature = $receipt->lines
+            ->map(fn (PurchaseReceiptLine $line): string => $this->receiptLineSignature(
+                purchaseOrderLineId: (int) $line->purchase_order_line_id,
+                receivedQuantity: (float) $line->received_quantity,
+                unitCode: (string) $line->unit_code,
+                unitCost: $line->unit_cost !== null ? (float) $line->unit_cost : null,
+            ))
+            ->sort()
+            ->values()
+            ->all();
+
+        return $existingSignature === $requestedReceiptSignature;
     }
 
     private function receiptLineSignature(
