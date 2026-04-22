@@ -199,7 +199,7 @@ JSON.PHP_EOL);
         $this->assertSame(substr_count($normalized, "\n") + 1, $snapshot['artifacts']['route_inventory_gate_definition']['line_count']);
     }
 
-    public function test_snapshot_fails_when_generated_consumer_artifacts_are_stale_relative_to_openapi_or_manifest(): void
+    public function test_snapshot_fails_when_generated_consumer_artifact_contents_drift_from_expected_output(): void
     {
         $openApiPath = base_path($this->root.'/openapi-v1.json');
         $sdkPath = base_path($this->root.'/restaurantpos-sdk.ts');
@@ -210,13 +210,6 @@ JSON.PHP_EOL);
         File::put($sdkPath, "export class RestaurantPosClient {}\n");
         File::put($enumsPath, "export const reservationStatusValues = [] as const;\n");
         File::put($mutationContractPath, "# RestaurantPOS Mutation Contract Matrix\n");
-
-        $baseTime = time();
-        touch($sdkPath, $baseTime - 20);
-        touch($enumsPath, $baseTime - 20);
-        touch($mutationContractPath, $baseTime - 20);
-        touch($openApiPath, $baseTime - 10);
-        clearstatcache();
 
         config()->set('booking_release.artifacts', [
             'openapi_v1_spec' => [
@@ -247,7 +240,23 @@ JSON.PHP_EOL);
         ]);
         config()->set('booking_release.required_sql_patches', []);
 
-        $snapshot = app(ReleaseArtifactManifestService::class)->snapshot();
+        $service = new class extends ReleaseArtifactManifestService
+        {
+            /**
+             * @param  array<string, array<string, mixed>>  $artifacts
+             */
+            protected function expectedGeneratedArtifactFingerprint(string $artifactKey, array $artifacts): ?string
+            {
+                return match ($artifactKey) {
+                    'api_consumer_sdk_typescript',
+                    'api_consumer_sdk_enums_typescript',
+                    'api_consumer_mutation_contract' => str_repeat('f', 64),
+                    default => null,
+                };
+            }
+        };
+
+        $snapshot = $service->snapshot();
 
         $this->assertFalse($snapshot['ok']);
         $this->assertSame('fail', $snapshot['status']);
@@ -260,6 +269,62 @@ JSON.PHP_EOL);
             ),
             $snapshot['artifacts']['api_consumer_sdk_typescript']['freshness_issues']
         );
+    }
+
+    public function test_snapshot_accepts_generated_consumer_artifacts_when_content_matches_expected_output_even_if_dependency_is_newer(): void
+    {
+        $openApiPath = base_path($this->root.'/openapi-v1.json');
+        $sdkPath = base_path($this->root.'/restaurantpos-sdk.ts');
+        File::ensureDirectoryExists(dirname($openApiPath));
+        File::put($openApiPath, "{\"openapi\":\"3.1.0\"}\n");
+        File::put($sdkPath, "export class RestaurantPosClient {}\n");
+
+        $baseTime = time();
+        touch($sdkPath, $baseTime - 20);
+        touch($openApiPath, $baseTime - 10);
+        clearstatcache();
+
+        config()->set('booking_release.artifacts', [
+            'openapi_v1_spec' => [
+                'path' => $this->root.'/openapi-v1.json',
+                'optional' => false,
+                'required_fragments' => ['"openapi":"3.1.0"'],
+            ],
+            'api_consumer_sdk_typescript' => [
+                'path' => $this->root.'/restaurantpos-sdk.ts',
+                'optional' => false,
+                'required_fragments' => ['RestaurantPosClient'],
+            ],
+        ]);
+        config()->set('booking_release.artifact_freshness', [
+            'api_consumer_sdk_typescript' => ['openapi_v1_spec'],
+        ]);
+        config()->set('booking_release.required_sql_patches', []);
+
+        $service = new class($this->root.'/restaurantpos-sdk.ts') extends ReleaseArtifactManifestService
+        {
+            public function __construct(private readonly string $sdkRelativePath) {}
+
+            /**
+             * @param  array<string, array<string, mixed>>  $artifacts
+             */
+            protected function expectedGeneratedArtifactFingerprint(string $artifactKey, array $artifacts): ?string
+            {
+                if ($artifactKey !== 'api_consumer_sdk_typescript') {
+                    return null;
+                }
+
+                $contents = (string) File::get(base_path($this->sdkRelativePath));
+
+                return hash('sha256', str_replace(["\r\n", "\r"], "\n", $contents));
+            }
+        };
+
+        $snapshot = $service->snapshot();
+
+        $this->assertTrue($snapshot['ok']);
+        $this->assertSame('ok', $snapshot['status']);
+        $this->assertArrayNotHasKey('freshness_issues', $snapshot['artifacts']['api_consumer_sdk_typescript']);
     }
 
     public function test_inspect_frozen_snapshot_ignores_self_referential_release_manifest_metadata(): void
