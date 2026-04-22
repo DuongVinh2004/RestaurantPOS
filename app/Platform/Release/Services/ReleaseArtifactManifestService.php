@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 namespace App\Platform\Release\Services;
 
+use App\Platform\ApiContract\ApiArtifacts\ApiConsumerArtifactService;
 use Illuminate\Support\Facades\File;
 use Throwable;
 
 class ReleaseArtifactManifestService
 {
+    /**
+     * @var array<string, string>|null
+     */
+    private ?array $generatedArtifactExpectedFingerprints = null;
+
     private function normalizeArtifactFingerprintContents(string $contents): string
     {
         return str_replace(["\r\n", "\r"], "\n", $contents);
@@ -489,8 +495,53 @@ class ReleaseArtifactManifestService
                 continue;
             }
 
-            $artifactModifiedEpoch = (int) ($artifact['modified_epoch'] ?? 0);
-            if ($artifactModifiedEpoch <= 0) {
+            $dependencyPaths = [];
+            foreach ((array) $dependencyKeys as $dependencyKey) {
+                $dependencyKey = is_scalar($dependencyKey) ? trim((string) $dependencyKey) : '';
+                if ($dependencyKey === '' || ! isset($artifacts[$dependencyKey]) || ! is_array($artifacts[$dependencyKey])) {
+                    continue;
+                }
+
+                $dependency = $artifacts[$dependencyKey];
+                if (! ($dependency['exists'] ?? false)) {
+                    continue;
+                }
+
+                $dependencyPaths[] = (string) ($dependency['path'] ?? $dependencyKey);
+            }
+
+            try {
+                $expectedFingerprint = $this->expectedGeneratedArtifactFingerprint($artifactKey, $artifacts);
+            } catch (Throwable $exception) {
+                $issuesByArtifact[$artifactKey] ??= [];
+                $issuesByArtifact[$artifactKey][] = sprintf(
+                    'Generated artifact %s could not be verified against %s: %s',
+                    (string) ($artifact['path'] ?? $artifactKey),
+                    $dependencyPaths !== [] ? implode(', ', $dependencyPaths) : 'its source artifacts',
+                    $exception->getMessage(),
+                );
+
+                continue;
+            }
+
+            if ($expectedFingerprint !== null) {
+                $actualFingerprint = (string) ($artifact['sha256'] ?? '');
+                if ($actualFingerprint !== '' && hash_equals($expectedFingerprint, $actualFingerprint)) {
+                    continue;
+                }
+
+                $issuesByArtifact[$artifactKey] ??= [];
+                $issuesByArtifact[$artifactKey][] = sprintf(
+                    'Generated artifact %s is stale relative to %s. Regenerate the API consumer artifacts before refreshing the release manifest or packaging the handoff.',
+                    (string) ($artifact['path'] ?? $artifactKey),
+                    $dependencyPaths !== [] ? implode(', ', $dependencyPaths) : 'its source artifacts',
+                );
+
+                continue;
+            }
+
+            $artifactFreshnessEpoch = (int) ($artifact['modified_epoch'] ?? 0);
+            if ($artifactFreshnessEpoch <= 0) {
                 continue;
             }
 
@@ -505,8 +556,8 @@ class ReleaseArtifactManifestService
                     continue;
                 }
 
-                $dependencyModifiedEpoch = (int) ($dependency['modified_epoch'] ?? 0);
-                if ($dependencyModifiedEpoch <= 0 || $artifactModifiedEpoch >= $dependencyModifiedEpoch) {
+                $dependencyFreshnessEpoch = (int) ($dependency['modified_epoch'] ?? 0);
+                if ($dependencyFreshnessEpoch <= 0 || $artifactFreshnessEpoch >= $dependencyFreshnessEpoch) {
                     continue;
                 }
 
@@ -520,6 +571,88 @@ class ReleaseArtifactManifestService
         }
 
         return $issuesByArtifact;
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $artifacts
+     */
+    protected function expectedGeneratedArtifactFingerprint(string $artifactKey, array $artifacts): ?string
+    {
+        if (! array_key_exists($artifactKey, $this->apiConsumerGeneratedArtifactMap())) {
+            return null;
+        }
+
+        return $this->generatedApiConsumerArtifactExpectedFingerprints($artifacts)[$artifactKey] ?? null;
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $artifacts
+     * @return array<string, string>
+     */
+    private function generatedApiConsumerArtifactExpectedFingerprints(array $artifacts): array
+    {
+        if ($this->generatedArtifactExpectedFingerprints !== null) {
+            return $this->generatedArtifactExpectedFingerprints;
+        }
+
+        $tempOutputRoot = sprintf(
+            'storage/framework/cache/release-manifest-api-consumer/%s',
+            str_replace('.', '', uniqid('', true)),
+        );
+        $payload = [];
+
+        try {
+            $payload = app(ApiConsumerArtifactService::class)->generate(
+                outputRoot: $tempOutputRoot,
+                specPath: $this->freshnessSpecPath($artifacts),
+                refreshOpenApi: false,
+                uatManifestPath: null,
+            );
+
+            $fingerprints = [];
+            foreach ($this->apiConsumerGeneratedArtifactMap() as $artifactKey => $generatedArtifactKey) {
+                $generatedPath = trim((string) (($payload['artifacts'] ?? [])[$generatedArtifactKey] ?? ''));
+                if ($generatedPath === '' || ! File::exists(base_path($generatedPath))) {
+                    continue;
+                }
+
+                $fingerprints[$artifactKey] = hash(
+                    'sha256',
+                    $this->normalizeArtifactFingerprintContents((string) File::get(base_path($generatedPath))),
+                );
+            }
+
+            return $this->generatedArtifactExpectedFingerprints = $fingerprints;
+        } finally {
+            File::deleteDirectory(base_path($tempOutputRoot));
+        }
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function apiConsumerGeneratedArtifactMap(): array
+    {
+        return [
+            'api_consumer_collection' => 'collection',
+            'api_consumer_local_environment' => 'local_environment',
+            'api_consumer_staging_environment' => 'staging_environment',
+            'api_consumer_sdk_typescript' => 'sdk_typescript',
+            'api_consumer_sdk_enums_typescript' => 'enum_state_typescript',
+            'api_consumer_sdk_readme' => 'sdk_readme',
+            'api_consumer_enum_state_json' => 'enum_state_json',
+            'api_consumer_mutation_contract' => 'mutation_contract',
+        ];
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $artifacts
+     */
+    private function freshnessSpecPath(array $artifacts): ?string
+    {
+        $relativePath = trim((string) (($artifacts['openapi_v1_spec']['path'] ?? '')));
+
+        return $relativePath !== '' ? $relativePath : null;
     }
 
     /**
