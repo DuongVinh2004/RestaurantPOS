@@ -927,8 +927,9 @@ class ApiConsumerArtifactService
             'userVoucherId' => data_get($manifest, 'scenarios.benefits.user_voucher_id'),
             'loyaltyPoints' => data_get($manifest, 'scenarios.benefits.loyalty_points'),
             'customerUserIdSecondary' => data_get($manifest, 'scenarios.waiting_list_lifecycle.customer_user_id'),
-            'checkedInAt' => now('UTC')->toIso8601String(),
-            'paymentWebhookOccurredAt' => now('UTC')->toIso8601String(),
+            // Keep generated UAT environments reproducible while still letting Postman resolve fresh values at send time.
+            'checkedInAt' => '{{$isoTimestamp}}',
+            'paymentWebhookOccurredAt' => '{{$isoTimestamp}}',
         ], static fn (mixed $value): bool => $value !== null && $value !== '');
     }
 
@@ -980,7 +981,9 @@ class ApiConsumerArtifactService
             ? json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
             : $payload;
 
-        File::put($absolutePath, $contents);
+        if (! File::exists($absolutePath) || (string) File::get($absolutePath) !== $contents) {
+            File::put($absolutePath, $contents);
+        }
 
         return $relativeOutputPath;
     }

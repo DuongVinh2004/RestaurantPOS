@@ -57,6 +57,11 @@ Use this exact checklist for final packaging and handoff:
    - Mature / strong: auth/identity/RBAC, dine-in service session, order lifecycle, checkout/refund/cashier shift.
    - Hardened but still higher risk: branch-scope operational consistency, kitchen/KDS, conversation inbox, staff-web branch shell context.
    - Foundation-usable only: inventory basics, reporting/ops dashboards, notification/provider external E2E, advanced realtime collaboration.
+8. Day-1 scope note for the release ticket.
+   - Customer day-1 promise is auth/session, menu browse, availability/holds, and reservation create/list/detail.
+   - Customer deposit or bill payment-session routes are contract-visible only until real provider evidence promotes them.
+   - Staff day-1 promise is board, reservations, manual waiting-list ops, active order, checkout/refund, cashier shift, and required finance review reads.
+   - Kitchen/KDS dispatch, inventory uplift, and conversation inbox stay outside the day-1 promise even if their routes or shells remain mounted.
 
 ## Canonical package shape
 

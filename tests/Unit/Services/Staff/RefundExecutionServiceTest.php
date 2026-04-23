@@ -74,6 +74,72 @@ final class RefundExecutionServiceTest extends TestCase
         self::assertSame(30.0, (float) $allocations[1]['amount']);
     }
 
+    public function test_execute_locked_rejects_refund_source_payments_from_another_reservation(): void
+    {
+        $planner = new RefundPlannerService(new SettlementAmountCalculator);
+        $runtime = Mockery::mock(RuntimeSettingService::class);
+        $runtime->shouldIgnoreMissing();
+        $loyalty = new LoyaltyPointsService(new ReservationFinancialSyncService, $runtime);
+
+        $branchContext = Mockery::mock(BranchContextService::class);
+        $branchContext->shouldNotReceive('assertSingleBranch');
+        $branchContext->shouldNotReceive('resolveBranchId');
+        $branchContext->shouldNotReceive('assertSameBranch');
+
+        $service = new RefundExecutionService($planner, new SettlementAmountCalculator, $loyalty, $branchContext);
+
+        $reservation = new Reservation([
+            'branch_id' => 1,
+            'status' => 'Completed',
+            'bill_currency' => 'VND',
+        ]);
+        $reservation->setAttribute('reservation_id', 101);
+
+        $foreignSourcePayment = new Payment([
+            'branch_id' => 1,
+            'reservation_id' => 202,
+            'payment_type' => 'Deposit',
+            'status' => PaymentStatus::Success,
+            'amount' => '100000.00',
+            'currency' => 'VND',
+            'transaction_code' => 'DEP-FOREIGN-1',
+        ]);
+        $foreignSourcePayment->setAttribute('payment_id', 301);
+
+        try {
+            $service->executeLocked(
+                reservation: $reservation,
+                orders: new Collection,
+                payments: new Collection([$foreignSourcePayment]),
+                tableIds: [],
+                paymentMethod: 'Cash',
+                refundScope: 'deposit',
+                refundAmount: 10000.00,
+                baseCurrency: 'VND',
+                transactionCode: 'RF-FOREIGN-1',
+                paymentProvider: 'Cash',
+                notes: 'should fail',
+                reason: 'customer_request',
+                cancelAfterPayment: false,
+                cancelReason: null,
+                staffUserId: 7,
+                idempotencyKey: 'idem-rf-foreign-1',
+                syncDepositSnapshot: fn (): never => $this->fail('Refund guard must run before snapshot sync.'),
+                releaseAppliedVoucherLocked: fn (): never => $this->fail('Refund guard must run before voucher release.'),
+                cancelReservationLocked: fn (): never => $this->fail('Refund guard must run before reservation cancellation.'),
+                isDuplicatePaymentIdempotencyConstraint: fn (): bool => false,
+                throwIfDuplicatePaymentConstraint: fn (): null => null,
+            );
+
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $errors = $e->errors();
+
+            self::assertArrayHasKey('refund_of_payment_id', $errors);
+            self::assertStringContainsString('must belong to the reservation', $errors['refund_of_payment_id'][0]);
+        }
+    }
+
     public function test_resolve_reservation_branch_id_rejects_payments_from_other_branch(): void
     {
         $planner = new RefundPlannerService(new SettlementAmountCalculator);

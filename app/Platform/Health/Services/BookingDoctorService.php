@@ -27,7 +27,13 @@ class BookingDoctorService
      *     warnings: list<string>,
      *     checks: array<string, array{ok: bool, severity: string, message: string, meta?: array<string, mixed>}>
      *   },
-     *   runtime: array<string, array{ok: bool, message: string|null}>,
+     *   runtime: array<string, array{
+     *     ok: bool,
+     *     message: string|null,
+     *     status?: string,
+     *     dependency?: string|null,
+     *     meta?: array<string, mixed>
+     *   }>,
      *   meta: array{strict: bool, timestamp_utc: string}
      * }
      */
@@ -35,17 +41,19 @@ class BookingDoctorService
     {
         $validation = $this->environmentValidator->validate();
         $runtime = [
-            'db' => ['ok' => false, 'message' => null],
-            'redis' => ['ok' => false, 'message' => null],
-            'scheduler' => ['ok' => false, 'message' => null],
-            'outbox' => ['ok' => true, 'message' => null],
+            'db' => ['ok' => false, 'message' => null, 'status' => 'fail', 'dependency' => null],
+            'redis' => ['ok' => false, 'message' => null, 'status' => 'fail', 'dependency' => null],
+            'scheduler' => ['ok' => false, 'message' => null, 'status' => 'fail', 'dependency' => null],
+            'outbox' => ['ok' => true, 'message' => null, 'status' => 'pass', 'dependency' => null],
         ];
 
         try {
             DB::select('SELECT 1');
-            $runtime['db'] = ['ok' => true, 'message' => 'Database ping ok.'];
+            $runtime['db'] = $this->runtimePass('Database ping ok.');
         } catch (\Throwable $exception) {
-            $runtime['db'] = ['ok' => false, 'message' => $exception->getMessage()];
+            $runtime['db'] = $this->runtimeFail($exception->getMessage(), [
+                'probe' => 'db_select_1',
+            ]);
         }
 
         try {
@@ -65,42 +73,90 @@ class BookingDoctorService
                 'message' => ($valueOk && (bool) $lockOk)
                     ? 'Redis set/get and lock ok.'
                     : 'Redis responded but set/get or lock acquisition failed.',
+                'status' => ($valueOk && (bool) $lockOk) ? 'pass' : 'fail',
+                'dependency' => null,
+                'meta' => [
+                    'probe' => 'cache_store_redis',
+                ],
             ];
         } catch (\Throwable $exception) {
-            $runtime['redis'] = ['ok' => false, 'message' => $exception->getMessage()];
+            $runtime['redis'] = $this->runtimeFail($exception->getMessage(), [
+                'probe' => 'cache_store_redis',
+            ]);
         }
 
-        try {
-            $lastRun = $this->opsHeartbeatService->getLastRun('scheduler');
-            if (! $lastRun) {
-                $runtime['scheduler'] = ['ok' => false, 'message' => 'No scheduler heartbeat found.'];
-            } else {
-                $ageSeconds = Carbon::now('UTC')->diffInSeconds($lastRun);
-                $staleThresholdSeconds = (int) config('booking.scheduler_heartbeat_stale_seconds', 180);
-                $runtime['scheduler'] = [
-                    'ok' => ($ageSeconds <= $staleThresholdSeconds),
-                    'message' => sprintf('Last heartbeat %d second(s) ago.', $ageSeconds),
-                ];
+        if (! ($runtime['redis']['ok'] ?? false)) {
+            $runtime['scheduler'] = $this->runtimeDependencyBlocked(
+                dependency: 'redis',
+                message: 'Blocked by runtime.redis failure; scheduler heartbeat is stored in Redis and could not be read.',
+                meta: [
+                    'upstream_message' => (string) ($runtime['redis']['message'] ?? ''),
+                ],
+            );
+        } else {
+            try {
+                $lastRun = $this->opsHeartbeatService->getLastRun('scheduler');
+                if (! $lastRun) {
+                    $runtime['scheduler'] = $this->runtimeFail(
+                        'No scheduler heartbeat found. Ensure schedule:work is running and the heartbeat has been touched recently.',
+                        [
+                            'probe' => 'ops_heartbeat_scheduler',
+                        ],
+                    );
+                } else {
+                    $ageSeconds = Carbon::now('UTC')->diffInSeconds($lastRun);
+                    $staleThresholdSeconds = (int) config('booking.scheduler_heartbeat_stale_seconds', 180);
+                    $runtime['scheduler'] = $ageSeconds <= $staleThresholdSeconds
+                        ? $this->runtimePass(
+                            sprintf('Last heartbeat %d second(s) ago.', $ageSeconds),
+                            [
+                                'age_seconds' => $ageSeconds,
+                                'stale_threshold_seconds' => $staleThresholdSeconds,
+                            ],
+                        )
+                        : $this->runtimeFail(
+                            sprintf(
+                                'Last heartbeat %d second(s) ago; stale threshold is %d second(s).',
+                                $ageSeconds,
+                                $staleThresholdSeconds
+                            ),
+                            [
+                                'age_seconds' => $ageSeconds,
+                                'stale_threshold_seconds' => $staleThresholdSeconds,
+                            ],
+                        );
+                }
+            } catch (\Throwable $exception) {
+                $runtime['scheduler'] = $this->runtimeFail($exception->getMessage(), [
+                    'probe' => 'ops_heartbeat_scheduler',
+                ]);
             }
-        } catch (\Throwable $exception) {
-            $runtime['scheduler'] = ['ok' => false, 'message' => $exception->getMessage()];
         }
 
-        try {
-            $snapshot = $this->notificationOutboxHealthService->snapshot();
-            $runtime['outbox'] = [
-                'ok' => (bool) ($snapshot['ok'] ?? false),
-                'message' => sprintf(
-                    'Outbox pending=%d processing=%d failed=%d stale=%d due_now=%d',
-                    (int) ($snapshot['pending_count'] ?? 0),
-                    (int) ($snapshot['processing_count'] ?? 0),
-                    (int) ($snapshot['failed_count'] ?? 0),
-                    (int) ($snapshot['stale_processing_count'] ?? 0),
-                    (int) ($snapshot['due_now_count'] ?? 0),
-                ),
-            ];
-        } catch (\Throwable $exception) {
-            $runtime['outbox'] = ['ok' => false, 'message' => $exception->getMessage()];
+        $outboxEnabled = (bool) config('notifications.outbox.enabled', true);
+        if (! $outboxEnabled) {
+            $runtime['outbox'] = $this->runtimePass('Notification outbox is disabled for this runtime.', [
+                'enabled' => false,
+            ]);
+        } elseif (! ($runtime['db']['ok'] ?? false)) {
+            $runtime['outbox'] = $this->runtimeDependencyBlocked(
+                dependency: 'db',
+                message: 'Blocked by runtime.db failure; notification outbox health is database-backed and could not be inspected.',
+                meta: [
+                    'upstream_message' => (string) ($runtime['db']['message'] ?? ''),
+                ],
+            );
+        } else {
+            try {
+                $snapshot = $this->notificationOutboxHealthService->snapshot();
+                $runtime['outbox'] = (bool) ($snapshot['ok'] ?? false)
+                    ? $this->runtimePass($this->formatOutboxMessage($snapshot), $this->outboxMeta($snapshot))
+                    : $this->runtimeFail($this->formatOutboxMessage($snapshot), $this->outboxMeta($snapshot));
+            } catch (\Throwable $exception) {
+                $runtime['outbox'] = $this->runtimeFail($exception->getMessage(), [
+                    'probe' => 'notification_outbox_health',
+                ]);
+            }
         }
 
         $hasRuntimeFailure = collect($runtime)->contains(static fn (array $item): bool => ! ($item['ok'] ?? false));
@@ -115,6 +171,108 @@ class BookingDoctorService
                 'strict' => $strict,
                 'timestamp_utc' => now('UTC')->toIso8601String(),
             ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $meta
+     * @return array{ok: bool, message: string, status: string, dependency: null, meta?: array<string, mixed>}
+     */
+    private function runtimePass(string $message, array $meta = []): array
+    {
+        $result = [
+            'ok' => true,
+            'message' => $message,
+            'status' => 'pass',
+            'dependency' => null,
+        ];
+
+        if ($meta !== []) {
+            $result['meta'] = $meta;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $meta
+     * @return array{ok: bool, message: string, status: string, dependency: null, meta?: array<string, mixed>}
+     */
+    private function runtimeFail(string $message, array $meta = []): array
+    {
+        $result = [
+            'ok' => false,
+            'message' => $message,
+            'status' => 'fail',
+            'dependency' => null,
+        ];
+
+        if ($meta !== []) {
+            $result['meta'] = $meta;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $meta
+     * @return array{ok: bool, message: string, status: string, dependency: string, meta?: array<string, mixed>}
+     */
+    private function runtimeDependencyBlocked(string $dependency, string $message, array $meta = []): array
+    {
+        $result = [
+            'ok' => false,
+            'message' => $message,
+            'status' => 'blocked_dependency',
+            'dependency' => $dependency,
+        ];
+
+        if ($meta !== []) {
+            $result['meta'] = $meta;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function formatOutboxMessage(array $snapshot): string
+    {
+        if (! (bool) ($snapshot['enabled'] ?? true)) {
+            return 'Notification outbox is disabled for this runtime.';
+        }
+
+        $message = sprintf(
+            'Outbox pending=%d processing=%d failed=%d stale=%d due_now=%d',
+            (int) ($snapshot['pending_count'] ?? 0),
+            (int) ($snapshot['processing_count'] ?? 0),
+            (int) ($snapshot['failed_count'] ?? 0),
+            (int) ($snapshot['stale_processing_count'] ?? 0),
+            (int) ($snapshot['due_now_count'] ?? 0),
+        );
+
+        $error = trim((string) ($snapshot['error'] ?? ''));
+
+        return $error === '' ? $message : $message.'; '.$error;
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @return array<string, mixed>
+     */
+    private function outboxMeta(array $snapshot): array
+    {
+        return [
+            'enabled' => (bool) ($snapshot['enabled'] ?? true),
+            'pending_count' => (int) ($snapshot['pending_count'] ?? 0),
+            'processing_count' => (int) ($snapshot['processing_count'] ?? 0),
+            'failed_count' => (int) ($snapshot['failed_count'] ?? 0),
+            'stale_processing_count' => (int) ($snapshot['stale_processing_count'] ?? 0),
+            'due_now_count' => (int) ($snapshot['due_now_count'] ?? 0),
+            'dead_letter_count' => (int) ($snapshot['dead_letter_count'] ?? 0),
+            'recent_failure_attempt_count' => (int) ($snapshot['recent_failure_attempt_count'] ?? 0),
+            'error' => $snapshot['error'] ?? null,
         ];
     }
 }

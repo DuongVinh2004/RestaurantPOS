@@ -5,7 +5,7 @@ import { LoginPage } from "@/features/auth/login-page";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to review your reservations, deposits, bills, and account tools.",
+  description: "Sign in to review your reservations and other session-protected account access.",
 };
 
 export default function Page() {

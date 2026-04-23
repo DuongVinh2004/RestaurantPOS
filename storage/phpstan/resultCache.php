@@ -3254,133 +3254,134 @@ return [
       9 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\FloorOperations\\Domain\\Guards\\StaffReservationOperationGuard.php',
       10 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Reservations\\Application\\Services\\ReservationCancellationService.php',
       11 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Reservations\\Application\\Services\\ReservationConflictValidator.php',
-      12 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Reservations\\Application\\Services\\ReservationService.php',
-      13 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Reservations\\Application\\Services\\ReservationStatusTransitionService.php',
-      14 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminBenefitsAdminFoundationHttpFlowTest.php',
-      15 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminFinanceTaxInvoiceFoundationHttpFlowTest.php',
-      16 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminInventoryFoundationHttpFlowTest.php',
-      17 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminKitchenRoutingFoundationHttpFlowTest.php',
-      18 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMasterDataBulkImportExportHttpFlowTest.php',
-      19 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMasterDataValidationEnvelopeAndPriceWindowTest.php',
-      20 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMenuManagementHttpFlowTest.php',
-      21 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMultiBranchDomainDefaultsHttpFlowTest.php',
-      22 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMultiBranchFoundationHttpFlowTest.php',
-      23 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminPurchasingFoundationHttpFlowTest.php',
-      24 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminReportingReadModelsFoundationHttpFlowTest.php',
-      25 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminRestaurantMasterDataHttpFlowTest.php',
-      26 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\BookingHarnessGoldenFlowsCommandTest.php',
-      27 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\FeatureFlagConsoleCommandTest.php',
-      28 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\UatScenarioPackConsoleCommandTest.php',
-      29 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerBenefitsSelfServiceHttpFlowTest.php',
-      30 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationBenefitsIdempotencyEnforcementTest.php',
-      31 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationBenefitsMutationHttpFlowTest.php',
-      32 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationOrderBillControllerTest.php',
-      33 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerSelfServiceErrorEnvelopeContractTest.php',
-      34 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\DataLifecycle\\CustomerDataLifecycleHttpFlowTest.php',
-      35 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\DataLifecycle\\DataLifecycleRetentionConsoleTest.php',
-      36 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Financial\\ReservationPaymentIntegrityFlowTest.php',
-      37 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Http\\ApiListingQueryStandardTest.php',
-      38 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\ApiLiveRuntimeRegressionGateTest.php',
-      39 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\ApiRuntimeSmokeGateTest.php',
-      40 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\HealthDetailedOpsCoverageTest.php',
-      41 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\MetricsAuthorizationCoverageTest.php',
-      42 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Loyalty\\LoyaltyPointsServiceGuardTest.php',
-      43 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Loyalty\\LoyaltyRedemptionLifecycleTest.php',
-      44 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Menu\\CustomerMenuCatalogHttpFlowTest.php',
-      45 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Notifications\\NotificationOutboxServiceSmokeTest.php',
-      46 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Payments\\PaymentProviderWebhookFlowTest.php',
-      47 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Performance\\HotPathPerformanceBudgetTest.php',
-      48 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositPaymentSessionFlowTest.php',
-      49 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositPaymentVisibilityFlowTest.php',
-      50 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositSelfServiceFlowTest.php',
-      51 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositVisibilityFlowTest.php',
-      52 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillPaymentIdempotencyEnforcementTest.php',
-      53 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillSelfPaymentFlowTest.php',
-      54 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillSessionAccessFlowTest.php',
-      55 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationPreorderManagementFlowTest.php',
-      56 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationPreorderSessionAccessTest.php',
-      57 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationSelfServiceHttpFlowTest.php',
-      58 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationSelfServiceVisibilityAndGuardTest.php',
-      59 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\ReservationHttpFlowTest.php',
-      60 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\ReservationServicePreorderPricingGuardTest.php',
-      61 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\ReservationStatusHttpFlowTest.php',
-      62 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationCancellationServiceTest.php',
-      63 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceFeatureTest.php',
-      64 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceRefundTouchFeatureTest.php',
-      65 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceTouchMutationFeatureTest.php',
-      66 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\RestaurantTableStateServiceRowVersionTest.php',
-      67 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\TableHoldServiceRowVersionTest.php',
-      68 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffAuditTrailHttpFlowTest.php',
-      69 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffBranchScopeSecurityHardeningTest.php',
-      70 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCapabilityHttpGuardTest.php',
-      71 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCashierShiftHttpFlowTest.php',
-      72 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckInFlowTest.php',
-      73 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutConcurrencyGuardFlowTest.php',
-      74 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutCrossPathReleaseGuardTest.php',
-      75 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutFinancialIntegrationMatrixTest.php',
-      76 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutFinancialOutboxAndCoverageTest.php',
-      77 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutHttpFlowTest.php',
-      78 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutHttpGuardFlowTest.php',
-      79 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutIdempotencyReplayServiceTest.php',
-      80 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundAllocationGuardTest.php',
-      81 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundAndCancelServiceTest.php',
-      82 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundLifecycleTest.php',
-      83 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffConversationInboxFlowTest.php',
-      84 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCoreReadModelsHttpFlowTest.php',
-      85 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffDepositSelfServiceOperationalReadFlowTest.php',
-      86 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFinanceInvoiceAndAccountingExportHttpFlowTest.php',
-      87 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFinancialReconciliationHttpFlowTest.php',
-      88 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFrontOfHouseOperationalClosureFlowTest.php',
-      89 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffKitchenDispatchFoundationFlowTest.php',
-      90 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffMoveTableFlowTest.php',
-      91 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffMutationAliasReplayHttpFlowTest.php',
-      92 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOperationalRealtimeFlowTest.php',
-      93 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOrderItemLifecycleFlowTest.php',
-      94 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOrderReadFlowTest.php',
-      95 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReportingReadModelsHttpFlowTest.php',
-      96 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardAdvancedFlowTest.php',
-      97 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardAssignmentFlowTest.php',
-      98 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardOperationalOrchestrationFlowTest.php',
-      99 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationDepositFlowTest.php',
-      100 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationInboxFlowTest.php',
-      101 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationRescheduleFlowTest.php',
-      102 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationTimelineFlowTest.php',
-      103 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationTimelineWorkbenchFlowTest.php',
-      104 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationVoucherLifecycleTest.php',
-      105 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationVoucherServiceGuardTest.php',
-      106 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffServiceSessionHttpFlowTest.php',
-      107 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableBoardFeatureTest.php',
-      108 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableBoardHttpFlowTest.php',
-      109 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableOrderConcurrencyGuardServiceTest.php',
-      110 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableOrderIdempotencyReplayServiceTest.php',
-      111 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableReleaseHttpFlowTest.php',
-      112 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableReleaseServiceTest.php',
-      113 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffWaitingListLifecycleTest.php',
-      114 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffWaitingListSemiAutomationFlowTest.php',
-      115 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Support\\BuildsBookingScenarioSchemaIdempotencyTest.php',
-      116 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Table\\TableAvailabilityFeatureTest.php',
-      117 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Table\\TableHoldHttpFlowTest.php',
-      118 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListOwnerContractHttpFlowTest.php',
-      119 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListOwnerResponseFlowTest.php',
-      120 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListSelfServiceHttpFlowTest.php',
-      121 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Models\\HasRowVersionTest.php',
-      122 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Branch\\BranchSchedulingPolicyServiceTest.php',
-      123 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\FeatureFlagServiceTest.php',
-      124 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Inventory\\InventoryStockMovementServiceTest.php',
-      125 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Loyalty\\LoyaltyBalanceServiceTest.php',
-      126 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Loyalty\\LoyaltySyncServicesTest.php',
-      127 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\NotificationOutboxHealthServiceTest.php',
-      128 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\OperationalInsightsServiceTest.php',
-      129 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\StaffCheckoutServiceDuplicateConstraintTest.php',
-      130 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\BillLockServiceTest.php',
-      131 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\SettlementFinalizerServiceTest.php',
-      132 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\TableHoldRefreshMonotonicTest.php',
-      133 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioFailFastPolicyTest.php',
-      134 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioGeneratedColumnGuardTest.php',
-      135 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioInvariantGuardTest.php',
-      136 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\PortableBookingSchemaParityTest.php',
-      137 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\StaffReservationOperationGuardTest.php',
-      138 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\VoucherUsageGuardTest.php',
+      12 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Reservations\\Application\\Services\\ReservationRescheduleService.php',
+      13 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Reservations\\Application\\Services\\ReservationService.php',
+      14 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Reservations\\Application\\Services\\ReservationStatusTransitionService.php',
+      15 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminBenefitsAdminFoundationHttpFlowTest.php',
+      16 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminFinanceTaxInvoiceFoundationHttpFlowTest.php',
+      17 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminInventoryFoundationHttpFlowTest.php',
+      18 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminKitchenRoutingFoundationHttpFlowTest.php',
+      19 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMasterDataBulkImportExportHttpFlowTest.php',
+      20 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMasterDataValidationEnvelopeAndPriceWindowTest.php',
+      21 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMenuManagementHttpFlowTest.php',
+      22 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMultiBranchDomainDefaultsHttpFlowTest.php',
+      23 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMultiBranchFoundationHttpFlowTest.php',
+      24 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminPurchasingFoundationHttpFlowTest.php',
+      25 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminReportingReadModelsFoundationHttpFlowTest.php',
+      26 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminRestaurantMasterDataHttpFlowTest.php',
+      27 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\BookingHarnessGoldenFlowsCommandTest.php',
+      28 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\FeatureFlagConsoleCommandTest.php',
+      29 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\UatScenarioPackConsoleCommandTest.php',
+      30 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerBenefitsSelfServiceHttpFlowTest.php',
+      31 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationBenefitsIdempotencyEnforcementTest.php',
+      32 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationBenefitsMutationHttpFlowTest.php',
+      33 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationOrderBillControllerTest.php',
+      34 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerSelfServiceErrorEnvelopeContractTest.php',
+      35 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\DataLifecycle\\CustomerDataLifecycleHttpFlowTest.php',
+      36 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\DataLifecycle\\DataLifecycleRetentionConsoleTest.php',
+      37 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Financial\\ReservationPaymentIntegrityFlowTest.php',
+      38 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Http\\ApiListingQueryStandardTest.php',
+      39 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\ApiLiveRuntimeRegressionGateTest.php',
+      40 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\ApiRuntimeSmokeGateTest.php',
+      41 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\HealthDetailedOpsCoverageTest.php',
+      42 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\MetricsAuthorizationCoverageTest.php',
+      43 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Loyalty\\LoyaltyPointsServiceGuardTest.php',
+      44 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Loyalty\\LoyaltyRedemptionLifecycleTest.php',
+      45 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Menu\\CustomerMenuCatalogHttpFlowTest.php',
+      46 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Notifications\\NotificationOutboxServiceSmokeTest.php',
+      47 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Payments\\PaymentProviderWebhookFlowTest.php',
+      48 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Performance\\HotPathPerformanceBudgetTest.php',
+      49 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositPaymentSessionFlowTest.php',
+      50 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositPaymentVisibilityFlowTest.php',
+      51 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositSelfServiceFlowTest.php',
+      52 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositVisibilityFlowTest.php',
+      53 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillPaymentIdempotencyEnforcementTest.php',
+      54 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillSelfPaymentFlowTest.php',
+      55 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillSessionAccessFlowTest.php',
+      56 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationPreorderManagementFlowTest.php',
+      57 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationPreorderSessionAccessTest.php',
+      58 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationSelfServiceHttpFlowTest.php',
+      59 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationSelfServiceVisibilityAndGuardTest.php',
+      60 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\ReservationHttpFlowTest.php',
+      61 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\ReservationServicePreorderPricingGuardTest.php',
+      62 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\ReservationStatusHttpFlowTest.php',
+      63 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationCancellationServiceTest.php',
+      64 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceFeatureTest.php',
+      65 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceRefundTouchFeatureTest.php',
+      66 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceTouchMutationFeatureTest.php',
+      67 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\RestaurantTableStateServiceRowVersionTest.php',
+      68 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\TableHoldServiceRowVersionTest.php',
+      69 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffAuditTrailHttpFlowTest.php',
+      70 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffBranchScopeSecurityHardeningTest.php',
+      71 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCapabilityHttpGuardTest.php',
+      72 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCashierShiftHttpFlowTest.php',
+      73 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckInFlowTest.php',
+      74 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutConcurrencyGuardFlowTest.php',
+      75 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutCrossPathReleaseGuardTest.php',
+      76 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutFinancialIntegrationMatrixTest.php',
+      77 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutFinancialOutboxAndCoverageTest.php',
+      78 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutHttpFlowTest.php',
+      79 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutHttpGuardFlowTest.php',
+      80 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutIdempotencyReplayServiceTest.php',
+      81 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundAllocationGuardTest.php',
+      82 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundAndCancelServiceTest.php',
+      83 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundLifecycleTest.php',
+      84 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffConversationInboxFlowTest.php',
+      85 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCoreReadModelsHttpFlowTest.php',
+      86 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffDepositSelfServiceOperationalReadFlowTest.php',
+      87 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFinanceInvoiceAndAccountingExportHttpFlowTest.php',
+      88 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFinancialReconciliationHttpFlowTest.php',
+      89 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFrontOfHouseOperationalClosureFlowTest.php',
+      90 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffKitchenDispatchFoundationFlowTest.php',
+      91 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffMoveTableFlowTest.php',
+      92 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffMutationAliasReplayHttpFlowTest.php',
+      93 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOperationalRealtimeFlowTest.php',
+      94 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOrderItemLifecycleFlowTest.php',
+      95 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOrderReadFlowTest.php',
+      96 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReportingReadModelsHttpFlowTest.php',
+      97 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardAdvancedFlowTest.php',
+      98 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardAssignmentFlowTest.php',
+      99 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardOperationalOrchestrationFlowTest.php',
+      100 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationDepositFlowTest.php',
+      101 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationInboxFlowTest.php',
+      102 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationRescheduleFlowTest.php',
+      103 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationTimelineFlowTest.php',
+      104 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationTimelineWorkbenchFlowTest.php',
+      105 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationVoucherLifecycleTest.php',
+      106 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationVoucherServiceGuardTest.php',
+      107 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffServiceSessionHttpFlowTest.php',
+      108 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableBoardFeatureTest.php',
+      109 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableBoardHttpFlowTest.php',
+      110 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableOrderConcurrencyGuardServiceTest.php',
+      111 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableOrderIdempotencyReplayServiceTest.php',
+      112 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableReleaseHttpFlowTest.php',
+      113 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableReleaseServiceTest.php',
+      114 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffWaitingListLifecycleTest.php',
+      115 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffWaitingListSemiAutomationFlowTest.php',
+      116 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Support\\BuildsBookingScenarioSchemaIdempotencyTest.php',
+      117 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Table\\TableAvailabilityFeatureTest.php',
+      118 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Table\\TableHoldHttpFlowTest.php',
+      119 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListOwnerContractHttpFlowTest.php',
+      120 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListOwnerResponseFlowTest.php',
+      121 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListSelfServiceHttpFlowTest.php',
+      122 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Models\\HasRowVersionTest.php',
+      123 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Branch\\BranchSchedulingPolicyServiceTest.php',
+      124 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\FeatureFlagServiceTest.php',
+      125 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Inventory\\InventoryStockMovementServiceTest.php',
+      126 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Loyalty\\LoyaltyBalanceServiceTest.php',
+      127 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Loyalty\\LoyaltySyncServicesTest.php',
+      128 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\NotificationOutboxHealthServiceTest.php',
+      129 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\OperationalInsightsServiceTest.php',
+      130 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\StaffCheckoutServiceDuplicateConstraintTest.php',
+      131 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\BillLockServiceTest.php',
+      132 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\SettlementFinalizerServiceTest.php',
+      133 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\TableHoldRefreshMonotonicTest.php',
+      134 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioFailFastPolicyTest.php',
+      135 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioGeneratedColumnGuardTest.php',
+      136 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioInvariantGuardTest.php',
+      137 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\PortableBookingSchemaParityTest.php',
+      138 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\StaffReservationOperationGuardTest.php',
+      139 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\VoucherUsageGuardTest.php',
     ),
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\BranchScheduling\\Application\\Services\\RestaurantZoneManagementService.php' => 
@@ -3790,7 +3791,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Cashiering\\Application\\UseCases\\Shifts\\StaffCashierShiftService.php' => 
   array (
-    'fileHash' => 'ebd74e645a4cba58aee648fdb5b42b62844196cd823de49db9c4dc4d84a75798',
+    'fileHash' => '2f7f74217433a6c28975c9b0c40b62234fdba6fa1d53e766d9c21b1ddf6b9076',
     'dependentFiles' => 
     array (
       0 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Billing\\Application\\UseCases\\Invoices\\StaffInvoiceService.php',
@@ -4859,7 +4860,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\FloorOperations\\Application\\UseCases\\CheckIn\\StaffCheckInService.php' => 
   array (
-    'fileHash' => 'd7a9450cafa5c0cdf57a7d4a10fe948e22ce694e19b13c0b54baf174a37da22f',
+    'fileHash' => '586e98c1f79067cd08ba232335b18f4f8f108f1ae317f57973b5cd27f15ef0a7',
     'dependentFiles' => 
     array (
       0 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\ReservationCheckInController.php',
@@ -5374,7 +5375,9 @@ return [
     array (
       0 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\FloorOperations\\Application\\UseCases\\ServiceSessions\\StaffServiceSessionService.php',
       1 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\IdentityAccess\\Domain\\Models\\User.php',
-      2 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\CustomerOrStaffMiddlewareTest.php',
+      2 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\AuditTrailActorResolverTest.php',
+      3 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\CustomerOrStaffMiddlewareTest.php',
+      4 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\RequestActorContextTest.php',
     ),
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\IdentityAccess\\Domain\\Models\\StaffApiKey.php' => 
@@ -5479,136 +5482,137 @@ return [
       74 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\FeatureFlags\\Domain\\Models\\FeatureFlag.php',
       75 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Release\\Services\\SiteBootstrapService.php',
       76 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Uat\\UatScenarioPackService.php',
-      77 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Support\\AuditTrail\\AuditTrailActorResolver.php',
-      78 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Support\\Auth\\RequestActorContext.php',
-      79 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminBenefitsAdminFoundationHttpFlowTest.php',
-      80 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminFinanceTaxInvoiceFoundationHttpFlowTest.php',
-      81 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminInventoryFoundationHttpFlowTest.php',
-      82 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminKitchenRoutingFoundationHttpFlowTest.php',
-      83 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMasterDataBulkImportExportHttpFlowTest.php',
-      84 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMasterDataValidationEnvelopeAndPriceWindowTest.php',
-      85 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMenuManagementHttpFlowTest.php',
-      86 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMultiBranchDomainDefaultsHttpFlowTest.php',
-      87 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMultiBranchFoundationHttpFlowTest.php',
-      88 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminPurchasingFoundationHttpFlowTest.php',
-      89 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminReportingReadModelsFoundationHttpFlowTest.php',
-      90 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminRestaurantMasterDataHttpFlowTest.php',
-      91 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Auth\\CustomerAccessSessionFoundationTest.php',
-      92 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\BookingHarnessGoldenFlowsCommandTest.php',
-      93 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\FeatureFlagConsoleCommandTest.php',
-      94 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\UatScenarioPackConsoleCommandTest.php',
-      95 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerBenefitsSelfServiceHttpFlowTest.php',
-      96 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationBenefitsIdempotencyEnforcementTest.php',
-      97 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationBenefitsMutationHttpFlowTest.php',
-      98 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationOrderBillControllerTest.php',
-      99 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerSelfServiceErrorEnvelopeContractTest.php',
-      100 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\DataLifecycle\\CustomerDataLifecycleHttpFlowTest.php',
-      101 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\DataLifecycle\\DataLifecycleRetentionConsoleTest.php',
-      102 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Financial\\ReservationPaymentIntegrityFlowTest.php',
-      103 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Http\\ApiListingQueryStandardTest.php',
-      104 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\ApiLiveRuntimeRegressionGateTest.php',
-      105 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\ApiRuntimeSmokeGateTest.php',
-      106 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\HealthDetailedOpsCoverageTest.php',
-      107 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\MetricsAuthorizationCoverageTest.php',
-      108 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Loyalty\\LoyaltyPointsServiceGuardTest.php',
-      109 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Loyalty\\LoyaltyRedemptionLifecycleTest.php',
-      110 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Menu\\CustomerMenuCatalogHttpFlowTest.php',
-      111 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Notifications\\NotificationOutboxServiceSmokeTest.php',
-      112 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Payments\\PaymentProviderWebhookFlowTest.php',
-      113 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Performance\\HotPathPerformanceBudgetTest.php',
-      114 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositPaymentSessionFlowTest.php',
-      115 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositPaymentVisibilityFlowTest.php',
-      116 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositSelfServiceFlowTest.php',
-      117 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositVisibilityFlowTest.php',
-      118 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillPaymentIdempotencyEnforcementTest.php',
-      119 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillSelfPaymentFlowTest.php',
-      120 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillSessionAccessFlowTest.php',
-      121 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationPreorderManagementFlowTest.php',
-      122 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationPreorderSessionAccessTest.php',
-      123 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationSelfServiceHttpFlowTest.php',
-      124 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationSelfServiceVisibilityAndGuardTest.php',
-      125 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\ReservationHttpFlowTest.php',
-      126 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\ReservationStatusHttpFlowTest.php',
-      127 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceFeatureTest.php',
-      128 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceRefundTouchFeatureTest.php',
-      129 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceTouchMutationFeatureTest.php',
-      130 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\RestaurantTableStateServiceRowVersionTest.php',
-      131 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\TableHoldServiceRowVersionTest.php',
-      132 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffAuditTrailHttpFlowTest.php',
-      133 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffBranchScopeSecurityHardeningTest.php',
-      134 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCapabilityHttpGuardTest.php',
-      135 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCashierShiftHttpFlowTest.php',
-      136 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckInFlowTest.php',
-      137 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutConcurrencyGuardFlowTest.php',
-      138 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutCrossPathReleaseGuardTest.php',
-      139 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutFinancialIntegrationMatrixTest.php',
-      140 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutFinancialOutboxAndCoverageTest.php',
-      141 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutHttpFlowTest.php',
-      142 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutHttpGuardFlowTest.php',
-      143 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutIdempotencyReplayServiceTest.php',
-      144 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundAllocationGuardTest.php',
-      145 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundAndCancelServiceTest.php',
-      146 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundLifecycleTest.php',
-      147 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffConversationInboxFlowTest.php',
-      148 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCoreReadModelsHttpFlowTest.php',
-      149 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffDepositSelfServiceOperationalReadFlowTest.php',
-      150 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFinanceInvoiceAndAccountingExportHttpFlowTest.php',
-      151 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFinancialReconciliationHttpFlowTest.php',
-      152 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFrontOfHouseOperationalClosureFlowTest.php',
-      153 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffKitchenDispatchFoundationFlowTest.php',
-      154 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffMoveTableFlowTest.php',
-      155 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffMutationAliasReplayHttpFlowTest.php',
-      156 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOperationalRealtimeFlowTest.php',
-      157 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOrderItemLifecycleFlowTest.php',
-      158 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOrderReadFlowTest.php',
-      159 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReportingReadModelsHttpFlowTest.php',
-      160 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardAdvancedFlowTest.php',
-      161 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardAssignmentFlowTest.php',
-      162 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardOperationalOrchestrationFlowTest.php',
-      163 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationDepositFlowTest.php',
-      164 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationInboxFlowTest.php',
-      165 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationRescheduleFlowTest.php',
-      166 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationTimelineFlowTest.php',
-      167 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationTimelineWorkbenchFlowTest.php',
-      168 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationVoucherLifecycleTest.php',
-      169 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationVoucherServiceGuardTest.php',
-      170 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffServiceSessionHttpFlowTest.php',
-      171 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableBoardFeatureTest.php',
-      172 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableBoardHttpFlowTest.php',
-      173 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableOrderConcurrencyGuardServiceTest.php',
-      174 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableOrderIdempotencyReplayServiceTest.php',
-      175 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableReleaseHttpFlowTest.php',
-      176 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableReleaseServiceTest.php',
-      177 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffWaitingListLifecycleTest.php',
-      178 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffWaitingListSemiAutomationFlowTest.php',
-      179 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Support\\BuildsBookingScenarioSchemaIdempotencyTest.php',
-      180 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Table\\TableAvailabilityFeatureTest.php',
-      181 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Table\\TableHoldHttpFlowTest.php',
-      182 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListOwnerContractHttpFlowTest.php',
-      183 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListOwnerResponseFlowTest.php',
-      184 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListSelfServiceHttpFlowTest.php',
-      185 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Controllers\\CustomerReservationPreorderLegacyRouteDeprecationHeadersTest.php',
+      77 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Support\\Auth\\RequestActorContext.php',
+      78 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminBenefitsAdminFoundationHttpFlowTest.php',
+      79 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminFinanceTaxInvoiceFoundationHttpFlowTest.php',
+      80 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminInventoryFoundationHttpFlowTest.php',
+      81 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminKitchenRoutingFoundationHttpFlowTest.php',
+      82 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMasterDataBulkImportExportHttpFlowTest.php',
+      83 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMasterDataValidationEnvelopeAndPriceWindowTest.php',
+      84 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMenuManagementHttpFlowTest.php',
+      85 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMultiBranchDomainDefaultsHttpFlowTest.php',
+      86 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMultiBranchFoundationHttpFlowTest.php',
+      87 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminPurchasingFoundationHttpFlowTest.php',
+      88 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminReportingReadModelsFoundationHttpFlowTest.php',
+      89 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminRestaurantMasterDataHttpFlowTest.php',
+      90 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Auth\\CustomerAccessSessionFoundationTest.php',
+      91 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\BookingHarnessGoldenFlowsCommandTest.php',
+      92 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\FeatureFlagConsoleCommandTest.php',
+      93 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\UatScenarioPackConsoleCommandTest.php',
+      94 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerBenefitsSelfServiceHttpFlowTest.php',
+      95 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationBenefitsIdempotencyEnforcementTest.php',
+      96 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationBenefitsMutationHttpFlowTest.php',
+      97 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationOrderBillControllerTest.php',
+      98 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerSelfServiceErrorEnvelopeContractTest.php',
+      99 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\DataLifecycle\\CustomerDataLifecycleHttpFlowTest.php',
+      100 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\DataLifecycle\\DataLifecycleRetentionConsoleTest.php',
+      101 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Financial\\ReservationPaymentIntegrityFlowTest.php',
+      102 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Http\\ApiListingQueryStandardTest.php',
+      103 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\ApiLiveRuntimeRegressionGateTest.php',
+      104 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\ApiRuntimeSmokeGateTest.php',
+      105 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\HealthDetailedOpsCoverageTest.php',
+      106 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\MetricsAuthorizationCoverageTest.php',
+      107 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Loyalty\\LoyaltyPointsServiceGuardTest.php',
+      108 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Loyalty\\LoyaltyRedemptionLifecycleTest.php',
+      109 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Menu\\CustomerMenuCatalogHttpFlowTest.php',
+      110 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Notifications\\NotificationOutboxServiceSmokeTest.php',
+      111 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Payments\\PaymentProviderWebhookFlowTest.php',
+      112 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Performance\\HotPathPerformanceBudgetTest.php',
+      113 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositPaymentSessionFlowTest.php',
+      114 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositPaymentVisibilityFlowTest.php',
+      115 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositSelfServiceFlowTest.php',
+      116 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositVisibilityFlowTest.php',
+      117 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillPaymentIdempotencyEnforcementTest.php',
+      118 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillSelfPaymentFlowTest.php',
+      119 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillSessionAccessFlowTest.php',
+      120 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationPreorderManagementFlowTest.php',
+      121 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationPreorderSessionAccessTest.php',
+      122 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationSelfServiceHttpFlowTest.php',
+      123 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationSelfServiceVisibilityAndGuardTest.php',
+      124 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\ReservationHttpFlowTest.php',
+      125 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\ReservationStatusHttpFlowTest.php',
+      126 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceFeatureTest.php',
+      127 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceRefundTouchFeatureTest.php',
+      128 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceTouchMutationFeatureTest.php',
+      129 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\RestaurantTableStateServiceRowVersionTest.php',
+      130 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\TableHoldServiceRowVersionTest.php',
+      131 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffAuditTrailHttpFlowTest.php',
+      132 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffBranchScopeSecurityHardeningTest.php',
+      133 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCapabilityHttpGuardTest.php',
+      134 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCashierShiftHttpFlowTest.php',
+      135 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckInFlowTest.php',
+      136 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutConcurrencyGuardFlowTest.php',
+      137 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutCrossPathReleaseGuardTest.php',
+      138 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutFinancialIntegrationMatrixTest.php',
+      139 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutFinancialOutboxAndCoverageTest.php',
+      140 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutHttpFlowTest.php',
+      141 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutHttpGuardFlowTest.php',
+      142 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutIdempotencyReplayServiceTest.php',
+      143 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundAllocationGuardTest.php',
+      144 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundAndCancelServiceTest.php',
+      145 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundLifecycleTest.php',
+      146 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffConversationInboxFlowTest.php',
+      147 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCoreReadModelsHttpFlowTest.php',
+      148 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffDepositSelfServiceOperationalReadFlowTest.php',
+      149 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFinanceInvoiceAndAccountingExportHttpFlowTest.php',
+      150 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFinancialReconciliationHttpFlowTest.php',
+      151 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFrontOfHouseOperationalClosureFlowTest.php',
+      152 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffKitchenDispatchFoundationFlowTest.php',
+      153 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffMoveTableFlowTest.php',
+      154 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffMutationAliasReplayHttpFlowTest.php',
+      155 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOperationalRealtimeFlowTest.php',
+      156 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOrderItemLifecycleFlowTest.php',
+      157 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOrderReadFlowTest.php',
+      158 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReportingReadModelsHttpFlowTest.php',
+      159 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardAdvancedFlowTest.php',
+      160 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardAssignmentFlowTest.php',
+      161 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardOperationalOrchestrationFlowTest.php',
+      162 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationDepositFlowTest.php',
+      163 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationInboxFlowTest.php',
+      164 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationRescheduleFlowTest.php',
+      165 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationTimelineFlowTest.php',
+      166 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationTimelineWorkbenchFlowTest.php',
+      167 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationVoucherLifecycleTest.php',
+      168 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationVoucherServiceGuardTest.php',
+      169 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffServiceSessionHttpFlowTest.php',
+      170 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableBoardFeatureTest.php',
+      171 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableBoardHttpFlowTest.php',
+      172 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableOrderConcurrencyGuardServiceTest.php',
+      173 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableOrderIdempotencyReplayServiceTest.php',
+      174 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableReleaseHttpFlowTest.php',
+      175 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableReleaseServiceTest.php',
+      176 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffWaitingListLifecycleTest.php',
+      177 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffWaitingListSemiAutomationFlowTest.php',
+      178 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Support\\BuildsBookingScenarioSchemaIdempotencyTest.php',
+      179 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Table\\TableAvailabilityFeatureTest.php',
+      180 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Table\\TableHoldHttpFlowTest.php',
+      181 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListOwnerContractHttpFlowTest.php',
+      182 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListOwnerResponseFlowTest.php',
+      183 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListSelfServiceHttpFlowTest.php',
+      184 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Controllers\\CustomerReservationPreorderLegacyRouteDeprecationHeadersTest.php',
+      185 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\AuditTrailActorResolverTest.php',
       186 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\CustomerOrStaffMiddlewareTest.php',
-      187 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Resources\\ReservationResourceScopeTest.php',
-      188 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Models\\HasRowVersionTest.php',
-      189 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Resources\\ReservationResourceVisibilityTest.php',
-      190 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Branch\\BranchSchedulingPolicyServiceTest.php',
-      191 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\CustomerReservationOrderBillServiceTest.php',
-      192 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\FeatureFlagServiceTest.php',
-      193 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Inventory\\InventoryStockMovementServiceTest.php',
-      194 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Loyalty\\LoyaltyBalanceServiceTest.php',
-      195 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Loyalty\\LoyaltySyncServicesTest.php',
-      196 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\NotificationOutboxHealthServiceTest.php',
-      197 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\OperationalInsightsServiceTest.php',
-      198 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\StaffApiKeyStoreTest.php',
-      199 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\BillLockServiceTest.php',
-      200 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\SettlementFinalizerServiceTest.php',
-      201 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioFailFastPolicyTest.php',
-      202 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioGeneratedColumnGuardTest.php',
-      203 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioInvariantGuardTest.php',
-      204 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\PortableBookingSchemaParityTest.php',
-      205 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\StaffApiKeyActorResolverTest.php',
-      206 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\VoucherUsageGuardTest.php',
+      187 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\RequestActorContextTest.php',
+      188 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Resources\\ReservationResourceScopeTest.php',
+      189 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Models\\HasRowVersionTest.php',
+      190 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Resources\\ReservationResourceVisibilityTest.php',
+      191 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Branch\\BranchSchedulingPolicyServiceTest.php',
+      192 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\CustomerReservationOrderBillServiceTest.php',
+      193 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\FeatureFlagServiceTest.php',
+      194 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Inventory\\InventoryStockMovementServiceTest.php',
+      195 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Loyalty\\LoyaltyBalanceServiceTest.php',
+      196 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Loyalty\\LoyaltySyncServicesTest.php',
+      197 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\NotificationOutboxHealthServiceTest.php',
+      198 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\OperationalInsightsServiceTest.php',
+      199 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\StaffApiKeyStoreTest.php',
+      200 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\BillLockServiceTest.php',
+      201 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\SettlementFinalizerServiceTest.php',
+      202 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioFailFastPolicyTest.php',
+      203 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioGeneratedColumnGuardTest.php',
+      204 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioInvariantGuardTest.php',
+      205 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\PortableBookingSchemaParityTest.php',
+      206 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\StaffApiKeyActorResolverTest.php',
+      207 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\VoucherUsageGuardTest.php',
     ),
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\IdentityAccess\\Http\\Controllers\\Customer\\AuthController.php' => 
@@ -6214,7 +6218,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\KitchenDispatch\\Application\\Workflows\\KitchenRoutingService.php' => 
   array (
-    'fileHash' => '7f22b1fcb364d63cacd881668e9698fa04f52714b93421a3da656649a350d2ea',
+    'fileHash' => '54be1d195e91ac976619a9b0962e29603f2720237fdb585103fe3c83c1fd758b',
     'dependentFiles' => 
     array (
       0 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\KitchenCategoryRouteController.php',
@@ -7459,7 +7463,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Ordering\\Application\\UseCases\\Orders\\StaffTableOrderService.php' => 
   array (
-    'fileHash' => 'a92adb6a938e580fae1047352cac399265ada92a75b298a81c3009ccd8960204',
+    'fileHash' => '7a38a2d38265525503d2c4ddcedb181863d68fd7c97fab30a9a04438f324a18d',
     'dependentFiles' => 
     array (
       0 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Ordering\\Http\\Controllers\\Staff\\ReservationOrderController.php',
@@ -7835,7 +7839,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Payments\\Application\\UseCases\\Refunds\\RefundExecutionService.php' => 
   array (
-    'fileHash' => 'c2b6306d31f661587b2d645e11afe88eaea7a11df0cdddd8e4009a1276fb23a4',
+    'fileHash' => '3969d396d264697383d0baceb5e0ad381f47362da31d101f7cb5b53f034b6ff0',
     'dependentFiles' => 
     array (
       0 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Cashiering\\Application\\Workflows\\OrderSettlementWorkflow.php',
@@ -9322,7 +9326,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Reservations\\Application\\Services\\ReservationRescheduleService.php' => 
   array (
-    'fileHash' => '3e63e44b56b2d2779f03659019a43134cd977395add2d21beec688d557c8bdd2',
+    'fileHash' => '779c9820a4f8d73c77c0383c1b6f7ca94b15d09a0a21fdc02a2432b10a84541c',
     'dependentFiles' => 
     array (
       0 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Reservations\\Application\\Services\\CustomerReservationSelfService.php',
@@ -9936,8 +9940,9 @@ return [
     'dependentFiles' => 
     array (
       0 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Harness\\HarnessSuiteService.php',
-      1 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Release\\Services\\ReleaseBuildService.php',
-      2 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleaseBuildServiceTest.php',
+      1 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Release\\Services\\ReleaseArtifactManifestService.php',
+      2 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Release\\Services\\ReleaseBuildService.php',
+      3 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleaseBuildServiceTest.php',
     ),
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\ApiContract\\ApiArtifacts\\ApiEnumStateArtifactService.php' => 
@@ -9980,7 +9985,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\ApiContract\\Services\\OpenApiSpecService.php' => 
   array (
-    'fileHash' => '6a0cd4018b8f9a32139d330398d09ef7af684a444af8880eb96f8c8d61c5fd1d',
+    'fileHash' => '024c1c0cdcfc5d3a165950d92f2a3bde4d033a7f25e8a4f7f27804bfa05cac81',
     'dependentFiles' => 
     array (
       0 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\ApiContract\\ApiArtifacts\\ApiConsumerArtifactService.php',
@@ -10275,11 +10280,12 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Health\\Services\\BookingDoctorService.php' => 
   array (
-    'fileHash' => '675a49793b7e1158fd826c900c6f5fd9b40c67f3ea0cd82ace8985131011928f',
+    'fileHash' => 'f601954f9b459345280a34a1e437c2568c7b0684bcd0435c5ee465e8f222f0d7',
     'dependentFiles' => 
     array (
       0 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Release\\Services\\LaunchReadinessService.php',
-      1 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\BookingLaunchReadinessCommandTest.php',
+      1 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\BookingDoctorCommandTest.php',
+      2 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\BookingLaunchReadinessCommandTest.php',
     ),
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Health\\Services\\BookingEnvironmentValidator.php' => 
@@ -10477,7 +10483,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Release\\Services\\LaunchReadinessService.php' => 
   array (
-    'fileHash' => '6275449a495f5725da0e59fce21b2f5aa98514eb92087b08d271f864d279ffad',
+    'fileHash' => 'fa3706cfc3eb7e2fa80693a022e2f8784190c3750cdd9f395faa85bec5d3fb0e',
     'dependentFiles' => 
     array (
       0 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Harness\\HarnessSuiteService.php',
@@ -10486,7 +10492,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Release\\Services\\ReleaseArtifactManifestService.php' => 
   array (
-    'fileHash' => '1cc48dedbce5bf3c25c02eac634a72b64a30c8cf078cd01f8624ac499b73261f',
+    'fileHash' => '85e0ef0eb0f441830a2fa1ec7e5ac3d66484879dfd6afb21a6e0cc0b2512dc16',
     'dependentFiles' => 
     array (
       0 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Release\\Services\\BookingDeploySafetyService.php',
@@ -10518,6 +10524,7 @@ return [
       0 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Release\\Services\\ReleaseLoopService.php',
       1 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Release\\Services\\ReleasePackageService.php',
       2 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleaseLoopServiceTest.php',
+      3 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleasePackageServiceTest.php',
     ),
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Release\\Services\\ReleaseBuildService.php' => 
@@ -10582,7 +10589,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Verification\\VerificationSelectorService.php' => 
   array (
-    'fileHash' => '4a9014955f0ab84b81c47086467ac35b505c263d187b2357d4822e703db94d83',
+    'fileHash' => '841f862ea505eb6c8febad01370ea575c23de3672f61938f3674c52362c5af2a',
     'dependentFiles' => 
     array (
       0 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Verification\\VerificationSelectorServiceTest.php',
@@ -10788,11 +10795,12 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Support\\AuditTrail\\AuditTrailActorResolver.php' => 
   array (
-    'fileHash' => '44f2e1d72c5b1a7f33d2e8e5dce21ee3a5892ec123ca20215822e2a0b1039ef6',
+    'fileHash' => 'd8e3b42d04ecdac6d01a8ccfdf4217bbf7475bc3d22272c737c884a42afdfbe7',
     'dependentFiles' => 
     array (
       0 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\FloorOperations\\Domain\\Audit\\TableStateAuditLogger.php',
       1 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Support\\AuditTrail\\AuditTrailRecorder.php',
+      2 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\AuditTrailActorResolverTest.php',
     ),
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Support\\AuditTrail\\AuditTrailRecorder.php' => 
@@ -10813,7 +10821,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Support\\Auth\\RequestActorContext.php' => 
   array (
-    'fileHash' => '3743e1c6ed2aa70683fc98584f2078a227ca6e2548c3fd0da48e0aa98ef51552',
+    'fileHash' => '5c39921c7934180c5af88285eb17661ec4db069ce21693eca16e370e1a10663a',
     'dependentFiles' => 
     array (
       0 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Http\\Middleware\\CustomerOrStaffMiddleware.php',
@@ -10836,6 +10844,8 @@ return [
       17 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Reservations\\Http\\Requests\\Customer\\CreateReservationRequest.php',
       18 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Reservations\\Http\\Requests\\ReplaceReservationPreOrderRequest.php',
       19 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Modules\\Waitlist\\Http\\Controllers\\Customer\\WaitlistController.php',
+      20 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Support\\AuditTrail\\AuditTrailActorResolver.php',
+      21 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\RequestActorContextTest.php',
     ),
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Support\\AvailabilityCacheVersion.php' => 
@@ -11227,158 +11237,159 @@ return [
       220 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Health\\Services\\BookingMaintenanceService.php',
       221 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Release\\Services\\SiteBootstrapService.php',
       222 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Platform\\Uat\\UatScenarioPackService.php',
-      223 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Support\\AuditTrail\\AuditTrailActorResolver.php',
-      224 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Support\\Auth\\RequestActorContext.php',
-      225 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminBenefitsAdminFoundationHttpFlowTest.php',
-      226 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminFinanceTaxInvoiceFoundationHttpFlowTest.php',
-      227 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminInventoryFoundationHttpFlowTest.php',
-      228 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminKitchenRoutingFoundationHttpFlowTest.php',
-      229 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMasterDataBulkImportExportHttpFlowTest.php',
-      230 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMasterDataValidationEnvelopeAndPriceWindowTest.php',
-      231 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMenuManagementHttpFlowTest.php',
-      232 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMultiBranchDomainDefaultsHttpFlowTest.php',
-      233 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMultiBranchFoundationHttpFlowTest.php',
-      234 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminPurchasingFoundationHttpFlowTest.php',
-      235 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminReportingReadModelsFoundationHttpFlowTest.php',
-      236 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminRestaurantMasterDataHttpFlowTest.php',
-      237 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Auth\\CustomerAccessSessionFoundationTest.php',
-      238 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\BookingHarnessGoldenFlowsCommandTest.php',
-      239 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\FeatureFlagConsoleCommandTest.php',
-      240 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\UatScenarioPackConsoleCommandTest.php',
-      241 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerBenefitsSelfServiceHttpFlowTest.php',
-      242 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationBenefitsIdempotencyEnforcementTest.php',
-      243 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationBenefitsMutationHttpFlowTest.php',
-      244 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationOrderBillControllerTest.php',
-      245 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerSelfServiceErrorEnvelopeContractTest.php',
-      246 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\DataLifecycle\\CustomerDataLifecycleHttpFlowTest.php',
-      247 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\DataLifecycle\\DataLifecycleRetentionConsoleTest.php',
-      248 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Financial\\ReservationPaymentIntegrityFlowTest.php',
-      249 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Http\\ApiListingQueryStandardTest.php',
-      250 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\ApiLiveRuntimeRegressionGateTest.php',
-      251 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\ApiRuntimeSmokeGateTest.php',
-      252 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\HealthDetailedOpsCoverageTest.php',
-      253 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\MetricsAuthorizationCoverageTest.php',
-      254 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Loyalty\\LoyaltyPointsServiceGuardTest.php',
-      255 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Loyalty\\LoyaltyRedemptionLifecycleTest.php',
-      256 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Menu\\CustomerMenuCatalogHttpFlowTest.php',
-      257 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Notifications\\NotificationOutboxServiceSmokeTest.php',
-      258 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Payments\\PaymentProviderWebhookFlowTest.php',
-      259 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Performance\\HotPathPerformanceBudgetTest.php',
-      260 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositPaymentSessionFlowTest.php',
-      261 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositPaymentVisibilityFlowTest.php',
-      262 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositSelfServiceFlowTest.php',
-      263 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositVisibilityFlowTest.php',
-      264 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillPaymentIdempotencyEnforcementTest.php',
-      265 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillSelfPaymentFlowTest.php',
-      266 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillSessionAccessFlowTest.php',
-      267 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationPreorderManagementFlowTest.php',
-      268 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationPreorderSessionAccessTest.php',
-      269 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationSelfServiceHttpFlowTest.php',
-      270 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationSelfServiceVisibilityAndGuardTest.php',
-      271 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\ReservationHttpFlowTest.php',
-      272 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\ReservationServicePreorderPricingGuardTest.php',
-      273 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\ReservationStatusHttpFlowTest.php',
-      274 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationCancellationServiceTest.php',
-      275 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceFeatureTest.php',
-      276 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceRefundTouchFeatureTest.php',
-      277 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceTouchMutationFeatureTest.php',
-      278 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationSessionAccessWorkflowTest.php',
-      279 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\RestaurantTableStateServiceRowVersionTest.php',
-      280 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\TableHoldServiceRowVersionTest.php',
-      281 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffAuditTrailHttpFlowTest.php',
-      282 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffBranchScopeSecurityHardeningTest.php',
-      283 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCapabilityHttpGuardTest.php',
-      284 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCashierShiftHttpFlowTest.php',
-      285 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckInFlowTest.php',
-      286 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutConcurrencyGuardFlowTest.php',
-      287 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutCrossPathReleaseGuardTest.php',
-      288 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutFinancialIntegrationMatrixTest.php',
-      289 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutFinancialOutboxAndCoverageTest.php',
-      290 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutHttpFlowTest.php',
-      291 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutHttpGuardFlowTest.php',
-      292 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutIdempotencyReplayServiceTest.php',
-      293 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundAllocationGuardTest.php',
-      294 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundAndCancelServiceTest.php',
-      295 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundLifecycleTest.php',
-      296 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffConversationInboxFlowTest.php',
-      297 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCoreReadModelsHttpFlowTest.php',
-      298 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffDepositSelfServiceOperationalReadFlowTest.php',
-      299 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFinanceInvoiceAndAccountingExportHttpFlowTest.php',
-      300 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFinancialReconciliationHttpFlowTest.php',
-      301 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFrontOfHouseOperationalClosureFlowTest.php',
-      302 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffKitchenDispatchFoundationFlowTest.php',
-      303 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffMoveTableFlowTest.php',
-      304 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffMutationAliasReplayHttpFlowTest.php',
-      305 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOperationalRealtimeFlowTest.php',
-      306 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOrderItemLifecycleFlowTest.php',
-      307 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOrderReadFlowTest.php',
-      308 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReportingReadModelsHttpFlowTest.php',
-      309 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardAdvancedFlowTest.php',
-      310 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardAssignmentFlowTest.php',
-      311 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardOperationalOrchestrationFlowTest.php',
-      312 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationDepositFlowTest.php',
-      313 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationInboxFlowTest.php',
-      314 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationRescheduleFlowTest.php',
-      315 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationTimelineFlowTest.php',
-      316 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationTimelineWorkbenchFlowTest.php',
-      317 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationVoucherLifecycleTest.php',
-      318 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationVoucherServiceGuardTest.php',
-      319 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffServiceSessionHttpFlowTest.php',
-      320 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableBoardFeatureTest.php',
-      321 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableBoardHttpFlowTest.php',
-      322 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableOrderBranchScopeTest.php',
-      323 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableOrderConcurrencyGuardServiceTest.php',
-      324 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableOrderIdempotencyReplayServiceTest.php',
-      325 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableReleaseHttpFlowTest.php',
-      326 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableReleaseServiceTest.php',
-      327 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffWaitingListLifecycleTest.php',
-      328 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffWaitingListSemiAutomationFlowTest.php',
-      329 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Support\\BuildsBookingScenarioSchemaIdempotencyTest.php',
-      330 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Support\\VoucherUsageGuardTest.php',
-      331 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Table\\TableAvailabilityFeatureTest.php',
-      332 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Table\\TableHoldHttpFlowTest.php',
-      333 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListOwnerContractHttpFlowTest.php',
-      334 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListOwnerResponseFlowTest.php',
-      335 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListSelfServiceHttpFlowTest.php',
-      336 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Controllers\\CustomerReservationPreorderLegacyRouteDeprecationHeadersTest.php',
+      223 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\app\\Support\\Auth\\RequestActorContext.php',
+      224 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminBenefitsAdminFoundationHttpFlowTest.php',
+      225 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminFinanceTaxInvoiceFoundationHttpFlowTest.php',
+      226 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminInventoryFoundationHttpFlowTest.php',
+      227 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminKitchenRoutingFoundationHttpFlowTest.php',
+      228 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMasterDataBulkImportExportHttpFlowTest.php',
+      229 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMasterDataValidationEnvelopeAndPriceWindowTest.php',
+      230 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMenuManagementHttpFlowTest.php',
+      231 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMultiBranchDomainDefaultsHttpFlowTest.php',
+      232 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMultiBranchFoundationHttpFlowTest.php',
+      233 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminPurchasingFoundationHttpFlowTest.php',
+      234 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminReportingReadModelsFoundationHttpFlowTest.php',
+      235 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminRestaurantMasterDataHttpFlowTest.php',
+      236 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Auth\\CustomerAccessSessionFoundationTest.php',
+      237 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\BookingHarnessGoldenFlowsCommandTest.php',
+      238 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\FeatureFlagConsoleCommandTest.php',
+      239 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\UatScenarioPackConsoleCommandTest.php',
+      240 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerBenefitsSelfServiceHttpFlowTest.php',
+      241 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationBenefitsIdempotencyEnforcementTest.php',
+      242 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationBenefitsMutationHttpFlowTest.php',
+      243 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerReservationOrderBillControllerTest.php',
+      244 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Customer\\CustomerSelfServiceErrorEnvelopeContractTest.php',
+      245 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\DataLifecycle\\CustomerDataLifecycleHttpFlowTest.php',
+      246 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\DataLifecycle\\DataLifecycleRetentionConsoleTest.php',
+      247 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Financial\\ReservationPaymentIntegrityFlowTest.php',
+      248 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Http\\ApiListingQueryStandardTest.php',
+      249 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\ApiLiveRuntimeRegressionGateTest.php',
+      250 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\ApiRuntimeSmokeGateTest.php',
+      251 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\HealthDetailedOpsCoverageTest.php',
+      252 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\MetricsAuthorizationCoverageTest.php',
+      253 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Loyalty\\LoyaltyPointsServiceGuardTest.php',
+      254 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Loyalty\\LoyaltyRedemptionLifecycleTest.php',
+      255 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Menu\\CustomerMenuCatalogHttpFlowTest.php',
+      256 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Notifications\\NotificationOutboxServiceSmokeTest.php',
+      257 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Payments\\PaymentProviderWebhookFlowTest.php',
+      258 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Performance\\HotPathPerformanceBudgetTest.php',
+      259 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositPaymentSessionFlowTest.php',
+      260 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositPaymentVisibilityFlowTest.php',
+      261 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositSelfServiceFlowTest.php',
+      262 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationDepositVisibilityFlowTest.php',
+      263 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillPaymentIdempotencyEnforcementTest.php',
+      264 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillSelfPaymentFlowTest.php',
+      265 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationOrderBillSessionAccessFlowTest.php',
+      266 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationPreorderManagementFlowTest.php',
+      267 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationPreorderSessionAccessTest.php',
+      268 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationSelfServiceHttpFlowTest.php',
+      269 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationSelfServiceVisibilityAndGuardTest.php',
+      270 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\ReservationHttpFlowTest.php',
+      271 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\ReservationServicePreorderPricingGuardTest.php',
+      272 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\ReservationStatusHttpFlowTest.php',
+      273 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationCancellationServiceTest.php',
+      274 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceFeatureTest.php',
+      275 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceRefundTouchFeatureTest.php',
+      276 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationFinancialSyncServiceTouchMutationFeatureTest.php',
+      277 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\ReservationSessionAccessWorkflowTest.php',
+      278 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\RestaurantTableStateServiceRowVersionTest.php',
+      279 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Services\\TableHoldServiceRowVersionTest.php',
+      280 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffAuditTrailHttpFlowTest.php',
+      281 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffBranchScopeSecurityHardeningTest.php',
+      282 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCapabilityHttpGuardTest.php',
+      283 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCashierShiftHttpFlowTest.php',
+      284 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckInFlowTest.php',
+      285 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutConcurrencyGuardFlowTest.php',
+      286 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutCrossPathReleaseGuardTest.php',
+      287 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutFinancialIntegrationMatrixTest.php',
+      288 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutFinancialOutboxAndCoverageTest.php',
+      289 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutHttpFlowTest.php',
+      290 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutHttpGuardFlowTest.php',
+      291 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutIdempotencyReplayServiceTest.php',
+      292 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundAllocationGuardTest.php',
+      293 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundAndCancelServiceTest.php',
+      294 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckoutRefundLifecycleTest.php',
+      295 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffConversationInboxFlowTest.php',
+      296 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCoreReadModelsHttpFlowTest.php',
+      297 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffDepositSelfServiceOperationalReadFlowTest.php',
+      298 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFinanceInvoiceAndAccountingExportHttpFlowTest.php',
+      299 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFinancialReconciliationHttpFlowTest.php',
+      300 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFrontOfHouseOperationalClosureFlowTest.php',
+      301 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffKitchenDispatchFoundationFlowTest.php',
+      302 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffMoveTableFlowTest.php',
+      303 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffMutationAliasReplayHttpFlowTest.php',
+      304 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOperationalRealtimeFlowTest.php',
+      305 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOrderItemLifecycleFlowTest.php',
+      306 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffOrderReadFlowTest.php',
+      307 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReportingReadModelsHttpFlowTest.php',
+      308 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardAdvancedFlowTest.php',
+      309 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardAssignmentFlowTest.php',
+      310 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationBoardOperationalOrchestrationFlowTest.php',
+      311 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationDepositFlowTest.php',
+      312 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationInboxFlowTest.php',
+      313 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationRescheduleFlowTest.php',
+      314 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationTimelineFlowTest.php',
+      315 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationTimelineWorkbenchFlowTest.php',
+      316 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationVoucherLifecycleTest.php',
+      317 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationVoucherServiceGuardTest.php',
+      318 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffServiceSessionHttpFlowTest.php',
+      319 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableBoardFeatureTest.php',
+      320 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableBoardHttpFlowTest.php',
+      321 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableOrderBranchScopeTest.php',
+      322 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableOrderConcurrencyGuardServiceTest.php',
+      323 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableOrderIdempotencyReplayServiceTest.php',
+      324 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableReleaseHttpFlowTest.php',
+      325 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableReleaseServiceTest.php',
+      326 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffWaitingListLifecycleTest.php',
+      327 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffWaitingListSemiAutomationFlowTest.php',
+      328 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Support\\BuildsBookingScenarioSchemaIdempotencyTest.php',
+      329 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Support\\VoucherUsageGuardTest.php',
+      330 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Table\\TableAvailabilityFeatureTest.php',
+      331 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Table\\TableHoldHttpFlowTest.php',
+      332 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListOwnerContractHttpFlowTest.php',
+      333 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListOwnerResponseFlowTest.php',
+      334 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\WaitingList\\CustomerWaitingListSelfServiceHttpFlowTest.php',
+      335 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Controllers\\CustomerReservationPreorderLegacyRouteDeprecationHeadersTest.php',
+      336 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\AuditTrailActorResolverTest.php',
       337 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\CustomerOrStaffMiddlewareTest.php',
-      338 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Resources\\ReservationResourceDepositSummaryScopeTest.php',
-      339 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Resources\\ReservationResourceScopeTest.php',
-      340 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Models\\HasRowVersionTest.php',
-      341 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Resources\\ReservationOrderResourceContractTest.php',
-      342 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Resources\\ReservationResourceVisibilityTest.php',
-      343 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\AI\\ConversationAiAssistBuilderTest.php',
-      344 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\AI\\ConversationThreadAssistServiceTest.php',
-      345 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Branch\\BranchSchedulingPolicyServiceTest.php',
-      346 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\CustomerReservationOrderBillServiceTest.php',
-      347 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\FeatureFlagServiceTest.php',
-      348 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Inventory\\InventoryStockMovementServiceTest.php',
-      349 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Loyalty\\LoyaltyBalanceServiceTest.php',
-      350 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Loyalty\\LoyaltySyncServicesTest.php',
-      351 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\NotificationOutboxHealthServiceTest.php',
-      352 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\OperationalInsightsServiceTest.php',
-      353 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\PaymentIntegration\\GenericHttpHmacPaymentProviderAdapterTest.php',
-      354 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReservationFinancialSyncServiceHardeningTest.php',
-      355 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Reservation\\ReservationDepositReadServiceTest.php',
-      356 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\StaffApiKeyStoreTest.php',
-      357 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\BillLockServiceTest.php',
-      358 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\CheckoutResponseFactoryTest.php',
-      359 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\OrderSettlementServiceTest.php',
-      360 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\PaymentCaptureServiceTest.php',
-      361 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\RefundExecutionServiceTest.php',
-      362 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\RefundPlannerServiceTest.php',
-      363 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\SettlementAmountCalculatorTest.php',
-      364 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\SettlementFinalizerServiceTest.php',
-      365 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\StaffCashierShiftMoneyTest.php',
-      366 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioFailFastPolicyTest.php',
-      367 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioGeneratedColumnGuardTest.php',
-      368 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioInvariantGuardTest.php',
-      369 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\PortableBookingSchemaParityTest.php',
-      370 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\StaffApiKeyActorResolverTest.php',
-      371 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\StaffReservationOperationGuardTest.php',
-      372 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\VoucherRedemptionSupportTest.php',
-      373 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\VoucherUsageGuardTest.php',
-      374 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\WaitingListStateMachineTest.php',
+      338 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\RequestActorContextTest.php',
+      339 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Resources\\ReservationResourceDepositSummaryScopeTest.php',
+      340 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Resources\\ReservationResourceScopeTest.php',
+      341 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Models\\HasRowVersionTest.php',
+      342 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Resources\\ReservationOrderResourceContractTest.php',
+      343 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Resources\\ReservationResourceVisibilityTest.php',
+      344 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\AI\\ConversationAiAssistBuilderTest.php',
+      345 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\AI\\ConversationThreadAssistServiceTest.php',
+      346 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Branch\\BranchSchedulingPolicyServiceTest.php',
+      347 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\CustomerReservationOrderBillServiceTest.php',
+      348 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\FeatureFlagServiceTest.php',
+      349 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Inventory\\InventoryStockMovementServiceTest.php',
+      350 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Loyalty\\LoyaltyBalanceServiceTest.php',
+      351 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Loyalty\\LoyaltySyncServicesTest.php',
+      352 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\NotificationOutboxHealthServiceTest.php',
+      353 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\OperationalInsightsServiceTest.php',
+      354 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\PaymentIntegration\\GenericHttpHmacPaymentProviderAdapterTest.php',
+      355 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReservationFinancialSyncServiceHardeningTest.php',
+      356 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Reservation\\ReservationDepositReadServiceTest.php',
+      357 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\StaffApiKeyStoreTest.php',
+      358 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\BillLockServiceTest.php',
+      359 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\CheckoutResponseFactoryTest.php',
+      360 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\OrderSettlementServiceTest.php',
+      361 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\PaymentCaptureServiceTest.php',
+      362 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\RefundExecutionServiceTest.php',
+      363 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\RefundPlannerServiceTest.php',
+      364 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\SettlementAmountCalculatorTest.php',
+      365 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\SettlementFinalizerServiceTest.php',
+      366 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\StaffCashierShiftMoneyTest.php',
+      367 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioFailFastPolicyTest.php',
+      368 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioGeneratedColumnGuardTest.php',
+      369 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioInvariantGuardTest.php',
+      370 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\PortableBookingSchemaParityTest.php',
+      371 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\StaffApiKeyActorResolverTest.php',
+      372 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\StaffReservationOperationGuardTest.php',
+      373 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\VoucherRedemptionSupportTest.php',
+      374 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\VoucherUsageGuardTest.php',
+      375 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\WaitingListStateMachineTest.php',
     ),
     'usedTraitDependentFiles' => 
     array (
@@ -11475,14 +11486,14 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminInventoryFoundationHttpFlowTest.php' => 
   array (
-    'fileHash' => 'b3778a9d33ef3c0a7955524ca6507e29c7ce308b109ec080a61a5bdbd74cb09b',
+    'fileHash' => '5f6c76de73fc6336ee9b75b2c16443146434dd358b96d9eeca6d4f8bd59584e3',
     'dependentFiles' => 
     array (
     ),
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminInventoryKitchenPurchasingIdempotencyPolicyTest.php' => 
   array (
-    'fileHash' => '925aa57f5a55c5c49cef525c48b9830c4cc74c0c901227a913b8ba28d6093d86',
+    'fileHash' => '82520d1cdab7a134fed724db5535f224858f847c27382d6b0bce6558bb744d6d',
     'dependentFiles' => 
     array (
     ),
@@ -11496,7 +11507,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminKitchenRoutingFoundationHttpFlowTest.php' => 
   array (
-    'fileHash' => 'ddf22806ea0da36e0af035d1a96b606d4f91f17a6a817795e5b665e42bb199d6',
+    'fileHash' => 'c1d7a7c3f2b6fba9dc4ea94bd7bd5ecbbc47f8a20f9bc42e8d10cad935c9b323',
     'dependentFiles' => 
     array (
     ),
@@ -11510,7 +11521,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminMasterDataIdempotencyPolicyTest.php' => 
   array (
-    'fileHash' => '5c6ab793c95284922c66e9e68894f658f1951738c989578f17bf573210e088f0',
+    'fileHash' => 'abea9cf90f90c26693bd236ffd041270abe5b0fff298285732d270637f85efc4',
     'dependentFiles' => 
     array (
     ),
@@ -11552,7 +11563,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Admin\\AdminPurchasingFoundationHttpFlowTest.php' => 
   array (
-    'fileHash' => '2e3133bdc0936d3939b9986ebdd16b2b6519d4f204699870dd507434e8064adb',
+    'fileHash' => '2610e86342578c1fce6397d6b832cd54c526c5d1e42c511fb53d98e132189914',
     'dependentFiles' => 
     array (
     ),
@@ -11601,7 +11612,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Auth\\StaffProductAuthHttpFlowTest.php' => 
   array (
-    'fileHash' => '3a457c632b7caa25ce222f7d158d60c2e022e7fb3dac3845aeb93aa1e46093ed',
+    'fileHash' => '1c6c2bdbd3bbb890606edee1106abba8309d65e662840a734bcd6f2504bc78b3',
     'dependentFiles' => 
     array (
     ),
@@ -11671,7 +11682,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\BookingDoctorCommandTest.php' => 
   array (
-    'fileHash' => '7b93057aaab21673ce370846df8df9514f7d982f8520e417f6ae1a25fdec7c94',
+    'fileHash' => '2a91bc82daa4456722ebcf27be8aefb6902d887cd90e9625f8f8acfc6dcff947',
     'dependentFiles' => 
     array (
     ),
@@ -11713,7 +11724,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\BookingLaunchReadinessCommandTest.php' => 
   array (
-    'fileHash' => '39df8631db8a592b916ecf2bef71ddb49bb8713e05c8b445ff1e2019e7797c02',
+    'fileHash' => 'e3b7f586696c44c9f1a533afc5efeb835342976230d8ce9da23a3c7abb35eb0c',
     'dependentFiles' => 
     array (
     ),
@@ -11790,7 +11801,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\BookingVerifySelectCommandTest.php' => 
   array (
-    'fileHash' => '99c4e56d326589181d77c04374e5f1d0b8f0fb97da6be8953696b587406ef518',
+    'fileHash' => 'e6c42281bec7efdca2516cd1b03cd713c2c96bbcffee8df05d8cba5bf861f05f',
     'dependentFiles' => 
     array (
     ),
@@ -11811,7 +11822,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Console\\NotificationOpsCommandsTest.php' => 
   array (
-    'fileHash' => '10819e827b909212dcbd761d971deb0521aac4e9e69c07f16d961e8f9cb102e3',
+    'fileHash' => '20581915b0b1d1a5e104e16226241aad0fc63c279494e01511200548197b6f7f',
     'dependentFiles' => 
     array (
     ),
@@ -11965,7 +11976,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Infrastructure\\ApiOpenApiContractCoverageTest.php' => 
   array (
-    'fileHash' => '7ce9f36fe9636b76ee2a732456dfc8af4ebffe78973a31889d84382394c1e11e',
+    'fileHash' => 'c6d6be8281ed55425acd2ba5f578e149e725e6bd0ca79f640ad545c685ce7196',
     'dependentFiles' => 
     array (
     ),
@@ -12175,7 +12186,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Reservation\\CustomerReservationSelfServiceVisibilityAndGuardTest.php' => 
   array (
-    'fileHash' => '4d8510b55460fa9da89bac0ef8410d3a9a07d2e9083b87c54b40fc8a7727be66',
+    'fileHash' => '297512b7c26d9232e99d434d74bd86322179df69d63bda7bd9da7f47afb14440',
     'dependentFiles' => 
     array (
     ),
@@ -12266,7 +12277,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffBranchScopeSecurityHardeningTest.php' => 
   array (
-    'fileHash' => '29f6bb3cfea11fb376322b84c59e27b9415e56c71b3b0aad40c53bb25e2d4841',
+    'fileHash' => 'd40b0b7072232d92db56235b377d64e03be8cc2aea4dff522e1c3b7f62794134',
     'dependentFiles' => 
     array (
     ),
@@ -12280,14 +12291,14 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCashierShiftHttpFlowTest.php' => 
   array (
-    'fileHash' => 'aae5d0428f6e50133e4010d6474811ac8191496134abba91da24555d8e43dc45',
+    'fileHash' => 'bd035a4cc49e0b2a1c6bc41488d8b8101f6d9c41471465ce6217b39bbaf19fd3',
     'dependentFiles' => 
     array (
     ),
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffCheckInFlowTest.php' => 
   array (
-    'fileHash' => '5c51a39851280abf5f55abf08efeca382d0a1f51ab5eacd20044365794a1f59a',
+    'fileHash' => 'ae8aeee6a890c46107b4facca8b416689c8008f399d255c47ff17392f1a76072',
     'dependentFiles' => 
     array (
     ),
@@ -12399,7 +12410,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffFinanceReportingIdempotencyPolicyTest.php' => 
   array (
-    'fileHash' => '5528ef871c2c2c200ae3af16479e84e3b4fc2882200fd4be283bfa4b5c47794e',
+    'fileHash' => 'a1bf2259b8f23191b9bfe14992e382e82171749fd4f28f65dd656fa1fc20595f',
     'dependentFiles' => 
     array (
     ),
@@ -12427,7 +12438,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffKitchenDispatchFoundationFlowTest.php' => 
   array (
-    'fileHash' => 'a78f1ded6cbf413452de3ac3664529851b12e164d9331bdf4118c948c553960d',
+    'fileHash' => '0bd42728ffb667bbe71e6cf3ec35539b9b7bb93ddf6351a4378740a33066f920',
     'dependentFiles' => 
     array (
     ),
@@ -12518,7 +12529,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationRescheduleFlowTest.php' => 
   array (
-    'fileHash' => 'e5bdc6614f9faa97fbdcac21b49be9d18e7600c52d18db38d2d141ef2c159b75',
+    'fileHash' => '8ef7aa17edfbb68f818aa1dc0ea862dcd829e60c736f821d32fe55992ccb16e7',
     'dependentFiles' => 
     array (
     ),
@@ -12546,7 +12557,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffReservationVoucherServiceGuardTest.php' => 
   array (
-    'fileHash' => '180814a2052e501fa87788ee5f55108e454acba92ffa1e079a02a8c531415d4e',
+    'fileHash' => '7a0e9f9831d00c12a6a67ebb76102205ded4576672bb0a4db0dffe95fb732564',
     'dependentFiles' => 
     array (
     ),
@@ -12588,7 +12599,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Feature\\Staff\\StaffTableOrderIdempotencyReplayServiceTest.php' => 
   array (
-    'fileHash' => 'c076e60395e7e0e9c0904d93bb763b8ccb39b6bee7d83cacb6cf5b4be80cefb4',
+    'fileHash' => '997d9d3502490ec80d2503ba79c612e94f5be7db0bd48487e62b6f13e3d66894',
     'dependentFiles' => 
     array (
     ),
@@ -13204,89 +13215,91 @@ return [
       195 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Controllers\\CustomerReservationPreorderLegacyRouteDeprecationHeadersTest.php',
       196 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Controllers\\StaffLegacyRouteDeprecationHeadersTest.php',
       197 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\CustomerOrStaffMiddlewareSessionContractTest.php',
-      198 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\CustomerOrStaffMiddlewareSessionFlowHotfixTest.php',
-      199 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\CustomerOrStaffMiddlewareSessionPathTest.php',
-      200 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\CustomerOrStaffMiddlewareTest.php',
-      201 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\IdempotencyMiddlewareLockingTest.php',
-      202 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\RequireStaffCapabilityTest.php',
-      203 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Requests\\FinalizeSettlementRequestContractTest.php',
-      204 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Requests\\MenuCompatibilityRequestContractTest.php',
-      205 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\ReservationStatusIdempotencyContractTest.php',
-      206 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Resources\\ReservationResourceDepositSummaryScopeTest.php',
-      207 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Resources\\ReservationResourceScopeTest.php',
-      208 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Infrastructure\\ApiArtifactReleaseManifestSyncTest.php',
-      209 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Infrastructure\\DatabaseReleaseContractArtifactSyncTest.php',
-      210 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Infrastructure\\LegacyPathCleanupEvidenceTest.php',
-      211 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Infrastructure\\LocalRuntimeScriptContractTest.php',
-      212 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Infrastructure\\UatScriptContractTest.php',
-      213 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Models\\HasRowVersionTest.php',
-      214 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Resources\\ReservationOrderResourceContractTest.php',
-      215 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Resources\\ReservationResourceVisibilityTest.php',
-      216 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\AI\\ConversationAiAssistBuilderTest.php',
-      217 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\AI\\ConversationThreadAssistServiceTest.php',
-      218 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ApiContract\\FormRequestSchemaFactoryTest.php',
-      219 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\BookingDeploySafetyServiceTest.php',
-      220 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\BookingEnvironmentValidatorTest.php',
-      221 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\BookingReleaseConfigContractTest.php',
-      222 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Branch\\BranchContextServiceTest.php',
-      223 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Branch\\BranchSchedulingPolicyServiceTest.php',
-      224 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\CoreOpsGateServiceTest.php',
-      225 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\CustomerReservationOrderBillServiceTest.php',
-      226 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\DatabaseContractInspectorTest.php',
-      227 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\FeatureFlagServiceTest.php',
-      228 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Inventory\\InventoryStockMovementServiceTest.php',
-      229 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Loyalty\\LoyaltyBalanceServiceTest.php',
-      230 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Loyalty\\LoyaltySyncServicesTest.php',
-      231 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\NotificationOutboxHealthServiceTest.php',
-      232 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\NotificationOutboxServiceIdempotencyKeyTest.php',
-      233 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\OperationalAlertServiceTest.php',
-      234 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\OperationalInsightsServiceTest.php',
-      235 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\OpsGateArtifactServiceTest.php',
-      236 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\PaymentIntegration\\GenericHttpHmacPaymentProviderAdapterTest.php',
-      237 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\PaymentIntegration\\PaymentProviderRegistryRolloutContractTest.php',
-      238 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\PaymentIntegration\\PaymentSessionStatusTransitionPolicyTest.php',
-      239 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleaseArtifactContractTest.php',
-      240 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleaseArtifactManifestServiceTest.php',
-      241 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleaseArtifactNormalizerServiceTest.php',
-      242 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleaseBuildServiceTest.php',
-      243 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleaseLoopServiceTest.php',
-      244 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleasePackageDefinitionContractTest.php',
-      245 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleasePackageServiceTest.php',
-      246 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Reservation\\ReservationDepositReadServiceTest.php',
-      247 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\RoundFiveGateServiceTest.php',
-      248 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\RouteContractReconcilerServiceTest.php',
-      249 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\RouteInventoryGateServiceTest.php',
-      250 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\StaffApiKeyStoreTest.php',
-      251 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\StaffCheckoutServiceDuplicateConstraintTest.php',
-      252 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\BillLockServiceTest.php',
-      253 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\CheckoutResponseFactoryTest.php',
-      254 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\OrderSettlementServiceTest.php',
-      255 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\PaymentCaptureServiceTest.php',
-      256 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\RefundExecutionServiceTest.php',
-      257 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\RefundPlannerServiceTest.php',
-      258 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\SettlementAmountCalculatorTest.php',
-      259 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\SettlementFinalizerServiceTest.php',
-      260 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\StaffReservationInboxServiceTest.php',
-      261 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\TableHoldRefreshMonotonicTest.php',
-      262 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\TriggerManagedRowVersionContractTest.php',
-      263 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Verification\\VerificationSelectorServiceTest.php',
-      264 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\WaitingListReleaseArtifactContractTest.php',
-      265 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\ApiPayloadEncodingNormalizerTest.php',
-      266 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioFailFastPolicyTest.php',
-      267 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioGeneratedColumnGuardTest.php',
-      268 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioInvariantGuardTest.php',
-      269 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\DatabaseWriteConflictMapperTest.php',
-      270 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\PaymentProviderPayloadSanitizerTest.php',
-      271 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\PortableBookingSchemaParityTest.php',
-      272 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\ReleaseArtifactBundlePresenceTest.php',
-      273 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\RowVersionSourceOfTruthInventoryTest.php',
-      274 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\SensitiveAggregateDirectWriteContractTest.php',
-      275 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\StaffApiKeyActorResolverTest.php',
-      276 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\StaffCapabilityResolverTest.php',
-      277 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\StaffReservationOperationGuardTest.php',
-      278 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\TableStateAuditLoggerTest.php',
-      279 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\VoucherUsageGuardTest.php',
-      280 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\WaitingListStateMachineTest.php',
+      198 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\AuditTrailActorResolverTest.php',
+      199 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\CustomerOrStaffMiddlewareSessionFlowHotfixTest.php',
+      200 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\CustomerOrStaffMiddlewareSessionPathTest.php',
+      201 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\CustomerOrStaffMiddlewareTest.php',
+      202 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\IdempotencyMiddlewareLockingTest.php',
+      203 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\RequestActorContextTest.php',
+      204 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\RequireStaffCapabilityTest.php',
+      205 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Requests\\FinalizeSettlementRequestContractTest.php',
+      206 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Requests\\MenuCompatibilityRequestContractTest.php',
+      207 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\ReservationStatusIdempotencyContractTest.php',
+      208 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Resources\\ReservationResourceDepositSummaryScopeTest.php',
+      209 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Resources\\ReservationResourceScopeTest.php',
+      210 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Infrastructure\\ApiArtifactReleaseManifestSyncTest.php',
+      211 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Infrastructure\\DatabaseReleaseContractArtifactSyncTest.php',
+      212 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Infrastructure\\LegacyPathCleanupEvidenceTest.php',
+      213 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Infrastructure\\LocalRuntimeScriptContractTest.php',
+      214 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Infrastructure\\UatScriptContractTest.php',
+      215 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Models\\HasRowVersionTest.php',
+      216 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Resources\\ReservationOrderResourceContractTest.php',
+      217 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Resources\\ReservationResourceVisibilityTest.php',
+      218 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\AI\\ConversationAiAssistBuilderTest.php',
+      219 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\AI\\ConversationThreadAssistServiceTest.php',
+      220 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ApiContract\\FormRequestSchemaFactoryTest.php',
+      221 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\BookingDeploySafetyServiceTest.php',
+      222 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\BookingEnvironmentValidatorTest.php',
+      223 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\BookingReleaseConfigContractTest.php',
+      224 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Branch\\BranchContextServiceTest.php',
+      225 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Branch\\BranchSchedulingPolicyServiceTest.php',
+      226 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\CoreOpsGateServiceTest.php',
+      227 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\CustomerReservationOrderBillServiceTest.php',
+      228 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\DatabaseContractInspectorTest.php',
+      229 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\FeatureFlagServiceTest.php',
+      230 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Inventory\\InventoryStockMovementServiceTest.php',
+      231 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Loyalty\\LoyaltyBalanceServiceTest.php',
+      232 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Loyalty\\LoyaltySyncServicesTest.php',
+      233 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\NotificationOutboxHealthServiceTest.php',
+      234 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\NotificationOutboxServiceIdempotencyKeyTest.php',
+      235 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\OperationalAlertServiceTest.php',
+      236 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\OperationalInsightsServiceTest.php',
+      237 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\OpsGateArtifactServiceTest.php',
+      238 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\PaymentIntegration\\GenericHttpHmacPaymentProviderAdapterTest.php',
+      239 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\PaymentIntegration\\PaymentProviderRegistryRolloutContractTest.php',
+      240 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\PaymentIntegration\\PaymentSessionStatusTransitionPolicyTest.php',
+      241 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleaseArtifactContractTest.php',
+      242 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleaseArtifactManifestServiceTest.php',
+      243 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleaseArtifactNormalizerServiceTest.php',
+      244 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleaseBuildServiceTest.php',
+      245 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleaseLoopServiceTest.php',
+      246 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleasePackageDefinitionContractTest.php',
+      247 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleasePackageServiceTest.php',
+      248 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Reservation\\ReservationDepositReadServiceTest.php',
+      249 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\RoundFiveGateServiceTest.php',
+      250 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\RouteContractReconcilerServiceTest.php',
+      251 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\RouteInventoryGateServiceTest.php',
+      252 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\StaffApiKeyStoreTest.php',
+      253 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\StaffCheckoutServiceDuplicateConstraintTest.php',
+      254 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\BillLockServiceTest.php',
+      255 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\CheckoutResponseFactoryTest.php',
+      256 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\OrderSettlementServiceTest.php',
+      257 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\PaymentCaptureServiceTest.php',
+      258 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\RefundExecutionServiceTest.php',
+      259 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\RefundPlannerServiceTest.php',
+      260 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\SettlementAmountCalculatorTest.php',
+      261 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\SettlementFinalizerServiceTest.php',
+      262 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\StaffReservationInboxServiceTest.php',
+      263 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\TableHoldRefreshMonotonicTest.php',
+      264 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\TriggerManagedRowVersionContractTest.php',
+      265 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Verification\\VerificationSelectorServiceTest.php',
+      266 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\WaitingListReleaseArtifactContractTest.php',
+      267 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\ApiPayloadEncodingNormalizerTest.php',
+      268 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioFailFastPolicyTest.php',
+      269 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioGeneratedColumnGuardTest.php',
+      270 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\BuildsBookingScenarioInvariantGuardTest.php',
+      271 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\DatabaseWriteConflictMapperTest.php',
+      272 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\PaymentProviderPayloadSanitizerTest.php',
+      273 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\PortableBookingSchemaParityTest.php',
+      274 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\ReleaseArtifactBundlePresenceTest.php',
+      275 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\RowVersionSourceOfTruthInventoryTest.php',
+      276 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\SensitiveAggregateDirectWriteContractTest.php',
+      277 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\StaffApiKeyActorResolverTest.php',
+      278 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\StaffCapabilityResolverTest.php',
+      279 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\StaffReservationOperationGuardTest.php',
+      280 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\TableStateAuditLoggerTest.php',
+      281 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\VoucherUsageGuardTest.php',
+      282 => 'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Support\\WaitingListStateMachineTest.php',
     ),
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Config\\ApiArtifactsConfigContractTest.php' => 
@@ -13319,7 +13332,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Config\\BookingIdempotencyScopeContractTest.php' => 
   array (
-    'fileHash' => 'ef8312b5cdfeaa3172f1ae8b0923a997bf282efacdf1616a9b32ae15a0a6207e',
+    'fileHash' => 'a7a6052a891c8cb5d6207b9bfa5c0e294ef72b6fb6709dc43b5c4be7a250f970',
     'dependentFiles' => 
     array (
     ),
@@ -13396,7 +13409,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Config\\StaffCapabilitiesConfigContractTest.php' => 
   array (
-    'fileHash' => '5e5e5aec47646179128e323ce637f7f11b526db26839fd01ab6a1effe85fa791',
+    'fileHash' => '88e401ae15b8e6f53cd62c750ec5280efc2ee6206e02c255d715e28ddaf68519',
     'dependentFiles' => 
     array (
     ),
@@ -13464,6 +13477,13 @@ return [
     array (
     ),
   ),
+  'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\AuditTrailActorResolverTest.php' => 
+  array (
+    'fileHash' => '40db18f372aabaa7d3e13a6f3b28398d49edb72959e44adf642b4d2ca4868f5e',
+    'dependentFiles' => 
+    array (
+    ),
+  ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\CustomerOrStaffMiddlewareSessionFlowHotfixTest.php' => 
   array (
     'fileHash' => '6e15d645d2b59ff39c8b31059bed7df71f8ce9f5774a52e5d9ebf403d8ad2ec8',
@@ -13480,7 +13500,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\CustomerOrStaffMiddlewareTest.php' => 
   array (
-    'fileHash' => 'a0ab159c102f12726ad06ae2dfc2620bba582b02ef3c8d20084689b25268cb41',
+    'fileHash' => '3f0fe38e53d7b88d56026f5b36dff13ac95248e767bbddb23f04b4a5cf91dfe8',
     'dependentFiles' => 
     array (
     ),
@@ -13488,6 +13508,13 @@ return [
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\IdempotencyMiddlewareLockingTest.php' => 
   array (
     'fileHash' => '930d091ce0d38ad0f4d63602760fdbeffd11d9a46676939d2561cf296a9a1aee',
+    'dependentFiles' => 
+    array (
+    ),
+  ),
+  'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\RequestActorContextTest.php' => 
+  array (
+    'fileHash' => 'acf1ae0776a89e21338bcb992ccccbcf49f2a6c258dd882e3ace89276aa0a193',
     'dependentFiles' => 
     array (
     ),
@@ -13669,7 +13696,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Inventory\\InventoryStockMovementServiceTest.php' => 
   array (
-    'fileHash' => '929e0c2e2f1a28b06ea6d30653b113cd3d193a2ff20930c14227ecfb8e3186fd',
+    'fileHash' => '1ee05b384e572533d4e38c04932b83dde4659765312ededa36af882a468de956',
     'dependentFiles' => 
     array (
     ),
@@ -13753,7 +13780,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleaseArtifactManifestServiceTest.php' => 
   array (
-    'fileHash' => 'f2d94f277b7466c26e9940d5cc0a4453479b322b7607377f068192972881968d',
+    'fileHash' => 'eb5f2cc471bb229c627b3364d5fc8dd26480a785fd1e2b65c21a287ecb973868',
     'dependentFiles' => 
     array (
     ),
@@ -13788,7 +13815,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\ReleasePackageServiceTest.php' => 
   array (
-    'fileHash' => '0b2131f735775cba31a25a94d077abb2847b9fa4001cf7383642eefb7498c7f3',
+    'fileHash' => '9c336cb7c3c51d59cdfbcb522e077e8b01dbfc5bbc25b1f8debe6f69b289bd9d',
     'dependentFiles' => 
     array (
     ),
@@ -13872,7 +13899,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Staff\\RefundExecutionServiceTest.php' => 
   array (
-    'fileHash' => 'c5c99a42bc4b75657966fe26090ad9c70051843113462bf8efa3d90a75c4b284',
+    'fileHash' => 'fcae1ca3ac70fd437810759c7cd74e2469a8807410af5d8dc77548813f1b8911',
     'dependentFiles' => 
     array (
     ),
@@ -13928,7 +13955,7 @@ return [
   ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Services\\Verification\\VerificationSelectorServiceTest.php' => 
   array (
-    'fileHash' => '31c74a10d40f3063fc698a56c6d704cc4196b6255e8f0906a7f5dca377e48ff3',
+    'fileHash' => 'bf51173da4f58d49d13a4afc22936692664668ee2209589f674829ef1cb45119',
     'dependentFiles' => 
     array (
     ),
@@ -101754,6 +101781,17 @@ return [
               array (
               ),
             )),
+            5 => 
+            \PHPStan\Dependency\ExportedNode\ExportedParameterNode::__set_state(array(
+               'name' => 'tableStateService',
+               'type' => 'App\\Modules\\BranchScheduling\\Application\\Services\\RestaurantTableStateService',
+               'byRef' => false,
+               'variadic' => false,
+               'hasDefault' => false,
+               'attributes' => 
+              array (
+              ),
+            )),
           ),
            'attributes' => 
           array (
@@ -101778,6 +101816,7 @@ return [
               'paymentsummary' => 'App\\Modules\\Billing\\Domain\\ValueObjects\\PaymentSummary',
               'branchschedulingpolicyservice' => 'App\\Modules\\BranchScheduling\\Application\\Services\\BranchSchedulingPolicyService',
               'reservationbranchscopeservice' => 'App\\Modules\\BranchScheduling\\Application\\Services\\ReservationBranchScopeService',
+              'restauranttablestateservice' => 'App\\Modules\\BranchScheduling\\Application\\Services\\RestaurantTableStateService',
               'tabletimeconflictservice' => 'App\\Modules\\BranchScheduling\\Application\\Services\\TableTimeConflictService',
               'restauranttable' => 'App\\Modules\\BranchScheduling\\Domain\\Models\\RestaurantTable',
               'menuitem' => 'App\\Modules\\Catalog\\Domain\\Models\\MenuItem',
@@ -114651,7 +114690,13 @@ return [
      *     warnings: list<string>,
      *     checks: array<string, array{ok: bool, severity: string, message: string, meta?: array<string, mixed>}>
      *   },
-     *   runtime: array<string, array{ok: bool, message: string|null}>,
+     *   runtime: array<string, array{
+     *     ok: bool,
+     *     message: string|null,
+     *     status?: string,
+     *     dependency?: string|null,
+     *     meta?: array<string, mixed>
+     *   }>,
      *   meta: array{strict: bool, timestamp_utc: string}
      * }
      */',
@@ -119102,6 +119147,7 @@ return [
              'namespace' => 'App\\Platform\\Release\\Services',
              'uses' => 
             array (
+              'apiconsumerartifactservice' => 'App\\Platform\\ApiContract\\ApiArtifacts\\ApiConsumerArtifactService',
               'file' => 'Illuminate\\Support\\Facades\\File',
               'throwable' => 'Throwable',
             ),
@@ -119144,6 +119190,7 @@ return [
              'namespace' => 'App\\Platform\\Release\\Services',
              'uses' => 
             array (
+              'apiconsumerartifactservice' => 'App\\Platform\\ApiContract\\ApiArtifacts\\ApiConsumerArtifactService',
               'file' => 'Illuminate\\Support\\Facades\\File',
               'throwable' => 'Throwable',
             ),
@@ -119218,6 +119265,61 @@ return [
                'byRef' => false,
                'variadic' => false,
                'hasDefault' => true,
+               'attributes' => 
+              array (
+              ),
+            )),
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        3 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'expectedGeneratedArtifactFingerprint',
+           'phpDoc' => 
+          \PHPStan\Dependency\ExportedNode\ExportedPhpDocNode::__set_state(array(
+             'phpDocString' => '/**
+     * @param  array<string, array<string, mixed>>  $artifacts
+     */',
+             'namespace' => 'App\\Platform\\Release\\Services',
+             'uses' => 
+            array (
+              'apiconsumerartifactservice' => 'App\\Platform\\ApiContract\\ApiArtifacts\\ApiConsumerArtifactService',
+              'file' => 'Illuminate\\Support\\Facades\\File',
+              'throwable' => 'Throwable',
+            ),
+             'constUses' => 
+            array (
+            ),
+          )),
+           'byRef' => false,
+           'public' => false,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => '?string',
+           'parameters' => 
+          array (
+            0 => 
+            \PHPStan\Dependency\ExportedNode\ExportedParameterNode::__set_state(array(
+               'name' => 'artifactKey',
+               'type' => 'string',
+               'byRef' => false,
+               'variadic' => false,
+               'hasDefault' => false,
+               'attributes' => 
+              array (
+              ),
+            )),
+            1 => 
+            \PHPStan\Dependency\ExportedNode\ExportedParameterNode::__set_state(array(
+               'name' => 'artifacts',
+               'type' => 'array',
+               'byRef' => false,
+               'variadic' => false,
+               'hasDefault' => false,
                'attributes' => 
               array (
               ),
@@ -123812,6 +123914,7 @@ return [
              'namespace' => 'App\\Support\\AuditTrail',
              'uses' => 
             array (
+              'requestactorcontext' => 'App\\Support\\Auth\\RequestActorContext',
             ),
              'constUses' => 
             array (
@@ -124721,6 +124824,42 @@ return [
            'final' => false,
            'static' => false,
            'returnType' => '?string',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        20 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'customerAccessSessionId',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => '?int',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        21 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'staffApiKeyId',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => '?int',
            'parameters' => 
           array (
           ),
@@ -126898,7 +127037,7 @@ return [
       array (
         0 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_booking_config_requires_idempotency_only_for_admin_menu_master_data_flows',
+           'name' => 'test_booking_config_requires_idempotency_for_admin_master_data_and_settings_mutations',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -128565,6 +128704,24 @@ return [
         )),
         10 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_staff_startup_contract_does_not_grant_implicit_default_branch_access_to_custom_roles_without_branch_scope',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        11 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
            'name' => 'test_customer_access_tokens_do_not_authenticate_staff_product_routes',
            'phpDoc' => NULL,
            'byRef' => false,
@@ -129947,6 +130104,32 @@ return [
             )),
           ),
         )),
+        3 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_booking_doctor_json_preserves_dependency_blocked_runtime_metadata',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+            0 => 
+            \PHPStan\Dependency\ExportedNode\ExportedAttributeNode::__set_state(array(
+               'name' => 'PHPUnit\\Framework\\Attributes\\Group',
+               'args' => 
+              array (
+                0 => '\'booking-smoke\'',
+              ),
+            )),
+          ),
+        )),
       ),
        'attributes' => 
       array (
@@ -130357,7 +130540,7 @@ return [
         )),
         4 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_booking_launch_readiness_returns_warning_exit_code_when_staging_manual_evidence_is_missing',
+           'name' => 'test_booking_launch_readiness_blocks_when_day_one_feature_flag_posture_drifts',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -130383,7 +130566,7 @@ return [
         )),
         5 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_booking_launch_readiness_reuses_existing_default_manual_evidence_template_in_follow_up_actions',
+           'name' => 'test_booking_launch_readiness_returns_warning_exit_code_when_staging_manual_evidence_is_missing',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -130409,7 +130592,7 @@ return [
         )),
         6 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_booking_launch_readiness_blocks_limited_production_when_manual_evidence_is_missing',
+           'name' => 'test_booking_launch_readiness_reuses_existing_default_manual_evidence_template_in_follow_up_actions',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -130435,7 +130618,7 @@ return [
         )),
         7 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_booking_launch_readiness_blocks_limited_production_when_notification_rehearsal_is_missing',
+           'name' => 'test_booking_launch_readiness_blocks_limited_production_when_manual_evidence_is_missing',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -130461,7 +130644,7 @@ return [
         )),
         8 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_booking_launch_readiness_repairs_manual_evidence_issues_using_the_same_path',
+           'name' => 'test_booking_launch_readiness_blocks_limited_production_when_notification_rehearsal_is_missing',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -130487,7 +130670,7 @@ return [
         )),
         9 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_booking_launch_readiness_blocks_limited_production_when_performance_report_is_missing',
+           'name' => 'test_booking_launch_readiness_repairs_manual_evidence_issues_using_the_same_path',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -130513,7 +130696,7 @@ return [
         )),
         10 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_booking_launch_readiness_surfaces_deploy_check_failures_from_service_contract',
+           'name' => 'test_booking_launch_readiness_blocks_limited_production_when_performance_report_is_missing',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -130538,6 +130721,32 @@ return [
           ),
         )),
         11 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_booking_launch_readiness_surfaces_deploy_check_failures_from_service_contract',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+            0 => 
+            \PHPStan\Dependency\ExportedNode\ExportedAttributeNode::__set_state(array(
+               'name' => 'PHPUnit\\Framework\\Attributes\\Group',
+               'args' => 
+              array (
+                0 => '\'booking-smoke\'',
+              ),
+            )),
+          ),
+        )),
+        12 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
            'name' => 'test_booking_launch_readiness_skips_heavy_downstream_checks_when_runtime_baseline_is_blocked',
            'phpDoc' => NULL,
@@ -131510,6 +131719,24 @@ return [
         2 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
            'name' => 'test_booking_verify_select_matches_web_harness_contract_domain',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        3 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_booking_verify_select_matches_release_control_plane_domain',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -138707,6 +138934,24 @@ return [
         )),
         9 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_owner_reschedule_rejects_non_available_target_table_from_self_service',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        10 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
            'name' => 'test_owner_cannot_cancel_checked_in_reservation_from_self_service',
            'phpDoc' => NULL,
            'byRef' => false,
@@ -140557,7 +140802,7 @@ return [
         )),
         3 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_explicit_branch_scope_configuration_keeps_legitimate_branch_flow_working',
+           'name' => 'test_custom_staff_roles_without_explicit_branch_scope_cannot_inherit_default_branch_access',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -140575,7 +140820,7 @@ return [
         )),
         4 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_staff_cannot_issue_invoice_for_cross_branch_reservation_even_with_existing_shift',
+           'name' => 'test_explicit_branch_scope_configuration_keeps_legitimate_branch_flow_working',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -140592,6 +140837,24 @@ return [
           ),
         )),
         5 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_staff_cannot_issue_invoice_for_cross_branch_reservation_even_with_existing_shift',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        6 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
            'name' => 'test_staff_payment_and_refund_replay_paths_do_not_bypass_branch_scope',
            'phpDoc' => NULL,
@@ -140938,7 +141201,7 @@ return [
         )),
         4 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_staff_cannot_show_or_close_another_cashiers_shift',
+           'name' => 'test_cashier_shift_reads_and_close_fail_closed_outside_actor_branch_scope',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -140956,7 +141219,7 @@ return [
         )),
         5 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_cashier_shift_lookup_rejects_invalid_listing_filters',
+           'name' => 'test_staff_cannot_show_or_close_another_cashiers_shift',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -140974,7 +141237,7 @@ return [
         )),
         6 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_cashier_shift_summary_only_includes_same_branch_and_currency_payments',
+           'name' => 'test_cashier_shift_lookup_rejects_invalid_listing_filters',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -140992,7 +141255,7 @@ return [
         )),
         7 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_staff_cannot_open_second_shift_and_cannot_close_the_same_shift_twice',
+           'name' => 'test_cashier_shift_summary_only_includes_same_branch_and_currency_payments',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -141009,6 +141272,24 @@ return [
           ),
         )),
         8 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_staff_cannot_open_second_shift_and_cannot_close_the_same_shift_twice',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        9 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
            'name' => 'test_close_cashier_shift_rejects_stale_row_version_with_clear_message',
            'phpDoc' => NULL,
@@ -141238,6 +141519,24 @@ return [
         10 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
            'name' => 'test_check_in_returns_not_found_for_reservation_outside_staff_operational_branch_scope',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        11 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_check_in_idempotent_path_still_hides_checked_in_reservation_outside_staff_operational_branch_scope',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -144223,7 +144522,7 @@ return [
         )),
         10 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_branch_flag_can_disable_kitchen_dispatch_mutations',
+           'name' => 'test_order_item_sync_fails_closed_when_actor_cannot_access_ticket_branch',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -144241,7 +144540,7 @@ return [
         )),
         11 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_branch_flag_blocks_new_dispatch_but_existing_tickets_can_finish_service',
+           'name' => 'test_branch_flag_can_disable_kitchen_dispatch_mutations',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -144259,7 +144558,7 @@ return [
         )),
         12 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_redispatch_preserves_ready_ticket_state_and_fire_requires_a_queued_ticket',
+           'name' => 'test_branch_flag_blocks_new_dispatch_but_existing_tickets_can_finish_service',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -144277,7 +144576,7 @@ return [
         )),
         13 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_active_ticket_route_cannot_be_removed_and_repeat_dispatch_keeps_existing_ticket_routing_snapshot',
+           'name' => 'test_redispatch_preserves_ready_ticket_state_and_fire_requires_a_queued_ticket',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -144295,7 +144594,7 @@ return [
         )),
         14 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_repeat_dispatch_rejects_active_ticket_with_drifted_route_snapshot',
+           'name' => 'test_active_ticket_route_cannot_be_removed_and_repeat_dispatch_keeps_existing_ticket_routing_snapshot',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -144313,7 +144612,7 @@ return [
         )),
         15 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_generic_ticket_sync_keeps_ready_state_until_explicit_recall',
+           'name' => 'test_repeat_dispatch_rejects_active_ticket_with_drifted_route_snapshot',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -144331,7 +144630,7 @@ return [
         )),
         16 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_completed_ticket_cannot_be_recalled_and_order_item_state_stays_served',
+           'name' => 'test_generic_ticket_sync_keeps_ready_state_until_explicit_recall',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -144349,7 +144648,7 @@ return [
         )),
         17 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_reconciliation_scan_reports_status_and_routing_drift_with_actionable_output',
+           'name' => 'test_completed_ticket_cannot_be_recalled_and_order_item_state_stays_served',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -144366,6 +144665,24 @@ return [
           ),
         )),
         18 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_reconciliation_scan_reports_status_and_routing_drift_with_actionable_output',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        19 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
            'name' => 'test_missing_kitchen_resources_return_standardized_not_found_envelope',
            'phpDoc' => NULL,
@@ -146747,7 +147064,7 @@ return [
         )),
         5 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_reschedule_rejects_target_tables_with_overlapping_reservation',
+           'name' => 'test_reschedule_rejects_non_available_target_table_even_without_time_conflict',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -146765,7 +147082,7 @@ return [
         )),
         6 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_reschedule_rejects_target_tables_without_enough_capacity',
+           'name' => 'test_reschedule_rejects_target_tables_with_overlapping_reservation',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -146783,7 +147100,7 @@ return [
         )),
         7 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_reschedule_rejects_target_tables_with_branch_mismatch',
+           'name' => 'test_reschedule_rejects_target_tables_without_enough_capacity',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -146801,7 +147118,7 @@ return [
         )),
         8 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_reschedule_rejects_branch_local_window_outside_business_hours',
+           'name' => 'test_reschedule_rejects_target_tables_with_branch_mismatch',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -146819,7 +147136,7 @@ return [
         )),
         9 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_reschedule_rejects_stale_row_version',
+           'name' => 'test_reschedule_rejects_branch_local_window_outside_business_hours',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -146837,7 +147154,7 @@ return [
         )),
         10 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_reschedule_rejects_checked_in_reservation',
+           'name' => 'test_reschedule_rejects_stale_row_version',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -146854,6 +147171,24 @@ return [
           ),
         )),
         11 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_reschedule_rejects_checked_in_reservation',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        12 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
            'name' => 'test_reschedule_request_requires_at_least_one_mutable_field',
            'phpDoc' => NULL,
@@ -147433,7 +147768,7 @@ return [
   array (
     0 => 
     \PHPStan\Dependency\ExportedNode\ExportedClassNode::__set_state(array(
-       'name' => 'Tests\\Feature\\Staff\\ReservationVoucherWorkflowGuardTest',
+       'name' => 'Tests\\Feature\\Staff\\StaffReservationVoucherServiceGuardTest',
        'phpDoc' => NULL,
        'abstract' => false,
        'final' => false,
@@ -147503,6 +147838,14 @@ return [
           ),
            'attributes' => 
           array (
+            0 => 
+            \PHPStan\Dependency\ExportedNode\ExportedAttributeNode::__set_state(array(
+               'name' => 'PHPUnit\\Framework\\Attributes\\Group',
+               'args' => 
+              array (
+                0 => '\'booking-smoke\'',
+              ),
+            )),
           ),
         )),
       ),
@@ -148564,7 +148907,7 @@ return [
         )),
         4 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_create_on_spot_order_rejects_same_idempotency_key_with_different_payload',
+           'name' => 'test_create_on_spot_order_replay_does_not_bypass_current_staff_branch_scope',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -148581,6 +148924,24 @@ return [
           ),
         )),
         5 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_create_on_spot_order_rejects_same_idempotency_key_with_different_payload',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        6 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
            'name' => 'test_add_items_replays_without_creating_duplicate_line_items',
            'phpDoc' => NULL,
@@ -148606,9 +148967,45 @@ return [
             )),
           ),
         )),
-        6 => 
+        7 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_add_items_replay_does_not_bypass_current_staff_branch_scope',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        8 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
            'name' => 'test_add_items_rejects_same_idempotency_key_with_different_payload',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        9 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_add_items_rejects_menu_items_without_an_effective_price',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -154623,6 +155020,24 @@ return [
           array (
           ),
         )),
+        1 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_every_route_idempotency_scope_is_required_by_booking_config',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
       ),
        'attributes' => 
       array (
@@ -155708,6 +156123,104 @@ return [
       ),
     )),
   ),
+  'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\AuditTrailActorResolverTest.php' => 
+  array (
+    0 => 
+    \PHPStan\Dependency\ExportedNode\ExportedClassNode::__set_state(array(
+       'name' => 'Tests\\Unit\\Http\\Middleware\\AuditTrailActorResolverTest',
+       'phpDoc' => NULL,
+       'abstract' => false,
+       'final' => true,
+       'extends' => 'Tests\\TestCase',
+       'implements' => 
+      array (
+      ),
+       'usedTraits' => 
+      array (
+      ),
+       'traitUseAdaptations' => 
+      array (
+      ),
+       'statements' => 
+      array (
+        0 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'setUp',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => false,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        1 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_it_resolves_authenticated_staff_users_as_staff_audit_principals',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        2 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_it_resolves_customer_access_session_principals_from_normalized_request_actor_context',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        3 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_it_hashes_customer_session_actor_keys',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+      ),
+       'attributes' => 
+      array (
+      ),
+    )),
+  ),
   'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\CustomerOrStaffMiddlewareSessionFlowHotfixTest.php' => 
   array (
     0 => 
@@ -155998,7 +156511,7 @@ return [
         )),
         4 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_it_does_not_fallback_to_session_flow_when_staff_key_is_invalid',
+           'name' => 'test_it_keeps_an_authenticated_customer_owner_context_when_a_session_hint_is_also_present',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -156015,6 +156528,24 @@ return [
           ),
         )),
         5 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_it_does_not_fallback_to_session_flow_when_staff_key_is_invalid',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        6 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
            'name' => 'test_it_prefers_staff_actor_resolution_over_session_flow_when_staff_key_is_valid',
            'phpDoc' => NULL,
@@ -156126,6 +156657,104 @@ return [
                 0 => '\'booking-smoke\'',
               ),
             )),
+          ),
+        )),
+      ),
+       'attributes' => 
+      array (
+      ),
+    )),
+  ),
+  'C:\\Users\\Duong Vinh\\RestaurantPOS-Laravel\\tests\\Unit\\Http\\Middleware\\RequestActorContextTest.php' => 
+  array (
+    0 => 
+    \PHPStan\Dependency\ExportedNode\ExportedClassNode::__set_state(array(
+       'name' => 'Tests\\Unit\\Http\\Middleware\\RequestActorContextTest',
+       'phpDoc' => NULL,
+       'abstract' => false,
+       'final' => true,
+       'extends' => 'Tests\\TestCase',
+       'implements' => 
+      array (
+      ),
+       'usedTraits' => 
+      array (
+      ),
+       'traitUseAdaptations' => 
+      array (
+      ),
+       'statements' => 
+      array (
+        0 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'setUp',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => false,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        1 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_it_prefers_an_authenticated_customer_owner_over_session_fallback',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        2 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_it_resolves_an_authenticated_staff_user_without_bleeding_into_customer_session_flow',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        3 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_it_preserves_explicit_customer_owner_type_without_reusing_a_staff_user_as_customer_actor',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
           ),
         )),
       ),
@@ -159276,6 +159905,24 @@ return [
           array (
           ),
         )),
+        3 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_replay_safe_reference_cannot_cross_branch_scope',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
       ),
        'attributes' => 
       array (
@@ -160925,7 +161572,7 @@ return [
         )),
         6 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_snapshot_fails_when_generated_consumer_artifacts_are_stale_relative_to_openapi_or_manifest',
+           'name' => 'test_snapshot_fails_when_generated_consumer_artifact_contents_drift_from_expected_output',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -160943,7 +161590,7 @@ return [
         )),
         7 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_inspect_frozen_snapshot_ignores_self_referential_release_manifest_metadata',
+           'name' => 'test_snapshot_accepts_generated_consumer_artifacts_when_content_matches_expected_output_even_if_dependency_is_newer',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -160961,7 +161608,7 @@ return [
         )),
         8 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_write_snapshot_persists_the_explicit_snapshot_payload',
+           'name' => 'test_inspect_frozen_snapshot_ignores_self_referential_release_manifest_metadata',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -160978,6 +161625,24 @@ return [
           ),
         )),
         9 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_write_snapshot_persists_the_explicit_snapshot_payload',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        10 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
            'name' => 'test_write_snapshot_refreshes_snapshot_timestamp_even_when_contents_match',
            'phpDoc' => NULL,
@@ -162647,6 +163312,24 @@ return [
         )),
         3 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_execute_locked_rejects_refund_source_payments_from_another_reservation',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        4 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
            'name' => 'test_resolve_reservation_branch_id_rejects_payments_from_other_branch',
            'phpDoc' => NULL,
            'byRef' => false,
@@ -163199,7 +163882,7 @@ return [
         )),
         1 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_build_report_keeps_docs_only_changes_out_of_full_suite',
+           'name' => 'test_build_report_matches_current_priority_lane_module_roots',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -163217,7 +163900,7 @@ return [
         )),
         2 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_build_report_collects_git_paths_with_base_and_uncommitted_state',
+           'name' => 'test_build_report_keeps_docs_only_changes_out_of_full_suite',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -163235,7 +163918,7 @@ return [
         )),
         3 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
-           'name' => 'test_build_report_matches_web_harness_contract_domain_and_commands',
+           'name' => 'test_build_report_collects_git_paths_with_base_and_uncommitted_state',
            'phpDoc' => NULL,
            'byRef' => false,
            'public' => true,
@@ -163252,6 +163935,42 @@ return [
           ),
         )),
         4 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_build_report_matches_web_harness_contract_domain_and_commands',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        5 => 
+        \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
+           'name' => 'test_build_report_matches_release_control_plane_domain_and_commands',
+           'phpDoc' => NULL,
+           'byRef' => false,
+           'public' => true,
+           'private' => false,
+           'abstract' => false,
+           'final' => false,
+           'static' => false,
+           'returnType' => 'void',
+           'parameters' => 
+          array (
+          ),
+           'attributes' => 
+          array (
+          ),
+        )),
+        6 => 
         \PHPStan\Dependency\ExportedNode\ExportedMethodNode::__set_state(array(
            'name' => 'test_build_report_falls_back_to_static_analysis_when_no_domain_matches_cleanly',
            'phpDoc' => NULL,

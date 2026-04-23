@@ -201,6 +201,46 @@ class StaffCashierShiftHttpFlowTest extends TestCase
             ->assertStatus(404);
     }
 
+    public function test_cashier_shift_reads_and_close_fail_closed_outside_actor_branch_scope(): void
+    {
+        [$staffId] = $this->seedActiveOrderScenario();
+        $branchA = $this->createBranch(['branch_code' => 'SHIFTALLOW', 'branch_name' => 'Shift Allowed']);
+        $branchB = $this->createBranch(['branch_code' => 'SHIFTBLOCK', 'branch_name' => 'Shift Blocked']);
+        $this->allowStaffBranchScope($branchA);
+        $headers = $this->staffAuthHeaders($staffId, 'staff-cashier-shift-branch-deny');
+
+        $blockedShiftId = $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchB,
+            'status' => 'Open',
+            'shift_code' => 'CSH-BRANCH-BLOCKED',
+            'terminal_code' => 'BLOCKED-POS',
+            'row_version' => 1,
+        ]);
+
+        $this->getJson('/api/v1/staff/cashier/shifts/current', $headers)
+            ->assertStatus(404);
+
+        $this->getJson('/api/v1/staff/cashier/shifts/current?branch_id='.$branchB, $headers)
+            ->assertStatus(404);
+
+        $this->getJson('/api/v1/staff/cashier/shifts', $headers)
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0)
+            ->assertJsonCount(0, 'data');
+
+        $this->getJson('/api/v1/staff/cashier/shifts/'.$blockedShiftId, $headers)
+            ->assertStatus(404);
+
+        $this->postJson('/api/v1/staff/cashier/shifts/'.$blockedShiftId.'/close', [
+            'actual_cash_amount' => 0,
+            'row_version' => 1,
+        ], $this->withIdempotencyKey('idem-cashier-shift-branch-deny-close', $headers))
+            ->assertStatus(404);
+
+        self::assertSame('Open', (string) DB::table('cashier_shifts')->where('cashier_shift_id', $blockedShiftId)->value('status'));
+    }
+
     public function test_staff_cannot_show_or_close_another_cashiers_shift(): void
     {
         [$ownerStaffId] = $this->seedActiveOrderScenario();

@@ -118,6 +118,37 @@ class StaffBranchScopeSecurityHardeningTest extends TestCase
         self::assertNotNull($conversationId);
     }
 
+    public function test_custom_staff_roles_without_explicit_branch_scope_cannot_inherit_default_branch_access(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'ScopedOpsNoBranch']);
+
+        config()->set('staff_capabilities.role_capabilities.ScopedOpsNoBranch', [
+            'reservation.manage',
+            'cashier.shift.manage',
+        ]);
+
+        $headers = $this->staffAuthHeaders($staffId, 'staff-scope-no-default');
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/branches')
+            ->assertOk()
+            ->assertJsonPath('meta.count', 0)
+            ->assertJsonPath('meta.accessible_branch_ids', [])
+            ->assertJsonPath('meta.branch_access.default_branch_id', 1)
+            ->assertJsonPath('meta.branch_access.current_branch_id', null)
+            ->assertJsonPath('meta.branch_access.has_default_branch_access', false)
+            ->assertJsonPath('meta.branch_access.access_source', 'fallback_branch_scopes');
+
+        $this->postJson('/api/v1/staff/cashier/shifts/open', [
+            'branch_id' => 1,
+            'opening_float_amount' => 50000,
+            'currency' => 'VND',
+        ], $this->withIdempotencyKey('staff-shift-no-default-branch-open', $headers))
+            ->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonValidationErrors(['branch_id']);
+    }
+
     public function test_explicit_branch_scope_configuration_keeps_legitimate_branch_flow_working(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);

@@ -59,10 +59,9 @@ return [
         ],
     ],
 
-    // Compatibility-first branch entitlement until staff-to-branch assignments land.
-    // Branch authorization must remain explicit and must not expand from cashier shifts.
+    // Deny implicit branch access for roles without an explicit branch-scope mapping.
+    // Core roles stay reviewable via role_branch_scopes until staff-to-branch assignments land.
     'fallback_branch_scopes' => [
-        'default',
     ],
 
     'role_id_branch_scopes' => [

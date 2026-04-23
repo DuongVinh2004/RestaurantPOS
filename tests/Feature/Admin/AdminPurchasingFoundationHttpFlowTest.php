@@ -60,7 +60,7 @@ class AdminPurchasingFoundationHttpFlowTest extends TestCase
 
         $supplierId = (int) $createSupplier->json('data.supplier_id');
 
-        $updateSupplier = $this->withHeaders($headers)
+        $updateSupplier = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-supplier-update'))
             ->patchJson('/api/v1/admin/inventory/suppliers/'.$supplierId, [
                 'phone' => '0900000009',
                 'notes' => 'Primary purchasing contact for dry goods',
@@ -456,7 +456,7 @@ class AdminPurchasingFoundationHttpFlowTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('meta.purchase_order.purchase_order_status', 'PartiallyReceived');
 
-        $this->withHeaders($headers)
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-po-status-update-after-receipt'))
             ->patchJson('/api/v1/admin/inventory/purchase-orders/'.$orderedPurchaseOrderId, [
                 'purchase_order_status' => 'Draft',
             ])

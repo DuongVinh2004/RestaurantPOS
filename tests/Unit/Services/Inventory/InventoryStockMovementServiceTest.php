@@ -128,4 +128,65 @@ class InventoryStockMovementServiceTest extends TestCase
                 ->count()
         );
     }
+
+    public function test_replay_safe_reference_cannot_cross_branch_scope(): void
+    {
+        $firstBranchId = $this->createBranch([
+            'branch_code' => 'INV-SVC-BR-A',
+            'branch_name' => 'Inventory Replay Branch A',
+        ]);
+        $secondBranchId = $this->createBranch([
+            'branch_code' => 'INV-SVC-BR-B',
+            'branch_name' => 'Inventory Replay Branch B',
+        ]);
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-SVC-BRANCH-REPLAY',
+            'name' => 'Replay Branch Rice',
+            'unit_code' => 'kg',
+        ]);
+
+        $this->makeService()->recordMovement($ingredientId, [
+            'branch_id' => $firstBranchId,
+            'movement_type' => 'StockIn',
+            'quantity' => '4.000',
+            'unit_code' => 'kg',
+            'reference_type' => 'PurchaseReceipt',
+            'reference_id' => 'GRN-SVC-BRANCH-0001:10',
+        ], 505);
+
+        try {
+            $this->makeService()->recordMovement($ingredientId, [
+                'branch_id' => $secondBranchId,
+                'movement_type' => 'StockIn',
+                'quantity' => '4.000',
+                'unit_code' => 'kg',
+                'reference_type' => 'PurchaseReceipt',
+                'reference_id' => 'GRN-SVC-BRANCH-0001:10',
+            ], 606);
+
+            self::fail('Expected replay across branches to be rejected.');
+        } catch (ValidationException $exception) {
+            self::assertSame(
+                'System stock movement reference [PurchaseReceipt:GRN-SVC-BRANCH-0001:10] is already recorded with different movement details.',
+                $exception->errors()['reference_id'][0] ?? null
+            );
+        }
+
+        self::assertSame(
+            1,
+            (int) DB::table('ingredient_stock_movements')
+                ->where('ingredient_id', $ingredientId)
+                ->where('reference_type', 'PurchaseReceipt')
+                ->where('reference_id', 'GRN-SVC-BRANCH-0001:10')
+                ->count()
+        );
+        self::assertSame(
+            '4.000',
+            number_format((float) $this->makeService()->currentStockOnHand($ingredientId, $firstBranchId), 3, '.', '')
+        );
+        self::assertSame(
+            '0.000',
+            number_format((float) $this->makeService()->currentStockOnHand($ingredientId, $secondBranchId), 3, '.', '')
+        );
+    }
 }

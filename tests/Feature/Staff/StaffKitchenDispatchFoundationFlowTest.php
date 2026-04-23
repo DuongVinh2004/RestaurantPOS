@@ -6,6 +6,7 @@ namespace Tests\Feature\Staff;
 
 use App\Modules\KitchenDispatch\Application\Workflows\KitchenRoutingService;
 use App\Modules\KitchenDispatch\Application\Workflows\KitchenTicketReconciliationService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -663,6 +664,75 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             ->assertJsonPath('message', 'Kitchen station not found.');
 
         self::assertSame($ticketId, (int) $this->table('kitchen_order_item_tickets')->where('ticket_id', $ticketId)->value('ticket_id'));
+    }
+
+    public function test_order_item_sync_fails_closed_when_actor_cannot_access_ticket_branch(): void
+    {
+        $branchA = $this->createBranch([
+            'branch_code' => 'KDS-SYNC-A',
+            'branch_name' => 'KDS Sync Branch A',
+        ]);
+        $branchB = $this->createBranch([
+            'branch_code' => 'KDS-SYNC-B',
+            'branch_name' => 'KDS Sync Branch B',
+        ]);
+
+        config()->set('staff_capabilities.role_branch_scopes.Staff', [(string) $branchA]);
+
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $categoryId = $this->ensureMenuCategory('Kitchen Sync Branch Guard');
+        $itemId = $this->createMenuItem([
+            'category_id' => $categoryId,
+            'code' => 'KDS-SYNC-BRANCH-01',
+            'name' => 'Sync Branch Guard Bowl',
+        ]);
+        $stationId = $this->createKitchenStation([
+            'code' => 'SYNC-BRANCH',
+            'name' => 'Sync Branch Guard',
+            'output_mode' => 'KDS',
+        ]);
+        $routeId = $this->createKitchenStationRoute([
+            'station_id' => $stationId,
+            'category_id' => $categoryId,
+            'sort_order' => 10,
+        ]);
+
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $reservationId = $this->createReservation([
+            'branch_id' => $branchB,
+            'user_id' => $customerId,
+            'status' => 'Reserved',
+        ]);
+        $orderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'status' => 'Active',
+        ]);
+        $orderItemId = $this->createOrderItem([
+            'order_id' => $orderId,
+            'item_id' => $itemId,
+            'status' => 'Served',
+            'row_version' => 1,
+        ]);
+        $ticketId = $this->createKitchenOrderTicket([
+            'station_id' => $stationId,
+            'route_id' => $routeId,
+            'order_id' => $orderId,
+            'reservation_id' => $reservationId,
+            'order_item_id' => $orderItemId,
+            'item_id' => $itemId,
+            'category_id' => $categoryId,
+            'ticket_status' => 'Fired',
+            'fired_at' => $this->nowUtc(),
+        ]);
+
+        try {
+            app(KitchenRoutingService::class)->syncTicketForOrderItem($orderItemId, $staffId);
+            $this->fail('Expected kitchen ticket sync to fail closed outside the staff branch scope.');
+        } catch (ModelNotFoundException) {
+            self::assertSame('Fired', (string) $this->table('kitchen_order_item_tickets')->where('ticket_id', $ticketId)->value('ticket_status'));
+            self::assertNull($this->table('kitchen_order_item_tickets')->where('ticket_id', $ticketId)->value('completed_at'));
+            self::assertSame('Served', (string) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('status'));
+        }
     }
 
     public function test_branch_flag_can_disable_kitchen_dispatch_mutations(): void

@@ -6,6 +6,7 @@ namespace Tests\Feature\Reservation;
 
 use App\Modules\IdentityAccess\Domain\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
@@ -246,6 +247,42 @@ class CustomerReservationSelfServiceVisibilityAndGuardTest extends TestCase
         $response->assertStatus(409)
             ->assertJsonPath('error_code', 'stale_row_version')
             ->assertJsonPath('details.errors.row_version.0', 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.');
+    }
+
+    public function test_owner_reschedule_rejects_non_available_target_table_from_self_service(): void
+    {
+        $userId = $this->createUser(['role_name' => 'Customer']);
+        $user = User::query()->findOrFail($userId);
+        $oldTableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available']);
+        $occupiedTableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Occupied']);
+        $reservationId = $this->createReservation([
+            'user_id' => $userId,
+            'start_time' => $this->nowUtc()->copy()->addHours(6),
+            'end_time' => $this->nowUtc()->copy()->addHours(8),
+            'guest_count' => 2,
+            'status' => 'Confirmed',
+            'row_version' => 1,
+        ]);
+        $this->attachReservationTable($reservationId, $oldTableId);
+
+        $response = $this->actingAs($user)->postJson(
+            '/api/v1/reservations/'.$reservationId.'/reschedule',
+            [
+                'row_version' => 1,
+                'table_ids' => [$occupiedTableId],
+            ],
+            $this->withIdempotencyKey('customer-self-service-reschedule-non-available-table')
+        );
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonValidationErrors(['table_ids']);
+
+        self::assertSame([$oldTableId], DB::table('reservation_tables')
+            ->where('reservation_id', $reservationId)
+            ->pluck('table_id')
+            ->map(fn ($id) => (int) $id)
+            ->all());
     }
 
     public function test_owner_cannot_cancel_checked_in_reservation_from_self_service(): void

@@ -96,7 +96,7 @@ class NotificationOpsCommandsTest extends TestCase
                         'recent_failure_attempt_count' => 4,
                     ],
                 ],
-                'error' => null,
+                'error' => 'notification outbox health inspection failed: SQLSTATE[HY000] [2002] Connection refused',
             ]);
         $this->app->instance(NotificationOutboxHealthService::class, $mock);
 
@@ -107,6 +107,7 @@ class NotificationOpsCommandsTest extends TestCase
         $this->assertStringContainsString('"failed_count": 2', $output);
         $this->assertStringContainsString('"stale_processing_count": 1', $output);
         $this->assertStringContainsString('"readiness": "production_lean"', $output);
+        $this->assertStringContainsString('notification outbox health inspection failed', $output);
     }
 
     #[Group('booking-ops')]

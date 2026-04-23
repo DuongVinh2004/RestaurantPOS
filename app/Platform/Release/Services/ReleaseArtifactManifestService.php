@@ -419,9 +419,25 @@ class ReleaseArtifactManifestService
 
         $absolutePath = base_path($relativePath);
         File::ensureDirectoryExists(dirname($absolutePath));
-        // Keep the frozen snapshot file timestamp aligned with the last explicit refresh.
-        // Package integrity and packaging flows treat that timestamp as release truth.
-        File::put($absolutePath, json_encode($snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
+        $contents = json_encode($snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL;
+
+        if (File::exists($absolutePath)) {
+            $existing = (string) File::get($absolutePath);
+            if ($existing === $contents) {
+                return $snapshot;
+            }
+
+            $decoded = json_decode($existing, true);
+            if (
+                is_array($decoded)
+                && $this->normalizeSnapshotForComparison($decoded) === $this->normalizeSnapshotForComparison($snapshot)
+            ) {
+                return $decoded;
+            }
+        }
+
+        // Keep the frozen snapshot file timestamp aligned with meaningful refreshes, not cosmetic metadata churn.
+        File::put($absolutePath, $contents);
 
         return $snapshot;
     }

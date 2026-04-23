@@ -58,8 +58,9 @@ class StaffTableOrderService
         $idempotencyKey = trim($idempotencyKey);
         $createReplayPayload = $this->buildCreateOnSpotReplayPayload($items, $notes);
 
-        // Idempotency (optional)
         if ($idempotencyKey !== '' && $reservationId > 0) {
+            $this->assertCreateReplayScopeAccessible($tableId, $reservationId, $staffUserId);
+
             $existing = $this->loadReplayedOrder(
                 cachePrefix: 'booking:idem:staff_order',
                 idempotencyKey: $idempotencyKey,
@@ -226,6 +227,8 @@ class StaffTableOrderService
         $idempotencyKey = trim($idempotencyKey);
         $addItemsReplayPayload = $this->buildAddItemsReplayPayload($items);
         if ($idempotencyKey !== '') {
+            $this->assertOrderReplayScopeAccessible($orderId, $staffUserId);
+
             $existing = $this->loadReplayedOrder(
                 cachePrefix: 'booking:idem:staff_order_items',
                 idempotencyKey: $idempotencyKey,
@@ -361,6 +364,90 @@ class StaffTableOrderService
     private function staffBranchContextService(): StaffBranchContextService
     {
         return $this->staffBranchContextService ?? app(StaffBranchContextService::class);
+    }
+
+    private function assertCreateReplayScopeAccessible(int $tableId, int $reservationId, ?int $staffUserId): void
+    {
+        /** @var RestaurantTable $table */
+        $table = RestaurantTable::query()->where('table_id', $tableId)->firstOrFail();
+
+        /** @var Reservation $reservation */
+        $reservation = Reservation::query()->where('reservation_id', $reservationId)->firstOrFail();
+
+        $hasTable = DB::table('reservation_tables')
+            ->where('reservation_id', $reservationId)
+            ->where('table_id', $tableId)
+            ->exists();
+        if (! $hasTable) {
+            throw ValidationException::withMessages([
+                'reservation_id' => 'Reservation is not assigned to this table.',
+            ]);
+        }
+
+        $tableBranchId = $this->branchContextService->resolveBranchId($table->branch_id ?? null, false);
+        $this->assertReplayReservationBranchAligned($reservation, $tableBranchId);
+        $this->assertOperationalBranchAccessible($tableBranchId, $staffUserId);
+    }
+
+    private function assertOrderReplayScopeAccessible(int $orderId, ?int $staffUserId): void
+    {
+        /** @var ReservationOrder|null $order */
+        $order = ReservationOrder::query()->where('order_id', $orderId)->first();
+        if (! $order instanceof ReservationOrder) {
+            return;
+        }
+
+        /** @var Reservation $reservation */
+        $reservation = Reservation::query()->where('reservation_id', $order->reservation_id)->firstOrFail();
+        $tableIds = DB::table('reservation_tables')
+            ->where('reservation_id', (int) $order->reservation_id)
+            ->orderBy('table_id')
+            ->pluck('table_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($tableIds === []) {
+            $this->assertOperationalBranchAccessible(
+                $this->branchContextService->resolveBranchId($reservation->branch_id ?? null, false),
+                $staffUserId,
+            );
+
+            return;
+        }
+
+        $tables = RestaurantTable::query()
+            ->whereIn('table_id', $tableIds)
+            ->get(['table_id', 'branch_id']);
+
+        if ($tables->count() !== count($tableIds)) {
+            throw ValidationException::withMessages([
+                'reservation_id' => 'Reservation is assigned to unknown tables.',
+            ]);
+        }
+
+        $tableBranchId = $this->branchContextService->assertSingleBranch(
+            $tables->pluck('branch_id')->all(),
+            'Assigned tables must belong to a single branch.',
+            'reservation_id',
+            false
+        );
+        $branchId = $this->assertReplayReservationBranchAligned($reservation, $tableBranchId);
+        $this->assertOperationalBranchAccessible($branchId, $staffUserId);
+    }
+
+    private function assertReplayReservationBranchAligned(Reservation $reservation, int $tableBranchId): int
+    {
+        if ($reservation->branch_id === null || $reservation->branch_id === '') {
+            return $tableBranchId;
+        }
+
+        return $this->branchContextService->assertSameBranch(
+            $reservation->branch_id,
+            $tableBranchId,
+            'Reservation branch does not match the assigned table branch.',
+            'reservation_id',
+            false
+        );
     }
 
     private function ensureReservationBranchAligned(Reservation $reservation, int $tableBranchId, ?int $staffUserId = null): int
@@ -573,6 +660,12 @@ class StaffTableOrderService
             ->get()
             ->groupBy('item_id')
             ->map(fn ($rows) => $rows->first());
+
+        if ($priceRows->count() !== count($itemIds)) {
+            throw ValidationException::withMessages([
+                'items' => 'Some menu items do not have an effective price.',
+            ]);
+        }
 
         $incomingCurrencies = [];
         foreach ($normalized as $row) {

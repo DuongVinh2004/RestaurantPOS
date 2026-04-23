@@ -593,8 +593,17 @@ class KitchenRoutingService
     public function syncTicketForOrderItem(int $orderItemId, ?int $actorUserId = null): ?KitchenOrderItemTicket
     {
         return DB::transaction(function () use ($orderItemId, $actorUserId): ?KitchenOrderItemTicket {
+            $accessibleBranchIds = $actorUserId !== null && $actorUserId > 0
+                ? $this->branchContextService->accessibleBranchIds($actorUserId)
+                : [];
+
             /** @var ReservationOrderItem $orderItem */
-            $orderItem = ReservationOrderItem::query()->lockForUpdate()->findOrFail($orderItemId);
+            $orderItemQuery = ReservationOrderItem::query()->lockForUpdate();
+            if ($actorUserId !== null && $actorUserId > 0) {
+                $this->constrainOrderItemLookupToAccessibleBranches($orderItemQuery, $accessibleBranchIds);
+            }
+            $orderItem = $orderItemQuery->findOrFail($orderItemId);
+
             /** @var KitchenOrderItemTicket|null $ticket */
             $ticket = KitchenOrderItemTicket::query()->lockForUpdate()->where('order_item_id', $orderItemId)->first();
             if (! $ticket instanceof KitchenOrderItemTicket) {
@@ -740,6 +749,23 @@ class KitchenRoutingService
         }
 
         $query->whereHas('reservation', function (Builder $reservationQuery) use ($accessibleBranchIds): void {
+            $reservationQuery->whereIn('branch_id', $accessibleBranchIds);
+        });
+    }
+
+    /**
+     * @param  Builder<ReservationOrderItem>  $query
+     * @param  list<int>  $accessibleBranchIds
+     */
+    private function constrainOrderItemLookupToAccessibleBranches(Builder $query, array $accessibleBranchIds): void
+    {
+        if ($accessibleBranchIds === []) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->whereHas('order.reservation', function (Builder $reservationQuery) use ($accessibleBranchIds): void {
             $reservationQuery->whereIn('branch_id', $accessibleBranchIds);
         });
     }

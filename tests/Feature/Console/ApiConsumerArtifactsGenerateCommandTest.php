@@ -96,6 +96,8 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertSame('spk_staff_uat', $this->environmentValue($uatEnv, 'staffApiKey'));
         self::assertSame('101', $this->environmentValue($uatEnv, 'reservationIdDeposit'));
         self::assertSame('401', $this->environmentValue($uatEnv, 'tableTemplateId'));
+        self::assertSame('{{$isoTimestamp}}', $this->environmentValue($uatEnv, 'checkedInAt'));
+        self::assertSame('{{$isoTimestamp}}', $this->environmentValue($uatEnv, 'paymentWebhookOccurredAt'));
 
         $sdk = (string) File::get($sdkPath);
         self::assertStringContainsString('export class RestaurantPosClient', $sdk);
@@ -331,7 +333,7 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertContains('Success', (array) data_get($enumState, 'enums.PaymentStatus.values', []));
     }
 
-    public function test_api_consumer_artifact_command_keeps_postman_artifacts_deterministic_for_same_inputs(): void
+    public function test_api_consumer_artifact_command_preserves_existing_artifact_timestamps_for_same_inputs(): void
     {
         File::ensureDirectoryExists(dirname(base_path($this->manifestPath)));
         File::put(
@@ -350,14 +352,24 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         $firstPayload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
 
         $collectionPath = base_path((string) ($firstPayload['artifacts']['collection'] ?? ''));
+        $uatEnvironmentPath = base_path((string) ($firstPayload['artifacts']['uat_environment'] ?? ''));
+        $enumStateJsonPath = base_path((string) ($firstPayload['artifacts']['enum_state_json'] ?? ''));
         $firstCollectionHash = hash_file('sha256', $collectionPath);
         $firstLocalEnvironmentHash = hash_file('sha256', base_path((string) ($firstPayload['artifacts']['local_environment'] ?? '')));
         $firstStagingEnvironmentHash = hash_file('sha256', base_path((string) ($firstPayload['artifacts']['staging_environment'] ?? '')));
+        $firstUatEnvironmentHash = hash_file('sha256', $uatEnvironmentPath);
+        $firstEnumStateJsonHash = hash_file('sha256', $enumStateJsonPath);
 
         $staleTimestamp = time() - 3600;
         touch($collectionPath, $staleTimestamp);
+        touch($uatEnvironmentPath, $staleTimestamp);
+        touch($enumStateJsonPath, $staleTimestamp);
         clearstatcache(true, $collectionPath);
+        clearstatcache(true, $uatEnvironmentPath);
+        clearstatcache(true, $enumStateJsonPath);
         self::assertSame($staleTimestamp, File::lastModified($collectionPath));
+        self::assertSame($staleTimestamp, File::lastModified($uatEnvironmentPath));
+        self::assertSame($staleTimestamp, File::lastModified($enumStateJsonPath));
 
         $secondExitCode = Artisan::call('booking:api-artifacts:generate', [
             '--json' => true,
@@ -372,9 +384,15 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertSame($firstCollectionHash, hash_file('sha256', base_path((string) ($secondPayload['artifacts']['collection'] ?? ''))));
         self::assertSame($firstLocalEnvironmentHash, hash_file('sha256', base_path((string) ($secondPayload['artifacts']['local_environment'] ?? ''))));
         self::assertSame($firstStagingEnvironmentHash, hash_file('sha256', base_path((string) ($secondPayload['artifacts']['staging_environment'] ?? ''))));
+        self::assertSame($firstUatEnvironmentHash, hash_file('sha256', base_path((string) ($secondPayload['artifacts']['uat_environment'] ?? ''))));
+        self::assertSame($firstEnumStateJsonHash, hash_file('sha256', base_path((string) ($secondPayload['artifacts']['enum_state_json'] ?? ''))));
 
         clearstatcache(true, $collectionPath);
-        self::assertGreaterThan($staleTimestamp, File::lastModified($collectionPath));
+        clearstatcache(true, $uatEnvironmentPath);
+        clearstatcache(true, $enumStateJsonPath);
+        self::assertSame($staleTimestamp, File::lastModified($collectionPath));
+        self::assertSame($staleTimestamp, File::lastModified($uatEnvironmentPath));
+        self::assertSame($staleTimestamp, File::lastModified($enumStateJsonPath));
     }
 
     /**

@@ -41,10 +41,10 @@ Snapshot nay duoc xac nhan trong workspace ngay `2026-04-20`:
 Hotspot can tranh broad refactor trong launch lane:
 
 - `app/Platform/Uat/UatScenarioPackService.php`
-- `app/Modules/CheckoutPayments/Application/Services/StaffCheckoutService.php`
+- `app/Modules/Cashiering/Application/Workflows/OrderSettlementWorkflow.php`
 - `app/Platform/Release/Services/LaunchReadinessService.php`
 - `app/Modules/Conversations/Application/Services/StaffConversationWorkflowService.php`
-- `app/Modules/FloorOps/Application/Services/StaffTableBoardService.php`
+- `app/Modules/FloorOperations/Application/Queries/StaffTableBoardService.php`
 - `app/Modules/Notifications/Application/Services/NotificationOutboxService.php`
 
 ## Non-Negotiable Rules
@@ -641,12 +641,14 @@ Dung bang nay de giam merge collision:
 - foh-reservations lane:
   - `app/Modules/BranchScheduling/**`
   - `app/Modules/Reservations/**`
-  - `app/Modules/FloorOps/**`
+  - `app/Modules/FloorOperations/**`
 - ordering-kitchen lane:
   - `app/Modules/Ordering/**`
   - `app/Modules/KitchenDispatch/**`
 - checkout-finance lane:
-  - `app/Modules/CheckoutPayments/**`
+  - `app/Modules/Billing/**`
+  - `app/Modules/Payments/**`
+  - `app/Modules/Cashiering/**`
 - evidence/release lane:
   - `app/Platform/Release/**`
   - `app/Platform/Uat/**`

@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,9 +14,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { queryKeys } from "@/lib/api/query-keys";
-import { createRoundedFutureLocalDateTimeInput, parseLocalDateTimeInput } from "@/lib/contracts/datetime";
+import { createRoundedFutureLocalDateTimeInput, formatLocalDateTimeInput, parseLocalDateTimeInput } from "@/lib/contracts/datetime";
 import { userFacingApiMessage } from "@/lib/api/errors";
 import { formatDateTime } from "@/lib/contracts/format";
+import { cancelTableHold, getTableHold, refreshTableHold } from "@/features/table-booking/api";
+import { parseTableHoldState } from "@/features/table-booking/state";
 import { createReservation } from "./api";
 import { reservationFormSchema, type ReservationFormValues } from "./schemas";
 
@@ -49,6 +51,21 @@ function parseHoldExpiresAt(value: string | null): string | null {
   return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
 }
 
+function getTableIdsFromLiveHold(
+  hold: { tables?: Array<{ table_id: number }> | null } | null,
+  fallback: number[] | undefined,
+): number[] | undefined {
+  if (!hold || !Array.isArray(hold.tables)) {
+    return fallback;
+  }
+
+  const tableIds = hold.tables
+    .map((table) => table.table_id)
+    .filter((tableId): tableId is number => Number.isInteger(tableId) && tableId > 0);
+
+  return tableIds.length > 0 ? tableIds : fallback;
+}
+
 export function ReservationCreatePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -60,13 +77,7 @@ export function ReservationCreatePage() {
   const holdStartTime = parseHoldStartTime(searchParams.get("start_time"));
   const holdDurationMinutes = parsePositiveInteger(searchParams.get("duration_minutes"));
   const holdGuestCount = parsePositiveInteger(searchParams.get("guest_count"));
-  const hasLockedHoldDetails = Boolean(holdId && holdStartTime && holdDurationMinutes && holdGuestCount);
   const [openedAtMs] = useState(() => Date.now());
-  const expiredHold = Boolean(
-    holdId &&
-      ((holdStatus && holdStatus !== "Holding") ||
-        (holdExpiresAt && Date.parse(holdExpiresAt) <= openedAtMs)),
-  );
   const form = useForm<ReservationFormValues>({
     resolver: zodResolver(reservationFormSchema),
     defaultValues: {
@@ -79,9 +90,58 @@ export function ReservationCreatePage() {
       notes: "",
     },
   });
+  const holdQuery = useQuery({
+    queryKey: holdId ? queryKeys.tableBooking.hold(holdId) : ["tables", "hold", "none"],
+    queryFn: () => getTableHold(holdId as string),
+    enabled: Boolean(holdId),
+    retry: false,
+  });
+  const liveHold = holdQuery.data ?? null;
+  const liveHoldState = liveHold ? parseTableHoldState(liveHold) : null;
+  const liveHoldStartTime = liveHold?.start_time ? formatLocalDateTimeInput(new Date(liveHold.start_time)) : holdStartTime;
+  const liveHoldDurationMinutes =
+    typeof liveHold?.duration_minutes === "number" && liveHold.duration_minutes > 0 ? liveHold.duration_minutes : holdDurationMinutes;
+  const liveHoldTableIds = getTableIdsFromLiveHold(liveHold, tableIds);
+  const hasLockedHoldDetails = Boolean(holdId && liveHoldStartTime && liveHoldDurationMinutes && holdGuestCount);
+  const expiredHold = Boolean(
+    holdId &&
+      (holdQuery.isSuccess
+        ? !liveHoldState?.isActive
+        : (holdStatus && holdStatus !== "Holding") ||
+          (holdExpiresAt && Date.parse(holdExpiresAt) <= openedAtMs)),
+  );
+
+  useEffect(() => {
+    if (!holdId || !liveHold) {
+      return;
+    }
+
+    const currentValues = form.getValues();
+
+    form.reset({
+      ...currentValues,
+      start_time: liveHoldStartTime ?? currentValues.start_time,
+      duration_minutes: liveHoldDurationMinutes ?? currentValues.duration_minutes,
+      guest_count: holdGuestCount ?? currentValues.guest_count,
+    });
+  }, [form, holdGuestCount, holdId, liveHold, liveHoldDurationMinutes, liveHoldStartTime]);
+  const refreshHoldMutation = useMutation({
+    mutationFn: ({ holdId: liveHoldId, rowVersion }: { holdId: string; rowVersion: number }) => refreshTableHold(liveHoldId, rowVersion),
+    onSuccess(result) {
+      queryClient.setQueryData(queryKeys.tableBooking.hold(result.hold_id), result);
+      toast.success("Table hold refreshed.");
+    },
+  });
+  const cancelHoldMutation = useMutation({
+    mutationFn: ({ holdId: liveHoldId, rowVersion }: { holdId: string; rowVersion: number }) => cancelTableHold(liveHoldId, rowVersion),
+    onSuccess(result) {
+      queryClient.setQueryData(queryKeys.tableBooking.hold(result.hold_id), result);
+      toast.success("Table hold cancelled.");
+    },
+  });
 
   const createMutation = useMutation({
-    mutationFn: (values: ReservationFormValues) => createReservation({ ...values, hold_id: holdId, table_ids: tableIds }),
+    mutationFn: (values: ReservationFormValues) => createReservation({ ...values, hold_id: holdId, table_ids: liveHoldTableIds }),
     onSuccess(result) {
       queryClient.setQueryData(queryKeys.reservations.detail(result.reservation_id), result);
       void queryClient.invalidateQueries({ queryKey: queryKeys.reservations.lists, refetchType: "inactive" });
@@ -89,6 +149,8 @@ export function ReservationCreatePage() {
       router.push(`/reservations/${result.reservation_id}`);
     },
   });
+  const holdActionError = refreshHoldMutation.error ?? cancelHoldMutation.error;
+  const holdActionPending = refreshHoldMutation.isPending || cancelHoldMutation.isPending;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6">
@@ -166,25 +228,59 @@ export function ReservationCreatePage() {
             {holdId ? (
               <Alert variant={expiredHold ? "destructive" : "default"} className="rounded-lg">
                 <AlertDescription>
-                  {expiredHold ? (
+                  {holdQuery.isLoading ? (
+                    <>Checking table hold {holdId} before reservation create.</>
+                  ) : holdQuery.error ? (
                     <>
-                      Table hold {holdId} is no longer active{holdExpiresAt ? ` as of ${formatDateTime(holdExpiresAt)}` : ""}. Search
+                      Table hold {holdId} could not be verified. {userFacingApiMessage(holdQuery.error)}
+                    </>
+                  ) : expiredHold ? (
+                    <>
+                      Table hold {liveHoldState?.holdId ?? holdId} is no longer active
+                      {liveHoldState?.expiresAt ? ` as of ${formatDateTime(liveHoldState.expiresAt)}` : holdExpiresAt ? ` as of ${formatDateTime(holdExpiresAt)}` : ""}. Search
                       availability again before creating a reservation.
                     </>
                   ) : hasLockedHoldDetails ? (
                     <>
-                      Using table hold {holdId} for {holdGuestCount} guests starting{" "}
-                      {formatDateTime(parseLocalDateTimeInput(holdStartTime as string)?.toISOString() ?? null)} for{" "}
-                      {holdDurationMinutes} minutes. Search again if you need to change visit details. Tables:{" "}
-                      {tableIds?.join(", ") || "from hold"}.
+                      Using table hold {liveHoldState?.holdId ?? holdId} for {holdGuestCount} guests starting{" "}
+                      {formatDateTime(parseLocalDateTimeInput(liveHoldStartTime as string)?.toISOString() ?? null)} for{" "}
+                      {liveHoldDurationMinutes} minutes. Search again if you need to change visit details. Tables:{" "}
+                      {liveHoldTableIds?.join(", ") || "from hold"}.
                     </>
                   ) : (
-                    <>Using table hold {holdId}. Review visit details carefully before submitting. Tables: {tableIds?.join(", ") || "from hold"}.</>
+                    <>Using table hold {liveHoldState?.holdId ?? holdId}. Review visit details carefully before submitting. Tables: {liveHoldTableIds?.join(", ") || "from hold"}.</>
                   )}
                 </AlertDescription>
               </Alert>
             ) : null}
-            {expiredHold ? (
+            {holdId && liveHoldState?.isActive ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-lg"
+                  disabled={holdActionPending}
+                  onClick={() => refreshHoldMutation.mutate({ holdId: liveHoldState.holdId, rowVersion: liveHoldState.rowVersion })}
+                >
+                  {refreshHoldMutation.isPending ? "Refreshing hold" : "Refresh hold"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-lg"
+                  disabled={holdActionPending}
+                  onClick={() => cancelHoldMutation.mutate({ holdId: liveHoldState.holdId, rowVersion: liveHoldState.rowVersion })}
+                >
+                  {cancelHoldMutation.isPending ? "Releasing hold" : "Release hold"}
+                </Button>
+              </div>
+            ) : null}
+            {holdActionError ? (
+              <Alert variant="destructive" className="rounded-lg">
+                <AlertDescription>{userFacingApiMessage(holdActionError)}</AlertDescription>
+              </Alert>
+            ) : null}
+            {expiredHold || Boolean(holdQuery.error) ? (
               <Button asChild variant="outline" className="w-full rounded-lg">
                 <Link href="/booking">Search availability again</Link>
               </Button>
@@ -194,7 +290,11 @@ export function ReservationCreatePage() {
                 <AlertDescription>{userFacingApiMessage(createMutation.error)}</AlertDescription>
               </Alert>
             ) : null}
-            <Button type="submit" className="min-h-11 w-full rounded-lg" disabled={createMutation.isPending || expiredHold}>
+            <Button
+              type="submit"
+              className="min-h-11 w-full rounded-lg"
+              disabled={createMutation.isPending || holdActionPending || expiredHold || holdQuery.isLoading || Boolean(holdQuery.error)}
+            >
               {createMutation.isPending ? "Creating reservation" : "Create reservation"}
             </Button>
           </form>

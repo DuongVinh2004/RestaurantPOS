@@ -118,6 +118,41 @@ class BookingLaunchReadinessCommandTest extends TestCase
     }
 
     #[Group('booking-smoke')]
+    public function test_booking_launch_readiness_blocks_when_day_one_feature_flag_posture_drifts(): void
+    {
+        $this->bindHealthyDependencies();
+
+        $features = (array) config('feature_flags.features', []);
+        $features['inventory.uplift']['defaults']['*'] = true;
+        config()->set('feature_flags.features', $features);
+
+        $exitCode = Artisan::call('booking:launch-readiness', [
+            '--target' => 'limited-production',
+            '--manual-evidence' => 'tests/fixtures/launch_readiness_manual_evidence.json',
+            '--json' => true,
+        ]);
+
+        $payload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+        $blockingMessages = array_map(
+            static fn (array $finding): string => (string) ($finding['message'] ?? ''),
+            (array) ($payload['blocking_failures'] ?? []),
+        );
+        $checkStatuses = collect((array) ($payload['checks'] ?? []))
+            ->mapWithKeys(static fn (array $check): array => [(string) ($check['key'] ?? '') => (string) ($check['status'] ?? '')])
+            ->all();
+
+        $this->assertSame(1, $exitCode);
+        $this->assertSame('not_ready', $payload['decision'] ?? null);
+        $this->assertSame('fail', $checkStatuses['day1_feature_flag_posture'] ?? null);
+        $this->assertTrue(
+            collect($blockingMessages)->contains(
+                static fn (string $message): bool => str_contains($message, 'inventory.uplift')
+                    && str_contains($message, 'expected [disabled]')
+            )
+        );
+    }
+
+    #[Group('booking-smoke')]
     public function test_booking_launch_readiness_returns_warning_exit_code_when_staging_manual_evidence_is_missing(): void
     {
         $this->bindHealthyDependencies();
@@ -406,8 +441,20 @@ class BookingLaunchReadinessCommandTest extends TestCase
                         'checks' => [],
                     ],
                     'runtime' => [
-                        'db' => ['ok' => false, 'message' => 'mysql unavailable'],
-                        'redis' => ['ok' => false, 'message' => 'redis unavailable'],
+                        'db' => ['ok' => false, 'message' => 'mysql unavailable', 'status' => 'fail', 'dependency' => null],
+                        'redis' => ['ok' => false, 'message' => 'redis unavailable', 'status' => 'fail', 'dependency' => null],
+                        'scheduler' => [
+                            'ok' => false,
+                            'message' => 'Blocked by runtime.redis failure; scheduler heartbeat is stored in Redis and could not be read.',
+                            'status' => 'blocked_dependency',
+                            'dependency' => 'redis',
+                        ],
+                        'outbox' => [
+                            'ok' => false,
+                            'message' => 'Blocked by runtime.db failure; notification outbox health is database-backed and could not be inspected.',
+                            'status' => 'blocked_dependency',
+                            'dependency' => 'db',
+                        ],
                     ],
                     'meta' => [
                         'strict' => $strict,
@@ -476,6 +523,12 @@ class BookingLaunchReadinessCommandTest extends TestCase
         $this->assertFalse((bool) data_get($payload, 'baseline.artifact_drift.touch_required'));
         $this->assertSame(['release_package_integrity'], data_get($payload, 'baseline.artifact_drift.pending_external_check_keys'));
         $this->assertSame('blocking', data_get($payload, 'baseline.external_blockers.status'));
+        $this->assertSame(['db', 'redis'], data_get($payload, 'baseline.external_blockers.root_runtime_check_keys'));
+        $this->assertSame(['scheduler', 'outbox'], data_get($payload, 'baseline.external_blockers.dependency_blocked_runtime_check_keys'));
+        $this->assertSame('redis', data_get($payload, 'baseline.external_blockers.dependency_blocked_runtime_checks.0.dependency'));
+        $this->assertSame('db', data_get($payload, 'baseline.external_blockers.dependency_blocked_runtime_checks.1.dependency'));
+        $this->assertStringContainsString('Root blockers: runtime.db, runtime.redis.', (string) data_get($payload, 'baseline.external_blockers.summary'));
+        $this->assertStringContainsString('Dependency-blocked checks: runtime.scheduler, runtime.outbox.', (string) data_get($payload, 'baseline.external_blockers.summary'));
         $this->assertSame(
             ['core_ops_flow_gate', 'round5_financial_gate', 'operational_alert_snapshot', 'release_package_integrity'],
             array_values(array_map(

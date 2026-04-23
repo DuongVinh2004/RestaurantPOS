@@ -128,7 +128,8 @@ final class ApiOpenApiContractCoverageTest extends TestCase
 
     public function test_customer_web_minimum_surface_is_full_contract_and_curated_for_sdk(): void
     {
-        $operations = $this->specOperations(app(OpenApiSpecService::class)->build());
+        $spec = app(OpenApiSpecService::class)->build();
+        $operations = $this->specOperations($spec);
         $curatedSignatures = $this->curatedApiConsumerSignatures();
 
         $minimumSurface = [
@@ -197,6 +198,17 @@ final class ApiOpenApiContractCoverageTest extends TestCase
             $this->assertNotNull($schemaRef, sprintf('Customer-web route [%s] must expose a typed success envelope.', $signature));
             $this->assertNotSame('#/components/schemas/GenericDataEnvelope', $schemaRef, sprintf('Customer-web route [%s] must not use the generic fallback envelope.', $signature));
         }
+
+        $this->assertSame(
+            '#/components/schemas/CustomerLoginRequest',
+            data_get($operations['POST api/v1/auth/customer/login'], 'requestBody.content.application/json.schema.$ref')
+        );
+        $this->assertSame(
+            '#/components/schemas/StaffLoginRequest',
+            data_get($operations['POST api/v1/auth/staff/login'], 'requestBody.content.application/json.schema.$ref')
+        );
+        $this->assertArrayHasKey('session_id', data_get($spec, 'components.schemas.CustomerLoginRequest.properties', []));
+        $this->assertArrayNotHasKey('session_id', data_get($spec, 'components.schemas.StaffLoginRequest.properties', []));
     }
 
     public function test_staff_batch_one_routes_are_full_contract_and_typed(): void

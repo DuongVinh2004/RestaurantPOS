@@ -379,7 +379,7 @@ JSON.PHP_EOL);
         $this->assertSame($this->root.'/release_manifest_snapshot.json', $report['snapshot_path']);
     }
 
-    public function test_write_snapshot_persists_the_explicit_snapshot_payload(): void
+    public function test_write_snapshot_keeps_existing_file_when_only_ignored_metadata_changes(): void
     {
         $schemaPath = base_path($this->root.'/schema.sql');
         $snapshotPath = base_path($this->root.'/release_manifest_snapshot.json');
@@ -407,11 +407,11 @@ JSON.PHP_EOL);
 
         $written = (string) File::get($snapshotPath);
 
-        $this->assertNotSame($firstContents, $written);
-        $this->assertStringContainsString('"generated_at_utc": "2099-01-01T00:00:00Z"', $written);
+        $this->assertSame($firstContents, $written);
+        $this->assertStringNotContainsString('"generated_at_utc": "2099-01-01T00:00:00Z"', $written);
     }
 
-    public function test_write_snapshot_refreshes_snapshot_timestamp_even_when_contents_match(): void
+    public function test_write_snapshot_preserves_snapshot_timestamp_when_contents_match_semantically(): void
     {
         $schemaPath = base_path($this->root.'/schema.sql');
         $snapshotPath = base_path($this->root.'/release_manifest_snapshot.json');
@@ -440,6 +440,6 @@ JSON.PHP_EOL);
         clearstatcache(true, $snapshotPath);
         $secondModified = File::lastModified($snapshotPath);
 
-        $this->assertGreaterThan($firstModified, $secondModified);
+        $this->assertSame($firstModified, $secondModified);
     }
 }

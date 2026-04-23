@@ -38,7 +38,7 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
             'is_available' => 1,
         ]);
 
-        $createIngredient = $this->withHeaders($headers)
+        $createIngredient = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-ingredient-create'))
             ->postJson('/api/v1/admin/inventory/ingredients', [
                 'code' => 'ING-RICE-01',
                 'name' => 'Jasmine Rice',
@@ -58,7 +58,7 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
             'unit_code' => 'ml',
         ]);
 
-        $updateIngredient = $this->withHeaders($headers)
+        $updateIngredient = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-ingredient-update'))
             ->patchJson('/api/v1/admin/inventory/ingredients/'.$ingredientId, [
                 'description' => 'Premium dry jasmine rice',
                 'is_active' => true,
@@ -68,7 +68,7 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('data.description', 'Premium dry jasmine rice')
             ->assertJsonPath('data.is_active', true);
 
-        $syncRecipe = $this->withHeaders($headers)
+        $syncRecipe = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-recipe-sync'))
             ->putJson('/api/v1/admin/inventory/menu-items/'.$itemId.'/recipe', [
                 'lines' => [
                     [
@@ -100,7 +100,7 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('meta.count', 2)
             ->assertJsonPath('data.0.quantity', '180.000');
 
-        $stockIn = $this->withHeaders($headers)
+        $stockIn = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-stockin'))
             ->postJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements', [
                 'movement_type' => 'StockIn',
                 'quantity' => '12.500',
@@ -113,7 +113,7 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('data.quantity_delta', '12.500')
             ->assertJsonPath('meta.stock_on_hand', '12.500');
 
-        $wastage = $this->withHeaders($headers)
+        $wastage = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-wastage'))
             ->postJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements', [
                 'movement_type' => 'Wastage',
                 'quantity' => '0.500',
@@ -237,7 +237,7 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
             'unit_code' => 'kg',
         ]);
 
-        $response = $this->withHeaders($headers)
+        $response = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-recipe-unit-mismatch'))
             ->putJson('/api/v1/admin/inventory/menu-items/'.$itemId.'/recipe', [
                 'lines' => [
                     [
@@ -266,7 +266,7 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
             'unit_code' => 'kg',
         ]);
 
-        $response = $this->withHeaders($headers)
+        $response = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-movement-unit-mismatch'))
             ->postJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements', [
                 'movement_type' => 'StockIn',
                 'quantity' => '2.500',
@@ -298,7 +298,7 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
             'unit_code' => 'kg',
         ]);
 
-        $this->withHeaders($headers)
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-branch-default-seed'))
             ->postJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements', [
                 'movement_type' => 'StockIn',
                 'quantity' => '5.000',
@@ -310,7 +310,7 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('data.branch_id', $defaultBranchId)
             ->assertJsonPath('meta.stock_on_hand', '5.000');
 
-        $this->withHeaders($headers)
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-branch-b-seed'))
             ->postJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements', [
                 'movement_type' => 'StockIn',
                 'branch_id' => $branchId,
@@ -323,7 +323,7 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('data.branch_id', $branchId)
             ->assertJsonPath('meta.stock_on_hand', '11.000');
 
-        $this->withHeaders($headers)
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-branch-default-topup'))
             ->postJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements', [
                 'movement_type' => 'StockIn',
                 'quantity' => '2.000',

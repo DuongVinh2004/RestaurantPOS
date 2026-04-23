@@ -163,7 +163,7 @@ class AdminKitchenRoutingFoundationHttpFlowTest extends TestCase
             'fired_at' => $this->nowUtc(),
         ]);
 
-        $this->withHeaders($headers)
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-kitchen-station-disable-active'))
             ->patchJson('/api/v1/admin/kitchen/stations/'.$stationId, [
                 'is_active' => false,
             ])

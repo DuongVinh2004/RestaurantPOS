@@ -39,7 +39,7 @@ export async function bootstrapCustomerSession(): Promise<CustomerAuthSessionEnv
 }
 
 export async function refreshCustomerSession(): Promise<CustomerAuthSessionEnvelope> {
-  const session = await apiCall((client) => client.postV1AuthCustomerRefresh());
+  const session = await apiCall((client) => client.postV1AuthCustomerRefresh({}));
   storeCustomerAuthSession(session);
   return session;
 }

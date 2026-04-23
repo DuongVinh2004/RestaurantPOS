@@ -1,16 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { buildCustomerAuthNext, buildCustomerLoginHref } from "@/lib/auth/navigation";
 import { getSessionRestoreDisplay } from "@/lib/api/errors";
 import { useAuth } from "@/providers/auth-provider";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { authError, isAuthenticated, isBootstrapping, logout, retryBootstrap } = useAuth();
+  const nextPath = buildCustomerAuthNext(pathname, searchParams);
 
   if (isBootstrapping) {
     return (
@@ -40,7 +43,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
               <Button
                 type="button"
                 className="flex-1 rounded-lg"
-                onClick={restoreDisplay.primaryAction === "retry" ? retryBootstrap : () => void logout()}
+                onClick={restoreDisplay.primaryAction === "retry" ? retryBootstrap : () => void logout({ nextPath })}
               >
                 {restoreDisplay.primaryAction === "retry" ? "Retry session check" : "Go to sign in"}
               </Button>
@@ -55,8 +58,6 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated) {
-    const next = encodeURIComponent(pathname || "/reservations");
-
     return (
       <main className="mx-auto flex min-h-[70svh] w-full max-w-md items-center px-4 py-10">
         <Card className="w-full rounded-lg">
@@ -65,10 +66,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Your session is needed for reservations, bills, waiting list updates, and privacy tools.
+              Your session is needed to access reservation details and other session-protected account pages.
             </p>
             <Button asChild className="w-full rounded-lg">
-              <Link href={`/login?next=${next}`}>Sign in</Link>
+              <Link href={buildCustomerLoginHref(nextPath)}>Sign in</Link>
             </Button>
           </CardContent>
         </Card>

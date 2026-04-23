@@ -25,10 +25,12 @@ final class StaffFinanceReportingIdempotencyPolicyTest extends TestCase
         $this->assertContains('staff.conversation-assign', $scopes);
         $this->assertContains('staff.conversation-take-over', $scopes);
         $this->assertContains('staff.conversation-unassign', $scopes);
+        $this->assertContains('staff.conversation-workflow-state', $scopes);
         $this->assertContains('staff.conversation-link', $scopes);
         $this->assertContains('staff.conversation-unlink-reservation', $scopes);
         $this->assertContains('staff.conversation-unlink-waiting-list', $scopes);
         $this->assertContains('staff.conversation-internal-note', $scopes);
+        $this->assertContains('staff.conversation-outbound-reply', $scopes);
         $this->assertContains('admin.reporting-snapshots.rebuild', $scopes);
     }
 }

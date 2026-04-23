@@ -11,6 +11,7 @@ use App\Enums\ReservationStatus;
 use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
 use App\Modules\BranchScheduling\Application\Services\ReservationBranchScopeService;
+use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\Catalog\Domain\Models\MenuItem;
@@ -36,6 +37,7 @@ class ReservationRescheduleService
         private readonly TableTimeConflictService $tableTimeConflictService,
         private readonly ReservationBranchScopeService $reservationBranchScopeService,
         private readonly BranchSchedulingPolicyService $branchSchedulingPolicyService,
+        private readonly RestaurantTableStateService $tableStateService,
     ) {}
 
     /**
@@ -182,6 +184,7 @@ class ReservationRescheduleService
                         $newTableIds = $oldTableIds;
                     }
                     sort($newTableIds);
+                    $tableChanged = $newTableIds !== $oldTableIds;
                     $reservationBranchId = $this->reservationBranchScopeService->resolveEffectiveReservationBranchId($reservation->branch_id);
 
                     $tables = RestaurantTable::query()
@@ -222,6 +225,19 @@ class ReservationRescheduleService
                         throw ValidationException::withMessages([
                             'table_ids' => ['Some target tables are Blocked/Maintenance: '.implode(',', $blocked)],
                         ]);
+                    }
+
+                    if ($tableChanged) {
+                        $nonAllocatable = $tables->filter(function (RestaurantTable $table): bool {
+                            $status = (string) ($table->status?->value ?? $table->status);
+
+                            return ! $this->tableStateService->isAllocatableForBooking($status);
+                        })->pluck('table_id')->map(fn ($value) => (int) $value)->all();
+                        if ($nonAllocatable !== []) {
+                            throw ValidationException::withMessages([
+                                'table_ids' => ['Some target tables are not in Available status: '.implode(',', $nonAllocatable)],
+                            ]);
+                        }
                     }
 
                     if ($newTableIds !== []) {
@@ -265,7 +281,6 @@ class ReservationRescheduleService
 
                     $guestChanged = $newGuestCount !== $oldGuestCount;
                     $notesChanged = $newNotes !== $oldNotes;
-                    $tableChanged = $newTableIds !== $oldTableIds;
 
                     if (! $timeChanged && ! $guestChanged && ! $notesChanged && ! $tableChanged) {
                         return Reservation::query()

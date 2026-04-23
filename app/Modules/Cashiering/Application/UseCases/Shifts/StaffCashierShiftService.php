@@ -119,10 +119,16 @@ class StaffCashierShiftService
 
         return DB::transaction(function () use ($shiftId, $actualCashAmount, $expectedRowVersion, $closingNote, $closedBy, $cashierUserId): CashierShift {
             /** @var CashierShift $shift */
-            $shift = CashierShift::query()
+            $query = CashierShift::query()
                 ->whereKey($shiftId)
-                ->when($cashierUserId !== null && $cashierUserId > 0, static fn (Builder $query) => $query->where('cashier_user_id', $cashierUserId))
-                ->lockForUpdate()
+                ->when($cashierUserId !== null && $cashierUserId > 0, static fn (Builder $builder) => $builder->where('cashier_user_id', $cashierUserId));
+
+            if ($cashierUserId !== null && $cashierUserId > 0) {
+                $this->applyBranchScope($query, $this->staffBranchContextService->accessibleBranchIds($cashierUserId));
+            }
+
+            /** @var CashierShift $shift */
+            $shift = $query->lockForUpdate()
                 ->firstOrFail();
             $this->assertOpenShift($shift);
             $this->assertExpectedRowVersion($shift, $expectedRowVersion);
@@ -166,10 +172,15 @@ class StaffCashierShiftService
 
     public function currentOpenShift(int $cashierUserId, ?int $branchId = null): ?CashierShift
     {
+        $branchScope = $this->staffBranchContextService->branchScopeOrAccessible($cashierUserId, $branchId);
+        if ($branchScope === []) {
+            return null;
+        }
+
         return CashierShift::query()
             ->where('cashier_user_id', $cashierUserId)
+            ->whereIn('branch_id', $branchScope)
             ->where('status', 'Open')
-            ->when($branchId !== null, static fn (Builder $query) => $query->where('branch_id', $branchId))
             ->latest('cashier_shift_id')
             ->first();
     }
@@ -210,6 +221,10 @@ class StaffCashierShiftService
         $sortBy = $this->resolveShiftSortBy((string) ($filters['sort_by'] ?? 'opened_at'));
         $sortDir = strtolower((string) ($filters['sort_dir'] ?? 'desc'));
         $sortDir = in_array($sortDir, ['asc', 'desc'], true) ? $sortDir : 'desc';
+        $branchScope = $this->staffBranchContextService->branchScopeOrAccessible(
+            $cashierUserId,
+            ! empty($filters['branch_id']) ? (int) $filters['branch_id'] : null,
+        );
 
         $query = CashierShift::query()
             ->with([
@@ -219,13 +234,10 @@ class StaffCashierShiftService
                 'closedByUser:user_id,full_name,email',
             ])
             ->where('cashier_user_id', $cashierUserId);
+        $this->applyBranchScope($query, $branchScope);
 
         if (! empty($filters['status'])) {
             $query->where('status', (string) $filters['status']);
-        }
-
-        if (! empty($filters['branch_id'])) {
-            $query->where('branch_id', (int) $filters['branch_id']);
         }
 
         if (! empty($filters['shift_code'])) {
@@ -262,9 +274,14 @@ class StaffCashierShiftService
 
     public function findShiftOrFail(int $shiftId, ?int $cashierUserId = null): CashierShift
     {
-        return CashierShift::query()
-            ->when($cashierUserId !== null && $cashierUserId > 0, static fn (Builder $query) => $query->where('cashier_user_id', $cashierUserId))
-            ->findOrFail($shiftId);
+        $query = CashierShift::query()
+            ->when($cashierUserId !== null && $cashierUserId > 0, static fn (Builder $builder) => $builder->where('cashier_user_id', $cashierUserId));
+
+        if ($cashierUserId !== null && $cashierUserId > 0) {
+            $this->applyBranchScope($query, $this->staffBranchContextService->accessibleBranchIds($cashierUserId));
+        }
+
+        return $query->findOrFail($shiftId);
     }
 
     /**
@@ -533,6 +550,20 @@ class StaffCashierShiftService
                 'row_version' => [self::STALE_ROW_VERSION_MESSAGE],
             ]);
         }
+    }
+
+    /**
+     * @param  list<int>  $branchScope
+     */
+    private function applyBranchScope(Builder $query, array $branchScope): void
+    {
+        if ($branchScope === []) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->whereIn('branch_id', $branchScope);
     }
 
     private function generateShiftCode(int $cashierUserId, Carbon $openedAt): string

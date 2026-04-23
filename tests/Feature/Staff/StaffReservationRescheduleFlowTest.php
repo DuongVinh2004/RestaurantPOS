@@ -141,6 +141,34 @@ class StaffReservationRescheduleFlowTest extends TestCase
         $response->assertJsonValidationErrors(['table_ids']);
     }
 
+    public function test_reschedule_rejects_non_available_target_table_even_without_time_conflict(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->withIdempotencyKey('reschedule-non-available-target', $this->staffAuthHeaders($staffId));
+
+        $oldTableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available']);
+        $occupiedTableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Occupied']);
+        $reservationId = $this->createReservation([
+            'guest_count' => 4,
+            'status' => 'Confirmed',
+            'row_version' => 1,
+        ]);
+        $this->attachReservationTable($reservationId, $oldTableId);
+
+        $response = $this->withHeaders($headers)->postJson("/api/v1/staff/reservations/{$reservationId}/reschedule", [
+            'row_version' => 1,
+            'table_ids' => [$occupiedTableId],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['table_ids']);
+        self::assertSame([$oldTableId], DB::table('reservation_tables')
+            ->where('reservation_id', $reservationId)
+            ->pluck('table_id')
+            ->map(fn ($id) => (int) $id)
+            ->all());
+    }
+
     public function test_reschedule_rejects_target_tables_with_overlapping_reservation(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);

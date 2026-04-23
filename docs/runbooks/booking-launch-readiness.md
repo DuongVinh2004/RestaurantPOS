@@ -21,6 +21,8 @@ Integrated automated sources:
   - source of truth cho environment validation và runtime probes
 - `booking:deploy-check --mode=preflight`
   - source of truth cho deploy preflight guardrails
+- `config/feature_flags.php`
+  - source of truth for day-1 feature flag posture
 - `booking:route-gate`
   - source of truth cho locked runtime API surface drift
 - `booking:core-ops-gate`
@@ -70,6 +72,7 @@ When `booking:doctor` already reports missing runtime dependencies, `booking:lau
 | --- | --- | --- | --- | --- |
 | Environment/runtime | Booking doctor baseline | `booking:doctor` | yes | No validation errors and runtime DB/Redis/scheduler/outbox probes all pass |
 | Environment/runtime | Deploy preflight guardrail | `booking:deploy-check --mode=preflight` | yes | No blocking preflight errors across environment/migration/data/artifact/ops guards |
+| Feature flag posture | Day-1 feature flag posture | `config/feature_flags.php` | yes | Target-required day-1 flags are registered, kill-switchable, and keep the expected production-like wildcard default |
 | API surface/contract | Locked route inventory | `booking:route-gate` | yes | Runtime routes match the locked inventory |
 | API surface/contract | Frozen OpenAPI contract artifact | `booking:release-manifest` | yes | OpenAPI release artifact exists and satisfies required fragments |
 | Booking core flows | Core ops flow suite | `booking:core-ops-gate` | yes | Canonical core booking suite passes |
@@ -95,6 +98,74 @@ Manual checks tracked by the artifact:
   - only the `Email` channel currently qualifies because it is the repo's `production_lean` + `real` delivery lane
 - `concurrency_rehearsal`
   - limited-production: blocking if missing
+
+## Day-1 feature flag posture
+
+The launch-readiness gate treats these flags as the day-1 release contract for staging and limited production. They must stay registered, kill-switchable, and disabled by the wildcard production-like default in `config/feature_flags.php` unless a later release ticket explicitly moves the feature into launch scope with evidence.
+
+| Feature key | Day-1 state | Reason |
+| --- | --- | --- |
+| `customer.bill_self_payment` | off | Customer bill self-payment stays off for day 1. Bill preview and active-order reads may remain contract-visible, but settlement stays staff-owned until real provider evidence promotes customer self-pay. |
+| `waiting_list.advanced_automation` | off | Customer waiting-list stays off by default and staff waiting-list remains manual on day 1; advanced automation must stay disabled. |
+| `staff.kitchen_dispatch` | off | Kitchen/KDS dispatch and ticket mutations are not part of the day-1 launch promise, even if read-only kitchen routes remain visible. |
+| `inventory.uplift` | off | Advanced inventory and purchasing workflows are not part of the day-1 limited-production scope. |
+| `staff.conversation_inbox` | off | Conversation inbox may remain contract-visible, but it is held back from the day-1 operator promise until dedicated evidence promotes it. |
+| `staff.conversation_ai_assist` | off | AI assist is optional and must not be enabled by default for day-1. |
+
+Local and automated test defaults can still enable these flags for coverage. Production-like targets should start from the wildcard default and use audited DB overrides only when the release ticket names the flag, branch scope, reason, and rollback owner.
+
+## True day-1 scope
+
+Treat the launch-readiness result as a narrower promise than the full route contract.
+
+Customer day-1 ON:
+
+- auth and session restore
+- menu browse
+- table availability and holds
+- reservation create, list, and detail
+
+Customer day-1 OFF:
+
+- waiting-list owner surfaces
+- loyalty and voucher benefits
+- privacy requests
+- data export
+- preorder
+- customer bill self-payment as a default launch path
+
+Staff day-1 ON:
+
+- login
+- table board
+- reservation handling
+- waiting-list manual notify, seat, and cancel flows where branches use them
+- walk-in or service-session handling
+- active order
+- checkout or finalize
+- refund or refund-cancel
+- cashier shift
+- finance review reads needed to finish service
+
+Staff day-1 OFF:
+
+- kitchen or KDS dispatch and ticket mutations
+- advanced inventory and purchasing uplift
+- conversation inbox
+- conversation AI assist
+
+Contract-visible but not launch-promised:
+
+- reservation cancel and reschedule
+- deposit preview and deposit payment-session routes
+- bill preview or detail, active-order visibility, and bill payment-session routes
+- kitchen landing or board read surfaces
+- audit, reporting, admin settings, and admin inventory routes that may remain mounted for operator context
+
+Payment stance:
+
+- production-proven day-1 path: staff settlement, refund, and cashier-shift flow
+- contract-ready only: customer deposit and bill payment-session routes, including any simulated-provider or local UAT proof
 
 ## Staff-web live smoke evidence
 
@@ -313,6 +384,10 @@ Runtime-baseline shortcut:
 
 - if `booking:doctor` is already failing on DB/Redis/scheduler/outbox prerequisites, clear those live blockers before expecting `booking:launch-readiness` to execute the heavier downstream suites
 - `notifications:outbox-health --json`, `booking:deploy-check --mode=preflight --strict --json`, and `npm run smoke:live` should be used to capture the exact blocker while the environment is still down
+- interpret `runtime.db` and `runtime.redis` as root environment blockers
+- interpret `runtime.scheduler` as dependency-blocked when the message says it is blocked by `runtime.redis`; restore Redis first before treating scheduler heartbeat as a separate issue
+- interpret `runtime.outbox` as dependency-blocked when the message says it is blocked by `runtime.db`; restore MySQL first before treating outbox counts as queue drift
+- `booking:deploy-check --mode=preflight` will continue to prove artifact truth, but DB-dependent migration/data/ops sections are expected to stay warning-only until the target MySQL runtime is reachable
 
 ## Harness shortcut
 

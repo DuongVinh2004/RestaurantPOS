@@ -12,11 +12,17 @@ class StaffCapabilitiesConfigContractTest extends TestCase
     {
         $knownCapabilities = config('staff_capabilities.known_capabilities');
         $routeCapabilities = config('staff_capabilities.route_capabilities');
+        $roleBranchScopes = config('staff_capabilities.role_branch_scopes');
 
         $this->assertTrue(config('staff_capabilities.enforce_known_capabilities'));
         $this->assertIsArray($knownCapabilities);
         $this->assertIsArray(config('staff_capabilities.role_id_capabilities'));
         $this->assertIsArray(config('staff_capabilities.role_capabilities'));
+        $this->assertSame([], array_values((array) config('staff_capabilities.fallback_branch_scopes', [])));
+        $this->assertIsArray(config('staff_capabilities.role_id_branch_scopes'));
+        $this->assertIsArray($roleBranchScopes);
+        $this->assertSame(['*'], array_values((array) ($roleBranchScopes['Admin'] ?? [])));
+        $this->assertSame(['default'], array_values((array) ($roleBranchScopes['Staff'] ?? [])));
         $this->assertIsArray($routeCapabilities);
         $this->assertContains('reservation.manage', $knownCapabilities);
         $this->assertContains('menu.manage', $knownCapabilities);

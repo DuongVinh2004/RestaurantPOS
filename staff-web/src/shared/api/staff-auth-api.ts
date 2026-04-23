@@ -1,4 +1,4 @@
-import type { LoginStaffAuthRequest, StaffAuthSessionEnvelope } from './sdk';
+import type { StaffLoginRequest as LoginStaffAuthRequest, StaffAuthSessionEnvelope } from './sdk';
 import { persistStaffSessionToken, readStoredStaffToken, writeStoredStaffToken, type StaffSession } from '../auth/storage';
 import { apiRequest } from './http';
 

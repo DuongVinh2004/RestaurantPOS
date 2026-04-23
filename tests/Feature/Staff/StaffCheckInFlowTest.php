@@ -330,4 +330,47 @@ class StaffCheckInFlowTest extends TestCase
         self::assertSame('Confirmed', DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
         self::assertSame('Available', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
     }
+
+    public function test_check_in_idempotent_path_still_hides_checked_in_reservation_outside_staff_operational_branch_scope(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->withIdempotencyKey('checkin-idempotent-branch-scope-hidden', $this->staffAuthHeaders($staffId));
+        $annexBranchId = $this->createBranch([
+            'branch_code' => 'CHKIDEMHIDE',
+            'branch_name' => 'Check In Idempotent Hidden Branch',
+        ]);
+
+        $tableId = $this->createRestaurantTable([
+            'status' => 'Occupied',
+            'branch_id' => $annexBranchId,
+        ]);
+        $start = $this->nowUtc()->copy()->addMinutes(5);
+        $checkedInAt = $start->copy()->subMinute();
+        $reservationId = $this->createReservation([
+            'branch_id' => $annexBranchId,
+            'start_time' => $start,
+            'end_time' => $start->copy()->addHours(2),
+            'status' => 'Reserved',
+            'checked_in_at' => $checkedInAt,
+            'row_version' => 2,
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+
+        $response = $this->withHeaders($headers)->postJson("/api/v1/staff/reservations/{$reservationId}/check-in", [
+            'table_ids' => [$tableId],
+            'checked_in_at' => $checkedInAt->copy()->addMinutes(2)->toIso8601String(),
+            'row_version' => 1,
+        ]);
+
+        $response->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        self::assertSame('Reserved', DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
+        self::assertSame('Occupied', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
+        self::assertTrue(
+            Carbon::parse((string) DB::table('reservations')->where('reservation_id', $reservationId)->value('checked_in_at'))
+                ->utc()
+                ->equalTo($checkedInAt)
+        );
+    }
 }

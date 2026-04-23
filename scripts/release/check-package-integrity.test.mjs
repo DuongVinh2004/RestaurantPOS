@@ -129,7 +129,7 @@ test('full package integrity blocks when customer-web runtime files are missing'
   assert.ok(report.blocking_missing.some((check) => check.path === 'customer-web/package.json'));
 });
 
-test('release manifest freshness uses raw filesystem mtimes even when snapshot metadata looks fresh', (t) => {
+test('snapshot-backed freshness overrides raw filesystem mtimes when frozen hashes still match', (t) => {
   const rootDir = scaffoldPackageIntegrityRoot();
   t.after(() => rmSync(rootDir, { force: true, recursive: true }));
 
@@ -143,7 +143,26 @@ test('release manifest freshness uses raw filesystem mtimes even when snapshot m
 
   const report = collectPackageIntegrityReport({ rootDir });
 
+  assert.equal(report.ok, true);
+  assert.equal(report.stale.some((check) => check.label === 'generated TypeScript enums freshness'), false);
+  assert.equal(report.stale.some((check) => check.label === 'generated enum/state map freshness'), false);
+});
+
+test('package integrity blocks when generated artifact content drifts from the frozen snapshot', (t) => {
+  const rootDir = scaffoldPackageIntegrityRoot();
+  t.after(() => rmSync(rootDir, { force: true, recursive: true }));
+
+  writeFileSync(
+    path.join(rootDir, 'build/api-consumer/sdk/typescript/restaurantpos-sdk.ts'),
+    'export const canonicalSdk = false;\n',
+    'utf8',
+  );
+
+  const report = collectPackageIntegrityReport({ rootDir });
+
   assert.equal(report.ok, false);
-  assert.equal(report.stale.some((check) => check.label === 'generated TypeScript enums freshness'), true);
-  assert.equal(report.stale.some((check) => check.label === 'generated enum/state map freshness'), true);
+  assert.equal(
+    report.stale.some((check) => check.label === 'generated TypeScript SDK freshness' && String(check.failure).includes('release_manifest_snapshot.json')),
+    true,
+  );
 });

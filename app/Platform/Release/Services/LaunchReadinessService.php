@@ -74,6 +74,7 @@ class LaunchReadinessService
             'booking:release-manifest' => $releaseManifest,
             'booking:release-manifest --verify-frozen' => $frozenManifest,
             'booking:package-release --verify-frozen' => $releasePackage,
+            'config/feature_flags.php' => $this->buildDayOneFeatureFlagSource($target),
         ];
 
         $checks = [];
@@ -177,6 +178,7 @@ class LaunchReadinessService
         $sources = [
             ['source' => 'booking:doctor', 'role' => 'Environment/runtime baseline'],
             ['source' => 'booking:deploy-check --mode=preflight', 'role' => 'Deploy preflight guardrail'],
+            ['source' => 'config/feature_flags.php', 'role' => 'Day-1 feature flag posture'],
             ['source' => 'booking:route-gate', 'role' => 'Locked API surface check'],
             ['source' => 'booking:core-ops-gate', 'role' => 'Core booking flow verification'],
             ['source' => 'booking:round5-gate', 'role' => 'Financial flow verification'],
@@ -238,6 +240,7 @@ class LaunchReadinessService
         $result = match ($key) {
             'doctor_environment_runtime' => $this->evaluateDoctorCheck((array) ($sources['booking:doctor'] ?? [])),
             'deploy_preflight_guardrail' => $this->evaluateDeployCheck((array) ($sources['booking:deploy-check --mode=preflight'] ?? [])),
+            'day1_feature_flag_posture' => $this->evaluateDayOneFeatureFlagPostureCheck((array) ($sources['config/feature_flags.php'] ?? [])),
             'route_inventory_contract' => $this->evaluateRouteGateCheck((array) ($sources['booking:route-gate'] ?? [])),
             'openapi_release_contract' => $this->evaluateOpenApiContractCheck((array) ($sources['booking:release-manifest'] ?? [])),
             'core_ops_flow_gate' => $this->evaluateGateSuiteCheck((array) ($sources['booking:core-ops-gate'] ?? []), 'Core ops gate'),
@@ -366,6 +369,136 @@ class LaunchReadinessService
             evidence: [
                 'mode' => (string) ($deployReport['mode'] ?? $deploy['mode'] ?? 'preflight'),
                 'summary' => (array) ($deployReport['summary'] ?? []),
+            ],
+        );
+    }
+
+    /**
+     * @return array{target: string, expectations: list<array<string, mixed>>, wildcard_environment: string}
+     */
+    private function buildDayOneFeatureFlagSource(string $target): array
+    {
+        $expectations = [];
+        foreach ((array) config('booking_launch_readiness.day1_feature_flags', []) as $definition) {
+            if (! is_array($definition)) {
+                continue;
+            }
+
+            $requiredFor = array_values(array_map('strval', (array) ($definition['required_for'] ?? [])));
+            if (! in_array($target, $requiredFor, true)) {
+                continue;
+            }
+
+            $expectations[] = $definition;
+        }
+
+        return [
+            'target' => $target,
+            'expectations' => $expectations,
+            'wildcard_environment' => trim((string) config('feature_flags.wildcard_environment', '*')) ?: '*',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $source
+     * @return array<string, mixed>
+     */
+    private function evaluateDayOneFeatureFlagPostureCheck(array $source): array
+    {
+        $target = (string) ($source['target'] ?? 'unknown');
+        $wildcardEnvironment = trim((string) ($source['wildcard_environment'] ?? '*')) ?: '*';
+        $expectations = array_values(array_filter((array) ($source['expectations'] ?? []), 'is_array'));
+        $registry = (array) config('feature_flags.features', []);
+        $findings = [];
+        $flagEvidence = [];
+
+        if ($expectations === []) {
+            $findings[] = [
+                'severity' => 'blocking',
+                'message' => sprintf('No day-1 feature flag posture expectations are configured for target [%s].', $target),
+            ];
+        }
+
+        foreach ($expectations as $definition) {
+            $featureKey = strtolower(trim((string) ($definition['feature_key'] ?? '')));
+            if ($featureKey === '') {
+                $findings[] = [
+                    'severity' => 'blocking',
+                    'message' => 'A day-1 feature flag expectation is missing feature_key.',
+                ];
+
+                continue;
+            }
+
+            $expectedDefault = (bool) ($definition['expected_default_enabled'] ?? false);
+            $feature = $registry[$featureKey] ?? null;
+            $defaults = is_array($feature['defaults'] ?? null) ? (array) $feature['defaults'] : [];
+            $hasWildcardDefault = array_key_exists($wildcardEnvironment, $defaults);
+            $actualWildcardDefault = $hasWildcardDefault ? (bool) $defaults[$wildcardEnvironment] : null;
+            $killSwitch = is_array($feature) ? (bool) ($feature['kill_switch'] ?? false) : false;
+            $safeDefault = is_array($feature) ? (bool) ($feature['safe_default'] ?? false) : false;
+
+            $flagEvidence[] = [
+                'feature_key' => $featureKey,
+                'expected_default_enabled' => $expectedDefault,
+                'actual_wildcard_default_enabled' => $actualWildcardDefault,
+                'wildcard_environment' => $wildcardEnvironment,
+                'kill_switch' => $killSwitch,
+                'safe_default' => $safeDefault,
+                'launch_scope' => (string) ($definition['launch_scope'] ?? ''),
+                'reason' => (string) ($definition['reason'] ?? ''),
+            ];
+
+            if (! is_array($feature)) {
+                $findings[] = [
+                    'severity' => 'blocking',
+                    'message' => sprintf('Day-1 feature flag [%s] is not registered in config/feature_flags.php.', $featureKey),
+                ];
+
+                continue;
+            }
+
+            if (! $killSwitch) {
+                $findings[] = [
+                    'severity' => 'blocking',
+                    'message' => sprintf('Day-1 feature flag [%s] must remain kill-switchable.', $featureKey),
+                ];
+            }
+
+            if (! $hasWildcardDefault) {
+                $findings[] = [
+                    'severity' => 'blocking',
+                    'message' => sprintf('Day-1 feature flag [%s] is missing an explicit [%s] default.', $featureKey, $wildcardEnvironment),
+                ];
+            } elseif ($actualWildcardDefault !== $expectedDefault) {
+                $findings[] = [
+                    'severity' => 'blocking',
+                    'message' => sprintf(
+                        'Day-1 feature flag [%s] has wildcard default [%s], expected [%s].',
+                        $featureKey,
+                        $actualWildcardDefault ? 'enabled' : 'disabled',
+                        $expectedDefault ? 'enabled' : 'disabled'
+                    ),
+                ];
+            }
+
+            if (! $expectedDefault && $safeDefault !== false) {
+                $findings[] = [
+                    'severity' => 'blocking',
+                    'message' => sprintf('Day-1 feature flag [%s] must keep safe_default=false while it is outside launch scope.', $featureKey),
+                ];
+            }
+        }
+
+        return $this->resultFromFindings(
+            $findings,
+            passSummary: sprintf('Day-1 feature flag posture matches %d target expectation(s).', count($flagEvidence)),
+            warnSummary: 'Day-1 feature flag posture emitted warnings that should be reviewed.',
+            failSummary: 'Day-1 feature flag posture is unsafe for the target.',
+            evidence: [
+                'target' => $target,
+                'wildcard_environment' => $wildcardEnvironment,
+                'flags' => $flagEvidence,
             ],
         );
     }
@@ -696,6 +829,7 @@ class LaunchReadinessService
             $checks,
             static fn (array $check): bool => in_array((string) ($check['group'] ?? ''), [
                 'booking_core_flows',
+                'feature_flag_posture',
                 'payment_checkout_financial_flows',
                 'notifications_alerts',
             ], true)
@@ -890,6 +1024,10 @@ class LaunchReadinessService
             warningSummary: 'External runtime checks emitted warnings that should be reviewed.',
             failSummary: 'External runtime prerequisites are blocking this readiness result.',
         );
+        $doctorRuntimeBreakdown = $this->extractDoctorRuntimeBreakdown($externalChecks);
+        if ($doctorRuntimeBreakdown !== []) {
+            $bucket = array_merge($bucket, $doctorRuntimeBreakdown);
+        }
 
         $downstreamBlockedChecks = [];
         foreach ($allChecks as $check) {
@@ -914,10 +1052,86 @@ class LaunchReadinessService
 
         if ($runtimeBaselineBlocked) {
             $bucket['status'] = 'blocking';
-            $bucket['summary'] = 'External runtime prerequisites are blocking launch-readiness and preventing downstream launch-path/package checks from running.';
+            $summaryParts = [
+                'External runtime prerequisites are blocking launch-readiness and preventing downstream launch-path/package checks from running.',
+            ];
+
+            $rootRuntimeKeys = array_values((array) ($bucket['root_runtime_check_keys'] ?? []));
+            if ($rootRuntimeKeys !== []) {
+                $summaryParts[] = 'Root blockers: '.implode(', ', array_map(
+                    static fn (string $key): string => 'runtime.'.$key,
+                    $rootRuntimeKeys,
+                )).'.';
+            }
+
+            $dependencyBlockedRuntimeKeys = array_values((array) ($bucket['dependency_blocked_runtime_check_keys'] ?? []));
+            if ($dependencyBlockedRuntimeKeys !== []) {
+                $summaryParts[] = 'Dependency-blocked checks: '.implode(', ', array_map(
+                    static fn (string $key): string => 'runtime.'.$key,
+                    $dependencyBlockedRuntimeKeys,
+                )).'.';
+            }
+
+            $bucket['summary'] = implode(' ', $summaryParts);
         }
 
         return $bucket;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $externalChecks
+     * @return array<string, mixed>
+     */
+    private function extractDoctorRuntimeBreakdown(array $externalChecks): array
+    {
+        foreach ($externalChecks as $check) {
+            if ((string) ($check['key'] ?? '') !== 'doctor_environment_runtime') {
+                continue;
+            }
+
+            $runtime = (array) data_get($check, 'evidence.runtime', []);
+            if ($runtime === []) {
+                return [];
+            }
+
+            $rootRuntimeChecks = [];
+            $dependencyBlockedRuntimeChecks = [];
+
+            foreach ($runtime as $runtimeKey => $runtimeCheck) {
+                if (! is_array($runtimeCheck) || ($runtimeCheck['ok'] ?? false)) {
+                    continue;
+                }
+
+                $row = [
+                    'runtime_key' => (string) $runtimeKey,
+                    'message' => (string) ($runtimeCheck['message'] ?? ''),
+                ];
+
+                if ((string) ($runtimeCheck['status'] ?? 'fail') === 'blocked_dependency') {
+                    $row['dependency'] = (string) ($runtimeCheck['dependency'] ?? '');
+                    $dependencyBlockedRuntimeChecks[] = $row;
+
+                    continue;
+                }
+
+                $rootRuntimeChecks[] = $row;
+            }
+
+            return [
+                'root_runtime_checks' => $rootRuntimeChecks,
+                'root_runtime_check_keys' => array_values(array_map(
+                    static fn (array $row): string => (string) ($row['runtime_key'] ?? ''),
+                    $rootRuntimeChecks,
+                )),
+                'dependency_blocked_runtime_checks' => $dependencyBlockedRuntimeChecks,
+                'dependency_blocked_runtime_check_keys' => array_values(array_map(
+                    static fn (array $row): string => (string) ($row['runtime_key'] ?? ''),
+                    $dependencyBlockedRuntimeChecks,
+                )),
+            ];
+        }
+
+        return [];
     }
 
     /**

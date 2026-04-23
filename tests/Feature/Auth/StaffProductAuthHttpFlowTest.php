@@ -474,6 +474,66 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('data.startup.readiness.operator_ready', false);
     }
 
+    public function test_staff_startup_contract_does_not_grant_implicit_default_branch_access_to_custom_roles_without_branch_scope(): void
+    {
+        $roleId = 16;
+        $roleName = 'ScopedOpsNoBranch';
+        $username = 'scoped-ops-no-branch';
+
+        config()->set('staff_auth.allowed_role_ids', array_values(array_unique(array_merge(
+            array_map('intval', (array) config('staff_auth.allowed_role_ids', [])),
+            [$roleId],
+        ))));
+
+        $roleCapabilities = (array) config('staff_capabilities.role_capabilities', []);
+        $roleCapabilities[$roleName] = [
+            'reservation.manage',
+        ];
+        config()->set('staff_capabilities.role_capabilities', $roleCapabilities);
+
+        DB::table('roles')->insert([
+            'role_id' => $roleId,
+            'role_name' => $roleName,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]);
+
+        DB::table('users')->insert([
+            'user_id' => 1016,
+            'username' => $username,
+            'password_hash' => Hash::make('secret-123'),
+            'full_name' => 'Scoped Ops No Branch',
+            'email' => 'scoped.ops.no.branch@example.test',
+            'phone' => '0905000016',
+            'role_id' => $roleId,
+            'current_tier_id' => null,
+            'language_pref' => 'vn',
+            'is_deleted' => 0,
+            'row_version' => 1,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]);
+
+        $login = $this->postJson('/api/v1/auth/staff/login', [
+            'identifier' => $username,
+            'password' => 'secret-123',
+            'device_name' => 'contract-test',
+        ]);
+
+        $login->assertOk()
+            ->assertJsonPath('data.capability_source', 'role_capabilities')
+            ->assertJsonPath('data.startup.allowed_branch_ids', [])
+            ->assertJsonPath('data.startup.branch_access.accessible_branch_ids', [])
+            ->assertJsonPath('data.startup.branch_access.default_branch_id', 1)
+            ->assertJsonPath('data.startup.branch_access.current_branch_id', null)
+            ->assertJsonPath('data.startup.branch_access.has_default_branch_access', false)
+            ->assertJsonPath('data.startup.branch_access.has_multi_branch_access', false)
+            ->assertJsonPath('data.startup.branch_access.branch_selector_enabled', false)
+            ->assertJsonPath('data.startup.branch_access.access_source', 'fallback_branch_scopes')
+            ->assertJsonPath('data.startup.readiness.branch', 'missing')
+            ->assertJsonPath('data.startup.readiness.operator_ready', false);
+    }
+
     public function test_customer_access_tokens_do_not_authenticate_staff_product_routes(): void
     {
         config()->set('customer_auth.enabled', true);

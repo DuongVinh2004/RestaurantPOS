@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Staff;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -111,6 +112,60 @@ class StaffTableOrderIdempotencyReplayServiceTest extends TestCase
         $this->assertSame((int) $reservationId, (int) $second->reservation_id);
     }
 
+    public function test_create_on_spot_order_replay_does_not_bypass_current_staff_branch_scope(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $branchId = $this->createBranch([
+            'branch_code' => 'ORDER-REPLAY-LOCKED',
+            'branch_name' => 'Order Replay Locked',
+        ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $branchId]);
+
+        $tableId = $this->createRestaurantTable([
+            'branch_id' => $branchId,
+            'status' => 'Occupied',
+        ]);
+        $reservationId = $this->createReservation([
+            'branch_id' => $branchId,
+            'status' => 'Reserved',
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+
+        $service = $this->makeTableOrderService();
+        $first = $service->createOnSpotOrder(
+            tableId: $tableId,
+            reservationId: $reservationId,
+            items: [],
+            staffUserId: $staffId,
+            idempotencyKey: 'idem-onspot-order-branch-replay',
+            notes: 'same branch-scoped request',
+            expectedRowVersion: 1,
+        );
+
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default']);
+
+        try {
+            $service->createOnSpotOrder(
+                tableId: $tableId,
+                reservationId: $reservationId,
+                items: [],
+                staffUserId: $staffId,
+                idempotencyKey: 'idem-onspot-order-branch-replay',
+                notes: 'same branch-scoped request',
+                expectedRowVersion: null,
+            );
+
+            self::fail('Expected branch scope denial before idempotency replay.');
+        } catch (ModelNotFoundException) {
+            $this->assertSame(
+                (int) $first->order_id,
+                (int) DB::table('reservation_orders')
+                    ->where('reservation_id', $reservationId)
+                    ->value('order_id')
+            );
+        }
+    }
+
     public function test_create_on_spot_order_rejects_same_idempotency_key_with_different_payload(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
@@ -214,6 +269,77 @@ class StaffTableOrderIdempotencyReplayServiceTest extends TestCase
         );
     }
 
+    public function test_add_items_replay_does_not_bypass_current_staff_branch_scope(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $branchId = $this->createBranch([
+            'branch_code' => 'ITEM-REPLAY-LOCKED',
+            'branch_name' => 'Item Replay Locked',
+        ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $branchId]);
+
+        $tableId = $this->createRestaurantTable([
+            'branch_id' => $branchId,
+            'status' => 'Occupied',
+        ]);
+        $reservationId = $this->createReservation([
+            'branch_id' => $branchId,
+            'status' => 'Reserved',
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+        $orderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'order_type' => 'OnSpot',
+            'status' => 'Active',
+            'row_version' => 1,
+        ]);
+        $itemId = $this->createMenuItem();
+        $this->createMenuItemPrice([
+            'item_id' => $itemId,
+            'price' => '120000.00',
+            'currency' => 'VND',
+        ]);
+
+        $service = $this->makeTableOrderService();
+        $service->addItems(
+            orderId: $orderId,
+            items: [[
+                'item_id' => $itemId,
+                'qty' => 1,
+                'note' => 'scope checked',
+            ]],
+            staffUserId: $staffId,
+            idempotencyKey: 'idem-order-items-branch-replay',
+            expectedRowVersion: 1
+        );
+
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default']);
+
+        try {
+            $service->addItems(
+                orderId: $orderId,
+                items: [[
+                    'item_id' => $itemId,
+                    'qty' => 1,
+                    'note' => 'scope checked',
+                ]],
+                staffUserId: $staffId,
+                idempotencyKey: 'idem-order-items-branch-replay',
+                expectedRowVersion: null
+            );
+
+            self::fail('Expected branch scope denial before idempotency replay.');
+        } catch (ModelNotFoundException) {
+            $this->assertSame(
+                1,
+                (int) DB::table('reservation_order_items')
+                    ->where('order_id', $orderId)
+                    ->where('item_id', $itemId)
+                    ->count()
+            );
+        }
+    }
+
     public function test_add_items_rejects_same_idempotency_key_with_different_payload(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
@@ -272,6 +398,49 @@ class StaffTableOrderIdempotencyReplayServiceTest extends TestCase
 
         $this->assertSame(
             1,
+            (int) DB::table('reservation_order_items')
+                ->where('order_id', $orderId)
+                ->where('item_id', $itemId)
+                ->count()
+        );
+    }
+
+    public function test_add_items_rejects_menu_items_without_an_effective_price(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
+        $reservationId = $this->createReservation([
+            'status' => 'Reserved',
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+        $orderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'order_type' => 'OnSpot',
+            'status' => 'Active',
+            'row_version' => 1,
+        ]);
+        $itemId = $this->createMenuItem();
+
+        try {
+            $this->makeTableOrderService()->addItems(
+                orderId: $orderId,
+                items: [[
+                    'item_id' => $itemId,
+                    'qty' => 1,
+                ]],
+                staffUserId: $staffId,
+                idempotencyKey: 'idem-order-items-missing-price',
+                expectedRowVersion: 1
+            );
+
+            self::fail('Expected missing effective price validation.');
+        } catch (ValidationException $e) {
+            self::assertArrayHasKey('items', $e->errors());
+            self::assertSame('Some menu items do not have an effective price.', $e->errors()['items'][0]);
+        }
+
+        $this->assertSame(
+            0,
             (int) DB::table('reservation_order_items')
                 ->where('order_id', $orderId)
                 ->where('item_id', $itemId)

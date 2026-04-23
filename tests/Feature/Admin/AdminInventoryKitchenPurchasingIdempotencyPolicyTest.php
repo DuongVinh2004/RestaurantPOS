@@ -13,14 +13,17 @@ final class AdminInventoryKitchenPurchasingIdempotencyPolicyTest extends TestCas
         $scopes = config('booking.idempotency_required_scopes', []);
 
         $this->assertIsArray($scopes);
-        $this->assertNotContains('admin.inventory-ingredients.store', $scopes);
-        $this->assertNotContains('admin.inventory-ingredients.update', $scopes);
-        $this->assertNotContains('admin.inventory-menu-item-recipe.sync', $scopes);
-        $this->assertNotContains('admin.inventory-movements.store', $scopes);
+        $this->assertContains('admin.inventory-ingredients.store', $scopes);
+        $this->assertContains('admin.inventory-ingredients.update', $scopes);
+        $this->assertContains('admin.inventory-menu-item-recipe.sync', $scopes);
+        $this->assertContains('admin.inventory-movements.store', $scopes);
         $this->assertContains('admin.inventory-suppliers.store', $scopes);
+        $this->assertContains('admin.inventory-suppliers.update', $scopes);
         $this->assertContains('admin.inventory-purchase-orders.store', $scopes);
+        $this->assertContains('admin.inventory-purchase-orders.update', $scopes);
         $this->assertContains('admin.inventory-purchase-order-receipts.store', $scopes);
         $this->assertContains('admin.kitchen-stations.store', $scopes);
+        $this->assertContains('admin.kitchen-stations.update', $scopes);
         $this->assertContains('admin.kitchen-station-category-routes.sync', $scopes);
     }
 }

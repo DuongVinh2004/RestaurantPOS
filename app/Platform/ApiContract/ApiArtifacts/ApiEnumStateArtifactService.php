@@ -204,10 +204,12 @@ class ApiEnumStateArtifactService
         $absolutePath = base_path($outputRoot.DIRECTORY_SEPARATOR.$relativePath);
         File::ensureDirectoryExists(dirname($absolutePath));
 
-        if (is_array($contents)) {
-            File::put($absolutePath, json_encode($contents, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
-        } else {
-            File::put($absolutePath, $contents);
+        $serialized = is_array($contents)
+            ? json_encode($contents, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)
+            : $contents;
+
+        if (! File::exists($absolutePath) || (string) File::get($absolutePath) !== $serialized) {
+            File::put($absolutePath, $serialized);
         }
 
         return str_replace('\\', '/', $outputRoot.'/'.$relativePath);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Platform\Release\Services\ReleaseArtifactManifestService;
+use App\Platform\Release\Services\ReleaseBuildMetadataService;
 use App\Platform\Release\Services\ReleasePackageService;
 use Illuminate\Support\Facades\File;
 use Tests\TestCase;
@@ -339,7 +340,21 @@ class ReleasePackageServiceTest extends TestCase
         ]);
         config()->set('booking_release.packaging.sidecars.latest_pointer_path', $this->root.'/build/latest-package.json');
 
-        $report = app(ReleasePackageService::class)->package('stale-artifacts', overwrite: true);
+        $report = (new ReleasePackageService(
+            new class extends ReleaseArtifactManifestService
+            {
+                /**
+                 * @param  array<string, array<string, mixed>>  $artifacts
+                 */
+                protected function expectedGeneratedArtifactFingerprint(string $artifactKey, array $artifacts): ?string
+                {
+                    return $artifactKey === 'api_consumer_sdk_typescript'
+                        ? str_repeat('f', 64)
+                        : null;
+                }
+            },
+            app(ReleaseBuildMetadataService::class),
+        ))->package('stale-artifacts', overwrite: true);
 
         $this->assertFalse($report['ok']);
         $this->assertSame('fail', $report['status']);
