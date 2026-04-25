@@ -79,6 +79,7 @@ php artisan booking:release-manifest --verify-frozen --json
 - Default shape is `{ "data": ... }`.
 - Collection responses use `{ "data": [...], "meta": { ... } }` when pagination or action metadata exists.
 - Known envelope exceptions are runtime-backed and documented explicitly:
+  - `GET /api/user`
   - `GET /api/v1/health`
   - `GET /api/v1/health/redis`
   - `GET /api/v1/staff/tables/board`
@@ -143,6 +144,12 @@ Legacy compatibility note:
   - current runtime also accepts `session_id` on selected routes
 - `StaffApiKey`
   - header `X-Staff-Key`
+- `StaffBrowserRefreshCookie`
+  - cookie `staff_web_refresh`
+  - used by staff-web refresh/logout when the refresh-cookie rollout is enabled
+- `StaffBrowserCsrfToken`
+  - header `X-Staff-CSRF`
+  - required together with `StaffBrowserRefreshCookie` on staff-web refresh/logout
 
 ## Full contract-grade flows
 
@@ -161,8 +168,10 @@ These routes currently have explicit tags, request schemas, response schemas, au
 - Staff cashier shift flows
 - Staff bill snapshot, settlement preview/finalize, refund preview/refund/refund-cancel
 - Admin branch master data
+- Deprecated legacy `/api/user` runtime probe
 
 Deprecated compatibility aliases remain in the spec and are marked `deprecated: true` when declared in the route inventory alias groups.
+The legacy `/api/user` route is also explicitly deprecated in metadata. It keeps the runtime top-level `auth_mode`/`user` response shape, accepts `CustomerAccessToken` or `StaffApiKey`, and intentionally does not advertise `CustomerSessionId`.
 
 ## Use with clients
 
@@ -196,14 +205,13 @@ Deprecated compatibility aliases remain in the spec and are marked `deprecated: 
 
 ## Current limitations
 
-As of 2026-04-19, the generated spec reports `123` full-contract operations and `113` fallback operations.
+As of 2026-04-24, the generated spec reports `124` full-contract operations and `112` fallback operations.
 
 Routes still below contract-grade are intentionally left as fallback until their response shape is formalized or the source is tightened. The main remaining groups are:
 
 - Admin benefits, inventory, kitchen, menu, restaurant, and finance setting endpoints
 - Metrics and assorted operational reporting endpoints
 - Staff kitchen, realtime, inbox, timeline, voucher, loyalty, and broader master-data CRUD surfaces
-- Legacy `/api/user`
 
 Fallback routes still appear in the artifact, but they use generic envelopes and inferred request schemas rather than curated domain schemas.
 

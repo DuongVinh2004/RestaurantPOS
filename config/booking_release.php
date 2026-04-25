@@ -46,6 +46,13 @@ $canonicalReleaseContractFragments = [
     'CREATE TABLE `feature_flags` (',
     'CREATE TABLE `finance_replay_records` (',
     'uq_finance_replay_records__scope_aggregate_key',
+    'fk_reservations__branch_id__branches',
+    'fk_table_holds__branch_id__branches',
+    'fk_cashier_shifts__branch_id__branches',
+    'CREATE TABLE `staff_branch_assignments` (',
+    'uq_staff_branch_assignments__user_id__branch_id',
+    'fk_staff_branch_assignments__user_id__users',
+    'fk_staff_branch_assignments__branch_id__branches',
 ];
 
 return [
@@ -260,6 +267,10 @@ return [
         '2026_04_13_000051_inventory_stock_movement_reference_uniqueness.sql',
         '2026_04_15_000052_finance_replay_records.sql',
         '2026_04_20_000053_confirmed_hold_conflict_scope_alignment.sql',
+        '2026_04_24_000054_branch_fk_integrity_guard.sql',
+        '2026_04_24_000055_staff_branch_assignments_foundation.sql',
+        '2026_04_24_000056_kitchen_branch_routing_scope.sql',
+        '2026_04_25_000057_kitchen_ticket_row_version.sql',
     ],
     'release_manifest' => [
         'definition_path' => 'config/booking_release.php',
@@ -293,6 +304,7 @@ return [
         'preview_timeout_seconds' => 300,
         'preview_link_paths' => [
             '.vercel/project.json',
+            'customer-web/.vercel/project.json',
             'staff-web/.vercel/project.json',
         ],
         'observability' => [
@@ -319,6 +331,13 @@ return [
         'package_prefix' => 'restaurantpos-backend-release',
         'retained_package_sets' => 2,
         'exclude_paths' => [
+            'customer-web/node_modules',
+            'customer-web/.next',
+            'customer-web/out',
+            'customer-web/build',
+            'customer-web/coverage',
+            'customer-web/test-results',
+            'customer-web/playwright-report',
             'staff-web/node_modules',
             'staff-web/dist',
             'staff-web/.vite',
@@ -337,6 +356,7 @@ return [
             ['path' => 'public/index.php', 'required' => true],
             ['path' => 'routes', 'required' => true],
             ['path' => 'scripts', 'required' => true],
+            ['path' => 'customer-web', 'required' => true],
             ['path' => 'staff-web', 'required' => true],
             ['path' => 'storage/app/booking_release', 'required' => true],
             ['path' => 'tests', 'required' => true],

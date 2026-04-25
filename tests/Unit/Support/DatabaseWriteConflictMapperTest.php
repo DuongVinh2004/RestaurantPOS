@@ -45,7 +45,7 @@ class DatabaseWriteConflictMapperTest extends TestCase
 
         $this->assertNotNull($mapped);
         $this->assertSame(
-            'Mã giao dịch này đã tồn tại cho payment provider hiện tại. Vui lòng kiểm tra lại đối soát hoặc dùng mã khác.',
+            'Transaction code already exists for this payment provider. Check reconciliation or use a different code.',
             $mapped->errors()['transaction_code'][0] ?? null
         );
     }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
+import type { BranchCollectionEnvelope } from '../../shared/api/sdk';
 import { listBranches } from '../../shared/api/staff-branch-api';
 import {
   hasStaffStartupBranch,
@@ -8,6 +9,8 @@ import {
   requiresStaffCashierShift,
 } from '../auth/startup';
 import type { WorkspaceId } from '../../workspaces/workspaces';
+import { can } from '../../shared/auth/capabilities';
+import type { StaffSession } from '../../shared/auth/storage';
 import { formatRelativeAge } from '../../shared/utils/format';
 import { stripJourneySearch } from '../router/journey';
 import { resolveRouteDataScope } from './route-scope';
@@ -36,6 +39,8 @@ export type RouteScopedNotice = {
   title: string;
   description: string;
 } | null;
+
+type ShellBranch = Pick<BranchCollectionEnvelope['data'][number], 'branch_id' | 'branch_code' | 'branch_name'>;
 
 export function useStaffShellContext() {
   const navigate = useNavigate();
@@ -125,28 +130,37 @@ export function useStaffShellContext() {
   );
   const selectedMenuKey = activeNavigationItem?.key;
 
+  const canListStaffBranches = !!session && can(session, 'reservation.manage');
   const branchesQuery = useQuery({
-    queryKey: ['staff-branches'],
+    queryKey: ['staff-branches', session?.staff_api_key_id ?? null],
     queryFn: listBranches,
-    enabled: !!session,
+    enabled: canListStaffBranches,
     staleTime: 5 * 60_000,
   });
+  const startupBranches = useMemo(() => buildStartupBranches(session), [session]);
+  const shellBranches = useMemo<Array<ShellBranch>>(() => {
+    if (canListStaffBranches && (branchesQuery.data?.data.length ?? 0) > 0) {
+      return branchesQuery.data?.data ?? [];
+    }
+
+    return startupBranches;
+  }, [branchesQuery.data?.data, canListStaffBranches, startupBranches]);
 
   const branchOptions = useMemo(
-    () => (branchesQuery.data?.data ?? []).map((branch) => ({
+    () => shellBranches.map((branch) => ({
       value: branch.branch_id,
       label: `${branch.branch_code} • ${branch.branch_name}`,
     })),
-    [branchesQuery.data?.data],
+    [shellBranches],
   );
 
   const activeBranch = useMemo(
-    () => (branchesQuery.data?.data ?? []).find((branch) => branch.branch_id === branchId) ?? null,
-    [branchId, branchesQuery.data?.data],
+    () => shellBranches.find((branch) => branch.branch_id === branchId) ?? null,
+    [branchId, shellBranches],
   );
 
   useEffect(() => {
-    const branches = branchesQuery.data?.data ?? [];
+    const branches = shellBranches;
     if (branches.length === 0) {
       return;
     }
@@ -162,7 +176,7 @@ export function useStaffShellContext() {
     }
 
     setBranchId(fallbackBranchId);
-  }, [branchId, branchesQuery.data?.data, session?.startup.default_branch?.branch_id, setBranchId]);
+  }, [branchId, session?.startup.default_branch?.branch_id, setBranchId, shellBranches]);
 
   const routeDescriptor = useMemo(() => {
     if (location.pathname === staffRoutePaths.access) {
@@ -367,7 +381,7 @@ export function useStaffShellContext() {
       return;
     }
 
-    const nextBranch = (branchesQuery.data?.data ?? []).find((branch) => branch.branch_id === nextBranchId) ?? null;
+    const nextBranch = shellBranches.find((branch) => branch.branch_id === nextBranchId) ?? null;
     const displacedContext = contextTags.length > 0 ? contextTags.join(' • ') : 'flow đang dở';
 
     setBranchId(nextBranchId);
@@ -429,4 +443,39 @@ export function useStaffShellContext() {
     otherBranchWorkItems,
     workspaceOptions,
   };
+}
+
+function buildStartupBranches(session: StaffSession | null): Array<ShellBranch> {
+  if (!session) {
+    return [];
+  }
+
+  const branches = new Map<number, ShellBranch>();
+  const defaultBranch = session.startup.default_branch;
+
+  if (defaultBranch) {
+    branches.set(defaultBranch.branch_id, {
+      branch_id: defaultBranch.branch_id,
+      branch_code: defaultBranch.branch_code,
+      branch_name: defaultBranch.branch_name,
+    });
+  }
+
+  const branchIds = session.startup.allowed_branch_ids.length > 0
+    ? session.startup.allowed_branch_ids
+    : session.startup.branch_access.accessible_branch_ids;
+
+  branchIds.forEach((branchId) => {
+    if (branches.has(branchId)) {
+      return;
+    }
+
+    branches.set(branchId, {
+      branch_id: branchId,
+      branch_code: `#${branchId}`,
+      branch_name: `Branch #${branchId}`,
+    });
+  });
+
+  return Array.from(branches.values());
 }

@@ -29,6 +29,7 @@ class BookingReleaseLoopCommandTest extends TestCase
                 ?string $previewLabel = null,
                 bool $skipPreview = false,
                 string $staffWebDir = 'staff-web',
+                string $customerWebDir = 'customer-web',
             ): array {
                 return [
                     'ok' => true,
@@ -38,8 +39,8 @@ class BookingReleaseLoopCommandTest extends TestCase
                         'label' => ucfirst($target),
                     ],
                     'summary' => [
-                        'step_count' => 11,
-                        'pass_count' => 10,
+                        'step_count' => 18,
+                        'pass_count' => 17,
                         'skip_count' => 1,
                         'fail_count' => 0,
                     ],
@@ -87,7 +88,7 @@ class BookingReleaseLoopCommandTest extends TestCase
 
         $this->assertSame(0, $exitCode);
         $this->assertStringContainsString('"decision": "pass"', $output);
-        $this->assertStringContainsString('"step_count": 11', $output);
+        $this->assertStringContainsString('"step_count": 18', $output);
         $this->assertStringContainsString('"url": "https://preview.example.test"', $output);
         $this->assertStringContainsString('"status": "missing-configuration"', $output);
     }
@@ -111,6 +112,7 @@ class BookingReleaseLoopCommandTest extends TestCase
                 ?string $previewLabel = null,
                 bool $skipPreview = false,
                 string $staffWebDir = 'staff-web',
+                string $customerWebDir = 'customer-web',
             ): array {
                 return [
                     'ok' => false,

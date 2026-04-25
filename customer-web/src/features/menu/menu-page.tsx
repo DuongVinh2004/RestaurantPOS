@@ -68,6 +68,8 @@ export function MenuPage() {
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
           <Input
+            type="search"
+            aria-label="Search menu items"
             value={q}
             onChange={(event) => setQ(event.target.value)}
             placeholder="Search dishes"
@@ -138,9 +140,15 @@ export function MenuPage() {
                   </Badge>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button asChild variant="outline" className="rounded-lg">
-                    <Link href={`/menu/${item.item_id}`}>Details</Link>
-                  </Button>
+                  {featureFlags.menuItemDetail ? (
+                    <Button asChild variant="outline" className="rounded-lg">
+                      <Link href={`/menu/${item.item_id}`}>Details</Link>
+                    </Button>
+                  ) : (
+                    <Button type="button" variant="outline" className="rounded-lg" disabled>
+                      Details
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     className="rounded-lg"

@@ -3,6 +3,7 @@ import type {
   KitchenStation,
   StaffOperationalRealtimeState,
 } from '../../shared/api/sdk';
+import { can } from '../../shared/auth/capabilities';
 import type { StaffSession } from '../../shared/auth/storage';
 import { isWorkspaceAvailable } from '../../workspaces/workspaces';
 
@@ -92,6 +93,10 @@ export function resolveKitchenWorkspaceGuard(session: StaffSession | null): Kitc
     title: 'Kitchen workspace is not available',
     description: 'This staff session does not include kitchen workspace access. Use an allowed workspace or refresh the staff session after access changes.',
   };
+}
+
+export function canDispatchKitchenOrder(session: StaffSession | null): boolean {
+  return !!session && can(session, 'order.manage');
 }
 
 export function resolveKitchenBranchGuard(session: StaffSession | null, branchId: number | null): KitchenGuard | null {

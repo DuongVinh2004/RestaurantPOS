@@ -14,7 +14,10 @@ describe('staff api bundle guards', () => {
   it('moves shared shell and auth consumers onto focused api modules', () => {
     expect(authStoreSource).toContain("from '../../shared/api/staff-auth-api'");
     expect(shellContextSource).toContain("from '../../shared/api/staff-branch-api'");
-    expect(authApiSource).toContain("'/auth/staff/login'");
+    expect(authApiSource).toContain('postV1AuthStaffLogin');
+    expect(authApiSource).toContain('postV1AuthStaffRefresh');
+    expect(authApiSource).toContain('postV1AuthStaffLogout');
+    expect(authApiSource).not.toContain('apiRequest');
     expect(branchApiSource).toContain("'/staff/branches'");
     expect(barrelSource).toContain("export { getCurrentStaffSession, loginStaff, logoutStaff, refreshStaffSession } from './staff-auth-api';");
     expect(barrelSource).toContain("export { listBranches } from './staff-branch-api';");

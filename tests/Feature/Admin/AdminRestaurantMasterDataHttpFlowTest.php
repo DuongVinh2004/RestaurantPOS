@@ -67,7 +67,10 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
         $firstBefore = (int) DB::table('restaurant_tables')->where('table_id', $firstTableId)->value('row_version');
         $secondBefore = (int) DB::table('restaurant_tables')->where('table_id', $secondTableId)->value('row_version');
 
-        $response = $this->withHeaders($this->staffHeaders($adminId, 'admin-zone-rename'))
+        $response = $this->withHeaders($this->withIdempotencyKey(
+            $this->staffHeaders($adminId, 'admin-zone-rename'),
+            'idem-admin-zone-rename'
+        ))
             ->postJson('/api/v1/admin/restaurant/zones/rename', [
                 'from_zone' => 'Main',
                 'to_zone' => 'VIP',
@@ -119,7 +122,10 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
 
         $table = DB::table('restaurant_tables')->where('table_id', $tableId)->first();
 
-        $response = $this->withHeaders($this->staffHeaders($adminId, 'admin-table-live-order-guard'))
+        $response = $this->withHeaders($this->withIdempotencyKey(
+            $this->staffHeaders($adminId, 'admin-table-live-order-guard'),
+            'idem-admin-table-live-order-guard'
+        ))
             ->patchJson('/api/v1/admin/restaurant/tables/'.$tableId, [
                 'row_version' => (int) $table->row_version,
                 'zone' => 'Patio',
@@ -145,7 +151,10 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
             'status' => 'Active',
         ]);
 
-        $response = $this->withHeaders($this->staffHeaders($adminId, 'admin-zone-live-guard'))
+        $response = $this->withHeaders($this->withIdempotencyKey(
+            $this->staffHeaders($adminId, 'admin-zone-live-guard'),
+            'idem-admin-zone-live-guard'
+        ))
             ->postJson('/api/v1/admin/restaurant/zones/rename', [
                 'from_zone' => 'Main',
                 'to_zone' => 'VIP',
@@ -161,7 +170,10 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
         $adminId = $this->createUser(['role_name' => 'Admin']);
         $templateId = $this->seedTableTemplate('ADM-TPL-08', 8);
 
-        $createResponse = $this->withHeaders($this->staffHeaders($adminId, 'admin-table-create'))
+        $createResponse = $this->withHeaders($this->withIdempotencyKey(
+            $this->staffHeaders($adminId, 'admin-table-create'),
+            'idem-admin-table-create'
+        ))
             ->postJson('/api/v1/admin/restaurant/tables', [
                 'table_code' => 'ADM-CREATE-01',
                 'template_id' => $templateId,
@@ -183,7 +195,10 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
         $tableId = (int) $createResponse->json('data.table_id');
         $rowVersion = (int) $createResponse->json('data.row_version');
 
-        $updateResponse = $this->withHeaders($this->staffHeaders($adminId, 'admin-table-update'))
+        $updateResponse = $this->withHeaders($this->withIdempotencyKey(
+            $this->staffHeaders($adminId, 'admin-table-update'),
+            'idem-admin-table-update'
+        ))
             ->patchJson('/api/v1/admin/restaurant/tables/'.$tableId, [
                 'row_version' => $rowVersion,
                 'zone' => 'Garden VIP',
@@ -217,7 +232,10 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
         $table = DB::table('restaurant_tables')->where('table_id', $tableId)->first();
         $newTemplateId = $this->seedTableTemplate('ADM-TPL-10', 10);
 
-        $response = $this->withHeaders($this->staffHeaders($adminId, 'admin-table-linked-guard'))
+        $response = $this->withHeaders($this->withIdempotencyKey(
+            $this->staffHeaders($adminId, 'admin-table-linked-guard'),
+            'idem-admin-table-linked-guard'
+        ))
             ->patchJson('/api/v1/admin/restaurant/tables/'.$tableId, [
                 'row_version' => (int) $table->row_version,
                 'template_id' => $newTemplateId,
@@ -260,7 +278,10 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
         $table = DB::table('restaurant_tables')->where('table_id', $tableId)->first();
         $newTemplateId = $this->seedTableTemplate('ADM-TPL-HOLD-06', 6);
 
-        $this->withHeaders($this->staffHeaders($adminId, 'admin-table-confirmed-hold-guard'))
+        $this->withHeaders($this->withIdempotencyKey(
+            $this->staffHeaders($adminId, 'admin-table-confirmed-hold-guard'),
+            'idem-admin-table-confirmed-hold-guard'
+        ))
             ->patchJson('/api/v1/admin/restaurant/tables/'.$tableId, [
                 'row_version' => (int) $table->row_version,
                 'template_id' => $newTemplateId,
@@ -286,7 +307,10 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
             ]),
         ], [$tableId]);
 
-        $this->withHeaders($this->staffHeaders($adminId, 'admin-zone-confirmed-hold-guard'))
+        $this->withHeaders($this->withIdempotencyKey(
+            $this->staffHeaders($adminId, 'admin-zone-confirmed-hold-guard'),
+            'idem-admin-zone-confirmed-hold-guard'
+        ))
             ->postJson('/api/v1/admin/restaurant/zones/rename', [
                 'from_zone' => 'Main',
                 'to_zone' => 'VIP',

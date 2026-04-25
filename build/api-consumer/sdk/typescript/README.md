@@ -72,8 +72,10 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 
 ### Dine-In + Checkout
 
+- GET api/v1/staff/menu/items
 - GET api/v1/staff/tables/board
 - GET api/v1/staff/tables/board/changes
+- POST api/v1/staff/service-sessions/walk-in
 - POST api/v1/staff/reservations/{id}/check-in
 - POST api/v1/staff/tables/{table_id}/orders
 - POST api/v1/staff/orders/{order_id}/items
@@ -106,6 +108,7 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 ### Staff Lookup
 
 - GET api/v1/staff/reservations
+- GET api/v1/staff/reservations/{reservation_id}
 - GET api/v1/staff/reservations/{reservation_id}/orders
 - GET api/v1/staff/cashier/shifts
 
@@ -169,6 +172,7 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 - GET api/v1/staff/conversations
 - GET api/v1/staff/conversations/{conversation_id}
 - POST api/v1/staff/conversations/{conversation_id}/take-over
+- POST api/v1/staff/conversations/{conversation_id}/unassign
 - POST api/v1/staff/conversations/{conversation_id}/internal-notes
 - POST api/v1/staff/conversations/{conversation_id}/outbound-replies
 
@@ -192,6 +196,7 @@ const client = new RestaurantPosClient({
   customerToken: () => localStorage.getItem('customerToken') ?? undefined,
   customerSessionId: () => sessionStorage.getItem('customerSessionId') ?? undefined,
   staffApiKey: () => localStorage.getItem('staffApiKey') ?? undefined,
+  staffCsrfToken: () => readCookie('staff_web_csrf') ?? undefined,
 });
 
 const login = await client.postV1AuthCustomerLogin({
@@ -204,6 +209,7 @@ const login = await client.postV1AuthCustomerLogin({
 Limitations:
 
 - On curated customer routes whose mutation contract requires session propagation, the generated client keeps `X-Customer-Token` and `X-Session-Id` together when both are configured.
+- Staff refresh-cookie login/refresh/logout can opt into `credentials: 'include'`; refresh/logout also send `staffCsrfToken` as `X-Staff-CSRF` when provided.
 - The SDK is intentionally scoped to the curated priority batch, not every full-contract or fallback endpoint.
 - Enum/state exports are generated separately in `restaurantpos-enums.ts` and `enum-state-map.json` so FE can consume stable state values without inferring them from incidental payload strings.
 - Response typing follows the frozen OpenAPI artifact. Routes still below contract-grade remain outside the official SDK batch and can stay coarse in the spec.

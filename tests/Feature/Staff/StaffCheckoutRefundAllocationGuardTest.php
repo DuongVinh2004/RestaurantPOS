@@ -31,7 +31,7 @@ class StaffCheckoutRefundAllocationGuardTest extends TestCase
     public function test_refund_reservation_rejects_amount_that_exceeds_source_payment_balance(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,

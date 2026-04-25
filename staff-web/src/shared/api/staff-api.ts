@@ -66,6 +66,7 @@ import type {
   TakeOverConversationRequest,
 } from './sdk';
 import { createIdempotencyKey } from '../utils/idempotency';
+import { staffClient } from './client';
 import { apiRequest } from './http';
 export { getCurrentStaffSession, loginStaff, logoutStaff, refreshStaffSession } from './staff-auth-api';
 export { listBranches } from './staff-branch-api';
@@ -402,86 +403,78 @@ export function buildBoardWindow(reference = new Date()): Pick<StaffTablesBoardQ
 export async function listAdminIngredients(
   query: GetV1AdminInventoryIngredientsQueryParams = { per_page: 8, sort: 'name' },
 ): Promise<AdminIngredientCollectionEnvelope> {
-  return apiRequest<AdminIngredientCollectionEnvelope>('/admin/inventory/ingredients', { query });
+  return staffClient.getV1AdminInventoryIngredients(query);
 }
 
 export async function listAdminSuppliers(
   query: GetV1AdminInventorySuppliersQueryParams = { per_page: 8, sort: 'name' },
 ): Promise<AdminSupplierCollectionEnvelope> {
-  return apiRequest<AdminSupplierCollectionEnvelope>('/admin/inventory/suppliers', { query });
+  return staffClient.getV1AdminInventorySuppliers(query);
 }
 
 export async function listAdminPurchaseOrders(
   query: GetV1AdminInventoryPurchaseOrdersQueryParams = { per_page: 8, sort: '-created_at' },
 ): Promise<AdminPurchaseOrderCollectionEnvelope> {
-  return apiRequest<AdminPurchaseOrderCollectionEnvelope>('/admin/inventory/purchase-orders', { query });
+  return staffClient.getV1AdminInventoryPurchaseOrders(query);
 }
 
 export async function listAdminBranches(
   query: GetV1AdminSettingsBranchesQueryParams = {},
 ): Promise<BranchCollectionEnvelope> {
-  return apiRequest<BranchCollectionEnvelope>('/admin/settings/branches', { query });
+  return staffClient.getV1AdminSettingsBranches(query);
 }
 
 export async function getCurrentCashierShift(branchId?: number): Promise<CashierShiftEnvelope> {
-  return apiRequest<CashierShiftEnvelope>('/staff/cashier/shifts/current', {
-    query: {
-      branch_id: branchId,
-    },
-  });
+  return staffClient.getV1StaffCashierShiftsCurrent({ branch_id: branchId });
 }
 
 export async function listCashierShifts(
   query: GetV1StaffCashierShiftsQueryParams = { per_page: 12, sort: '-opened_at' },
 ): Promise<CashierShiftCollectionEnvelope> {
-  return apiRequest<CashierShiftCollectionEnvelope>('/staff/cashier/shifts', { query });
+  return staffClient.getV1StaffCashierShifts(query);
 }
 
 export async function getCashierShift(shiftId: number): Promise<CashierShiftEnvelope> {
-  return apiRequest<CashierShiftEnvelope>(`/staff/cashier/shifts/${shiftId}`);
+  return staffClient.getV1StaffCashierShiftsShiftId({ shift_id: shiftId });
 }
 
 export async function openCashierShift(payload: OpenCashierShiftRequest): Promise<CashierShiftEnvelope> {
-  return apiRequest<CashierShiftEnvelope>('/staff/cashier/shifts/open', {
-    method: 'POST',
-    body: payload,
+  return staffClient.postV1StaffCashierShiftsOpen(payload, {
     idempotencyKey: createIdempotencyKey('cashier-open'),
   });
 }
 
 export async function closeCashierShift(shiftId: number, payload: CloseCashierShiftRequest): Promise<CashierShiftEnvelope> {
-  return apiRequest<CashierShiftEnvelope>(`/staff/cashier/shifts/${shiftId}/close`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`cashier-close-${shiftId}`),
-  });
+  return staffClient.postV1StaffCashierShiftsShiftIdClose(
+    { shift_id: shiftId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`cashier-close-${shiftId}`) },
+  );
 }
 
 export async function getTableBoard(query: StaffTablesBoardQueryParams): Promise<StaffTableBoardEnvelope> {
-  return apiRequest<StaffTableBoardEnvelope>('/staff/tables/board', { query });
+  return staffClient.staffTablesBoard(query);
 }
 
-export async function getTableBoardChanges(afterVersion?: number): Promise<StaffOperationalRealtimeEnvelope> {
-  return apiRequest<StaffOperationalRealtimeEnvelope>('/staff/tables/board/changes', {
-    query: {
-      after_version: afterVersion,
-      limit: 20,
-    },
+export async function getTableBoardChanges(afterVersion?: number, branchId?: number): Promise<StaffOperationalRealtimeEnvelope> {
+  return staffClient.getV1StaffTablesBoardChanges({
+    after_version: afterVersion,
+    branch_id: branchId,
+    limit: 20,
   });
 }
 
 export async function listWaitingList(
   query: GetV1StaffWaitingListQueryParams = { active_only: true, per_page: 20, sort: '-priority' },
 ): Promise<StaffWaitingListCollectionEnvelope> {
-  return apiRequest<StaffWaitingListCollectionEnvelope>('/staff/waiting-list', { query });
+  return staffClient.getV1StaffWaitingList(query);
 }
 
-export async function getWaitingListChanges(afterVersion?: number): Promise<StaffOperationalRealtimeEnvelope> {
-  return apiRequest<StaffOperationalRealtimeEnvelope>('/staff/waiting-list/changes', {
-    query: {
-      after_version: afterVersion,
-      limit: 20,
-    },
+export async function getWaitingListChanges(afterVersion?: number, branchId?: number): Promise<StaffOperationalRealtimeEnvelope> {
+  return staffClient.getV1StaffWaitingListChanges({
+    after_version: afterVersion,
+    branch_id: branchId,
+    limit: 20,
   });
 }
 
@@ -494,19 +487,19 @@ export async function createWaitingListEntry(payload: CreateWaitingListPayload):
 }
 
 export async function notifyWaitingListEntry(waitingId: number, payload: NotifyWaitingListRequest): Promise<StaffWaitingListEnvelope> {
-  return apiRequest<StaffWaitingListEnvelope>(`/staff/waiting-list/${waitingId}/notify`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`waiting-notify-${waitingId}`),
-  });
+  return staffClient.postV1StaffWaitingListIdNotify(
+    { id: waitingId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`waiting-notify-${waitingId}`) },
+  );
 }
 
 export async function seatWaitingListEntry(waitingId: number, payload: SeatWaitingListRequest): Promise<StaffWaitingListSeatEnvelope> {
-  return apiRequest<StaffWaitingListSeatEnvelope>(`/staff/waiting-list/${waitingId}/seat`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`waiting-seat-${waitingId}`),
-  });
+  return staffClient.postV1StaffWaitingListIdSeat(
+    { id: waitingId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`waiting-seat-${waitingId}`) },
+  );
 }
 
 export async function cancelWaitingListEntry(waitingId: number, payload: CancelWaitingListPayload): Promise<StaffWaitingListEnvelope> {
@@ -526,19 +519,17 @@ export async function advanceWaitingListEntry(waitingId: number, payload: Advanc
 }
 
 export async function listReservations(query: ReservationListQuery): Promise<StaffReservationLookupCollectionEnvelope> {
-  return apiRequest<StaffReservationLookupCollectionEnvelope>('/staff/reservations', { query });
+  return staffClient.getV1StaffReservations(query);
 }
 
 export async function createReservation(payload: CreateReservationPayload): Promise<ReservationEnvelope> {
-  return apiRequest<ReservationEnvelope>('/reservations', {
-    method: 'POST',
-    body: payload,
+  return staffClient.postV1Reservations(payload, {
     idempotencyKey: createIdempotencyKey(`reservation-create-${payload.table_ids?.join('-') ?? 'manual'}`),
   });
 }
 
 export async function getReservationDetail(reservationId: number): Promise<ReservationEnvelope> {
-  return apiRequest<ReservationEnvelope>(`/staff/reservations/${reservationId}`);
+  return staffClient.getV1StaffReservationsReservationId({ reservation_id: reservationId });
 }
 
 export async function updateReservationStatus(
@@ -553,7 +544,7 @@ export async function updateReservationStatus(
 }
 
 export async function listConversations(query: ConversationInboxQuery): Promise<StaffConversationCollectionEnvelope> {
-  return apiRequest<StaffConversationCollectionEnvelope>('/staff/conversations', { query });
+  return staffClient.getV1StaffConversations(query);
 }
 
 export async function getConversationDetail(
@@ -564,67 +555,67 @@ export async function getConversationDetail(
     include_closed_assignments: true,
   },
 ): Promise<StaffConversationDetailEnvelope> {
-  return apiRequest<StaffConversationDetailEnvelope>(`/staff/conversations/${conversationId}`, { query });
+  return staffClient.getV1StaffConversationsConversationId({ conversation_id: conversationId }, query);
 }
 
 export async function takeOverConversation(
   conversationId: string,
   payload: TakeOverConversationRequest = {},
 ): Promise<StaffConversationMutationEnvelope> {
-  return apiRequest<StaffConversationMutationEnvelope>(`/staff/conversations/${conversationId}/take-over`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`conversation-take-over-${conversationId}`),
-  });
+  return staffClient.postV1StaffConversationsConversationIdTakeOver(
+    { conversation_id: conversationId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`conversation-take-over-${conversationId}`) },
+  );
 }
 
 export async function unassignConversation(
   conversationId: string,
   payload: UnassignConversationPayload = {},
 ): Promise<StaffConversationMutationEnvelope> {
-  return apiRequest<StaffConversationMutationEnvelope>(`/staff/conversations/${conversationId}/unassign`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`conversation-unassign-${conversationId}`),
-  });
+  return staffClient.postV1StaffConversationsConversationIdUnassign(
+    { conversation_id: conversationId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`conversation-unassign-${conversationId}`) },
+  );
 }
 
 export async function addConversationInternalNote(
   conversationId: string,
   payload: AddConversationInternalNoteRequest,
 ): Promise<StaffConversationMutationEnvelope> {
-  return apiRequest<StaffConversationMutationEnvelope>(`/staff/conversations/${conversationId}/internal-notes`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`conversation-note-${conversationId}`),
-  });
+  return staffClient.postV1StaffConversationsConversationIdInternalNotes(
+    { conversation_id: conversationId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`conversation-note-${conversationId}`) },
+  );
 }
 
 export async function sendConversationOutboundReply(
   conversationId: string,
   payload: SendConversationOutboundReplyRequest,
 ): Promise<StaffConversationMutationEnvelope> {
-  return apiRequest<StaffConversationMutationEnvelope>(`/staff/conversations/${conversationId}/outbound-replies`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`conversation-reply-${conversationId}`),
-  });
+  return staffClient.postV1StaffConversationsConversationIdOutboundReplies(
+    { conversation_id: conversationId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`conversation-reply-${conversationId}`) },
+  );
 }
 
 export async function listAuditTrail(query: AuditTrailQuery): Promise<StaffAuditTrailEnvelope> {
-  return apiRequest<StaffAuditTrailEnvelope>('/staff/audit-trail', { query });
+  return staffClient.getV1StaffAuditTrail(query);
 }
 
 export async function listDailySalesReporting(query: DailySalesReportingQuery): Promise<StaffReportingDailySalesCollectionEnvelope> {
-  return apiRequest<StaffReportingDailySalesCollectionEnvelope>('/staff/reporting/daily-sales', { query });
+  return staffClient.getV1StaffReportingDailySales(query);
 }
 
 export async function listDailyOperationsReporting(query: DailyOperationsReportingQuery): Promise<StaffReportingDailyOperationsCollectionEnvelope> {
-  return apiRequest<StaffReportingDailyOperationsCollectionEnvelope>('/staff/reporting/daily-operations', { query });
+  return staffClient.getV1StaffReportingDailyOperations(query);
 }
 
 export async function listDailyInventoryReporting(query: DailyInventoryReportingQuery): Promise<StaffReportingDailyInventoryCollectionEnvelope> {
-  return apiRequest<StaffReportingDailyInventoryCollectionEnvelope>('/staff/reporting/daily-inventory', { query });
+  return staffClient.getV1StaffReportingDailyInventory(query);
 }
 
 export async function listFinancialReconciliation(query: FinancialReconciliationQuery): Promise<FinancialReconciliationCollectionEnvelope> {
@@ -667,11 +658,11 @@ export async function assignBestFitTable(reservationId: number, payload: AssignB
 }
 
 export async function checkInReservation(reservationId: number, payload: CheckInReservationRequest): Promise<ReservationEnvelope> {
-  return apiRequest<ReservationEnvelope>(`/staff/reservations/${reservationId}/check-in`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`reservation-check-in-${reservationId}`),
-  });
+  return staffClient.postV1StaffReservationsIdCheckIn(
+    { id: reservationId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`reservation-check-in-${reservationId}`) },
+  );
 }
 
 export async function moveReservationTable(reservationId: number, payload: MoveTablePayload): Promise<ReservationEnvelope> {
@@ -691,15 +682,13 @@ export async function releaseStaffTable(tableId: number, payload: ReleaseTablePa
 }
 
 export async function createWalkInSession(payload: WalkInPayload): Promise<ReservationEnvelope> {
-  return apiRequest<ReservationEnvelope>('/staff/service-sessions/walk-in', {
-    method: 'POST',
-    body: payload,
+  return staffClient.postV1StaffServiceSessionsWalkIn(payload, {
     idempotencyKey: createIdempotencyKey(`walk-in-${payload.table_ids.join('-')}`),
   });
 }
 
 export async function listMenuItems(query: GetV1MenuItemsQueryParams): Promise<CustomerMenuItemsCollectionEnvelope> {
-  return apiRequest<CustomerMenuItemsCollectionEnvelope>('/staff/menu/items', { query });
+  return staffClient.getV1StaffMenuItems(query);
 }
 
 export async function getActiveOrderByTable(tableId: number): Promise<StaffOrderReadEnvelope> {
@@ -711,11 +700,11 @@ export async function getActiveOrderByReservation(reservationId: number): Promis
 }
 
 export async function listReservationOrders(reservationId: number): Promise<StaffReservationOrderCollectionEnvelope> {
-  return apiRequest<StaffReservationOrderCollectionEnvelope>(`/staff/reservations/${reservationId}/orders`);
+  return staffClient.getV1StaffReservationsReservationIdOrders({ reservation_id: reservationId });
 }
 
 export async function getOrderDetail(orderId: number): Promise<StaffOrderReadEnvelope> {
-  return apiRequest<StaffOrderReadEnvelope>(`/staff/orders/${orderId}`);
+  return staffClient.getV1StaffOrdersOrderId({ order_id: orderId });
 }
 
 export async function createTableOrder(tableId: number, payload: {
@@ -724,19 +713,19 @@ export async function createTableOrder(tableId: number, payload: {
   notes?: string | null;
   row_version: number;
 }): Promise<StaffReservationOrderEnvelope> {
-  return apiRequest<StaffReservationOrderEnvelope>(`/staff/tables/${tableId}/orders`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`order-create-${tableId}`),
-  });
+  return staffClient.postV1StaffTablesTableIdOrders(
+    { table_id: tableId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`order-create-${tableId}`) },
+  );
 }
 
 export async function addOrderItems(orderId: number, payload: AddOrderItemsRequest): Promise<StaffReservationOrderEnvelope> {
-  return apiRequest<StaffReservationOrderEnvelope>(`/staff/orders/${orderId}/items`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`order-items-${orderId}`),
-  });
+  return staffClient.postV1StaffOrdersOrderIdItems(
+    { order_id: orderId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`order-items-${orderId}`) },
+  );
 }
 
 export async function updateOrderItem(orderId: number, orderItemId: number, payload: UpdateOrderItemPayload): Promise<StaffReservationOrderEnvelope> {
@@ -756,106 +745,101 @@ export async function updateOrderItemStatus(orderId: number, orderItemId: number
 }
 
 export async function listKitchenStations(branchId?: number): Promise<StaffKitchenStationCollectionEnvelope> {
-  return apiRequest<StaffKitchenStationCollectionEnvelope>('/staff/kitchen/stations', {
-    query: {
-      branch_id: branchId,
-    },
-  });
+  return staffClient.getV1StaffKitchenStations({ branch_id: branchId });
 }
 
 export async function getKitchenStationTickets(
   stationId: number,
   query: GetV1StaffKitchenStationsStationIdTicketsQueryParams & BranchScopedQuery,
 ): Promise<StaffKitchenTicketCollectionEnvelope> {
-  return apiRequest<StaffKitchenTicketCollectionEnvelope>(`/staff/kitchen/stations/${stationId}/tickets`, { query });
+  return staffClient.getV1StaffKitchenStationsStationIdTickets({ station_id: stationId }, query);
 }
 
-export async function getKitchenChanges(afterVersion?: number): Promise<StaffOperationalRealtimeEnvelope> {
-  return apiRequest<StaffOperationalRealtimeEnvelope>('/staff/kitchen/changes', {
-    query: {
-      after_version: afterVersion,
-      limit: 20,
-    },
+export async function getKitchenChanges(afterVersion?: number, branchId?: number): Promise<StaffOperationalRealtimeEnvelope> {
+  return staffClient.getV1StaffKitchenChanges({
+    after_version: afterVersion,
+    branch_id: branchId,
+    limit: 20,
   });
 }
 
 export async function dispatchKitchenOrder(orderId: number, payload: DispatchKitchenTicketsRequest = {}): Promise<StaffKitchenDispatchEnvelope> {
-  return apiRequest<StaffKitchenDispatchEnvelope>(`/staff/orders/${orderId}/kitchen/dispatch`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`kitchen-dispatch-${orderId}`),
-  });
+  return staffClient.postV1StaffOrdersOrderIdKitchenDispatch(
+    { order_id: orderId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`kitchen-dispatch-${orderId}`) },
+  );
 }
 
 export async function fireKitchenTicket(ticketId: number): Promise<StaffKitchenTicketEnvelope> {
-  return apiRequest<StaffKitchenTicketEnvelope>(`/staff/kitchen/tickets/${ticketId}/fire`, {
-    method: 'POST',
-    idempotencyKey: createIdempotencyKey(`kitchen-fire-${ticketId}`),
-  });
+  return staffClient.postV1StaffKitchenTicketsTicketIdFire(
+    { ticket_id: ticketId },
+    { idempotencyKey: createIdempotencyKey(`kitchen-fire-${ticketId}`) },
+  );
 }
 
 export async function bumpKitchenTicket(ticketId: number): Promise<StaffKitchenTicketEnvelope> {
-  return apiRequest<StaffKitchenTicketEnvelope>(`/staff/kitchen/tickets/${ticketId}/bump`, {
-    method: 'POST',
-    idempotencyKey: createIdempotencyKey(`kitchen-bump-${ticketId}`),
-  });
+  return staffClient.postV1StaffKitchenTicketsTicketIdBump(
+    { ticket_id: ticketId },
+    { idempotencyKey: createIdempotencyKey(`kitchen-bump-${ticketId}`) },
+  );
 }
 
 export async function recallKitchenTicket(ticketId: number): Promise<StaffKitchenTicketEnvelope> {
-  return apiRequest<StaffKitchenTicketEnvelope>(`/staff/kitchen/tickets/${ticketId}/recall`, {
-    method: 'POST',
-    idempotencyKey: createIdempotencyKey(`kitchen-recall-${ticketId}`),
-  });
+  return staffClient.postV1StaffKitchenTicketsTicketIdRecall(
+    { ticket_id: ticketId },
+    { idempotencyKey: createIdempotencyKey(`kitchen-recall-${ticketId}`) },
+  );
 }
 
 export async function createBillSnapshot(orderId: number, payload: CreateBillSnapshotPayload): Promise<StaffReservationOrderEnvelope> {
-  return apiRequest<StaffReservationOrderEnvelope>(`/staff/orders/${orderId}/bill-snapshot`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`bill-snapshot-${orderId}`),
-  });
+  return staffClient.postV1StaffOrdersOrderIdBillSnapshot(
+    { order_id: orderId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`bill-snapshot-${orderId}`) },
+  );
 }
 
 export async function getSettlementPreview(
   orderId: number,
   query: GetV1StaffOrdersOrderIdSettlementPreviewQueryParams = {},
 ): Promise<StaffCheckoutSettlementEnvelope> {
-  return apiRequest<StaffCheckoutSettlementEnvelope>(`/staff/orders/${orderId}/settlement-preview`, { query });
+  return staffClient.getV1StaffOrdersOrderIdSettlementPreview({ order_id: orderId }, query);
 }
 
 export async function finalizeSettlement(orderId: number, payload: CheckoutOrderRequest): Promise<StaffCheckoutSettlementEnvelope> {
-  return apiRequest<StaffCheckoutSettlementEnvelope>(`/staff/orders/${orderId}/settlement/finalize`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`settlement-finalize-${orderId}`),
-  });
+  return staffClient.postV1StaffOrdersOrderIdSettlementFinalize(
+    { order_id: orderId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`settlement-finalize-${orderId}`) },
+  );
 }
 
 export async function getRefundPreview(
   reservationId: number,
   query: GetV1StaffReservationsReservationIdRefundPreviewQueryParams = {},
 ): Promise<StaffRefundPreviewEnvelope> {
-  return apiRequest<StaffRefundPreviewEnvelope>(`/staff/reservations/${reservationId}/refund-preview`, { query });
+  return staffClient.getV1StaffReservationsReservationIdRefundPreview({ reservation_id: reservationId }, query);
 }
 
 export async function refundReservation(
   reservationId: number,
   payload: RefundReservationRequest,
 ): Promise<StaffRefundEnvelope> {
-  return apiRequest<StaffRefundEnvelope>(`/staff/reservations/${reservationId}/refund`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`refund-${reservationId}`),
-  });
+  return staffClient.postV1StaffReservationsReservationIdRefund(
+    { reservation_id: reservationId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`refund-${reservationId}`) },
+  );
 }
 
 export async function refundAndCancelReservation(
   reservationId: number,
   payload: RefundAndCancelReservationRequest,
 ): Promise<StaffRefundEnvelope> {
-  return apiRequest<StaffRefundEnvelope>(`/staff/reservations/${reservationId}/refund-cancel`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`refund-cancel-${reservationId}`),
-  });
+  return staffClient.postV1StaffReservationsReservationIdRefundCancel(
+    { reservation_id: reservationId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`refund-cancel-${reservationId}`) },
+  );
 }

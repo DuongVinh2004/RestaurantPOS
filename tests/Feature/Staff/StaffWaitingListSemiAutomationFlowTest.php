@@ -317,7 +317,7 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
             ->assertJsonPath('data.0.waiting_id', $sourceWaitingId)
             ->assertJsonPath('data.0.orchestration.actionable_state', 'advance_queue')
             ->assertJsonPath('data.0.orchestration.advance_queue.supported', false)
-            ->assertJsonPath('data.0.orchestration.advance_queue.disabled_reason', 'Advanced waiting-list automation is disabled for this rollout. Use canonical notify and seat flows.')
+            ->assertJsonPath('data.0.orchestration.advance_queue.disabled_reason', 'Advanced waiting-list automation is disabled for day 1. Use canonical manual notify and seat flows.')
             ->assertJsonPath('data.0.orchestration.actions.1.key', 'advance_queue')
             ->assertJsonPath('data.0.orchestration.actions.1.enabled', false)
             ->assertJsonPath('data.0.orchestration.actions.1.reason', 'feature_disabled');
@@ -392,6 +392,7 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
             ->assertStatus(409)
             ->assertJsonPath('error_code', 'stale_row_version')
             ->assertJsonPath('category_code', 'stale_write')
+            ->assertJsonPath('details.errors.row_version.0', 'Waiting-list data changed (row_version mismatch). Reload and try again.')
             ->assertJsonValidationErrors(['row_version']);
     }
 }

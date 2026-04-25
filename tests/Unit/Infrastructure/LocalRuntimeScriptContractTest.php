@@ -71,4 +71,56 @@ final class LocalRuntimeScriptContractTest extends TestCase
         self::assertStringContainsString('if ($redisProcesses.Count -gt 0 -and (Test-Path $startRedisScript)) {', $script);
         self::assertStringContainsString('if ($mySqlProcesses.Count -gt 0 -and (Test-Path $startMySqlScript)) {', $script);
     }
+
+    public function test_dev_backend_mysql_failure_message_preserves_npm_commands(): void
+    {
+        $script = file_get_contents(base_path('scripts/ops/dev-backend.ps1'));
+        self::assertNotFalse($script);
+
+        self::assertStringContainsString(
+            'throw (\'MySQL runtime could not be ensured. Run `npm run mysql:local` (or `npm run mysql:local:restart`)',
+            $script,
+        );
+    }
+
+    public function test_windows_runtime_wrappers_can_discover_common_local_tool_paths(): void
+    {
+        $devBackend = file_get_contents(base_path('scripts/ops/dev-backend.ps1'));
+        $localRuntime = file_get_contents(base_path('scripts/ops/local-runtime.ps1'));
+        self::assertNotFalse($devBackend);
+        self::assertNotFalse($localRuntime);
+
+        foreach ([$devBackend, $localRuntime] as $script) {
+            self::assertStringContainsString('function Add-KnownWindowsDevToolPaths', $script);
+            self::assertStringContainsString('C:\xampp\php', $script);
+            self::assertStringContainsString('.config\herd-lite\bin', $script);
+            self::assertStringContainsString('C:\xampp\mysql\bin', $script);
+        }
+    }
+
+    public function test_runtime_dependency_scripts_can_reuse_external_mysql_and_redis_services(): void
+    {
+        $mysqlScript = file_get_contents(base_path('scripts/ops/start-local-mysql.ps1'));
+        $redisScript = file_get_contents(base_path('scripts/ops/start-local-redis.ps1'));
+        self::assertNotFalse($mysqlScript);
+        self::assertNotFalse($redisScript);
+
+        self::assertStringContainsString('MYSQLD_BIN', $mysqlScript);
+        self::assertStringContainsString('MySQL-compatible service is already running', $mysqlScript);
+        self::assertStringContainsString('C:\xampp\mysql\bin\mysql.exe', $mysqlScript);
+
+        self::assertStringContainsString('function Test-RedisPing', $redisScript);
+        self::assertStringContainsString('Redis-compatible service is already running', $redisScript);
+    }
+
+    public function test_runtime_preflight_can_discover_common_windows_php_binary(): void
+    {
+        $script = file_get_contents(base_path('scripts/ops/local-runtime-preflight.mjs'));
+        self::assertNotFalse($script);
+
+        self::assertStringContainsString('function resolvePhpBinary', $script);
+        self::assertStringContainsString('C:\\\\xampp\\\\php\\\\php.exe', $script);
+        self::assertStringContainsString('.config', $script);
+        self::assertStringContainsString('doctorCommand: [resolvePhpBinary(processEnv),', $script);
+    }
 }

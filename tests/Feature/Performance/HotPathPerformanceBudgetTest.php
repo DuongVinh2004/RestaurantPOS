@@ -177,10 +177,11 @@ class HotPathPerformanceBudgetTest extends TestCase
 
     public function test_staff_settlement_preview_stays_within_query_budget(): void
     {
-        [, $staffId, , $orderId] = $this->seedInServiceOrderScenario(lockBill: false);
+        [, , , $orderId] = $this->seedInServiceOrderScenario(lockBill: false);
+        $cashierId = $this->createUser(['role_name' => 'Cashier']);
 
         $profile = $this->profileQueries(fn () => $this
-            ->withHeaders($this->staffAuthHeaders($staffId, 'perf-settlement-preview'))
+            ->withHeaders($this->staffAuthHeaders($cashierId, 'perf-settlement-preview'))
             ->getJson('/api/v1/staff/orders/'.$orderId.'/settlement-preview'));
 
         $profile['result']->assertOk();

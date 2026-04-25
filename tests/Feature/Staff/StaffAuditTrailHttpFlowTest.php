@@ -40,7 +40,7 @@ class StaffAuditTrailHttpFlowTest extends TestCase
 
     public function test_staff_can_filter_audit_trail_by_reservation_action_and_actor(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->withIdempotencyKey('audit-trail-checkin', $this->staffAuthHeaders($staffId, 'staff-audit-trail'));
 
         $tableId = $this->createRestaurantTable(['status' => 'Available']);
@@ -92,6 +92,7 @@ class StaffAuditTrailHttpFlowTest extends TestCase
             'role_name' => 'Staff',
             'full_name' => 'Branch Investigator',
         ]);
+        $this->grantRoleCapabilities($staffId, ['audit.view']);
         $headers = $this->withIdempotencyKey('audit-trail-branch-search', $this->staffAuthHeaders($staffId, 'staff-audit-trail'));
 
         $branchTwoId = $this->createBranch([
@@ -178,6 +179,7 @@ class StaffAuditTrailHttpFlowTest extends TestCase
     public function test_audit_trail_defaults_to_actor_operational_branch_scope_and_rejects_inaccessible_branch_filters(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->grantRoleCapabilities($staffId, ['audit.view']);
         $headers = $this->withIdempotencyKey('audit-trail-scope-default', $this->staffAuthHeaders($staffId, 'staff-audit-trail'));
 
         $branchTwoId = $this->createBranch([
@@ -238,6 +240,7 @@ class StaffAuditTrailHttpFlowTest extends TestCase
     public function test_staff_branch_filter_matches_branch_owned_entities_without_embedded_branch_meta(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->grantRoleCapabilities($staffId, ['audit.view']);
         $headers = $this->withIdempotencyKey('audit-trail-branch-owned', $this->staffAuthHeaders($staffId, 'staff-audit-trail'));
 
         $branchTwoId = $this->createBranch([
@@ -344,5 +347,16 @@ class StaffAuditTrailHttpFlowTest extends TestCase
         }
 
         return $auditId;
+    }
+
+    /**
+     * @param  list<string>  $capabilities
+     */
+    private function grantRoleCapabilities(int $staffId, array $capabilities): void
+    {
+        $roleId = (int) (DB::table('users')->where('user_id', $staffId)->value('role_id') ?? 0);
+        $roleIdCapabilities = (array) config('staff_capabilities.role_id_capabilities', []);
+        $roleIdCapabilities[$roleId] = $capabilities;
+        config()->set('staff_capabilities.role_id_capabilities', $roleIdCapabilities);
     }
 }

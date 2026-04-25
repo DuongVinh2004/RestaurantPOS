@@ -51,6 +51,44 @@ function Wait-ForPortState {
     return $false
 }
 
+function Test-RedisPing {
+    param(
+        [string] $HostName = '127.0.0.1',
+        [int] $TargetPort = 6379,
+        [int] $TimeoutMs = 1000
+    )
+
+    $client = [System.Net.Sockets.TcpClient]::new()
+
+    try {
+        $connect = $client.BeginConnect($HostName, $TargetPort, $null, $null)
+        if (-not $connect.AsyncWaitHandle.WaitOne($TimeoutMs)) {
+            return $false
+        }
+
+        $client.EndConnect($connect)
+        $client.ReceiveTimeout = $TimeoutMs
+        $client.SendTimeout = $TimeoutMs
+
+        $stream = $client.GetStream()
+        $payload = [System.Text.Encoding]::ASCII.GetBytes("*1`r`n`$4`r`nPING`r`n")
+        $stream.Write($payload, 0, $payload.Length)
+
+        $buffer = New-Object byte[] 64
+        $read = $stream.Read($buffer, 0, $buffer.Length)
+        if ($read -le 0) {
+            return $false
+        }
+
+        $response = [System.Text.Encoding]::ASCII.GetString($buffer, 0, $read)
+        return $response.StartsWith('+PONG')
+    } catch {
+        return $false
+    } finally {
+        $client.Close()
+    }
+}
+
 function Test-IsLocalRedisProcess {
     param(
         $ProcessInfo
@@ -117,15 +155,6 @@ if (-not (Test-Path $redisConfigPath)) {
     throw "Redis config file not found: $redisConfigPath"
 }
 
-$redisServerCommand = Get-Command redis-server.exe -ErrorAction SilentlyContinue
-$redisServer = if ($redisServerCommand) {
-    $redisServerCommand.Source
-} elseif (Test-Path $knownRedisServer) {
-    $knownRedisServer
-} else {
-    throw 'redis-server.exe was not found. Install Redis for Windows or add redis-server.exe to PATH.'
-}
-
 if ($Stop) {
     $stopped = Stop-LocalRedis
     if ($stopped) {
@@ -141,22 +170,35 @@ $existingConnection = Get-ListeningConnection -TargetPort $redisPort
 if ($existingConnection) {
     $ownerProcess = Get-CimInstance Win32_Process -Filter "ProcessId = $($existingConnection.OwningProcess)" -ErrorAction SilentlyContinue
 
-    if (-not $ownerProcess) {
-        throw "Port $redisPort is already listening, but the owning process could not be resolved."
+    if (-not (Test-RedisPing -TargetPort $redisPort)) {
+        $ownerLabel = if ($ownerProcess) { "$($ownerProcess.Name) (PID $($ownerProcess.ProcessId))" } else { "PID $($existingConnection.OwningProcess)" }
+        throw "Port $redisPort is already listening via $ownerLabel, but it did not answer Redis PING."
     }
 
-    if ($ownerProcess.Name -ne 'redis-server.exe') {
-        throw "Port $redisPort is already in use by a non-Redis process (PID $($ownerProcess.ProcessId))."
-    }
+    $isLocalRedis = $ownerProcess -and (Test-IsLocalRedisProcess -ProcessInfo $ownerProcess)
+    if (-not $isLocalRedis) {
+        if ($Restart) {
+            throw "Port $redisPort is already in use by an externally-managed Redis service. Stop that service manually before using -Restart with the repo-local Redis runtime."
+        }
 
-    if (-not (Test-IsLocalRedisProcess -ProcessInfo $ownerProcess)) {
-        throw "Port $redisPort is already in use by a non-local Redis process. Stop that service manually before starting the repo-local Redis runtime."
+        $ownerLabel = if ($ownerProcess) { "$($ownerProcess.Name) (PID $($ownerProcess.ProcessId))" } else { "PID $($existingConnection.OwningProcess)" }
+        Write-Output "Redis-compatible service is already running on 127.0.0.1:$redisPort via $ownerLabel. Reusing the active service."
+        return
     }
 
     if (-not $Restart) {
         Write-Output "Redis is already running on 127.0.0.1:$redisPort with PID $($ownerProcess.ProcessId). Data dir: $redisDataDir"
         return
     }
+}
+
+$redisServerCommand = Get-Command redis-server.exe -ErrorAction SilentlyContinue
+$redisServer = if ($redisServerCommand) {
+    $redisServerCommand.Source
+} elseif (Test-Path $knownRedisServer) {
+    $knownRedisServer
+} else {
+    throw 'redis-server.exe was not found. Install Redis for Windows, add redis-server.exe to PATH, or start a Redis-compatible service on 127.0.0.1:6379 before running this script.'
 }
 
 if ($Restart) {

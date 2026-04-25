@@ -61,7 +61,7 @@ class CustomerWaitingListService
 
                 if ($hasActiveEntry) {
                     throw ValidationException::withMessages([
-                        'waiting_list' => ['KhÃ¡ch hiá»‡n Ä‘Ã£ cÃ³ waiting entry cÃ²n hiá»‡u lá»±c.'],
+                        'waiting_list' => ['This customer already has an active waiting-list entry.'],
                     ]);
                 }
 
@@ -216,7 +216,7 @@ class CustomerWaitingListService
 
                 if ($entry->status === WaitingListStatus::Seated) {
                     throw ValidationException::withMessages([
-                        'status' => ['Entry Ä‘Ã£ seated, customer khÃ´ng thá»ƒ cancel.'],
+                        'status' => ['This entry is already seated and cannot be cancelled by the customer.'],
                     ]);
                 }
 
@@ -272,18 +272,14 @@ class CustomerWaitingListService
 
     private function assertRowVersion(WaitlistEntry $entry, ?int $expectedRowVersion): void
     {
-        if ($expectedRowVersion !== null && (int) ($entry->row_version ?? 1) !== $expectedRowVersion) {
-            throw ValidationException::withMessages([
-                'row_version' => ['Dá»¯ liá»‡u Ä‘Ã£ thay Ä‘á»•i (row_version mismatch). HÃ£y reload rá»“i thá»­ láº¡i.'],
-            ]);
-        }
+        WaitlistInvitationStateMachine::assertExpectedRowVersion($entry, $expectedRowVersion);
     }
 
     private function assertNotifiedState(WaitlistEntry $entry): void
     {
         if ($entry->status !== WaitingListStatus::Notified) {
             throw ValidationException::withMessages([
-                'status' => ['Chá»‰ cÃ³ entry á»Ÿ tráº¡ng thÃ¡i Notified má»›i cho phÃ©p customer response nÃ y.'],
+                'status' => ['Only notified waiting-list entries can accept, decline, or confirm arrival.'],
             ]);
         }
     }
@@ -295,7 +291,7 @@ class CustomerWaitingListService
 
         if ($entry->notified_at === null || $expiresAt === null || ! $now->lt($expiresAt)) {
             throw ValidationException::withMessages([
-                'notify_window' => ['Notify window Ä‘Ã£ háº¿t háº¡n hoáº·c khÃ´ng cÃ²n há»£p lá»‡ cho waiting entry nÃ y.'],
+                'notify_window' => ['The notify window has expired or is no longer valid for this waiting-list entry.'],
             ]);
         }
     }

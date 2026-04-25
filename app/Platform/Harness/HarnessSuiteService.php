@@ -152,7 +152,10 @@ class HarnessSuiteService
     {
         $customerHeader = (string) config('customer_auth.header', 'X-Customer-Token');
         $staffHeader = 'X-Staff-Key';
+        $staffCsrfHeader = (string) config('staff_auth.browser_session.csrf_header', 'X-Staff-CSRF');
         $sessionHeader = 'X-Session-Id';
+        $staffBrowserSessionEnabled = (bool) config('staff_auth.browser_session.enabled', false);
+        $supportsCredentials = (bool) config('cors.supports_credentials', false);
         $allowedHeaders = array_map(
             static fn (mixed $value): string => strtolower(trim((string) $value)),
             (array) config('cors.allowed_headers', [])
@@ -172,8 +175,10 @@ class HarnessSuiteService
             [
                 'key' => 'browser_credentials_disabled',
                 'severity' => 'error',
-                'ok' => (bool) config('cors.supports_credentials', true) === false,
-                'message' => 'Split web contract stays header-based; credentials mode must remain disabled.',
+                'ok' => $staffBrowserSessionEnabled ? $supportsCredentials : $supportsCredentials === false,
+                'message' => $staffBrowserSessionEnabled
+                    ? 'Staff browser refresh-cookie rollout requires credentials mode for exact allowed origins.'
+                    : 'Split web default stays header-based; credentials mode must remain disabled unless staff refresh-cookie rollout is enabled.',
             ],
             [
                 'key' => 'customer_header_allowed',
@@ -186,6 +191,12 @@ class HarnessSuiteService
                 'severity' => 'error',
                 'ok' => in_array(strtolower($staffHeader), $allowedHeaders, true),
                 'message' => 'CORS must allow the staff auth header [X-Staff-Key].',
+            ],
+            [
+                'key' => 'staff_csrf_header_allowed',
+                'severity' => 'error',
+                'ok' => in_array(strtolower($staffCsrfHeader), $allowedHeaders, true),
+                'message' => sprintf('CORS must allow the staff browser CSRF header [%s].', $staffCsrfHeader),
             ],
             [
                 'key' => 'session_header_allowed',
@@ -219,6 +230,7 @@ class HarnessSuiteService
             'headers' => [
                 'customer_auth' => $customerHeader,
                 'staff_auth' => $staffHeader,
+                'staff_csrf' => $staffCsrfHeader,
                 'session' => $sessionHeader,
                 'idempotency' => 'Idempotency-Key',
                 'request_id' => 'X-Request-Id',
@@ -240,7 +252,10 @@ class HarnessSuiteService
                 ],
             ],
             'contract' => [
-                'supports_credentials' => (bool) config('cors.supports_credentials', false),
+                'supports_credentials' => $supportsCredentials,
+                'staff_browser_session_cookie_enabled' => $staffBrowserSessionEnabled,
+                'staff_refresh_cookie_name' => (string) config('staff_auth.browser_session.refresh_cookie_name', 'staff_web_refresh'),
+                'staff_csrf_header' => $staffCsrfHeader,
                 'allowed_origins' => $allowedOrigins,
                 'session_bound_route_count' => count((array) config('customer_auth.session_bound_route_contracts', [])),
                 'customer_allow_bearer' => (bool) config('customer_auth.allow_bearer', false),

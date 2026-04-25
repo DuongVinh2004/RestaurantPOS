@@ -139,6 +139,28 @@ class BookingReleaseManifestCommandTest extends TestCase
         $this->assertStringContainsString('Snapshot: '.$this->root.'/release_manifest_snapshot.json', Artisan::output());
     }
 
+    public function test_release_manifest_write_refreshes_freshness_metadata_when_artifact_hashes_match(): void
+    {
+        config()->set('booking_release.artifact_freshness', [
+            'api_consumer_mutation_contract' => ['openapi_v1_spec'],
+        ]);
+
+        $snapshotPath = $this->root.'/release_manifest_snapshot.json';
+        $absoluteSnapshotPath = base_path($snapshotPath);
+        $existingSnapshot = $this->freshnessMetadataSnapshot(openApiEpoch: 100, mutationEpoch: 90);
+        $currentSnapshot = $this->freshnessMetadataSnapshot(openApiEpoch: 100, mutationEpoch: 100);
+        $service = app(ReleaseArtifactManifestService::class);
+
+        File::ensureDirectoryExists(dirname($absoluteSnapshotPath));
+        File::put($absoluteSnapshotPath, json_encode($existingSnapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        $writtenSnapshot = $service->writeSnapshot($currentSnapshot, $snapshotPath);
+        $persistedSnapshot = json_decode((string) File::get($absoluteSnapshotPath), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertSame(100, data_get($writtenSnapshot, 'artifacts.api_consumer_mutation_contract.modified_epoch'));
+        $this->assertSame(100, data_get($persistedSnapshot, 'artifacts.api_consumer_mutation_contract.modified_epoch'));
+    }
+
     public function test_booking_release_manifest_fails_when_snapshot_is_broken(): void
     {
         $this->app->instance(ReleaseArtifactManifestService::class, new class extends ReleaseArtifactManifestService
@@ -224,5 +246,56 @@ class BookingReleaseManifestCommandTest extends TestCase
         $this->assertArrayHasKey('frozen_snapshot', $payload);
         $this->assertSame('stale', $payload['frozen_snapshot']['status'] ?? null);
         $this->assertTrue((bool) ($payload['meta']['verify_frozen_requested'] ?? false));
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function freshnessMetadataSnapshot(int $openApiEpoch, int $mutationEpoch): array
+    {
+        return [
+            'ok' => true,
+            'status' => 'ok',
+            'issues' => [],
+            'artifacts' => [
+                'openapi_v1_spec' => [
+                    'path' => 'storage/app/booking_release/openapi-v1.json',
+                    'exists' => true,
+                    'optional' => false,
+                    'sha256' => str_repeat('a', 64),
+                    'bytes' => 100,
+                    'line_count' => 5,
+                    'modified_epoch' => $openApiEpoch,
+                    'modified_at_utc' => '2026-04-24T07:00:00+00:00',
+                    'required_fragment_count' => 0,
+                    'missing_fragments' => [],
+                ],
+                'api_consumer_mutation_contract' => [
+                    'path' => 'build/api-consumer/mutation-contracts.md',
+                    'exists' => true,
+                    'optional' => false,
+                    'sha256' => str_repeat('b', 64),
+                    'bytes' => 200,
+                    'line_count' => 10,
+                    'modified_epoch' => $mutationEpoch,
+                    'modified_at_utc' => '2026-04-24T07:00:00+00:00',
+                    'required_fragment_count' => 0,
+                    'missing_fragments' => [],
+                ],
+            ],
+            'patches' => [
+                'present' => [],
+                'required' => [],
+                'missing' => [],
+                'count' => 0,
+                'required_count' => 0,
+            ],
+            'meta' => [
+                'generated_at_utc' => '2026-04-24T07:00:00+00:00',
+            ],
+            'definition_path' => 'config/booking_release.php',
+            'definition_sha256' => str_repeat('c', 64),
+            'snapshot_path' => $this->root.'/release_manifest_snapshot.json',
+        ];
     }
 }

@@ -126,7 +126,7 @@ describe("PrivacyPanel", () => {
 
     renderPanel();
 
-    await user.type(await screen.findByPlaceholderText("Optional note"), "Please anonymize my account.");
+    await user.type(await screen.findByRole("textbox", { name: "Optional note" }), "Please anonymize my account.");
     await user.click(screen.getByRole("button", { name: "Submit anonymization request" }));
 
     await waitFor(() => {

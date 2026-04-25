@@ -29,7 +29,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
 
     public function test_staff_can_issue_invoice_from_financial_truth_and_export_accounting_rows(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
         $customerId = $this->createUser(['role_name' => 'Customer', 'full_name' => 'Le Thu']);
 
         DB::table('settings')->updateOrInsert(
@@ -141,7 +141,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
 
     public function test_staff_cannot_issue_invoice_for_unbilled_reservation(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
@@ -160,7 +160,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
 
     public function test_staff_cannot_issue_invoice_when_reservation_is_not_fully_settled(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
         $customerId = $this->createUser(['role_name' => 'Customer']);
 
         DB::table('settings')->updateOrInsert(
@@ -249,11 +249,11 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
 
     public function test_staff_cannot_issue_invoice_without_open_cashier_shift_in_reservation_branch(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $branchA = $this->createBranch(['branch_code' => 'INVCASHA', 'branch_name' => 'Invoice Cashier A']);
         $branchB = $this->createBranch(['branch_code' => 'INVCASHB', 'branch_name' => 'Invoice Cashier B']);
-        config()->set('staff_capabilities.role_branch_scopes.Staff', [$branchA]);
+        config()->set('staff_capabilities.role_branch_scopes.Cashier', [$branchA]);
 
         DB::table('settings')->updateOrInsert(
             ['setting_key' => 'finance.tax_invoice_profile'],
@@ -311,11 +311,11 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
 
     public function test_invoice_routes_respect_branch_scope_when_requested(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $branchA = $this->createBranch(['branch_code' => 'INVA', 'branch_name' => 'Invoice A']);
         $branchB = $this->createBranch(['branch_code' => 'INVB', 'branch_name' => 'Invoice B']);
-        config()->set('staff_capabilities.role_branch_scopes.Staff', [$branchA]);
+        config()->set('staff_capabilities.role_branch_scopes.Cashier', [$branchA]);
 
         DB::table('settings')->updateOrInsert(
             ['setting_key' => 'finance.tax_invoice_profile'],
@@ -382,11 +382,11 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
 
     public function test_invoice_reads_and_accounting_export_default_to_actor_operational_branch_scope(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $branchA = $this->createBranch(['branch_code' => 'INVOPS1', 'branch_name' => 'Invoice Ops A']);
         $branchB = $this->createBranch(['branch_code' => 'INVOPS2', 'branch_name' => 'Invoice Ops B']);
-        config()->set('staff_capabilities.role_branch_scopes.Staff', [$branchA]);
+        config()->set('staff_capabilities.role_branch_scopes.Cashier', [$branchA]);
 
         DB::table('settings')->updateOrInsert(
             ['setting_key' => 'finance.tax_invoice_profile'],

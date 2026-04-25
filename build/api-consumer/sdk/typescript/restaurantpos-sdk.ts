@@ -1,13 +1,15 @@
 /* Generated from storage/app/booking_release/openapi-v1.json. Do not edit by hand. */
 
-export type AuthMode = 'auto' | 'none' | 'customer' | 'staff' | 'session' | 'customerOrSession';
+export type AuthMode = 'auto' | 'none' | 'customer' | 'staff' | 'session' | 'customerOrSession' | 'staffBrowserSession';
 
 export interface RestaurantPosClientOptions {
   baseUrl: string;
   fetchImpl?: typeof fetch;
   customerToken?: string | (() => string | null | undefined);
   staffApiKey?: string | (() => string | null | undefined);
+  staffCsrfToken?: string | (() => string | null | undefined);
   customerSessionId?: string | (() => string | null | undefined);
+  credentials?: RequestCredentials;
   defaultHeaders?: Record<string, string>;
 }
 
@@ -16,6 +18,8 @@ export interface RequestOptions {
   signal?: AbortSignal;
   authMode?: AuthMode;
   idempotencyKey?: string;
+  credentials?: RequestCredentials;
+  staffCsrfToken?: string | (() => string | null | undefined);
 }
 
 export class RestaurantPosApiError<T = unknown> extends Error {
@@ -561,6 +565,19 @@ export type CreateTableOrderRequest = {
   row_version: number;
 };
 
+export type CreateWalkInServiceSessionRequest = {
+  branch_id?: (number) | null;
+  user_id?: (number) | null;
+  guest_name?: (string) | null;
+  phone?: (string) | null;
+  table_ids: Array<number>;
+  guest_count: number;
+  started_at?: (string) | null;
+  service_minutes?: (number) | null;
+  notes?: (string) | null;
+  staff_user_id?: (number) | null;
+};
+
 export type CustomerActiveOrderEnvelope = {
   data: {
   reservation_id: number;
@@ -1064,7 +1081,6 @@ export type CustomerWaitingListCollectionEnvelope = {
   data: Array<{
   waiting_id: number;
   branch_id: (number) | null;
-  user_id: (number) | null;
   guest_name: (string) | null;
   phone: (string) | null;
   guest_count: number;
@@ -1073,101 +1089,42 @@ export type CustomerWaitingListCollectionEnvelope = {
   priority: number;
   notified_at: (string) | null;
   notify_expires_at: (string) | null;
-  notified_by: (number) | null;
   seated_at: (string) | null;
   cancelled_at: (string) | null;
   cancel_reason: (string) | null;
   notes: (string) | null;
-  updated_by: (number) | null;
   row_version: number;
-  current_response_state: string;
-  response: {
-  status: (string) | null;
-  responded_at: (string) | null;
-  confirmed_arrival_at: (string) | null;
-};
-  invite_window: {
-  notified_at: (string) | null;
+  response_state: "none" | "accepted" | "arrival_confirmed" | "declined";
+  can_accept: boolean;
+  can_decline: boolean;
+  can_confirm_arrival: boolean;
+  can_cancel: boolean;
+  notify_window: {
+  is_open: boolean;
   expires_at: (string) | null;
-  is_active: boolean;
-  is_expired: boolean;
-  seconds_remaining: number;
 };
-  invite_lifecycle: {
-  requires_explicit_staff_seat: boolean;
-  auto_convert_to_reservation: boolean;
-  seat_readiness: string;
-  customer_next_step: string;
-  staff_next_step: string;
-  can_staff_seat_now: boolean;
+  window: {
+  is_notified_window_open: boolean;
 };
-  invite_hold: {
-  has_active_hold: boolean;
-  active: ({
-  hold_id: string;
-  status: string;
-  session_id: string;
-  expires_at: (string) | null;
-  confirmed_reservation_id: (number) | null;
-  table_ids: Array<number>;
-}) | null;
-  latest: ({
-  hold_id: string;
-  status: string;
-  session_id: string;
-  expires_at: (string) | null;
-  confirmed_reservation_id: (number) | null;
-  table_ids: Array<number>;
-}) | null;
+  available_actions: {
+  accept: boolean;
+  decline: boolean;
+  confirm_arrival: boolean;
+  cancel: boolean;
 };
-  orchestration: {
-  mode: string;
-  actionable_state: string;
-  recommended_action: string;
-  released_table: ({
-  table_id: number;
-  table_ids: Array<number>;
-  table_code: (string) | null;
-  zone: (string) | null;
-  status: (string) | null;
-  seats: (number) | null;
-}) | null;
-  advance_queue: {
+  staff_seat_required: boolean;
+  next_step: (string) | null;
+  arrival_confirmation: {
   supported: boolean;
-  can_apply_now: boolean;
-  resulting_action: string;
-  released_table_available: boolean;
-  next_candidate: ({
-  waiting_id: number;
-  user_id: (number) | null;
-  guest_name: (string) | null;
-  guest_count: number;
-  priority: number;
-  requested_at: (string) | null;
-  row_version: number;
-  capacity_fit: {
-  table_seats: number;
-  seat_delta: number;
+  staff_seat_required: boolean;
+  message: (string) | null;
 };
-}) | null;
-  disabled_reason: (string) | null;
-};
-  actions: Array<{
-  key: string;
-  method: string;
-  href: string;
-  enabled: boolean;
-  reason: string;
-}>;
-};
-  user?: (Record<string, unknown>) | null;
 }>;
 };
 
 export type CustomerWaitingListEntry = {
   waiting_id: number;
   branch_id: (number) | null;
-  user_id: (number) | null;
   guest_name: (string) | null;
   phone: (string) | null;
   guest_count: number;
@@ -1176,101 +1133,42 @@ export type CustomerWaitingListEntry = {
   priority: number;
   notified_at: (string) | null;
   notify_expires_at: (string) | null;
-  notified_by: (number) | null;
   seated_at: (string) | null;
   cancelled_at: (string) | null;
   cancel_reason: (string) | null;
   notes: (string) | null;
-  updated_by: (number) | null;
   row_version: number;
-  current_response_state: string;
-  response: {
-  status: (string) | null;
-  responded_at: (string) | null;
-  confirmed_arrival_at: (string) | null;
-};
-  invite_window: {
-  notified_at: (string) | null;
+  response_state: "none" | "accepted" | "arrival_confirmed" | "declined";
+  can_accept: boolean;
+  can_decline: boolean;
+  can_confirm_arrival: boolean;
+  can_cancel: boolean;
+  notify_window: {
+  is_open: boolean;
   expires_at: (string) | null;
-  is_active: boolean;
-  is_expired: boolean;
-  seconds_remaining: number;
 };
-  invite_lifecycle: {
-  requires_explicit_staff_seat: boolean;
-  auto_convert_to_reservation: boolean;
-  seat_readiness: string;
-  customer_next_step: string;
-  staff_next_step: string;
-  can_staff_seat_now: boolean;
+  window: {
+  is_notified_window_open: boolean;
 };
-  invite_hold: {
-  has_active_hold: boolean;
-  active: ({
-  hold_id: string;
-  status: string;
-  session_id: string;
-  expires_at: (string) | null;
-  confirmed_reservation_id: (number) | null;
-  table_ids: Array<number>;
-}) | null;
-  latest: ({
-  hold_id: string;
-  status: string;
-  session_id: string;
-  expires_at: (string) | null;
-  confirmed_reservation_id: (number) | null;
-  table_ids: Array<number>;
-}) | null;
+  available_actions: {
+  accept: boolean;
+  decline: boolean;
+  confirm_arrival: boolean;
+  cancel: boolean;
 };
-  orchestration: {
-  mode: string;
-  actionable_state: string;
-  recommended_action: string;
-  released_table: ({
-  table_id: number;
-  table_ids: Array<number>;
-  table_code: (string) | null;
-  zone: (string) | null;
-  status: (string) | null;
-  seats: (number) | null;
-}) | null;
-  advance_queue: {
+  staff_seat_required: boolean;
+  next_step: (string) | null;
+  arrival_confirmation: {
   supported: boolean;
-  can_apply_now: boolean;
-  resulting_action: string;
-  released_table_available: boolean;
-  next_candidate: ({
-  waiting_id: number;
-  user_id: (number) | null;
-  guest_name: (string) | null;
-  guest_count: number;
-  priority: number;
-  requested_at: (string) | null;
-  row_version: number;
-  capacity_fit: {
-  table_seats: number;
-  seat_delta: number;
+  staff_seat_required: boolean;
+  message: (string) | null;
 };
-}) | null;
-  disabled_reason: (string) | null;
-};
-  actions: Array<{
-  key: string;
-  method: string;
-  href: string;
-  enabled: boolean;
-  reason: string;
-}>;
-};
-  user?: (Record<string, unknown>) | null;
 };
 
 export type CustomerWaitingListEnvelope = {
   data: {
   waiting_id: number;
   branch_id: (number) | null;
-  user_id: (number) | null;
   guest_name: (string) | null;
   phone: (string) | null;
   guest_count: number;
@@ -1279,94 +1177,36 @@ export type CustomerWaitingListEnvelope = {
   priority: number;
   notified_at: (string) | null;
   notify_expires_at: (string) | null;
-  notified_by: (number) | null;
   seated_at: (string) | null;
   cancelled_at: (string) | null;
   cancel_reason: (string) | null;
   notes: (string) | null;
-  updated_by: (number) | null;
   row_version: number;
-  current_response_state: string;
-  response: {
-  status: (string) | null;
-  responded_at: (string) | null;
-  confirmed_arrival_at: (string) | null;
-};
-  invite_window: {
-  notified_at: (string) | null;
+  response_state: "none" | "accepted" | "arrival_confirmed" | "declined";
+  can_accept: boolean;
+  can_decline: boolean;
+  can_confirm_arrival: boolean;
+  can_cancel: boolean;
+  notify_window: {
+  is_open: boolean;
   expires_at: (string) | null;
-  is_active: boolean;
-  is_expired: boolean;
-  seconds_remaining: number;
 };
-  invite_lifecycle: {
-  requires_explicit_staff_seat: boolean;
-  auto_convert_to_reservation: boolean;
-  seat_readiness: string;
-  customer_next_step: string;
-  staff_next_step: string;
-  can_staff_seat_now: boolean;
+  window: {
+  is_notified_window_open: boolean;
 };
-  invite_hold: {
-  has_active_hold: boolean;
-  active: ({
-  hold_id: string;
-  status: string;
-  session_id: string;
-  expires_at: (string) | null;
-  confirmed_reservation_id: (number) | null;
-  table_ids: Array<number>;
-}) | null;
-  latest: ({
-  hold_id: string;
-  status: string;
-  session_id: string;
-  expires_at: (string) | null;
-  confirmed_reservation_id: (number) | null;
-  table_ids: Array<number>;
-}) | null;
+  available_actions: {
+  accept: boolean;
+  decline: boolean;
+  confirm_arrival: boolean;
+  cancel: boolean;
 };
-  orchestration: {
-  mode: string;
-  actionable_state: string;
-  recommended_action: string;
-  released_table: ({
-  table_id: number;
-  table_ids: Array<number>;
-  table_code: (string) | null;
-  zone: (string) | null;
-  status: (string) | null;
-  seats: (number) | null;
-}) | null;
-  advance_queue: {
+  staff_seat_required: boolean;
+  next_step: (string) | null;
+  arrival_confirmation: {
   supported: boolean;
-  can_apply_now: boolean;
-  resulting_action: string;
-  released_table_available: boolean;
-  next_candidate: ({
-  waiting_id: number;
-  user_id: (number) | null;
-  guest_name: (string) | null;
-  guest_count: number;
-  priority: number;
-  requested_at: (string) | null;
-  row_version: number;
-  capacity_fit: {
-  table_seats: number;
-  seat_delta: number;
+  staff_seat_required: boolean;
+  message: (string) | null;
 };
-}) | null;
-  disabled_reason: (string) | null;
-};
-  actions: Array<{
-  key: string;
-  method: string;
-  href: string;
-  enabled: boolean;
-  reason: string;
-}>;
-};
-  user?: (Record<string, unknown>) | null;
 };
 };
 
@@ -1602,6 +1442,7 @@ export type GetV1StaffConversationsQueryParams = {
 export type GetV1StaffKitchenChangesQueryParams = {
   after_version?: (number) | null;
   limit?: (number) | null;
+  branch_id?: (number) | null;
 };
 
 export type GetV1StaffKitchenStationsQueryParams = {
@@ -1616,6 +1457,15 @@ export type GetV1StaffKitchenStationsStationIdTicketsQueryParams = {
   branch_id?: (number) | null;
   status?: ("Queued" | "Fired" | "Ready" | "Completed" | "Cancelled") | null;
   include_terminal?: (boolean) | null;
+};
+
+export type GetV1StaffMenuItemsQueryParams = {
+  service_time?: (string) | null;
+  category_id?: (number) | null;
+  preorder_only?: (boolean) | null;
+  q?: (string) | null;
+  page?: (number) | null;
+  per_page?: (number) | null;
 };
 
 export type GetV1StaffOrdersOrderIdPathParams = {
@@ -1698,6 +1548,10 @@ export type GetV1StaffReservationsReservationIdOrdersPathParams = {
   reservation_id: number;
 };
 
+export type GetV1StaffReservationsReservationIdPathParams = {
+  reservation_id: number;
+};
+
 export type GetV1StaffReservationsReservationIdRefundPreviewPathParams = {
   reservation_id: number;
 };
@@ -1712,11 +1566,13 @@ export type GetV1StaffReservationsReservationIdRefundPreviewQueryParams = {
 export type GetV1StaffTablesBoardChangesQueryParams = {
   after_version?: (number) | null;
   limit?: (number) | null;
+  branch_id?: (number) | null;
 };
 
 export type GetV1StaffWaitingListChangesQueryParams = {
   after_version?: (number) | null;
   limit?: (number) | null;
+  branch_id?: (number) | null;
 };
 
 export type GetV1StaffWaitingListQueryParams = {
@@ -1794,6 +1650,7 @@ export type JoinWaitlistRequest = {
 
 export type KitchenOrderItemTicket = {
   ticket_id: number;
+  row_version: (number) | null;
   ticket_status: string;
   route_source: (string) | null;
   dispatch_count: number;
@@ -1826,6 +1683,7 @@ export type KitchenOrderItemTicket = {
   item_id: number;
   quantity: number;
   status: string;
+  row_version: (number) | null;
   notes: (string) | null;
   item_name_snapshot: (string) | null;
 }) | null;
@@ -1862,6 +1720,7 @@ export type KitchenOrderItemTicket = {
 
 export type KitchenStation = {
   station_id: number;
+  branch_id: number;
   code: string;
   name: string;
   description: (string) | null;
@@ -2021,6 +1880,10 @@ export type PostV1StaffConversationsConversationIdOutboundRepliesPathParams = {
 };
 
 export type PostV1StaffConversationsConversationIdTakeOverPathParams = {
+  conversation_id: string;
+};
+
+export type PostV1StaffConversationsConversationIdUnassignPathParams = {
   conversation_id: string;
 };
 
@@ -2585,7 +2448,8 @@ export type StaffAuditTrailSubject = {
 
 export type StaffAuthSessionEnvelope = {
   data: {
-  auth_mode: "staff_api_key";
+  auth_mode: "staff_api_key" | "staff_browser_session";
+  session_transport?: ("refresh_cookie") | null;
   token_type: "opaque";
   auth_header: string;
   access_token?: (string) | null;
@@ -2947,6 +2811,10 @@ export type StaffKitchenStationCollectionEnvelope = {
 };
 };
 
+export type StaffKitchenTicketActionRequest = {
+  row_version: number;
+};
+
 export type StaffKitchenTicketCollectionEnvelope = {
   data: Array<KitchenOrderItemTicket>;
   meta?: {
@@ -2973,6 +2841,7 @@ export type StaffLoginRequest = {
   password: string;
   label?: (string) | null;
   device_name?: (string) | null;
+  session_transport?: ("refresh_cookie") | null;
 };
 
 export type StaffNavigationContext = Record<string, StaffNavigationItem>;
@@ -3360,7 +3229,8 @@ export type StaffReservationOrderEnvelope = {
 
 export type StaffSessionLogoutEnvelope = {
   data: {
-  auth_mode: "staff_api_key";
+  auth_mode: "staff_api_key" | "staff_browser_session";
+  session_transport?: ("refresh_cookie") | null;
   staff_api_key_id: number;
   revoked_at_utc?: (string) | null;
 };
@@ -3909,6 +3779,10 @@ export type TakeOverConversationRequest = {
   notes?: (string) | null;
 };
 
+export type UnassignConversationRequest = {
+  notes?: (string) | null;
+};
+
 export type WebhookReceiptEnvelope = {
   data: {
   duplicate: boolean;
@@ -4025,7 +3899,7 @@ export class RestaurantPosClient {
     return this.request<StaffAuthSessionEnvelope>(
       'POST',
       '/api/v1/auth/staff/refresh',
-      'staff',
+      'staffBrowserSession',
       false,
       false,
       undefined,
@@ -4038,7 +3912,7 @@ export class RestaurantPosClient {
     return this.request<StaffSessionLogoutEnvelope>(
       'POST',
       '/api/v1/auth/staff/logout',
-      'staff',
+      'staffBrowserSession',
       false,
       false,
       undefined,
@@ -4385,6 +4259,19 @@ export class RestaurantPosClient {
     );
   }
 
+  async getV1StaffMenuItems(query: GetV1StaffMenuItemsQueryParams, options: RequestOptions = {}): Promise<CustomerMenuItemsCollectionEnvelope> {
+    return this.request<CustomerMenuItemsCollectionEnvelope>(
+      'GET',
+      '/api/v1/staff/menu/items',
+      'staff',
+      false,
+      false,
+      query,
+      undefined,
+      options,
+    );
+  }
+
   async staffTablesBoard(query: StaffTablesBoardQueryParams, options: RequestOptions = {}): Promise<StaffTableBoardEnvelope> {
     return this.request<StaffTableBoardEnvelope>(
       'GET',
@@ -4407,6 +4294,19 @@ export class RestaurantPosClient {
       false,
       query,
       undefined,
+      options,
+    );
+  }
+
+  async postV1StaffServiceSessionsWalkIn(body: CreateWalkInServiceSessionRequest, options: RequestOptions = {}): Promise<ReservationEnvelope> {
+    return this.request<ReservationEnvelope>(
+      'POST',
+      '/api/v1/staff/service-sessions/walk-in',
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
       options,
     );
   }
@@ -4697,7 +4597,7 @@ export class RestaurantPosClient {
     );
   }
 
-  async postV1StaffKitchenTicketsTicketIdFire(pathParams: PostV1StaffKitchenTicketsTicketIdFirePathParams, options: RequestOptions = {}): Promise<StaffKitchenTicketEnvelope> {
+  async postV1StaffKitchenTicketsTicketIdFire(pathParams: PostV1StaffKitchenTicketsTicketIdFirePathParams, body: StaffKitchenTicketActionRequest, options: RequestOptions = {}): Promise<StaffKitchenTicketEnvelope> {
     return this.request<StaffKitchenTicketEnvelope>(
       'POST',
       this.interpolatePath('/api/v1/staff/kitchen/tickets/{ticket_id}/fire', pathParams as Record<string, string | number>),
@@ -4705,12 +4605,12 @@ export class RestaurantPosClient {
       false,
       true,
       undefined,
-      undefined,
+      body,
       options,
     );
   }
 
-  async postV1StaffKitchenTicketsTicketIdBump(pathParams: PostV1StaffKitchenTicketsTicketIdBumpPathParams, options: RequestOptions = {}): Promise<StaffKitchenTicketEnvelope> {
+  async postV1StaffKitchenTicketsTicketIdBump(pathParams: PostV1StaffKitchenTicketsTicketIdBumpPathParams, body: StaffKitchenTicketActionRequest, options: RequestOptions = {}): Promise<StaffKitchenTicketEnvelope> {
     return this.request<StaffKitchenTicketEnvelope>(
       'POST',
       this.interpolatePath('/api/v1/staff/kitchen/tickets/{ticket_id}/bump', pathParams as Record<string, string | number>),
@@ -4718,12 +4618,12 @@ export class RestaurantPosClient {
       false,
       true,
       undefined,
-      undefined,
+      body,
       options,
     );
   }
 
-  async postV1StaffKitchenTicketsTicketIdRecall(pathParams: PostV1StaffKitchenTicketsTicketIdRecallPathParams, options: RequestOptions = {}): Promise<StaffKitchenTicketEnvelope> {
+  async postV1StaffKitchenTicketsTicketIdRecall(pathParams: PostV1StaffKitchenTicketsTicketIdRecallPathParams, body: StaffKitchenTicketActionRequest, options: RequestOptions = {}): Promise<StaffKitchenTicketEnvelope> {
     return this.request<StaffKitchenTicketEnvelope>(
       'POST',
       this.interpolatePath('/api/v1/staff/kitchen/tickets/{ticket_id}/recall', pathParams as Record<string, string | number>),
@@ -4731,7 +4631,7 @@ export class RestaurantPosClient {
       false,
       true,
       undefined,
-      undefined,
+      body,
       options,
     );
   }
@@ -4744,6 +4644,19 @@ export class RestaurantPosClient {
       false,
       false,
       query,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1StaffReservationsReservationId(pathParams: GetV1StaffReservationsReservationIdPathParams, options: RequestOptions = {}): Promise<ReservationEnvelope> {
+    return this.request<ReservationEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/staff/reservations/{reservation_id}', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      undefined,
       undefined,
       options,
     );
@@ -5295,6 +5208,19 @@ export class RestaurantPosClient {
     );
   }
 
+  async postV1StaffConversationsConversationIdUnassign(pathParams: PostV1StaffConversationsConversationIdUnassignPathParams, body: UnassignConversationRequest, options: RequestOptions = {}): Promise<StaffConversationMutationEnvelope> {
+    return this.request<StaffConversationMutationEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/conversations/{conversation_id}/unassign', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
   async postV1StaffConversationsConversationIdInternalNotes(pathParams: PostV1StaffConversationsConversationIdInternalNotesPathParams, body: AddConversationInternalNoteRequest, options: RequestOptions = {}): Promise<StaffConversationMutationEnvelope> {
     return this.request<StaffConversationMutationEnvelope>(
       'POST',
@@ -5402,7 +5328,11 @@ export class RestaurantPosClient {
       headers.set('Content-Type', 'application/json');
     }
 
-    this.applyAuthHeaders(headers, authMode, options.authMode ?? 'auto', routeSupportsCustomerSession);
+    const staffCsrfToken = options.staffCsrfToken === undefined
+      ? this.resolveValue(this.options.staffCsrfToken)
+      : this.resolveValue(options.staffCsrfToken);
+
+    this.applyAuthHeaders(headers, authMode, options.authMode ?? 'auto', routeSupportsCustomerSession, staffCsrfToken);
 
     if (requiresIdempotency && options.idempotencyKey) {
       headers.set('Idempotency-Key', options.idempotencyKey);
@@ -5418,6 +5348,7 @@ export class RestaurantPosClient {
       method,
       headers,
       signal: options.signal,
+      credentials: options.credentials ?? this.options.credentials,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
 
@@ -5452,6 +5383,7 @@ export class RestaurantPosClient {
     routeAuthMode: AuthMode,
     requestedAuthMode: AuthMode,
     routeSupportsCustomerSession: boolean,
+    staffCsrfToken: string | undefined,
   ): void {
     if (routeAuthMode === 'none' || requestedAuthMode === 'none') {
       return;
@@ -5482,6 +5414,16 @@ export class RestaurantPosClient {
 
     if (selectedMode === 'staff' && staffApiKey) {
       headers.set('X-Staff-Key', staffApiKey);
+      return;
+    }
+
+    if (selectedMode === 'staffBrowserSession') {
+      if (staffApiKey) {
+        headers.set('X-Staff-Key', staffApiKey);
+      }
+      if (staffCsrfToken) {
+        headers.set("X-Staff-CSRF", staffCsrfToken);
+      }
       return;
     }
 

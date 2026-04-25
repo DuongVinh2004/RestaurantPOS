@@ -39,7 +39,7 @@ class CustomerSelfServiceErrorEnvelopeContractTest extends TestCase
             ->assertHeader('X-Request-Id', 'req-customer-benefits-staff')
             ->assertJsonPath('error_code', 'forbidden')
             ->assertJsonPath('category_code', 'policy_denied')
-            ->assertJsonPath('message', 'Staff must use dedicated staff loyalty and voucher endpoints for operational actions.')
+            ->assertJsonPath('message', 'Staff must use dedicated staff loyalty endpoints for operational actions.')
             ->assertJsonPath('request_id', 'req-customer-benefits-staff');
     }
 

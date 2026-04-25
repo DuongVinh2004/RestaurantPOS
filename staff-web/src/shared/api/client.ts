@@ -67,6 +67,7 @@ import {
   writeStoredStaffToken,
   type StaffSession as SharedStaffSession,
 } from '../auth/storage';
+import { notifyStaffAuthFailure } from '../auth/session-events';
 import { resolveApiBaseUrl } from '../config/env';
 import { createIdempotencyKey } from '../utils/idempotency';
 import { formatApiError, isApiStatus, isRestaurantPosApiError, normalizeApiError } from './errors';
@@ -83,6 +84,7 @@ export type StaffBoardWindow = {
 
 export const staffClient = new RestaurantPosClient({
   baseUrl: apiBaseUrl,
+  fetchImpl: staffAuthAwareFetch,
   staffApiKey: () => getStaffToken() ?? undefined,
 });
 
@@ -483,4 +485,36 @@ export function boardWindow(reference = new Date()): StaffBoardWindow {
 
 function normalizeApiBaseUrl(value: string): string {
   return value.trim().replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
+}
+
+async function staffAuthAwareFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const response = await fetch(input, init);
+  const headers = new Headers(init?.headers);
+  const token = headers.get('X-Staff-Key');
+  const path = resolveRequestPath(input);
+
+  if (response.status === 401 && token && path !== '/api/v1/auth/staff/logout') {
+    notifyStaffAuthFailure({
+      status: response.status,
+      path,
+    });
+  }
+
+  return response;
+}
+
+function resolveRequestPath(input: RequestInfo | URL): string {
+  const value = typeof input === 'string'
+    ? input
+    : input instanceof URL
+      ? input.toString()
+      : input.url;
+
+  try {
+    const url = new URL(value, typeof window === 'undefined' ? 'http://localhost' : window.location.origin);
+
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return value;
+  }
 }

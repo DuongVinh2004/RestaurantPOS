@@ -16,7 +16,7 @@ export const kitchenQueryKeys = {
     stationId,
     status,
   ] as const,
-  changes: (currentVersion: number | null | undefined) => ['kitchen-changes', currentVersion] as const,
+  changes: (branchId: number | null, currentVersion: number | null | undefined) => ['kitchen-changes', branchId, currentVersion] as const,
 };
 
 export function useKitchenStationsQuery({
@@ -58,15 +58,17 @@ export function useKitchenTicketsQuery({
 }
 
 export function useKitchenChangesQuery({
+  branchId,
   currentVersion,
   enabled = true,
 }: {
+  branchId: number | null;
   currentVersion: number | null | undefined;
   enabled?: boolean;
 }) {
   return useQuery({
-    queryKey: kitchenQueryKeys.changes(currentVersion),
-    queryFn: () => getKitchenChanges(currentVersion ?? undefined),
+    queryKey: kitchenQueryKeys.changes(branchId, currentVersion),
+    queryFn: () => getKitchenChanges(currentVersion ?? undefined, branchId ?? undefined),
     enabled: enabled && currentVersion !== null && currentVersion !== undefined,
     refetchInterval: 20_000,
   });

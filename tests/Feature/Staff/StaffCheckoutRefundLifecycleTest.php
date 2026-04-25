@@ -31,7 +31,7 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
     public function test_partial_deposit_refund_updates_reservation_snapshot_and_links_refund_to_source_payment(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
@@ -83,7 +83,7 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
     public function test_second_refund_attempt_after_full_refund_is_rejected_without_creating_new_refund_payment(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,

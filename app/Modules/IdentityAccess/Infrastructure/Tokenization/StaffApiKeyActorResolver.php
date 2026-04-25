@@ -81,6 +81,59 @@ class StaffApiKeyActorResolver
             ];
         }
 
+        return $this->resolveMappedUserId($mappedUserId, $mode, $staffApiKeyId);
+    }
+
+    /**
+     * @return array{ok:bool,status:int,error_code?:string,message?:string,user?:User,mode?:string,staff_api_key_id?:int}
+     */
+    public function resolveRefreshCookieToken(string $provided): array
+    {
+        $provided = trim($provided);
+        if ($provided === '') {
+            return [
+                'ok' => false,
+                'status' => 401,
+                'error_code' => 'unauthorized',
+                'message' => 'Unauthorized.',
+            ];
+        }
+
+        if (! (bool) config('staff_auth.database_store_enabled', true)) {
+            return [
+                'ok' => false,
+                'status' => 401,
+                'error_code' => 'unauthorized',
+                'message' => 'Unauthorized.',
+            ];
+        }
+
+        $record = $this->findActiveDatabaseRecordForKey($provided);
+        if (! $record instanceof StaffApiKey || ! $this->isBrowserRefreshSessionRecord($record)) {
+            return [
+                'ok' => false,
+                'status' => 401,
+                'error_code' => 'unauthorized',
+                'message' => 'Unauthorized.',
+            ];
+        }
+
+        if ((bool) config('staff_auth.touch_last_used_at', true)) {
+            $this->touchDatabaseRecord($record);
+        }
+
+        return $this->resolveMappedUserId(
+            (int) ($record->user_id ?? 0),
+            'browser_refresh_cookie',
+            (int) $record->getKey(),
+        );
+    }
+
+    /**
+     * @return array{ok:bool,status:int,error_code?:string,message?:string,user?:User,mode?:string,staff_api_key_id?:int}
+     */
+    private function resolveMappedUserId(int $mappedUserId, ?string $mode, ?int $staffApiKeyId): array
+    {
         if ($mappedUserId <= 0) {
             return [
                 'ok' => false,
@@ -212,31 +265,41 @@ class StaffApiKeyActorResolver
 
     private function findMappedUserIdForDatabaseKey(string $provided, ?string &$mode = null, ?int &$staffApiKeyId = null): ?int
     {
+        $record = $this->findActiveDatabaseRecordForKey($provided);
+        if (! $record instanceof StaffApiKey || $this->isBrowserRefreshSessionRecord($record)) {
+            return null;
+        }
+
+        $mode = 'database_key';
+        $staffApiKeyId = (int) $record->getKey();
+
+        if ((bool) config('staff_auth.touch_last_used_at', true)) {
+            $this->touchDatabaseRecord($record);
+        }
+
+        return (int) ($record->user_id ?? 0);
+    }
+
+    private function findActiveDatabaseRecordForKey(string $provided): ?StaffApiKey
+    {
         try {
             if (! Schema::hasTable('staff_api_keys')) {
                 return null;
             }
 
+            /** @var StaffApiKey|null $record */
             $record = StaffApiKey::query()
                 ->active()
                 ->where('key_hash', self::hashKey($provided))
                 ->first();
 
-            if (! $record) {
+            if (! $record instanceof StaffApiKey) {
                 return null;
             }
 
-            $mode = 'database_key';
             $this->databaseStoreReady = true;
-            $staffApiKeyId = (int) $record->getKey();
 
-            if ((bool) config('staff_auth.touch_last_used_at', true)) {
-                StaffApiKey::query()
-                    ->whereKey($record->getKey())
-                    ->update(['last_used_at' => now()]);
-            }
-
-            return (int) ($record->user_id ?? 0);
+            return $record;
         } catch (Throwable $e) {
             AuditEvent::warning('staff_auth_database_store_lookup_failed', [
                 'message' => $e->getMessage(),
@@ -244,6 +307,20 @@ class StaffApiKeyActorResolver
 
             return null;
         }
+    }
+
+    private function touchDatabaseRecord(StaffApiKey $record): void
+    {
+        StaffApiKey::query()
+            ->whereKey($record->getKey())
+            ->update(['last_used_at' => now()]);
+    }
+
+    private function isBrowserRefreshSessionRecord(StaffApiKey $record): bool
+    {
+        $prefix = trim((string) config('staff_auth.browser_session.refresh_label_prefix', 'Staff Browser Refresh Session'));
+
+        return $prefix !== '' && str_starts_with((string) $record->label, $prefix);
     }
 
     private function shouldAllowExplicitEnvironmentFallback(): bool
@@ -332,6 +409,10 @@ class StaffApiKeyActorResolver
     {
         if ($this->databaseStoreReady !== null) {
             return $this->databaseStoreReady;
+        }
+
+        if (! (bool) config('staff_auth.database_store_enabled', true)) {
+            return $this->databaseStoreReady = false;
         }
 
         try {

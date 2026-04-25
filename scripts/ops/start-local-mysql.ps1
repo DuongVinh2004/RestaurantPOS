@@ -21,6 +21,10 @@ $repoRootAlias = 'C:\rp'
 $mySqlBaseAlias = 'C:\mysql80'
 $knownMySqlServer = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe'
 $knownMySqlClient = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe'
+$knownMySqlClientPaths = @(
+    $knownMySqlClient,
+    'C:\xampp\mysql\bin\mysql.exe'
+)
 
 function Read-DotEnvFile {
     param(
@@ -236,16 +240,23 @@ function Stop-LocalMySql {
 function Get-MySqlCommand {
     param(
         [string] $ExecutableName,
-        [string] $KnownPath
+        [string] $ConfiguredPath = '',
+        [string[]] $KnownPaths = @()
     )
+
+    if (-not [string]::IsNullOrWhiteSpace($ConfiguredPath) -and (Test-Path $ConfiguredPath)) {
+        return $ConfiguredPath
+    }
 
     $command = Get-Command $ExecutableName -ErrorAction SilentlyContinue
     if ($command) {
         return $command.Source
     }
 
-    if (Test-Path $KnownPath) {
-        return $KnownPath
+    foreach ($knownPath in $KnownPaths) {
+        if (Test-Path $knownPath) {
+            return $knownPath
+        }
     }
 
     return $null
@@ -309,7 +320,7 @@ function Ensure-MySqlCredentials {
     )
 
     if (-not $MySqlClient) {
-        return
+        return $false
     }
 
     if (Invoke-MySqlQuery -MySqlClient $MySqlClient -User $DbUser -Password $DbPassword -TargetPort $TargetPort -Query 'SELECT 1') {
@@ -318,15 +329,15 @@ function Ensure-MySqlCredentials {
             [void] (Invoke-MySqlQuery -MySqlClient $MySqlClient -User $DbUser -Password $DbPassword -TargetPort $TargetPort -Query ('CREATE DATABASE IF NOT EXISTS `{0}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci' -f $escapedDatabaseName))
         }
 
-        return
+        return $true
     }
 
     if ($DbUser -ne 'root' -or [string]::IsNullOrWhiteSpace($DbPassword)) {
-        return
+        return $false
     }
 
     if (-not (Invoke-MySqlQuery -MySqlClient $MySqlClient -User 'root' -Password '' -TargetPort $TargetPort -Query 'SELECT 1')) {
-        return
+        return $false
     }
 
     $escapedPassword = $DbPassword.Replace('''', '''''')
@@ -340,6 +351,8 @@ function Ensure-MySqlCredentials {
     if (-not (Invoke-MySqlQuery -MySqlClient $MySqlClient -User 'root' -Password '' -TargetPort $TargetPort -Query $setupQuery)) {
         throw "Local MySQL started, but root credentials from .env could not be applied for database $DatabaseName."
     }
+
+    return $true
 }
 
 $envValues = Read-DotEnvFile -Path $envFilePath
@@ -351,14 +364,9 @@ $resolvedPort = if ($PSBoundParameters.ContainsKey('Port')) {
 $dbUser = Get-ConfigValue -Values $envValues -Key 'DB_USERNAME' -Default 'root'
 $dbPassword = Get-ConfigValue -Values $envValues -Key 'DB_PASSWORD' -Default ''
 $databaseName = Get-ConfigValue -Values $envValues -Key 'DB_DATABASE' -Default 'restaurantdb'
-
-$mySqlServer = Get-MySqlCommand -ExecutableName 'mysqld.exe' -KnownPath $knownMySqlServer
-if (-not $mySqlServer) {
-    throw 'mysqld.exe was not found. Install MySQL Server 8 or add mysqld.exe to PATH.'
-}
-
-$mySqlClient = Get-MySqlCommand -ExecutableName 'mysql.exe' -KnownPath $knownMySqlClient
-$mySqlBaseDir = Split-Path (Split-Path $mySqlServer -Parent) -Parent
+$configuredMySqlServer = Get-ConfigValue -Values $envValues -Key 'MYSQLD_BIN' -Default ''
+$configuredMySqlClient = Get-ConfigValue -Values $envValues -Key 'MYSQL_BIN' -Default ''
+$mySqlClient = Get-MySqlCommand -ExecutableName 'mysql.exe' -ConfiguredPath $configuredMySqlClient -KnownPaths $knownMySqlClientPaths
 $mySqlDataMarker = Normalize-PathMarker -Path $mysqlDataDir
 $mySqlAliasDataDir = Join-Path $repoRootAlias 'storage\mysql-local\data'
 $mySqlAliasLogPath = Join-Path $repoRootAlias 'storage\logs\mysql-local-runtime.err'
@@ -366,11 +374,6 @@ $mySqlAliasMarkers = @(
     $mySqlDataMarker,
     (Normalize-PathMarker -Path $mySqlAliasDataDir)
 )
-
-New-Item -ItemType Directory -Force -Path $mysqlDataDir | Out-Null
-New-Item -ItemType Directory -Force -Path $mysqlLogsDir | Out-Null
-Ensure-Junction -LinkPath $repoRootAlias -TargetPath $repoRoot
-Ensure-Junction -LinkPath $mySqlBaseAlias -TargetPath $mySqlBaseDir
 
 if ($Stop) {
     $stopped = Stop-LocalMySql -TargetPort $resolvedPort -CommandLineMarkers $mySqlAliasMarkers
@@ -386,23 +389,28 @@ if ($Stop) {
 $existingConnection = Get-ListeningConnection -TargetPort $resolvedPort
 if ($existingConnection) {
     $ownerProcess = Get-ProcessInfo -ProcessId $existingConnection.OwningProcess
-    if (-not $ownerProcess) {
-        throw "Port $resolvedPort is already listening, but the owning process could not be resolved."
+    if (-not (Ensure-MySqlCredentials -MySqlClient $mySqlClient -DbUser $dbUser -DbPassword $dbPassword -DatabaseName $databaseName -TargetPort $resolvedPort)) {
+        $ownerLabel = if ($ownerProcess) { "$($ownerProcess.Name) (PID $($ownerProcess.ProcessId))" } else { "PID $($existingConnection.OwningProcess)" }
+        throw "Port $resolvedPort is already listening via $ownerLabel, but it did not accept the configured MySQL credentials. Ensure the service is MySQL-compatible and MYSQL_BIN, DB_USERNAME, DB_PASSWORD, and DB_DATABASE match .env."
     }
 
-    if ($ownerProcess.Name -ne 'mysqld.exe') {
-        throw "Port $resolvedPort is already in use by a non-MySQL process (PID $($ownerProcess.ProcessId))."
+    if (-not $ownerProcess -or $ownerProcess.Name -ne 'mysqld.exe') {
+        if ($Restart) {
+            throw "Port $resolvedPort is already in use by an externally-managed MySQL-compatible service. Stop that service manually before using -Restart with the repo-local MySQL runtime."
+        }
+
+        $ownerLabel = if ($ownerProcess) { "$($ownerProcess.Name) (PID $($ownerProcess.ProcessId))" } else { "PID $($existingConnection.OwningProcess)" }
+        Write-Output "MySQL-compatible service is already running on 127.0.0.1:$resolvedPort via $ownerLabel. Reusing the active service."
+        return
     }
 
     $ownerMarker = Normalize-CommandLine -CommandLine $ownerProcess.CommandLine
     if ($ownerMarker -eq '') {
-        Ensure-MySqlCredentials -MySqlClient $mySqlClient -DbUser $dbUser -DbPassword $dbPassword -DatabaseName $databaseName -TargetPort $resolvedPort
         Write-Output "MySQL is already running on 127.0.0.1:$resolvedPort with PID $($ownerProcess.ProcessId), but the process command line could not be inspected. Reusing the active mysqld instance."
         return
     }
 
     if (@($mySqlAliasMarkers | Where-Object { $ownerMarker.Contains($_) }).Count -eq 0) {
-        Ensure-MySqlCredentials -MySqlClient $mySqlClient -DbUser $dbUser -DbPassword $dbPassword -DatabaseName $databaseName -TargetPort $resolvedPort
         Write-Output "MySQL is already running on 127.0.0.1:$resolvedPort with PID $($ownerProcess.ProcessId). Reusing the active mysqld instance."
         return
     }
@@ -412,6 +420,18 @@ if ($existingConnection) {
         return
     }
 }
+
+$mySqlServer = Get-MySqlCommand -ExecutableName 'mysqld.exe' -ConfiguredPath $configuredMySqlServer -KnownPaths @($knownMySqlServer)
+if (-not $mySqlServer) {
+    throw 'mysqld.exe was not found. Install MySQL Server 8, add mysqld.exe to PATH, set MYSQLD_BIN in .env, or start a MySQL-compatible service on the configured DB_PORT before running this script.'
+}
+
+$mySqlBaseDir = Split-Path (Split-Path $mySqlServer -Parent) -Parent
+
+New-Item -ItemType Directory -Force -Path $mysqlDataDir | Out-Null
+New-Item -ItemType Directory -Force -Path $mysqlLogsDir | Out-Null
+Ensure-Junction -LinkPath $repoRootAlias -TargetPath $repoRoot
+Ensure-Junction -LinkPath $mySqlBaseAlias -TargetPath $mySqlBaseDir
 
 if ($Restart) {
     [void] (Stop-LocalMySql -TargetPort $resolvedPort -CommandLineMarkers $mySqlAliasMarkers)
@@ -440,7 +460,9 @@ if (-not (Wait-ForPortState -TargetPort $resolvedPort -ExpectListening $true -At
     throw "Local MySQL did not start listening on 127.0.0.1:$resolvedPort. Inspect $mysqlRuntimeLog for details."
 }
 
-Ensure-MySqlCredentials -MySqlClient $mySqlClient -DbUser $dbUser -DbPassword $dbPassword -DatabaseName $databaseName -TargetPort $resolvedPort
+if (-not (Ensure-MySqlCredentials -MySqlClient $mySqlClient -DbUser $dbUser -DbPassword $dbPassword -DatabaseName $databaseName -TargetPort $resolvedPort)) {
+    throw "Local MySQL started, but it did not accept the configured credentials. Ensure MYSQL_BIN, DB_USERNAME, DB_PASSWORD, and DB_DATABASE match .env."
+}
 
 $activeConnection = Get-ListeningConnection -TargetPort $resolvedPort
 $activeOwner = if ($activeConnection) { Get-ProcessInfo -ProcessId $activeConnection.OwningProcess } else { $null }

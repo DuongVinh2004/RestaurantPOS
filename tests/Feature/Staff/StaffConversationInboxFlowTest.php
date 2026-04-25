@@ -829,7 +829,7 @@ class StaffConversationInboxFlowTest extends TestCase
             ->getJson('/api/v1/staff/conversations/'.$conversationId)
             ->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error')
-            ->assertJsonPath('errors.conversation_inbox.0', 'Conversation inbox is disabled for this rollout.');
+            ->assertJsonPath('errors.conversation_inbox.0', 'Conversation inbox is disabled for day 1.');
     }
 
     public function test_conversation_routes_require_conversation_manage_capability(): void

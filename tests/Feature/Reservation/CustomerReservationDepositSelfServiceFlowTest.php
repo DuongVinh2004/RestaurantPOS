@@ -323,13 +323,14 @@ class CustomerReservationDepositSelfServiceFlowTest extends TestCase
 
     public function test_staff_deposit_preview_sees_customer_acknowledgement_and_intent_without_regressing_existing_flow(): void
     {
-        [$staffId, $reservationId] = $this->seedDepositReservation([
+        [, $reservationId] = $this->seedDepositReservation([
             'deposit_requirement_acknowledged_at' => $this->nowUtc(),
             'deposit_intent_status' => 'Submitted',
             'deposit_intent_submitted_at' => $this->nowUtc(),
         ]);
+        $cashierId = $this->createUser(['role_name' => 'Cashier']);
 
-        $response = $this->withHeaders($this->staffHeaders($staffId, 'staff-deposit-preview-self-service-key'))
+        $response = $this->withHeaders($this->staffHeaders($cashierId, 'staff-deposit-preview-self-service-key'))
             ->getJson("/api/v1/staff/reservations/{$reservationId}/deposit-preview");
 
         $response->assertOk()

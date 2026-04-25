@@ -31,6 +31,43 @@ $normalizedRedisConfigMarkers = @(
 $backendProcessPattern = '(?<!\S)serve(?!\S)'
 $schedulerProcessPattern = '(?<!\S)schedule:work(?!\S)'
 
+function Add-PathDirectory {
+    param(
+        [string] $Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path $Path)) {
+        return
+    }
+
+    $existingPaths = @($env:PATH -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $normalizedPath = ([System.IO.Path]::GetFullPath($Path)).TrimEnd('\').ToLowerInvariant()
+    $alreadyPresent = @(
+        $existingPaths |
+            Where-Object {
+                try {
+                    ([System.IO.Path]::GetFullPath($_)).TrimEnd('\').ToLowerInvariant() -eq $normalizedPath
+                } catch {
+                    $false
+                }
+            }
+    ).Count -gt 0
+
+    if (-not $alreadyPresent) {
+        $env:PATH = "$Path;$env:PATH"
+    }
+}
+
+function Add-KnownWindowsDevToolPaths {
+    Add-PathDirectory -Path 'C:\xampp\php'
+    Add-PathDirectory -Path 'C:\xampp\mysql\bin'
+
+    $herdLiteBin = Join-Path $env:USERPROFILE '.config\herd-lite\bin'
+    Add-PathDirectory -Path $herdLiteBin
+
+    Add-PathDirectory -Path 'C:\Program Files\MySQL\MySQL Server 8.0\bin'
+}
+
 function Read-DotEnvFile {
     param(
         [string] $Path
@@ -608,6 +645,7 @@ function Stop-LocalRuntime {
 }
 
 New-Item -ItemType Directory -Force -Path $logsDir | Out-Null
+Add-KnownWindowsDevToolPaths
 $phpExecutable = Get-PhpExecutable
 $envValues = Read-DotEnvFile -Path $envFilePath
 $serveConfig = Resolve-BackendServeConfig -Values $envValues

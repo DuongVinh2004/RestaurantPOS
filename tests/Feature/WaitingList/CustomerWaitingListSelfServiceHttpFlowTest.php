@@ -58,6 +58,7 @@ class CustomerWaitingListSelfServiceHttpFlowTest extends TestCase
 
         $create->assertCreated()
             ->assertJsonPath('data.status', WaitingListStatus::Waiting->value)
+            ->assertJsonPath('data.response_state', 'none')
             ->assertJsonPath('data.next_step', 'await_notification')
             ->assertJsonPath('data.can_cancel', true)
             ->assertJsonPath('data.available_actions.cancel', true)
@@ -103,6 +104,7 @@ class CustomerWaitingListSelfServiceHttpFlowTest extends TestCase
 
         $decline->assertOk()
             ->assertJsonPath('data.status', WaitingListStatus::Cancelled->value)
+            ->assertJsonPath('data.response_state', 'declined')
             ->assertJsonPath('data.cancel_reason', 'Declined by customer')
             ->assertJsonPath('data.next_step', 'closed')
             ->assertJsonMissingPath('data.current_response_state')

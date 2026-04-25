@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { KitchenOrderItemTicket, KitchenStation } from '../../shared/api/sdk';
 import { buildStaffSession } from '../../test/fixtures';
 import {
+  canDispatchKitchenOrder,
   groupKitchenTicketsByLane,
   resolveKitchenBranchGuard,
   resolveKitchenStationContext,
   resolveKitchenWorkspaceGuard,
   ticketAllowedActions,
 } from './kitchen-workspace';
+import { kitchenQueryKeys } from './useKitchenWorkspace';
 
 describe('kitchen workspace domain rules', () => {
   it('guards sessions without kitchen workspace access', () => {
@@ -34,6 +36,29 @@ describe('kitchen workspace domain rules', () => {
       kind: 'invalid-branch',
       meta: 'Branch #9',
     });
+  });
+
+  it('matches dispatch capability to the backend order.manage route guard', () => {
+    expect(canDispatchKitchenOrder(buildStaffSession({
+      capabilities: ['kitchen.manage'],
+      known_capabilities: ['kitchen.manage', 'order.manage'],
+    }))).toBe(false);
+
+    expect(canDispatchKitchenOrder(buildStaffSession({
+      capabilities: ['kitchen.manage', 'order.manage'],
+      known_capabilities: ['kitchen.manage', 'order.manage'],
+    }))).toBe(true);
+
+    expect(canDispatchKitchenOrder(buildStaffSession({
+      capabilities: ['*'],
+      known_capabilities: ['kitchen.manage', 'order.manage'],
+    }))).toBe(true);
+  });
+
+  it('keys realtime kitchen changes by branch id', () => {
+    expect(kitchenQueryKeys.changes(1, 10)).toEqual(['kitchen-changes', 1, 10]);
+    expect(kitchenQueryKeys.changes(2, 10)).toEqual(['kitchen-changes', 2, 10]);
+    expect(kitchenQueryKeys.changes(1, 10)).not.toEqual(kitchenQueryKeys.changes(2, 10));
   });
 
   it('requires an assigned station before a kitchen session can load tickets', () => {
@@ -95,6 +120,7 @@ describe('kitchen workspace domain rules', () => {
 function makeStation(stationId: number): KitchenStation {
   return {
     station_id: stationId,
+    branch_id: 1,
     code: stationId === 11 ? 'HOT' : 'COLD',
     name: stationId === 11 ? 'Hot Pass' : 'Cold Pass',
     description: null,

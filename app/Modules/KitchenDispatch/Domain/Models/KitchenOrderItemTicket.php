@@ -42,6 +42,7 @@ class KitchenOrderItemTicket extends Model
         'ticket_notes',
         'created_by',
         'updated_by',
+        'row_version',
     ];
 
     protected $casts = [
@@ -59,6 +60,7 @@ class KitchenOrderItemTicket extends Model
         'recall_count' => 'int',
         'created_by' => 'int',
         'updated_by' => 'int',
+        'row_version' => 'int',
         'first_dispatched_at' => 'datetime',
         'fired_at' => 'datetime',
         'ready_at' => 'datetime',

@@ -351,6 +351,74 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('data.0.branch_id', $branchId);
     }
 
+    public function test_branch_limited_inventory_manager_cannot_read_or_adjust_out_of_scope_branch_stock(): void
+    {
+        $allowedBranchId = (int) (DB::table('branches')->where('is_default', 1)->value('branch_id') ?? 1);
+        $deniedBranchId = $this->createBranch([
+            'branch_code' => 'INV-DENY',
+            'branch_name' => 'Inventory Denied Branch',
+        ]);
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-BRANCH-DENY',
+            'name' => 'Branch Deny Rice',
+            'unit_code' => 'kg',
+        ]);
+
+        $this->createIngredientStockMovement([
+            'branch_id' => $allowedBranchId,
+            'ingredient_id' => $ingredientId,
+            'quantity_delta' => '3.000',
+            'unit_code' => 'kg',
+        ]);
+        $this->createIngredientStockMovement([
+            'branch_id' => $deniedBranchId,
+            'ingredient_id' => $ingredientId,
+            'quantity_delta' => '9.000',
+            'unit_code' => 'kg',
+        ]);
+
+        $roleId = $this->ensureRole('Inventory Manager');
+        $staffId = $this->createUser(['role_id' => $roleId, 'role_name' => 'Inventory Manager']);
+
+        config()->set('staff_auth.allowed_role_ids', [$roleId]);
+        config()->set('staff_capabilities.role_id_capabilities', [
+            $roleId => ['inventory.manage'],
+        ]);
+        config()->set('staff_capabilities.role_id_branch_scopes', [
+            $roleId => [(string) $allowedBranchId],
+        ]);
+
+        $headers = $this->staffHeadersForTest($staffId, 'branch-limited-inventory-key');
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/admin/inventory/ingredients/'.$ingredientId)
+            ->assertOk()
+            ->assertJsonPath('data.stock.on_hand', '3.000');
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.branch_id', $allowedBranchId);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements?branch_id='.$deniedBranchId)
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-inventory-denied-branch-adjust'))
+            ->postJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements', [
+                'branch_id' => $deniedBranchId,
+                'movement_type' => 'StockIn',
+                'quantity' => '1.000',
+                'unit_code' => 'kg',
+                'reference_type' => 'manual_count',
+                'reference_id' => 'denied-branch',
+            ])
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+    }
+
     public function test_missing_inventory_resources_return_standardized_not_found_envelope(): void
     {
         [, $headers] = $this->adminHeaders('admin-inventory-missing-resource-key');

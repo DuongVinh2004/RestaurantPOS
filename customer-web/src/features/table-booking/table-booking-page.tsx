@@ -161,6 +161,8 @@ export function TableBookingPage() {
                 <button
                   type="button"
                   key={table.table_id}
+                  aria-label={`${table.table_code ?? `Table ${table.table_id}`} table option`}
+                  aria-pressed={selected}
                   disabled={searchMutation.isPending || holdMutation.isPending || holdActionPending}
                   className={`rounded-lg border bg-card p-4 text-left transition ${
                     selected ? "border-primary ring-2 ring-primary/20" : "hover:border-primary/50"

@@ -208,6 +208,67 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         self::assertNull($published);
     }
 
+    public function test_operational_change_feeds_filter_events_to_staff_branch_entitlements(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffHeaders = $this->staffAuthHeaders($staffId, 'staff-realtime-branch-scope');
+        $allowedBranchId = $this->createBranch([
+            'branch_code' => 'RT-ALLOWED',
+            'branch_name' => 'Realtime Allowed',
+        ]);
+        $deniedBranchId = $this->createBranch([
+            'branch_code' => 'RT-DENIED',
+            'branch_name' => 'Realtime Denied',
+        ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', [(string) $allowedBranchId]);
+
+        $service = app(OperationalRealtimeService::class);
+        $service->publishBoardEvent('board.allowed_branch_event', [
+            'branch_id' => $allowedBranchId,
+            'reservation_id' => 9001,
+        ]);
+        $service->publishBoardEvent('board.denied_branch_event', [
+            'branch_id' => $deniedBranchId,
+            'reservation_id' => 9002,
+        ]);
+        $service->publishWaitingListEvent('waiting_list.allowed_branch_event', [
+            'branch_id' => $allowedBranchId,
+            'waiting_id' => 9101,
+        ]);
+        $service->publishWaitingListEvent('waiting_list.denied_branch_event', [
+            'branch_id' => $deniedBranchId,
+            'waiting_id' => 9102,
+        ]);
+
+        $boardChanges = $this->withHeaders($staffHeaders)
+            ->getJson('/api/v1/staff/tables/board/changes');
+        $boardChanges->assertOk()
+            ->assertJsonPath('data.topic', 'board')
+            ->assertJsonPath('data.has_changes', true);
+
+        self::assertSame(
+            ['board.allowed_branch_event'],
+            collect($boardChanges->json('data.events'))->pluck('type')->values()->all(),
+        );
+
+        $waitingChanges = $this->withHeaders($staffHeaders)
+            ->getJson('/api/v1/staff/waiting-list/changes');
+        $waitingChanges->assertOk()
+            ->assertJsonPath('data.topic', 'waiting_list')
+            ->assertJsonPath('data.has_changes', true);
+
+        self::assertSame(
+            ['waiting_list.allowed_branch_event'],
+            collect($waitingChanges->json('data.events'))->pluck('type')->values()->all(),
+        );
+
+        $this->withHeaders($staffHeaders)
+            ->getJson('/api/v1/staff/tables/board/changes?branch_id='.$deniedBranchId)
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonPath('message', 'Branch not found.');
+    }
+
     public function test_board_endpoint_exposes_realtime_meta_and_assignment_emits_board_change_event(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
@@ -848,6 +909,14 @@ class StaffOperationalRealtimeFlowTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->grantStaffRoleCapabilities(['settlement.manage']);
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'active_cashier_user_id' => $staffId,
+            'branch_id' => 1,
+            'status' => 'Open',
+            'currency' => 'VND',
+        ]);
         $tableId = $this->createRestaurantTable([
             'status' => 'Occupied',
             'table_code' => $reservationCode.'-T4',
@@ -892,6 +961,14 @@ class StaffOperationalRealtimeFlowTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->grantStaffRoleCapabilities(['payment.refund']);
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'active_cashier_user_id' => $staffId,
+            'branch_id' => 1,
+            'status' => 'Open',
+            'currency' => 'VND',
+        ]);
         $tableId = $this->createRestaurantTable([
             'status' => 'Occupied',
             'table_code' => $reservationCode.'-T4',
@@ -944,6 +1021,14 @@ class StaffOperationalRealtimeFlowTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->grantStaffRoleCapabilities(['settlement.manage']);
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'active_cashier_user_id' => $staffId,
+            'branch_id' => 1,
+            'status' => 'Open',
+            'currency' => 'VND',
+        ]);
         $tableId = $this->createRestaurantTable([
             'status' => 'Reserved',
             'table_code' => $reservationCode.'-T4',
@@ -962,5 +1047,20 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         $this->attachReservationTable($reservationId, $tableId);
 
         return [$staffId, $tableId, $reservationId];
+    }
+
+    /**
+     * @param  list<string>  $capabilities
+     */
+    private function grantStaffRoleCapabilities(array $capabilities): void
+    {
+        $current = (array) config('staff_capabilities.role_capabilities.Staff', []);
+        $merged = array_values(array_unique(array_filter(array_map(
+            'strval',
+            array_merge($current, $capabilities),
+        ))));
+
+        sort($merged);
+        config()->set('staff_capabilities.role_capabilities.Staff', $merged);
     }
 }

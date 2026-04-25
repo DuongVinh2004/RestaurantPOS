@@ -204,6 +204,7 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
             canCancel: true,
             staffSeatRequired: true,
             nextStep: 'await_staff_seating',
+            responseState: 'accepted',
         );
 
         $record = DB::table('waiting_list')->where('waiting_id', $waitingId)->first();
@@ -257,6 +258,7 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
             canCancel: false,
             staffSeatRequired: false,
             nextStep: 'closed',
+            responseState: 'declined',
         );
 
         $record = DB::table('waiting_list')->where('waiting_id', $waitingId)->first();
@@ -300,7 +302,7 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
         $confirm->assertOk()
             ->assertJsonPath('meta.action', 'await_staff_seating')
             ->assertJsonPath('meta.staff_seat_required', true)
-            ->assertJsonPath('meta.message', 'Đã xác nhận tới nơi. Nhân viên sẽ thực hiện seat khi sẵn sàng.');
+            ->assertJsonPath('meta.message', 'Arrival confirmed. Staff will complete seating when ready.');
 
         $this->assertCanonicalOwnerResource(
             $confirm->json('data'),
@@ -311,6 +313,7 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
             canCancel: true,
             staffSeatRequired: true,
             nextStep: 'await_staff_seating',
+            responseState: 'arrival_confirmed',
         );
 
         $record = DB::table('waiting_list')->where('waiting_id', $waitingId)->first();
@@ -542,9 +545,11 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
         bool $canCancel,
         bool $staffSeatRequired,
         string $nextStep,
+        string $responseState = 'none',
     ): void {
         $this->assertArrayHasKey('waiting_id', $data);
         $this->assertSame($status, $data['status']);
+        $this->assertSame($responseState, $data['response_state'] ?? null);
         $this->assertSame($canAccept, (bool) ($data['can_accept'] ?? null));
         $this->assertSame($canDecline, (bool) ($data['can_decline'] ?? null));
         $this->assertSame($canConfirmArrival, (bool) ($data['can_confirm_arrival'] ?? null));
@@ -563,6 +568,10 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
         $this->assertSame($canCancel, (bool) ($data['available_actions']['cancel'] ?? null));
         $this->assertSame(true, (bool) ($data['arrival_confirmation']['supported'] ?? false));
         $this->assertSame($staffSeatRequired, (bool) ($data['arrival_confirmation']['staff_seat_required'] ?? null));
+        $this->assertSame(
+            $staffSeatRequired ? 'Customers only confirm arrival. Staff still completes seating.' : null,
+            $data['arrival_confirmation']['message'] ?? null,
+        );
 
         $this->assertLegacyLifecycleFieldsAreAbsent($data);
     }
@@ -576,6 +585,8 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
         $this->assertArrayNotHasKey('invite_window', $data);
         $this->assertArrayNotHasKey('response', $data);
         $this->assertArrayNotHasKey('invite_lifecycle', $data);
+        $this->assertArrayNotHasKey('invite_hold', $data);
+        $this->assertArrayNotHasKey('orchestration', $data);
         $this->assertArrayNotHasKey('actions', $data);
     }
 }

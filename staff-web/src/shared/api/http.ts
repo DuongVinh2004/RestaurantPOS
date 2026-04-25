@@ -23,6 +23,7 @@ export type RequestOptions = {
   token?: string | null;
   idempotencyKey?: string;
   headers?: Record<string, string>;
+  credentials?: RequestCredentials;
 };
 
 export async function apiRequest<TResponse>(path: string, options: RequestOptions = {}): Promise<TResponse> {
@@ -34,7 +35,7 @@ export async function apiRequest<TResponse>(path: string, options: RequestOption
   const headers = new Headers(options.headers);
   headers.set('Accept', 'application/json');
 
-  const token = options.token ?? readStoredStaffToken();
+  const token = options.token === undefined ? readStoredStaffToken() : options.token;
   if (token) {
     headers.set('X-Staff-Key', token);
   }
@@ -54,6 +55,7 @@ export async function apiRequest<TResponse>(path: string, options: RequestOption
     headers,
     body,
     signal: options.signal,
+    credentials: options.credentials,
   });
 
   const payload = await parseResponse(response, normalizedPath);

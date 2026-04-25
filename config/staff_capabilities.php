@@ -40,28 +40,87 @@ return [
         'Admin' => [
             '*',
         ],
-        'Staff' => [
+        'Manager' => [
             'audit.view',
             'cashier.shift.manage',
+            'conversation.manage',
+            'inventory.manage',
+            'kitchen.manage',
+            'loyalty.adjust',
+            'loyalty.redeem',
+            'loyalty.view',
+            'menu.manage',
+            'ops.view',
+            'order.manage',
+            'payment.refund',
+            'privacy.manage',
+            'reporting.view',
+            'reservation.manage',
+            'settings.manage',
+            'settlement.manage',
+            'table.board.view',
+            'table.release',
+            'voucher.manage',
+            'voucher.master_data.manage',
+            'waiting_list.manage',
+        ],
+        'Staff' => [
             'conversation.manage',
             'table.board.view',
             'reservation.manage',
             'order.manage',
-            'kitchen.manage',
-            'settlement.manage',
-            'payment.refund',
-            'reporting.view',
             'voucher.manage',
             'loyalty.view',
             'loyalty.redeem',
             'waiting_list.manage',
             'table.release',
         ],
+        'Server' => [
+            'conversation.manage',
+            'table.board.view',
+            'reservation.manage',
+            'order.manage',
+            'voucher.manage',
+            'loyalty.view',
+            'loyalty.redeem',
+            'waiting_list.manage',
+            'table.release',
+        ],
+        'Waiter' => [
+            'conversation.manage',
+            'table.board.view',
+            'reservation.manage',
+            'order.manage',
+            'voucher.manage',
+            'loyalty.view',
+            'loyalty.redeem',
+            'waiting_list.manage',
+            'table.release',
+        ],
+        'Cashier' => [
+            'cashier.shift.manage',
+            'settlement.manage',
+        ],
+        'Kitchen' => [
+            'kitchen.manage',
+        ],
     ],
 
     // Deny implicit branch access for roles without an explicit branch-scope mapping.
     // Core roles stay reviewable via role_branch_scopes until staff-to-branch assignments land.
     'fallback_branch_scopes' => [
+    ],
+
+    'production_like_environments' => array_values(array_filter(array_map('trim', explode(',', (string) env('STAFF_CAPABILITIES_PRODUCTION_LIKE_ENVIRONMENTS', env('STAFF_AUTH_PRODUCTION_LIKE_ENVIRONMENTS', 'production')))))),
+
+    'deny_operational_role_branch_fallback_in_production_like' => (bool) env('STAFF_CAPABILITIES_DENY_OPERATIONAL_ROLE_BRANCH_FALLBACK_IN_PRODUCTION_LIKE', true),
+
+    'operational_branch_assignment_roles' => [
+        'Staff',
+        'Server',
+        'Waiter',
+        'Cashier',
+        'Kitchen',
     ],
 
     'role_id_branch_scopes' => [
@@ -71,7 +130,22 @@ return [
         'Admin' => [
             '*',
         ],
+        'Manager' => [
+            '*',
+        ],
         'Staff' => [
+            'default',
+        ],
+        'Server' => [
+            'default',
+        ],
+        'Waiter' => [
+            'default',
+        ],
+        'Cashier' => [
+            'default',
+        ],
+        'Kitchen' => [
             'default',
         ],
     ],
@@ -259,17 +333,10 @@ return [
     ],
 
     'capability_aliases' => [
-        'order.manage' => [
-            'kitchen.manage',
-        ],
         'ops.view' => [
             'ops.health.view',
             'ops.metrics.view',
             'ops.release.view',
-        ],
-        'settlement.manage' => [
-            'cashier.shift.manage',
-            'reporting.view',
         ],
     ],
 

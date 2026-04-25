@@ -15,6 +15,7 @@ class KitchenStationResource extends JsonResource
 
         return [
             'station_id' => (int) $this->station_id,
+            'branch_id' => (int) $this->branch_id,
             'code' => (string) $this->code,
             'name' => (string) $this->name,
             'description' => $this->description !== null ? (string) $this->description : null,

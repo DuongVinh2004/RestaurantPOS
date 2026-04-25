@@ -116,10 +116,10 @@ class StaffCashierShiftHttpFlowTest extends TestCase
     public function test_staff_can_list_authenticated_cashier_shift_history_with_filters(): void
     {
         [$staffId] = $this->seedActiveOrderScenario();
-        $otherStaffId = $this->createUser(['role_name' => 'Staff']);
+        $otherStaffId = $this->createUser(['role_name' => 'Cashier']);
         $branchA = $this->createBranch(['branch_code' => 'SHIFTLOOKA', 'branch_name' => 'Shift Lookup A']);
         $branchB = $this->createBranch(['branch_code' => 'SHIFTLOOKB', 'branch_name' => 'Shift Lookup B']);
-        $this->allowStaffBranchScope($branchA, $branchB);
+        $this->allowCashierBranchScope($branchA, $branchB);
         $headers = $this->withIdempotencyKey('idem-cashier-shift-lookup-open-a', $this->staffAuthHeaders($staffId, 'staff-cashier-shift-lookup-a'));
 
         $firstOpen = $this->postJson('/api/v1/staff/cashier/shifts/open', [
@@ -180,7 +180,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
         [$staffId] = $this->seedActiveOrderScenario();
         $branchA = $this->createBranch(['branch_code' => 'CURRA', 'branch_name' => 'Current A']);
         $branchB = $this->createBranch(['branch_code' => 'CURRB', 'branch_name' => 'Current B']);
-        $this->allowStaffBranchScope($branchA);
+        $this->allowCashierBranchScope($branchA);
         $headers = $this->withIdempotencyKey('idem-cashier-shift-current-branch-open', $this->staffAuthHeaders($staffId, 'staff-cashier-shift-current-branch'));
 
         $open = $this->postJson('/api/v1/staff/cashier/shifts/open', [
@@ -206,7 +206,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
         [$staffId] = $this->seedActiveOrderScenario();
         $branchA = $this->createBranch(['branch_code' => 'SHIFTALLOW', 'branch_name' => 'Shift Allowed']);
         $branchB = $this->createBranch(['branch_code' => 'SHIFTBLOCK', 'branch_name' => 'Shift Blocked']);
-        $this->allowStaffBranchScope($branchA);
+        $this->allowCashierBranchScope($branchA);
         $headers = $this->staffAuthHeaders($staffId, 'staff-cashier-shift-branch-deny');
 
         $blockedShiftId = $this->createCashierShift([
@@ -244,7 +244,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
     public function test_staff_cannot_show_or_close_another_cashiers_shift(): void
     {
         [$ownerStaffId] = $this->seedActiveOrderScenario();
-        $otherStaffId = $this->createUser(['role_name' => 'Staff']);
+        $otherStaffId = $this->createUser(['role_name' => 'Cashier']);
         $ownerHeaders = $this->withIdempotencyKey('idem-cashier-shift-owner-open', $this->staffAuthHeaders($ownerStaffId, 'staff-cashier-owner'));
         $otherHeaders = $this->withIdempotencyKey('idem-cashier-shift-other-close', $this->staffAuthHeaders($otherStaffId, 'staff-cashier-other'));
 
@@ -279,11 +279,11 @@ class StaffCashierShiftHttpFlowTest extends TestCase
     public function test_cashier_shift_summary_only_includes_same_branch_and_currency_payments(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
         $headers = $this->withIdempotencyKey('idem-cashier-shift-open-scope', $this->staffAuthHeaders($staffId, 'staff-cashier-shift-scope'));
         $branchA = $this->createBranch(['branch_code' => 'A1', 'branch_name' => 'Branch A']);
         $branchB = $this->createBranch(['branch_code' => 'B1', 'branch_name' => 'Branch B']);
-        $this->allowStaffBranchScope($branchA);
+        $this->allowCashierBranchScope($branchA);
 
         $open = $this->postJson('/api/v1/staff/cashier/shifts/open', [
             'branch_id' => $branchA,
@@ -443,7 +443,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
     private function seedActiveOrderScenario(): array
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
@@ -470,7 +470,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
         return [$staffId, $orderId, $reservationId];
     }
 
-    private function allowStaffBranchScope(int ...$branchIds): void
+    private function allowCashierBranchScope(int ...$branchIds): void
     {
         $tokens = ['default'];
 
@@ -478,6 +478,6 @@ class StaffCashierShiftHttpFlowTest extends TestCase
             $tokens[] = (string) $branchId;
         }
 
-        config()->set('staff_capabilities.role_branch_scopes.Staff', array_values(array_unique($tokens)));
+        config()->set('staff_capabilities.role_branch_scopes.Cashier', array_values(array_unique($tokens)));
     }
 }

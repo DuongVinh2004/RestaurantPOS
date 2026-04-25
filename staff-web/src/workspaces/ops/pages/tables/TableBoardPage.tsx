@@ -249,6 +249,10 @@ export function TableBoardPage() {
   const lastAppliedBoardChangeVersionRef = useRef<number | null>(null);
 
   useEffect(() => {
+    lastAppliedBoardChangeVersionRef.current = null;
+  }, [branchId]);
+
+  useEffect(() => {
     if (boardQuery.data) {
       lastGoodBoardDataRef.current = {
         key: boardDataCacheKey,
@@ -384,15 +388,15 @@ export function TableBoardPage() {
   }, [boardData, clearBoardSelection, selectedTable, selectedTableId]);
 
   const boardChangesQuery = useQuery({
-    queryKey: ['table-board-changes', boardRealtimeVersion],
-    queryFn: () => getTableBoardChanges(boardRealtimeVersion),
+    queryKey: ['table-board-changes', branchId, boardRealtimeVersion],
+    queryFn: () => getTableBoardChanges(boardRealtimeVersion, branchId ?? undefined),
     enabled: !!boardRealtimeVersion,
     refetchInterval: 20_000,
   });
 
   const refreshTableBoardInBackground = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ['table-board'], refetchType: 'active' });
-  }, [queryClient]);
+    void queryClient.invalidateQueries({ queryKey: ['table-board', branchId], refetchType: 'active' });
+  }, [branchId, queryClient]);
 
   const refreshBoardWorkspace = useCallback(async (options?: {
     reservationId?: number | null;

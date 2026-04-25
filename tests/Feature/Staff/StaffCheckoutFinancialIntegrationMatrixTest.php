@@ -38,7 +38,7 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
             'role_name' => 'Customer',
             'current_tier_id' => $tierId,
         ]);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 500, $staffId);
 
@@ -173,7 +173,7 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
             'role_name' => 'Customer',
             'current_tier_id' => $tierId,
         ]);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 500, $staffId);
 
@@ -300,7 +300,7 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
     public function test_refund_cancel_allows_confirmed_reservation_with_existing_deposit_payment(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
 
         $reservationId = $this->createReservation([
@@ -349,7 +349,7 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
     public function test_voucher_only_completed_reservation_refund_cancel_restores_voucher_without_loyalty_side_effects(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
 
         $reservationId = $this->createReservation([
@@ -456,7 +456,7 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
             'role_name' => 'Customer',
             'current_tier_id' => $tierId,
         ]);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 300, $staffId);
 
@@ -592,7 +592,7 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
             'role_name' => 'Customer',
             'current_tier_id' => $tierId,
         ]);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 300, $staffId);
 

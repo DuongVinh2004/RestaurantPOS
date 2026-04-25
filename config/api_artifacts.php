@@ -67,8 +67,10 @@ return [
             [
                 'name' => 'Dine-In + Checkout',
                 'signatures' => [
+                    'GET api/v1/staff/menu/items',
                     'GET api/v1/staff/tables/board',
                     'GET api/v1/staff/tables/board/changes',
+                    'POST api/v1/staff/service-sessions/walk-in',
                     'POST api/v1/staff/reservations/{id}/check-in',
                     'POST api/v1/staff/tables/{table_id}/orders',
                     'POST api/v1/staff/orders/{order_id}/items',
@@ -105,6 +107,7 @@ return [
                 'name' => 'Staff Lookup',
                 'signatures' => [
                     'GET api/v1/staff/reservations',
+                    'GET api/v1/staff/reservations/{reservation_id}',
                     'GET api/v1/staff/reservations/{reservation_id}/orders',
                     'GET api/v1/staff/cashier/shifts',
                 ],
@@ -182,6 +185,7 @@ return [
                     'GET api/v1/staff/conversations',
                     'GET api/v1/staff/conversations/{conversation_id}',
                     'POST api/v1/staff/conversations/{conversation_id}/take-over',
+                    'POST api/v1/staff/conversations/{conversation_id}/unassign',
                     'POST api/v1/staff/conversations/{conversation_id}/internal-notes',
                     'POST api/v1/staff/conversations/{conversation_id}/outbound-replies',
                 ],
@@ -329,6 +333,13 @@ return [
                     'limit' => 'eventLimit',
                 ],
             ],
+            'GET api/v1/staff/menu/items' => [
+                'query' => [
+                    'service_time' => 'availabilityFromUtc',
+                    'category_id' => 'menuCategoryId',
+                    'per_page' => 'perPage',
+                ],
+            ],
             'POST api/v1/staff/reservations/{id}/check-in' => [
                 'path' => ['id' => 'reservationIdDineIn'],
             ],
@@ -355,6 +366,9 @@ return [
                     'per_page' => 'perPage',
                     'sort' => 'reservationSort',
                 ],
+            ],
+            'GET api/v1/staff/reservations/{reservation_id}' => [
+                'path' => ['reservation_id' => 'reservationIdDineIn'],
             ],
             'GET api/v1/staff/reservations/{reservation_id}/orders' => [
                 'path' => ['reservation_id' => 'reservationIdDineIn'],
@@ -604,6 +618,9 @@ return [
             'POST api/v1/staff/conversations/{conversation_id}/take-over' => [
                 'path' => ['conversation_id' => 'conversationId'],
             ],
+            'POST api/v1/staff/conversations/{conversation_id}/unassign' => [
+                'path' => ['conversation_id' => 'conversationId'],
+            ],
             'POST api/v1/staff/conversations/{conversation_id}/internal-notes' => [
                 'path' => ['conversation_id' => 'conversationId'],
             ],
@@ -678,6 +695,14 @@ return [
                 'table_ids.0' => '{{dineInTableId}}',
                 'checked_in_at' => '{{checkedInAt}}',
                 'row_version' => '{{reservationRowVersionDineIn}}',
+            ],
+            'POST api/v1/staff/service-sessions/walk-in' => [
+                'branch_id' => '{{branchId}}',
+                'table_ids.0' => '{{dineInTableId}}',
+                'guest_count' => '{{guestCount}}',
+                'started_at' => '{{checkedInAt}}',
+                'service_minutes' => 90,
+                'notes' => 'Postman walk-in service session',
             ],
             'POST api/v1/staff/tables/{table_id}/orders' => [
                 'reservation_id' => '{{reservationIdDineIn}}',
@@ -820,6 +845,9 @@ return [
             ],
             'POST api/v1/staff/conversations/{conversation_id}/take-over' => [
                 'notes' => 'Taking ownership from Postman collection',
+            ],
+            'POST api/v1/staff/conversations/{conversation_id}/unassign' => [
+                'notes' => 'Returning conversation to shared inbox from Postman collection',
             ],
             'POST api/v1/staff/conversations/{conversation_id}/internal-notes' => [
                 'message_text' => 'Postman internal note',

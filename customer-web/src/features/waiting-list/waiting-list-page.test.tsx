@@ -54,7 +54,6 @@ function createWaitingListEntryRecord(overrides: Partial<CustomerWaitingListEntr
   return {
     waiting_id: 91,
     branch_id: 7,
-    user_id: 22,
     guest_name: "Alex",
     phone: "0900000000",
     guest_count: 4,
@@ -63,57 +62,71 @@ function createWaitingListEntryRecord(overrides: Partial<CustomerWaitingListEntr
     priority: 1,
     notified_at: null,
     notify_expires_at: null,
-    notified_by: null,
     seated_at: null,
     cancelled_at: null,
     cancel_reason: null,
     notes: "Window seat",
-    updated_by: null,
     row_version: 7,
-    current_response_state: "none",
-    response: {
-      status: null,
-      responded_at: null,
-      confirmed_arrival_at: null,
-    },
-    invite_window: {
-      notified_at: null,
+    response_state: "none",
+    can_accept: false,
+    can_decline: false,
+    can_confirm_arrival: false,
+    can_cancel: true,
+    notify_window: {
+      is_open: false,
       expires_at: null,
-      is_active: false,
-      is_expired: false,
-      seconds_remaining: 0,
     },
-    invite_lifecycle: {
-      requires_explicit_staff_seat: true,
-      auto_convert_to_reservation: false,
-      seat_readiness: "not_notified",
-      customer_next_step: "wait_to_be_called",
-      staff_next_step: "notify_customer",
-      can_staff_seat_now: false,
+    window: {
+      is_notified_window_open: false,
     },
-    invite_hold: {
-      has_active_hold: false,
-      active: null,
-      latest: null,
+    available_actions: {
+      accept: false,
+      decline: false,
+      confirm_arrival: false,
+      cancel: true,
     },
-    orchestration: {
-      mode: "semi_automated_waiting_list_orchestration",
-      actionable_state: "waiting",
-      recommended_action: "notify_customer",
-      released_table: null,
-      advance_queue: {
-        supported: false,
-        can_apply_now: false,
-        resulting_action: "none",
-        released_table_available: false,
-        next_candidate: null,
-        disabled_reason: null,
-      },
-      actions: [],
+    staff_seat_required: false,
+    next_step: "await_notification",
+    arrival_confirmation: {
+      supported: true,
+      staff_seat_required: false,
+      message: null,
     },
-    user: null,
     ...overrides,
   };
+}
+
+function activeInvite(overrides: Partial<CustomerWaitingListEntry> = {}): CustomerWaitingListEntry {
+  return createWaitingListEntryRecord({
+    status: "Notified",
+    notified_at: "2026-04-19T10:10:00Z",
+    notify_expires_at: "2026-04-19T10:40:00Z",
+    can_accept: true,
+    can_decline: true,
+    can_confirm_arrival: true,
+    can_cancel: true,
+    notify_window: {
+      is_open: true,
+      expires_at: "2026-04-19T10:40:00Z",
+    },
+    window: {
+      is_notified_window_open: true,
+    },
+    available_actions: {
+      accept: true,
+      decline: true,
+      confirm_arrival: true,
+      cancel: true,
+    },
+    staff_seat_required: true,
+    next_step: "await_staff_seating",
+    arrival_confirmation: {
+      supported: true,
+      staff_seat_required: true,
+      message: "Customers only confirm arrival. Staff still completes seating.",
+    },
+    ...overrides,
+  });
 }
 
 function renderPage() {
@@ -180,43 +193,8 @@ describe("WaitingListPage", () => {
     expect(screen.queryByRole("button", { name: "Decline invite" })).not.toBeInTheDocument();
   });
 
-  it("shows the full owner response set for an active invite window and keeps refresh manual", async () => {
-    const notifiedEntry = createWaitingListEntryRecord({
-      status: "Notified",
-      current_response_state: "pending",
-      notified_at: "2026-04-19T10:10:00Z",
-      notify_expires_at: "2026-04-19T10:40:00Z",
-      invite_window: {
-        notified_at: "2026-04-19T10:10:00Z",
-        expires_at: "2026-04-19T10:40:00Z",
-        is_active: true,
-        is_expired: false,
-        seconds_remaining: 1800,
-      },
-      invite_lifecycle: {
-        requires_explicit_staff_seat: true,
-        auto_convert_to_reservation: false,
-        seat_readiness: "awaiting_customer_response",
-        customer_next_step: "respond_to_invite",
-        staff_next_step: "wait_for_customer_response",
-        can_staff_seat_now: false,
-      },
-      orchestration: {
-        mode: "semi_automated_waiting_list_orchestration",
-        actionable_state: "invite_open",
-        recommended_action: "wait_for_customer_response",
-        released_table: null,
-        advance_queue: {
-          supported: false,
-          can_apply_now: false,
-          resulting_action: "none",
-          released_table_available: false,
-          next_candidate: null,
-          disabled_reason: null,
-        },
-        actions: [],
-      },
-    });
+  it("shows the backend owner response set for an active invite window and keeps refresh manual", async () => {
+    const notifiedEntry = activeInvite();
 
     mocks.customerWebRollout.waitingList.enabled = true;
     mocks.listWaitingList.mockResolvedValue([notifiedEntry]);
@@ -224,37 +202,54 @@ describe("WaitingListPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Invite response available")).toBeInTheDocument();
+    expect((await screen.findAllByText("Invite response available")).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Accept invite" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Confirm arrival" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Decline invite" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel entry" })).toBeInTheDocument();
     expect(screen.getAllByText("Refresh manually")[0]).toBeInTheDocument();
     expect(screen.getByText("Seat result not exposed yet")).toBeInTheDocument();
-    expect(screen.getByText(/does not fake notification or seating progress/i)).toBeInTheDocument();
+    expect(screen.queryByText("Waiting for staff seat result")).not.toBeInTheDocument();
+  });
+
+  it("uses response_state to distinguish accepted from arrival-confirmed entries", async () => {
+    const acceptedEntry = activeInvite({
+      waiting_id: 93,
+      row_version: 9,
+      response_state: "accepted",
+      arrival_confirmation: {
+        supported: true,
+        staff_seat_required: true,
+        message: "Localized message is not used as state.",
+      },
+    });
+    const arrivalConfirmedEntry = activeInvite({
+      waiting_id: 92,
+      row_version: 8,
+      response_state: "arrival_confirmed",
+    });
+
+    mocks.customerWebRollout.waitingList.enabled = true;
+    mocks.listWaitingList.mockResolvedValue([acceptedEntry, arrivalConfirmedEntry]);
+    mocks.getWaitingListEntry.mockResolvedValueOnce(acceptedEntry).mockResolvedValueOnce(arrivalConfirmedEntry);
+
+    renderPage();
+
+    expect((await screen.findAllByText("Invite accepted")).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Accept invite" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm arrival" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText("Entry #92"));
+
+    expect((await screen.findAllByText("Arrival confirmed")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Waiting for staff seating").length).toBeGreaterThan(0);
+    expect(screen.getByText("Waiting for staff seat result")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Confirm arrival" })).not.toBeInTheDocument();
   });
 
   it("refetches the list and detail when an owner action hits a stale row version", async () => {
     const user = userEvent.setup();
-    const notifiedEntry = createWaitingListEntryRecord({
-      status: "Notified",
-      current_response_state: "pending",
-      invite_window: {
-        notified_at: "2026-04-19T10:10:00Z",
-        expires_at: "2026-04-19T10:40:00Z",
-        is_active: true,
-        is_expired: false,
-        seconds_remaining: 1800,
-      },
-      invite_lifecycle: {
-        requires_explicit_staff_seat: true,
-        auto_convert_to_reservation: false,
-        seat_readiness: "awaiting_customer_response",
-        customer_next_step: "respond_to_invite",
-        staff_next_step: "wait_for_customer_response",
-        can_staff_seat_now: false,
-      },
-    });
+    const notifiedEntry = activeInvite();
 
     mocks.customerWebRollout.waitingList.enabled = true;
     mocks.listWaitingList.mockResolvedValue([notifiedEntry]);

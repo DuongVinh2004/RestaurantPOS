@@ -204,8 +204,9 @@ class OpenApiSpecService
             $this->idempotencyParameters($middleware),
         );
 
-        $isDeprecated = isset($aliasMap['/'.ltrim($uri, '/')]);
-        $canonicalRoute = $isDeprecated ? $aliasMap['/'.ltrim($uri, '/')] : null;
+        $isAliasDeprecated = isset($aliasMap['/'.ltrim($uri, '/')]);
+        $isDeprecated = $isAliasDeprecated || (bool) ($metadata['deprecated'] ?? false);
+        $canonicalRoute = $isAliasDeprecated ? $aliasMap['/'.ltrim($uri, '/')] : null;
         $description = (string) ($metadata['description'] ?? 'Runtime route mirrored from Laravel route inventory.');
 
         if ($isDeprecated && $canonicalRoute !== null) {
@@ -479,6 +480,13 @@ class OpenApiSpecService
             return [];
         }
 
+        if ($this->containsMiddleware($middleware, 'StaffRefreshSessionMiddleware')) {
+            return [
+                ['StaffBrowserRefreshCookie' => [], 'StaffBrowserCsrfToken' => []],
+                ['StaffApiKey' => []],
+            ];
+        }
+
         if ($this->containsMiddleware($middleware, 'StaffApiKeyMiddleware')) {
             return [['StaffApiKey' => []]];
         }
@@ -501,6 +509,10 @@ class OpenApiSpecService
     {
         if (str_starts_with($uri, 'api/v1/payments/providers/') || str_starts_with($uri, 'api/v1/health')) {
             return 'public';
+        }
+
+        if ($this->containsMiddleware($middleware, 'StaffRefreshSessionMiddleware')) {
+            return 'staff_browser_refresh_cookie';
         }
 
         if ($this->containsMiddleware($middleware, 'StaffApiKeyMiddleware')) {
@@ -651,6 +663,18 @@ class OpenApiSpecService
                 'in' => 'header',
                 'name' => 'X-Staff-Key',
                 'description' => 'Opaque staff API key used for staff and admin operational endpoints.',
+            ],
+            'StaffBrowserRefreshCookie' => [
+                'type' => 'apiKey',
+                'in' => 'cookie',
+                'name' => (string) config('staff_auth.browser_session.refresh_cookie_name', 'staff_web_refresh'),
+                'description' => 'HttpOnly staff-web browser refresh cookie used by staff refresh/logout when the refresh-cookie rollout is enabled.',
+            ],
+            'StaffBrowserCsrfToken' => [
+                'type' => 'apiKey',
+                'in' => 'header',
+                'name' => (string) config('staff_auth.browser_session.csrf_header', 'X-Staff-CSRF'),
+                'description' => 'Double-submit CSRF token required with the staff browser refresh cookie on staff refresh/logout.',
             ],
         ];
     }

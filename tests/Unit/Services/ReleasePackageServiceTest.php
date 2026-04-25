@@ -365,20 +365,32 @@ class ReleasePackageServiceTest extends TestCase
         $this->assertFalse(File::exists(base_path($report['package_path'])));
     }
 
-    public function test_package_skips_staff_web_install_artifacts_when_staging_release_roots(): void
+    public function test_package_skips_split_web_install_artifacts_when_staging_release_roots(): void
     {
         $schemaPath = base_path($this->root.'/schema.sql');
         $packageFile = base_path($this->root.'/src/release.txt');
+        $customerWebSource = base_path($this->root.'/customer-web/src/app/page.tsx');
+        $customerWebNodeModule = base_path($this->root.'/customer-web/node_modules/example/index.js');
+        $customerWebNextBuild = base_path($this->root.'/customer-web/.next/server/app.js');
+        $customerWebTestResult = base_path($this->root.'/customer-web/test-results/smoke.json');
         $staffWebSource = base_path($this->root.'/staff-web/src/main.tsx');
         $staffWebNodeModule = base_path($this->root.'/staff-web/node_modules/example/index.js');
         $staffWebDist = base_path($this->root.'/staff-web/dist/assets/app.js');
         File::ensureDirectoryExists(dirname($schemaPath));
         File::ensureDirectoryExists(dirname($packageFile));
+        File::ensureDirectoryExists(dirname($customerWebSource));
+        File::ensureDirectoryExists(dirname($customerWebNodeModule));
+        File::ensureDirectoryExists(dirname($customerWebNextBuild));
+        File::ensureDirectoryExists(dirname($customerWebTestResult));
         File::ensureDirectoryExists(dirname($staffWebSource));
         File::ensureDirectoryExists(dirname($staffWebNodeModule));
         File::ensureDirectoryExists(dirname($staffWebDist));
         File::put($schemaPath, "alpha\nbeta\n");
         File::put($packageFile, "release-payload\n");
+        File::put($customerWebSource, "export default function Page() { return null; }\n");
+        File::put($customerWebNodeModule, "module.exports = true;\n");
+        File::put($customerWebNextBuild, "console.log('built');\n");
+        File::put($customerWebTestResult, "{}\n");
         File::put($staffWebSource, "export const app = true;\n");
         File::put($staffWebNodeModule, "module.exports = true;\n");
         File::put($staffWebDist, "console.log('built');\n");
@@ -397,11 +409,15 @@ class ReleasePackageServiceTest extends TestCase
         config()->set('booking_release.packaging.output_root', $this->root.'/build');
         config()->set('booking_release.packaging.package_prefix', 'booking-test-release');
         config()->set('booking_release.packaging.exclude_paths', [
+            $this->root.'/customer-web/node_modules',
+            $this->root.'/customer-web/.next',
+            $this->root.'/customer-web/test-results',
             $this->root.'/staff-web/node_modules',
             $this->root.'/staff-web/dist',
         ]);
         config()->set('booking_release.packaging.include_paths', [
             ['path' => $this->root.'/src/release.txt', 'required' => true],
+            ['path' => $this->root.'/customer-web', 'required' => true],
             ['path' => $this->root.'/staff-web', 'required' => true],
         ]);
         config()->set('booking_release.packaging.sidecars.latest_pointer_path', $this->root.'/build/latest-package.json');
@@ -425,6 +441,10 @@ class ReleasePackageServiceTest extends TestCase
             ->values()
             ->all();
 
+        $this->assertContains($this->root.'/customer-web/src/app/page.tsx', $paths);
+        $this->assertNotContains($this->root.'/customer-web/node_modules/example/index.js', $paths);
+        $this->assertNotContains($this->root.'/customer-web/.next/server/app.js', $paths);
+        $this->assertNotContains($this->root.'/customer-web/test-results/smoke.json', $paths);
         $this->assertContains($this->root.'/staff-web/src/main.tsx', $paths);
         $this->assertNotContains($this->root.'/staff-web/node_modules/example/index.js', $paths);
         $this->assertNotContains($this->root.'/staff-web/dist/assets/app.js', $paths);

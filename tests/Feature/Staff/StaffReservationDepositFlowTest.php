@@ -342,7 +342,7 @@ class StaffReservationDepositFlowTest extends TestCase
     private function seedDepositReservation(array $reservationOverrides = []): array
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $tableId = $this->createRestaurantTable(['status' => 'Reserved']);
         $reservationId = $this->createReservation(array_merge([
             'user_id' => $customerId,
@@ -353,6 +353,11 @@ class StaffReservationDepositFlowTest extends TestCase
             'bill_currency' => 'VND',
         ], $reservationOverrides));
         $this->attachReservationTable($reservationId, $tableId);
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => 1,
+            'status' => 'Open',
+        ]);
 
         return [$staffId, $reservationId];
     }

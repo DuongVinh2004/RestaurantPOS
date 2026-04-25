@@ -65,6 +65,7 @@ describe('DashboardPage branch scope', () => {
     await waitFor(() => expect(staffApiMocks.listFinancialReconciliation).toHaveBeenCalledWith(expect.objectContaining({
       branch_id: 7,
     })));
+    expect(staffApiMocks.listBranches).not.toHaveBeenCalled();
   });
 });
 

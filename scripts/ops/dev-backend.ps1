@@ -17,6 +17,43 @@ $startMySqlScript = Join-Path $repoRoot 'scripts\ops\start-local-mysql.ps1'
 $startRedisScript = Join-Path $repoRoot 'scripts\ops\start-local-redis.ps1'
 $normalizedRepoRoot = ([System.IO.Path]::GetFullPath($repoRoot)).Replace('\', '/').ToLowerInvariant()
 
+function Add-PathDirectory {
+    param(
+        [string] $Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path $Path)) {
+        return
+    }
+
+    $existingPaths = @($env:PATH -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $normalizedPath = ([System.IO.Path]::GetFullPath($Path)).TrimEnd('\').ToLowerInvariant()
+    $alreadyPresent = @(
+        $existingPaths |
+            Where-Object {
+                try {
+                    ([System.IO.Path]::GetFullPath($_)).TrimEnd('\').ToLowerInvariant() -eq $normalizedPath
+                } catch {
+                    $false
+                }
+            }
+    ).Count -gt 0
+
+    if (-not $alreadyPresent) {
+        $env:PATH = "$Path;$env:PATH"
+    }
+}
+
+function Add-KnownWindowsDevToolPaths {
+    Add-PathDirectory -Path 'C:\xampp\php'
+    Add-PathDirectory -Path 'C:\xampp\mysql\bin'
+
+    $herdLiteBin = Join-Path $env:USERPROFILE '.config\herd-lite\bin'
+    Add-PathDirectory -Path $herdLiteBin
+
+    Add-PathDirectory -Path 'C:\Program Files\MySQL\MySQL Server 8.0\bin'
+}
+
 function Get-ListeningConnection {
     param(
         [int] $TargetPort
@@ -62,6 +99,8 @@ function Test-RepoBackendProcess {
     return $normalizedCommandLine.Contains('server.php')
 }
 
+Add-KnownWindowsDevToolPaths
+
 if (-not $SkipMySql) {
     if (-not (Test-Path $startMySqlScript)) {
         throw "MySQL runtime script not found: $startMySqlScript"
@@ -71,7 +110,7 @@ if (-not $SkipMySql) {
     try {
         & $startMySqlScript
     } catch {
-        throw "MySQL runtime could not be ensured. Run `npm run mysql:local` (or `npm run mysql:local:restart`) and confirm MySQL Server 8 is installed. $($_.Exception.Message)"
+        throw ('MySQL runtime could not be ensured. Run `npm run mysql:local` (or `npm run mysql:local:restart`) and confirm MySQL Server 8 is installed. {0}' -f $_.Exception.Message)
     }
 }
 

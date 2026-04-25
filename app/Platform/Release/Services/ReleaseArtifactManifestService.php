@@ -432,6 +432,12 @@ class ReleaseArtifactManifestService
                 is_array($decoded)
                 && $this->normalizeSnapshotForComparison($decoded) === $this->normalizeSnapshotForComparison($snapshot)
             ) {
+                if ($this->freshnessMetadataChanged($decoded, $snapshot)) {
+                    File::put($absolutePath, $contents);
+
+                    return $snapshot;
+                }
+
                 return $decoded;
             }
         }
@@ -440,6 +446,42 @@ class ReleaseArtifactManifestService
         File::put($absolutePath, $contents);
 
         return $snapshot;
+    }
+
+    /**
+     * @param  array<string, mixed>  $existing
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function freshnessMetadataChanged(array $existing, array $snapshot): bool
+    {
+        $trackedArtifactKeys = [];
+
+        foreach ((array) config('booking_release.artifact_freshness', []) as $artifactKey => $dependencyKeys) {
+            if (is_scalar($artifactKey) && trim((string) $artifactKey) !== '') {
+                $trackedArtifactKeys[trim((string) $artifactKey)] = true;
+            }
+
+            foreach ((array) $dependencyKeys as $dependencyKey) {
+                if (is_scalar($dependencyKey) && trim((string) $dependencyKey) !== '') {
+                    $trackedArtifactKeys[trim((string) $dependencyKey)] = true;
+                }
+            }
+        }
+
+        foreach (array_keys($trackedArtifactKeys) as $artifactKey) {
+            $existingModifiedEpoch = data_get($existing, 'artifacts.'.$artifactKey.'.modified_epoch');
+            $currentModifiedEpoch = data_get($snapshot, 'artifacts.'.$artifactKey.'.modified_epoch');
+
+            if ($existingModifiedEpoch === null || $currentModifiedEpoch === null) {
+                continue;
+            }
+
+            if ((int) $existingModifiedEpoch !== (int) $currentModifiedEpoch) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

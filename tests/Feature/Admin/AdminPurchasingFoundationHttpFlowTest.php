@@ -300,6 +300,88 @@ class AdminPurchasingFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('branch_id', $branchId);
     }
 
+    public function test_branch_limited_inventory_manager_cannot_lookup_or_receive_out_of_scope_purchase_order(): void
+    {
+        [, $adminHeaders] = $this->adminHeaders('admin-purchasing-branch-admin-key');
+        $allowedBranchId = (int) (DB::table('branches')->where('is_default', 1)->value('branch_id') ?? 1);
+        $deniedBranchId = $this->createBranch([
+            'branch_code' => 'PO-DENY',
+            'branch_name' => 'Purchase Order Denied Branch',
+        ]);
+        $supplierId = $this->createSupplier([
+            'code' => 'SUP-PO-DENY',
+            'name' => 'Denied Branch Supplier',
+        ]);
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-PO-DENY',
+            'name' => 'Denied Branch Flour',
+            'unit_code' => 'kg',
+        ]);
+
+        $purchaseOrder = $this->withHeaders($this->withIdempotencyKey($adminHeaders, 'idem-admin-po-denied-branch-create'))
+            ->postJson('/api/v1/admin/inventory/purchase-orders', [
+                'branch_id' => $deniedBranchId,
+                'supplier_id' => $supplierId,
+                'order_code' => 'PO-DENIED-BRANCH',
+                'lines' => [
+                    [
+                        'ingredient_id' => $ingredientId,
+                        'ordered_quantity' => '5.000',
+                        'unit_code' => 'kg',
+                    ],
+                ],
+            ]);
+
+        $purchaseOrder->assertCreated()
+            ->assertJsonPath('data.branch.branch_id', $deniedBranchId);
+
+        $purchaseOrderId = (int) $purchaseOrder->json('data.purchase_order_id');
+        $poLineId = (int) $purchaseOrder->json('data.lines.0.po_line_id');
+
+        $roleId = $this->ensureRole('Inventory Branch Manager');
+        $staffId = $this->createUser(['role_id' => $roleId, 'role_name' => 'Inventory Branch Manager']);
+
+        config()->set('staff_auth.allowed_role_ids', [$roleId]);
+        config()->set('staff_capabilities.role_id_capabilities', [
+            $roleId => ['inventory.manage'],
+        ]);
+        config()->set('staff_capabilities.role_id_branch_scopes', [
+            $roleId => [(string) $allowedBranchId],
+        ]);
+
+        $headers = $this->staffHeadersForTest($staffId, 'branch-limited-purchasing-key');
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/admin/inventory/purchase-orders?branch_id='.$deniedBranchId)
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/admin/inventory/purchase-orders/'.$purchaseOrderId)
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/admin/inventory/purchase-orders/'.$purchaseOrderId.'/receipts')
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-po-denied-branch-receipt'))
+            ->postJson('/api/v1/admin/inventory/purchase-orders/'.$purchaseOrderId.'/receipts', [
+                'receipt_code' => 'GRN-DENIED-BRANCH',
+                'lines' => [
+                    [
+                        'purchase_order_line_id' => $poLineId,
+                        'received_quantity' => '1.000',
+                    ],
+                ],
+            ])
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        $this->assertSame(0, DB::table('purchase_receipts')->where('purchase_order_id', $purchaseOrderId)->count());
+    }
+
     public function test_purchase_order_lines_and_receipts_require_matching_ingredient_units(): void
     {
         [, $headers] = $this->adminHeaders('admin-purchasing-unit-guard-key');

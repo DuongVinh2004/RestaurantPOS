@@ -25,6 +25,7 @@ class CreateKitchenStationRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'branch_id' => ['nullable', 'integer', Rule::exists('branches', 'branch_id')->where('is_active', true)],
             'code' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('kitchen_stations', 'code')],
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:500'],

@@ -167,7 +167,7 @@ Payment stance:
 - production-proven day-1 path: staff settlement, refund, and cashier-shift flow
 - contract-ready only: customer deposit and bill payment-session routes, including any simulated-provider or local UAT proof
 
-## Staff-web live smoke evidence
+## Split-web release evidence
 
 Use `staff-web` live smoke as the split-web operator evidence layer on top of the backend gates:
 
@@ -202,6 +202,20 @@ Enable mutations only through explicit allowlist flags or manifest-backed mutati
 
 The smoke summary now prints `decision=pass|block` and per-action mutation gate state. When `STAFF_WEB_SMOKE_EVIDENCE_DIR` is set, the smoke harness also writes JSON/Markdown evidence plus `latest-<target>` pointers so launch-readiness and release-loop artifacts can archive the exact split-web result.
 
+Use `customer-web` release verification as the customer lane evidence in the same full-system release loop:
+
+```bash
+cd customer-web
+npm run verify:contracts
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+npm run test:e2e:smoke
+```
+
+`npm run test:e2e:smoke` requires Chromium to be installed first. The manual release-gate workflow installs it before running `booking:release-loop`.
+
 ## Usage
 
 Serious staging rollout:
@@ -210,7 +224,7 @@ Serious staging rollout:
 php artisan booking:launch-readiness --target=staging --json
 ```
 
-Full backend + `staff-web` release loop:
+Full backend + split-web release loop:
 
 ```bash
 php artisan booking:release-loop \
@@ -397,6 +411,6 @@ Use the combined harness shortcut when you want the canonical launch-readiness r
 php artisan booking:harness:release-readiness --target=staging --json
 ```
 
-Use `booking:release-loop` instead when the release candidate also needs `staff-web` test/build/live-smoke evidence in the same artifact family.
+Use `booking:release-loop` instead when the release candidate also needs `staff-web` test/build/live-smoke evidence and `customer-web` contract/lint/typecheck/test/build/browser-smoke evidence in the same artifact family.
 
-`booking:release-loop` keeps collecting later safe evidence steps even after an earlier blocking step fails, so the final report can still archive backend and `staff-web` diagnostics in one artifact family for triage.
+`booking:release-loop` keeps collecting later safe evidence steps even after an earlier blocking step fails, so the final report can still archive backend and split-web diagnostics in one artifact family for triage.

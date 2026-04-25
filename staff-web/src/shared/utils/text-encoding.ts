@@ -62,6 +62,7 @@ const SPECIAL_CHARACTERS = [
   0x201c,
   0x201d,
   0x2022,
+  0x2026,
 ];
 
 type NormalizationResult<T> = {

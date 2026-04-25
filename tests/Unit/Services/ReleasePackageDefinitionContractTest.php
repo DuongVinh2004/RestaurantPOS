@@ -36,6 +36,7 @@ class ReleasePackageDefinitionContractTest extends TestCase
         $this->assertContains('public/index.php', $requiredPaths);
         $this->assertContains('routes', $requiredPaths);
         $this->assertContains('scripts', $requiredPaths);
+        $this->assertContains('customer-web', $requiredPaths);
         $this->assertContains('staff-web', $requiredPaths);
         $this->assertContains('storage/app/booking_release', $requiredPaths);
         $this->assertContains('tests', $requiredPaths);
@@ -57,12 +58,17 @@ class ReleasePackageDefinitionContractTest extends TestCase
         $this->assertContains('docs/runbooks', $optionalPaths);
         $this->assertContains('README.md', $optionalPaths);
         $this->assertNotContains('tools/mysql', $optionalPaths);
+        $this->assertNotContains('customer-web', $optionalPaths);
         $this->assertNotContains('staff-web', $optionalPaths);
 
         $excludedPaths = collect((array) ($definition['exclude_paths'] ?? []))
             ->values()
             ->all();
 
+        $this->assertContains('customer-web/node_modules', $excludedPaths);
+        $this->assertContains('customer-web/.next', $excludedPaths);
+        $this->assertContains('customer-web/test-results', $excludedPaths);
+        $this->assertContains('customer-web/playwright-report', $excludedPaths);
         $this->assertContains('staff-web/node_modules', $excludedPaths);
         $this->assertContains('staff-web/dist', $excludedPaths);
     }

@@ -10,6 +10,7 @@ use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\FloorOperations\Http\Requests\Staff\BranchScopeRequest;
 use App\Modules\KitchenDispatch\Application\Workflows\KitchenRoutingService;
 use App\Modules\KitchenDispatch\Http\Requests\Staff\DispatchKitchenTicketRequest;
+use App\Modules\KitchenDispatch\Http\Requests\Staff\KitchenTicketActionRequest;
 use App\Modules\KitchenDispatch\Http\Requests\Staff\ListKitchenStationTicketsRequest;
 use App\Modules\KitchenDispatch\Http\Resources\KitchenStationResource;
 use App\Modules\KitchenDispatch\Http\Resources\Staff\KitchenTicketResource;
@@ -123,28 +124,64 @@ class KitchenDispatchController extends Controller
         ]);
     }
 
-    public function fire(int $ticket_id, Request $request): JsonResponse
+    public function fire(int $ticket_id, KitchenTicketActionRequest $request): JsonResponse
     {
-        return $this->ticketActionResponse($request, 'kitchen_ticket_fired', fn () => $this->kitchenRoutingService->fireTicket($ticket_id, $this->resolveStaffActorUserId($request)));
+        return $this->ticketActionResponse(
+            $request,
+            'kitchen_ticket_fired',
+            fn () => $this->kitchenRoutingService->fireTicket(
+                $ticket_id,
+                (int) $request->input('row_version'),
+                $this->resolveStaffActorUserId($request),
+            )
+        );
     }
 
-    public function bump(int $ticket_id, Request $request): JsonResponse
+    public function bump(int $ticket_id, KitchenTicketActionRequest $request): JsonResponse
     {
-        return $this->ticketActionResponse($request, 'kitchen_ticket_bumped', fn () => $this->kitchenRoutingService->bumpTicket($ticket_id, $this->resolveStaffActorUserId($request)));
+        return $this->ticketActionResponse(
+            $request,
+            'kitchen_ticket_bumped',
+            fn () => $this->kitchenRoutingService->bumpTicket(
+                $ticket_id,
+                (int) $request->input('row_version'),
+                $this->resolveStaffActorUserId($request),
+            )
+        );
     }
 
-    public function recall(int $ticket_id, Request $request): JsonResponse
+    public function recall(int $ticket_id, KitchenTicketActionRequest $request): JsonResponse
     {
-        return $this->ticketActionResponse($request, 'kitchen_ticket_recalled', fn () => $this->kitchenRoutingService->recallTicket($ticket_id, $this->resolveStaffActorUserId($request)));
+        return $this->ticketActionResponse(
+            $request,
+            'kitchen_ticket_recalled',
+            fn () => $this->kitchenRoutingService->recallTicket(
+                $ticket_id,
+                (int) $request->input('row_version'),
+                $this->resolveStaffActorUserId($request),
+            )
+        );
     }
 
     public function changes(ListOperationalChangeFeedRequest $request): JsonResponse
     {
+        $branchId = $request->integer('branch_id') ?: null;
+
+        try {
+            $accessibleBranchIds = $this->branchContextService->branchScopeOrAccessible(
+                $this->resolveStaffActorUserId($request),
+                $branchId,
+            );
+        } catch (ModelNotFoundException) {
+            return $this->notFoundResponse($request, 'Branch not found.');
+        }
+
         return response()->json([
             'data' => $this->realtimeService->readTopic(
                 OperationalRealtimeService::TOPIC_KITCHEN,
                 (int) $request->input('after_version', 0),
                 (int) $request->input('limit', 20),
+                $accessibleBranchIds,
             ),
         ]);
     }

@@ -307,6 +307,24 @@ describe("reservation state helpers", () => {
     expect(stoppedPolicy.canConfirm).toBe(false);
   });
 
+  it("treats generated applied settlement status as a terminal successful payment", () => {
+    const policy = getPaymentSessionPolicy(
+      createPaymentSession({
+        session_status: "Pending",
+        settlement_status: "Applied",
+      }),
+      {
+        now: new Date("2026-04-18T10:02:00Z"),
+        surface: "deposit",
+      },
+    );
+
+    expect(policy.settlement).toBe("applied");
+    expect(policy.lifecycle).toBe("succeeded");
+    expect(policy.refreshMode).toBe("stopped");
+    expect(policy.canConfirm).toBe(false);
+  });
+
   it("normalizes hold, deposit, and bill summary states for the reservation workspace", () => {
     const reservation = createReservation({
       deposit_status: "NotRequired",

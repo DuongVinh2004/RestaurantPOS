@@ -36,7 +36,8 @@ Use this exact checklist for final packaging and handoff:
    - Treat `build/booking-release/stage/<package>` as transient local staging only. It is not release evidence and may be deleted immediately after packaging.
    - Local package retention keeps only the two newest package sets under `build/booking-release/`. Archive promoted candidates elsewhere if you need a longer rollback history than current-plus-previous.
 4. Authoritative smoke proof.
-   - Cite the exact timestamped smoke file for the target, not an old failure copied from the folder listing. Current pointers live at `storage/app/booking_release/staff_web_smoke/latest-local.*`, `latest-staging.*`, and release-loop step artifacts under `storage/app/booking_release/release_loop/steps/<target>/<timestamp>/staff-web-smoke/`.
+   - Cite the exact timestamped smoke file for the target, not an old failure copied from the folder listing. Current `staff-web` pointers live at `storage/app/booking_release/staff_web_smoke/latest-local.*`, `latest-staging.*`, and release-loop step artifacts under `storage/app/booking_release/release_loop/steps/<target>/<timestamp>/staff-web-smoke/`.
+   - `customer-web` release proof is part of this full-system artifact lane. The release loop must run `verify:contracts`, lint, typecheck, Vitest, production build, and Playwright smoke after Chromium is installed.
    - Timestamped reports that are not the cited target evidence are historical only unless the release ticket explicitly promotes them.
 5. Contract-critical generated artifacts.
    - `storage/app/booking_release/openapi-v1.json`
@@ -50,7 +51,7 @@ Use this exact checklist for final packaging and handoff:
    - Package integrity reports blocking missing files or blocking stale generated artifacts.
    - `booking:release-manifest --verify-frozen` reports stale, missing, or invalid frozen manifest state.
    - `booking:deploy-check --mode=preflight --strict` fails.
-   - Backend, staff-web, or target smoke tests fail for lanes enabled in the release ticket.
+   - Backend, staff-web, customer-web, or target smoke tests fail for lanes enabled in the release ticket.
    - `booking:package-release --verify-frozen` cannot create the package or sidecars deterministically.
    - The package inventory contains install-time garbage such as `node_modules`, `vendor`, `.env`, `.git`, caches, or local temp output.
 7. Domain maturity label for this handoff.
@@ -77,6 +78,9 @@ Blocking files that must exist for the repo to run at all:
 - `database/`
 - `tools/mysql/`
 - `tools/bootstrap_booking.php`
+- `customer-web/package.json`
+- `customer-web/next.config.ts`
+- `customer-web/src/app/`
 - `staff-web/package.json`
 - `staff-web/vite.config.ts`
 - `staff-web/index.html`
@@ -88,11 +92,19 @@ Blocking files that must exist for build/test/smoke and FE contract verification
 - `package.json`
 - `vite.config.js`
 - `scripts/`
+- `customer-web/tsconfig.json`
+- `customer-web/vitest.config.ts`
+- `customer-web/playwright.config.ts`
+- `customer-web/playwright.live.config.ts`
+- `customer-web/e2e/`
+- `customer-web/scripts/check-contract-governance.mjs`
+- `customer-web/scripts/verify-live-runtime.mjs`
+- `customer-web/src/lib/contracts/generated/restaurantpos-sdk.ts`
+- `customer-web/src/lib/contracts/generated/restaurantpos-enums.ts`
 - `staff-web/tsconfig.json`
 - `staff-web/vitest.config.ts`
 - `staff-web/scripts/live-smoke.mjs`
-- `staff-web/src/api/sdk.ts`
-- `staff-web/src/core/api/sdk.ts`
+- `staff-web/src/shared/api/sdk.ts`
 
 Generated artifacts that must stay aligned with the current backend contract:
 
@@ -108,8 +120,11 @@ Useful handover files that should stay in the snapshot even though they are advi
 - `docs/runbooks/`
 - `docs/runbooks/api-consumer-artifacts.md`
 - `docs/runbooks/booking-release-packaging-runbook.md`
+- `customer-web/.env.example`
+- `customer-web/README.md`
 - `staff-web/.env.example`
 - `staff-web/STAFF_WEB_SETUP.md`
+- `staff-web/README.md`
 - `build/api-consumer/sdk/typescript/README.md`
 
 ## Package integrity gate
@@ -125,7 +140,7 @@ For FE-only handoff validation from `staff-web/`:
 - `npm run integrity:check`
 - `node ../scripts/release/check-package-integrity.mjs --staff-web-only --root-dir=..`
 
-This gate is intentionally narrow. It does not replace runtime checks; it fails early when the backend roots, `staff-web` roots, or generated FE-facing artifacts are missing from the package shape that release tooling expects.
+This gate is intentionally narrow. It does not replace runtime checks; it fails early when the backend roots, `staff-web` roots, `customer-web` roots, or generated FE-facing artifacts are missing from the package shape that release tooling expects.
 
 The gate now emits three explicit groups:
 
@@ -178,7 +193,7 @@ Use the explicit orchestration command when you want that whole path to run in o
 - `harness.golden_flows`: canonical scenario keys, manifest availability, and runtime gate commands
 - `harness.recommended_commands`: the next release gates to run after packaging
 
-For the full release-candidate loop that also verifies `staff-web`, use `php artisan booking:release-loop` or `composer release:loop`. `booking:release-build` remains the packaging-centric command; `booking:release-loop` is the broader backend + split-web evidence chain.
+For the full release-candidate loop that also verifies `staff-web` and `customer-web`, use `php artisan booking:release-loop` or `composer release:loop`. `booking:release-build` remains the packaging-centric command; `booking:release-loop` is the broader backend + split-web evidence chain.
 
 ## Build the package
 
@@ -206,7 +221,7 @@ To include resolved golden-flow context in the release build output, pass the sa
 
 ## Release candidate evidence loop
 
-Use this higher-level path when you need one bundle that covers contract regeneration, backend harnesses, `staff-web` verification, preview metadata, live smoke, and launch-readiness evidence:
+Use this higher-level path when you need one bundle that covers contract regeneration, backend harnesses, `staff-web` verification, `customer-web` verification, preview metadata, live smoke, and launch-readiness evidence:
 
 - `php artisan booking:release-loop --target=staging --manifest-path=storage/app/uat/scenario-pack.json --base-url=http://127.0.0.1:8000 --bootstrap-uat`
 - `composer release:loop -- --target=staging --manifest-path=storage/app/uat/scenario-pack.json --base-url=http://127.0.0.1:8000 --bootstrap-uat`
@@ -227,7 +242,7 @@ The release-loop report now records preview and observability context explicitly
 
 Treat `preview.status=unconfigured` and `observability.status=missing-configuration` as external promotion blockers, not as soft green evidence.
 
-The canonical release loop now also runs `package_integrity` immediately after `contract_artifacts`, so missing FE/BE roots or generated SDK artifacts block the candidate before backend harnesses or `staff-web` build spend time on a broken handoff shape.
+The canonical release loop now also runs `package_integrity` immediately after `contract_artifacts`, so missing FE/BE roots or generated SDK artifacts block the candidate before backend harnesses or split-web build steps spend time on a broken handoff shape.
 
 The release-loop report is written under:
 
@@ -236,6 +251,8 @@ The release-loop report is written under:
 `staff-web` smoke evidence created inside that loop is written under the step artifact tree, currently:
 
 - `storage/app/booking_release/release_loop/steps/<target>/<timestamp>/staff-web-smoke/`
+
+`customer-web` CI-safe browser smoke is the `customer_web_e2e_smoke` release-loop step. It depends on Chromium being installed first, for example by the manual release gate workflow.
 
 Historical failed smoke reports remain in `storage/app/booking_release/staff_web_smoke/` for audit context. Do not delete them to make a folder look green. Current release truth is the latest pointer for the target plus the exact timestamped file cited by the release ticket after the current candidate was generated.
 
@@ -317,6 +334,7 @@ Configured release roots come from `config/booking_release.php` and currently in
 - `public/index.php`
 - `routes/`
 - `scripts/`
+- `customer-web/`
 - `staff-web/`
 - `storage/app/booking_release/`
 - `tests/`

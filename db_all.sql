@@ -2038,6 +2038,24 @@ CREATE TABLE `staff_api_keys` (
   CONSTRAINT `chk_staff_api_keys__label_nonempty` CHECK ((char_length(trim(`label`)) > 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `staff_branch_assignments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `staff_branch_assignments` (
+  `staff_branch_assignment_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned NOT NULL,
+  `branch_id` int unsigned NOT NULL,
+  `is_primary` tinyint unsigned NOT NULL DEFAULT '0',
+  `assigned_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `revoked_at` datetime(6) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`staff_branch_assignment_id`),
+  UNIQUE KEY `uq_staff_branch_assignments__user_id__branch_id` (`user_id`,`branch_id`),
+  KEY `idx_staff_branch_assignments__branch_id__revoked_at` (`branch_id`,`revoked_at`),
+  KEY `idx_staff_branch_assignments__user_id__revoked_at__primary` (`user_id`,`revoked_at`,`is_primary`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `vouchers`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -2191,6 +2209,7 @@ DROP TABLE IF EXISTS `kitchen_stations`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `kitchen_stations` (
   `station_id` int unsigned NOT NULL AUTO_INCREMENT,
+  `branch_id` int unsigned NOT NULL DEFAULT '1',
   `code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `description` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -2201,6 +2220,7 @@ CREATE TABLE `kitchen_stations` (
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`station_id`),
   UNIQUE KEY `uq_kitchen_stations__code` (`code`),
+  KEY `idx_kitchen_stations__branch_id__is_active__name` (`branch_id`,`is_active`,`name`),
   KEY `idx_kitchen_stations__is_active__name` (`is_active`,`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -2210,13 +2230,15 @@ DROP TABLE IF EXISTS `kitchen_station_category_routes`;
 CREATE TABLE `kitchen_station_category_routes` (
   `route_id` int unsigned NOT NULL AUTO_INCREMENT,
   `station_id` int unsigned NOT NULL,
+  `branch_id` int unsigned NOT NULL DEFAULT '1',
   `category_id` int unsigned NOT NULL,
   `sort_order` int NOT NULL DEFAULT '0',
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`route_id`),
-  UNIQUE KEY `uq_kitchen_station_category_routes__category_id` (`category_id`),
+  UNIQUE KEY `uq_kitchen_station_category_routes__branch_id__category_id` (`branch_id`,`category_id`),
+  KEY `idx_kitchen_station_category_routes__branch_id__category_active` (`branch_id`,`category_id`,`is_active`),
   KEY `idx_kitchen_station_category_routes__station_id__is_act_baf6944e` (`station_id`,`is_active`,`sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -2247,6 +2269,7 @@ CREATE TABLE `kitchen_order_item_tickets` (
   `ticket_notes` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_by` int unsigned DEFAULT NULL,
   `updated_by` int unsigned DEFAULT NULL,
+  `row_version` bigint unsigned NOT NULL DEFAULT '1',
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`ticket_id`),
@@ -2256,6 +2279,42 @@ CREATE TABLE `kitchen_order_item_tickets` (
   KEY `idx_kitchen_order_item_tickets__reservation_id__ticket_status` (`reservation_id`,`ticket_status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_unicode_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50003 TRIGGER `trg_kitchen_order_item_tickets__bi_row_version` BEFORE INSERT ON `kitchen_order_item_tickets` FOR EACH ROW BEGIN
+    IF NEW.`row_version` IS NULL OR NEW.`row_version` = 0 THEN
+        SET NEW.`row_version` = 1;
+    END IF;
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_unicode_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50003 TRIGGER `trg_kitchen_order_item_tickets__bu_row_version` BEFORE UPDATE ON `kitchen_order_item_tickets` FOR EACH ROW BEGIN
+    SET NEW.`row_version` = OLD.`row_version` + 1;
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_cleanup_expired_holds` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -2285,16 +2344,13 @@ DELIMITER ;
 --   agent_assignments.fk_agent_assignments__conversation_id__conversations
 --   bank_accounts.fk_bank_accounts__user_id__users
 --   reservations.fk_reservations__applied_user_voucher_id__user_vouchers
---   reservations.fk_reservations__branch_id__branches
 --   reservations.fk_reservations__cancelled_by__users
 --   reservations.fk_reservations__created_by__users
 --   reservations.fk_reservations__updated_by__users
 --   reservations.fk_reservations__user_id__users
---   table_holds.fk_table_holds__branch_id__branches
 --   table_holds.fk_table_holds__confirmed_reservation_id__reservations
 --   table_holds.fk_table_holds__updated_by__users
 --   table_holds.fk_table_holds__user_id__users
---   cashier_shifts.fk_cashier_shifts__branch_id__branches
 --   cashier_shifts.fk_cashier_shifts__cashier_user_id__users
 --   cashier_shifts.fk_cashier_shifts__opened_by__users
 --   cashier_shifts.fk_cashier_shifts__closed_by__users
@@ -2359,6 +2415,7 @@ ALTER TABLE `notification_delivery_attempts` ADD CONSTRAINT `fk_notif_delivery_a
 ALTER TABLE `notification_preferences` ADD CONSTRAINT `fk_notification_preferences__user_id__users` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE RESTRICT;
 ALTER TABLE `notification_outbox` ADD CONSTRAINT `fk_notification_outbox__related_reservation_id__reservations` FOREIGN KEY (`related_reservation_id`) REFERENCES `reservations` (`reservation_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `notification_outbox` ADD CONSTRAINT `fk_notification_outbox__recipient_user_id__users` FOREIGN KEY (`recipient_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
+ALTER TABLE `cashier_shifts` ADD CONSTRAINT `fk_cashier_shifts__branch_id__branches` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `payments` ADD CONSTRAINT `fk_payments__branch_id__branches` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `payments` ADD CONSTRAINT `fk_payments__created_by__users` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `payments` ADD CONSTRAINT `fk_payments__refund_of_payment_id__payments` FOREIGN KEY (`refund_of_payment_id`) REFERENCES `payments` (`payment_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
@@ -2386,9 +2443,11 @@ ALTER TABLE `reservation_bill_payment_sessions` ADD CONSTRAINT `fk_reservation_b
 ALTER TABLE `reservation_bill_payment_sessions` ADD CONSTRAINT `fk_reservation_bill_payment_sessions__linked_payment_id_29c6b2c1` FOREIGN KEY (`linked_payment_id`) REFERENCES `payments` (`payment_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `reservation_bill_payment_sessions` ADD CONSTRAINT `fk_reservation_bill_payment_sessions__created_by__users` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `reservation_bill_payment_sessions` ADD CONSTRAINT `fk_reservation_bill_payment_sessions__updated_by__users` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
+ALTER TABLE `reservations` ADD CONSTRAINT `fk_reservations__branch_id__branches` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `restaurant_tables` ADD CONSTRAINT `fk_restaurant_tables__branch_id__branches` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `restaurant_tables` ADD CONSTRAINT `fk_restaurant_tables__template_id__table_templates` FOREIGN KEY (`template_id`) REFERENCES `table_templates` (`template_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `settings` ADD CONSTRAINT `fk_settings__updated_by__users` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
+ALTER TABLE `table_holds` ADD CONSTRAINT `fk_table_holds__branch_id__branches` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `table_hold_details` ADD CONSTRAINT `fk_table_hold_details__hold_id__table_holds` FOREIGN KEY (`hold_id`) REFERENCES `table_holds` (`hold_id`) ON DELETE CASCADE ON UPDATE RESTRICT;
 ALTER TABLE `table_hold_details` ADD CONSTRAINT `fk_table_hold_details__table_id__restaurant_tables` FOREIGN KEY (`table_id`) REFERENCES `restaurant_tables` (`table_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `customer_access_sessions` ADD CONSTRAINT `fk_customer_access_sessions__user_id__users` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE RESTRICT;
@@ -2406,6 +2465,8 @@ ALTER TABLE `user_vouchers` ADD CONSTRAINT `fk_user_vouchers__user_id__users` FO
 ALTER TABLE `user_vouchers` ADD CONSTRAINT `fk_user_vouchers__voucher_id__vouchers` FOREIGN KEY (`voucher_id`) REFERENCES `vouchers` (`voucher_id`) ON DELETE CASCADE ON UPDATE RESTRICT;
 ALTER TABLE `users` ADD CONSTRAINT `fk_users__current_tier_id__loyalty_tiers` FOREIGN KEY (`current_tier_id`) REFERENCES `loyalty_tiers` (`tier_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `users` ADD CONSTRAINT `fk_users__role_id__roles` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+ALTER TABLE `staff_branch_assignments` ADD CONSTRAINT `fk_staff_branch_assignments__branch_id__branches` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE CASCADE ON UPDATE RESTRICT;
+ALTER TABLE `staff_branch_assignments` ADD CONSTRAINT `fk_staff_branch_assignments__user_id__users` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE RESTRICT;
 ALTER TABLE `staff_api_keys` ADD CONSTRAINT `fk_staff_api_keys__user_id__users` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE RESTRICT;
 ALTER TABLE `vouchers` ADD CONSTRAINT `fk_vouchers__created_by__users` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `vouchers` ADD CONSTRAINT `fk_vouchers__free_item_id__menu_items` FOREIGN KEY (`free_item_id`) REFERENCES `menu_items` (`item_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
@@ -2414,6 +2475,8 @@ ALTER TABLE `waiting_list` ADD CONSTRAINT `fk_waiting_list__branch_id__branches`
 ALTER TABLE `waiting_list` ADD CONSTRAINT `fk_waiting_list__notified_by__users` FOREIGN KEY (`notified_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `waiting_list` ADD CONSTRAINT `fk_waiting_list__updated_by__users` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `waiting_list` ADD CONSTRAINT `fk_waiting_list__user_id__users` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+ALTER TABLE `kitchen_stations` ADD CONSTRAINT `fk_kitchen_stations__branch_id__branches` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+ALTER TABLE `kitchen_station_category_routes` ADD CONSTRAINT `fk_kitchen_station_category_routes__branch_id__branches` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `kitchen_station_category_routes` ADD CONSTRAINT `fk_kitchen_station_category_routes__category_id__menu_categories` FOREIGN KEY (`category_id`) REFERENCES `menu_categories` (`category_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `kitchen_station_category_routes` ADD CONSTRAINT `fk_kitchen_station_category_routes__station_id__kitchen_stations` FOREIGN KEY (`station_id`) REFERENCES `kitchen_stations` (`station_id`) ON DELETE CASCADE ON UPDATE RESTRICT;
 ALTER TABLE `kitchen_order_item_tickets` ADD CONSTRAINT `fk_kitchen_order_item_tickets__category_id__menu_categories` FOREIGN KEY (`category_id`) REFERENCES `menu_categories` (`category_id`) ON DELETE SET NULL ON UPDATE RESTRICT;

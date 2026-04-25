@@ -98,6 +98,73 @@ class AdminKitchenRoutingFoundationHttpFlowTest extends TestCase
         self::assertSame($adminId, $adminId);
     }
 
+    public function test_two_branches_can_route_same_category_to_different_stations(): void
+    {
+        [, $headers] = $this->adminHeaders('admin-kitchen-branch-routes-key');
+        $defaultBranchId = (int) (DB::table('branches')->where('is_default', 1)->value('branch_id') ?? 1);
+        $branchBId = $this->createBranch([
+            'branch_code' => 'KDS-B',
+            'branch_name' => 'Kitchen Branch B',
+        ]);
+        $categoryId = $this->ensureMenuCategory('Kitchen Shared Category');
+
+        $branchAStation = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-kitchen-branch-a-station'))
+            ->postJson('/api/v1/admin/kitchen/stations', [
+                'branch_id' => $defaultBranchId,
+                'code' => 'HOT-A',
+                'name' => 'Hot Pass A',
+                'output_mode' => 'KDS',
+            ]);
+
+        $branchAStation->assertCreated()
+            ->assertJsonPath('data.branch_id', $defaultBranchId);
+
+        $branchAStationId = (int) $branchAStation->json('data.station_id');
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-kitchen-branch-a-route'))
+            ->putJson('/api/v1/admin/kitchen/stations/'.$branchAStationId.'/category-routes', [
+                'routes' => [
+                    [
+                        'category_id' => $categoryId,
+                        'sort_order' => 10,
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.0.branch_id', $defaultBranchId)
+            ->assertJsonPath('data.0.station_id', $branchAStationId);
+
+        $branchBStation = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-kitchen-branch-b-station'))
+            ->postJson('/api/v1/admin/kitchen/stations', [
+                'branch_id' => $branchBId,
+                'code' => 'HOT-B',
+                'name' => 'Hot Pass B',
+                'output_mode' => 'KDS',
+            ]);
+
+        $branchBStation->assertCreated()
+            ->assertJsonPath('data.branch_id', $branchBId);
+
+        $branchBStationId = (int) $branchBStation->json('data.station_id');
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-kitchen-branch-b-route'))
+            ->putJson('/api/v1/admin/kitchen/stations/'.$branchBStationId.'/category-routes', [
+                'routes' => [
+                    [
+                        'category_id' => $categoryId,
+                        'sort_order' => 10,
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.0.branch_id', $branchBId)
+            ->assertJsonPath('data.0.station_id', $branchBStationId);
+
+        self::assertSame(2, (int) DB::table('kitchen_station_category_routes')->where('category_id', $categoryId)->count());
+        self::assertSame($branchAStationId, (int) DB::table('kitchen_station_category_routes')->where('branch_id', $defaultBranchId)->where('category_id', $categoryId)->value('station_id'));
+        self::assertSame($branchBStationId, (int) DB::table('kitchen_station_category_routes')->where('branch_id', $branchBId)->where('category_id', $categoryId)->value('station_id'));
+    }
+
     public function test_non_admin_staff_cannot_access_admin_kitchen_routes(): void
     {
         $staffRoleId = $this->ensureRole('Staff');

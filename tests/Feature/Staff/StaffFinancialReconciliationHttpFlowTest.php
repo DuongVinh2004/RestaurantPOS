@@ -23,7 +23,7 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
 
     public function test_staff_can_list_reconciliation_rows_with_refund_lineage_backed_totals(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
         $customerId = $this->createUser(['role_name' => 'Customer', 'full_name' => 'Nguyen A']);
 
         $reservationId = $this->createReservation([
@@ -100,7 +100,7 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
 
     public function test_staff_can_show_reconciliation_detail_and_export_csv_and_filter_discrepancies(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
         $customerId = $this->createUser(['role_name' => 'Customer', 'full_name' => 'Tran B']);
 
         $reservationId = $this->createReservation([
@@ -180,11 +180,11 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
 
     public function test_reconciliation_routes_can_be_scoped_to_branch_context(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
         $customerId = $this->createUser(['role_name' => 'Customer', 'full_name' => 'Branch Finance']);
         $branchA = $this->createBranch(['branch_code' => 'FINA', 'branch_name' => 'Finance A']);
         $branchB = $this->createBranch(['branch_code' => 'FINB', 'branch_name' => 'Finance B']);
-        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $branchA]);
+        config()->set('staff_capabilities.role_branch_scopes.Cashier', ['default', (string) $branchA]);
 
         $reservationA = $this->createReservation([
             'branch_id' => $branchA,
@@ -271,7 +271,7 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
 
     public function test_reconciliation_show_returns_stable_no_data_contract_for_reservation_without_payments(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
         $customerId = $this->createUser(['role_name' => 'Customer', 'full_name' => 'Le C']);
 
         $reservationId = $this->createReservation([

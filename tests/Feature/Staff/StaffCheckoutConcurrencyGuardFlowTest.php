@@ -401,7 +401,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
     private function seedActiveOrderScenario(): array
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
@@ -441,7 +441,7 @@ class StaffCheckoutConcurrencyGuardFlowTest extends TestCase
     private function seedCompletedReservationWithDeposit(): array
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Completed',

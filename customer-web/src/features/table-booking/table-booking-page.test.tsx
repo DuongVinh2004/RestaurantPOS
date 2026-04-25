@@ -98,7 +98,12 @@ describe("TableBookingPage", () => {
       );
     });
 
-    await user.click(await screen.findByRole("button", { name: /T7/i }));
+    const tableOption = await screen.findByRole("button", { name: "T7 table option" });
+    expect(tableOption).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(tableOption);
+    expect(tableOption).toHaveAttribute("aria-pressed", "true");
+
     await user.click(screen.getByRole("button", { name: "Create hold" }));
 
     await waitFor(() => {

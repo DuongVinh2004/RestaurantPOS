@@ -19,6 +19,7 @@ class AuthenticatedActorResource extends JsonResource
 
         foreach ([
             'auth_mode',
+            'session_transport',
             'token_type',
             'auth_header',
             'access_token',

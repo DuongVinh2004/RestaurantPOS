@@ -100,8 +100,8 @@
         "/api/user": {
             "get": {
                 "operationId": "get_user",
-                "summary": "GET User",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Get legacy authenticated actor",
+                "description": "Deprecated compatibility route for existing web auth probes. It returns the runtime top-level auth_mode/user payload for customer access tokens or staff API keys. Session-only customer auth is intentionally unsupported.",
                 "tags": [
                     "Legacy"
                 ],
@@ -112,7 +112,17 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/ApiUserEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
                                 }
                             }
                         }
@@ -123,17 +133,14 @@
                         "CustomerAccessToken": []
                     },
                     {
-                        "CustomerSessionId": []
-                    },
-                    {
                         "StaffApiKey": []
                     }
                 ],
-                "deprecated": false,
+                "deprecated": true,
                 "x-route-key": "get_user",
                 "x-action": "Closure",
                 "x-auth-mode": "customer_or_staff",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -3971,6 +3978,7 @@
                                 "$ref": "#/components/schemas/CreateKitchenStationRequest"
                             },
                             "example": {
+                                "branch_id": 101,
                                 "code": "example",
                                 "name": "Demo Customer",
                                 "description": "example",
@@ -4115,6 +4123,7 @@
                                 "$ref": "#/components/schemas/UpdateKitchenStationRequest"
                             },
                             "example": {
+                                "branch_id": 101,
                                 "code": "example",
                                 "name": "Demo Customer",
                                 "description": "example",
@@ -8057,7 +8066,7 @@
             "post": {
                 "operationId": "post_v1_auth_staff_login",
                 "summary": "Staff login",
-                "description": "Issue an opaque staff API key session for operational staff and admin APIs.",
+                "description": "Issue an opaque staff API key session for operational staff and admin APIs. During the opt-in staff-web rollout, session_transport=refresh_cookie sets an HttpOnly Secure SameSite refresh cookie and returns only a memory access token.",
                 "tags": [
                     "Auth"
                 ],
@@ -8117,7 +8126,7 @@
             "post": {
                 "operationId": "post_v1_auth_staff_logout",
                 "summary": "Logout staff session",
-                "description": "Revoke the current staff API key session.",
+                "description": "Revoke the current staff API key session. Cookie-backed staff-web logout clears the refresh and CSRF cookies and revokes the refresh/session key.",
                 "tags": [
                     "Auth"
                 ],
@@ -8142,9 +8151,23 @@
                                 }
                             }
                         }
+                    },
+                    "419": {
+                        "description": "HTTP response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
+                    {
+                        "StaffBrowserRefreshCookie": [],
+                        "StaffBrowserCsrfToken": []
+                    },
                     {
                         "StaffApiKey": []
                     }
@@ -8152,13 +8175,13 @@
                 "deprecated": false,
                 "x-route-key": "post_v1_auth_staff_logout",
                 "x-action": "App\\Modules\\IdentityAccess\\Http\\Controllers\\Staff\\AuthController@logout",
-                "x-auth-mode": "staff_api_key",
+                "x-auth-mode": "staff_browser_refresh_cookie",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
                     "audit.request",
-                    "App\\Http\\Middleware\\StaffApiKeyMiddleware"
+                    "App\\Http\\Middleware\\StaffRefreshSessionMiddleware"
                 ]
             }
         },
@@ -8215,7 +8238,7 @@
             "post": {
                 "operationId": "post_v1_auth_staff_refresh",
                 "summary": "Refresh staff session",
-                "description": "Rotate the current staff API key session and return a replacement opaque token.",
+                "description": "Rotate the current staff API key session and return a replacement opaque token. Cookie-backed staff-web refresh requires X-Staff-CSRF and returns a memory access token without exposing the refresh cookie secret.",
                 "tags": [
                     "Auth"
                 ],
@@ -8240,9 +8263,23 @@
                                 }
                             }
                         }
+                    },
+                    "419": {
+                        "description": "HTTP response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
+                    {
+                        "StaffBrowserRefreshCookie": [],
+                        "StaffBrowserCsrfToken": []
+                    },
                     {
                         "StaffApiKey": []
                     }
@@ -8250,13 +8287,13 @@
                 "deprecated": false,
                 "x-route-key": "post_v1_auth_staff_refresh",
                 "x-action": "App\\Modules\\IdentityAccess\\Http\\Controllers\\Staff\\AuthController@refresh",
-                "x-auth-mode": "staff_api_key",
+                "x-auth-mode": "staff_browser_refresh_cookie",
                 "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
                     "audit.request",
-                    "App\\Http\\Middleware\\StaffApiKeyMiddleware"
+                    "App\\Http\\Middleware\\StaffRefreshSessionMiddleware"
                 ]
             }
         },
@@ -17996,6 +18033,23 @@
                             "min:1",
                             "max:100"
                         ]
+                    },
+                    {
+                        "name": "branch_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 1
+                        },
+                        "description": "nullable, integer, min:1, exists:branches,branch_id",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1",
+                            "exists:branches,branch_id"
+                        ]
                     }
                 ],
                 "responses": {
@@ -18295,7 +18349,7 @@
             "post": {
                 "operationId": "post_v1_staff_kitchen_tickets_ticket_id_bump",
                 "summary": "Bump kitchen ticket to ready",
-                "description": "Advance a fired kitchen ticket into the ready state once the station completes production work.",
+                "description": "Advance a fired kitchen ticket into the ready state once the station completes production work. Requires the current ticket row_version for stale-write protection.",
                 "tags": [
                     "Staff Kitchen"
                 ],
@@ -18413,14 +18467,27 @@
                     "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:kitchen.manage",
                     "idempotency:staff.kitchen.bump"
-                ]
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StaffKitchenTicketActionRequest"
+                            },
+                            "example": {
+                                "row_version": 4
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/staff/kitchen/tickets/{ticket_id}/fire": {
             "post": {
                 "operationId": "post_v1_staff_kitchen_tickets_ticket_id_fire",
                 "summary": "Fire kitchen ticket",
-                "description": "Advance a queued kitchen ticket into the fired state and keep the linked order item in sync for production work.",
+                "description": "Advance a queued kitchen ticket into the fired state and keep the linked order item in sync for production work. Requires the current ticket row_version for stale-write protection.",
                 "tags": [
                     "Staff Kitchen"
                 ],
@@ -18538,14 +18605,27 @@
                     "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:kitchen.manage",
                     "idempotency:staff.kitchen.fire"
-                ]
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StaffKitchenTicketActionRequest"
+                            },
+                            "example": {
+                                "row_version": 3
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/staff/kitchen/tickets/{ticket_id}/recall": {
             "post": {
                 "operationId": "post_v1_staff_kitchen_tickets_ticket_id_recall",
                 "summary": "Recall kitchen ticket",
-                "description": "Return a ready kitchen ticket back to the fired state when the station must resume work on the item.",
+                "description": "Return a ready kitchen ticket back to the fired state when the station must resume work on the item. Requires the current ticket row_version for stale-write protection.",
                 "tags": [
                     "Staff Kitchen"
                 ],
@@ -18663,7 +18743,20 @@
                     "redis.throttle:staff.ops,1200,60,either",
                     "staff.capability:kitchen.manage",
                     "idempotency:staff.kitchen.recall"
-                ]
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StaffKitchenTicketActionRequest"
+                            },
+                            "example": {
+                                "row_version": 5
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/staff/menu/items": {
@@ -24507,6 +24600,23 @@
                             "min:1",
                             "max:100"
                         ]
+                    },
+                    {
+                        "name": "branch_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 1
+                        },
+                        "description": "nullable, integer, min:1, exists:branches,branch_id",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1",
+                            "exists:branches,branch_id"
+                        ]
                     }
                 ],
                 "responses": {
@@ -25495,6 +25605,23 @@
                             "integer",
                             "min:1",
                             "max:100"
+                        ]
+                    },
+                    {
+                        "name": "branch_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 1
+                        },
+                        "description": "nullable, integer, min:1, exists:branches,branch_id",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1",
+                            "exists:branches,branch_id"
                         ]
                     }
                 ],
@@ -27509,6 +27636,18 @@
                 "in": "header",
                 "name": "X-Staff-Key",
                 "description": "Opaque staff API key used for staff and admin operational endpoints."
+            },
+            "StaffBrowserRefreshCookie": {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "staff_web_refresh",
+                "description": "HttpOnly staff-web browser refresh cookie used by staff refresh/logout when the refresh-cookie rollout is enabled."
+            },
+            "StaffBrowserCsrfToken": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-Staff-CSRF",
+                "description": "Double-submit CSRF token required with the staff browser refresh cookie on staff refresh/logout."
             }
         },
         "schemas": {
@@ -28749,6 +28888,96 @@
                     "details": {
                         "type": "object",
                         "additionalProperties": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "ApiUserCustomerProfile": {
+                "type": "object",
+                "required": [
+                    "user_id",
+                    "full_name",
+                    "email",
+                    "phone",
+                    "role_id",
+                    "current_tier_id"
+                ],
+                "properties": {
+                    "user_id": {
+                        "type": "integer"
+                    },
+                    "full_name": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "phone": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "role_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "current_tier_id": {
+                        "type": "integer",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "ApiUserEnvelope": {
+                "type": "object",
+                "required": [
+                    "auth_mode",
+                    "user"
+                ],
+                "properties": {
+                    "auth_mode": {
+                        "type": "string",
+                        "enum": [
+                            "customer",
+                            "staff"
+                        ]
+                    },
+                    "user": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiUserCustomerProfile"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ApiUserStaffProfile"
+                            }
+                        ]
+                    }
+                },
+                "additionalProperties": false
+            },
+            "ApiUserStaffProfile": {
+                "type": "object",
+                "required": [
+                    "user_id",
+                    "role_id",
+                    "role_name",
+                    "staff_auth_mode"
+                ],
+                "properties": {
+                    "user_id": {
+                        "type": "integer"
+                    },
+                    "role_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "role_name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "staff_auth_mode": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "additionalProperties": false
@@ -31191,6 +31420,15 @@
             "CreateKitchenStationRequest": {
                 "type": "object",
                 "properties": {
+                    "branch_id": {
+                        "type": "integer",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "exists:branches,branch_id,is_active,\"1\""
+                        ]
+                    },
                     "code": {
                         "type": "string",
                         "x-laravel-rules": [
@@ -31261,6 +31499,11 @@
                 ],
                 "additionalProperties": false,
                 "x-laravel-rules": {
+                    "branch_id": [
+                        "nullable",
+                        "integer",
+                        "exists:branches,branch_id,is_active,\"1\""
+                    ],
                     "code": [
                         "required",
                         "string",
@@ -35600,7 +35843,6 @@
                             "required": [
                                 "waiting_id",
                                 "branch_id",
-                                "user_id",
                                 "guest_name",
                                 "phone",
                                 "guest_count",
@@ -35609,29 +35851,28 @@
                                 "priority",
                                 "notified_at",
                                 "notify_expires_at",
-                                "notified_by",
                                 "seated_at",
                                 "cancelled_at",
                                 "cancel_reason",
                                 "notes",
-                                "updated_by",
                                 "row_version",
-                                "current_response_state",
-                                "response",
-                                "invite_window",
-                                "invite_lifecycle",
-                                "invite_hold",
-                                "orchestration"
+                                "response_state",
+                                "can_accept",
+                                "can_decline",
+                                "can_confirm_arrival",
+                                "can_cancel",
+                                "notify_window",
+                                "window",
+                                "available_actions",
+                                "staff_seat_required",
+                                "next_step",
+                                "arrival_confirmation"
                             ],
                             "properties": {
                                 "waiting_id": {
                                     "type": "integer"
                                 },
                                 "branch_id": {
-                                    "type": "integer",
-                                    "nullable": true
-                                },
-                                "user_id": {
                                     "type": "integer",
                                     "nullable": true
                                 },
@@ -35667,10 +35908,6 @@
                                     "format": "date-time",
                                     "nullable": true
                                 },
-                                "notified_by": {
-                                    "type": "integer",
-                                    "nullable": true
-                                },
                                 "seated_at": {
                                     "type": "string",
                                     "format": "date-time",
@@ -35689,488 +35926,115 @@
                                     "type": "string",
                                     "nullable": true
                                 },
-                                "updated_by": {
-                                    "type": "integer",
-                                    "nullable": true
-                                },
                                 "row_version": {
                                     "type": "integer"
                                 },
-                                "current_response_state": {
-                                    "type": "string"
+                                "response_state": {
+                                    "type": "string",
+                                    "enum": [
+                                        "none",
+                                        "accepted",
+                                        "arrival_confirmed",
+                                        "declined"
+                                    ],
+                                    "description": "Stable customer-response state for lean owner waiting-list clients. Distinguishes accepted from arrival_confirmed without localized text."
                                 },
-                                "response": {
+                                "can_accept": {
+                                    "type": "boolean"
+                                },
+                                "can_decline": {
+                                    "type": "boolean"
+                                },
+                                "can_confirm_arrival": {
+                                    "type": "boolean"
+                                },
+                                "can_cancel": {
+                                    "type": "boolean"
+                                },
+                                "notify_window": {
                                     "type": "object",
                                     "required": [
-                                        "status",
-                                        "responded_at",
-                                        "confirmed_arrival_at"
+                                        "is_open",
+                                        "expires_at"
                                     ],
                                     "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "nullable": true
-                                        },
-                                        "responded_at": {
-                                            "type": "string",
-                                            "format": "date-time",
-                                            "nullable": true
-                                        },
-                                        "confirmed_arrival_at": {
-                                            "type": "string",
-                                            "format": "date-time",
-                                            "nullable": true
-                                        }
-                                    },
-                                    "additionalProperties": false
-                                },
-                                "invite_window": {
-                                    "type": "object",
-                                    "required": [
-                                        "notified_at",
-                                        "expires_at",
-                                        "is_active",
-                                        "is_expired",
-                                        "seconds_remaining"
-                                    ],
-                                    "properties": {
-                                        "notified_at": {
-                                            "type": "string",
-                                            "format": "date-time",
-                                            "nullable": true
+                                        "is_open": {
+                                            "type": "boolean"
                                         },
                                         "expires_at": {
                                             "type": "string",
                                             "format": "date-time",
                                             "nullable": true
-                                        },
-                                        "is_active": {
-                                            "type": "boolean"
-                                        },
-                                        "is_expired": {
-                                            "type": "boolean"
-                                        },
-                                        "seconds_remaining": {
-                                            "type": "integer"
                                         }
                                     },
                                     "additionalProperties": false
                                 },
-                                "invite_lifecycle": {
+                                "window": {
                                     "type": "object",
                                     "required": [
-                                        "requires_explicit_staff_seat",
-                                        "auto_convert_to_reservation",
-                                        "seat_readiness",
-                                        "customer_next_step",
-                                        "staff_next_step",
-                                        "can_staff_seat_now"
+                                        "is_notified_window_open"
                                     ],
                                     "properties": {
-                                        "requires_explicit_staff_seat": {
-                                            "type": "boolean"
-                                        },
-                                        "auto_convert_to_reservation": {
-                                            "type": "boolean"
-                                        },
-                                        "seat_readiness": {
-                                            "type": "string"
-                                        },
-                                        "customer_next_step": {
-                                            "type": "string"
-                                        },
-                                        "staff_next_step": {
-                                            "type": "string"
-                                        },
-                                        "can_staff_seat_now": {
+                                        "is_notified_window_open": {
                                             "type": "boolean"
                                         }
                                     },
                                     "additionalProperties": false
                                 },
-                                "invite_hold": {
+                                "available_actions": {
                                     "type": "object",
                                     "required": [
-                                        "has_active_hold",
-                                        "active",
-                                        "latest"
+                                        "accept",
+                                        "decline",
+                                        "confirm_arrival",
+                                        "cancel"
                                     ],
                                     "properties": {
-                                        "has_active_hold": {
+                                        "accept": {
                                             "type": "boolean"
                                         },
-                                        "active": {
-                                            "type": "object",
-                                            "nullable": true,
-                                            "required": [
-                                                "hold_id",
-                                                "status",
-                                                "session_id",
-                                                "expires_at",
-                                                "confirmed_reservation_id",
-                                                "table_ids"
-                                            ],
-                                            "properties": {
-                                                "hold_id": {
-                                                    "type": "string"
-                                                },
-                                                "status": {
-                                                    "type": "string"
-                                                },
-                                                "session_id": {
-                                                    "type": "string"
-                                                },
-                                                "expires_at": {
-                                                    "type": "string",
-                                                    "format": "date-time",
-                                                    "nullable": true
-                                                },
-                                                "confirmed_reservation_id": {
-                                                    "type": "integer",
-                                                    "nullable": true
-                                                },
-                                                "table_ids": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "integer"
-                                                    }
-                                                }
-                                            },
-                                            "additionalProperties": false
+                                        "decline": {
+                                            "type": "boolean"
                                         },
-                                        "latest": {
-                                            "type": "object",
-                                            "nullable": true,
-                                            "required": [
-                                                "hold_id",
-                                                "status",
-                                                "session_id",
-                                                "expires_at",
-                                                "confirmed_reservation_id",
-                                                "table_ids"
-                                            ],
-                                            "properties": {
-                                                "hold_id": {
-                                                    "type": "string"
-                                                },
-                                                "status": {
-                                                    "type": "string"
-                                                },
-                                                "session_id": {
-                                                    "type": "string"
-                                                },
-                                                "expires_at": {
-                                                    "type": "string",
-                                                    "format": "date-time",
-                                                    "nullable": true
-                                                },
-                                                "confirmed_reservation_id": {
-                                                    "type": "integer",
-                                                    "nullable": true
-                                                },
-                                                "table_ids": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "integer"
-                                                    }
-                                                }
-                                            },
-                                            "additionalProperties": false
+                                        "confirm_arrival": {
+                                            "type": "boolean"
+                                        },
+                                        "cancel": {
+                                            "type": "boolean"
                                         }
                                     },
                                     "additionalProperties": false
                                 },
-                                "orchestration": {
+                                "staff_seat_required": {
+                                    "type": "boolean"
+                                },
+                                "next_step": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "arrival_confirmation": {
                                     "type": "object",
                                     "required": [
-                                        "mode",
-                                        "actionable_state",
-                                        "recommended_action",
-                                        "released_table",
-                                        "advance_queue",
-                                        "actions"
+                                        "supported",
+                                        "staff_seat_required",
+                                        "message"
                                     ],
                                     "properties": {
-                                        "mode": {
-                                            "type": "string"
+                                        "supported": {
+                                            "type": "boolean"
                                         },
-                                        "actionable_state": {
-                                            "type": "string"
+                                        "staff_seat_required": {
+                                            "type": "boolean"
                                         },
-                                        "recommended_action": {
-                                            "type": "string"
-                                        },
-                                        "released_table": {
-                                            "type": "object",
-                                            "nullable": true,
-                                            "required": [
-                                                "table_id",
-                                                "table_ids",
-                                                "table_code",
-                                                "zone",
-                                                "status",
-                                                "seats"
-                                            ],
-                                            "properties": {
-                                                "table_id": {
-                                                    "type": "integer"
-                                                },
-                                                "table_ids": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "integer"
-                                                    }
-                                                },
-                                                "table_code": {
-                                                    "type": "string",
-                                                    "nullable": true
-                                                },
-                                                "zone": {
-                                                    "type": "string",
-                                                    "nullable": true
-                                                },
-                                                "status": {
-                                                    "type": "string",
-                                                    "nullable": true
-                                                },
-                                                "seats": {
-                                                    "type": "integer",
-                                                    "nullable": true
-                                                }
-                                            },
-                                            "additionalProperties": false
-                                        },
-                                        "advance_queue": {
-                                            "type": "object",
-                                            "required": [
-                                                "supported",
-                                                "can_apply_now",
-                                                "resulting_action",
-                                                "released_table_available",
-                                                "next_candidate",
-                                                "disabled_reason"
-                                            ],
-                                            "properties": {
-                                                "supported": {
-                                                    "type": "boolean"
-                                                },
-                                                "can_apply_now": {
-                                                    "type": "boolean"
-                                                },
-                                                "resulting_action": {
-                                                    "type": "string"
-                                                },
-                                                "released_table_available": {
-                                                    "type": "boolean"
-                                                },
-                                                "next_candidate": {
-                                                    "type": "object",
-                                                    "nullable": true,
-                                                    "required": [
-                                                        "waiting_id",
-                                                        "user_id",
-                                                        "guest_name",
-                                                        "guest_count",
-                                                        "priority",
-                                                        "requested_at",
-                                                        "row_version",
-                                                        "capacity_fit"
-                                                    ],
-                                                    "properties": {
-                                                        "waiting_id": {
-                                                            "type": "integer"
-                                                        },
-                                                        "user_id": {
-                                                            "type": "integer",
-                                                            "nullable": true
-                                                        },
-                                                        "guest_name": {
-                                                            "type": "string",
-                                                            "nullable": true
-                                                        },
-                                                        "guest_count": {
-                                                            "type": "integer"
-                                                        },
-                                                        "priority": {
-                                                            "type": "integer"
-                                                        },
-                                                        "requested_at": {
-                                                            "type": "string",
-                                                            "format": "date-time",
-                                                            "nullable": true
-                                                        },
-                                                        "row_version": {
-                                                            "type": "integer"
-                                                        },
-                                                        "capacity_fit": {
-                                                            "type": "object",
-                                                            "required": [
-                                                                "table_seats",
-                                                                "seat_delta"
-                                                            ],
-                                                            "properties": {
-                                                                "table_seats": {
-                                                                    "type": "integer"
-                                                                },
-                                                                "seat_delta": {
-                                                                    "type": "integer"
-                                                                }
-                                                            },
-                                                            "additionalProperties": false
-                                                        }
-                                                    },
-                                                    "additionalProperties": false
-                                                },
-                                                "disabled_reason": {
-                                                    "type": "string",
-                                                    "nullable": true
-                                                }
-                                            },
-                                            "additionalProperties": false
-                                        },
-                                        "actions": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "object",
-                                                "required": [
-                                                    "key",
-                                                    "method",
-                                                    "href",
-                                                    "enabled",
-                                                    "reason"
-                                                ],
-                                                "properties": {
-                                                    "key": {
-                                                        "type": "string"
-                                                    },
-                                                    "method": {
-                                                        "type": "string"
-                                                    },
-                                                    "href": {
-                                                        "type": "string"
-                                                    },
-                                                    "enabled": {
-                                                        "type": "boolean"
-                                                    },
-                                                    "reason": {
-                                                        "type": "string"
-                                                    }
-                                                },
-                                                "additionalProperties": false
-                                            }
+                                        "message": {
+                                            "type": "string",
+                                            "nullable": true
                                         }
                                     },
                                     "additionalProperties": false
-                                },
-                                "user": {
-                                    "type": "object",
-                                    "nullable": true,
-                                    "additionalProperties": true
                                 }
                             },
-                            "additionalProperties": false,
-                            "example": {
-                                "waiting_id": 55,
-                                "branch_id": 3,
-                                "user_id": 77,
-                                "guest_name": "Walk-in Guest",
-                                "phone": "0901234567",
-                                "guest_count": 3,
-                                "requested_at": "2026-04-05T11:00:00Z",
-                                "status": "Notified",
-                                "priority": 0,
-                                "notified_at": "2026-04-05T11:05:00Z",
-                                "notify_expires_at": "2026-04-05T11:15:00Z",
-                                "notified_by": 5,
-                                "seated_at": null,
-                                "cancelled_at": null,
-                                "cancel_reason": null,
-                                "notes": "Front door queue",
-                                "updated_by": 5,
-                                "row_version": 2,
-                                "current_response_state": "arrival_confirmed",
-                                "response": {
-                                    "status": "Accepted",
-                                    "responded_at": "2026-04-05T11:06:00Z",
-                                    "confirmed_arrival_at": "2026-04-05T11:07:00Z"
-                                },
-                                "invite_window": {
-                                    "notified_at": "2026-04-05T11:05:00Z",
-                                    "expires_at": "2026-04-05T11:15:00Z",
-                                    "is_active": true,
-                                    "is_expired": false,
-                                    "seconds_remaining": 480
-                                },
-                                "invite_lifecycle": {
-                                    "requires_explicit_staff_seat": true,
-                                    "auto_convert_to_reservation": false,
-                                    "seat_readiness": "ready_to_seat",
-                                    "customer_next_step": "wait_for_staff_seat",
-                                    "staff_next_step": "seat_customer",
-                                    "can_staff_seat_now": true
-                                },
-                                "invite_hold": {
-                                    "has_active_hold": true,
-                                    "active": {
-                                        "hold_id": "hold-001",
-                                        "status": "Holding",
-                                        "session_id": "waiting-list:55",
-                                        "expires_at": "2026-04-05T11:15:00Z",
-                                        "confirmed_reservation_id": null,
-                                        "table_ids": [
-                                            12
-                                        ]
-                                    },
-                                    "latest": {
-                                        "hold_id": "hold-001",
-                                        "status": "Holding",
-                                        "session_id": "waiting-list:55",
-                                        "expires_at": "2026-04-05T11:15:00Z",
-                                        "confirmed_reservation_id": null,
-                                        "table_ids": [
-                                            12
-                                        ]
-                                    }
-                                },
-                                "orchestration": {
-                                    "mode": "semi_automated_waiting_list_orchestration",
-                                    "actionable_state": "seat_customer",
-                                    "recommended_action": "seat_current_customer",
-                                    "released_table": {
-                                        "table_id": 12,
-                                        "table_ids": [
-                                            12
-                                        ],
-                                        "table_code": "A-12",
-                                        "zone": "Main Hall",
-                                        "status": "Available",
-                                        "seats": 4
-                                    },
-                                    "advance_queue": {
-                                        "supported": false,
-                                        "can_apply_now": false,
-                                        "resulting_action": "none",
-                                        "released_table_available": true,
-                                        "next_candidate": null,
-                                        "disabled_reason": null
-                                    },
-                                    "actions": [
-                                        {
-                                            "key": "seat",
-                                            "method": "POST",
-                                            "href": "/api/v1/staff/waiting-list/55/seat",
-                                            "enabled": true,
-                                            "reason": "canonical_staff_seat_flow"
-                                        }
-                                    ]
-                                },
-                                "user": {
-                                    "user_id": 77,
-                                    "full_name": "Walk-in Guest",
-                                    "email": "guest@example.invalid",
-                                    "phone": "0901234567"
-                                }
-                            }
+                            "additionalProperties": false
                         }
                     }
                 },
@@ -36181,7 +36045,6 @@
                 "required": [
                     "waiting_id",
                     "branch_id",
-                    "user_id",
                     "guest_name",
                     "phone",
                     "guest_count",
@@ -36190,29 +36053,28 @@
                     "priority",
                     "notified_at",
                     "notify_expires_at",
-                    "notified_by",
                     "seated_at",
                     "cancelled_at",
                     "cancel_reason",
                     "notes",
-                    "updated_by",
                     "row_version",
-                    "current_response_state",
-                    "response",
-                    "invite_window",
-                    "invite_lifecycle",
-                    "invite_hold",
-                    "orchestration"
+                    "response_state",
+                    "can_accept",
+                    "can_decline",
+                    "can_confirm_arrival",
+                    "can_cancel",
+                    "notify_window",
+                    "window",
+                    "available_actions",
+                    "staff_seat_required",
+                    "next_step",
+                    "arrival_confirmation"
                 ],
                 "properties": {
                     "waiting_id": {
                         "type": "integer"
                     },
                     "branch_id": {
-                        "type": "integer",
-                        "nullable": true
-                    },
-                    "user_id": {
                         "type": "integer",
                         "nullable": true
                     },
@@ -36248,10 +36110,6 @@
                         "format": "date-time",
                         "nullable": true
                     },
-                    "notified_by": {
-                        "type": "integer",
-                        "nullable": true
-                    },
                     "seated_at": {
                         "type": "string",
                         "format": "date-time",
@@ -36270,488 +36128,115 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "updated_by": {
-                        "type": "integer",
-                        "nullable": true
-                    },
                     "row_version": {
                         "type": "integer"
                     },
-                    "current_response_state": {
-                        "type": "string"
+                    "response_state": {
+                        "type": "string",
+                        "enum": [
+                            "none",
+                            "accepted",
+                            "arrival_confirmed",
+                            "declined"
+                        ],
+                        "description": "Stable customer-response state for lean owner waiting-list clients. Distinguishes accepted from arrival_confirmed without localized text."
                     },
-                    "response": {
+                    "can_accept": {
+                        "type": "boolean"
+                    },
+                    "can_decline": {
+                        "type": "boolean"
+                    },
+                    "can_confirm_arrival": {
+                        "type": "boolean"
+                    },
+                    "can_cancel": {
+                        "type": "boolean"
+                    },
+                    "notify_window": {
                         "type": "object",
                         "required": [
-                            "status",
-                            "responded_at",
-                            "confirmed_arrival_at"
+                            "is_open",
+                            "expires_at"
                         ],
                         "properties": {
-                            "status": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "responded_at": {
-                                "type": "string",
-                                "format": "date-time",
-                                "nullable": true
-                            },
-                            "confirmed_arrival_at": {
-                                "type": "string",
-                                "format": "date-time",
-                                "nullable": true
-                            }
-                        },
-                        "additionalProperties": false
-                    },
-                    "invite_window": {
-                        "type": "object",
-                        "required": [
-                            "notified_at",
-                            "expires_at",
-                            "is_active",
-                            "is_expired",
-                            "seconds_remaining"
-                        ],
-                        "properties": {
-                            "notified_at": {
-                                "type": "string",
-                                "format": "date-time",
-                                "nullable": true
+                            "is_open": {
+                                "type": "boolean"
                             },
                             "expires_at": {
                                 "type": "string",
                                 "format": "date-time",
                                 "nullable": true
-                            },
-                            "is_active": {
-                                "type": "boolean"
-                            },
-                            "is_expired": {
-                                "type": "boolean"
-                            },
-                            "seconds_remaining": {
-                                "type": "integer"
                             }
                         },
                         "additionalProperties": false
                     },
-                    "invite_lifecycle": {
+                    "window": {
                         "type": "object",
                         "required": [
-                            "requires_explicit_staff_seat",
-                            "auto_convert_to_reservation",
-                            "seat_readiness",
-                            "customer_next_step",
-                            "staff_next_step",
-                            "can_staff_seat_now"
+                            "is_notified_window_open"
                         ],
                         "properties": {
-                            "requires_explicit_staff_seat": {
-                                "type": "boolean"
-                            },
-                            "auto_convert_to_reservation": {
-                                "type": "boolean"
-                            },
-                            "seat_readiness": {
-                                "type": "string"
-                            },
-                            "customer_next_step": {
-                                "type": "string"
-                            },
-                            "staff_next_step": {
-                                "type": "string"
-                            },
-                            "can_staff_seat_now": {
+                            "is_notified_window_open": {
                                 "type": "boolean"
                             }
                         },
                         "additionalProperties": false
                     },
-                    "invite_hold": {
+                    "available_actions": {
                         "type": "object",
                         "required": [
-                            "has_active_hold",
-                            "active",
-                            "latest"
+                            "accept",
+                            "decline",
+                            "confirm_arrival",
+                            "cancel"
                         ],
                         "properties": {
-                            "has_active_hold": {
+                            "accept": {
                                 "type": "boolean"
                             },
-                            "active": {
-                                "type": "object",
-                                "nullable": true,
-                                "required": [
-                                    "hold_id",
-                                    "status",
-                                    "session_id",
-                                    "expires_at",
-                                    "confirmed_reservation_id",
-                                    "table_ids"
-                                ],
-                                "properties": {
-                                    "hold_id": {
-                                        "type": "string"
-                                    },
-                                    "status": {
-                                        "type": "string"
-                                    },
-                                    "session_id": {
-                                        "type": "string"
-                                    },
-                                    "expires_at": {
-                                        "type": "string",
-                                        "format": "date-time",
-                                        "nullable": true
-                                    },
-                                    "confirmed_reservation_id": {
-                                        "type": "integer",
-                                        "nullable": true
-                                    },
-                                    "table_ids": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "integer"
-                                        }
-                                    }
-                                },
-                                "additionalProperties": false
+                            "decline": {
+                                "type": "boolean"
                             },
-                            "latest": {
-                                "type": "object",
-                                "nullable": true,
-                                "required": [
-                                    "hold_id",
-                                    "status",
-                                    "session_id",
-                                    "expires_at",
-                                    "confirmed_reservation_id",
-                                    "table_ids"
-                                ],
-                                "properties": {
-                                    "hold_id": {
-                                        "type": "string"
-                                    },
-                                    "status": {
-                                        "type": "string"
-                                    },
-                                    "session_id": {
-                                        "type": "string"
-                                    },
-                                    "expires_at": {
-                                        "type": "string",
-                                        "format": "date-time",
-                                        "nullable": true
-                                    },
-                                    "confirmed_reservation_id": {
-                                        "type": "integer",
-                                        "nullable": true
-                                    },
-                                    "table_ids": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "integer"
-                                        }
-                                    }
-                                },
-                                "additionalProperties": false
+                            "confirm_arrival": {
+                                "type": "boolean"
+                            },
+                            "cancel": {
+                                "type": "boolean"
                             }
                         },
                         "additionalProperties": false
                     },
-                    "orchestration": {
+                    "staff_seat_required": {
+                        "type": "boolean"
+                    },
+                    "next_step": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "arrival_confirmation": {
                         "type": "object",
                         "required": [
-                            "mode",
-                            "actionable_state",
-                            "recommended_action",
-                            "released_table",
-                            "advance_queue",
-                            "actions"
+                            "supported",
+                            "staff_seat_required",
+                            "message"
                         ],
                         "properties": {
-                            "mode": {
-                                "type": "string"
+                            "supported": {
+                                "type": "boolean"
                             },
-                            "actionable_state": {
-                                "type": "string"
+                            "staff_seat_required": {
+                                "type": "boolean"
                             },
-                            "recommended_action": {
-                                "type": "string"
-                            },
-                            "released_table": {
-                                "type": "object",
-                                "nullable": true,
-                                "required": [
-                                    "table_id",
-                                    "table_ids",
-                                    "table_code",
-                                    "zone",
-                                    "status",
-                                    "seats"
-                                ],
-                                "properties": {
-                                    "table_id": {
-                                        "type": "integer"
-                                    },
-                                    "table_ids": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "integer"
-                                        }
-                                    },
-                                    "table_code": {
-                                        "type": "string",
-                                        "nullable": true
-                                    },
-                                    "zone": {
-                                        "type": "string",
-                                        "nullable": true
-                                    },
-                                    "status": {
-                                        "type": "string",
-                                        "nullable": true
-                                    },
-                                    "seats": {
-                                        "type": "integer",
-                                        "nullable": true
-                                    }
-                                },
-                                "additionalProperties": false
-                            },
-                            "advance_queue": {
-                                "type": "object",
-                                "required": [
-                                    "supported",
-                                    "can_apply_now",
-                                    "resulting_action",
-                                    "released_table_available",
-                                    "next_candidate",
-                                    "disabled_reason"
-                                ],
-                                "properties": {
-                                    "supported": {
-                                        "type": "boolean"
-                                    },
-                                    "can_apply_now": {
-                                        "type": "boolean"
-                                    },
-                                    "resulting_action": {
-                                        "type": "string"
-                                    },
-                                    "released_table_available": {
-                                        "type": "boolean"
-                                    },
-                                    "next_candidate": {
-                                        "type": "object",
-                                        "nullable": true,
-                                        "required": [
-                                            "waiting_id",
-                                            "user_id",
-                                            "guest_name",
-                                            "guest_count",
-                                            "priority",
-                                            "requested_at",
-                                            "row_version",
-                                            "capacity_fit"
-                                        ],
-                                        "properties": {
-                                            "waiting_id": {
-                                                "type": "integer"
-                                            },
-                                            "user_id": {
-                                                "type": "integer",
-                                                "nullable": true
-                                            },
-                                            "guest_name": {
-                                                "type": "string",
-                                                "nullable": true
-                                            },
-                                            "guest_count": {
-                                                "type": "integer"
-                                            },
-                                            "priority": {
-                                                "type": "integer"
-                                            },
-                                            "requested_at": {
-                                                "type": "string",
-                                                "format": "date-time",
-                                                "nullable": true
-                                            },
-                                            "row_version": {
-                                                "type": "integer"
-                                            },
-                                            "capacity_fit": {
-                                                "type": "object",
-                                                "required": [
-                                                    "table_seats",
-                                                    "seat_delta"
-                                                ],
-                                                "properties": {
-                                                    "table_seats": {
-                                                        "type": "integer"
-                                                    },
-                                                    "seat_delta": {
-                                                        "type": "integer"
-                                                    }
-                                                },
-                                                "additionalProperties": false
-                                            }
-                                        },
-                                        "additionalProperties": false
-                                    },
-                                    "disabled_reason": {
-                                        "type": "string",
-                                        "nullable": true
-                                    }
-                                },
-                                "additionalProperties": false
-                            },
-                            "actions": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "required": [
-                                        "key",
-                                        "method",
-                                        "href",
-                                        "enabled",
-                                        "reason"
-                                    ],
-                                    "properties": {
-                                        "key": {
-                                            "type": "string"
-                                        },
-                                        "method": {
-                                            "type": "string"
-                                        },
-                                        "href": {
-                                            "type": "string"
-                                        },
-                                        "enabled": {
-                                            "type": "boolean"
-                                        },
-                                        "reason": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "additionalProperties": false
-                                }
+                            "message": {
+                                "type": "string",
+                                "nullable": true
                             }
                         },
                         "additionalProperties": false
-                    },
-                    "user": {
-                        "type": "object",
-                        "nullable": true,
-                        "additionalProperties": true
                     }
                 },
-                "additionalProperties": false,
-                "example": {
-                    "waiting_id": 55,
-                    "branch_id": 3,
-                    "user_id": 77,
-                    "guest_name": "Walk-in Guest",
-                    "phone": "0901234567",
-                    "guest_count": 3,
-                    "requested_at": "2026-04-05T11:00:00Z",
-                    "status": "Notified",
-                    "priority": 0,
-                    "notified_at": "2026-04-05T11:05:00Z",
-                    "notify_expires_at": "2026-04-05T11:15:00Z",
-                    "notified_by": 5,
-                    "seated_at": null,
-                    "cancelled_at": null,
-                    "cancel_reason": null,
-                    "notes": "Front door queue",
-                    "updated_by": 5,
-                    "row_version": 2,
-                    "current_response_state": "arrival_confirmed",
-                    "response": {
-                        "status": "Accepted",
-                        "responded_at": "2026-04-05T11:06:00Z",
-                        "confirmed_arrival_at": "2026-04-05T11:07:00Z"
-                    },
-                    "invite_window": {
-                        "notified_at": "2026-04-05T11:05:00Z",
-                        "expires_at": "2026-04-05T11:15:00Z",
-                        "is_active": true,
-                        "is_expired": false,
-                        "seconds_remaining": 480
-                    },
-                    "invite_lifecycle": {
-                        "requires_explicit_staff_seat": true,
-                        "auto_convert_to_reservation": false,
-                        "seat_readiness": "ready_to_seat",
-                        "customer_next_step": "wait_for_staff_seat",
-                        "staff_next_step": "seat_customer",
-                        "can_staff_seat_now": true
-                    },
-                    "invite_hold": {
-                        "has_active_hold": true,
-                        "active": {
-                            "hold_id": "hold-001",
-                            "status": "Holding",
-                            "session_id": "waiting-list:55",
-                            "expires_at": "2026-04-05T11:15:00Z",
-                            "confirmed_reservation_id": null,
-                            "table_ids": [
-                                12
-                            ]
-                        },
-                        "latest": {
-                            "hold_id": "hold-001",
-                            "status": "Holding",
-                            "session_id": "waiting-list:55",
-                            "expires_at": "2026-04-05T11:15:00Z",
-                            "confirmed_reservation_id": null,
-                            "table_ids": [
-                                12
-                            ]
-                        }
-                    },
-                    "orchestration": {
-                        "mode": "semi_automated_waiting_list_orchestration",
-                        "actionable_state": "seat_customer",
-                        "recommended_action": "seat_current_customer",
-                        "released_table": {
-                            "table_id": 12,
-                            "table_ids": [
-                                12
-                            ],
-                            "table_code": "A-12",
-                            "zone": "Main Hall",
-                            "status": "Available",
-                            "seats": 4
-                        },
-                        "advance_queue": {
-                            "supported": false,
-                            "can_apply_now": false,
-                            "resulting_action": "none",
-                            "released_table_available": true,
-                            "next_candidate": null,
-                            "disabled_reason": null
-                        },
-                        "actions": [
-                            {
-                                "key": "seat",
-                                "method": "POST",
-                                "href": "/api/v1/staff/waiting-list/55/seat",
-                                "enabled": true,
-                                "reason": "canonical_staff_seat_flow"
-                            }
-                        ]
-                    },
-                    "user": {
-                        "user_id": 77,
-                        "full_name": "Walk-in Guest",
-                        "email": "guest@example.invalid",
-                        "phone": "0901234567"
-                    }
-                }
+                "additionalProperties": false
             },
             "CustomerWaitingListEnvelope": {
                 "type": "object",
@@ -36764,7 +36249,6 @@
                         "required": [
                             "waiting_id",
                             "branch_id",
-                            "user_id",
                             "guest_name",
                             "phone",
                             "guest_count",
@@ -36773,29 +36257,28 @@
                             "priority",
                             "notified_at",
                             "notify_expires_at",
-                            "notified_by",
                             "seated_at",
                             "cancelled_at",
                             "cancel_reason",
                             "notes",
-                            "updated_by",
                             "row_version",
-                            "current_response_state",
-                            "response",
-                            "invite_window",
-                            "invite_lifecycle",
-                            "invite_hold",
-                            "orchestration"
+                            "response_state",
+                            "can_accept",
+                            "can_decline",
+                            "can_confirm_arrival",
+                            "can_cancel",
+                            "notify_window",
+                            "window",
+                            "available_actions",
+                            "staff_seat_required",
+                            "next_step",
+                            "arrival_confirmation"
                         ],
                         "properties": {
                             "waiting_id": {
                                 "type": "integer"
                             },
                             "branch_id": {
-                                "type": "integer",
-                                "nullable": true
-                            },
-                            "user_id": {
                                 "type": "integer",
                                 "nullable": true
                             },
@@ -36831,10 +36314,6 @@
                                 "format": "date-time",
                                 "nullable": true
                             },
-                            "notified_by": {
-                                "type": "integer",
-                                "nullable": true
-                            },
                             "seated_at": {
                                 "type": "string",
                                 "format": "date-time",
@@ -36853,488 +36332,115 @@
                                 "type": "string",
                                 "nullable": true
                             },
-                            "updated_by": {
-                                "type": "integer",
-                                "nullable": true
-                            },
                             "row_version": {
                                 "type": "integer"
                             },
-                            "current_response_state": {
-                                "type": "string"
+                            "response_state": {
+                                "type": "string",
+                                "enum": [
+                                    "none",
+                                    "accepted",
+                                    "arrival_confirmed",
+                                    "declined"
+                                ],
+                                "description": "Stable customer-response state for lean owner waiting-list clients. Distinguishes accepted from arrival_confirmed without localized text."
                             },
-                            "response": {
+                            "can_accept": {
+                                "type": "boolean"
+                            },
+                            "can_decline": {
+                                "type": "boolean"
+                            },
+                            "can_confirm_arrival": {
+                                "type": "boolean"
+                            },
+                            "can_cancel": {
+                                "type": "boolean"
+                            },
+                            "notify_window": {
                                 "type": "object",
                                 "required": [
-                                    "status",
-                                    "responded_at",
-                                    "confirmed_arrival_at"
+                                    "is_open",
+                                    "expires_at"
                                 ],
                                 "properties": {
-                                    "status": {
-                                        "type": "string",
-                                        "nullable": true
-                                    },
-                                    "responded_at": {
-                                        "type": "string",
-                                        "format": "date-time",
-                                        "nullable": true
-                                    },
-                                    "confirmed_arrival_at": {
-                                        "type": "string",
-                                        "format": "date-time",
-                                        "nullable": true
-                                    }
-                                },
-                                "additionalProperties": false
-                            },
-                            "invite_window": {
-                                "type": "object",
-                                "required": [
-                                    "notified_at",
-                                    "expires_at",
-                                    "is_active",
-                                    "is_expired",
-                                    "seconds_remaining"
-                                ],
-                                "properties": {
-                                    "notified_at": {
-                                        "type": "string",
-                                        "format": "date-time",
-                                        "nullable": true
+                                    "is_open": {
+                                        "type": "boolean"
                                     },
                                     "expires_at": {
                                         "type": "string",
                                         "format": "date-time",
                                         "nullable": true
-                                    },
-                                    "is_active": {
-                                        "type": "boolean"
-                                    },
-                                    "is_expired": {
-                                        "type": "boolean"
-                                    },
-                                    "seconds_remaining": {
-                                        "type": "integer"
                                     }
                                 },
                                 "additionalProperties": false
                             },
-                            "invite_lifecycle": {
+                            "window": {
                                 "type": "object",
                                 "required": [
-                                    "requires_explicit_staff_seat",
-                                    "auto_convert_to_reservation",
-                                    "seat_readiness",
-                                    "customer_next_step",
-                                    "staff_next_step",
-                                    "can_staff_seat_now"
+                                    "is_notified_window_open"
                                 ],
                                 "properties": {
-                                    "requires_explicit_staff_seat": {
-                                        "type": "boolean"
-                                    },
-                                    "auto_convert_to_reservation": {
-                                        "type": "boolean"
-                                    },
-                                    "seat_readiness": {
-                                        "type": "string"
-                                    },
-                                    "customer_next_step": {
-                                        "type": "string"
-                                    },
-                                    "staff_next_step": {
-                                        "type": "string"
-                                    },
-                                    "can_staff_seat_now": {
+                                    "is_notified_window_open": {
                                         "type": "boolean"
                                     }
                                 },
                                 "additionalProperties": false
                             },
-                            "invite_hold": {
+                            "available_actions": {
                                 "type": "object",
                                 "required": [
-                                    "has_active_hold",
-                                    "active",
-                                    "latest"
+                                    "accept",
+                                    "decline",
+                                    "confirm_arrival",
+                                    "cancel"
                                 ],
                                 "properties": {
-                                    "has_active_hold": {
+                                    "accept": {
                                         "type": "boolean"
                                     },
-                                    "active": {
-                                        "type": "object",
-                                        "nullable": true,
-                                        "required": [
-                                            "hold_id",
-                                            "status",
-                                            "session_id",
-                                            "expires_at",
-                                            "confirmed_reservation_id",
-                                            "table_ids"
-                                        ],
-                                        "properties": {
-                                            "hold_id": {
-                                                "type": "string"
-                                            },
-                                            "status": {
-                                                "type": "string"
-                                            },
-                                            "session_id": {
-                                                "type": "string"
-                                            },
-                                            "expires_at": {
-                                                "type": "string",
-                                                "format": "date-time",
-                                                "nullable": true
-                                            },
-                                            "confirmed_reservation_id": {
-                                                "type": "integer",
-                                                "nullable": true
-                                            },
-                                            "table_ids": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "integer"
-                                                }
-                                            }
-                                        },
-                                        "additionalProperties": false
+                                    "decline": {
+                                        "type": "boolean"
                                     },
-                                    "latest": {
-                                        "type": "object",
-                                        "nullable": true,
-                                        "required": [
-                                            "hold_id",
-                                            "status",
-                                            "session_id",
-                                            "expires_at",
-                                            "confirmed_reservation_id",
-                                            "table_ids"
-                                        ],
-                                        "properties": {
-                                            "hold_id": {
-                                                "type": "string"
-                                            },
-                                            "status": {
-                                                "type": "string"
-                                            },
-                                            "session_id": {
-                                                "type": "string"
-                                            },
-                                            "expires_at": {
-                                                "type": "string",
-                                                "format": "date-time",
-                                                "nullable": true
-                                            },
-                                            "confirmed_reservation_id": {
-                                                "type": "integer",
-                                                "nullable": true
-                                            },
-                                            "table_ids": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "integer"
-                                                }
-                                            }
-                                        },
-                                        "additionalProperties": false
+                                    "confirm_arrival": {
+                                        "type": "boolean"
+                                    },
+                                    "cancel": {
+                                        "type": "boolean"
                                     }
                                 },
                                 "additionalProperties": false
                             },
-                            "orchestration": {
+                            "staff_seat_required": {
+                                "type": "boolean"
+                            },
+                            "next_step": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "arrival_confirmation": {
                                 "type": "object",
                                 "required": [
-                                    "mode",
-                                    "actionable_state",
-                                    "recommended_action",
-                                    "released_table",
-                                    "advance_queue",
-                                    "actions"
+                                    "supported",
+                                    "staff_seat_required",
+                                    "message"
                                 ],
                                 "properties": {
-                                    "mode": {
-                                        "type": "string"
+                                    "supported": {
+                                        "type": "boolean"
                                     },
-                                    "actionable_state": {
-                                        "type": "string"
+                                    "staff_seat_required": {
+                                        "type": "boolean"
                                     },
-                                    "recommended_action": {
-                                        "type": "string"
-                                    },
-                                    "released_table": {
-                                        "type": "object",
-                                        "nullable": true,
-                                        "required": [
-                                            "table_id",
-                                            "table_ids",
-                                            "table_code",
-                                            "zone",
-                                            "status",
-                                            "seats"
-                                        ],
-                                        "properties": {
-                                            "table_id": {
-                                                "type": "integer"
-                                            },
-                                            "table_ids": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "integer"
-                                                }
-                                            },
-                                            "table_code": {
-                                                "type": "string",
-                                                "nullable": true
-                                            },
-                                            "zone": {
-                                                "type": "string",
-                                                "nullable": true
-                                            },
-                                            "status": {
-                                                "type": "string",
-                                                "nullable": true
-                                            },
-                                            "seats": {
-                                                "type": "integer",
-                                                "nullable": true
-                                            }
-                                        },
-                                        "additionalProperties": false
-                                    },
-                                    "advance_queue": {
-                                        "type": "object",
-                                        "required": [
-                                            "supported",
-                                            "can_apply_now",
-                                            "resulting_action",
-                                            "released_table_available",
-                                            "next_candidate",
-                                            "disabled_reason"
-                                        ],
-                                        "properties": {
-                                            "supported": {
-                                                "type": "boolean"
-                                            },
-                                            "can_apply_now": {
-                                                "type": "boolean"
-                                            },
-                                            "resulting_action": {
-                                                "type": "string"
-                                            },
-                                            "released_table_available": {
-                                                "type": "boolean"
-                                            },
-                                            "next_candidate": {
-                                                "type": "object",
-                                                "nullable": true,
-                                                "required": [
-                                                    "waiting_id",
-                                                    "user_id",
-                                                    "guest_name",
-                                                    "guest_count",
-                                                    "priority",
-                                                    "requested_at",
-                                                    "row_version",
-                                                    "capacity_fit"
-                                                ],
-                                                "properties": {
-                                                    "waiting_id": {
-                                                        "type": "integer"
-                                                    },
-                                                    "user_id": {
-                                                        "type": "integer",
-                                                        "nullable": true
-                                                    },
-                                                    "guest_name": {
-                                                        "type": "string",
-                                                        "nullable": true
-                                                    },
-                                                    "guest_count": {
-                                                        "type": "integer"
-                                                    },
-                                                    "priority": {
-                                                        "type": "integer"
-                                                    },
-                                                    "requested_at": {
-                                                        "type": "string",
-                                                        "format": "date-time",
-                                                        "nullable": true
-                                                    },
-                                                    "row_version": {
-                                                        "type": "integer"
-                                                    },
-                                                    "capacity_fit": {
-                                                        "type": "object",
-                                                        "required": [
-                                                            "table_seats",
-                                                            "seat_delta"
-                                                        ],
-                                                        "properties": {
-                                                            "table_seats": {
-                                                                "type": "integer"
-                                                            },
-                                                            "seat_delta": {
-                                                                "type": "integer"
-                                                            }
-                                                        },
-                                                        "additionalProperties": false
-                                                    }
-                                                },
-                                                "additionalProperties": false
-                                            },
-                                            "disabled_reason": {
-                                                "type": "string",
-                                                "nullable": true
-                                            }
-                                        },
-                                        "additionalProperties": false
-                                    },
-                                    "actions": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "object",
-                                            "required": [
-                                                "key",
-                                                "method",
-                                                "href",
-                                                "enabled",
-                                                "reason"
-                                            ],
-                                            "properties": {
-                                                "key": {
-                                                    "type": "string"
-                                                },
-                                                "method": {
-                                                    "type": "string"
-                                                },
-                                                "href": {
-                                                    "type": "string"
-                                                },
-                                                "enabled": {
-                                                    "type": "boolean"
-                                                },
-                                                "reason": {
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "additionalProperties": false
-                                        }
+                                    "message": {
+                                        "type": "string",
+                                        "nullable": true
                                     }
                                 },
                                 "additionalProperties": false
-                            },
-                            "user": {
-                                "type": "object",
-                                "nullable": true,
-                                "additionalProperties": true
                             }
                         },
-                        "additionalProperties": false,
-                        "example": {
-                            "waiting_id": 55,
-                            "branch_id": 3,
-                            "user_id": 77,
-                            "guest_name": "Walk-in Guest",
-                            "phone": "0901234567",
-                            "guest_count": 3,
-                            "requested_at": "2026-04-05T11:00:00Z",
-                            "status": "Notified",
-                            "priority": 0,
-                            "notified_at": "2026-04-05T11:05:00Z",
-                            "notify_expires_at": "2026-04-05T11:15:00Z",
-                            "notified_by": 5,
-                            "seated_at": null,
-                            "cancelled_at": null,
-                            "cancel_reason": null,
-                            "notes": "Front door queue",
-                            "updated_by": 5,
-                            "row_version": 2,
-                            "current_response_state": "arrival_confirmed",
-                            "response": {
-                                "status": "Accepted",
-                                "responded_at": "2026-04-05T11:06:00Z",
-                                "confirmed_arrival_at": "2026-04-05T11:07:00Z"
-                            },
-                            "invite_window": {
-                                "notified_at": "2026-04-05T11:05:00Z",
-                                "expires_at": "2026-04-05T11:15:00Z",
-                                "is_active": true,
-                                "is_expired": false,
-                                "seconds_remaining": 480
-                            },
-                            "invite_lifecycle": {
-                                "requires_explicit_staff_seat": true,
-                                "auto_convert_to_reservation": false,
-                                "seat_readiness": "ready_to_seat",
-                                "customer_next_step": "wait_for_staff_seat",
-                                "staff_next_step": "seat_customer",
-                                "can_staff_seat_now": true
-                            },
-                            "invite_hold": {
-                                "has_active_hold": true,
-                                "active": {
-                                    "hold_id": "hold-001",
-                                    "status": "Holding",
-                                    "session_id": "waiting-list:55",
-                                    "expires_at": "2026-04-05T11:15:00Z",
-                                    "confirmed_reservation_id": null,
-                                    "table_ids": [
-                                        12
-                                    ]
-                                },
-                                "latest": {
-                                    "hold_id": "hold-001",
-                                    "status": "Holding",
-                                    "session_id": "waiting-list:55",
-                                    "expires_at": "2026-04-05T11:15:00Z",
-                                    "confirmed_reservation_id": null,
-                                    "table_ids": [
-                                        12
-                                    ]
-                                }
-                            },
-                            "orchestration": {
-                                "mode": "semi_automated_waiting_list_orchestration",
-                                "actionable_state": "seat_customer",
-                                "recommended_action": "seat_current_customer",
-                                "released_table": {
-                                    "table_id": 12,
-                                    "table_ids": [
-                                        12
-                                    ],
-                                    "table_code": "A-12",
-                                    "zone": "Main Hall",
-                                    "status": "Available",
-                                    "seats": 4
-                                },
-                                "advance_queue": {
-                                    "supported": false,
-                                    "can_apply_now": false,
-                                    "resulting_action": "none",
-                                    "released_table_available": true,
-                                    "next_candidate": null,
-                                    "disabled_reason": null
-                                },
-                                "actions": [
-                                    {
-                                        "key": "seat",
-                                        "method": "POST",
-                                        "href": "/api/v1/staff/waiting-list/55/seat",
-                                        "enabled": true,
-                                        "reason": "canonical_staff_seat_flow"
-                                    }
-                                ]
-                            },
-                            "user": {
-                                "user_id": 77,
-                                "full_name": "Walk-in Guest",
-                                "email": "guest@example.invalid",
-                                "phone": "0901234567"
-                            }
-                        }
+                        "additionalProperties": false
                     }
                 },
                 "additionalProperties": false
@@ -37964,6 +37070,7 @@
                 "type": "object",
                 "required": [
                     "ticket_id",
+                    "row_version",
                     "ticket_status",
                     "route_source",
                     "dispatch_count",
@@ -37991,6 +37098,10 @@
                 "properties": {
                     "ticket_id": {
                         "type": "integer"
+                    },
+                    "row_version": {
+                        "type": "integer",
+                        "nullable": true
                     },
                     "ticket_status": {
                         "type": "string"
@@ -38108,6 +37219,7 @@
                             "item_id",
                             "quantity",
                             "status",
+                            "row_version",
                             "notes",
                             "item_name_snapshot"
                         ],
@@ -38123,6 +37235,10 @@
                             },
                             "status": {
                                 "type": "string"
+                            },
+                            "row_version": {
+                                "type": "integer",
+                                "nullable": true
                             },
                             "notes": {
                                 "type": "string",
@@ -38281,6 +37397,7 @@
                 "type": "object",
                 "required": [
                     "station_id",
+                    "branch_id",
                     "code",
                     "name",
                     "description",
@@ -38294,6 +37411,9 @@
                 ],
                 "properties": {
                     "station_id": {
+                        "type": "integer"
+                    },
+                    "branch_id": {
                         "type": "integer"
                     },
                     "code": {
@@ -40162,6 +39282,17 @@
                         ],
                         "minimum": 1,
                         "maximum": 100
+                    },
+                    "branch_id": {
+                        "type": "integer",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1",
+                            "exists:branches,branch_id"
+                        ],
+                        "minimum": 1
                     }
                 },
                 "required": [],
@@ -40177,6 +39308,12 @@
                         "integer",
                         "min:1",
                         "max:100"
+                    ],
+                    "branch_id": [
+                        "nullable",
+                        "integer",
+                        "min:1",
+                        "exists:branches,branch_id"
                     ]
                 }
             },
@@ -46838,8 +45975,16 @@
                             "auth_mode": {
                                 "type": "string",
                                 "enum": [
-                                    "staff_api_key"
+                                    "staff_api_key",
+                                    "staff_browser_session"
                                 ]
+                            },
+                            "session_transport": {
+                                "type": "string",
+                                "enum": [
+                                    "refresh_cookie"
+                                ],
+                                "nullable": true
                             },
                             "token_type": {
                                 "type": "string",
@@ -48696,6 +47841,31 @@
                 },
                 "additionalProperties": false
             },
+            "StaffKitchenTicketActionRequest": {
+                "type": "object",
+                "properties": {
+                    "row_version": {
+                        "type": "integer",
+                        "x-laravel-rules": [
+                            "required",
+                            "integer",
+                            "min:1"
+                        ],
+                        "minimum": 1
+                    }
+                },
+                "required": [
+                    "row_version"
+                ],
+                "additionalProperties": false,
+                "x-laravel-rules": {
+                    "row_version": [
+                        "required",
+                        "integer",
+                        "min:1"
+                    ]
+                }
+            },
             "StaffKitchenTicketCollectionEnvelope": {
                 "type": "object",
                 "required": [
@@ -48821,6 +47991,18 @@
                             "max:100"
                         ],
                         "maxLength": 100
+                    },
+                    "session_transport": {
+                        "type": "string",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "string",
+                            "in:refresh_cookie"
+                        ],
+                        "enum": [
+                            "refresh_cookie"
+                        ]
                     }
                 },
                 "required": [
@@ -48848,6 +48030,11 @@
                         "nullable",
                         "string",
                         "max:100"
+                    ],
+                    "session_transport": [
+                        "nullable",
+                        "string",
+                        "in:refresh_cookie"
                     ]
                 }
             },
@@ -50781,8 +49968,16 @@
                             "auth_mode": {
                                 "type": "string",
                                 "enum": [
-                                    "staff_api_key"
+                                    "staff_api_key",
+                                    "staff_browser_session"
                                 ]
+                            },
+                            "session_transport": {
+                                "type": "string",
+                                "enum": [
+                                    "refresh_cookie"
+                                ],
+                                "nullable": true
                             },
                             "staff_api_key_id": {
                                 "type": "integer"
@@ -54621,6 +53816,15 @@
             "UpdateKitchenStationRequest": {
                 "type": "object",
                 "properties": {
+                    "branch_id": {
+                        "type": "integer",
+                        "x-laravel-rules": [
+                            "sometimes",
+                            "required",
+                            "integer",
+                            "exists:branches,branch_id,is_active,\"1\""
+                        ]
+                    },
                     "code": {
                         "type": "string",
                         "x-laravel-rules": [
@@ -54689,12 +53893,19 @@
                     }
                 },
                 "required": [
+                    "branch_id",
                     "code",
                     "name",
                     "output_mode"
                 ],
                 "additionalProperties": false,
                 "x-laravel-rules": {
+                    "branch_id": [
+                        "sometimes",
+                        "required",
+                        "integer",
+                        "exists:branches,branch_id,is_active,\"1\""
+                    ],
                     "code": [
                         "sometimes",
                         "required",

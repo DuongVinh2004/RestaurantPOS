@@ -23,6 +23,7 @@ class KitchenTicketResource extends JsonResource
 
         return [
             'ticket_id' => (int) $this->ticket_id,
+            'row_version' => isset($this->row_version) ? (int) $this->row_version : null,
             'ticket_status' => $ticketStatus,
             'route_source' => $this->route_source !== null ? (string) $this->route_source : null,
             'dispatch_count' => (int) ($this->dispatch_count ?? 0),

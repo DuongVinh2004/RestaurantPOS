@@ -12,6 +12,19 @@ Route::middleware([
     ResolveCustomerAuthMiddleware::class,
     CustomerOrStaffMiddleware::class,
 ])->get('/user', function (Request $request) {
+    $staffActorUserId = $request->attributes->get('staff_actor_user_id');
+    if ($staffActorUserId) {
+        return response()->json([
+            'auth_mode' => 'staff',
+            'user' => [
+                'user_id' => (int) $staffActorUserId,
+                'role_id' => $request->attributes->get('staff_actor_role_id'),
+                'role_name' => $request->attributes->get('staff_actor_role_name'),
+                'staff_auth_mode' => $request->attributes->get('staff_auth_mode'),
+            ],
+        ]);
+    }
+
     if ($request->user()) {
         return response()->json([
             'auth_mode' => 'customer',
@@ -22,19 +35,6 @@ Route::middleware([
                 'phone' => $request->user()->phone,
                 'role_id' => $request->user()->role_id,
                 'current_tier_id' => $request->user()->current_tier_id,
-            ],
-        ]);
-    }
-
-    $staffActorUserId = $request->attributes->get('staff_actor_user_id');
-    if ($staffActorUserId) {
-        return response()->json([
-            'auth_mode' => 'staff',
-            'user' => [
-                'user_id' => (int) $staffActorUserId,
-                'role_id' => $request->attributes->get('staff_actor_role_id'),
-                'role_name' => $request->attributes->get('staff_actor_role_name'),
-                'staff_auth_mode' => $request->attributes->get('staff_auth_mode'),
             ],
         ]);
     }

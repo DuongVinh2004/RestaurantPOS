@@ -3,10 +3,13 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { App as AntdApp } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { KitchenBoardPage } from './KitchenBoardPage';
+import { useAuthStore } from '../../../../app/store/auth-store';
+import { useFlowStore } from '../../../../app/store/flow-store';
+import { buildStaffSession } from '../../../../test/fixtures';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const kitchenSource = readFileSync(resolve(currentDir, './KitchenBoardPage.tsx'), 'utf8');
@@ -35,6 +38,9 @@ vi.mock('../../../../shared/hooks/useConfirmAction', () => ({
 vi.mock('../../../../shared/ui/feedback/toast', () => ({
   toast: toastMocks,
 }));
+
+const initialAuthState = useAuthStore.getState();
+const initialFlowState = useFlowStore.getState();
 
 describe('KitchenBoardPage', () => {
   beforeAll(() => {
@@ -66,6 +72,13 @@ describe('KitchenBoardPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    useAuthStore.setState(initialAuthState, true);
+    useFlowStore.setState(initialFlowState, true);
+    useAuthStore.getState().setSession(buildKitchenSession(['kitchen.manage', 'order.manage']));
+    useFlowStore.setState({
+      ...useFlowStore.getState(),
+      branchId: 1,
+    });
     apiMocks.listKitchenStations.mockResolvedValue(createStationsEnvelope());
     apiMocks.getKitchenStationTickets.mockImplementation(async (stationId: number) => createTicketsEnvelope(
       stationId,
@@ -135,6 +148,16 @@ describe('KitchenBoardPage', () => {
     expect(screen.getByTestId('location-search').textContent).not.toContain('station_id=');
   });
 
+  it('hides order dispatch when the session lacks backend order.manage capability', async () => {
+    useAuthStore.getState().setSession(buildKitchenSession(['kitchen.manage']));
+
+    renderWithProviders('/kitchen?source=order&order_id=56&order_row_version=10');
+
+    await waitFor(() => expect(apiMocks.listKitchenStations).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Dispatch order to kitchen' })).not.toBeInTheDocument();
+    expect(apiMocks.dispatchKitchenOrder).not.toHaveBeenCalled();
+  });
+
   it('refetches kitchen slices when the realtime feed reports a newer version', async () => {
     apiMocks.getKitchenChanges.mockResolvedValue(createKitchenChangesEnvelope({
       currentVersion: 11,
@@ -152,6 +175,25 @@ describe('KitchenBoardPage', () => {
 
     await waitFor(() => expect(apiMocks.listKitchenStations.mock.calls.length).toBeGreaterThan(1));
     await waitFor(() => expect(apiMocks.getKitchenStationTickets.mock.calls.length).toBeGreaterThan(1));
+  });
+
+  it('polls kitchen realtime changes with the active branch after branch switch', async () => {
+    renderWithProviders('/kitchen');
+
+    await waitFor(() => expect(apiMocks.getKitchenChanges).toHaveBeenCalledWith(10, 1));
+
+    apiMocks.getKitchenChanges.mockClear();
+    apiMocks.listKitchenStations.mockClear();
+
+    act(() => {
+      useFlowStore.setState({
+        ...useFlowStore.getState(),
+        branchId: 2,
+      });
+    });
+
+    await waitFor(() => expect(apiMocks.listKitchenStations).toHaveBeenCalledWith(2));
+    await waitFor(() => expect(apiMocks.getKitchenChanges).toHaveBeenCalledWith(10, 2));
   });
 
   it('switches the focused station from the station cards', async () => {
@@ -178,11 +220,28 @@ describe('KitchenBoardPage', () => {
   });
 });
 
+function buildKitchenSession(capabilities: Array<string>) {
+  return buildStaffSession({
+    capabilities,
+    known_capabilities: ['kitchen.manage', 'order.manage'],
+    startup: {
+      allowed_branch_ids: [1, 2],
+      branch_access: {
+        accessible_branch_ids: [1, 2],
+        has_multi_branch_access: true,
+        branch_selector_enabled: true,
+      },
+      assigned_station_ids: [33],
+    },
+  });
+}
+
 function createStationsEnvelope() {
   return {
     data: [
       {
         station_id: 1,
+        branch_id: 1,
         code: 'COLD',
         name: 'Cold Pass',
         description: null,
@@ -200,6 +259,7 @@ function createStationsEnvelope() {
       },
       {
         station_id: 33,
+        branch_id: 1,
         code: 'HOT',
         name: 'Hot Pass',
         description: null,

@@ -230,6 +230,16 @@ This adds the full Vitest suite, a production build, and the Playwright smoke. T
 
 `npm run verify:release` is CI-safe and mock-safe. A passing result proves the release wiring, not a real backend launch proof.
 
+Focused CI/local browser smoke:
+
+```bash
+npx playwright install chromium
+npm run build
+npm run test:e2e:smoke
+```
+
+The smoke script uses the Playwright config to start the production build on `http://127.0.0.1:3100` with deterministic API route interception. CI must have the Chromium browser installed before running the smoke command; local runs can use the same command sequence.
+
 Live runtime Wave 1 proof set:
 
 ```powershell

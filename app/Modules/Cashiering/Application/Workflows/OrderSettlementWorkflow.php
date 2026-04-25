@@ -51,8 +51,6 @@ class OrderSettlementWorkflow
 
     private const STALE_ROW_VERSION_MESSAGE = 'The row_version is stale (row_version mismatch). Reload the resource and try again.';
 
-    private const DUPLICATE_PROVIDER_TRANSACTION_MESSAGE = 'Transaction code already exists for this payment provider. Check reconciliation or use a different code.';
-
     private ReservationLockService $locks;
 
     private NotificationOutboxService $notificationOutboxService;
@@ -1929,7 +1927,7 @@ class OrderSettlementWorkflow
             || str_contains($message, 'uq_payments_transaction_code')
             || DatabaseWriteConflictMapper::isPaymentProviderTransactionConflict($e)
         ) {
-            throw ValidationException::withMessages(['transaction_code' => self::DUPLICATE_PROVIDER_TRANSACTION_MESSAGE]);
+            throw ValidationException::withMessages(['transaction_code' => DatabaseWriteConflictMapper::DUPLICATE_PROVIDER_TRANSACTION_MESSAGE]);
         }
         if (DatabaseWriteConflictMapper::isPaymentIdempotencyConflict($e)) {
             throw ValidationException::withMessages(['idempotency_key' => 'idempotency key already used.']);

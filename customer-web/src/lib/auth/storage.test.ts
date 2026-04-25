@@ -24,6 +24,15 @@ describe("customer auth storage", () => {
     expect(getCustomerSessionId()).toBe(first);
   });
 
+  it("reads stored auth without creating a browser session id", () => {
+    expect(getStoredCustomerAuth()).toEqual({
+      customerToken: null,
+      sessionId: null,
+      expiresAtUtc: null,
+    });
+    expect(getCustomerSessionId()).toBeNull();
+  });
+
   it("stores customer token separately from browser session id", () => {
     storeCustomerAuthSession({
       data: {

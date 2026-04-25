@@ -34,7 +34,10 @@ class InventoryAdjustmentController extends Controller
     {
         $this->assertInventoryUpliftEnabled($request);
         $validated = $request->validated();
-        $paginator = $this->inventoryService->paginateIngredients($validated);
+        $paginator = $this->inventoryService->paginateIngredients(
+            $validated,
+            $this->resolveStaffActorUserId($request),
+        );
 
         return response()->json([
             'data' => IngredientResource::collection(collect($paginator->items()))->toArray($request),
@@ -71,7 +74,11 @@ class InventoryAdjustmentController extends Controller
     {
         $this->assertInventoryUpliftEnabled($request);
         try {
-            $ingredient = $this->inventoryService->findIngredient($id);
+            $ingredient = $this->inventoryService->findIngredient(
+                $id,
+                null,
+                $this->resolveStaffActorUserId($request),
+            );
         } catch (ModelNotFoundException) {
             return $this->notFoundResponse($request, 'Ingredient not found.');
         }
@@ -161,8 +168,13 @@ class InventoryAdjustmentController extends Controller
             $ingredient = $this->inventoryService->findIngredient(
                 $id,
                 isset($validated['branch_id']) ? (int) $validated['branch_id'] : null,
+                $this->resolveStaffActorUserId($request),
             );
-            $paginator = $this->inventoryService->paginateIngredientMovements($id, $validated);
+            $paginator = $this->inventoryService->paginateIngredientMovements(
+                $id,
+                $validated,
+                $this->resolveStaffActorUserId($request),
+            );
         } catch (ModelNotFoundException) {
             return $this->notFoundResponse($request, 'Ingredient not found.');
         }

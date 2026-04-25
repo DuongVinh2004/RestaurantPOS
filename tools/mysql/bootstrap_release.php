@@ -264,16 +264,18 @@ function buildMysqlCommand(string $mysqlBinary, string $host, int $port, string 
 
 function runProcess(array $command, string $stdin = ''): void
 {
-    $escaped = implode(' ', array_map(static fn (string $part): string => escapeshellarg($part), $command));
     $descriptorSpec = [
         0 => ['pipe', 'r'],
         1 => ['pipe', 'w'],
         2 => ['pipe', 'w'],
     ];
 
-    $process = proc_open($escaped, $descriptorSpec, $pipes);
+    $process = @proc_open($command, $descriptorSpec, $pipes);
     if (! is_resource($process)) {
-        throw new RuntimeException('Unable to start mysql process.');
+        throw new RuntimeException(sprintf(
+            'Unable to start mysql process. Ensure the mysql CLI is installed and MYSQL_BIN points to it if it is not on PATH. Tried binary [%s].',
+            (string) ($command[0] ?? 'mysql'),
+        ));
     }
 
     fwrite($pipes[0], $stdin);

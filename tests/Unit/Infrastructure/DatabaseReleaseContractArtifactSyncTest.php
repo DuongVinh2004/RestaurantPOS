@@ -21,7 +21,19 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
         }
     }
 
-    public function test_ci_bootstrap_uses_release_wrapper_without_creating_database(): void
+    public function test_booking_bootstrap_can_forward_skip_create_database_to_release_wrapper(): void
+    {
+        $bootstrapPath = base_path('tools/bootstrap_booking.php');
+
+        $this->assertTrue(File::exists($bootstrapPath), sprintf('Booking bootstrap wrapper is missing: %s', $bootstrapPath));
+
+        $script = (string) File::get($bootstrapPath);
+
+        $this->assertStringContainsString("'--skip-create-db'", $script);
+        $this->assertStringContainsString('tools/mysql/bootstrap_release.php', $script);
+    }
+
+    public function test_ci_bootstrap_uses_canonical_composer_wrapper_without_creating_database(): void
     {
         $ciBootstrapPath = base_path('scripts/ci/booking-ci-bootstrap.sh');
 
@@ -29,8 +41,12 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
 
         $script = (string) File::get($ciBootstrapPath);
 
-        $this->assertStringContainsString('php tools/mysql/bootstrap_release.php --skip-create-db', $script);
-        $this->assertStringContainsString('php artisan booking:ops-heartbeat:touch scheduler --json >/dev/null', $script);
+        $this->assertStringContainsString('composer bootstrap:booking -- "${bootstrap_args[@]}"', $script);
+        $this->assertStringContainsString('bootstrap_args+=(--skip-create-db)', $script);
+        $this->assertStringContainsString('bootstrap_args+=(--skip-db-bootstrap)', $script);
+        $this->assertStringContainsString('bootstrap_args+=(--skip-site-bootstrap)', $script);
+        $this->assertStringContainsString('bootstrap_args+=(--skip-reporting)', $script);
+        $this->assertStringNotContainsString('php tools/mysql/bootstrap_release.php --skip-create-db', $script);
         $this->assertStringNotContainsString('bash tools/mysql/bootstrap_release.sh', $script);
     }
 
@@ -44,6 +60,18 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
 
         $this->assertStringContainsString('php artisan cache:clear || true', $script);
         $this->assertStringContainsString('php artisan booking:ops-heartbeat:touch scheduler --json >/dev/null', $script);
+        $this->assertStringContainsString('php artisan notifications:outbox-health --json | tee build/booking-ci/booking-outbox-health-smoke.json >/dev/null', $script);
+    }
+
+    public function test_deploy_scripts_include_json_outbox_health_gate(): void
+    {
+        foreach ([
+            base_path('scripts/ci/booking-deploy-preflight.sh'),
+            base_path('scripts/ci/booking-deploy-postflight.sh'),
+        ] as $path) {
+            $this->assertTrue(File::exists($path), sprintf('Deploy script is missing: %s', $path));
+            $this->assertStringContainsString('php artisan notifications:outbox-health --json', (string) File::get($path));
+        }
     }
 
     public function test_ci_workflows_enable_mysql_routine_creation_before_bootstrap(): void
@@ -92,6 +120,7 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
             'audit_log_subjects',
             'customer_privacy_requests',
             'feature_flags',
+            'staff_branch_assignments',
             'recipient_user_id',
             'dedupe_key',
             'business_hours',
@@ -102,9 +131,11 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
 
         $this->assertStringContainsString('verify_release_contract.sql', $databaseReadme);
         $this->assertStringContainsString('contract verification', strtolower($databaseReadme));
+        $this->assertStringContainsString('staff_branch_assignments', $databaseReadme);
         $this->assertStringContainsString('verify_release_contract.sql', $toolsReadme);
         $this->assertStringContainsString('notification', strtolower($toolsReadme));
         $this->assertStringContainsString('feature-flag', strtolower($toolsReadme));
+        $this->assertStringContainsString('staff branch assignment', strtolower($toolsReadme));
     }
 
     public function test_release_artifacts_do_not_reinstall_runtime_incompatible_payment_refund_triggers(): void
@@ -168,5 +199,66 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
         $this->assertStringContainsString('DROP TRIGGER IF EXISTS `trg_table_hold_details__bu_prevent_overlap`', $patchSql);
         $this->assertStringContainsString('table_hold_conflict_scope.confirmed_linkage:ok', $verifySql);
         $this->assertStringContainsString('__stale_confirmed_hold_conflict_triggers__', $verifySql);
+    }
+
+    public function test_kitchen_branch_routing_patch_derives_backfill_branch_from_existing_branch_data(): void
+    {
+        $patchSql = (string) File::get(base_path('database/patches/2026_04_24_000056_kitchen_branch_routing_scope.sql'));
+
+        $this->assertStringContainsString('v_default_branch_id', $patchSql);
+        $this->assertStringContainsString('MIN(CASE WHEN b.`is_default` = 1 THEN b.`branch_id` END)', $patchSql);
+        $this->assertStringContainsString("MIN(CASE WHEN b.`branch_code` = 'MAIN' THEN b.`branch_id` END)", $patchSql);
+        $this->assertStringContainsString('Cannot backfill kitchen_stations.branch_id because no default branch exists.', $patchSql);
+        $this->assertStringContainsString('Cannot backfill kitchen_station_category_routes.branch_id because matching kitchen station is missing.', $patchSql);
+        $this->assertStringContainsString('ADD COLUMN `branch_id` int unsigned NULL AFTER `station_id`', $patchSql);
+        $this->assertStringContainsString('MODIFY COLUMN `branch_id` int unsigned NOT NULL', $patchSql);
+        $this->assertStringNotContainsString("ADD COLUMN `branch_id` int unsigned NOT NULL DEFAULT '1'", $patchSql);
+        $this->assertStringNotContainsString("MODIFY COLUMN `branch_id` int unsigned NOT NULL DEFAULT '1'", $patchSql);
+    }
+
+    public function test_release_artifacts_restore_critical_branch_foreign_keys(): void
+    {
+        $expectedConstraints = [
+            'reservations' => 'fk_reservations__branch_id__branches',
+            'table_holds' => 'fk_table_holds__branch_id__branches',
+            'cashier_shifts' => 'fk_cashier_shifts__branch_id__branches',
+        ];
+
+        foreach ([
+            base_path('database/schema/mysql-schema.sql'),
+            base_path('db_all.sql'),
+        ] as $path) {
+            $sql = (string) File::get($path);
+
+            foreach ($expectedConstraints as $table => $constraint) {
+                $this->assertStringContainsString(
+                    sprintf('CONSTRAINT `%s`', $constraint),
+                    $sql,
+                    sprintf('Release SQL artifact %s is missing critical branch FK %s.', $path, $constraint)
+                );
+                $this->assertStringNotContainsString(
+                    sprintf('--   %s.%s', $table, $constraint),
+                    $sql,
+                    sprintf('Release SQL artifact %s still lists %s as omitted.', $path, $constraint)
+                );
+            }
+        }
+
+        $patchSql = (string) File::get(base_path('database/patches/2026_04_24_000054_branch_fk_integrity_guard.sql'));
+        $verifySql = (string) File::get(base_path('tools/mysql/verify_release_contract.sql'));
+        $databaseReadme = (string) File::get(base_path('database/README_release_bootstrap.md'));
+        $toolsReadme = (string) File::get(base_path('tools/mysql/README_bootstrap_release.md'));
+
+        foreach ($expectedConstraints as $constraint) {
+            $this->assertStringContainsString($constraint, $patchSql);
+            $this->assertStringContainsString($constraint, $verifySql);
+        }
+
+        $this->assertStringContainsString('orphan branch rows exist', $patchSql);
+        $this->assertStringContainsString('reservations.branch_id_fk:ok', $verifySql);
+        $this->assertStringContainsString('table_holds.branch_id_fk:ok', $verifySql);
+        $this->assertStringContainsString('cashier_shifts.branch_id_fk:ok', $verifySql);
+        $this->assertStringContainsString('Runtime read paths must not auto-create branch rows', $databaseReadme);
+        $this->assertStringContainsString('Runtime read paths are expected to surface missing bootstrap state', $toolsReadme);
     }
 }

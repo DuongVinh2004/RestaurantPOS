@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { clearStoredCustomerAuth, ensureCustomerSessionId } from "@/lib/auth/storage";
 import { ProtectedRoute } from "./protected-route";
 
 const mocks = vi.hoisted(() => ({
@@ -51,10 +52,18 @@ vi.mock("@/providers/auth-provider", () => ({
 
 describe("ProtectedRoute", () => {
   beforeEach(() => {
+    clearStoredCustomerAuth();
+    window.localStorage.clear();
+    window.sessionStorage.clear();
     mocks.retryBootstrap.mockReset();
     mocks.logout.mockReset();
     mocks.pathname = "/reservations";
     mocks.searchParams = "";
+    mocks.authState.isAuthenticated = false;
+    mocks.authState.isBootstrapping = false;
+    mocks.authState.profile = null;
+    mocks.authState.session = null;
+    mocks.authState.authError = null;
   });
 
   it("shows a retry-first restore state when the backend is unavailable", async () => {
@@ -112,13 +121,57 @@ describe("ProtectedRoute", () => {
   it("preserves the current query string when sending signed-out users to login", () => {
     mocks.authState.authError = null;
     mocks.authState.isAuthenticated = false;
-    mocks.searchParams = "bucket=upcoming&view=calendar";
+    mocks.pathname = "/account";
+    mocks.searchParams = "view=profile";
 
     render(<ProtectedRoute><div>secret content</div></ProtectedRoute>);
 
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
       "href",
-      "/login?next=%2Freservations%3Fbucket%3Dupcoming%26view%3Dcalendar",
+      "/login?next=%2Faccount%3Fview%3Dprofile",
+    );
+  });
+
+  it("allows signed-out reservation routes when the browser has a customer session id", () => {
+    ensureCustomerSessionId();
+    mocks.pathname = "/reservations/new";
+    mocks.searchParams = "hold_id=hold-123";
+    mocks.authState.authError = null;
+    mocks.authState.isAuthenticated = false;
+
+    render(<ProtectedRoute><div>reservation form</div></ProtectedRoute>);
+
+    expect(screen.getByText("reservation form")).toBeInTheDocument();
+    expect(screen.queryByText("Sign in to continue")).not.toBeInTheDocument();
+  });
+
+  it("keeps account-only routes behind sign-in even when a customer session id exists", () => {
+    ensureCustomerSessionId();
+    mocks.pathname = "/account";
+    mocks.authState.authError = null;
+    mocks.authState.isAuthenticated = false;
+
+    render(<ProtectedRoute><div>account content</div></ProtectedRoute>);
+
+    expect(screen.queryByText("account content")).not.toBeInTheDocument();
+    expect(screen.getByText("Sign in to continue")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login?next=%2Faccount");
+  });
+
+  it("does not create a guest reservation session just to pass the route guard", () => {
+    mocks.pathname = "/reservations/new";
+    mocks.searchParams = "hold_id=hold-123";
+    mocks.authState.authError = null;
+    mocks.authState.isAuthenticated = false;
+
+    render(<ProtectedRoute><div>reservation form</div></ProtectedRoute>);
+
+    expect(screen.queryByText("reservation form")).not.toBeInTheDocument();
+    expect(screen.getByText("Booking session needed")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Find a table" })).toHaveAttribute("href", "/booking");
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
+      "href",
+      "/login?next=%2Freservations%2Fnew%3Fhold_id%3Dhold-123",
     );
   });
 

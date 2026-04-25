@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Waitlist\Http\Resources\Customer;
 
+use App\Enums\WaitingListCustomerResponseState;
+use App\Enums\WaitingListCustomerResponseStatus;
 use App\Enums\WaitingListStatus;
 use DateTimeInterface;
 use Illuminate\Http\Request;
@@ -17,6 +19,7 @@ class WaitlistResource extends JsonResource
         $status = $this->status?->value ?? (string) $this->status;
         $notifiedAt = $this->asUtcCarbon($this->notified_at);
         $notifyExpiresAt = $this->asUtcCarbon($this->notify_expires_at);
+        $responseState = $this->responseState();
         $notifiedWindowOpen = $status === WaitingListStatus::Notified->value
             && $notifiedAt !== null
             && $notifyExpiresAt !== null
@@ -44,6 +47,7 @@ class WaitlistResource extends JsonResource
             'cancel_reason' => $this->cancel_reason,
             'notes' => $this->notes,
             'row_version' => (int) ($this->row_version ?? 1),
+            'response_state' => $responseState->value,
             'can_accept' => $canAccept,
             'can_decline' => $canDecline,
             'can_confirm_arrival' => $canConfirmArrival,
@@ -67,7 +71,7 @@ class WaitlistResource extends JsonResource
                 'supported' => true,
                 'staff_seat_required' => $staffSeatRequired,
                 'message' => $staffSeatRequired
-                    ? 'Khách chỉ xác nhận tới nơi. Nhân viên vẫn là bên thực hiện seat.'
+                    ? 'Customers only confirm arrival. Staff still completes seating.'
                     : null,
             ],
         ];
@@ -92,6 +96,24 @@ class WaitlistResource extends JsonResource
         }
 
         return null;
+    }
+
+    private function responseState(): WaitingListCustomerResponseState
+    {
+        if ($this->asUtcCarbon($this->customer_confirmed_arrival_at) !== null) {
+            return WaitingListCustomerResponseState::ArrivalConfirmed;
+        }
+
+        $customerResponseStatus = $this->customer_response_status;
+        $responseStatus = $customerResponseStatus instanceof WaitingListCustomerResponseStatus
+            ? $customerResponseStatus->value
+            : (string) $customerResponseStatus;
+
+        return match ($responseStatus) {
+            WaitingListCustomerResponseStatus::Accepted->value => WaitingListCustomerResponseState::Accepted,
+            WaitingListCustomerResponseStatus::Declined->value => WaitingListCustomerResponseState::Declined,
+            default => WaitingListCustomerResponseState::None,
+        };
     }
 
     private function toIso8601(mixed $value): ?string

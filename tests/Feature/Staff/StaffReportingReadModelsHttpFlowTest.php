@@ -31,7 +31,7 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
 
     public function test_staff_can_read_daily_sales_operations_and_inventory_snapshots(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $ingredientId = $this->createIngredient(['code' => 'BEANS', 'name' => 'Coffee Beans', 'unit_code' => 'kg']);
         $branchId = 1;
@@ -214,7 +214,7 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
 
     public function test_staff_reporting_meta_marks_empty_snapshot_scope_as_degraded(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-reporting-empty-scope');
 
         $response = $this->withHeaders($headers)
@@ -229,7 +229,7 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
 
     public function test_staff_reporting_meta_marks_partially_stale_inventory_scope_as_degraded(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $ingredientFreshId = $this->createIngredient(['code' => 'FRESH-RPT', 'name' => 'Fresh Scope', 'unit_code' => 'kg']);
         $ingredientStaleId = $this->createIngredient(['code' => 'STALE-RPT', 'name' => 'Stale Scope', 'unit_code' => 'kg']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-reporting-stale-scope');
@@ -298,9 +298,206 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
         }
     }
 
+    public function test_staff_daily_sales_reports_are_scoped_to_accessible_branches(): void
+    {
+        $scope = $this->makeReportingBranchScopeFixture('SALES');
+        $now = $this->nowUtc();
+
+        DB::table('reporting_daily_sales_snapshots')->insert([
+            $this->salesSnapshotRow(1, $scope['business_date'], 110000, 99000, $now),
+            $this->salesSnapshotRow($scope['allowed_branch_id'], $scope['business_date'], 220000, 210000, $now),
+            $this->salesSnapshotRow($scope['denied_branch_id'], $scope['business_date'], 330000, 300000, $now),
+        ]);
+
+        $this->withHeaders($scope['headers'])
+            ->getJson('/api/v1/staff/reporting/daily-sales?start_date='.$scope['business_date'].'&end_date='.$scope['business_date'])
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('meta.snapshot_health.scope_count', 2)
+            ->assertJsonMissing(['branch_id' => $scope['denied_branch_id']]);
+
+        $this->withHeaders($scope['headers'])
+            ->getJson('/api/v1/staff/reporting/daily-sales?branch_id='.$scope['allowed_branch_id'].'&start_date='.$scope['business_date'].'&end_date='.$scope['business_date'])
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.branch_id', $scope['allowed_branch_id'])
+            ->assertJsonPath('meta.snapshot_health.scope_count', 1);
+
+        $this->withHeaders($scope['headers'])
+            ->getJson('/api/v1/staff/reporting/daily-sales?branch_id='.$scope['denied_branch_id'].'&start_date='.$scope['business_date'].'&end_date='.$scope['business_date'])
+            ->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonValidationErrors(['branch_id']);
+    }
+
+    public function test_staff_daily_operations_reports_are_scoped_to_accessible_branches(): void
+    {
+        $scope = $this->makeReportingBranchScopeFixture('OPS');
+        $now = $this->nowUtc();
+
+        DB::table('reporting_daily_operation_snapshots')->insert([
+            $this->operationSnapshotRow(1, $scope['business_date'], 3, 2, $now),
+            $this->operationSnapshotRow($scope['allowed_branch_id'], $scope['business_date'], 5, 4, $now),
+            $this->operationSnapshotRow($scope['denied_branch_id'], $scope['business_date'], 7, 6, $now),
+        ]);
+
+        $this->withHeaders($scope['headers'])
+            ->getJson('/api/v1/staff/reporting/daily-operations?start_date='.$scope['business_date'].'&end_date='.$scope['business_date'])
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('meta.snapshot_health.scope_count', 2)
+            ->assertJsonMissing(['branch_id' => $scope['denied_branch_id']]);
+
+        $this->withHeaders($scope['headers'])
+            ->getJson('/api/v1/staff/reporting/daily-operations?branch_id='.$scope['allowed_branch_id'].'&start_date='.$scope['business_date'].'&end_date='.$scope['business_date'])
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.branch_id', $scope['allowed_branch_id'])
+            ->assertJsonPath('meta.snapshot_health.scope_count', 1);
+
+        $this->withHeaders($scope['headers'])
+            ->getJson('/api/v1/staff/reporting/daily-operations?branch_id='.$scope['denied_branch_id'].'&start_date='.$scope['business_date'].'&end_date='.$scope['business_date'])
+            ->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonValidationErrors(['branch_id']);
+    }
+
+    public function test_staff_daily_inventory_reports_are_scoped_to_accessible_branches(): void
+    {
+        $scope = $this->makeReportingBranchScopeFixture('INV');
+        $ingredientId = $this->createIngredient(['code' => 'RPT-SCOPE-INV', 'name' => 'Scoped Inventory', 'unit_code' => 'kg']);
+        $now = $this->nowUtc();
+
+        DB::table('reporting_daily_inventory_movement_snapshots')->insert([
+            $this->inventorySnapshotRow(1, $scope['business_date'], $ingredientId, 2, 5, $now),
+            $this->inventorySnapshotRow($scope['allowed_branch_id'], $scope['business_date'], $ingredientId, 4, 9, $now),
+            $this->inventorySnapshotRow($scope['denied_branch_id'], $scope['business_date'], $ingredientId, 6, 13, $now),
+        ]);
+
+        $this->withHeaders($scope['headers'])
+            ->getJson('/api/v1/staff/reporting/daily-inventory?start_date='.$scope['business_date'].'&end_date='.$scope['business_date'].'&ingredient_id='.$ingredientId)
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('meta.snapshot_health.scope_count', 2)
+            ->assertJsonMissing(['branch_id' => $scope['denied_branch_id']]);
+
+        $this->withHeaders($scope['headers'])
+            ->getJson('/api/v1/staff/reporting/daily-inventory?branch_id='.$scope['allowed_branch_id'].'&start_date='.$scope['business_date'].'&end_date='.$scope['business_date'].'&ingredient_id='.$ingredientId)
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.branch_id', $scope['allowed_branch_id'])
+            ->assertJsonPath('meta.snapshot_health.scope_count', 1);
+
+        $this->withHeaders($scope['headers'])
+            ->getJson('/api/v1/staff/reporting/daily-inventory?branch_id='.$scope['denied_branch_id'].'&start_date='.$scope['business_date'].'&end_date='.$scope['business_date'].'&ingredient_id='.$ingredientId)
+            ->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonValidationErrors(['branch_id']);
+    }
+
     public function test_non_staff_requests_are_rejected_for_reporting_read_models(): void
     {
         $response = $this->getJson('/api/v1/staff/reporting/daily-sales');
         $response->assertUnauthorized();
+    }
+
+    /**
+     * @return array{headers:array<string,string>,allowed_branch_id:int,denied_branch_id:int,business_date:string}
+     */
+    private function makeReportingBranchScopeFixture(string $suffix): array
+    {
+        $reportingRoleId = $this->ensureRole('Branch Reporter '.$suffix);
+        $staffId = $this->createUser([
+            'role_id' => $reportingRoleId,
+            'role_name' => 'Branch Reporter '.$suffix,
+        ]);
+        $allowedBranchId = $this->createBranch([
+            'branch_code' => 'RPT-'.$suffix.'-ALLOW',
+            'branch_name' => 'Reporting '.$suffix.' Allow',
+        ]);
+        $deniedBranchId = $this->createBranch([
+            'branch_code' => 'RPT-'.$suffix.'-DENY',
+            'branch_name' => 'Reporting '.$suffix.' Deny',
+        ]);
+
+        $roleIdCapabilities = (array) config('staff_capabilities.role_id_capabilities', []);
+        $roleIdCapabilities[$reportingRoleId] = ['reporting.view'];
+        config()->set('staff_capabilities.role_id_capabilities', $roleIdCapabilities);
+
+        $roleIdBranchScopes = (array) config('staff_capabilities.role_id_branch_scopes', []);
+        $roleIdBranchScopes[$reportingRoleId] = ['default', (string) $allowedBranchId];
+        config()->set('staff_capabilities.role_id_branch_scopes', $roleIdBranchScopes);
+
+        return [
+            'headers' => $this->staffAuthHeaders($staffId, 'staff-reporting-'.$suffix.'-scope'),
+            'allowed_branch_id' => $allowedBranchId,
+            'denied_branch_id' => $deniedBranchId,
+            'business_date' => '2026-04-07',
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function salesSnapshotRow(int $branchId, string $businessDate, int $grossAmount, int $netAmount, Carbon $now): array
+    {
+        return [
+            'branch_id' => $branchId,
+            'business_date' => $businessDate,
+            'currency' => 'VND',
+            'billed_reservation_count' => 1,
+            'billed_guest_count' => 2,
+            'gross_bill_amount' => $grossAmount,
+            'billed_total_amount' => $grossAmount,
+            'payment_row_count' => 1,
+            'captured_amount' => $netAmount,
+            'net_paid_amount' => $netAmount,
+            'final_net_amount' => $netAmount,
+            'refreshed_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function operationSnapshotRow(int $branchId, string $businessDate, int $scheduledCount, int $completedCount, Carbon $now): array
+    {
+        return [
+            'branch_id' => $branchId,
+            'business_date' => $businessDate,
+            'scheduled_reservation_count' => $scheduledCount,
+            'scheduled_guest_count' => $scheduledCount * 2,
+            'completed_count' => $completedCount,
+            'turn_count' => $completedCount,
+            'turn_minutes_total' => $completedCount * 45,
+            'waiting_list_created_count' => $scheduledCount,
+            'waiting_list_seated_count' => $completedCount,
+            'refreshed_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function inventorySnapshotRow(int $branchId, string $businessDate, int $ingredientId, int $movementCount, int $netQuantity, Carbon $now): array
+    {
+        return [
+            'branch_id' => $branchId,
+            'business_date' => $businessDate,
+            'ingredient_id' => $ingredientId,
+            'unit_code' => 'kg',
+            'movement_count' => $movementCount,
+            'purchase_receipt_movement_count' => 1,
+            'stock_in_quantity' => $netQuantity,
+            'net_quantity_delta' => $netQuantity,
+            'last_movement_at' => $now,
+            'refreshed_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
     }
 }

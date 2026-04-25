@@ -89,6 +89,7 @@ This workflow is the canonical machine-readable evidence producer for release si
 - canonical release loop JSON
 - package sidecars from `build/booking-release/`
 - `staff-web` live smoke evidence under `storage/app/booking_release/release_loop/`
+- `customer-web` contract/lint/typecheck/test/build/Playwright smoke evidence under `storage/app/booking_release/release_loop/`
 
 For limited-production sign-off, attach one operator-supplied manual evidence JSON to the same release record. That file must record `pass` for `uat_scenario_pack_replay`, `performance_verification_report`, `payment_provider_external_e2e`, `notification_provider_external_e2e`, and `concurrency_rehearsal`. The workflow does not fabricate those external rehearsals on its own.
 
@@ -98,7 +99,7 @@ The workflows assume ephemeral CI services:
 
 - MySQL 8.0
 - Redis 7
-- Node.js 20 for `staff-web` test/build/smoke in the manual release gate
+- Node.js 20 for `staff-web` and `customer-web` test/build/smoke in the manual release gate
 
 Important defaults baked into the workflow env:
 
@@ -107,7 +108,8 @@ Important defaults baked into the workflow env:
 - `QUEUE_CONNECTION=database`
 - `SESSION_DRIVER=database`
 - `MAIL_MAILER=log`
-- `BOOKING_CI_BOOTSTRAP_STAFF_WEB=true` on the manual release-gate workflow so `staff-web/node_modules` is installed before the release loop runs
+- `BOOKING_CI_BOOTSTRAP_STAFF_WEB=true` and `BOOKING_CI_BOOTSTRAP_CUSTOMER_WEB=true` on the manual release-gate workflow so both split-web workspaces install `node_modules` before the release loop runs
+- the manual release-gate workflow installs customer-web Chromium browsers before `booking:release-loop`, because `customer_web_e2e_smoke` is a blocking Playwright step in the full-system release lane
 
 Preview/observability truth rules:
 
@@ -135,7 +137,7 @@ Inside the manual release-gate workflow, `scripts/ci/booking-release-gate.sh` no
 1. runs the backend full gate
 2. starts `php artisan serve` for local live smoke
 3. runs `php artisan booking:release-loop --json`
-4. persists the combined backend + `staff-web` evidence bundle
+4. persists the combined backend + split-web evidence bundle
 
 ## Notes
 

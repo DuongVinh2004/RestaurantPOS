@@ -539,7 +539,7 @@ class StaffReservationDepositService
             || str_contains($message, 'uq_payments__transaction_code')
             || str_contains($message, 'uq_payments_transaction_code')
         ) {
-            throw ValidationException::withMessages(['transaction_code' => 'transaction_code already exists.']);
+            throw ValidationException::withMessages(['transaction_code' => DatabaseWriteConflictMapper::DUPLICATE_PROVIDER_TRANSACTION_MESSAGE]);
         }
         if ($this->isDuplicatePaymentIdempotencyConstraint($e)) {
             throw ValidationException::withMessages(['idempotency_key' => 'idempotency key already used.']);

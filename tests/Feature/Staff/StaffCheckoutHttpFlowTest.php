@@ -31,7 +31,7 @@ class StaffCheckoutHttpFlowTest extends TestCase
 
     public function test_settlement_preview_returns_order_totals_for_staff_route(): void
     {
-        [$staffId, $orderId] = $this->seedActiveOrderScenario();
+        [$staffId, $orderId] = $this->seedActiveOrderScenario('Cashier');
 
         $response = $this->withHeaders($this->staffAuthHeaders($staffId))
             ->getJson("/api/v1/staff/orders/{$orderId}/settlement-preview");
@@ -87,7 +87,7 @@ class StaffCheckoutHttpFlowTest extends TestCase
 
     public function test_settlement_preview_rejects_branch_drifted_reservation_assignment(): void
     {
-        [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario();
+        [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario('Cashier');
         $annexBranchId = $this->createBranch([
             'branch_code' => 'ANNEXSETPRE',
             'branch_name' => 'Annex Settlement Preview',
@@ -150,7 +150,7 @@ class StaffCheckoutHttpFlowTest extends TestCase
 
     public function test_pay_and_finalize_alias_complete_the_reservation_settlement(): void
     {
-        [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario();
+        [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario('Cashier');
         $this->openCashierShiftForReservationBranch($staffId, $reservationId);
 
         $payResponse = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-pay'))
@@ -171,7 +171,7 @@ class StaffCheckoutHttpFlowTest extends TestCase
 
         $this->assertSame('Completed', (string) $this->table('reservations')->where('reservation_id', $reservationId)->value('status'));
 
-        [$staffId2, $orderId2, $reservationId2] = $this->seedActiveOrderScenario();
+        [$staffId2, $orderId2, $reservationId2] = $this->seedActiveOrderScenario('Cashier');
         $this->openCashierShiftForReservationBranch($staffId2, $reservationId2);
 
         $checkoutResponse = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId2), 'idem-finalize-checkout'))
@@ -196,7 +196,7 @@ class StaffCheckoutHttpFlowTest extends TestCase
 
     public function test_settlement_and_refund_mutations_require_open_cashier_shift_in_the_reservation_branch(): void
     {
-        [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario();
+        [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario('Manager');
         $otherBranchId = $this->createBranch([
             'branch_code' => 'CHKSHIFT',
             'branch_name' => 'Checkout Shift Branch',
@@ -255,7 +255,7 @@ class StaffCheckoutHttpFlowTest extends TestCase
 
     public function test_settlement_and_refund_mutations_reject_open_shift_with_mismatched_currency(): void
     {
-        [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario();
+        [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario('Manager');
         $branchId = (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('branch_id');
         $this->createCashierShift([
             'cashier_user_id' => $staffId,
@@ -319,10 +319,10 @@ class StaffCheckoutHttpFlowTest extends TestCase
     /**
      * @return array{0:int,1:int,2:int}
      */
-    private function seedActiveOrderScenario(): array
+    private function seedActiveOrderScenario(string $roleName = 'Staff'): array
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => $roleName]);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,

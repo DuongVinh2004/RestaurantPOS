@@ -81,7 +81,7 @@ class WaitlistController extends Controller
             'meta' => [
                 'action' => 'await_staff_seating',
                 'staff_seat_required' => true,
-                'message' => 'Đã xác nhận tới nơi. Nhân viên sẽ thực hiện seat khi sẵn sàng.',
+                'message' => 'Arrival confirmed. Staff will complete seating when ready.',
             ],
         ]);
     }

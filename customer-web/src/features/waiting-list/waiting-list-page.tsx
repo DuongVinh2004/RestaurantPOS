@@ -302,7 +302,7 @@ function WaitingListWorkspace() {
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                       <span>Requested {formatDateTime(entry.requested_at)}</span>
-                      <span>Response {formatInlineStateLabel(entry.current_response_state)}</span>
+                      <span>Next step {formatInlineStateLabel(entry.next_step)}</span>
                     </div>
                   </button>
                 );
@@ -362,12 +362,12 @@ function WaitingListWorkspace() {
                           {activeEntry.guest_name ?? "Guest"} - {activeEntry.guest_count} guests
                         </h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          Requested {formatDateTime(activeEntry.requested_at)} - Response {formatInlineStateLabel(activeEntry.current_response_state)}
+                          Requested {formatDateTime(activeEntry.requested_at)} - Next step {formatInlineStateLabel(activeEntry.next_step)}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <StatusBadge status={activeEntry.status} />
-                        <StatusBadge status={formatInlineStateLabel(activeEntry.current_response_state)} />
+                        <StatusBadge status={formatInlineStateLabel(activeEntry.next_step)} />
                       </div>
                     </div>
                   </div>
@@ -395,7 +395,7 @@ function WaitingListWorkspace() {
                       <p className="text-sm text-muted-foreground">Invite window</p>
                       <p className="mt-1 font-medium">{describeInviteWindow(activeEntry)}</p>
                       <p className="mt-2 text-sm text-muted-foreground">
-                        Notified {formatDateTime(activeEntry.invite_window.notified_at)} - Expires {formatDateTime(activeEntry.invite_window.expires_at)}
+                        Notified {formatDateTime(activeEntry.notified_at)} - Expires {formatDateTime(activeEntry.notify_window.expires_at)}
                       </p>
                     </div>
                     <div className="rounded-lg border p-4">
@@ -498,16 +498,16 @@ function waitingListActionSuccessMessage(
 }
 
 function describeInviteWindow(entry: CustomerWaitingListEntry) {
-  if (entry.invite_window.is_active) {
-    return `Active invite until ${formatDateTime(entry.invite_window.expires_at)}`;
+  if (entry.notify_window.is_open) {
+    return `Active invite until ${formatDateTime(entry.notify_window.expires_at)}`;
   }
 
-  if (entry.invite_window.is_expired) {
-    return `Invite expired at ${formatDateTime(entry.invite_window.expires_at)}`;
+  if (entry.notify_window.expires_at && entry.status === "Notified") {
+    return `Invite expired at ${formatDateTime(entry.notify_window.expires_at)}`;
   }
 
-  if (entry.invite_window.notified_at) {
-    return `Last invite opened at ${formatDateTime(entry.invite_window.notified_at)}`;
+  if (entry.notified_at) {
+    return `Last invite opened at ${formatDateTime(entry.notified_at)}`;
   }
 
   return "No active invite window";

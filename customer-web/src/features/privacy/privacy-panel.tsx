@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/status/status-badge";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
@@ -85,7 +86,9 @@ export function PrivacyPanel() {
         )}
 
         <div className="space-y-2">
+          <Label htmlFor="privacy-request-note">Optional note</Label>
           <Textarea
+            id="privacy-request-note"
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             className="min-h-24 rounded-lg"

@@ -102,6 +102,7 @@ class CustomerWaitingListOwnerResponseFlowTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('data.status', 'Notified')
+            ->assertJsonPath('data.response_state', 'accepted')
             ->assertJsonPath('data.available_actions.accept', true);
 
         $this->assertSame('Accepted', (string) DB::table('waiting_list')->where('waiting_id', $waitingId)->value('customer_response_status'));
@@ -139,6 +140,7 @@ class CustomerWaitingListOwnerResponseFlowTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('data.status', 'Cancelled')
+            ->assertJsonPath('data.response_state', 'declined')
             ->assertJsonPath('data.cancel_reason', 'Declined by customer');
 
         $this->assertSame('Declined', (string) DB::table('waiting_list')->where('waiting_id', $waitingId)->value('customer_response_status'));
@@ -172,6 +174,7 @@ class CustomerWaitingListOwnerResponseFlowTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('data.status', 'Cancelled')
+            ->assertJsonPath('data.response_state', 'none')
             ->assertJsonPath('data.cancel_reason', 'Cancelled by customer');
     }
 
@@ -211,7 +214,19 @@ class CustomerWaitingListOwnerResponseFlowTest extends TestCase
             'row_version' => 1,
         ])
             ->assertStatus(422)
-            ->assertJsonPath('details.errors.notify_window.0', 'Notify window đã hết hạn hoặc không còn hợp lệ cho waiting entry này.');
+            ->assertJsonPath('details.errors.notify_window.0', 'The notify window has expired or is no longer valid for this waiting-list entry.');
+
+        $this->withHeaders([
+            'X-Customer-Token' => $ownerToken,
+            'Idempotency-Key' => 'waiting-stale-row-version-1',
+        ])->postJson('/api/v1/waiting-list/'.$waitingStateId.'/accept', [
+            'row_version' => 1,
+        ])
+            ->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
+            ->assertJsonPath('category_code', 'stale_write')
+            ->assertJsonPath('details.errors.row_version.0', 'Waiting-list data changed (row_version mismatch). Reload and try again.')
+            ->assertJsonValidationErrors(['row_version']);
 
         $this->withHeaders([
             'X-Customer-Token' => $ownerToken,
@@ -220,7 +235,7 @@ class CustomerWaitingListOwnerResponseFlowTest extends TestCase
             'row_version' => 2,
         ])
             ->assertStatus(422)
-            ->assertJsonPath('details.errors.status.0', 'Chỉ có entry ở trạng thái Notified mới cho phép customer response này.');
+            ->assertJsonPath('details.errors.status.0', 'Only notified waiting-list entries can accept, decline, or confirm arrival.');
 
         Carbon::setTestNow();
     }

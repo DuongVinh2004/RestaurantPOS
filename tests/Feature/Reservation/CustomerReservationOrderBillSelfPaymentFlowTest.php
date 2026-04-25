@@ -268,7 +268,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
             ->assertJsonPath('data.bill_preview.self_payment.supported', false)
             ->assertJsonPath('data.bill_preview.self_payment.available', false)
             ->assertJsonPath('data.bill_preview.self_payment.next_step', 'staff_settlement_only')
-            ->assertJsonPath('data.bill_preview.self_payment.disabled_reason', 'Customer bill self-payment is disabled for this rollout. Use staff settlement.');
+            ->assertJsonPath('data.bill_preview.self_payment.disabled_reason', 'Customer bill self-payment is disabled for day 1. Keep bill preview and active-order reads only, and use staff settlement.');
 
         $this->actingAs($customer)->withHeaders([
             'Idempotency-Key' => 'cust-bill-branch-disabled-create-1',
@@ -280,7 +280,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
             'currency' => 'VND',
         ])->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error')
-            ->assertJsonPath('errors.provider_code.0', 'Customer bill self-payment is disabled for this rollout. Use staff settlement.');
+            ->assertJsonPath('errors.provider_code.0', 'Customer bill self-payment is disabled for day 1. Keep bill preview and active-order reads only, and use staff settlement.');
     }
 
     public function test_duplicate_create_and_confirm_do_not_double_apply_final_payment(): void

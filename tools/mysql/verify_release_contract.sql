@@ -136,6 +136,130 @@ EXECUTE verify_stmt;
 DEALLOCATE PREPARE verify_stmt;
 
 SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.key_column_usage
+        WHERE constraint_schema = DATABASE()
+          AND table_name = 'reservations'
+          AND constraint_name = 'fk_reservations__branch_id__branches'
+          AND column_name = 'branch_id'
+          AND referenced_table_name = 'branches'
+          AND referenced_column_name = 'branch_id'
+    ),
+    'SELECT "reservations.branch_id_fk:ok"',
+    'SELECT * FROM __missing_restore_contract_reservations_branch_fk__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'kitchen_stations' AND column_name = 'branch_id'),
+    'SELECT "kitchen_stations.branch_id:ok"',
+    'SELECT * FROM __missing_restore_contract_kitchen_stations_branch_id__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.key_column_usage
+        WHERE constraint_schema = DATABASE()
+          AND table_name = 'kitchen_stations'
+          AND constraint_name = 'fk_kitchen_stations__branch_id__branches'
+          AND column_name = 'branch_id'
+          AND referenced_table_name = 'branches'
+          AND referenced_column_name = 'branch_id'
+    ),
+    'SELECT "kitchen_stations.branch_id_fk:ok"',
+    'SELECT * FROM __missing_restore_contract_kitchen_stations_branch_fk__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'kitchen_station_category_routes' AND column_name = 'branch_id'),
+    'SELECT "kitchen_station_category_routes.branch_id:ok"',
+    'SELECT * FROM __missing_restore_contract_kitchen_station_category_routes_branch_id__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.statistics
+        WHERE table_schema = DATABASE()
+          AND table_name = 'kitchen_station_category_routes'
+          AND index_name = 'uq_kitchen_station_category_routes__branch_id__category_id'
+          AND non_unique = 0
+    ),
+    'SELECT "kitchen_station_category_routes.branch_category_unique:ok"',
+    'SELECT * FROM __missing_restore_contract_kitchen_routes_branch_category_unique__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.key_column_usage
+        WHERE constraint_schema = DATABASE()
+          AND table_name = 'kitchen_station_category_routes'
+          AND constraint_name = 'fk_kitchen_station_category_routes__branch_id__branches'
+          AND column_name = 'branch_id'
+          AND referenced_table_name = 'branches'
+          AND referenced_column_name = 'branch_id'
+    ),
+    'SELECT "kitchen_station_category_routes.branch_id_fk:ok"',
+    'SELECT * FROM __missing_restore_contract_kitchen_station_category_routes_branch_fk__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.key_column_usage
+        WHERE constraint_schema = DATABASE()
+          AND table_name = 'table_holds'
+          AND constraint_name = 'fk_table_holds__branch_id__branches'
+          AND column_name = 'branch_id'
+          AND referenced_table_name = 'branches'
+          AND referenced_column_name = 'branch_id'
+    ),
+    'SELECT "table_holds.branch_id_fk:ok"',
+    'SELECT * FROM __missing_restore_contract_table_holds_branch_fk__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.key_column_usage
+        WHERE constraint_schema = DATABASE()
+          AND table_name = 'cashier_shifts'
+          AND constraint_name = 'fk_cashier_shifts__branch_id__branches'
+          AND column_name = 'branch_id'
+          AND referenced_table_name = 'branches'
+          AND referenced_column_name = 'branch_id'
+    ),
+    'SELECT "cashier_shifts.branch_id_fk:ok"',
+    'SELECT * FROM __missing_restore_contract_cashier_shifts_branch_fk__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
     EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'customer_privacy_requests'),
     'SELECT "customer_privacy_requests:ok"',
     'SELECT * FROM __missing_restore_contract_customer_privacy_requests__'
@@ -166,6 +290,51 @@ SET @stmt := IF(
     EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'staff_api_keys'),
     'SELECT "staff_api_keys:ok"',
     'SELECT * FROM __missing_restore_contract_staff_api_keys__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'staff_branch_assignments'),
+    'SELECT "staff_branch_assignments:ok"',
+    'SELECT * FROM __missing_restore_contract_staff_branch_assignments__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.key_column_usage
+        WHERE constraint_schema = DATABASE()
+          AND table_name = 'staff_branch_assignments'
+          AND constraint_name = 'fk_staff_branch_assignments__user_id__users'
+          AND column_name = 'user_id'
+          AND referenced_table_name = 'users'
+          AND referenced_column_name = 'user_id'
+    ),
+    'SELECT "staff_branch_assignments.user_id_fk:ok"',
+    'SELECT * FROM __missing_restore_contract_staff_branch_assignments_user_fk__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.key_column_usage
+        WHERE constraint_schema = DATABASE()
+          AND table_name = 'staff_branch_assignments'
+          AND constraint_name = 'fk_staff_branch_assignments__branch_id__branches'
+          AND column_name = 'branch_id'
+          AND referenced_table_name = 'branches'
+          AND referenced_column_name = 'branch_id'
+    ),
+    'SELECT "staff_branch_assignments.branch_id_fk:ok"',
+    'SELECT * FROM __missing_restore_contract_staff_branch_assignments_branch_fk__'
 );
 PREPARE verify_stmt FROM @stmt;
 EXECUTE verify_stmt;

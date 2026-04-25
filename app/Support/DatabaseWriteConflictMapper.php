@@ -9,7 +9,7 @@ use Illuminate\Validation\ValidationException;
 
 final class DatabaseWriteConflictMapper
 {
-    private const DUPLICATE_PROVIDER_TRANSACTION_MESSAGE = 'Transaction code already exists for this payment provider. Check reconciliation or use a different code.';
+    public const DUPLICATE_PROVIDER_TRANSACTION_MESSAGE = 'Transaction code already exists for this payment provider. Check reconciliation or use a different code.';
 
     public static function toValidationException(QueryException $exception): ?ValidationException
     {
