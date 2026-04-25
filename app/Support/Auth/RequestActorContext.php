@@ -98,12 +98,16 @@ final class RequestActorContext
     public static function fromRequest(Request $request): self
     {
         $explicitType = self::normalizeNullableString($request->attributes->get(self::ATTR_TYPE));
+        $resolvedUser = self::normalizeRecognizedUser($request->user());
+        $resolvedStaffUser = self::isAllowedStaffUser($resolvedUser) ? $resolvedUser : null;
+        $resolvedCustomerUser = self::isAllowedCustomerUser($resolvedUser) ? $resolvedUser : null;
 
         if ($explicitType === self::TYPE_STAFF) {
             return new self(
                 type: self::TYPE_STAFF,
-                user: $request->user(),
-                staffUserId: self::normalizePositiveInt($request->attributes->get('staff_actor_user_id')),
+                user: $resolvedStaffUser,
+                staffUserId: self::normalizePositiveInt($request->attributes->get('staff_actor_user_id'))
+                    ?? self::normalizePositiveInt($resolvedStaffUser?->user_id),
                 authMode: self::normalizeNullableString($request->attributes->get('staff_auth_mode'))
                     ?? self::normalizeNullableString($request->attributes->get(self::ATTR_AUTH_MODE)),
                 staffApiKeyId: self::normalizePositiveInt($request->attributes->get('staff_api_key_id')),
@@ -113,8 +117,9 @@ final class RequestActorContext
         if ($explicitType === self::TYPE_CUSTOMER_OWNER) {
             return new self(
                 type: self::TYPE_CUSTOMER_OWNER,
-                user: $request->user(),
-                customerUserId: self::normalizePositiveInt($request->attributes->get('customer_actor_user_id')),
+                user: $resolvedCustomerUser,
+                customerUserId: self::normalizePositiveInt($request->attributes->get('customer_actor_user_id'))
+                    ?? self::normalizePositiveInt($resolvedCustomerUser?->user_id),
                 sessionId: self::normalizeNullableString($request->attributes->get('customer_session_id')),
                 authMode: self::normalizeNullableString($request->attributes->get('customer_auth_mode'))
                     ?? self::normalizeNullableString($request->attributes->get(self::ATTR_AUTH_MODE)),
@@ -140,20 +145,34 @@ final class RequestActorContext
         if ((bool) $request->attributes->get('is_staff', false) || self::normalizePositiveInt($request->attributes->get('staff_actor_user_id')) !== null) {
             return new self(
                 type: self::TYPE_STAFF,
-                user: $request->user(),
-                staffUserId: self::normalizePositiveInt($request->attributes->get('staff_actor_user_id')),
+                user: $resolvedStaffUser,
+                staffUserId: self::normalizePositiveInt($request->attributes->get('staff_actor_user_id'))
+                    ?? self::normalizePositiveInt($resolvedStaffUser?->user_id),
                 authMode: self::normalizeNullableString($request->attributes->get('staff_auth_mode')),
                 staffApiKeyId: self::normalizePositiveInt($request->attributes->get('staff_api_key_id')),
             );
         }
 
-        if (self::normalizePositiveInt($request->attributes->get('customer_actor_user_id')) !== null) {
+        if ($resolvedStaffUser instanceof User) {
+            return new self(
+                type: self::TYPE_STAFF,
+                user: $resolvedStaffUser,
+                staffUserId: self::normalizePositiveInt($resolvedStaffUser->user_id),
+                authMode: self::normalizeNullableString($request->attributes->get('staff_auth_mode'))
+                    ?? self::normalizeNullableString($request->attributes->get(self::ATTR_AUTH_MODE)),
+                staffApiKeyId: self::normalizePositiveInt($request->attributes->get('staff_api_key_id')),
+            );
+        }
+
+        if (self::normalizePositiveInt($request->attributes->get('customer_actor_user_id')) !== null || $resolvedCustomerUser instanceof User) {
             return new self(
                 type: self::TYPE_CUSTOMER_OWNER,
-                user: $request->user(),
-                customerUserId: self::normalizePositiveInt($request->attributes->get('customer_actor_user_id')),
+                user: $resolvedCustomerUser,
+                customerUserId: self::normalizePositiveInt($request->attributes->get('customer_actor_user_id'))
+                    ?? self::normalizePositiveInt($resolvedCustomerUser?->user_id),
                 sessionId: self::normalizeNullableString($request->attributes->get('customer_session_id')),
-                authMode: self::normalizeNullableString($request->attributes->get('customer_auth_mode')),
+                authMode: self::normalizeNullableString($request->attributes->get('customer_auth_mode'))
+                    ?? self::normalizeNullableString($request->attributes->get(self::ATTR_AUTH_MODE)),
                 customerAccessSessionId: self::normalizePositiveInt($request->attributes->get('customer_access_session_id')),
                 guestName: self::normalizeNullableString($request->attributes->get('customer_guest_name')),
                 phone: self::normalizeNullableString($request->attributes->get('customer_phone')),
@@ -301,6 +320,16 @@ final class RequestActorContext
         return $this->authMode;
     }
 
+    public function customerAccessSessionId(): ?int
+    {
+        return $this->customerAccessSessionId;
+    }
+
+    public function staffApiKeyId(): ?int
+    {
+        return $this->staffApiKeyId;
+    }
+
     private function clearResolvedAttributes(Request $request): void
     {
         foreach ([
@@ -352,5 +381,56 @@ final class RequestActorContext
         $normalized = (int) ($value ?? 0);
 
         return $normalized > 0 ? $normalized : null;
+    }
+
+    private static function normalizeRecognizedUser(mixed $value): ?User
+    {
+        if (! $value instanceof User) {
+            return null;
+        }
+
+        if ((bool) ($value->is_deleted ?? false)) {
+            return null;
+        }
+
+        return $value;
+    }
+
+    private static function isAllowedStaffUser(?User $user): bool
+    {
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        return in_array(
+            (int) ($user->role_id ?? 0),
+            self::normalizeAllowedRoleIds((array) config('staff_auth.allowed_role_ids', [1, 2])),
+            true,
+        );
+    }
+
+    private static function isAllowedCustomerUser(?User $user): bool
+    {
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        return in_array(
+            (int) ($user->role_id ?? 0),
+            self::normalizeAllowedRoleIds((array) config('customer_auth.allowed_role_ids', [3])),
+            true,
+        );
+    }
+
+    /**
+     * @param  array<int, mixed>  $values
+     * @return list<int>
+     */
+    private static function normalizeAllowedRoleIds(array $values): array
+    {
+        return array_values(array_filter(
+            array_map(static fn ($value): int => (int) $value, $values),
+            static fn (int $value): bool => $value > 0,
+        ));
     }
 }

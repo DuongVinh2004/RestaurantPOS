@@ -225,6 +225,7 @@ test("menu home loads with mock-backed customer content", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByRole("heading", { name: "Browse the menu before your visit." })).toBeVisible();
+  await expect(page.getByRole("searchbox", { name: "Search menu items" })).toBeVisible();
   await expect(page.getByRole("main").getByRole("link", { name: "Find a table" })).toBeVisible();
   await expect(page.getByText("Herb Chicken Bowl")).toBeVisible();
 });
@@ -233,9 +234,12 @@ test("booking can create a hold and continue to reservation", async ({ page }) =
   await page.goto("/booking");
 
   await page.getByRole("button", { name: "Search tables" }).click();
-  await expect(page.getByRole("button", { name: /Table 7/i })).toBeVisible();
+  const tableOption = page.getByRole("button", { name: "Table 7 table option" });
+  await expect(tableOption).toBeVisible();
+  await expect(tableOption).toHaveAttribute("aria-pressed", "false");
 
-  await page.getByRole("button", { name: /Table 7/i }).click();
+  await tableOption.click();
+  await expect(tableOption).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Create hold" }).click();
 
   const continueLink = page.getByRole("link", { name: "Continue to reservation" });

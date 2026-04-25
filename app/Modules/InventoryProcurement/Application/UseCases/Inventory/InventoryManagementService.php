@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\InventoryProcurement\Application\UseCases\Inventory;
 
+use App\Modules\BranchScheduling\Domain\Models\Branch;
 use App\Modules\Catalog\Domain\Models\MenuItem;
 use App\Modules\Catalog\Domain\Models\MenuItemRecipe;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\InventoryProcurement\Domain\Models\Ingredient;
 use App\Modules\InventoryProcurement\Domain\Models\IngredientStockMovement;
 use App\Support\Listing\SafeLike;
@@ -20,22 +22,25 @@ class InventoryManagementService
 {
     public function __construct(
         private readonly InventoryStockMovementService $stockMovementService,
+        private readonly StaffBranchContextService $staffBranchContextService,
     ) {}
 
     /**
      * @param  array<string, mixed>  $filters
      */
-    public function paginateIngredients(array $filters = []): LengthAwarePaginator
+    public function paginateIngredients(array $filters = [], ?int $actorUserId = null): LengthAwarePaginator
     {
         $perPage = max(1, min((int) ($filters['per_page'] ?? config('booking.admin_inventory_page_default', 25)), (int) config('booking.admin_inventory_page_max', 100)));
         $page = max(1, (int) ($filters['page'] ?? 1));
         $keyword = trim((string) ($filters['q'] ?? ''));
+        $requestedBranchId = isset($filters['branch_id']) ? (int) $filters['branch_id'] : null;
+        $accessibleBranchIds = $this->branchScopeForActor($actorUserId, $requestedBranchId);
         [$sortColumn, $sortDirection, $rawSort] = $this->resolveIngredientSort(
             (string) ($filters['sort_by'] ?? 'name'),
             (string) ($filters['sort_dir'] ?? 'asc'),
         );
 
-        $query = $this->baseIngredientsQuery()
+        $query = $this->baseIngredientsQuery($requestedBranchId, $accessibleBranchIds)
             ->when(array_key_exists('is_active', $filters) && $filters['is_active'] !== null, static fn ($query) => $query->where('ingredients.is_active', (bool) $filters['is_active']))
             ->when($keyword !== '', static function ($query) use ($keyword): void {
                 $like = SafeLike::contains($keyword);
@@ -66,10 +71,12 @@ class InventoryManagementService
             ]);
     }
 
-    public function findIngredient(int $ingredientId, ?int $branchId = null): Ingredient
+    public function findIngredient(int $ingredientId, ?int $branchId = null, ?int $actorUserId = null): Ingredient
     {
+        $accessibleBranchIds = $this->branchScopeForActor($actorUserId, $branchId);
+
         /** @var Ingredient|null $ingredient */
-        $ingredient = $this->baseIngredientsQuery($branchId)
+        $ingredient = $this->baseIngredientsQuery($branchId, $accessibleBranchIds)
             ->where('ingredients.ingredient_id', $ingredientId)
             ->first();
 
@@ -222,22 +229,33 @@ class InventoryManagementService
     /**
      * @param  array<string, mixed>  $filters
      */
-    public function paginateIngredientMovements(int $ingredientId, array $filters = []): LengthAwarePaginator
+    public function paginateIngredientMovements(int $ingredientId, array $filters = [], ?int $actorUserId = null): LengthAwarePaginator
     {
         Ingredient::query()->findOrFail($ingredientId);
 
         $perPage = max(1, min((int) ($filters['per_page'] ?? config('booking.admin_inventory_page_default', 25)), (int) config('booking.admin_inventory_page_max', 100)));
         $page = max(1, (int) ($filters['page'] ?? 1));
+        $requestedBranchId = isset($filters['branch_id']) ? (int) $filters['branch_id'] : null;
+        $accessibleBranchIds = $this->branchScopeForActor($actorUserId, $requestedBranchId);
         [$sortColumn, $sortDirection] = $this->resolveMovementSort(
             (string) ($filters['sort_by'] ?? 'created_at'),
             (string) ($filters['sort_dir'] ?? 'desc'),
         );
 
-        return IngredientStockMovement::query()
+        $query = IngredientStockMovement::query()
             ->where('ingredient_id', $ingredientId)
             ->when(isset($filters['movement_type']), static fn ($query) => $query->where('movement_type', (string) $filters['movement_type']))
-            ->when(isset($filters['branch_id']), static fn ($query) => $query->where('branch_id', (int) $filters['branch_id']))
-            ->orderBy($sortColumn, $sortDirection)
+            ->when(isset($filters['branch_id']), static fn ($query) => $query->where('branch_id', (int) $filters['branch_id']));
+
+        if ($requestedBranchId === null && is_array($accessibleBranchIds)) {
+            if ($accessibleBranchIds === []) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn('branch_id', $accessibleBranchIds);
+            }
+        }
+
+        return $query->orderBy($sortColumn, $sortDirection)
             ->when($sortColumn !== 'movement_id', static fn ($query) => $query->orderByDesc('movement_id'))
             ->paginate($perPage, ['*'], 'page', $page)
             ->appends([
@@ -253,6 +271,8 @@ class InventoryManagementService
      */
     public function createIngredientMovement(int $ingredientId, array $payload, ?int $actorUserId = null): array
     {
+        $branchId = $this->resolveWritableBranchId($actorUserId, $payload['branch_id'] ?? null);
+
         $movement = $this->stockMovementService->recordMovement($ingredientId, [
             'movement_type' => (string) $payload['movement_type'],
             'quantity' => $payload['quantity'],
@@ -260,7 +280,7 @@ class InventoryManagementService
             'reference_type' => $payload['reference_type'] ?? null,
             'reference_id' => $payload['reference_id'] ?? null,
             'notes' => $payload['notes'] ?? null,
-            'branch_id' => $payload['branch_id'] ?? null,
+            'branch_id' => $branchId,
             'created_at' => now('UTC'),
         ], $actorUserId);
 
@@ -272,12 +292,24 @@ class InventoryManagementService
         ];
     }
 
-    private function baseIngredientsQuery(?int $branchId = null): Builder
+    /**
+     * @param  list<int>|null  $accessibleBranchIds
+     */
+    private function baseIngredientsQuery(?int $branchId = null, ?array $accessibleBranchIds = null): Builder
     {
         $stockSubquery = IngredientStockMovement::query()
-            ->when($branchId !== null, static fn ($query) => $query->where('branch_id', $branchId))
             ->selectRaw('ingredient_id, SUM(quantity_delta) as stock_on_hand_quantity')
             ->groupBy('ingredient_id');
+
+        if ($branchId !== null) {
+            $stockSubquery->where('branch_id', $branchId);
+        } elseif (is_array($accessibleBranchIds)) {
+            if ($accessibleBranchIds === []) {
+                $stockSubquery->whereRaw('1 = 0');
+            } else {
+                $stockSubquery->whereIn('branch_id', $accessibleBranchIds);
+            }
+        }
 
         $recipeUsageSubquery = MenuItemRecipe::query()
             ->selectRaw('ingredient_id, COUNT(*) as recipe_usage_count')
@@ -295,6 +327,37 @@ class InventoryManagementService
             ->leftJoinSub($recipeUsageSubquery, 'recipe_usage', static function ($join): void {
                 $join->on('recipe_usage.ingredient_id', '=', 'ingredients.ingredient_id');
             });
+    }
+
+    /**
+     * @return list<int>|null
+     */
+    private function branchScopeForActor(?int $actorUserId, ?int $requestedBranchId = null): ?array
+    {
+        if ($actorUserId === null || $actorUserId <= 0) {
+            return null;
+        }
+
+        return $this->staffBranchContextService->branchScopeOrAccessible($actorUserId, $requestedBranchId);
+    }
+
+    private function resolveWritableBranchId(?int $actorUserId, mixed $requestedBranchId = null): ?int
+    {
+        if ($actorUserId === null || $actorUserId <= 0) {
+            return $requestedBranchId !== null && $requestedBranchId !== '' ? (int) $requestedBranchId : null;
+        }
+
+        if ($requestedBranchId !== null && $requestedBranchId !== '') {
+            return $this->staffBranchContextService->assertAccessibleBranch($actorUserId, (int) $requestedBranchId);
+        }
+
+        $context = $this->staffBranchContextService->branchAccessContext($actorUserId);
+        $currentBranchId = isset($context['current_branch_id']) ? (int) $context['current_branch_id'] : 0;
+        if ($currentBranchId <= 0) {
+            throw (new ModelNotFoundException)->setModel(Branch::class);
+        }
+
+        return $this->staffBranchContextService->assertAccessibleBranch($actorUserId, $currentBranchId);
     }
 
     private function normalizeNullableString(mixed $value): ?string

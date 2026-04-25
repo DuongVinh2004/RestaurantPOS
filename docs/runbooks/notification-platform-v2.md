@@ -84,6 +84,7 @@ Operator interpretation:
 - `production_lean` + `real` means the channel can count toward rollout proof once the manual rehearsal is captured.
 - `provider_ready` + `stub` means queue logic is testable, but business flows must still treat delivery as best-effort and non-external.
 - Dead-letter rows now surface readiness, delivery mode, and latest error code so operators can distinguish provider failures from configuration or preference gates quickly.
+- When `notifications:outbox-health --json` returns `ok=false` with a non-empty `error` while MySQL is unavailable, treat that as a database prerequisite blocker. Zero counts in that state do not prove the outbox is healthy or empty.
 
 ### Limited-production delivery rehearsal
 

@@ -137,11 +137,7 @@ class WaitingListOperationalOrchestrationService
                     ]);
                 }
 
-                if ($expectedRowVersion !== null && (int) ($source->row_version ?? 1) !== $expectedRowVersion) {
-                    throw ValidationException::withMessages([
-                        'row_version' => ['Dá»¯ liá»‡u Ä‘Ã£ thay Ä‘á»•i (row_version mismatch). HÃ£y reload rá»“i thá»­ láº¡i.'],
-                    ]);
-                }
+                WaitlistInvitationStateMachine::assertExpectedRowVersion($source, $expectedRowVersion);
 
                 $this->featureFlags->assertEnabled(
                     'waiting_list.advanced_automation',

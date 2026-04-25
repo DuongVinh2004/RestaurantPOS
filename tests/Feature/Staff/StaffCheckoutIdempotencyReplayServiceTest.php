@@ -41,7 +41,7 @@ class StaffCheckoutIdempotencyReplayServiceTest extends TestCase
     public function test_pay_order_replays_same_payment_and_returns_completed_order_status_when_fully_settled(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
@@ -110,7 +110,7 @@ class StaffCheckoutIdempotencyReplayServiceTest extends TestCase
     public function test_pay_order_replays_zero_amount_finalize_after_redis_marker_loss_from_finance_replay_record(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
@@ -221,7 +221,7 @@ class StaffCheckoutIdempotencyReplayServiceTest extends TestCase
     public function test_pay_order_rejects_same_idempotency_key_when_payment_payload_differs(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
@@ -299,7 +299,7 @@ class StaffCheckoutIdempotencyReplayServiceTest extends TestCase
     public function test_checkout_rejects_same_idempotency_key_when_checkout_payload_differs(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
@@ -380,7 +380,7 @@ class StaffCheckoutIdempotencyReplayServiceTest extends TestCase
     public function test_refund_reservation_replays_existing_refund_rows_for_same_idempotency_key(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
@@ -450,7 +450,7 @@ class StaffCheckoutIdempotencyReplayServiceTest extends TestCase
     public function test_refund_reservation_rejects_same_idempotency_key_when_refund_payload_differs(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,

@@ -20,15 +20,92 @@ class StaffCapabilityHttpGuardTest extends TestCase
 
         $this->requireBookingSchema();
 
-        $adminRoleId = $this->ensureRole('Admin');
-        $staffRoleId = $this->ensureRole('Staff');
+        $staffRoleIds = [
+            $this->ensureRole('Admin'),
+            $this->ensureRole('Staff'),
+            $this->ensureRole('Server'),
+            $this->ensureRole('Waiter'),
+            $this->ensureRole('Cashier'),
+            $this->ensureRole('Kitchen'),
+            $this->ensureRole('Manager'),
+        ];
 
         config()->set('staff_auth.database_store_enabled', false);
         config()->set('staff_auth.allow_env_fallback', true);
         config()->set('staff_auth.allow_env_fallback_when_database_store_unavailable', false);
         config()->set('staff_auth.allow_role_name_fallback', false);
-        config()->set('staff_auth.allowed_role_ids', [$adminRoleId, $staffRoleId]);
+        config()->set('staff_auth.allowed_role_ids', $staffRoleIds);
         config()->set('staff_auth.api_keys', []);
+        config()->set('staff_capabilities.role_id_capabilities', []);
+    }
+
+    public function test_default_staff_role_is_denied_refund_reporting_audit_and_settings(): void
+    {
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Confirmed',
+        ]);
+
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        config()->set('staff_auth.api_keys', ['default-staff-rbac-key' => $staffId]);
+
+        $expectations = [
+            ['/api/v1/staff/reservations/'.$reservationId.'/refund-preview', 'payment.refund'],
+            ['/api/v1/staff/reporting/daily-sales?start_date=2026-03-01&end_date=2026-03-01', 'reporting.view'],
+            ['/api/v1/staff/audit-trail', 'audit.view'],
+            ['/api/v1/admin/settings/branches', 'settings.manage'],
+        ];
+
+        foreach ($expectations as [$path, $requiredCapability]) {
+            $this->withHeaders($this->staffHeaders('default-staff-rbac-key'))
+                ->getJson($path)
+                ->assertStatus(403)
+                ->assertJsonPath('error_code', 'forbidden')
+                ->assertJsonPath('required_capability', $requiredCapability)
+                ->assertJsonPath('staff_role_name', 'Staff');
+        }
+    }
+
+    public function test_cashier_role_can_access_shift_and_settlement_surfaces(): void
+    {
+        $cashierId = $this->createUser(['role_name' => 'Cashier']);
+        config()->set('staff_auth.api_keys', ['cashier-rbac-key' => $cashierId]);
+
+        $this->withHeaders($this->staffHeaders('cashier-rbac-key'))
+            ->getJson('/api/v1/staff/cashier/shifts')
+            ->assertOk();
+
+        $this->withHeaders($this->staffHeaders('cashier-rbac-key'))
+            ->getJson('/api/v1/staff/orders/999999/settlement-preview')
+            ->assertNotFound()
+            ->assertJsonMissingPath('required_capability');
+    }
+
+    public function test_kitchen_role_can_access_kds_but_not_checkout_or_refund(): void
+    {
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Confirmed',
+        ]);
+        $kitchenId = $this->createUser(['role_name' => 'Kitchen']);
+        config()->set('staff_auth.api_keys', ['kitchen-rbac-key' => $kitchenId]);
+
+        $this->withHeaders($this->staffHeaders('kitchen-rbac-key'))
+            ->getJson('/api/v1/staff/kitchen/stations')
+            ->assertOk()
+            ->assertJsonPath('meta.realtime.topic', 'kitchen');
+
+        $this->withHeaders($this->staffHeaders('kitchen-rbac-key'))
+            ->getJson('/api/v1/staff/orders/999999/settlement-preview')
+            ->assertStatus(403)
+            ->assertJsonPath('required_capability', 'settlement.manage');
+
+        $this->withHeaders($this->staffHeaders('kitchen-rbac-key'))
+            ->getJson('/api/v1/staff/reservations/'.$reservationId.'/refund-preview')
+            ->assertStatus(403)
+            ->assertJsonPath('required_capability', 'payment.refund');
     }
 
     public function test_normal_staff_is_forbidden_from_refund_and_loyalty_adjust_routes_but_can_access_declared_voucher_capability(): void
@@ -300,7 +377,7 @@ class StaffCapabilityHttpGuardTest extends TestCase
             ->assertJsonMissingPath('required_capability');
     }
 
-    public function test_legacy_order_manage_still_authorizes_kitchen_station_reads(): void
+    public function test_order_manage_no_longer_authorizes_kitchen_station_reads(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
         config()->set('staff_auth.api_keys', ['legacy-order-manage-key' => $staffId]);
@@ -311,11 +388,11 @@ class StaffCapabilityHttpGuardTest extends TestCase
 
         $this->withHeaders($this->staffHeaders('legacy-order-manage-key'))
             ->getJson('/api/v1/staff/kitchen/stations')
-            ->assertOk()
-            ->assertJsonPath('meta.realtime.topic', 'kitchen');
+            ->assertStatus(403)
+            ->assertJsonPath('required_capability', 'kitchen.manage');
     }
 
-    public function test_legacy_settlement_manage_still_authorizes_cashier_shift_reads(): void
+    public function test_settlement_manage_no_longer_authorizes_cashier_shift_reads(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
         config()->set('staff_auth.api_keys', ['legacy-settlement-cashier-key' => $staffId]);
@@ -326,10 +403,11 @@ class StaffCapabilityHttpGuardTest extends TestCase
 
         $this->withHeaders($this->staffHeaders('legacy-settlement-cashier-key'))
             ->getJson('/api/v1/staff/cashier/shifts')
-            ->assertOk();
+            ->assertStatus(403)
+            ->assertJsonPath('required_capability', 'cashier.shift.manage');
     }
 
-    public function test_legacy_settlement_manage_still_authorizes_reporting_reads(): void
+    public function test_settlement_manage_no_longer_authorizes_reporting_reads(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
         config()->set('staff_auth.api_keys', ['legacy-settlement-reporting-key' => $staffId]);
@@ -340,8 +418,8 @@ class StaffCapabilityHttpGuardTest extends TestCase
 
         $this->withHeaders($this->staffHeaders('legacy-settlement-reporting-key'))
             ->getJson('/api/v1/staff/reporting/daily-sales?start_date=2026-03-01&end_date=2026-03-01')
-            ->assertOk()
-            ->assertJsonPath('meta.snapshot_health.family', 'sales');
+            ->assertStatus(403)
+            ->assertJsonPath('required_capability', 'reporting.view');
     }
 
     public function test_staff_without_representative_capabilities_is_forbidden_from_multiple_high_risk_route_families(): void

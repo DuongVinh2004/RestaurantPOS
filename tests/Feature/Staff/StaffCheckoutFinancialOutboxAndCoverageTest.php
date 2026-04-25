@@ -38,7 +38,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
             'role_name' => 'Customer',
             'current_tier_id' => $tierId,
         ]);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 500, $staffId);
 
@@ -130,7 +130,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
     public function test_deposit_only_completed_reservation_refund_cancel_restores_payment_state_and_outbox(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 0, $staffId);
 
@@ -223,7 +223,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
     public function test_voucher_and_deposit_completed_reservation_refund_cancel_restores_voucher_and_deposit_state(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 0, $staffId);
 
@@ -341,7 +341,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
             'role_name' => 'Customer',
             'current_tier_id' => $tierId,
         ]);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 500, $staffId);
 
@@ -444,7 +444,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
             'role_name' => 'Customer',
             'current_tier_id' => $tierId,
         ]);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 500, $staffId);
 
@@ -545,7 +545,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
     public function test_refund_cancel_emits_reservation_cancelled_but_not_payment_refunded_outbox(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
 
         $reservationId = $this->createReservation([
@@ -608,7 +608,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
     public function test_partial_payment_then_finalize_emits_single_checkout_outbox_and_settles_remaining_due(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
@@ -677,7 +677,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
     public function test_refund_after_finalize_without_cancel_keeps_completed_status_and_emits_single_refund_outbox(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $this->ensureUserPoints($customerId, 0, $staffId);
 

@@ -18,10 +18,15 @@ $steps = [];
 
 try {
     if (! isset($options['skip-db-bootstrap'])) {
+        $dbBootstrapArguments = ['tools/mysql/bootstrap_release.php', '--env-file='.$envFile, '--json'];
+        if (isset($options['skip-create-db'])) {
+            $dbBootstrapArguments[] = '--skip-create-db';
+        }
+
         $steps[] = runPhpScript(
             $rootDir,
             $phpBinary,
-            ['tools/mysql/bootstrap_release.php', '--env-file='.$envFile, '--json'],
+            $dbBootstrapArguments,
             'bootstrap_release_db',
         );
     }

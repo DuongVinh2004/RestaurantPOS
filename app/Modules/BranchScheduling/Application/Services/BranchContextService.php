@@ -13,8 +13,6 @@ class BranchContextService
 {
     public function defaultBranch(): Branch
     {
-        $this->ensureDefaultBranchExists();
-
         /** @var Branch|null $branch */
         $branch = Branch::query()
             ->where('is_default', true)

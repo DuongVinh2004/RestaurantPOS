@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -9,8 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { userFacingApiMessage } from "@/lib/api/errors";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getSessionRestoreDisplay, userFacingApiMessage } from "@/lib/api/errors";
+import { sanitizeCustomerAuthRedirect } from "@/lib/auth/navigation";
+import { getCustomerAuthRuntimeBlock } from "@/lib/auth/runtime-block";
+import { publicEnv } from "@/lib/config/env";
 import { useAuth } from "@/providers/auth-provider";
 import { loginCustomer } from "./api";
 import { loginSchema, type LoginFormValues } from "./schemas";
@@ -19,6 +23,16 @@ export function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { markAuthenticated } = useAuth();
+  const [appHost, setAppHost] = useState<string | null>(null);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      setAppHost(window.location.hostname);
+    });
+  }, []);
+
+  const runtimeBlock = getCustomerAuthRuntimeBlock(publicEnv.apiBaseUrl, appHost);
+  const runtimeDisplay = runtimeBlock ? getSessionRestoreDisplay(runtimeBlock) : null;
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -32,7 +46,7 @@ export function LoginPage() {
     onSuccess(session) {
       markAuthenticated(session);
       toast.success("Signed in.");
-      router.push(searchParams.get("next") || "/reservations");
+      router.push(sanitizeCustomerAuthRedirect(searchParams.get("next")));
     },
   });
 
@@ -42,7 +56,7 @@ export function LoginPage() {
         <p className="text-sm font-medium text-primary">Customer access</p>
         <h1 className="max-w-lg text-4xl font-semibold leading-tight tracking-normal">Manage your visit without waiting at the counter.</h1>
         <p className="max-w-md text-base text-muted-foreground">
-          Sign in to see reservations, deposits, bills, and any account tools enabled for your rollout.
+          Sign in to review reservations and other session-protected account details enabled for your rollout.
         </p>
       </section>
 
@@ -72,13 +86,21 @@ export function LoginPage() {
               ) : null}
             </div>
 
-            {loginMutation.error ? (
+            {runtimeDisplay ? (
+              <Alert variant="destructive" className="rounded-lg">
+                <AlertTitle>{runtimeDisplay.title}</AlertTitle>
+                <AlertDescription className="space-y-2">
+                  <p>{runtimeDisplay.message}</p>
+                  {runtimeDisplay.retryHint ? <p>{runtimeDisplay.retryHint}</p> : null}
+                </AlertDescription>
+              </Alert>
+            ) : loginMutation.error ? (
               <Alert variant="destructive" className="rounded-lg">
                 <AlertDescription>{userFacingApiMessage(loginMutation.error)}</AlertDescription>
               </Alert>
             ) : null}
 
-            <Button type="submit" className="min-h-11 w-full rounded-lg" disabled={loginMutation.isPending}>
+            <Button type="submit" className="min-h-11 w-full rounded-lg" disabled={loginMutation.isPending || Boolean(runtimeDisplay)}>
               {loginMutation.isPending ? "Signing in" : "Sign in"}
             </Button>
           </form>

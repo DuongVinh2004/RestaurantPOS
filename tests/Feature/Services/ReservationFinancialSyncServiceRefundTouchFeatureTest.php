@@ -29,6 +29,13 @@ final class ReservationFinancialSyncServiceRefundTouchFeatureTest extends TestCa
         try {
             $customerId = $this->createUser(['role_name' => 'Customer']);
             $staffId = $this->createUser(['role_name' => 'Staff']);
+            $this->createCashierShift([
+                'cashier_user_id' => $staffId,
+                'active_cashier_user_id' => $staffId,
+                'branch_id' => 1,
+                'status' => 'Open',
+                'currency' => 'VND',
+            ]);
             $reservationId = $this->createReservation([
                 'user_id' => $customerId,
                 'status' => 'Completed',

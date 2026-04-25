@@ -35,7 +35,7 @@ class AdminMultiBranchDomainDefaultsHttpFlowTest extends TestCase
             'branch_code' => 'DN01',
             'branch_name' => 'Da Nang 01',
         ]);
-        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $secondaryBranchId]);
+        config()->set('staff_capabilities.role_branch_scopes.Cashier', ['default', (string) $secondaryBranchId]);
 
         $defaultTable = $this->withHeaders($this->withIdempotencyKey($adminHeaders, 'idem-admin-branch-table-default'))
             ->postJson('/api/v1/admin/restaurant/tables', [
@@ -143,8 +143,8 @@ class AdminMultiBranchDomainDefaultsHttpFlowTest extends TestCase
      */
     private function cashierHeaders(string $apiKey): array
     {
-        $staffRoleId = $this->ensureRole('Staff');
-        $staffId = $this->createUser(['role_id' => $staffRoleId, 'role_name' => 'Staff']);
+        $staffRoleId = $this->ensureRole('Cashier');
+        $staffId = $this->createUser(['role_id' => $staffRoleId, 'role_name' => 'Cashier']);
 
         $allowedRoleIds = array_values(array_unique(array_map(
             static fn ($value): int => (int) $value,
@@ -153,7 +153,7 @@ class AdminMultiBranchDomainDefaultsHttpFlowTest extends TestCase
         config()->set('staff_auth.allowed_role_ids', $allowedRoleIds);
 
         $roleCapabilities = (array) config('staff_capabilities.role_id_capabilities', []);
-        $roleCapabilities[$staffRoleId] = ['settlement.manage'];
+        $roleCapabilities[$staffRoleId] = ['cashier.shift.manage', 'settlement.manage'];
         config()->set('staff_capabilities.role_id_capabilities', $roleCapabilities);
 
         return [$staffId, $this->staffHeaders($staffId, $apiKey)];

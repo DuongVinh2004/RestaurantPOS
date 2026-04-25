@@ -144,6 +144,7 @@ class StaffTableBoardHttpFlowTest extends TestCase
             'branch_code' => 'BOARD-BRANCH',
             'branch_name' => 'Board Branch',
         ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $annexBranchId]);
 
         $mainTableId = $this->createRestaurantTable(['zone' => 'Main', 'branch_id' => 1]);
         $annexTableId = $this->createRestaurantTable(['zone' => 'Main', 'branch_id' => $annexBranchId]);
@@ -156,6 +157,37 @@ class StaffTableBoardHttpFlowTest extends TestCase
             ->assertJsonPath('data.0.table_id', $annexTableId);
 
         self::assertNotSame($mainTableId, $annexTableId);
+    }
+
+    public function test_staff_table_board_defaults_to_accessible_branches_and_denies_out_of_scope_branch(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->staffAuthHeaders($staffId, 'branch-board-deny-key');
+        $annexBranchId = $this->createBranch([
+            'branch_code' => 'BOARD-DENY',
+            'branch_name' => 'Board Deny',
+        ]);
+
+        $defaultTableId = $this->createRestaurantTable(['zone' => 'Main', 'branch_id' => 1]);
+        $annexTableId = $this->createRestaurantTable(['zone' => 'Main', 'branch_id' => $annexBranchId]);
+
+        $response = $this->withHeaders($headers)->getJson('/api/v1/staff/tables/board');
+        $response->assertOk();
+
+        $visibleTableIds = collect($response->json('data'))
+            ->pluck('table_id')
+            ->map(static fn ($tableId): int => (int) $tableId)
+            ->values()
+            ->all();
+
+        self::assertContains($defaultTableId, $visibleTableIds);
+        self::assertNotContains($annexTableId, $visibleTableIds);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/tables/board?branch_id='.$annexBranchId)
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonPath('message', 'Branch not found.');
     }
 
     public function test_staff_table_board_surfaces_move_table_action_for_checked_in_table(): void
@@ -304,6 +336,7 @@ class StaffTableBoardHttpFlowTest extends TestCase
             'branch_code' => 'BOARDRIFT',
             'branch_name' => 'Board Drift Annex',
         ]);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $annexBranchId]);
 
         $tableId = $this->createRestaurantTableWithSeats(4, [
             'zone' => 'Main',

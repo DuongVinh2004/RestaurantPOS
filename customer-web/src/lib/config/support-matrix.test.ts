@@ -36,16 +36,21 @@ describe("customer-web support matrix", () => {
       "Menu catalog",
       "Table availability and holds",
       "Reservations",
-      "Deposit self-pay",
-      "Bill and active order",
     ]);
   });
 
-  it("marks payment-backed wave 1 surfaces as live-ready against the backend contract", () => {
-    expect(getSupportMatrixEntryById("deposit-self-pay")?.status).toBe("live-ready");
-    expect(getSupportMatrixEntryById("bill-and-active-order")?.status).toBe("live-ready");
-    expect(getSupportMatrixEntryById("deposit-self-pay")?.liveProofSummary).toMatch(/simulated provider/i);
-    expect(getSupportMatrixEntryById("bill-and-active-order")?.liveProofSummary).toMatch(/Production PSP/i);
+  it("keeps payment-backed customer surfaces contract-visible but out of the wave 1 launch promise", () => {
+    const deferred = getSupportMatrixByReleaseWave("deferred");
+
+    expect(deferred.map((entry) => entry.feature)).toEqual([
+      "Preorder",
+      "Deposit self-pay",
+      "Bill and active order",
+    ]);
+    expect(getSupportMatrixEntryById("deposit-self-pay")?.status).toBe("live-conditional");
+    expect(getSupportMatrixEntryById("bill-and-active-order")?.status).toBe("live-conditional");
+    expect(getSupportMatrixEntryById("deposit-self-pay")?.liveProofSummary).toMatch(/day-1 launch promise/i);
+    expect(getSupportMatrixEntryById("bill-and-active-order")?.liveProofSummary).toMatch(/customer bill self-pay remains off/i);
   });
 
   it("keeps every wave 2 feature explicitly flag-gated and disabled by default", () => {

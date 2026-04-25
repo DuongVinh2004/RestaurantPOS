@@ -72,6 +72,7 @@ const SPECIAL_CHARACTERS = [
   0x201C,
   0x201D,
   0x2022,
+  0x2026,
 ];
 
 function stringFromCodePoints(codePoints) {

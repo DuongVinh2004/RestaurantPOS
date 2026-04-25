@@ -32,6 +32,7 @@ import { useConfirmAction } from '../../../../shared/hooks/useConfirmAction';
 import { useOnlineStatus } from '../../../../shared/hooks/useOnlineStatus';
 import { buildKitchenBoardSearch, readKitchenBoardUrlState } from '../../../../domains/kitchen/kitchen-board-url';
 import {
+  canDispatchKitchenOrder,
   groupKitchenTicketsByLane,
   isKitchenTicketStatusFilter,
   kitchenTicketStatusOptions,
@@ -74,6 +75,7 @@ export function KitchenBoardPage() {
   const workspaceGuard = resolveKitchenWorkspaceGuard(session);
   const branchGuard = resolveKitchenBranchGuard(session, branchId);
   const canLoadStations = !workspaceGuard && !branchGuard && isOnline;
+  const canDispatchOrder = canDispatchKitchenOrder(session);
 
   const stationsQuery = useKitchenStationsQuery({
     branchId,
@@ -107,10 +109,15 @@ export function KitchenBoardPage() {
   );
   const realtimeVersion = stationsQuery.data?.meta?.realtime.current_version ?? null;
   const changesQuery = useKitchenChangesQuery({
+    branchId,
     currentVersion: realtimeVersion,
     enabled: canLoadStations,
   });
   const realtimeSummary = summarizeKitchenRealtime(changesQuery.data?.data);
+
+  useEffect(() => {
+    lastAppliedKitchenChangeVersionRef.current = null;
+  }, [branchId]);
 
   const updateKitchenSearch = useCallback((
     patch: Partial<typeof kitchenUrlState>,
@@ -528,7 +535,7 @@ export function KitchenBoardPage() {
               onTicketAction={(action) => void handleTicketAction(action)}
             />
 
-            {journey.orderId ? (
+            {journey.orderId && canDispatchOrder ? (
               <section className="staff-kitchen-subpanel" aria-label="Order handoff">
                 <div className="staff-kitchen-section-head">
                   <div>

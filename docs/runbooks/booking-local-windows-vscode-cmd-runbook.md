@@ -290,6 +290,8 @@ Trang thai local dung la:
 - `redis.ok = true`
 - `scheduler.ok = true`
 - `outbox.ok = true`
+- neu `scheduler` bao bi block boi `runtime.redis`, sua Redis truoc roi moi debug heartbeat
+- neu `outbox` bao bi block boi `runtime.db`, sua MySQL truoc roi moi doc outbox health/backlog
 
 Bootstrap SQL-first hien tai co prime 1 lan scheduler heartbeat de runtime verify khong fail ngay sau bootstrap. Tuy nhien de `scheduler.ok` tiep tuc xanh, van phai de `php artisan schedule:work` chay lien tuc.
 
@@ -829,6 +831,7 @@ Nguyen nhan:
 
 - chua chay `php artisan schedule:work`
 - vua moi mo scheduler, heartbeat chua kip cap nhat
+- Redis dang down, nen heartbeat store khong doc duoc
 
 Cach xu ly:
 
@@ -842,6 +845,8 @@ Neu van fail, chay lai gate:
 npm run runtime:preflight
 php artisan booking:doctor --json
 ```
+
+Neu thong diep noi ro `Blocked by runtime.redis failure`, do la blocker Redis/runtime chu khong phai drift rieng cua scheduler.
 
 ### 15.4. Vua sua `.env` nhung app khong nhan
 
@@ -858,6 +863,7 @@ Thuong la do thieu 1 trong 2 process nay:
 
 - `redis-server`
 - `php artisan schedule:work`
+- hoac MySQL dang down nen `notifications:outbox-health`/`runtime.outbox` chi bao duoc dependency blocker
 
 Cach nhanh nhat de dua local runtime ve dung lane:
 

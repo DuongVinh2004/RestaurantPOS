@@ -56,6 +56,7 @@ class BookingReleaseConfigContractTest extends TestCase
         $this->assertContains('phpunit.xml', $requiredPaths);
         $this->assertContains('public/index.php', $requiredPaths);
         $this->assertContains('scripts', $requiredPaths);
+        $this->assertContains('customer-web', $requiredPaths);
         $this->assertContains('staff-web', $requiredPaths);
         $this->assertContains('storage/app/booking_release', $requiredPaths);
         $this->assertContains('tests', $requiredPaths);
@@ -65,6 +66,10 @@ class BookingReleaseConfigContractTest extends TestCase
         $this->assertSame(2, (int) config('booking_release.packaging.retained_package_sets'));
 
         $excludedPaths = array_values((array) config('booking_release.packaging.exclude_paths', []));
+        $this->assertContains('customer-web/node_modules', $excludedPaths);
+        $this->assertContains('customer-web/.next', $excludedPaths);
+        $this->assertContains('customer-web/test-results', $excludedPaths);
+        $this->assertContains('customer-web/playwright-report', $excludedPaths);
         $this->assertContains('staff-web/node_modules', $excludedPaths);
         $this->assertContains('staff-web/dist', $excludedPaths);
     }

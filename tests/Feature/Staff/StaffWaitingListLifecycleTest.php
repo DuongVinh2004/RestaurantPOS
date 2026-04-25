@@ -342,6 +342,7 @@ class StaffWaitingListLifecycleTest extends TestCase
         $response->assertStatus(409)
             ->assertJsonPath('error_code', 'stale_row_version')
             ->assertJsonPath('category_code', 'stale_write')
+            ->assertJsonPath('details.errors.row_version.0', 'Waiting-list data changed (row_version mismatch). Reload and try again.')
             ->assertJsonValidationErrors(['row_version']);
         self::assertSame('Waiting', DB::table('waiting_list')->where('waiting_id', $waitingId)->value('status'));
     }
@@ -375,6 +376,7 @@ class StaffWaitingListLifecycleTest extends TestCase
         $response->assertStatus(409)
             ->assertJsonPath('error_code', 'stale_row_version')
             ->assertJsonPath('category_code', 'stale_write')
+            ->assertJsonPath('details.errors.row_version.0', 'Waiting-list data changed (row_version mismatch). Reload and try again.')
             ->assertJsonValidationErrors(['row_version']);
         self::assertSame('Notified', DB::table('waiting_list')->where('waiting_id', $waitingId)->value('status'));
     }

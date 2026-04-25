@@ -75,6 +75,24 @@ class StaffCheckInService
                 if (! $reservation) {
                     throw new ModelNotFoundException('Reservation not found');
                 }
+                $assignedTableIds = DB::table('reservation_tables')
+                    ->where('reservation_id', $reservationId)
+                    ->lockForUpdate()
+                    ->orderBy('reservation_table_id')
+                    ->pluck('table_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+
+                $tables = RestaurantTable::query()
+                    ->whereIn('table_id', $assignedTableIds)
+                    ->notDeleted()
+                    ->lockForUpdate()
+                    ->get();
+                $this->assertOperationalBranchAccessible(
+                    $this->resolveOperationalBranchId($reservation, $tables),
+                    $staffUserId,
+                );
+
                 if (StaffReservationOperationGuard::isCheckedInReservation($reservation)) {
                     return [
                         'reservation' => $reservation,
@@ -86,13 +104,6 @@ class StaffCheckInService
                 StaffReservationOperationGuard::assertCheckInAllowed($reservation, $expectedRowVersion);
                 $checked = Carbon::instance(\DateTimeImmutable::createFromInterface($checkedInAt));
 
-                $assignedTableIds = DB::table('reservation_tables')
-                    ->where('reservation_id', $reservationId)
-                    ->lockForUpdate()
-                    ->orderBy('reservation_table_id')
-                    ->pluck('table_id')
-                    ->map(fn ($id) => (int) $id)
-                    ->all();
                 if (count($assignedTableIds) === 0) {
                     throw ValidationException::withMessages(['reservation_id' => 'Reservation has no assigned tables to check in.']);
                 }
@@ -110,7 +121,6 @@ class StaffCheckInService
                     $ignoredHoldIds,
                     $this->resolveConfirmedHoldIdsForReservation($reservation, $tableIds, true),
                 )));
-                $tables = RestaurantTable::query()->whereIn('table_id', $tableIds)->notDeleted()->lockForUpdate()->get();
                 $this->checkInReadinessService->assertReadyForWrite(
                     $reservation,
                     $checked,
@@ -119,11 +129,6 @@ class StaffCheckInService
                     ignoredHoldIds: $ignoredHoldIdsForReservation,
                     lock: true,
                     updatedBy: $staffUserId,
-                );
-
-                $this->assertOperationalBranchAccessible(
-                    $this->resolveOperationalBranchId($reservation, $tables),
-                    $staffUserId,
                 );
 
                 $reservation->status = ReservationStatus::checkedIn();

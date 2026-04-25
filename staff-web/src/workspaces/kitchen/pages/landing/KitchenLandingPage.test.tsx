@@ -70,6 +70,7 @@ describe('KitchenLandingPage', () => {
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/kitchen/board'));
     expect(screen.getByTestId('location')).toHaveTextContent('station_id=33');
     expect(useFlowStore.getState().selectedStationId).toBe(33);
+    expect(apiMocks.getKitchenChanges).toHaveBeenCalledWith(10, 9);
   });
 
   it('shows a station assignment guard when startup has no assigned station', async () => {
@@ -94,6 +95,7 @@ function createStationsEnvelope() {
     data: [
       {
         station_id: 33,
+        branch_id: 9,
         code: 'HOT',
         name: 'Hot Pass',
         description: null,

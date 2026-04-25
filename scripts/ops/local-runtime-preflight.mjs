@@ -128,7 +128,7 @@ export function buildPreflightConfig({
       processEnv.RUNTIME_PREFLIGHT_DOCTOR_TIMEOUT_MS,
       envFileValues.RUNTIME_PREFLIGHT_DOCTOR_TIMEOUT_MS,
     ]), DEFAULT_DOCTOR_TIMEOUT_MS),
-    doctorCommand: ['php', 'artisan', 'booking:doctor', '--json'],
+    doctorCommand: [resolvePhpBinary(processEnv), 'artisan', 'booking:doctor', '--json'],
   };
 }
 
@@ -260,6 +260,27 @@ function normalizeAbsoluteUrl(value) {
 
 function firstNonEmpty(values) {
   return values.find((value) => typeof value === 'string' && value.trim() !== '') ?? null;
+}
+
+function resolvePhpBinary(processEnv = process.env) {
+  const configured = firstNonEmpty([processEnv.PHP_BIN]);
+  if (configured) {
+    return configured;
+  }
+
+  if (process.platform === 'win32') {
+    const windowsCandidates = [
+      path.join(processEnv.USERPROFILE ?? '', '.config', 'herd-lite', 'bin', 'php.exe'),
+      'C:\\xampp\\php\\php.exe',
+    ];
+
+    const existingCandidate = windowsCandidates.find((candidate) => candidate && existsSync(candidate));
+    if (existingCandidate) {
+      return existingCandidate;
+    }
+  }
+
+  return 'php';
 }
 
 function readPositiveInteger(value, fallback) {

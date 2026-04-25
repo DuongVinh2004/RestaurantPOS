@@ -59,7 +59,7 @@ class SiteBootstrapCommandTest extends TestCase
         $this->assertFalse((bool) ($first['data']['staff_api_key']['secret_revealed'] ?? true));
         $this->assertStringStartsWith('spk_', (string) $first['data']['staff_api_key']['plaintext_key_masked']);
 
-        $this->assertSame(3, (int) DB::table('roles')->count());
+        $this->assertSame(8, (int) DB::table('roles')->count());
         $this->assertSame(1, (int) DB::table('branches')->count());
         $this->assertSame(3, (int) DB::table('table_templates')->count());
         $this->assertSame(8, (int) DB::table('restaurant_tables')->count());

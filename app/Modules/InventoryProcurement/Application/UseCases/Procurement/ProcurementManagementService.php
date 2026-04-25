@@ -7,6 +7,8 @@ namespace App\Modules\InventoryProcurement\Application\UseCases\Procurement;
 use App\Enums\PurchaseOrderStatus;
 use App\Enums\PurchaseReceiptStatus;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
+use App\Modules\BranchScheduling\Domain\Models\Branch;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\InventoryProcurement\Application\UseCases\Inventory\InventoryStockMovementService;
 use App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService;
 use App\Modules\InventoryProcurement\Domain\Models\Ingredient;
@@ -19,6 +21,7 @@ use App\Modules\InventoryProcurement\Domain\Models\Supplier;
 use App\Support\AuditEvent;
 use App\Support\Listing\SafeLike;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
@@ -31,6 +34,7 @@ class ProcurementManagementService
     public function __construct(
         private readonly InventoryStockMovementService $stockMovementService,
         private readonly BranchContextService $branchContextService,
+        private readonly StaffBranchContextService $staffBranchContextService,
         private readonly PurchaseOrderReconciliationService $purchaseOrderReconciliationService,
     ) {}
 
@@ -149,20 +153,21 @@ class ProcurementManagementService
     /**
      * @param  array<string,mixed>  $filters
      */
-    public function paginatePurchaseOrders(array $filters = []): LengthAwarePaginator
+    public function paginatePurchaseOrders(array $filters = [], ?int $actorUserId = null): LengthAwarePaginator
     {
         $perPage = max(1, min((int) ($filters['per_page'] ?? config('booking.admin_inventory_page_default', 25)), (int) config('booking.admin_inventory_page_max', 100)));
         $page = max(1, (int) ($filters['page'] ?? 1));
         $keyword = trim((string) ($filters['q'] ?? ''));
+        $requestedBranchId = isset($filters['branch_id']) ? (int) $filters['branch_id'] : null;
+        $accessibleBranchIds = $this->branchScopeForActor($actorUserId, $requestedBranchId);
         [$sortColumn, $sortDirection] = $this->resolvePurchaseOrderSort(
             (string) ($filters['sort_by'] ?? 'created_at'),
             (string) ($filters['sort_dir'] ?? 'desc'),
         );
 
-        return $this->basePurchaseOrdersQuery()
+        $query = $this->basePurchaseOrdersQuery()
             ->when(isset($filters['supplier_id']), static fn ($query) => $query->where('purchase_orders.supplier_id', (int) $filters['supplier_id']))
             ->when(isset($filters['purchase_order_status']), static fn ($query) => $query->where('purchase_orders.purchase_order_status', (string) $filters['purchase_order_status']))
-            ->when(isset($filters['branch_id']), static fn ($query) => $query->where('purchase_orders.branch_id', (int) $filters['branch_id']))
             ->when($keyword !== '', static function ($query) use ($keyword): void {
                 $like = SafeLike::contains($keyword);
                 $query->where(function ($inner) use ($like): void {
@@ -171,8 +176,11 @@ class ProcurementManagementService
                         ->orWhere('purchase_orders.supplier_reference', 'like', $like)
                         ->orWhere('purchase_orders.notes', 'like', $like);
                 });
-            })
-            ->orderBy($sortColumn, $sortDirection)
+            });
+
+        $this->constrainPurchaseOrderQueryToBranchScope($query, $requestedBranchId, $accessibleBranchIds);
+
+        return $query->orderBy($sortColumn, $sortDirection)
             ->when($sortColumn !== 'purchase_orders.purchase_order_id', static fn ($query) => $query->orderByDesc('purchase_orders.purchase_order_id'))
             ->paginate($perPage, ['*'], 'page', $page)
             ->appends([
@@ -184,10 +192,12 @@ class ProcurementManagementService
             ]);
     }
 
-    public function findPurchaseOrder(int $purchaseOrderId): PurchaseOrder
+    public function findPurchaseOrder(int $purchaseOrderId, ?int $actorUserId = null): PurchaseOrder
     {
+        $accessibleBranchIds = $this->branchScopeForActor($actorUserId);
+
         /** @var PurchaseOrder|null $order */
-        $order = $this->basePurchaseOrdersQuery()
+        $query = $this->basePurchaseOrdersQuery()
             ->with([
                 'supplier' => static fn ($query) => $query->select('supplier_id', 'code', 'name', 'contact_name', 'phone', 'email', 'is_active'),
                 'branch' => static fn ($query) => $query->select('branch_id', 'branch_code', 'branch_name', 'is_default'),
@@ -209,8 +219,11 @@ class ProcurementManagementService
                         ->orderByDesc('received_at')
                         ->orderByDesc('receipt_id');
                 },
-            ])
-            ->find($purchaseOrderId);
+            ]);
+
+        $this->constrainPurchaseOrderQueryToBranchScope($query, null, $accessibleBranchIds);
+
+        $order = $query->find($purchaseOrderId);
 
         if (! $order instanceof PurchaseOrder) {
             throw (new ModelNotFoundException)->setModel(PurchaseOrder::class, [$purchaseOrderId]);
@@ -227,6 +240,7 @@ class ProcurementManagementService
         return DB::transaction(function () use ($payload, $actorUserId): PurchaseOrder {
             $supplierId = (int) $payload['supplier_id'];
             Supplier::query()->lockForUpdate()->findOrFail($supplierId);
+            $branchId = $this->resolveWritableBranchId($actorUserId, $payload['branch_id'] ?? null);
 
             /** @var list<array<string,mixed>> $lines */
             $lines = array_values((array) $payload['lines']);
@@ -238,7 +252,7 @@ class ProcurementManagementService
 
             $order = new PurchaseOrder;
             $order->fill([
-                'branch_id' => $this->branchContextService->resolveBranchId($payload['branch_id'] ?? null),
+                'branch_id' => $branchId,
                 'supplier_id' => $supplierId,
                 'order_code' => $this->normalizeNullableString($payload['order_code'] ?? null) ?? $this->generatePurchaseOrderCode(),
                 'purchase_order_status' => $status,
@@ -256,12 +270,12 @@ class ProcurementManagementService
 
             AuditEvent::info('admin.purchase_order.created', [
                 'purchase_order_id' => (int) $order->purchase_order_id,
-                'branch_id' => $this->branchContextService->resolveBranchId($payload['branch_id'] ?? null),
+                'branch_id' => $branchId,
                 'supplier_id' => $supplierId,
                 'status' => $status->value,
             ]);
 
-            return $this->findPurchaseOrder((int) $order->purchase_order_id);
+            return $this->findPurchaseOrder((int) $order->purchase_order_id, $actorUserId);
         }, 3);
     }
 
@@ -271,8 +285,12 @@ class ProcurementManagementService
     public function updatePurchaseOrder(int $purchaseOrderId, array $payload, ?int $actorUserId = null): PurchaseOrder
     {
         return DB::transaction(function () use ($purchaseOrderId, $payload, $actorUserId): PurchaseOrder {
+            $accessibleBranchIds = $this->branchScopeForActor($actorUserId);
+
             /** @var PurchaseOrder $order */
-            $order = PurchaseOrder::query()->lockForUpdate()->findOrFail($purchaseOrderId);
+            $orderQuery = PurchaseOrder::query()->lockForUpdate();
+            $this->constrainPurchaseOrderQueryToBranchScope($orderQuery, null, $accessibleBranchIds);
+            $order = $orderQuery->findOrFail($purchaseOrderId);
             $receiptCount = PurchaseReceipt::query()->where('purchase_order_id', $purchaseOrderId)->count();
 
             if (array_key_exists('branch_id', $payload)) {
@@ -282,7 +300,7 @@ class ProcurementManagementService
                     ]);
                 }
 
-                $order->branch_id = $this->branchContextService->resolveBranchId($payload['branch_id']);
+                $order->branch_id = $this->resolveWritableBranchId($actorUserId, $payload['branch_id']);
             }
 
             if (array_key_exists('supplier_id', $payload)) {
@@ -355,16 +373,16 @@ class ProcurementManagementService
                 'receipt_count' => $receiptCount,
             ]);
 
-            return $this->findPurchaseOrder($purchaseOrderId);
+            return $this->findPurchaseOrder($purchaseOrderId, $actorUserId);
         }, 3);
     }
 
     /**
      * @return array{order: PurchaseOrder, receipts: Collection<int, PurchaseReceipt>}
      */
-    public function listPurchaseOrderReceipts(int $purchaseOrderId): array
+    public function listPurchaseOrderReceipts(int $purchaseOrderId, ?int $actorUserId = null): array
     {
-        $order = $this->findPurchaseOrder($purchaseOrderId);
+        $order = $this->findPurchaseOrder($purchaseOrderId, $actorUserId);
 
         /** @var Collection<int, PurchaseReceipt> $receipts */
         $receipts = PurchaseReceipt::query()
@@ -393,8 +411,12 @@ class ProcurementManagementService
     public function createReceipt(int $purchaseOrderId, array $payload, ?int $actorUserId = null): array
     {
         return DB::transaction(function () use ($purchaseOrderId, $payload, $actorUserId): array {
+            $accessibleBranchIds = $this->branchScopeForActor($actorUserId);
+
             /** @var PurchaseOrder $order */
-            $order = PurchaseOrder::query()->lockForUpdate()->findOrFail($purchaseOrderId);
+            $orderQuery = PurchaseOrder::query()->lockForUpdate();
+            $this->constrainPurchaseOrderQueryToBranchScope($orderQuery, null, $accessibleBranchIds);
+            $order = $orderQuery->findOrFail($purchaseOrderId);
             $status = $order->purchase_order_status instanceof PurchaseOrderStatus
                 ? $order->purchase_order_status
                 : PurchaseOrderStatus::from((string) $order->purchase_order_status);
@@ -434,7 +456,7 @@ class ProcurementManagementService
                 ]);
 
                 return [
-                    'order' => $this->findPurchaseOrder($purchaseOrderId),
+                    'order' => $this->findPurchaseOrder($purchaseOrderId, $actorUserId),
                     'receipt' => $replayedReceipt,
                 ];
             }
@@ -555,7 +577,7 @@ class ProcurementManagementService
             ]);
 
             return [
-                'order' => $this->findPurchaseOrder($purchaseOrderId),
+                'order' => $this->findPurchaseOrder($purchaseOrderId, $actorUserId),
                 'receipt' => PurchaseReceipt::query()
                     ->with([
                         'lines' => static function ($query): void {
@@ -569,7 +591,7 @@ class ProcurementManagementService
         }, 3);
     }
 
-    private function basePurchaseOrdersQuery()
+    private function basePurchaseOrdersQuery(): Builder
     {
         return PurchaseOrder::query()
             ->with([
@@ -582,6 +604,56 @@ class ProcurementManagementService
             ])
             ->withSum('lines as ordered_total_quantity', 'ordered_quantity')
             ->withSum('lines as received_total_quantity', 'received_quantity');
+    }
+
+    /**
+     * @return list<int>|null
+     */
+    private function branchScopeForActor(?int $actorUserId, ?int $requestedBranchId = null): ?array
+    {
+        if ($actorUserId === null || $actorUserId <= 0) {
+            return null;
+        }
+
+        return $this->staffBranchContextService->branchScopeOrAccessible($actorUserId, $requestedBranchId);
+    }
+
+    private function resolveWritableBranchId(?int $actorUserId, mixed $requestedBranchId = null): int
+    {
+        if ($actorUserId === null || $actorUserId <= 0) {
+            return $this->branchContextService->resolveBranchId($requestedBranchId);
+        }
+
+        $resolvedBranchId = $requestedBranchId !== null && $requestedBranchId !== ''
+            ? $this->branchContextService->resolveBranchId($requestedBranchId)
+            : (int) ($this->staffBranchContextService->branchAccessContext($actorUserId)['current_branch_id'] ?? 0);
+
+        if ($resolvedBranchId <= 0) {
+            throw (new ModelNotFoundException)->setModel(Branch::class);
+        }
+
+        return $this->staffBranchContextService->assertAccessibleBranch($actorUserId, $resolvedBranchId);
+    }
+
+    /**
+     * @param  Builder<PurchaseOrder>  $query
+     * @param  list<int>|null  $accessibleBranchIds
+     */
+    private function constrainPurchaseOrderQueryToBranchScope(Builder $query, ?int $branchId, ?array $accessibleBranchIds): void
+    {
+        if ($branchId !== null) {
+            $query->where('purchase_orders.branch_id', $branchId);
+
+            return;
+        }
+
+        if (is_array($accessibleBranchIds)) {
+            if ($accessibleBranchIds === []) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn('purchase_orders.branch_id', $accessibleBranchIds);
+            }
+        }
     }
 
     /**

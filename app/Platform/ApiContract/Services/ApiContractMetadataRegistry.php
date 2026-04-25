@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Platform\ApiContract\Services;
 
+use App\Enums\WaitingListCustomerResponseState;
+
 class ApiContractMetadataRegistry
 {
     /**
@@ -59,7 +61,7 @@ class ApiContractMetadataRegistry
             ],
             'POST api/v1/auth/staff/login' => [
                 'summary' => 'Staff login',
-                'description' => 'Issue an opaque staff API key session for operational staff and admin APIs.',
+                'description' => 'Issue an opaque staff API key session for operational staff and admin APIs. During the opt-in staff-web rollout, session_transport=refresh_cookie sets an HttpOnly Secure SameSite refresh cookie and returns only a memory access token.',
                 'tags' => ['Auth'],
                 'responses' => [
                     200 => ['schema' => 'StaffAuthSessionEnvelope'],
@@ -84,22 +86,40 @@ class ApiContractMetadataRegistry
             ],
             'POST api/v1/auth/staff/refresh' => [
                 'summary' => 'Refresh staff session',
-                'description' => 'Rotate the current staff API key session and return a replacement opaque token.',
+                'description' => 'Rotate the current staff API key session and return a replacement opaque token. Cookie-backed staff-web refresh requires X-Staff-CSRF and returns a memory access token without exposing the refresh cookie secret.',
                 'tags' => ['Auth'],
                 'responses' => [
                     200 => ['schema' => 'StaffAuthSessionEnvelope'],
                     401 => ['schema' => 'UnauthorizedError'],
+                    419 => ['schema' => 'UnauthorizedError'],
                 ],
                 'contract_grade' => 'full',
             ],
             'POST api/v1/auth/staff/logout' => [
                 'summary' => 'Logout staff session',
-                'description' => 'Revoke the current staff API key session.',
+                'description' => 'Revoke the current staff API key session. Cookie-backed staff-web logout clears the refresh and CSRF cookies and revokes the refresh/session key.',
                 'tags' => ['Auth'],
                 'responses' => [
                     200 => ['schema' => 'StaffSessionLogoutEnvelope'],
                     401 => ['schema' => 'UnauthorizedError'],
+                    419 => ['schema' => 'UnauthorizedError'],
                 ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/user' => [
+                'summary' => 'Get legacy authenticated actor',
+                'description' => 'Deprecated compatibility route for existing web auth probes. It returns the runtime top-level auth_mode/user payload for customer access tokens or staff API keys. Session-only customer auth is intentionally unsupported.',
+                'tags' => ['Legacy'],
+                'responses' => [
+                    200 => ['schema' => 'ApiUserEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                ],
+                'auth_mode' => 'customer_or_staff',
+                'security' => [
+                    ['CustomerAccessToken' => []],
+                    ['StaffApiKey' => []],
+                ],
+                'deprecated' => true,
                 'contract_grade' => 'full',
             ],
             'GET api/v1/tables/available' => [
@@ -1606,7 +1626,7 @@ class ApiContractMetadataRegistry
             ],
             'POST api/v1/staff/kitchen/tickets/{ticket_id}/fire' => [
                 'summary' => 'Fire kitchen ticket',
-                'description' => 'Advance a queued kitchen ticket into the fired state and keep the linked order item in sync for production work.',
+                'description' => 'Advance a queued kitchen ticket into the fired state and keep the linked order item in sync for production work. Requires the current ticket row_version for stale-write protection.',
                 'tags' => ['Staff Kitchen'],
                 'responses' => [
                     200 => ['schema' => 'StaffKitchenTicketEnvelope'],
@@ -1615,12 +1635,15 @@ class ApiContractMetadataRegistry
                     404 => ['schema' => 'NotFoundError'],
                     409 => ['schema' => 'ConflictError'],
                     422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'row_version' => 3,
                 ],
                 'contract_grade' => 'full',
             ],
             'POST api/v1/staff/kitchen/tickets/{ticket_id}/bump' => [
                 'summary' => 'Bump kitchen ticket to ready',
-                'description' => 'Advance a fired kitchen ticket into the ready state once the station completes production work.',
+                'description' => 'Advance a fired kitchen ticket into the ready state once the station completes production work. Requires the current ticket row_version for stale-write protection.',
                 'tags' => ['Staff Kitchen'],
                 'responses' => [
                     200 => ['schema' => 'StaffKitchenTicketEnvelope'],
@@ -1630,11 +1653,14 @@ class ApiContractMetadataRegistry
                     409 => ['schema' => 'ConflictError'],
                     422 => ['schema' => 'ValidationError'],
                 ],
+                'request_example' => [
+                    'row_version' => 4,
+                ],
                 'contract_grade' => 'full',
             ],
             'POST api/v1/staff/kitchen/tickets/{ticket_id}/recall' => [
                 'summary' => 'Recall kitchen ticket',
-                'description' => 'Return a ready kitchen ticket back to the fired state when the station must resume work on the item.',
+                'description' => 'Return a ready kitchen ticket back to the fired state when the station must resume work on the item. Requires the current ticket row_version for stale-write protection.',
                 'tags' => ['Staff Kitchen'],
                 'responses' => [
                     200 => ['schema' => 'StaffKitchenTicketEnvelope'],
@@ -1643,6 +1669,9 @@ class ApiContractMetadataRegistry
                     404 => ['schema' => 'NotFoundError'],
                     409 => ['schema' => 'ConflictError'],
                     422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'row_version' => 5,
                 ],
                 'contract_grade' => 'full',
             ],
@@ -2086,7 +2115,111 @@ class ApiContractMetadataRegistry
             ],
         ];
 
-        $waitingListEntry = [
+        $customerWaitingResponseStateValues = array_map(
+            static fn (WaitingListCustomerResponseState $state): string => $state->value,
+            WaitingListCustomerResponseState::cases(),
+        );
+
+        $customerWaitingListEntry = [
+            'type' => 'object',
+            'required' => [
+                'waiting_id',
+                'branch_id',
+                'guest_name',
+                'phone',
+                'guest_count',
+                'requested_at',
+                'status',
+                'priority',
+                'notified_at',
+                'notify_expires_at',
+                'seated_at',
+                'cancelled_at',
+                'cancel_reason',
+                'notes',
+                'row_version',
+                'response_state',
+                'can_accept',
+                'can_decline',
+                'can_confirm_arrival',
+                'can_cancel',
+                'notify_window',
+                'window',
+                'available_actions',
+                'staff_seat_required',
+                'next_step',
+                'arrival_confirmation',
+            ],
+            'properties' => [
+                'waiting_id' => ['type' => 'integer'],
+                'branch_id' => ['type' => 'integer', 'nullable' => true],
+                'guest_name' => ['type' => 'string', 'nullable' => true],
+                'phone' => ['type' => 'string', 'nullable' => true],
+                'guest_count' => ['type' => 'integer'],
+                'requested_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'status' => ['type' => 'string'],
+                'priority' => ['type' => 'integer'],
+                'notified_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'notify_expires_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'seated_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'cancelled_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'cancel_reason' => ['type' => 'string', 'nullable' => true],
+                'notes' => ['type' => 'string', 'nullable' => true],
+                'row_version' => ['type' => 'integer'],
+                'response_state' => [
+                    'type' => 'string',
+                    'enum' => $customerWaitingResponseStateValues,
+                    'description' => 'Stable customer-response state for lean owner waiting-list clients. Distinguishes accepted from arrival_confirmed without localized text.',
+                ],
+                'can_accept' => ['type' => 'boolean'],
+                'can_decline' => ['type' => 'boolean'],
+                'can_confirm_arrival' => ['type' => 'boolean'],
+                'can_cancel' => ['type' => 'boolean'],
+                'notify_window' => [
+                    'type' => 'object',
+                    'required' => ['is_open', 'expires_at'],
+                    'properties' => [
+                        'is_open' => ['type' => 'boolean'],
+                        'expires_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                    ],
+                    'additionalProperties' => false,
+                ],
+                'window' => [
+                    'type' => 'object',
+                    'required' => ['is_notified_window_open'],
+                    'properties' => [
+                        'is_notified_window_open' => ['type' => 'boolean'],
+                    ],
+                    'additionalProperties' => false,
+                ],
+                'available_actions' => [
+                    'type' => 'object',
+                    'required' => ['accept', 'decline', 'confirm_arrival', 'cancel'],
+                    'properties' => [
+                        'accept' => ['type' => 'boolean'],
+                        'decline' => ['type' => 'boolean'],
+                        'confirm_arrival' => ['type' => 'boolean'],
+                        'cancel' => ['type' => 'boolean'],
+                    ],
+                    'additionalProperties' => false,
+                ],
+                'staff_seat_required' => ['type' => 'boolean'],
+                'next_step' => ['type' => 'string', 'nullable' => true],
+                'arrival_confirmation' => [
+                    'type' => 'object',
+                    'required' => ['supported', 'staff_seat_required', 'message'],
+                    'properties' => [
+                        'supported' => ['type' => 'boolean'],
+                        'staff_seat_required' => ['type' => 'boolean'],
+                        'message' => ['type' => 'string', 'nullable' => true],
+                    ],
+                    'additionalProperties' => false,
+                ],
+            ],
+            'additionalProperties' => false,
+        ];
+
+        $staffWaitingListEntry = [
             'type' => 'object',
             'required' => [
                 'waiting_id',
@@ -3935,6 +4068,47 @@ class ApiContractMetadataRegistry
             'additionalProperties' => false,
         ];
 
+        $apiUserCustomerProfileSchema = [
+            'type' => 'object',
+            'required' => ['user_id', 'full_name', 'email', 'phone', 'role_id', 'current_tier_id'],
+            'properties' => [
+                'user_id' => ['type' => 'integer'],
+                'full_name' => ['type' => 'string'],
+                'email' => ['type' => 'string', 'nullable' => true],
+                'phone' => ['type' => 'string', 'nullable' => true],
+                'role_id' => ['type' => 'integer', 'nullable' => true],
+                'current_tier_id' => ['type' => 'integer', 'nullable' => true],
+            ],
+            'additionalProperties' => false,
+        ];
+
+        $apiUserStaffProfileSchema = [
+            'type' => 'object',
+            'required' => ['user_id', 'role_id', 'role_name', 'staff_auth_mode'],
+            'properties' => [
+                'user_id' => ['type' => 'integer'],
+                'role_id' => ['type' => 'integer', 'nullable' => true],
+                'role_name' => ['type' => 'string', 'nullable' => true],
+                'staff_auth_mode' => ['type' => 'string', 'nullable' => true],
+            ],
+            'additionalProperties' => false,
+        ];
+
+        $apiUserEnvelopeSchema = [
+            'type' => 'object',
+            'required' => ['auth_mode', 'user'],
+            'properties' => [
+                'auth_mode' => ['type' => 'string', 'enum' => ['customer', 'staff']],
+                'user' => [
+                    'oneOf' => [
+                        ['$ref' => '#/components/schemas/ApiUserCustomerProfile'],
+                        ['$ref' => '#/components/schemas/ApiUserStaffProfile'],
+                    ],
+                ],
+            ],
+            'additionalProperties' => false,
+        ];
+
         $staffStartupBranchSchema = [
             'type' => 'object',
             'required' => ['branch_id', 'branch_code', 'branch_name', 'timezone', 'currency', 'is_default', 'is_active'],
@@ -5417,7 +5591,7 @@ class ApiContractMetadataRegistry
             'ReservationCustomerSummary' => $reservationCustomerSummarySchema,
             'ReservationGuestSnapshot' => $reservationGuestSnapshotSchema,
             'ReservationSummary' => $reservationSummary,
-            'CustomerWaitingListEntry' => $waitingListEntry,
+            'CustomerWaitingListEntry' => $customerWaitingListEntry,
             'CustomerDepositPaymentSession' => $depositPaymentSession,
             'CustomerBillPaymentSession' => $billPaymentSession,
             'Branch' => $branchSchema,
@@ -5442,6 +5616,9 @@ class ApiContractMetadataRegistry
             'AdminPurchaseOrderCollectionMeta' => $adminPurchaseOrderCollectionMetaSchema,
             'RestaurantTable' => $restaurantTableSchema,
             'StaffAuthUser' => $staffAuthUserSchema,
+            'ApiUserCustomerProfile' => $apiUserCustomerProfileSchema,
+            'ApiUserStaffProfile' => $apiUserStaffProfileSchema,
+            'ApiUserEnvelope' => $apiUserEnvelopeSchema,
             'StaffStartupBranch' => $staffStartupBranchSchema,
             'StaffStartupCashierShift' => $staffStartupCashierShiftSchema,
             'StaffBranchAccessContext' => $staffBranchAccessContextSchema,
@@ -5470,7 +5647,7 @@ class ApiContractMetadataRegistry
             'StaffOrderReadCustomer' => $staffOrderReadCustomerSchema,
             'StaffOrderReadItemMenuItem' => $staffOrderReadItemMenuItemSchema,
             'StaffOrderReadPayload' => $staffOrderReadPayloadSchema,
-            'StaffWaitingListEntry' => $waitingListEntry,
+            'StaffWaitingListEntry' => $staffWaitingListEntry,
             'StaffWaitingListCollectionMeta' => $staffWaitingListCollectionMetaSchema,
             'StaffCheckoutSettlement' => $staffCheckoutSettlementSchema,
             'StaffAuditTrailPrimarySubject' => $staffAuditTrailPrimarySubjectSchema,
@@ -5516,7 +5693,8 @@ class ApiContractMetadataRegistry
             'StaffAuthSessionEnvelope' => $this->dataEnvelope([
                 'type' => 'object',
                 'properties' => [
-                    'auth_mode' => ['type' => 'string', 'enum' => ['staff_api_key']],
+                    'auth_mode' => ['type' => 'string', 'enum' => ['staff_api_key', 'staff_browser_session']],
+                    'session_transport' => ['type' => 'string', 'enum' => ['refresh_cookie'], 'nullable' => true],
                     'token_type' => ['type' => 'string', 'enum' => ['opaque']],
                     'auth_header' => ['type' => 'string'],
                     'access_token' => ['type' => 'string', 'nullable' => true],
@@ -5540,7 +5718,8 @@ class ApiContractMetadataRegistry
             'StaffSessionLogoutEnvelope' => $this->dataEnvelope([
                 'type' => 'object',
                 'properties' => [
-                    'auth_mode' => ['type' => 'string', 'enum' => ['staff_api_key']],
+                    'auth_mode' => ['type' => 'string', 'enum' => ['staff_api_key', 'staff_browser_session']],
+                    'session_transport' => ['type' => 'string', 'enum' => ['refresh_cookie'], 'nullable' => true],
                     'staff_api_key_id' => ['type' => 'integer'],
                     'revoked_at_utc' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
                 ],
@@ -5758,8 +5937,8 @@ class ApiContractMetadataRegistry
                 'required' => ['action', 'access_scope'],
                 'additionalProperties' => false,
             ]),
-            'CustomerWaitingListEnvelope' => $this->dataEnvelope($waitingListEntry),
-            'CustomerWaitingListCollectionEnvelope' => $this->collectionEnvelope($waitingListEntry),
+            'CustomerWaitingListEnvelope' => $this->dataEnvelope($customerWaitingListEntry),
+            'CustomerWaitingListCollectionEnvelope' => $this->collectionEnvelope($customerWaitingListEntry),
             'CustomerWaitingListArrivalEnvelope' => [
                 'type' => 'object',
                 'required' => ['data', 'meta'],
@@ -6133,9 +6312,10 @@ class ApiContractMetadataRegistry
             ]),
             'KitchenStation' => [
                 'type' => 'object',
-                'required' => ['station_id', 'code', 'name', 'description', 'output_mode', 'printer_target', 'is_active', 'route_count', 'ticket_counts', 'created_at', 'updated_at'],
+                'required' => ['station_id', 'branch_id', 'code', 'name', 'description', 'output_mode', 'printer_target', 'is_active', 'route_count', 'ticket_counts', 'created_at', 'updated_at'],
                 'properties' => [
                     'station_id' => ['type' => 'integer'],
+                    'branch_id' => ['type' => 'integer'],
                     'code' => ['type' => 'string'],
                     'name' => ['type' => 'string'],
                     'description' => ['type' => 'string', 'nullable' => true],
@@ -6160,9 +6340,10 @@ class ApiContractMetadataRegistry
             ],
             'KitchenOrderItemTicket' => [
                 'type' => 'object',
-                'required' => ['ticket_id', 'ticket_status', 'route_source', 'dispatch_count', 'recall_count', 'output_mode', 'printer_target', 'ticket_notes', 'order', 'station', 'route', 'routing', 'order_item', 'item', 'lifecycle', 'reconciliation', 'first_dispatched_at', 'fired_at', 'ready_at', 'completed_at', 'cancelled_at', 'last_recalled_at', 'created_at', 'updated_at'],
+                'required' => ['ticket_id', 'row_version', 'ticket_status', 'route_source', 'dispatch_count', 'recall_count', 'output_mode', 'printer_target', 'ticket_notes', 'order', 'station', 'route', 'routing', 'order_item', 'item', 'lifecycle', 'reconciliation', 'first_dispatched_at', 'fired_at', 'ready_at', 'completed_at', 'cancelled_at', 'last_recalled_at', 'created_at', 'updated_at'],
                 'properties' => [
                     'ticket_id' => ['type' => 'integer'],
+                    'row_version' => ['type' => 'integer', 'nullable' => true],
                     'ticket_status' => ['type' => 'string'],
                     'route_source' => ['type' => 'string', 'nullable' => true],
                     'dispatch_count' => ['type' => 'integer'],
@@ -6215,12 +6396,13 @@ class ApiContractMetadataRegistry
                     'order_item' => [
                         'type' => 'object',
                         'nullable' => true,
-                        'required' => ['order_item_id', 'item_id', 'quantity', 'status', 'notes', 'item_name_snapshot'],
+                        'required' => ['order_item_id', 'item_id', 'quantity', 'status', 'row_version', 'notes', 'item_name_snapshot'],
                         'properties' => [
                             'order_item_id' => ['type' => 'integer'],
                             'item_id' => ['type' => 'integer'],
                             'quantity' => ['type' => 'integer'],
                             'status' => ['type' => 'string'],
+                            'row_version' => ['type' => 'integer', 'nullable' => true],
                             'notes' => ['type' => 'string', 'nullable' => true],
                             'item_name_snapshot' => ['type' => 'string', 'nullable' => true],
                         ],
@@ -6402,6 +6584,7 @@ class ApiContractMetadataRegistry
     public function knownEnvelopeExceptions(): array
     {
         return [
+            'GET api/user',
             'GET api/v1/health',
             'GET api/v1/health/detailed',
             'GET api/v1/health/redis',

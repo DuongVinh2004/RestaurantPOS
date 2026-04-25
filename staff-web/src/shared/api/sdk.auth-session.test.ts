@@ -109,4 +109,36 @@ describe('RestaurantPosClient customer session propagation', () => {
 
     expect(fetchSpy).toHaveBeenCalledOnce();
   });
+
+  it('supports staff browser refresh-cookie credentials and CSRF headers', async () => {
+    const fetchSpy = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+
+      expect(init?.credentials).toBe('include');
+      expect(headers.get('X-Staff-Key')).toBe('staff-access-token');
+      expect(headers.get('X-Staff-CSRF')).toBe('csrf-token');
+
+      return {
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ data: { access_token: 'new-access-token' } }),
+      } as Response;
+    });
+
+    Object.defineProperty(globalThis, 'fetch', {
+      value: fetchSpy,
+      configurable: true,
+      writable: true,
+    });
+
+    const client = new RestaurantPosClient({
+      baseUrl: 'http://example.test',
+      staffApiKey: 'staff-access-token',
+      staffCsrfToken: () => 'csrf-token',
+    });
+
+    await client.postV1AuthStaffRefresh({ credentials: 'include' });
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+  });
 });

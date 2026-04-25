@@ -1575,10 +1575,12 @@ class UatScenarioPackService
         ?string $printerTarget = null,
     ): int {
         $now = now('UTC');
+        $branchId = (int) (DB::table('branches')->where('is_default', 1)->value('branch_id') ?? 1);
 
         DB::table('kitchen_stations')->updateOrInsert(
             ['code' => $code],
             [
+                'branch_id' => $branchId,
                 'name' => $name,
                 'description' => $description,
                 'output_mode' => $outputMode,
@@ -1597,11 +1599,16 @@ class UatScenarioPackService
     private function upsertKitchenStationRoute(int $stationId, int $categoryId, int $sortOrder): void
     {
         $now = now('UTC');
+        $branchId = (int) (DB::table('kitchen_stations')->where('station_id', $stationId)->value('branch_id') ?? 1);
 
         DB::table('kitchen_station_category_routes')->updateOrInsert(
-            ['category_id' => $categoryId],
+            [
+                'branch_id' => $branchId,
+                'category_id' => $categoryId,
+            ],
             [
                 'station_id' => $stationId,
+                'branch_id' => $branchId,
                 'sort_order' => $sortOrder,
                 'is_active' => 1,
                 'created_at' => $now,

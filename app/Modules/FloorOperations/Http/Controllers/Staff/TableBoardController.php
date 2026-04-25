@@ -5,20 +5,27 @@ declare(strict_types=1);
 namespace App\Modules\FloorOperations\Http\Controllers\Staff;
 
 use App\Http\Concerns\AppliesDeprecatedRouteHeaders;
+use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\FloorOperations\Application\Queries\StaffTableBoardService;
 use App\Modules\FloorOperations\Http\Requests\Staff\TableBoardRequest;
 use App\Platform\Realtime\Services\OperationalRealtimeService;
+use App\Support\ApiErrorResponse;
 use App\Support\Listing\ListingMetaFactory;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class TableBoardController extends Controller
 {
     use AppliesDeprecatedRouteHeaders;
+    use ResolvesStaffActor;
 
     public function __construct(
         private readonly StaffTableBoardService $boardService,
         private readonly OperationalRealtimeService $realtimeService,
+        private readonly StaffBranchContextService $branchContextService,
     ) {}
 
     public function legacyIndex(TableBoardRequest $request): JsonResponse
@@ -40,12 +47,27 @@ class TableBoardController extends Controller
 
     public function index(TableBoardRequest $request): JsonResponse
     {
+        $branchId = $request->integer('branch_id') ?: null;
+        $staffActorUserId = $this->resolveStaffActorUserId($request);
+
+        try {
+            $accessibleBranchIds = $this->branchContextService->branchScopeOrAccessible(
+                $staffActorUserId,
+                $branchId,
+                (int) $request->attributes->get('staff_actor_role_id', 0) ?: null,
+                trim((string) $request->attributes->get('staff_actor_role_name', '')) ?: null,
+            );
+        } catch (ModelNotFoundException) {
+            return $this->notFoundResponse($request, 'Branch not found.');
+        }
+
         $snapshot = $this->boardService->buildBoardSnapshot(
             from: $request->date('from'),
             to: $request->date('to'),
-            branchId: $request->input('branch_id'),
+            branchId: $branchId,
             zone: $request->input('zone'),
             includeHolds: $request->boolean('include_holds', true),
+            accessibleBranchIds: $accessibleBranchIds,
         );
 
         return response()->json(array_merge($snapshot, [
@@ -107,5 +129,15 @@ class TableBoardController extends Controller
                 ],
             ),
         ]));
+    }
+
+    private function notFoundResponse(Request $request, string $message): JsonResponse
+    {
+        return ApiErrorResponse::json(
+            $request,
+            404,
+            'not_found',
+            $message,
+        );
     }
 }

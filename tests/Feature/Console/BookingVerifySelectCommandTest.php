@@ -52,7 +52,7 @@ class BookingVerifySelectCommandTest extends TestCase
         $exitCode = Artisan::call('booking:verify-select', [
             '--json' => true,
             '--path' => [
-                'app/Services/Harness/HarnessSuiteService.php',
+                'app/Platform/Harness/HarnessSuiteService.php',
                 'routes/console/harness.php',
             ],
         ]);
@@ -68,5 +68,30 @@ class BookingVerifySelectCommandTest extends TestCase
         $this->assertContains('restaurantpos-web-client-contracts', $payload['skills']);
         $this->assertContains('php artisan booking:harness:fe-contract --json', $commands);
         $this->assertContains('php artisan booking:harness:web-auth --json', $commands);
+    }
+
+    public function test_booking_verify_select_matches_release_control_plane_domain(): void
+    {
+        $exitCode = Artisan::call('booking:verify-select', [
+            '--json' => true,
+            '--path' => [
+                'config/booking_release.php',
+                'scripts/release/check-package-integrity.mjs',
+            ],
+        ]);
+
+        $payload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+        $domainKeys = array_map(static fn (array $domain): string => (string) $domain['key'], $payload['domains']);
+        $commands = array_map(static fn (array $command): string => (string) $command['command'], $payload['commands']);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertTrue($payload['ok']);
+        $this->assertContains('ops_release_contract', $domainKeys);
+        $this->assertContains('node scripts/release/check-package-integrity.mjs --json', $commands);
+        $this->assertContains('php artisan booking:release-manifest --json', $commands);
+        $this->assertContains(
+            'php artisan test tests/Unit/Services/ReleaseArtifactManifestServiceTest.php tests/Unit/Services/ReleasePackageServiceTest.php',
+            $commands
+        );
     }
 }

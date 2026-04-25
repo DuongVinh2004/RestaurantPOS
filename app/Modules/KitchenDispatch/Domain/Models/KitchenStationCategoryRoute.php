@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\KitchenDispatch\Domain\Models;
 
+use App\Modules\BranchScheduling\Domain\Models\Branch;
 use App\Modules\Catalog\Domain\Models\MenuCategory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,6 +17,7 @@ class KitchenStationCategoryRoute extends Model
 
     protected $fillable = [
         'station_id',
+        'branch_id',
         'category_id',
         'sort_order',
         'is_active',
@@ -24,6 +26,7 @@ class KitchenStationCategoryRoute extends Model
     protected $casts = [
         'route_id' => 'int',
         'station_id' => 'int',
+        'branch_id' => 'int',
         'category_id' => 'int',
         'sort_order' => 'int',
         'is_active' => 'bool',
@@ -34,6 +37,11 @@ class KitchenStationCategoryRoute extends Model
     public function station(): BelongsTo
     {
         return $this->belongsTo(KitchenStation::class, 'station_id', 'station_id');
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class, 'branch_id', 'branch_id');
     }
 
     public function category(): BelongsTo

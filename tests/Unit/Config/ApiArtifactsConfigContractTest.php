@@ -62,10 +62,14 @@ class ApiArtifactsConfigContractTest extends TestCase
         self::assertContains('PATCH api/v1/admin/settings/branches/{id}', $mutationGroupsByName['Admin branch update']['signatures']);
         self::assertContains('GET api/v1/staff/tables/board', $groupsByName['Dine-In + Checkout']['signatures']);
         self::assertContains('GET api/v1/staff/tables/board/changes', $groupsByName['Dine-In + Checkout']['signatures']);
+        self::assertContains('GET api/v1/staff/menu/items', $groupsByName['Dine-In + Checkout']['signatures']);
+        self::assertContains('POST api/v1/staff/service-sessions/walk-in', $groupsByName['Dine-In + Checkout']['signatures']);
         self::assertContains('GET api/v1/staff/cashier/shifts/current', $groupsByName['Dine-In + Checkout']['signatures']);
         self::assertContains('GET api/v1/staff/reservations', $groupsByName['Staff Lookup']['signatures']);
+        self::assertContains('GET api/v1/staff/reservations/{reservation_id}', $groupsByName['Staff Lookup']['signatures']);
         self::assertContains('GET api/v1/staff/reservations/{reservation_id}/orders', $groupsByName['Staff Lookup']['signatures']);
         self::assertContains('GET api/v1/staff/cashier/shifts', $groupsByName['Staff Lookup']['signatures']);
+        self::assertContains('POST api/v1/staff/conversations/{conversation_id}/unassign', $groupsByName['Conversation Inbox']['signatures']);
         self::assertContains('GET api/v1/staff/waiting-list', $groupsByName['Waiting List']['signatures']);
         self::assertContains('GET api/v1/staff/waiting-list/changes', $groupsByName['Waiting List']['signatures']);
         self::assertContains('GET api/v1/me/loyalty', $groupsByName['Benefits']['signatures']);

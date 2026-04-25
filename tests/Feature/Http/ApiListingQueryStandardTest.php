@@ -259,7 +259,7 @@ class ApiListingQueryStandardTest extends TestCase
     {
         Carbon::setTestNow(Carbon::parse('2026-04-05 09:00:00', 'UTC'));
 
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-query-finance');
         $customerId = $this->createUser(['role_name' => 'Customer', 'full_name' => 'Report Guest']);
         $reservationId = $this->createReservation([

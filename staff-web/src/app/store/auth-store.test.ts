@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { StaffApiError } from '../../shared/api/http';
-import type { StaffSession } from '../../shared/auth/storage';
-import { STAFF_TOKEN_STORAGE_KEY } from '../../shared/auth/storage';
+import { readStoredStaffToken, STAFF_TOKEN_STORAGE_KEY, writeStoredStaffToken, type StaffSession } from '../../shared/auth/storage';
 import { notifyStaffAuthFailure } from '../../shared/auth/session-events';
 import { buildStaffSession, type StaffStartupOverrides } from '../../test/fixtures';
 import { staffRoutePaths } from '../router/workspace-paths';
@@ -13,6 +12,7 @@ const staffApiMocks = vi.hoisted(() => ({
   loginStaff: vi.fn(),
   refreshStaffSession: vi.fn(),
   logoutStaff: vi.fn(),
+  canAttemptStaffBrowserSessionRefresh: vi.fn(),
 }));
 
 vi.mock('../../shared/api/staff-auth-api', () => staffApiMocks);
@@ -52,10 +52,14 @@ function makeSession(capabilities: Array<string>, overrides: StaffSessionOverrid
 describe('routing helpers', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
+    writeStoredStaffToken(null);
     staffApiMocks.getCurrentStaffSession.mockReset();
     staffApiMocks.loginStaff.mockReset();
     staffApiMocks.refreshStaffSession.mockReset();
     staffApiMocks.logoutStaff.mockReset();
+    staffApiMocks.canAttemptStaffBrowserSessionRefresh.mockReset();
+    staffApiMocks.canAttemptStaffBrowserSessionRefresh.mockReturnValue(false);
     useAuthStore.setState({
       status: 'booting',
       session: null,
@@ -112,18 +116,20 @@ describe('routing helpers', () => {
     expect(recommendedPathForSession(makeSession(['reporting.view']))).toBe(staffRoutePaths.admin.landing);
   });
 
-  it('keeps the stored opaque token during bootstrap when auth/me omits access_token', async () => {
+  it('keeps the in-memory opaque token during bootstrap when auth/me omits access_token', async () => {
     localStorage.setItem(STAFF_TOKEN_STORAGE_KEY, 'persisted-token');
+    writeStoredStaffToken('memory-token');
     staffApiMocks.getCurrentStaffSession.mockResolvedValue(makeSession([], { access_token: null }));
 
     await useAuthStore.getState().bootstrap();
 
-    expect(localStorage.getItem(STAFF_TOKEN_STORAGE_KEY)).toBe('persisted-token');
+    expect(readStoredStaffToken()).toBe('memory-token');
+    expect(localStorage.getItem(STAFF_TOKEN_STORAGE_KEY)).toBeNull();
     expect(useAuthStore.getState().status).toBe('authenticated');
   });
 
-  it('hydrates workspace state during bootstrap from the restored staff session', async () => {
-    localStorage.setItem(STAFF_TOKEN_STORAGE_KEY, 'persisted-token');
+  it('hydrates workspace state during bootstrap from the in-memory staff session token', async () => {
+    writeStoredStaffToken('memory-token');
     staffApiMocks.getCurrentStaffSession.mockResolvedValue(makeSession(['kitchen.manage']));
 
     await useAuthStore.getState().bootstrap();
@@ -135,8 +141,33 @@ describe('routing helpers', () => {
     });
   });
 
-  it('keeps the stored token when bootstrap fails with a forbidden response', async () => {
-    localStorage.setItem(STAFF_TOKEN_STORAGE_KEY, 'persisted-token');
+  it('does not restore legacy persistent tokens during bootstrap', async () => {
+    localStorage.setItem(STAFF_TOKEN_STORAGE_KEY, 'legacy-token');
+    sessionStorage.setItem(STAFF_TOKEN_STORAGE_KEY, 'legacy-session-token');
+
+    await useAuthStore.getState().bootstrap();
+
+    expect(staffApiMocks.getCurrentStaffSession).not.toHaveBeenCalled();
+    expect(readStoredStaffToken()).toBeNull();
+    expect(localStorage.getItem(STAFF_TOKEN_STORAGE_KEY)).toBeNull();
+    expect(sessionStorage.getItem(STAFF_TOKEN_STORAGE_KEY)).toBeNull();
+    expect(useAuthStore.getState().status).toBe('anonymous');
+  });
+
+  it('restores the session through the refresh-cookie contract when no memory token exists', async () => {
+    staffApiMocks.canAttemptStaffBrowserSessionRefresh.mockReturnValue(true);
+    staffApiMocks.refreshStaffSession.mockResolvedValue(makeSession(['table.board.view']));
+
+    await useAuthStore.getState().bootstrap();
+
+    expect(staffApiMocks.getCurrentStaffSession).not.toHaveBeenCalled();
+    expect(staffApiMocks.refreshStaffSession).toHaveBeenCalledOnce();
+    expect(useAuthStore.getState().status).toBe('authenticated');
+    expect(useAuthStore.getState().session?.capabilities).toContain('table.board.view');
+  });
+
+  it('keeps the in-memory token when bootstrap fails with a forbidden response', async () => {
+    writeStoredStaffToken('memory-token');
     staffApiMocks.getCurrentStaffSession.mockRejectedValue(new StaffApiError(403, {
       error_code: 'forbidden',
       message: 'Forbidden.',
@@ -146,7 +177,8 @@ describe('routing helpers', () => {
 
     await useAuthStore.getState().bootstrap();
 
-    expect(localStorage.getItem(STAFF_TOKEN_STORAGE_KEY)).toBe('persisted-token');
+    expect(readStoredStaffToken()).toBe('memory-token');
+    expect(localStorage.getItem(STAFF_TOKEN_STORAGE_KEY)).toBeNull();
     expect(useAuthStore.getState().status).toBe('anonymous');
     expect(useAuthStore.getState().session).toBeNull();
     expect(useWorkspaceStore.getState()).toMatchObject({
@@ -189,6 +221,8 @@ describe('routing helpers', () => {
 
   it('expire clears the token and leaves an auth notice for the next render', () => {
     localStorage.setItem(STAFF_TOKEN_STORAGE_KEY, 'persisted-token');
+    sessionStorage.setItem(STAFF_TOKEN_STORAGE_KEY, 'session-token');
+    writeStoredStaffToken('memory-token');
     useAuthStore.setState({
       status: 'authenticated',
       session: makeSession(['table.board.view']),
@@ -197,7 +231,9 @@ describe('routing helpers', () => {
 
     useAuthStore.getState().expire('Phiên làm việc của nhân viên đã hết hạn. Đăng nhập lại để tiếp tục.');
 
+    expect(readStoredStaffToken()).toBeNull();
     expect(localStorage.getItem(STAFF_TOKEN_STORAGE_KEY)).toBeNull();
+    expect(sessionStorage.getItem(STAFF_TOKEN_STORAGE_KEY)).toBeNull();
     expect(useAuthStore.getState().status).toBe('anonymous');
     expect(useAuthStore.getState().session).toBeNull();
     expect(useWorkspaceStore.getState()).toMatchObject({
@@ -213,6 +249,7 @@ describe('routing helpers', () => {
 
   it('expires the current session when a protected request reports a 401', () => {
     localStorage.setItem(STAFF_TOKEN_STORAGE_KEY, 'persisted-token');
+    writeStoredStaffToken('memory-token');
     useAuthStore.setState({
       status: 'authenticated',
       session: makeSession(['table.board.view']),
@@ -224,6 +261,7 @@ describe('routing helpers', () => {
       path: '/staff/tables/board',
     });
 
+    expect(readStoredStaffToken()).toBeNull();
     expect(localStorage.getItem(STAFF_TOKEN_STORAGE_KEY)).toBeNull();
     expect(useAuthStore.getState().status).toBe('anonymous');
     expect(useAuthStore.getState().session).toBeNull();

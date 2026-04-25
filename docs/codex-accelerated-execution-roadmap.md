@@ -35,18 +35,25 @@ Snapshot xac nhan tu workspace ngay `2026-04-20`:
   - `77` routes admin
   - `34` routes reservations
 - Domain module da rat day:
-  - `BenefitsLoyalty`
+  - `Billing`
   - `BranchScheduling`
-  - `CheckoutPayments`
+  - `Cashiering`
+  - `Catalog`
   - `Conversations`
-  - `FloorOps`
+  - `FloorOperations`
+  - `IdentityAccess`
+  - `InventoryProcurement`
   - `KitchenDispatch`
+  - `Loyalty`
+  - `MasterDataExchange`
   - `Notifications`
   - `Ordering`
-  - `PrivacyAudit`
+  - `Payments`
+  - `PrivacyCompliance`
+  - `Promotions`
   - `Reporting`
   - `Reservations`
-  - `WaitingList`
+  - `Waitlist`
 - Test surface sau:
   - `300` PHP test files tong
   - `173` Feature tests
@@ -195,9 +202,13 @@ Chi giu Wave 1:
 - menu browse
 - availability
 - hold create/refresh/cancel
-- reservation create/list/detail/cancel/reschedule
+- reservation create/list/detail
+
+Contract-visible nhung khong duoc xem la day-1 promise:
+
+- reservation cancel/reschedule
 - deposit preview va deposit payment-session flow
-- bill preview/read va bill payment-session flow
+- bill preview/read, active-order visibility, va bill payment-session flow
 
 ### Explicitly out of scope
 
@@ -207,6 +218,7 @@ Chi giu Wave 1:
   - privacy tools
   - data export
 - khong day preorder vao launch promise
+- khong day customer self-pay vao day-1 promise chi vi local/UAT simulated provider dang chay
 - khong mo them mock-only behavior trong release lane
 
 ### Codex tasks
@@ -250,13 +262,14 @@ Chot day-1 operator lane de staff co the lam viec end-to-end ma khong can "menta
 - login
 - table board
 - reservation handling
+- waiting-list manual notify/seat/cancel neu branch can
 - walk-in/service-session
 - active order
-- kitchen handoff va kitchen board
 - checkout/finalize
 - refund/refund-cancel
 - cashier shift
 - finance review reads can thiet
+- kitchen/KDS dispatch, conversation inbox, va inventory uplift co the ton tai o route/shell nhung khong nam trong day-1 promise
 
 ### Codex tasks
 

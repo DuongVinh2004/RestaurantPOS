@@ -142,7 +142,7 @@ function renderWorkspacePage(page: StaffWorkspacePageId): JSX.Element {
 }
 
 function RouteLoadingState() {
-  return <PageLoadingState title="Đang tải màn hìnhâ€¦" description="Staff-web đang dựng route và khôi phục module cần cho bước tiếp theo." />;
+  return <PageLoadingState title="Đang tải màn hình…" description="Staff-web đang dựng route và khôi phục module cần cho bước tiếp theo." />;
 }
 
 function BootstrapGate({ children }: { children: JSX.Element }) {
@@ -154,7 +154,7 @@ function BootstrapGate({ children }: { children: JSX.Element }) {
   }, [bootstrap]);
 
   if (status === 'booting') {
-    return <PageLoadingState title="Đang khởi tạo phiên nhân viênâ€¦" description="Hệ thống đang kiểm tra capability, branch mặc định và điều kiện vận hành của phiên hiện tại." />;
+    return <PageLoadingState title="Đang khởi tạo phiên nhân viên…" description="Hệ thống đang kiểm tra capability, branch mặc định và điều kiện vận hành của phiên hiện tại." />;
   }
 
   return children;

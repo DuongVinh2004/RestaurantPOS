@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support\AuditTrail;
 
+use App\Support\Auth\RequestActorContext;
+
 final class AuditTrailActorResolver
 {
     /**
@@ -54,33 +56,33 @@ final class AuditTrailActorResolver
             ];
         }
 
-        $request = request();
+        $actor = RequestActorContext::fromRequest(request());
 
-        $staffUserId = (int) ($request->attributes->get('staff_actor_user_id') ?? 0);
-        if ($staffUserId > 0) {
-            $staffApiKeyId = (int) ($request->attributes->get('staff_api_key_id') ?? 0);
+        $staffUserId = $actor->staffUserId();
+        if ($staffUserId !== null) {
+            $staffApiKeyId = $actor->staffApiKeyId();
 
             return [
-                'type' => $staffApiKeyId > 0 ? 'staff_api_key' : 'staff_user',
-                'key' => $staffApiKeyId > 0 ? 'staff_api_key:'.$staffApiKeyId : 'staff_user:'.$staffUserId,
+                'type' => $staffApiKeyId !== null ? 'staff_api_key' : 'staff_user',
+                'key' => $staffApiKeyId !== null ? 'staff_api_key:'.$staffApiKeyId : 'staff_user:'.$staffUserId,
                 'user_id' => $staffUserId,
             ];
         }
 
-        $customerUserId = (int) ($request->attributes->get('customer_actor_user_id') ?? ($request->user()?->user_id ?? 0));
-        if ($customerUserId > 0) {
-            $accessSessionId = (int) ($request->attributes->get('customer_access_session_id') ?? 0);
+        $customerUserId = $actor->customerUserId();
+        if ($customerUserId !== null) {
+            $accessSessionId = $actor->customerAccessSessionId();
 
             return [
-                'type' => $accessSessionId > 0 ? 'customer_access_session' : 'customer_account',
-                'key' => $accessSessionId > 0
+                'type' => $accessSessionId !== null ? 'customer_access_session' : 'customer_account',
+                'key' => $accessSessionId !== null
                     ? 'customer_access_session:'.$accessSessionId
                     : 'customer_user:'.$customerUserId,
                 'user_id' => $customerUserId,
             ];
         }
 
-        $sessionId = $this->normalizeNullableString($request->attributes->get('customer_session_id'));
+        $sessionId = $actor->sessionId();
         if ($sessionId !== null) {
             return [
                 'type' => 'customer_session',

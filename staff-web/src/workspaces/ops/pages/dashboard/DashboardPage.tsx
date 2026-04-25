@@ -58,22 +58,23 @@ export function DashboardPage() {
   const refreshSession = useAuthStore((state) => state.refresh);
   const branchId = useFlowStore((state) => state.branchId);
   const boardWindow = useMemo(() => buildBoardWindow(), []);
+  const canListStaffBranches = !!session && can(session, 'reservation.manage');
   const branchesQuery = useQuery({
-    queryKey: ['staff-branches'],
+    queryKey: ['staff-branches', session?.staff_api_key_id ?? null],
     queryFn: listBranches,
-    enabled: !!session,
+    enabled: canListStaffBranches,
     staleTime: 5 * 60_000,
   });
   const activeBranch = useMemo(() => {
-    const branches = branchesQuery.data?.data ?? [];
+    const branches = canListStaffBranches ? branchesQuery.data?.data ?? [] : [];
     const activeBranchId = branchId ?? session?.startup.default_branch?.branch_id ?? null;
 
     if (activeBranchId === null) {
       return null;
     }
 
-    return branches.find((branch) => branch.branch_id === activeBranchId) ?? null;
-  }, [branchId, branchesQuery.data?.data, session?.startup.default_branch?.branch_id]);
+    return branches.find((branch) => branch.branch_id === activeBranchId) ?? session?.startup.default_branch ?? null;
+  }, [branchId, branchesQuery.data?.data, canListStaffBranches, session?.startup.default_branch]);
   const branchTimeZone = activeBranch?.timezone ?? session?.startup.default_branch?.timezone ?? 'Asia/Ho_Chi_Minh';
   const reportingFilters = useMemo(() => ({
     dateFrom: isoDateInTimeZone(branchTimeZone),
@@ -353,7 +354,7 @@ export function DashboardPage() {
   async function handleRefreshAll() {
     await Promise.all([
       refreshSession(),
-      session ? branchesQuery.refetch() : Promise.resolve(),
+      canListStaffBranches ? branchesQuery.refetch() : Promise.resolve(),
       canViewTables ? tableBoardQuery.refetch() : Promise.resolve(),
       canManageReservations ? reservationsQuery.refetch() : Promise.resolve(),
       canManageWaitingList ? waitingListQuery.refetch() : Promise.resolve(),
@@ -490,4 +491,3 @@ function rankPriority(path: string, priorityPaths: Array<string>): number {
   const index = priorityPaths.findIndex((candidate) => path.startsWith(candidate));
   return index === -1 ? priorityPaths.length + 1 : index;
 }
-

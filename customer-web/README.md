@@ -28,14 +28,18 @@ Do not infer customer-web contract behavior from Laravel controllers unless you 
 
 ## Release scope
 
-Wave 1 live:
+Day-1 ON:
 
 - auth and session restore
 - menu browse
 - table availability and holds
 - reservation create, list, and detail
-- deposit preview, with payment-session proof only when provider support is real
-- bill preview and active-order visibility only when backend or seeded UAT data is real
+
+Contract-visible but not launch-promised:
+
+- reservation cancel and reschedule
+- deposit preview plus deposit payment-session routes
+- bill preview or detail, active-order visibility, and bill payment-session routes
 
 Wave 2 live-conditional and still env-gated by default:
 
@@ -48,6 +52,12 @@ Deferred from the current go-live dependency chain:
 
 - preorder surfaces are visible in the frozen contract, but they are gated by `NEXT_PUBLIC_FEATURE_PREORDER` and are not part of the Wave 1 launch promise yet
 - dev mocks are local-only resilience tooling, never a production behavior
+
+Day-1 payment posture stays conservative:
+
+- staff settlement is the production-proven payment path
+- customer deposit and bill payment-session routes are contract-visible and runtime-conditional
+- simulated or local UAT payment proof does not promote customer self-pay into the day-1 launch promise
 
 The current implementation detail and rollout intent for each surface lives in `src/lib/config/support-matrix.ts`.
 
@@ -220,6 +230,16 @@ This adds the full Vitest suite, a production build, and the Playwright smoke. T
 
 `npm run verify:release` is CI-safe and mock-safe. A passing result proves the release wiring, not a real backend launch proof.
 
+Focused CI/local browser smoke:
+
+```bash
+npx playwright install chromium
+npm run build
+npm run test:e2e:smoke
+```
+
+The smoke script uses the Playwright config to start the production build on `http://127.0.0.1:3100` with deterministic API route interception. CI must have the Chromium browser installed before running the smoke command; local runs can use the same command sequence.
+
 Live runtime Wave 1 proof set:
 
 ```powershell
@@ -243,9 +263,9 @@ $env:CUSTOMER_WEB_LIVE_START_TIME="2026-04-20T18:30"
 npm run test:e2e:live
 ```
 
-`npm run test:e2e:live` is a strict live-only lane. It does not start customer-web for you, it fails if the canonical UAT manifest or live credentials are missing, and it rejects `NEXT_PUBLIC_ENABLE_DEV_MOCKS=true`. The browser runs against the real Laravel API for login, session restore, menu browse, availability search, table hold, reservation create/list/detail/cancel/reschedule, deposit preview and payment sessions, bill or active-order reads, and bill payment sessions when the live exercise flag is enabled.
+`npm run test:e2e:live` is a strict live-only lane. It does not start customer-web for you, it fails if the canonical UAT manifest or live credentials are missing, and it rejects `NEXT_PUBLIC_ENABLE_DEV_MOCKS=true`. The browser runs against the real Laravel API for login, session restore, menu browse, availability search, table hold, reservation create/list/detail/cancel/reschedule, deposit preview and payment sessions, bill or active-order reads, and bill payment sessions when the live exercise flag is enabled. That contract visibility does not, by itself, make customer self-pay part of the day-1 launch promise.
 
-A healthy live lane still is not enough to claim every payment path is proven. Deposit payment sessions need a real or explicitly simulated runtime provider path, and positive bill self-pay still needs refreshed dine-in checkout fixtures from the canonical UAT pack.
+A healthy live lane still is not enough to claim every payment path is proven. Deposit and bill payment sessions remain contract-visible and runtime-conditional; day-1 launch still requires real provider evidence before customer self-pay can be promoted from contract-ready to launch-promised.
 
 Use the live release gate before launch confidence:
 
@@ -267,7 +287,8 @@ QA checklist before live proof:
 
 Go or no-go should be read through these rollout buckets:
 
-- Live-ready: auth and session restore, menu browse, availability search, hold create/refresh/cancel, reservation create/list/detail/cancel/reschedule, deposit preview plus payment-session create/read/refresh/confirm, positive active-order visibility, bill preview/detail, and bill payment-session create/read/refresh/confirm.
+- Live-ready: auth and session restore, menu browse, availability search, hold create/refresh/cancel, and reservation create/list/detail.
+- Contract-visible but not launch-promised: reservation cancel/reschedule, deposit preview plus payment-session create/read/refresh/confirm, positive active-order visibility, bill preview/detail, and bill payment-session create/read/refresh/confirm.
 - Live-conditional: waiting list, account benefits, privacy requests, and data export have live proof only behind their explicit rollout flags.
 - CI-safe only: the deterministic mock-backed Playwright smoke in `npm run verify:release` proves shell and journey wiring, but it does not prove a live Laravel runtime.
 - Local or UAT only: dev mocks and simulated payment proof are useful diagnostics, but they are never production-ready evidence.
@@ -314,7 +335,7 @@ Backend prerequisites for a non-skipped live pass:
 
 Known live proof boundaries as of April 19, 2026:
 
-- deposit self-pay and bill self-pay are live-ready against the backend contract, but production PSP configuration remains separate from the local UAT `simulated` provider path
+- deposit and bill self-pay routes are contract-visible and can be exercised in controlled UAT, but they are not part of the day-1 launch promise until real provider evidence exists
 - the local `simulated` provider proves browser-to-backend payment-session flow only; it does not prove production PSP account setup, webhook secret rollout, or real-money settlement rails
 - waiting-list owner actions are live-proven behind flag; notification delivery, realtime updates, and branch-scheduled final seating remain runtime prerequisites
 - account benefits and privacy/data-export are live-proven behind flags, not default-on launch exposure

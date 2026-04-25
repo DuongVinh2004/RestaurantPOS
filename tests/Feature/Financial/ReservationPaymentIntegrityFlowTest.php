@@ -41,7 +41,7 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
     public function test_refund_cancel_after_customer_session_payments_reverses_deposit_and_final_without_double_counting(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,

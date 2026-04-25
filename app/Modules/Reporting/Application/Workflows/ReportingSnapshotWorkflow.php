@@ -7,6 +7,7 @@ namespace App\Modules\Reporting\Application\Workflows;
 use App\Modules\Billing\Domain\Models\BillingInvoice;
 use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use App\Modules\Cashiering\Domain\Models\CashierShift;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\InventoryProcurement\Domain\Models\IngredientStockMovement;
 use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Reporting\Domain\Models\ReportingDailyInventoryMovementSnapshot;
@@ -16,13 +17,19 @@ use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Modules\Waitlist\Domain\Models\WaitlistEntry;
 use App\SharedKernel\Money\Money;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Pagination\LengthAwarePaginator as LengthAwarePaginatorImpl;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 class ReportingSnapshotWorkflow
 {
+    public function __construct(
+        private readonly StaffBranchContextService $staffBranchContextService,
+    ) {}
+
     /**
      * @param  array<string,mixed>  $filters
      * @return array<string,mixed>
@@ -103,8 +110,9 @@ class ReportingSnapshotWorkflow
     /**
      * @param  array<string,mixed>  $filters
      */
-    public function paginateDailySales(array $filters = []): LengthAwarePaginator
+    public function paginateDailySales(array $filters = [], ?int $staffActorUserId = null): LengthAwarePaginator
     {
+        $filters = $this->withStaffBranchScope($filters, $staffActorUserId);
         $perPage = max(1, min((int) ($filters['per_page'] ?? config('booking.reporting_page_default', 25)), (int) config('booking.reporting_page_max', 100)));
         $page = max(1, (int) ($filters['page'] ?? 1));
         [$startDate, $endDate] = $this->resolveDateRange($filters, 7);
@@ -113,10 +121,12 @@ class ReportingSnapshotWorkflow
             (string) ($filters['sort_dir'] ?? 'desc'),
         );
 
+        $query = ReportingDailySalesSnapshot::query()
+            ->with(['branch:branch_id,branch_code,branch_name,is_default']);
+        $this->applyBranchScope($query, $filters);
+
         /** @var LengthAwarePaginatorImpl<int,ReportingDailySalesSnapshot> $paginator */
-        $paginator = ReportingDailySalesSnapshot::query()
-            ->with(['branch:branch_id,branch_code,branch_name,is_default'])
-            ->when(isset($filters['branch_id']), static fn ($query) => $query->where('branch_id', (int) $filters['branch_id']))
+        $paginator = $query
             ->when(isset($filters['currency']) && trim((string) $filters['currency']) !== '', static fn ($query) => $query->where('currency', strtoupper(trim((string) $filters['currency']))))
             ->whereBetween('business_date', [$startDate, $endDate])
             ->orderBy($sortColumn, $sortDirection)
@@ -131,8 +141,9 @@ class ReportingSnapshotWorkflow
     /**
      * @param  array<string,mixed>  $filters
      */
-    public function paginateDailyOperations(array $filters = []): LengthAwarePaginator
+    public function paginateDailyOperations(array $filters = [], ?int $staffActorUserId = null): LengthAwarePaginator
     {
+        $filters = $this->withStaffBranchScope($filters, $staffActorUserId);
         $perPage = max(1, min((int) ($filters['per_page'] ?? config('booking.reporting_page_default', 25)), (int) config('booking.reporting_page_max', 100)));
         $page = max(1, (int) ($filters['page'] ?? 1));
         [$startDate, $endDate] = $this->resolveDateRange($filters, 7);
@@ -141,10 +152,12 @@ class ReportingSnapshotWorkflow
             (string) ($filters['sort_dir'] ?? 'desc'),
         );
 
+        $query = ReportingDailyOperationSnapshot::query()
+            ->with(['branch:branch_id,branch_code,branch_name,is_default']);
+        $this->applyBranchScope($query, $filters);
+
         /** @var LengthAwarePaginatorImpl<int,ReportingDailyOperationSnapshot> $paginator */
-        $paginator = ReportingDailyOperationSnapshot::query()
-            ->with(['branch:branch_id,branch_code,branch_name,is_default'])
-            ->when(isset($filters['branch_id']), static fn ($query) => $query->where('branch_id', (int) $filters['branch_id']))
+        $paginator = $query
             ->whereBetween('business_date', [$startDate, $endDate])
             ->orderBy($sortColumn, $sortDirection)
             ->when($sortColumn !== 'business_date', static fn ($query) => $query->orderByDesc('business_date'))
@@ -157,8 +170,9 @@ class ReportingSnapshotWorkflow
     /**
      * @param  array<string,mixed>  $filters
      */
-    public function paginateDailyInventory(array $filters = []): LengthAwarePaginator
+    public function paginateDailyInventory(array $filters = [], ?int $staffActorUserId = null): LengthAwarePaginator
     {
+        $filters = $this->withStaffBranchScope($filters, $staffActorUserId);
         $perPage = max(1, min((int) ($filters['per_page'] ?? config('booking.reporting_page_default', 25)), (int) config('booking.reporting_page_max', 100)));
         $page = max(1, (int) ($filters['page'] ?? 1));
         [$startDate, $endDate] = $this->resolveDateRange($filters, 7);
@@ -167,13 +181,15 @@ class ReportingSnapshotWorkflow
             (string) ($filters['sort_dir'] ?? 'desc'),
         );
 
-        /** @var LengthAwarePaginatorImpl<int,ReportingDailyInventoryMovementSnapshot> $paginator */
-        $paginator = ReportingDailyInventoryMovementSnapshot::query()
+        $query = ReportingDailyInventoryMovementSnapshot::query()
             ->with([
                 'branch:branch_id,branch_code,branch_name,is_default',
                 'ingredient:ingredient_id,code,name,unit_code,is_active',
-            ])
-            ->when(isset($filters['branch_id']), static fn ($query) => $query->where('branch_id', (int) $filters['branch_id']))
+            ]);
+        $this->applyBranchScope($query, $filters);
+
+        /** @var LengthAwarePaginatorImpl<int,ReportingDailyInventoryMovementSnapshot> $paginator */
+        $paginator = $query
             ->when(isset($filters['ingredient_id']), static fn ($query) => $query->where('ingredient_id', (int) $filters['ingredient_id']))
             ->whereBetween('business_date', [$startDate, $endDate])
             ->orderBy($sortColumn, $sortDirection)
@@ -190,8 +206,22 @@ class ReportingSnapshotWorkflow
      * @param  array<string,mixed>  $filters
      * @return array<string,mixed>
      */
-    public function filteredSnapshotHealth(string $family, array $filters = [], ?Carbon $now = null): array
+    public function scopeFiltersForStaff(
+        array $filters = [],
+        ?int $staffActorUserId = null,
+        ?int $staffActorRoleId = null,
+        ?string $staffActorRoleName = null,
+    ): array {
+        return $this->withStaffBranchScope($filters, $staffActorUserId, $staffActorRoleId, $staffActorRoleName);
+    }
+
+    /**
+     * @param  array<string,mixed>  $filters
+     * @return array<string,mixed>
+     */
+    public function filteredSnapshotHealth(string $family, array $filters = [], ?Carbon $now = null, ?int $staffActorUserId = null): array
     {
+        $filters = $this->withStaffBranchScope($filters, $staffActorUserId);
         $now ??= Carbon::now('UTC');
         [$startDate, $endDate] = $this->resolveDateRange($filters, 7);
         $staleThresholdSeconds = max(1, (int) config('booking.ops.reporting_snapshot_stale_hours', 48)) * 3600;
@@ -259,27 +289,91 @@ class ReportingSnapshotWorkflow
     {
         return match ($family) {
             'sales' => [
-                ReportingDailySalesSnapshot::query()
-                    ->when(isset($filters['branch_id']), static fn ($q) => $q->where('branch_id', (int) $filters['branch_id']))
+                tap(ReportingDailySalesSnapshot::query(), fn ($query) => $this->applyBranchScope($query, $filters))
                     ->when(isset($filters['currency']) && trim((string) $filters['currency']) !== '', static fn ($q) => $q->where('currency', strtoupper(trim((string) $filters['currency']))))
                     ->whereBetween('business_date', [$startDate, $endDate]),
                 ['branch_id', 'currency'],
             ],
             'operations' => [
-                ReportingDailyOperationSnapshot::query()
-                    ->when(isset($filters['branch_id']), static fn ($q) => $q->where('branch_id', (int) $filters['branch_id']))
+                tap(ReportingDailyOperationSnapshot::query(), fn ($query) => $this->applyBranchScope($query, $filters))
                     ->whereBetween('business_date', [$startDate, $endDate]),
                 ['branch_id'],
             ],
             'inventory' => [
-                ReportingDailyInventoryMovementSnapshot::query()
-                    ->when(isset($filters['branch_id']), static fn ($q) => $q->where('branch_id', (int) $filters['branch_id']))
+                tap(ReportingDailyInventoryMovementSnapshot::query(), fn ($query) => $this->applyBranchScope($query, $filters))
                     ->when(isset($filters['ingredient_id']), static fn ($q) => $q->where('ingredient_id', (int) $filters['ingredient_id']))
                     ->whereBetween('business_date', [$startDate, $endDate]),
                 ['branch_id', 'ingredient_id'],
             ],
             default => throw new InvalidArgumentException('Unknown reporting snapshot family.'),
         };
+    }
+
+    /**
+     * @param  array<string,mixed>  $filters
+     * @return array<string,mixed>
+     */
+    private function withStaffBranchScope(
+        array $filters,
+        ?int $staffActorUserId = null,
+        ?int $staffActorRoleId = null,
+        ?string $staffActorRoleName = null,
+    ): array {
+        if (array_key_exists('branch_scope', $filters)) {
+            return $filters;
+        }
+
+        if ($staffActorUserId === null || $staffActorUserId <= 0) {
+            return $filters;
+        }
+
+        try {
+            $filters['branch_scope'] = $this->staffBranchContextService->branchScopeOrAccessible(
+                $staffActorUserId,
+                isset($filters['branch_id']) && $filters['branch_id'] !== null ? (int) $filters['branch_id'] : null,
+                $staffActorRoleId,
+                $staffActorRoleName,
+            );
+        } catch (ModelNotFoundException) {
+            throw ValidationException::withMessages([
+                'branch_id' => [
+                    (string) config(
+                        'staff_capabilities.messages.branch_scope_denied',
+                        'Resolved staff actor is not allowed to operate on the selected branch.',
+                    ),
+                ],
+            ]);
+        }
+
+        return $filters;
+    }
+
+    /**
+     * @param  mixed  $query
+     * @param  array<string,mixed>  $filters
+     */
+    private function applyBranchScope($query, array $filters): void
+    {
+        if (array_key_exists('branch_scope', $filters)) {
+            $branchScope = array_values(array_filter(
+                array_map('intval', (array) $filters['branch_scope']),
+                static fn (int $branchId): bool => $branchId > 0,
+            ));
+
+            if ($branchScope === []) {
+                $query->whereRaw('1 = 0');
+
+                return;
+            }
+
+            $query->whereIn('branch_id', $branchScope);
+
+            return;
+        }
+
+        if (isset($filters['branch_id'])) {
+            $query->where('branch_id', (int) $filters['branch_id']);
+        }
     }
 
     /**

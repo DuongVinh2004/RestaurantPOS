@@ -4,28 +4,27 @@ export const STAFF_TOKEN_STORAGE_KEY = 'restaurantpos.staff_web.staff_api_key';
 
 export type StaffSession = StaffAuthSessionEnvelope['data'];
 
-export function readStoredStaffToken(): string | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
+let inMemoryStaffToken: string | null = null;
 
-  return window.localStorage.getItem(STAFF_TOKEN_STORAGE_KEY);
+export function readStoredStaffToken(): string | null {
+  clearLegacyPersistentStaffToken();
+  return inMemoryStaffToken;
 }
 
 export function writeStoredStaffToken(token: string | null): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
+  clearLegacyPersistentStaffToken();
 
   if (!token || token.trim() === '') {
-    window.localStorage.removeItem(STAFF_TOKEN_STORAGE_KEY);
+    inMemoryStaffToken = null;
     return;
   }
 
-  window.localStorage.setItem(STAFF_TOKEN_STORAGE_KEY, token);
+  inMemoryStaffToken = token.trim();
 }
 
 export function persistStaffSessionToken(session: StaffSession): void {
+  clearLegacyPersistentStaffToken();
+
   if (typeof session.access_token === 'string') {
     const normalizedToken = session.access_token.trim();
 
@@ -35,5 +34,23 @@ export function persistStaffSessionToken(session: StaffSession): void {
 
   if (!readStoredStaffToken()) {
     writeStoredStaffToken(null);
+  }
+}
+
+function clearLegacyPersistentStaffToken(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(STAFF_TOKEN_STORAGE_KEY);
+  } catch {
+    // Ignore blocked storage access; the active staff token is kept in memory only.
+  }
+
+  try {
+    window.sessionStorage.removeItem(STAFF_TOKEN_STORAGE_KEY);
+  } catch {
+    // Ignore blocked storage access; the active staff token is kept in memory only.
   }
 }

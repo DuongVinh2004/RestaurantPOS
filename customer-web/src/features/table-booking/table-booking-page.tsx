@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -15,11 +15,21 @@ import { ErrorState, EmptyState, LoadingBlock } from "@/components/states/state-
 import type { TableHold } from "@/lib/contracts/generated/restaurantpos-sdk";
 import { createRoundedFutureLocalDateTimeInput } from "@/lib/contracts/datetime";
 import { formatDateTime } from "@/lib/contracts/format";
-import { createTableHold, searchAvailableTables, type AvailableTablesResult } from "./api";
+import { queryKeys } from "@/lib/api/query-keys";
+import { cancelTableHold, createTableHold, refreshTableHold, searchAvailableTables, type AvailableTablesResult } from "./api";
 import { availabilitySearchSchema, type AvailabilitySearchValues } from "./schemas";
 import { parseAvailabilityMeta, parseTableHoldState } from "./state";
 
+function getTableIdsFromHold(hold: TableHold): number[] {
+  return Array.isArray(hold.tables)
+    ? hold.tables
+        .map((table) => table.table_id)
+        .filter((tableId): tableId is number => Number.isInteger(tableId) && tableId > 0)
+    : [];
+}
+
 export function TableBookingPage() {
+  const queryClient = useQueryClient();
   const [availability, setAvailability] = useState<AvailableTablesResult | null>(null);
   const [hold, setHold] = useState<TableHold | null>(null);
   const [heldVisitDetails, setHeldVisitDetails] = useState<AvailabilitySearchValues | null>(null);
@@ -50,16 +60,40 @@ export function TableBookingPage() {
   const holdMutation = useMutation({
     mutationFn: (values: AvailabilitySearchValues) => createTableHold(values, selectedTableIds),
     onSuccess(result, values) {
+      const nextTableIds = getTableIdsFromHold(result);
       setHold(result);
       setHeldVisitDetails(values);
-      setHeldTableIds([...selectedTableIds]);
+      setHeldTableIds(nextTableIds.length > 0 ? nextTableIds : [...selectedTableIds]);
+      queryClient.setQueryData(queryKeys.tableBooking.hold(result.hold_id), result);
       toast.success("Table hold created.");
+    },
+  });
+  const refreshHoldMutation = useMutation({
+    mutationFn: ({ holdId, rowVersion }: { holdId: string; rowVersion: number }) => refreshTableHold(holdId, rowVersion),
+    onSuccess(result) {
+      const nextTableIds = getTableIdsFromHold(result);
+      setHold(result);
+      setHeldTableIds(nextTableIds.length > 0 ? nextTableIds : heldTableIds);
+      queryClient.setQueryData(queryKeys.tableBooking.hold(result.hold_id), result);
+      toast.success("Table hold refreshed.");
+    },
+  });
+  const cancelHoldMutation = useMutation({
+    mutationFn: ({ holdId, rowVersion }: { holdId: string; rowVersion: number }) => cancelTableHold(holdId, rowVersion),
+    onSuccess(result) {
+      const nextTableIds = getTableIdsFromHold(result);
+      setHold(result);
+      setHeldTableIds(nextTableIds.length > 0 ? nextTableIds : heldTableIds);
+      queryClient.setQueryData(queryKeys.tableBooking.hold(result.hold_id), result);
+      toast.success("Table hold cancelled.");
     },
   });
 
   const tables = availability?.tables ?? [];
   const availabilityMeta = availability ? parseAvailabilityMeta(availability.meta, tables.length) : null;
   const holdState = hold ? parseTableHoldState(hold) : null;
+  const holdMutationError = refreshHoldMutation.error ?? cancelHoldMutation.error;
+  const holdActionPending = refreshHoldMutation.isPending || cancelHoldMutation.isPending;
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6">
@@ -127,7 +161,9 @@ export function TableBookingPage() {
                 <button
                   type="button"
                   key={table.table_id}
-                  disabled={searchMutation.isPending || holdMutation.isPending}
+                  aria-label={`${table.table_code ?? `Table ${table.table_id}`} table option`}
+                  aria-pressed={selected}
+                  disabled={searchMutation.isPending || holdMutation.isPending || holdActionPending}
                   className={`rounded-lg border bg-card p-4 text-left transition ${
                     selected ? "border-primary ring-2 ring-primary/20" : "hover:border-primary/50"
                   }`}
@@ -159,7 +195,7 @@ export function TableBookingPage() {
                 <Button
                   type="button"
                   className="rounded-lg"
-                  disabled={selectedTableIds.length === 0 || holdMutation.isPending || searchMutation.isPending}
+                  disabled={selectedTableIds.length === 0 || holdMutation.isPending || searchMutation.isPending || holdActionPending}
                   onClick={() => holdMutation.mutate(form.getValues())}
                 >
                   {holdMutation.isPending ? "Creating hold" : "Create hold"}
@@ -191,14 +227,54 @@ export function TableBookingPage() {
                   </div>
                   <Badge variant="outline" className="rounded-md">{holdState.status}</Badge>
                 </div>
+                {holdMutationError ? (
+                  <ErrorState
+                    error={holdMutationError}
+                    title="Could not update hold"
+                    onRetry={() => {
+                      if (!holdState.isActive) {
+                        return;
+                      }
+
+                      if (refreshHoldMutation.error) {
+                        refreshHoldMutation.mutate({ holdId: holdState.holdId, rowVersion: holdState.rowVersion });
+                        return;
+                      }
+
+                      if (cancelHoldMutation.error) {
+                        cancelHoldMutation.mutate({ holdId: holdState.holdId, rowVersion: holdState.rowVersion });
+                      }
+                    }}
+                  />
+                ) : null}
                 {holdState.isActive ? (
-                  <Button asChild className="w-full rounded-lg">
-                    <Link
-                      href={`/reservations/new?hold_id=${encodeURIComponent(holdState.holdId)}&hold_status=${encodeURIComponent(holdState.status)}&hold_expires_at=${encodeURIComponent(holdState.expiresAt ?? "")}&tables=${heldTableIds.join(",")}&start_time=${encodeURIComponent(heldVisitDetails.start_time)}&duration_minutes=${heldVisitDetails.duration_minutes}&guest_count=${heldVisitDetails.guest_count}`}
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <Button asChild className="rounded-lg">
+                      <Link
+                        href={`/reservations/new?hold_id=${encodeURIComponent(holdState.holdId)}&hold_status=${encodeURIComponent(holdState.status)}&hold_expires_at=${encodeURIComponent(holdState.expiresAt ?? "")}&tables=${heldTableIds.join(",")}&start_time=${encodeURIComponent(heldVisitDetails.start_time)}&duration_minutes=${heldVisitDetails.duration_minutes}&guest_count=${heldVisitDetails.guest_count}`}
+                      >
+                        Continue to reservation
+                      </Link>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-lg"
+                      disabled={holdActionPending}
+                      onClick={() => refreshHoldMutation.mutate({ holdId: holdState.holdId, rowVersion: holdState.rowVersion })}
                     >
-                      Continue to reservation
-                    </Link>
-                  </Button>
+                      {refreshHoldMutation.isPending ? "Refreshing hold" : "Refresh hold"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-lg"
+                      disabled={holdActionPending}
+                      onClick={() => cancelHoldMutation.mutate({ holdId: holdState.holdId, rowVersion: holdState.rowVersion })}
+                    >
+                      {cancelHoldMutation.isPending ? "Cancelling hold" : "Cancel hold"}
+                    </Button>
+                  </div>
                 ) : (
                   <EmptyState
                     title="This hold already expired"

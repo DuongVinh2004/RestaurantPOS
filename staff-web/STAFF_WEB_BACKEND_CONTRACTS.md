@@ -9,6 +9,14 @@
   - `../routes/api/auth.php`
   - `../routes/api/staff_pos.php`
 
+## Route Surface Governance
+
+- Staff-web routes must be backed by the frozen OpenAPI artifact in `../storage/app/booking_release/openapi-v1.json`.
+- Full-contract routes must avoid `GenericDataEnvelope`; `tests/Feature/Infrastructure/ApiOpenApiContractCoverageTest.php` guards the current staff-web full route set.
+- Raw `apiRequest` additions in `src/shared/api/staff-api.ts` must update the explicit route allowlist in `src/shared/api/staff-api.generated.test.ts`.
+- Routes still allowed as fallback are limited to the documented transition set: admin inventory writes, legacy reservation status, finance review, order-item edits, floor assignment helpers, table release/active-order helpers, and staff waiting-list create/advance/cancel.
+- Realtime change feeds for table board, kitchen, and waiting list must use generated SDK delegates and carry `branch_id` when a branch is active.
+
 ## Auth + Session
 
 ### Canonical routes
@@ -21,6 +29,14 @@
 ### Contract notes
 
 - Auth header: `X-Staff-Key`
+- Refresh-cookie rollout is opt-in:
+  - staff-web sends `session_transport=refresh_cookie` on login only when `VITE_STAFF_REFRESH_COOKIE_ENABLED=true`
+  - backend must have `STAFF_AUTH_BROWSER_SESSION_COOKIE_ENABLED=true`
+  - backend sets HttpOnly `Secure` SameSite refresh cookie `staff_web_refresh`
+  - backend sets readable CSRF cookie `staff_web_csrf`; staff-web echoes it as `X-Staff-CSRF` on cookie-backed refresh/logout
+  - `POST /api/v1/auth/staff/refresh` with refresh cookie returns a new memory-only `access_token`; it must not expose the refresh cookie secret
+  - `POST /api/v1/auth/staff/logout` clears both cookies and revokes the refresh/session key
+  - CORS credentials are only valid with exact `CORS_ALLOWED_ORIGINS`; no wildcard credential mode
 - Session envelope now includes:
   - `capabilities`
   - `known_capabilities`
@@ -54,6 +70,7 @@
   - `403` capability or actor-scope mismatch
     - FE khong duoc auto-expire session cho `403`; phai giu token va surfacing gate/error cho operator
   - `422` bad credentials or malformed payload
+  - `419` missing/mismatched CSRF header on cookie-backed refresh/logout
 
 ## Board + Waiting
 

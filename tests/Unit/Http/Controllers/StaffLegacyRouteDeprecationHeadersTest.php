@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Http\Controllers;
 
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\FloorOperations\Application\Queries\StaffTableBoardService;
 use App\Modules\FloorOperations\Http\Controllers\Staff\TableBoardController;
 use App\Modules\FloorOperations\Http\Requests\Staff\TableBoardRequest;
@@ -31,12 +32,17 @@ class StaffLegacyRouteDeprecationHeadersTest extends TestCase
         ]);
         $realtime = Mockery::mock(OperationalRealtimeService::class);
         $realtime->shouldReceive('describeTopic')->once()->andReturn([]);
+        $branchContext = Mockery::mock(StaffBranchContextService::class);
+        $branchContext->shouldReceive('branchScopeOrAccessible')->once()->with(42, null, 2, 'Staff')->andReturn([1]);
 
-        $controller = new TableBoardController($service, $realtime);
+        $controller = new TableBoardController($service, $realtime, $branchContext);
         $request = TableBoardRequest::create('/api/v1/staff/table-board', 'GET', [
             'from' => '2026-04-01 00:00:00',
             'to' => '2026-04-01 23:59:59',
         ]);
+        $request->attributes->set('staff_actor_user_id', 42);
+        $request->attributes->set('staff_actor_role_id', 2);
+        $request->attributes->set('staff_actor_role_name', 'Staff');
         $request->setRouteResolver(static function () {
             return new class
             {

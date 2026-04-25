@@ -4,7 +4,9 @@ import { cancelTableHold, createTableHold, refreshTableHold, searchAvailableTabl
 const mocks = vi.hoisted(() => ({
   ensureCustomerSessionId: vi.fn(),
   idempotentSessionOptions: vi.fn(),
+  createStableIdempotencyKey: vi.fn(),
   apiCall: vi.fn(),
+  getV1TableHoldsHoldId: vi.fn(),
   getV1TablesAvailable: vi.fn(),
   postV1TableHolds: vi.fn(),
   patchV1TableHoldsHoldIdRefresh: vi.fn(),
@@ -20,26 +22,44 @@ vi.mock("@/lib/api/sdk-client", () => ({
   idempotentSessionOptions: mocks.idempotentSessionOptions,
 }));
 
+vi.mock("@/lib/api/idempotency", () => ({
+  createStableIdempotencyKey: mocks.createStableIdempotencyKey,
+}));
+
 describe("table booking api", () => {
   beforeEach(() => {
     mocks.ensureCustomerSessionId.mockReset();
     mocks.idempotentSessionOptions.mockReset();
+    mocks.createStableIdempotencyKey.mockReset();
     mocks.apiCall.mockReset();
+    mocks.getV1TableHoldsHoldId.mockReset();
     mocks.getV1TablesAvailable.mockReset();
     mocks.postV1TableHolds.mockReset();
     mocks.patchV1TableHoldsHoldIdRefresh.mockReset();
     mocks.deleteV1TableHoldsHoldId.mockReset();
 
     mocks.ensureCustomerSessionId.mockReturnValue("session-123");
+    mocks.createStableIdempotencyKey.mockReturnValue("idem-stable-123");
     mocks.idempotentSessionOptions.mockReturnValue({ idempotencyKey: "idem-123" });
     mocks.apiCall.mockImplementation(async (operation: (client: unknown) => unknown) =>
       operation({
+        getV1TableHoldsHoldId: mocks.getV1TableHoldsHoldId,
         getV1TablesAvailable: mocks.getV1TablesAvailable,
         postV1TableHolds: mocks.postV1TableHolds,
         patchV1TableHoldsHoldIdRefresh: mocks.patchV1TableHoldsHoldIdRefresh,
         deleteV1TableHoldsHoldId: mocks.deleteV1TableHoldsHoldId,
       }),
     );
+  });
+
+  it("reads a hold through the generated hold-show contract", async () => {
+    mocks.getV1TableHoldsHoldId.mockResolvedValue({ data: { hold_id: "hold-1" } });
+
+    const { getTableHold } = await import("./api");
+
+    await getTableHold("hold-1");
+
+    expect(mocks.getV1TableHoldsHoldId).toHaveBeenCalledWith({ hold_id: "hold-1" });
   });
 
   it("uses the current browser session and UTC range for availability search", async () => {
@@ -72,10 +92,18 @@ describe("table booking api", () => {
         guest_count: 4,
         branch_id: 2,
       },
-      [7, 8],
+      [8, 7],
     );
 
-    expect(mocks.idempotentSessionOptions).toHaveBeenCalledWith("table-hold-create");
+    expect(mocks.createStableIdempotencyKey).toHaveBeenCalledWith(
+      "table-hold-create",
+      expect.objectContaining({
+        branch_id: 2,
+        session_id: "session-123",
+        table_ids: [7, 8],
+      }),
+    );
+    expect(mocks.idempotentSessionOptions).toHaveBeenCalledWith("table-hold-create", { idempotencyKey: "idem-stable-123" });
     expect(mocks.postV1TableHolds).toHaveBeenCalledWith(
       {
         session_id: "session-123",
@@ -93,7 +121,16 @@ describe("table booking api", () => {
 
     await refreshTableHold("hold-1", 3);
 
-    expect(mocks.idempotentSessionOptions).toHaveBeenCalledWith("table-hold-refresh");
+    expect(mocks.createStableIdempotencyKey).toHaveBeenCalledWith(
+      "table-hold-refresh",
+      {
+        extend_minutes: 10,
+        hold_id: "hold-1",
+        row_version: 3,
+        session_id: "session-123",
+      },
+    );
+    expect(mocks.idempotentSessionOptions).toHaveBeenCalledWith("table-hold-refresh", { idempotencyKey: "idem-stable-123" });
     expect(mocks.patchV1TableHoldsHoldIdRefresh).toHaveBeenCalledWith(
       { hold_id: "hold-1" },
       {
@@ -110,7 +147,15 @@ describe("table booking api", () => {
 
     await cancelTableHold("hold-1", 4);
 
-    expect(mocks.idempotentSessionOptions).toHaveBeenCalledWith("table-hold-cancel");
+    expect(mocks.createStableIdempotencyKey).toHaveBeenCalledWith(
+      "table-hold-cancel",
+      {
+        hold_id: "hold-1",
+        row_version: 4,
+        session_id: "session-123",
+      },
+    );
+    expect(mocks.idempotentSessionOptions).toHaveBeenCalledWith("table-hold-cancel", { idempotencyKey: "idem-stable-123" });
     expect(mocks.deleteV1TableHoldsHoldId).toHaveBeenCalledWith(
       { hold_id: "hold-1" },
       {

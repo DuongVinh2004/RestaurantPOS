@@ -33,6 +33,7 @@ class ReleaseLoopService
         ?string $previewLabel = null,
         bool $skipPreview = false,
         string $staffWebDir = 'staff-web',
+        string $customerWebDir = 'customer-web',
     ): array {
         $evaluatedAt = now('UTC');
         $artifactRoot = trim((string) config('booking_release.release_loop.artifact_root', 'storage/app/booking_release/release_loop'), '/');
@@ -44,6 +45,7 @@ class ReleaseLoopService
         File::ensureDirectoryExists(base_path($stepArtifactRoot));
 
         $staffWebPath = $this->resolvePath($staffWebDir);
+        $customerWebPath = $this->resolvePath($customerWebDir);
         $resolvedManifestPath = $this->resolveManifestPath($manifestPath, $bootstrapUat);
         $resolvedManualEvidencePath = $this->resolveOptionalPath($manualEvidencePath);
         $resolvedBaseUrl = $baseUrl !== null && trim($baseUrl) !== '' ? trim($baseUrl) : null;
@@ -58,6 +60,7 @@ class ReleaseLoopService
             previewLabel: $resolvedPreviewLabel,
             skipPreview: $skipPreview,
             staffWebPath: $staffWebPath,
+            customerWebPath: $customerWebPath,
         );
         $observabilityContext = $this->resolveObservabilityContext();
 
@@ -76,6 +79,7 @@ class ReleaseLoopService
             previewContext: $previewContext,
             skipPreview: $skipPreview,
             staffWebPath: $staffWebPath,
+            customerWebPath: $customerWebPath,
             stepArtifactRoot: $stepArtifactRoot,
         ) as $stepDefinition) {
             $step = $this->executeStep($stepDefinition, $stepArtifactRoot);
@@ -139,6 +143,7 @@ class ReleaseLoopService
             'observability' => $observabilityContext,
             'paths' => [
                 'staff_web_dir' => $this->relativePath($staffWebPath),
+                'customer_web_dir' => $this->relativePath($customerWebPath),
                 'manifest_path' => $resolvedManifestPath !== null ? $this->relativePath($resolvedManifestPath) : null,
                 'manual_evidence_path' => $resolvedManualEvidencePath !== null ? $this->relativePath($resolvedManualEvidencePath) : null,
                 'step_artifact_root' => $stepArtifactRoot,
@@ -194,6 +199,7 @@ class ReleaseLoopService
         array $previewContext,
         bool $skipPreview,
         string $staffWebPath,
+        string $customerWebPath,
         string $stepArtifactRoot,
     ): array {
         $rootPath = base_path();
@@ -257,16 +263,52 @@ class ReleaseLoopService
                 'capture_json' => true,
             ],
             [
-                'key' => 'frontend_test',
+                'key' => 'staff_web_test',
                 'label' => 'Staff-web tests',
                 'command' => ['npm', 'run', 'test'],
                 'cwd' => $staffWebPath,
             ],
             [
-                'key' => 'frontend_build',
+                'key' => 'staff_web_build',
                 'label' => 'Staff-web build',
                 'command' => ['npm', 'run', 'build'],
                 'cwd' => $staffWebPath,
+            ],
+            [
+                'key' => 'customer_web_contracts',
+                'label' => 'Customer-web contracts',
+                'command' => ['npm', 'run', 'verify:contracts'],
+                'cwd' => $customerWebPath,
+            ],
+            [
+                'key' => 'customer_web_lint',
+                'label' => 'Customer-web lint',
+                'command' => ['npm', 'run', 'lint'],
+                'cwd' => $customerWebPath,
+            ],
+            [
+                'key' => 'customer_web_typecheck',
+                'label' => 'Customer-web typecheck',
+                'command' => ['npm', 'run', 'typecheck'],
+                'cwd' => $customerWebPath,
+            ],
+            [
+                'key' => 'customer_web_test',
+                'label' => 'Customer-web tests',
+                'command' => ['npm', 'run', 'test'],
+                'cwd' => $customerWebPath,
+            ],
+            [
+                'key' => 'customer_web_build',
+                'label' => 'Customer-web build',
+                'command' => ['npm', 'run', 'build'],
+                'cwd' => $customerWebPath,
+            ],
+            [
+                'key' => 'customer_web_e2e_smoke',
+                'label' => 'Customer-web Playwright smoke',
+                'command' => ['npm', 'run', 'test:e2e:smoke'],
+                'cwd' => $customerWebPath,
             ],
             [
                 'key' => 'preview_deploy',
@@ -280,7 +322,7 @@ class ReleaseLoopService
                 'kind' => 'preview',
             ],
             [
-                'key' => 'frontend_live_smoke',
+                'key' => 'staff_web_live_smoke',
                 'label' => 'Staff-web live smoke',
                 'command' => ['npm', 'run', 'smoke:live'],
                 'cwd' => $staffWebPath,
@@ -582,6 +624,7 @@ class ReleaseLoopService
         string $previewLabel,
         bool $skipPreview,
         string $staffWebPath,
+        string $customerWebPath,
     ): array {
         $previewLinkPaths = array_values(array_unique(array_filter(array_map(
             static fn (mixed $path): string => is_string($path) ? trim($path) : '',
@@ -589,6 +632,7 @@ class ReleaseLoopService
                 (array) config('booking_release.release_loop.preview_link_paths', []),
                 [
                     '.vercel/project.json',
+                    $this->relativePath(rtrim($customerWebPath, '/\\').'/.vercel/project.json'),
                     $this->relativePath(rtrim($staffWebPath, '/\\').'/.vercel/project.json'),
                 ],
             ),
@@ -1006,7 +1050,7 @@ class ReleaseLoopService
                     ),
                 ],
                 'notes' => [
-                    'Provide the real preview URL or an explicit preview command so the release-loop artifact can archive preview proof together with the backend and staff-web evidence.',
+                    'Provide the real preview URL or an explicit preview command so the release-loop artifact can archive preview proof together with the backend and split-web evidence.',
                 ],
             ];
         }
@@ -1180,7 +1224,7 @@ class ReleaseLoopService
     private function renderMarkdown(array $report): string
     {
         $lines = [
-            '# Backend + Staff-Web Release Loop',
+            '# Backend + Split-Web Release Loop',
             '',
             sprintf('- Decision: `%s`', (string) ($report['decision'] ?? 'unknown')),
             sprintf('- Target: `%s`', (string) data_get($report, 'target.key', 'staging')),

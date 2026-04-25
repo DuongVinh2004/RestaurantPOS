@@ -82,6 +82,7 @@ trait BuildsBookingScenario
             'roles',
             'users',
             'staff_api_keys',
+            'staff_branch_assignments',
             'customer_privacy_requests',
             'customer_access_sessions',
             'audit_logs',
@@ -632,6 +633,22 @@ trait BuildsBookingScenario
             });
         }
 
+        if (! Schema::hasTable('staff_branch_assignments')) {
+            Schema::create('staff_branch_assignments', function (Blueprint $table): void {
+                $table->bigIncrements('staff_branch_assignment_id');
+                $table->unsignedInteger('user_id');
+                $table->unsignedInteger('branch_id');
+                $table->boolean('is_primary')->default(false);
+                $table->dateTime('assigned_at')->nullable();
+                $table->dateTime('revoked_at')->nullable();
+                $table->dateTime('created_at')->nullable();
+                $table->dateTime('updated_at')->nullable();
+                $table->unique(['user_id', 'branch_id'], 'uq_staff_branch_assignments__user_id__branch_id');
+                $table->index(['branch_id', 'revoked_at'], 'idx_staff_branch_assignments__branch_id__revoked_at');
+                $table->index(['user_id', 'revoked_at', 'is_primary'], 'idx_staff_branch_assignments__user_id__revoked_at__primary');
+            });
+        }
+
         if (! Schema::hasTable('suppliers')) {
             Schema::create('suppliers', function (Blueprint $table): void {
                 $table->increments('supplier_id');
@@ -716,6 +733,7 @@ trait BuildsBookingScenario
         if (! Schema::hasTable('kitchen_stations')) {
             Schema::create('kitchen_stations', function (Blueprint $table): void {
                 $table->increments('station_id');
+                $table->unsignedInteger('branch_id')->default(1);
                 $table->string('code', 50)->unique();
                 $table->string('name', 120);
                 $table->string('description', 500)->nullable();
@@ -726,17 +744,28 @@ trait BuildsBookingScenario
                 $table->dateTime('updated_at')->nullable();
             });
         }
+        if (Schema::hasTable('kitchen_stations') && ! Schema::hasColumn('kitchen_stations', 'branch_id')) {
+            Schema::table('kitchen_stations', function (Blueprint $table): void {
+                $table->unsignedInteger('branch_id')->default(1)->after('station_id');
+            });
+        }
 
         if (! Schema::hasTable('kitchen_station_category_routes')) {
             Schema::create('kitchen_station_category_routes', function (Blueprint $table): void {
                 $table->increments('route_id');
                 $table->unsignedInteger('station_id');
+                $table->unsignedInteger('branch_id')->default(1);
                 $table->unsignedInteger('category_id');
                 $table->integer('sort_order')->default(0);
                 $table->boolean('is_active')->default(true);
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
-                $table->unique('category_id');
+                $table->unique(['branch_id', 'category_id']);
+            });
+        }
+        if (Schema::hasTable('kitchen_station_category_routes') && ! Schema::hasColumn('kitchen_station_category_routes', 'branch_id')) {
+            Schema::table('kitchen_station_category_routes', function (Blueprint $table): void {
+                $table->unsignedInteger('branch_id')->default(1)->after('station_id');
             });
         }
 
@@ -765,9 +794,14 @@ trait BuildsBookingScenario
                 $table->string('ticket_notes', 500)->nullable();
                 $table->unsignedInteger('created_by')->nullable();
                 $table->unsignedInteger('updated_by')->nullable();
+                $table->unsignedBigInteger('row_version')->default(1);
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
                 $table->unique('order_item_id');
+            });
+        } elseif (! Schema::hasColumn('kitchen_order_item_tickets', 'row_version')) {
+            Schema::table('kitchen_order_item_tickets', function (Blueprint $table): void {
+                $table->unsignedBigInteger('row_version')->default(1);
             });
         }
 
@@ -2195,6 +2229,7 @@ SQL);
         $suffix = Str::upper(Str::random(5));
 
         $payload = array_merge([
+            'branch_id' => 1,
             'code' => 'KDS-'.$suffix,
             'name' => 'Kitchen '.$suffix,
             'description' => 'Kitchen station '.$suffix,
@@ -2214,8 +2249,13 @@ SQL);
     protected function createKitchenStationRoute(array $overrides = []): int
     {
         $now = $this->nowUtc();
+        $stationId = (int) ($overrides['station_id'] ?? $this->createKitchenStation());
+        $stationBranchId = (int) DB::table('kitchen_stations')
+            ->where('station_id', $stationId)
+            ->value('branch_id');
         $payload = array_merge([
-            'station_id' => $this->createKitchenStation(),
+            'station_id' => $stationId,
+            'branch_id' => $stationBranchId,
             'category_id' => $this->ensureMenuCategory('Kitchen Category'),
             'sort_order' => 10,
             'is_active' => 1,
@@ -2263,6 +2303,7 @@ SQL);
             'ticket_notes' => null,
             'created_by' => null,
             'updated_by' => null,
+            'row_version' => 1,
             'created_at' => $now,
             'updated_at' => $now,
         ], $overrides);

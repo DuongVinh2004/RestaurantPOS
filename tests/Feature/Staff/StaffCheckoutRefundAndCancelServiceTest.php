@@ -35,7 +35,7 @@ class StaffCheckoutRefundAndCancelServiceTest extends TestCase
     public function test_refund_cancel_requires_at_least_one_existing_payment(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
@@ -75,7 +75,7 @@ class StaffCheckoutRefundAndCancelServiceTest extends TestCase
     public function test_cancel_after_payment_clears_stale_lifecycle_timestamps(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
@@ -125,7 +125,7 @@ class StaffCheckoutRefundAndCancelServiceTest extends TestCase
     public function test_cancel_after_payment_release_audit_includes_actor_and_context(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $this->createCashierShift(['cashier_user_id' => $staffId]);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([

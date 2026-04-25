@@ -21,6 +21,7 @@ const initialWorkspaceState = useWorkspaceStore.getState();
 
 describe('useStaffShellContext workspace routing', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     useAuthStore.setState(initialAuthState, true);
     useFlowStore.setState(initialFlowState, true);
     useWorkspaceStore.setState(initialWorkspaceState, true);
@@ -73,6 +74,36 @@ describe('useStaffShellContext workspace routing', () => {
     expect(screen.getByTestId('workspace-options')).toHaveTextContent('ops,kitchen,admin');
     expect(screen.getByTestId('nav-items')).toHaveTextContent('admin-landing,reporting');
   });
+
+  it('does not call the reservation-protected branch list for kitchen-only sessions', async () => {
+    const session = buildStaffSession({
+      capabilities: ['kitchen.manage'],
+      known_capabilities: ['kitchen.manage', 'reservation.manage'],
+    });
+
+    useAuthStore.getState().setSession(session);
+
+    renderHarness(staffRoutePaths.kitchen.landing);
+
+    await waitFor(() => expect(screen.getByTestId('workspace')).toHaveTextContent('kitchen'));
+    expect(branchApiMocks.listBranches).not.toHaveBeenCalled();
+    expect(screen.getByTestId('branch-options')).toHaveTextContent('MAIN');
+  });
+
+  it('does not call the reservation-protected branch list for cashier-only sessions', async () => {
+    const session = buildStaffSession({
+      capabilities: ['settlement.manage', 'cashier.shift.manage'],
+      known_capabilities: ['settlement.manage', 'cashier.shift.manage', 'reservation.manage'],
+    });
+
+    useAuthStore.getState().setSession(session);
+
+    renderHarness(staffRoutePaths.ops.dashboard);
+
+    await waitFor(() => expect(screen.getByTestId('workspace')).toHaveTextContent('ops'));
+    expect(branchApiMocks.listBranches).not.toHaveBeenCalled();
+    expect(screen.getByTestId('branch-options')).toHaveTextContent('MAIN');
+  });
 });
 
 function renderHarness(initialEntry: string) {
@@ -99,6 +130,7 @@ function StaffShellContextHarness() {
   const location = useLocation();
   const {
     activeWorkspace,
+    branchOptions,
     handleWorkspaceSwitch,
     navigationGroups,
     workspaceOptions,
@@ -109,6 +141,7 @@ function StaffShellContextHarness() {
       <div data-testid="path">{location.pathname}</div>
       <div data-testid="workspace">{activeWorkspace ?? 'none'}</div>
       <div data-testid="workspace-options">{workspaceOptions.map((option) => option.workspace).join(',')}</div>
+      <div data-testid="branch-options">{branchOptions.map((option) => option.label).join(',')}</div>
       <div data-testid="nav-items">
         {navigationGroups.flatMap((group) => group.items.map((item) => item.key)).join(',')}
       </div>

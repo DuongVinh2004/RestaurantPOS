@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CustomerAuthSessionEnvelope } from "@/lib/contracts/generated/restaurantpos-sdk";
+import { buildCustomerLoginHref } from "@/lib/auth/navigation";
+import { getCustomerAuthRuntimeBlock } from "@/lib/auth/runtime-block";
 import { customerProfileFromSession, type CustomerProfile } from "@/lib/auth/session";
 import { clearStoredCustomerAuth, getCustomerToken, getStoredCustomerAuth, syncStoredCustomerAuthSession } from "@/lib/auth/storage";
 import {
@@ -11,8 +13,13 @@ import {
   hasExpiredSessionTimestamp,
   type SessionRestoreError,
 } from "@/lib/api/errors";
+import { publicEnv } from "@/lib/config/env";
 import { queryKeys } from "@/lib/api/query-keys";
 import { bootstrapCustomerSession, logoutCustomer } from "@/features/auth/api";
+
+type LogoutOptions = {
+  nextPath?: string;
+};
 
 type AuthContextValue = {
   isBootstrapping: boolean;
@@ -22,7 +29,7 @@ type AuthContextValue = {
   authError: SessionRestoreError | null;
   markAuthenticated: (session: CustomerAuthSessionEnvelope) => void;
   retryBootstrap: () => void;
-  logout: () => Promise<void>;
+  logout: (options?: LogoutOptions) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -33,32 +40,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [hasToken, setHasToken] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [restoreError, setRestoreError] = useState<SessionRestoreError | null>(null);
+  const [runtimeBlock, setRuntimeBlock] = useState<SessionRestoreError | null>(null);
   const [storedExpiry, setStoredExpiry] = useState<string | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => {
       const storedAuth = getStoredCustomerAuth();
       const expired = Boolean(storedAuth.customerToken) && hasExpiredSessionTimestamp(storedAuth.expiresAtUtc);
+      const nextRuntimeBlock = getCustomerAuthRuntimeBlock(
+        publicEnv.apiBaseUrl,
+        typeof window === "undefined" ? null : window.location.hostname,
+      );
 
+      setRuntimeBlock(nextRuntimeBlock);
       setStoredExpiry(storedAuth.expiresAtUtc);
 
       if (expired) {
         clearStoredCustomerAuth();
         setHasToken(false);
-        setRestoreError(
-          classifySessionRestoreError(
-            {
-              kind: "unauthorized",
-              status: 401,
-              message: "Your saved sign-in has expired.",
-              errorCode: "session_expired",
-              categoryCode: "authentication_required",
-              requestId: null,
-              validationErrors: null,
-            },
-            { expiresAtUtc: storedAuth.expiresAtUtc },
-          ),
-        );
+        setRestoreError(nextRuntimeBlock ?? classifySessionRestoreError(
+          {
+            kind: "unauthorized",
+            status: 401,
+            message: "Your saved sign-in has expired.",
+            errorCode: "session_expired",
+            categoryCode: "authentication_required",
+            requestId: null,
+            validationErrors: null,
+          },
+          { expiresAtUtc: storedAuth.expiresAtUtc },
+        ));
+        setIsReady(true);
+        return;
+      }
+
+      if (nextRuntimeBlock) {
+        setRestoreError(nextRuntimeBlock);
+        setHasToken(Boolean(storedAuth.customerToken ?? getCustomerToken()));
         setIsReady(true);
         return;
       }
@@ -71,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const currentQuery = useQuery({
     queryKey: queryKeys.auth.current,
     queryFn: bootstrapCustomerSession,
-    enabled: isReady && hasToken,
+    enabled: isReady && hasToken && runtimeBlock === null,
     retry: false,
   });
 
@@ -102,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (currentQuery.data) {
       queueMicrotask(() => {
         const stored = syncStoredCustomerAuthSession(currentQuery.data);
+        setRuntimeBlock(null);
         setRestoreError(null);
         setStoredExpiry(stored.expiresAtUtc);
         setHasToken(Boolean(stored.customerToken));
@@ -120,14 +139,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     markAuthenticated(nextSession) {
       const stored = syncStoredCustomerAuthSession(nextSession);
       queryClient.setQueryData(queryKeys.auth.current, nextSession);
+      setRuntimeBlock(null);
       setRestoreError(null);
       setStoredExpiry(stored.expiresAtUtc);
       setHasToken(Boolean(stored.customerToken ?? getCustomerToken()));
     },
     retryBootstrap() {
+      const nextRuntimeBlock = getCustomerAuthRuntimeBlock(
+        publicEnv.apiBaseUrl,
+        typeof window === "undefined" ? null : window.location.hostname,
+      );
+
+      setRuntimeBlock(nextRuntimeBlock);
+
+      if (nextRuntimeBlock) {
+        setRestoreError(nextRuntimeBlock);
+        return;
+      }
+
+      setRestoreError(null);
       void currentQuery.refetch();
     },
-    async logout() {
+    async logout(options = {}) {
       try {
         if (getCustomerToken()) {
           await logoutCustomer();
@@ -136,9 +169,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearStoredCustomerAuth();
         setHasToken(false);
         setStoredExpiry(null);
+        setRuntimeBlock(null);
         setRestoreError(null);
         queryClient.clear();
-        router.push("/login");
+        router.push(options.nextPath ? buildCustomerLoginHref(options.nextPath) : "/login");
       }
     },
   };

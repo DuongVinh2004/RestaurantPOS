@@ -104,6 +104,7 @@ describe('KitchenBoardPage branch scope', () => {
     await waitFor(() => expect(apiMocks.getKitchenStationTickets).toHaveBeenCalledWith(21, expect.objectContaining({
       branch_id: 9,
     })));
+    await waitFor(() => expect(apiMocks.getKitchenChanges).toHaveBeenCalledWith(12, 9));
   });
 });
 

@@ -1170,6 +1170,7 @@ Artisan::command('booking:release-loop
     {--preview-label=preview : Label recorded for the preview deployment}
     {--skip-preview : Skip the preview deployment stage}
     {--staff-web-dir=staff-web : Repo-relative or absolute path to the staff-web workspace}
+    {--customer-web-dir=customer-web : Repo-relative or absolute path to the customer-web workspace}
     {--json : Output machine-readable JSON}', function () {
     /** @var ConsoleCommand $command */
     // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
@@ -1199,6 +1200,9 @@ Artisan::command('booking:release-loop
         staffWebDir: trim((string) ($command->option('staff-web-dir') ?? 'staff-web')) !== ''
             ? trim((string) ($command->option('staff-web-dir') ?? 'staff-web'))
             : 'staff-web',
+        customerWebDir: trim((string) ($command->option('customer-web-dir') ?? 'customer-web')) !== ''
+            ? trim((string) ($command->option('customer-web-dir') ?? 'customer-web'))
+            : 'customer-web',
     );
 
     $exitCode = (bool) ($payload['ok'] ?? false) ? 0 : 1;
@@ -1292,7 +1296,7 @@ Artisan::command('booking:release-loop
     }
 
     return $exitCode;
-})->purpose('Run the canonical backend + staff-web release loop, including smoke and release evidence artifacts.');
+})->purpose('Run the canonical backend + split-web release loop, including smoke and release evidence artifacts.');
 
 Artisan::command('booking:launch-readiness
     {--target=staging : staging|limited-production}

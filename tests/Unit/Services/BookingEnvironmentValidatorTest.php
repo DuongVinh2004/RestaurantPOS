@@ -53,6 +53,9 @@ class BookingEnvironmentValidatorTest extends TestCase
         config()->set('staff_auth.deny_env_fallback_in_production_like', true);
         config()->set('staff_auth.deny_role_name_fallback_in_production_like', true);
         config()->set('staff_auth.allowed_role_ids', [1, 2]);
+        config()->set('staff_capabilities.production_like_environments', ['production', 'staging']);
+        config()->set('staff_capabilities.deny_operational_role_branch_fallback_in_production_like', true);
+        config()->set('staff_capabilities.operational_branch_assignment_roles', ['Staff', 'Server', 'Waiter', 'Cashier', 'Kitchen']);
         config()->set('customer_auth.enabled', true);
         config()->set('customer_auth.header', 'X-Customer-Token');
         config()->set('customer_auth.allowed_purposes', ['VerifyEmail']);
@@ -164,6 +167,23 @@ class BookingEnvironmentValidatorTest extends TestCase
         $this->assertFalse($result['checks']['staff_auth']['ok']);
         $this->assertSame('warning', $result['checks']['staff_auth']['severity']);
         $this->assertTrue($result['checks']['staff_auth']['meta']['allow_role_name_fallback']);
+    }
+
+    #[Group('booking-smoke')]
+    public function test_it_errors_when_production_like_allows_operational_staff_branch_scope_fallback(): void
+    {
+        config()->set('app.env', 'production');
+        config()->set('staff_auth.api_keys', []);
+        config()->set('staff_auth.allow_env_fallback', false);
+        config()->set('staff_auth.allow_env_fallback_when_database_store_unavailable', false);
+        config()->set('staff_capabilities.deny_operational_role_branch_fallback_in_production_like', false);
+
+        $result = app(BookingEnvironmentValidator::class)->validate();
+
+        $this->assertFalse($result['ok']);
+        $this->assertFalse($result['checks']['staff_branch_assignment_policy']['ok']);
+        $this->assertSame('error', $result['checks']['staff_branch_assignment_policy']['severity']);
+        $this->assertTrue($result['checks']['staff_branch_assignment_policy']['meta']['is_production_like']);
     }
 
     #[Group('booking-smoke')]

@@ -90,7 +90,7 @@ describe('package integrity report', () => {
     );
   });
 
-  it('fails when generated consumer artifacts are older than the frozen OpenAPI or release manifest contract', () => {
+  it('blocks when generated consumer artifacts drift from the frozen OpenAPI or release manifest contract', () => {
     const fixtureRoot = createFixtureRoot();
 
     seedCanonicalFixture(fixtureRoot, { includeBackend: false, includeAdvisory: true });
@@ -118,11 +118,11 @@ describe('package integrity report', () => {
       expect.arrayContaining([
         expect.objectContaining({
           path: 'build/api-consumer/sdk/typescript/restaurantpos-sdk.ts',
-          failure: expect.stringContaining('older than storage/app/booking_release/openapi-v1.json'),
+          failure: expect.stringContaining('release_manifest_snapshot.json'),
         }),
         expect.objectContaining({
           path: 'storage/app/booking_release/release_manifest_snapshot.json',
-          failure: expect.stringContaining('older than storage/app/booking_release/openapi-v1.json'),
+          failure: expect.stringContaining('no longer matches storage/app/booking_release/openapi-v1.json'),
         }),
       ]),
     );

@@ -16,6 +16,12 @@ Quick bootstrap after `.env` is configured:
 composer bootstrap:booking
 ```
 
+CI/staging jobs where the target database is already created by the platform can keep the canonical wrapper and skip only database creation:
+
+```bash
+composer bootstrap:booking -- --skip-create-db
+```
+
 Database-only bootstrap:
 
 ```bash
@@ -36,6 +42,7 @@ Manual equivalent:
    - `php artisan view:clear`
 4. Bootstrap the first operational site:
    - `php artisan booking:bootstrap-site --json`
+   - This is the release path that may create or mark the default branch. Runtime read paths must not auto-create branch rows.
 5. Rebuild reporting snapshots:
    - `php artisan booking:reporting-snapshots:rebuild --days=7 --json`
 6. Normalize and inspect release artifacts:
@@ -55,6 +62,8 @@ The current SQL-first release contract also assumes the April 5 foundations are 
 - notification platform v2 (`notification_outbox.recipient_user_id`, `notification_outbox.dedupe_key`, `notification_delivery_attempts`, `notification_preferences`)
 - unified audit trail (`audit_logs.actor_type`, `audit_logs.summary_json`, `audit_logs.request_id`, `audit_log_subjects`)
 - branch scheduling policy (`branches.business_hours`, `branches.closure_windows`, `branches.booking_policy`)
+- branch ownership foreign keys for core runtime tables (`reservations.branch_id`, `table_holds.branch_id`, `cashier_shifts.branch_id`)
+- per-staff branch assignment foundation (`staff_branch_assignments`)
 - data lifecycle / privacy (`customer_privacy_requests`, `users.privacy_anonymized_at`)
 - feature flags (`feature_flags`)
 
@@ -78,3 +87,5 @@ A release is considered ready only when all of the following are true:
 - `booking:release-manifest --json` returns `ok=true`
 - `booking:deploy-check --mode=preflight` returns `ok=true`
 - `php artisan test` passes
+- the full-system package lane includes both `staff-web/` and `customer-web/` as required roots
+- customer-web contract, lint, typecheck, Vitest, production build, and Playwright smoke gates pass after browser dependencies are installed

@@ -176,6 +176,16 @@ export function getApiErrorDisplay(error: unknown): ApiErrorDisplay {
   const requestIdLabel = normalized.requestId ? `Request ID: ${normalized.requestId}` : null;
   const errorCodeLabel = normalized.errorCode ? `Code ${normalized.errorCode}` : null;
 
+  if (normalized.errorCode === "api_base_url_misconfigured") {
+    return {
+      message: normalized.message,
+      retryHint: "Deploy the correct NEXT_PUBLIC_API_BASE_URL for this environment, then reload the page.",
+      statusLabel,
+      requestIdLabel,
+      errorCodeLabel,
+    };
+  }
+
   if (normalized.kind === "backend_unavailable") {
     return {
       message: "We cannot reach the restaurant service right now.",
@@ -321,6 +331,18 @@ export function getSessionRestoreDisplay(error: unknown): SessionRestoreDisplay 
   const statusLabel = normalized.status === null ? null : `Status ${normalized.status}`;
   const requestIdLabel = normalized.requestId ? `Request ID: ${normalized.requestId}` : null;
   const errorCodeLabel = normalized.errorCode ? `Code ${normalized.errorCode}` : null;
+
+  if (normalized.errorCode === "api_base_url_misconfigured") {
+    return {
+      title: "Sign-in is blocked by runtime configuration",
+      message: normalized.message,
+      retryHint: "Deploy the correct NEXT_PUBLIC_API_BASE_URL for this environment, then reload the page.",
+      statusLabel,
+      requestIdLabel,
+      errorCodeLabel,
+      primaryAction: "sign_in",
+    };
+  }
 
   if (normalized.restoreKind === "token_expired") {
     return {

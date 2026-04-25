@@ -128,7 +128,8 @@ final class ApiOpenApiContractCoverageTest extends TestCase
 
     public function test_customer_web_minimum_surface_is_full_contract_and_curated_for_sdk(): void
     {
-        $operations = $this->specOperations(app(OpenApiSpecService::class)->build());
+        $spec = app(OpenApiSpecService::class)->build();
+        $operations = $this->specOperations($spec);
         $curatedSignatures = $this->curatedApiConsumerSignatures();
 
         $minimumSurface = [
@@ -197,6 +198,42 @@ final class ApiOpenApiContractCoverageTest extends TestCase
             $this->assertNotNull($schemaRef, sprintf('Customer-web route [%s] must expose a typed success envelope.', $signature));
             $this->assertNotSame('#/components/schemas/GenericDataEnvelope', $schemaRef, sprintf('Customer-web route [%s] must not use the generic fallback envelope.', $signature));
         }
+
+        $this->assertSame(
+            '#/components/schemas/CustomerLoginRequest',
+            data_get($operations['POST api/v1/auth/customer/login'], 'requestBody.content.application/json.schema.$ref')
+        );
+        $this->assertSame(
+            '#/components/schemas/StaffLoginRequest',
+            data_get($operations['POST api/v1/auth/staff/login'], 'requestBody.content.application/json.schema.$ref')
+        );
+        $this->assertArrayHasKey('session_id', data_get($spec, 'components.schemas.CustomerLoginRequest.properties', []));
+        $this->assertArrayNotHasKey('session_id', data_get($spec, 'components.schemas.StaffLoginRequest.properties', []));
+        $this->assertSame(
+            ['refresh_cookie'],
+            data_get($spec, 'components.schemas.StaffLoginRequest.properties.session_transport.enum')
+        );
+    }
+
+    public function test_staff_refresh_and_logout_publish_browser_cookie_csrf_security(): void
+    {
+        $spec = app(OpenApiSpecService::class)->build();
+        $operations = $this->specOperations($spec);
+
+        $this->assertSame('cookie', data_get($spec, 'components.securitySchemes.StaffBrowserRefreshCookie.in'));
+        $this->assertSame('staff_web_refresh', data_get($spec, 'components.securitySchemes.StaffBrowserRefreshCookie.name'));
+        $this->assertSame('header', data_get($spec, 'components.securitySchemes.StaffBrowserCsrfToken.in'));
+        $this->assertSame('X-Staff-CSRF', data_get($spec, 'components.securitySchemes.StaffBrowserCsrfToken.name'));
+
+        foreach (['POST api/v1/auth/staff/refresh', 'POST api/v1/auth/staff/logout'] as $signature) {
+            $this->assertArrayHasKey($signature, $operations);
+            $this->assertSame('staff_browser_refresh_cookie', $operations[$signature]['x-auth-mode'] ?? null);
+            $this->assertSame([
+                ['StaffBrowserRefreshCookie' => [], 'StaffBrowserCsrfToken' => []],
+                ['StaffApiKey' => []],
+            ], $operations[$signature]['security'] ?? null);
+            $this->assertNotSame([['StaffApiKey' => []]], $operations[$signature]['security'] ?? null);
+        }
     }
 
     public function test_staff_batch_one_routes_are_full_contract_and_typed(): void
@@ -246,9 +283,10 @@ final class ApiOpenApiContractCoverageTest extends TestCase
         }
 
         $this->assertSame(
-            '#/components/schemas/CheckInReservationRequest',
+            '#/components/schemas/StaffCheckInReservationRequest',
             data_get($operations['POST api/v1/staff/reservations/{id}/check-in'], 'requestBody.content.application/json.schema.$ref')
         );
+        $this->assertArrayHasKey('StaffCheckInReservationRequest', data_get($spec, 'components.schemas', []));
         $this->assertSame(
             '#/components/schemas/CreateTableOrderRequest',
             data_get($operations['POST api/v1/staff/tables/{table_id}/orders'], 'requestBody.content.application/json.schema.$ref')
@@ -294,6 +332,14 @@ final class ApiOpenApiContractCoverageTest extends TestCase
         $this->assertSame(
             'string',
             data_get($spec, 'components.schemas.StaffAuthSessionEnvelope.properties.data.properties.capability_source.type')
+        );
+        $this->assertSame(
+            ['staff_api_key', 'staff_browser_session'],
+            data_get($spec, 'components.schemas.StaffAuthSessionEnvelope.properties.data.properties.auth_mode.enum')
+        );
+        $this->assertSame(
+            ['refresh_cookie'],
+            data_get($spec, 'components.schemas.StaffAuthSessionEnvelope.properties.data.properties.session_transport.enum')
         );
         $this->assertSame(
             '#/components/schemas/StaffStartupContext',
@@ -569,6 +615,148 @@ final class ApiOpenApiContractCoverageTest extends TestCase
             ['ready', 'disabled', 'unavailable'],
             data_get($spec, 'components.schemas.StaffConversationAiAssist.properties.status.enum')
         );
+    }
+
+    public function test_legacy_api_user_contract_matches_runtime_auth_and_top_level_schema(): void
+    {
+        $operations = $this->specOperations(app(OpenApiSpecService::class)->build());
+        $operation = $operations['GET api/user'] ?? null;
+
+        $this->assertIsArray($operation);
+        $this->assertTrue((bool) ($operation['deprecated'] ?? false));
+        $this->assertSame('full', $operation['x-contract-grade'] ?? null);
+        $this->assertSame('customer_or_staff', $operation['x-auth-mode'] ?? null);
+        $this->assertSame([['CustomerAccessToken' => []], ['StaffApiKey' => []]], $operation['security'] ?? null);
+        $this->assertNotContains(['CustomerSessionId' => []], $operation['security'] ?? []);
+        $this->assertSame(
+            '#/components/schemas/ApiUserEnvelope',
+            data_get($operation, 'responses.200.content.application/json.schema.$ref')
+        );
+        $this->assertContains('GET api/user', app(ApiContractMetadataRegistry::class)->knownEnvelopeExceptions());
+    }
+
+    public function test_customer_waiting_list_schema_uses_backend_lean_payload_not_legacy_staff_lifecycle(): void
+    {
+        $spec = app(OpenApiSpecService::class)->build();
+        $customerProperties = data_get($spec, 'components.schemas.CustomerWaitingListEntry.properties', []);
+        $customerRequired = data_get($spec, 'components.schemas.CustomerWaitingListEntry.required', []);
+        $staffProperties = data_get($spec, 'components.schemas.StaffWaitingListEntry.properties', []);
+
+        foreach (['notify_window', 'available_actions', 'arrival_confirmation', 'next_step', 'response_state'] as $field) {
+            $this->assertArrayHasKey($field, $customerProperties);
+            $this->assertContains($field, $customerRequired);
+        }
+
+        $this->assertSame(
+            ['none', 'accepted', 'arrival_confirmed', 'declined'],
+            data_get($customerProperties, 'response_state.enum')
+        );
+
+        foreach (['current_response_state', 'response', 'invite_window', 'invite_lifecycle', 'invite_hold', 'orchestration'] as $legacyField) {
+            $this->assertArrayNotHasKey($legacyField, $customerProperties, sprintf('Customer waiting-list schema still exposes legacy field [%s].', $legacyField));
+        }
+
+        $this->assertArrayHasKey('current_response_state', $staffProperties);
+        $this->assertArrayHasKey('orchestration', $staffProperties);
+    }
+
+    public function test_staff_web_route_surface_is_frozen_contract_or_explicitly_allowlisted(): void
+    {
+        $operations = $this->specOperations(app(OpenApiSpecService::class)->build());
+
+        $fullContractRoutes = [
+            'POST api/v1/auth/staff/login',
+            'GET api/v1/auth/staff/me',
+            'POST api/v1/auth/staff/refresh',
+            'POST api/v1/auth/staff/logout',
+            'GET api/v1/admin/inventory/ingredients',
+            'GET api/v1/admin/inventory/purchase-orders',
+            'GET api/v1/admin/inventory/suppliers',
+            'GET api/v1/admin/settings/branches',
+            'POST api/v1/admin/settings/branches',
+            'GET api/v1/reservations',
+            'POST api/v1/reservations',
+            'GET api/v1/staff/audit-trail',
+            'GET api/v1/staff/cashier/shifts',
+            'GET api/v1/staff/cashier/shifts/{shift_id}',
+            'POST api/v1/staff/cashier/shifts/{shift_id}/close',
+            'GET api/v1/staff/cashier/shifts/current',
+            'POST api/v1/staff/cashier/shifts/open',
+            'GET api/v1/staff/conversations',
+            'GET api/v1/staff/conversations/{conversation_id}',
+            'POST api/v1/staff/conversations/{conversation_id}/internal-notes',
+            'POST api/v1/staff/conversations/{conversation_id}/outbound-replies',
+            'POST api/v1/staff/conversations/{conversation_id}/take-over',
+            'POST api/v1/staff/conversations/{conversation_id}/unassign',
+            'GET api/v1/staff/kitchen/changes',
+            'GET api/v1/staff/kitchen/stations',
+            'GET api/v1/staff/kitchen/stations/{station_id}/tickets',
+            'POST api/v1/staff/kitchen/tickets/{ticket_id}/bump',
+            'POST api/v1/staff/kitchen/tickets/{ticket_id}/fire',
+            'POST api/v1/staff/kitchen/tickets/{ticket_id}/recall',
+            'GET api/v1/staff/menu/items',
+            'GET api/v1/staff/orders/{order_id}',
+            'POST api/v1/staff/orders/{order_id}/bill-snapshot',
+            'POST api/v1/staff/orders/{order_id}/items',
+            'POST api/v1/staff/orders/{order_id}/kitchen/dispatch',
+            'POST api/v1/staff/orders/{order_id}/settlement/finalize',
+            'GET api/v1/staff/orders/{order_id}/settlement-preview',
+            'GET api/v1/staff/reporting/daily-inventory',
+            'GET api/v1/staff/reporting/daily-operations',
+            'GET api/v1/staff/reporting/daily-sales',
+            'GET api/v1/staff/reservations',
+            'GET api/v1/staff/reservations/{reservation_id}',
+            'POST api/v1/staff/reservations/{id}/check-in',
+            'GET api/v1/staff/reservations/{reservation_id}/orders',
+            'POST api/v1/staff/reservations/{reservation_id}/refund',
+            'POST api/v1/staff/reservations/{reservation_id}/refund-cancel',
+            'GET api/v1/staff/reservations/{reservation_id}/refund-preview',
+            'POST api/v1/staff/service-sessions/walk-in',
+            'GET api/v1/staff/tables/board',
+            'GET api/v1/staff/tables/board/changes',
+            'POST api/v1/staff/tables/{table_id}/orders',
+            'GET api/v1/staff/waiting-list',
+            'GET api/v1/staff/waiting-list/changes',
+            'POST api/v1/staff/waiting-list/{id}/notify',
+            'POST api/v1/staff/waiting-list/{id}/seat',
+        ];
+
+        $allowlistedRoutes = [
+            'POST api/v1/admin/inventory/ingredients' => 'Inventory create remains generic until the admin write contract batch.',
+            'POST api/v1/admin/inventory/purchase-orders' => 'Purchase order create remains generic until the admin write contract batch.',
+            'POST api/v1/admin/inventory/suppliers' => 'Supplier create remains generic until the admin write contract batch.',
+            'PATCH api/v1/reservations/{id}/status' => 'Legacy reservation status mutation is still raw while staff POS uses full check-in and lifecycle routes.',
+            'GET api/v1/staff/finance/invoices/{reservation_id}' => 'Finance invoice read belongs to the finance contract batch.',
+            'POST api/v1/staff/finance/invoices/{reservation_id}/issue' => 'Finance invoice issue belongs to the finance contract batch.',
+            'GET api/v1/staff/finance/reconciliation' => 'Finance reconciliation read belongs to the finance contract batch.',
+            'GET api/v1/staff/finance/reconciliation/{reservation_id}' => 'Finance reconciliation detail belongs to the finance contract batch.',
+            'PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}' => 'Order item edit remains generic until the order write contract batch.',
+            'POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status' => 'Order item status remains generic until the order write contract batch.',
+            'GET api/v1/staff/reservations/{reservation_id}/active-order' => 'Active order lookup remains generic while order read routes are hardened.',
+            'POST api/v1/staff/reservations/{id}/assign-best-fit' => 'Table assignment helper remains generic until floor operations mutation contracts.',
+            'POST api/v1/staff/reservations/{id}/assign-table' => 'Table assignment helper remains generic until floor operations mutation contracts.',
+            'POST api/v1/staff/reservations/{id}/move-table' => 'Move-table helper remains generic until floor operations mutation contracts.',
+            'GET api/v1/staff/tables/{table_id}/active-order' => 'Table active order lookup remains generic while order read routes are hardened.',
+            'POST api/v1/staff/tables/{table_id}/release' => 'Table release remains generic until floor operations mutation contracts.',
+            'POST api/v1/staff/waiting-list' => 'Staff waiting-list create is still raw; customer owner waiting-list create is full contract.',
+            'POST api/v1/staff/waiting-list/{id}/advance' => 'Semi-automation advance remains feature-batched and explicitly raw.',
+            'POST api/v1/staff/waiting-list/{id}/cancel' => 'Staff waiting-list cancel remains raw until staff waiting-list write contracts are promoted.',
+        ];
+
+        foreach ($fullContractRoutes as $signature) {
+            $this->assertArrayHasKey($signature, $operations, sprintf('Staff-web full route [%s] is missing from frozen OpenAPI.', $signature));
+            $this->assertSame('full', $operations[$signature]['x-contract-grade'] ?? null, sprintf('Staff-web route [%s] must stay full contract.', $signature));
+            $this->assertNotSame(
+                '#/components/schemas/GenericDataEnvelope',
+                $this->firstSuccessSchemaRef($operations[$signature]),
+                sprintf('Staff-web route [%s] must not use the generic fallback envelope.', $signature)
+            );
+        }
+
+        foreach ($allowlistedRoutes as $signature => $reason) {
+            $this->assertNotSame('', trim($reason), sprintf('Staff-web allowlisted route [%s] must document why it is not full contract yet.', $signature));
+            $this->assertArrayHasKey($signature, $operations, sprintf('Staff-web allowlisted route [%s] is missing from frozen OpenAPI.', $signature));
+        }
     }
 
     /**

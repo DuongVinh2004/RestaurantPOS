@@ -17,11 +17,11 @@ final class GetOperationsReportHandler
      * @param  array<string,mixed>  $filters
      * @return array{paginator:LengthAwarePaginator,snapshot_health:array<string,mixed>}
      */
-    public function handle(array $filters = []): array
+    public function handle(array $filters = [], ?int $staffActorUserId = null): array
     {
         return [
-            'paginator' => $this->reportingSnapshotWorkflow->paginateDailyOperations($filters),
-            'snapshot_health' => $this->reportingSnapshotWorkflow->filteredSnapshotHealth('operations', $filters),
+            'paginator' => $this->reportingSnapshotWorkflow->paginateDailyOperations($filters, $staffActorUserId),
+            'snapshot_health' => $this->reportingSnapshotWorkflow->filteredSnapshotHealth('operations', $filters, staffActorUserId: $staffActorUserId),
         ];
     }
 }

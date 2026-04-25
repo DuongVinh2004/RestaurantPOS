@@ -77,6 +77,9 @@ export type TableHoldStatus = typeof tableHoldStatusValues[number];
 export const voucherDiscountTypeValues = ["Fixed","Percent","FreeItem"] as const;
 export type VoucherDiscountType = typeof voucherDiscountTypeValues[number];
 
+export const waitingListCustomerResponseStateValues = ["none","accepted","arrival_confirmed","declined"] as const;
+export type WaitingListCustomerResponseState = typeof waitingListCustomerResponseStateValues[number];
+
 export const waitingListCustomerResponseStatusValues = ["Accepted","Declined"] as const;
 export type WaitingListCustomerResponseStatus = typeof waitingListCustomerResponseStatusValues[number];
 
@@ -186,6 +189,10 @@ export const restaurantPosEnumStateMap = {
   VoucherDiscountType: {
     values: voucherDiscountTypeValues,
     cases: {"Fixed":"Fixed","Percent":"Percent","FreeItem":"FreeItem"} as const
+  },
+  WaitingListCustomerResponseState: {
+    values: waitingListCustomerResponseStateValues,
+    cases: {"None":"none","Accepted":"accepted","ArrivalConfirmed":"arrival_confirmed","Declined":"declined"} as const
   },
   WaitingListCustomerResponseStatus: {
     values: waitingListCustomerResponseStatusValues,

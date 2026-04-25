@@ -6,11 +6,14 @@
    - `php artisan booking:launch-readiness --target=staging --json`
    - for limited production, re-run with `--target=limited-production --manual-evidence=<path>`
    - the limited-production manual evidence file must record `pass` for `uat_scenario_pack_replay`, `performance_verification_report`, `payment_provider_external_e2e`, `notification_provider_external_e2e`, and `concurrency_rehearsal`
+   - the `day1_feature_flag_posture` check must pass; day-1 keeps customer self-pay, advanced waiting-list automation, kitchen dispatch, inventory uplift, conversation inbox, and conversation AI assist disabled by the wildcard production-like default unless the release ticket records an audited override
 2. Drill into failing sources only when the aggregated gate is not clean
    - `php artisan booking:doctor --strict`
    - `php artisan booking:deploy-check --mode=preflight --strict`
    - `php artisan booking:release-manifest --verify-frozen --json`
    - `php artisan booking:package-release --verify-frozen --json`
+   - if `booking:doctor` reports `runtime.scheduler` as blocked by `runtime.redis`, treat Redis as the root blocker and restore heartbeat storage before debugging scheduler freshness
+   - if `booking:doctor` reports `runtime.outbox` as blocked by `runtime.db`, treat MySQL as the root blocker and restore DB reachability before interpreting outbox backlog health
    - if `booking:deploy-check --mode=preflight --strict` reports `data.purchase_receipt_lineage_uniqueness`, stop the rollout and deduplicate the listed `ingredient_stock_movements.reference_id` values before applying `database/patches/2026_04_13_000051_inventory_stock_movement_reference_uniqueness.sql`
 3. Run smoke suite
    - `bash scripts/ci/booking-smoke-gate.sh`
@@ -49,6 +52,10 @@
    - `php artisan booking:ops-snapshot --json`
    - `php artisan notifications:outbox-health --json`
 10. Hit health endpoints with staff auth for detailed checks.
+11. Capture or refresh the operator-owned manual evidence file when the rollout target requires it:
+   - `php artisan booking:manual-evidence:init --target=staging --candidate=<candidate> --json`
+   - `php artisan booking:manual-evidence:init --target=limited-production --candidate=<candidate> --json`
+   - record `pass` evidence for UAT replay, performance verification, notification rehearsal, and any other target-required manual checks before sign-off
 
 ## Runtime topology
 
@@ -67,6 +74,7 @@
   - reporting snapshot rebuild
 - Worker model:
   - no separate queue worker is required for the current booking outbox path
+  - queue configuration alone is not the readiness proof lane; the proof lane is MySQL + Redis + `schedule:work` + `notifications:process-outbox`
   - notification outbox processing is scheduler-driven through `notifications:process-outbox`
 - Logging and audit:
   - keep the `audit` log channel writable

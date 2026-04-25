@@ -29,7 +29,7 @@ class AdminBenefitsAdminFoundationHttpFlowTest extends TestCase
     {
         [$adminId, $headers] = $this->adminHeaders('admin-benefits-voucher-key');
 
-        $createResponse = $this->withHeaders($headers)
+        $createResponse = $this->withHeaders($this->withIdempotency($headers, 'admin-benefits-voucher-create'))
             ->postJson('/api/v1/admin/benefits/vouchers', [
                 'code' => 'ADM-VC-10',
                 'description' => 'Admin voucher',
@@ -60,7 +60,7 @@ class AdminBenefitsAdminFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.code', 'ADM-VC-10');
 
-        $updateResponse = $this->withHeaders($headers)
+        $updateResponse = $this->withHeaders($this->withIdempotency($headers, 'admin-benefits-voucher-update'))
             ->patchJson('/api/v1/admin/benefits/vouchers/'.$voucherId, [
                 'row_version' => $rowVersion,
                 'description' => 'Admin voucher updated',
@@ -92,7 +92,7 @@ class AdminBenefitsAdminFoundationHttpFlowTest extends TestCase
         ]);
         $freshVoucher = DB::table('vouchers')->where('voucher_id', $voucherId)->first();
 
-        $guardedResponse = $this->withHeaders($headers)
+        $guardedResponse = $this->withHeaders($this->withIdempotency($headers, 'admin-benefits-voucher-guarded-update'))
             ->patchJson('/api/v1/admin/benefits/vouchers/'.$voucherId, [
                 'row_version' => (int) $freshVoucher->row_version,
                 'discount_value' => '99999.00',
@@ -107,7 +107,7 @@ class AdminBenefitsAdminFoundationHttpFlowTest extends TestCase
     {
         [$adminId, $headers] = $this->adminHeaders('admin-benefits-loyalty-key');
 
-        $createResponse = $this->withHeaders($headers)
+        $createResponse = $this->withHeaders($this->withIdempotency($headers, 'admin-benefits-loyalty-create'))
             ->postJson('/api/v1/admin/benefits/loyalty-tiers', [
                 'tier_code' => 'GOLD',
                 'tier_name' => 'Gold',
@@ -135,7 +135,7 @@ class AdminBenefitsAdminFoundationHttpFlowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('meta.action', 'admin_loyalty_tiers');
 
-        $updateResponse = $this->withHeaders($headers)
+        $updateResponse = $this->withHeaders($this->withIdempotency($headers, 'admin-benefits-loyalty-update'))
             ->patchJson('/api/v1/admin/benefits/loyalty-tiers/'.$tierId, [
                 'row_version' => $rowVersion,
                 'tier_name' => 'Gold Elite',
@@ -160,7 +160,7 @@ class AdminBenefitsAdminFoundationHttpFlowTest extends TestCase
         self::assertGreaterThan(0, $userId);
 
         $freshTier = DB::table('loyalty_tiers')->where('tier_id', $tierId)->first();
-        $guardedResponse = $this->withHeaders($headers)
+        $guardedResponse = $this->withHeaders($this->withIdempotency($headers, 'admin-benefits-loyalty-guarded-update'))
             ->patchJson('/api/v1/admin/benefits/loyalty-tiers/'.$tierId, [
                 'row_version' => (int) $freshTier->row_version,
                 'is_active' => false,
@@ -183,7 +183,7 @@ class AdminBenefitsAdminFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('meta.action', 'admin_benefit_runtime_settings')
             ->assertJsonPath('meta.count', 5);
 
-        $createResponse = $this->withHeaders($headers)
+        $createResponse = $this->withHeaders($this->withIdempotency($headers, 'admin-benefits-settings-create'))
             ->postJson('/api/v1/admin/settings/benefits', [
                 'setting_key' => 'loyalty.min_redeem_points',
                 'value' => 25,
@@ -199,7 +199,7 @@ class AdminBenefitsAdminFoundationHttpFlowTest extends TestCase
         $updatedAt = (string) $createResponse->json('data.updated_at');
         self::assertSame(25, app(RuntimeSettingService::class)->int('loyalty.min_redeem_points', 1));
 
-        $guardedResponse = $this->withHeaders($headers)
+        $guardedResponse = $this->withHeaders($this->withIdempotency($headers, 'admin-benefits-settings-guarded-update'))
             ->postJson('/api/v1/admin/settings/benefits', [
                 'setting_key' => 'loyalty.min_redeem_points',
                 'value' => 30,
@@ -209,7 +209,7 @@ class AdminBenefitsAdminFoundationHttpFlowTest extends TestCase
             ->assertStatus(409)
             ->assertJsonValidationErrors(['expected_updated_at']);
 
-        $updateResponse = $this->withHeaders($headers)
+        $updateResponse = $this->withHeaders($this->withIdempotency($headers, 'admin-benefits-settings-update'))
             ->postJson('/api/v1/admin/settings/benefits', [
                 'setting_key' => 'loyalty.min_redeem_points',
                 'value' => 30,
@@ -262,5 +262,14 @@ class AdminBenefitsAdminFoundationHttpFlowTest extends TestCase
     private function staffHeaders(int $staffId, string $apiKey): array
     {
         return $this->staffAuthHeaders($staffId, $apiKey);
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     * @return array<string, string>
+     */
+    private function withIdempotency(array $headers, string $key): array
+    {
+        return array_merge($headers, ['Idempotency-Key' => $key]);
     }
 }

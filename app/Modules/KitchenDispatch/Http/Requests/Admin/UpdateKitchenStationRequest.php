@@ -29,6 +29,7 @@ class UpdateKitchenStationRequest extends FormRequest
         $stationId = is_numeric($this->route('station_id')) ? (int) $this->route('station_id') : null;
 
         return [
+            'branch_id' => ['sometimes', 'required', 'integer', Rule::exists('branches', 'branch_id')->where('is_active', true)],
             'code' => ['sometimes', 'required', 'string', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('kitchen_stations', 'code')->ignore($stationId, 'station_id')],
             'name' => ['sometimes', 'required', 'string', 'max:120'],
             'description' => ['sometimes', 'nullable', 'string', 'max:500'],

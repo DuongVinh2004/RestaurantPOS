@@ -87,4 +87,20 @@ class WaitingListStateMachineTest extends TestCase
             self::assertArrayHasKey('notify_window', $e->errors());
         }
     }
+
+    public function test_assert_expected_row_version_uses_canonical_stale_write_message(): void
+    {
+        $entry = new WaitlistEntry;
+        $entry->row_version = 2;
+
+        try {
+            WaitlistInvitationStateMachine::assertExpectedRowVersion($entry, 1);
+            self::fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            self::assertSame(
+                'Waiting-list data changed (row_version mismatch). Reload and try again.',
+                $e->errors()['row_version'][0] ?? null,
+            );
+        }
+    }
 }

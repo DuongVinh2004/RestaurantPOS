@@ -114,7 +114,7 @@ class StaffStartupContextBuilder
             'available_workspaces' => $workspaceContext['available_workspaces'],
             'default_branch_id' => $branchAccess['default_branch_id'],
             'allowed_branch_ids' => $branchAccess['accessible_branch_ids'],
-            'assigned_station_ids' => $this->resolveAssignedStationIdsContext($capabilities),
+            'assigned_station_ids' => $this->resolveAssignedStationIdsContext($capabilities, $branchAccess['accessible_branch_ids']),
             'default_branch' => $defaultBranch,
             'branch_access' => $branchAccess,
             'active_cashier_shift' => $activeCashierShift,
@@ -245,19 +245,28 @@ class StaffStartupContextBuilder
 
     /**
      * @param  list<string>  $capabilities
+     * @param  list<int>  $accessibleBranchIds
      * @return list<int>
      */
-    private function resolveAssignedStationIdsContext(array $capabilities): array
+    private function resolveAssignedStationIdsContext(array $capabilities, array $accessibleBranchIds): array
     {
         if (! $this->hasCapability($capabilities, 'kitchen.manage') || ! Schema::hasTable('kitchen_stations')) {
             return [];
         }
 
         try {
+            if ($accessibleBranchIds === []) {
+                return [];
+            }
+
             $query = DB::table('kitchen_stations');
 
             if (Schema::hasColumn('kitchen_stations', 'is_active')) {
                 $query->where('is_active', true);
+            }
+
+            if (Schema::hasColumn('kitchen_stations', 'branch_id')) {
+                $query->whereIn('branch_id', $accessibleBranchIds);
             }
 
             return $query

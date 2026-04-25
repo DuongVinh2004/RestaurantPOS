@@ -253,12 +253,11 @@ function evaluateFreshnessRule(rootDir, rule, releaseManifestSnapshot, hashCache
   const dependencyStat = statSync(resolvedDependencyPath);
   const targetModifiedEpoch = Math.trunc(targetStat.mtimeMs / 1000);
   const dependencyModifiedEpoch = Math.trunc(dependencyStat.mtimeMs / 1000);
+  const snapshotFreshness = evaluateFreshnessFromSnapshot(rule, resolvedPath, resolvedDependencyPath, releaseManifestSnapshot, hashCache);
   const freshnessFailure = targetModifiedEpoch >= dependencyModifiedEpoch
     ? null
     : `stale generated artifact: ${rule.path} is older than ${rule.depends_on}; ${FRESHNESS_REMEDIATION}`;
-
-  const snapshotFreshness = evaluateFreshnessFromSnapshot(rule, resolvedPath, resolvedDependencyPath, releaseManifestSnapshot, hashCache);
-  const failure = freshnessFailure ?? snapshotFreshness?.failure ?? null;
+  const failure = snapshotFreshness === null ? freshnessFailure : snapshotFreshness.failure;
 
   return {
     scope: rule.scope,
@@ -309,8 +308,18 @@ function evaluateFreshnessFromSnapshot(rule, resolvedPath, resolvedDependencyPat
 
   const targetHash = computeSha256(resolvedPath, hashCache);
   const dependencyHash = computeSha256(resolvedDependencyPath, hashCache);
-  if (targetArtifact.sha256 !== targetHash || dependencyArtifact.sha256 !== dependencyHash) {
-    return null;
+  if (targetArtifact.sha256 !== targetHash) {
+    return {
+      ok: false,
+      failure: `stale generated artifact: ${rule.path} no longer matches ${RELEASE_MANIFEST_SNAPSHOT_PATH}; ${FRESHNESS_REMEDIATION}`,
+    };
+  }
+
+  if (dependencyArtifact.sha256 !== dependencyHash) {
+    return {
+      ok: false,
+      failure: `stale generated artifact: ${rule.depends_on} no longer matches ${RELEASE_MANIFEST_SNAPSHOT_PATH}; ${FRESHNESS_REMEDIATION}`,
+    };
   }
 
   const targetEpoch = Number(targetArtifact.modified_epoch);

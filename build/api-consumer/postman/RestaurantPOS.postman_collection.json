@@ -167,7 +167,7 @@
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/auth/staff/login",
-                        "description": "Issue an opaque staff API key session for operational staff and admin APIs.\n\nSignature: `POST api/v1/auth/staff/login`\nAuth mode: `public`\nContract grade: `full`",
+                        "description": "Issue an opaque staff API key session for operational staff and admin APIs. During the opt-in staff-web rollout, session_transport=refresh_cookie sets an HttpOnly Secure SameSite refresh cookie and returns only a memory access token.\n\nSignature: `POST api/v1/auth/staff/login`\nAuth mode: `public`\nContract grade: `full`",
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"identifier\": \"{{staffUsername}}\",\n    \"password\": \"{{staffPassword}}\",\n    \"label\": \"postman-staff\"\n}",
@@ -239,13 +239,19 @@
                                 "type": "text"
                             },
                             {
+                                "key": "X-Staff-CSRF",
+                                "value": "{{staffCsrfToken}}",
+                                "type": "text"
+                            },
+                            {
                                 "key": "X-Staff-Key",
                                 "value": "{{staffApiKey}}",
-                                "type": "text"
+                                "type": "text",
+                                "disabled": true
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/auth/staff/refresh",
-                        "description": "Rotate the current staff API key session and return a replacement opaque token.\n\nSignature: `POST api/v1/auth/staff/refresh`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                        "description": "Rotate the current staff API key session and return a replacement opaque token. Cookie-backed staff-web refresh requires X-Staff-CSRF and returns a memory access token without exposing the refresh cookie secret.\n\nSignature: `POST api/v1/auth/staff/refresh`\nAuth mode: `staff_browser_refresh_cookie`\nContract grade: `full`"
                     },
                     "response": []
                 },
@@ -260,13 +266,19 @@
                                 "type": "text"
                             },
                             {
+                                "key": "X-Staff-CSRF",
+                                "value": "{{staffCsrfToken}}",
+                                "type": "text"
+                            },
+                            {
                                 "key": "X-Staff-Key",
                                 "value": "{{staffApiKey}}",
-                                "type": "text"
+                                "type": "text",
+                                "disabled": true
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/auth/staff/logout",
-                        "description": "Revoke the current staff API key session.\n\nSignature: `POST api/v1/auth/staff/logout`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                        "description": "Revoke the current staff API key session. Cookie-backed staff-web logout clears the refresh and CSRF cookies and revokes the refresh/session key.\n\nSignature: `POST api/v1/auth/staff/logout`\nAuth mode: `staff_browser_refresh_cookie`\nContract grade: `full`"
                     },
                     "response": []
                 }
@@ -1453,6 +1465,27 @@
             "name": "Dine-In + Checkout",
             "item": [
                 {
+                    "name": "List staff menu items",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/menu/items?service_time={{availabilityFromUtc}}&category_id={{menuCategoryId}}&preorder_only={{preorderOnly}}&q={{q}}&page={{page}}&per_page={{perPage}}",
+                        "description": "Return the staff ordering menu catalog slice for active dine-in order composition using the same price-effective visibility rules as customer menu reads.\n\nSignature: `GET api/v1/staff/menu/items`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
                     "name": "Show staff table board",
                     "request": {
                         "method": "GET",
@@ -1489,8 +1522,48 @@
                                 "type": "text"
                             }
                         ],
-                        "url": "{{baseUrl}}/api/v1/staff/tables/board/changes?after_version={{boardAfterVersion}}&limit={{eventLimit}}",
+                        "url": "{{baseUrl}}/api/v1/staff/tables/board/changes?after_version={{boardAfterVersion}}&limit={{eventLimit}}&branch_id={{branchId}}",
                         "description": "Return the staff board realtime polling feed since the requested version cursor.\n\nSignature: `GET api/v1/staff/tables/board/changes`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Start walk-in service session",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/service-sessions/walk-in",
+                        "description": "Create a checked-in reservation-backed service session for a walk-in party, optionally provisioning a lightweight customer profile.\n\nSignature: `POST api/v1/staff/service-sessions/walk-in`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"guest_name\": \"Walk-in Guest\",\n    \"phone\": \"0901234567\",\n    \"table_ids\": [\n        \"{{dineInTableId}}\"\n    ],\n    \"guest_count\": \"{{guestCount}}\",\n    \"service_minutes\": 90,\n    \"notes\": \"Postman walk-in service session\",\n    \"branch_id\": \"{{branchId}}\",\n    \"started_at\": \"{{checkedInAt}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
                     },
                     "response": []
                 },
@@ -2295,7 +2368,7 @@
                                 "type": "text"
                             }
                         ],
-                        "url": "{{baseUrl}}/api/v1/staff/kitchen/changes?after_version={{kitchenAfterVersion}}&limit={{eventLimit}}",
+                        "url": "{{baseUrl}}/api/v1/staff/kitchen/changes?after_version={{kitchenAfterVersion}}&limit={{eventLimit}}&branch_id={{branchId}}",
                         "description": "Return the staff kitchen realtime polling feed since the requested version cursor so KDS surfaces can refresh only when backend state changed.\n\nSignature: `GET api/v1/staff/kitchen/changes`\nAuth mode: `staff_api_key`\nContract grade: `full`"
                     },
                     "response": []
@@ -2393,6 +2466,11 @@
                                 "type": "text"
                             },
                             {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
                                 "key": "X-Staff-Key",
                                 "value": "{{staffApiKey}}",
                                 "type": "text"
@@ -2404,7 +2482,16 @@
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/staff/kitchen/tickets/{{kitchenTicketId}}/fire",
-                        "description": "Advance a queued kitchen ticket into the fired state and keep the linked order item in sync for production work.\n\nSignature: `POST api/v1/staff/kitchen/tickets/{ticket_id}/fire`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                        "description": "Advance a queued kitchen ticket into the fired state and keep the linked order item in sync for production work. Requires the current ticket row_version for stale-write protection.\n\nSignature: `POST api/v1/staff/kitchen/tickets/{ticket_id}/fire`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": 3\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
                     },
                     "response": []
                 },
@@ -2415,6 +2502,11 @@
                         "header": [
                             {
                                 "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
                                 "value": "application/json",
                                 "type": "text"
                             },
@@ -2430,7 +2522,16 @@
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/staff/kitchen/tickets/{{kitchenTicketId}}/bump",
-                        "description": "Advance a fired kitchen ticket into the ready state once the station completes production work.\n\nSignature: `POST api/v1/staff/kitchen/tickets/{ticket_id}/bump`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                        "description": "Advance a fired kitchen ticket into the ready state once the station completes production work. Requires the current ticket row_version for stale-write protection.\n\nSignature: `POST api/v1/staff/kitchen/tickets/{ticket_id}/bump`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": 4\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
                     },
                     "response": []
                 },
@@ -2441,6 +2542,11 @@
                         "header": [
                             {
                                 "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
                                 "value": "application/json",
                                 "type": "text"
                             },
@@ -2456,7 +2562,16 @@
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/staff/kitchen/tickets/{{kitchenTicketId}}/recall",
-                        "description": "Return a ready kitchen ticket back to the fired state when the station must resume work on the item.\n\nSignature: `POST api/v1/staff/kitchen/tickets/{ticket_id}/recall`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                        "description": "Return a ready kitchen ticket back to the fired state when the station must resume work on the item. Requires the current ticket row_version for stale-write protection.\n\nSignature: `POST api/v1/staff/kitchen/tickets/{ticket_id}/recall`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": 5\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
                     },
                     "response": []
                 }
@@ -2483,6 +2598,27 @@
                         ],
                         "url": "{{baseUrl}}/api/v1/staff/reservations?filter={{filter}}&filters={{filters}}&bucket={{reservationBucket}}&status={{status}}&reservation_code={{reservationCode}}&source={{source}}&q={{reservationSearch}}&phone={{reservationPhone}}&deposit_acknowledged={{depositAcknowledged}}&deposit_intent_status={{depositIntentStatus}}&user_id={{userId}}&table_id={{dineInTableId}}&start_from={{startFrom}}&start_to={{startTo}}&per_page={{perPage}}&page={{page}}&sort={{reservationSort}}&sort_by={{sortBy}}&sort_dir={{sortDir}}&include_financials={{includeFinancials}}",
                         "description": "Return the canonical staff reservation lookup collection for operational order and refund flows.\n\nSignature: `GET api/v1/staff/reservations`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show staff reservation detail",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationIdDineIn}}",
+                        "description": "Return the staff-scoped reservation detail read model with tables, user context, order lines, and financial snapshots needed for operational drawers and linked order workflows. Reads fail closed outside the actor explicit branch entitlement scope.\n\nSignature: `GET api/v1/staff/reservations/{reservation_id}`\nAuth mode: `staff_api_key`\nContract grade: `full`"
                     },
                     "response": []
                 },
@@ -2958,7 +3094,7 @@
                                 "type": "text"
                             }
                         ],
-                        "url": "{{baseUrl}}/api/v1/staff/waiting-list/changes?after_version={{waitingListAfterVersion}}&limit={{eventLimit}}",
+                        "url": "{{baseUrl}}/api/v1/staff/waiting-list/changes?after_version={{waitingListAfterVersion}}&limit={{eventLimit}}&branch_id={{branchId}}",
                         "description": "Return the staff waiting list realtime polling feed since the requested version cursor.\n\nSignature: `GET api/v1/staff/waiting-list/changes`\nAuth mode: `staff_api_key`\nContract grade: `full`"
                     },
                     "response": []
@@ -3900,6 +4036,46 @@
                     "response": []
                 },
                 {
+                    "name": "Unassign conversation",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/conversations/{{conversationId}}/unassign",
+                        "description": "Release the current active assignment while preserving assignment history in the operational timeline.\n\nSignature: `POST api/v1/staff/conversations/{conversation_id}/unassign`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"notes\": \"Returning conversation to shared inbox from Postman collection\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
                     "name": "Add internal note",
                     "request": {
                         "method": "POST",
@@ -4234,32 +4410,6 @@
                     ]
                 },
                 {
-                    "name": "Menu Catalog",
-                    "item": [
-                        {
-                            "name": "List staff menu items",
-                            "request": {
-                                "method": "GET",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/staff/menu/items?service_time={{serviceTime}}&category_id={{categoryId}}&preorder_only={{preorderOnly}}&q={{q}}&page={{page}}&per_page={{perPage}}",
-                                "description": "Return the staff ordering menu catalog slice for active dine-in order composition using the same price-effective visibility rules as customer menu reads.\n\nSignature: `GET api/v1/staff/menu/items`\nAuth mode: `staff_api_key`\nContract grade: `full`"
-                            },
-                            "response": []
-                        }
-                    ]
-                },
-                {
                     "name": "Staff Conversations",
                     "item": [
                         {
@@ -4385,46 +4535,6 @@
                             "response": []
                         },
                         {
-                            "name": "Unassign conversation",
-                            "request": {
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Idempotency-Key",
-                                        "value": "restaurantpos-{{$guid}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/staff/conversations/{{conversationId}}/unassign",
-                                "description": "Release the current active assignment while preserving assignment history in the operational timeline.\n\nSignature: `POST api/v1/staff/conversations/{conversation_id}/unassign`\nAuth mode: `staff_api_key`\nContract grade: `full`",
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n    \"notes\": \"Returning conversation to the shared inbox.\"\n}",
-                                    "options": {
-                                        "raw": {
-                                            "language": "json"
-                                        }
-                                    }
-                                }
-                            },
-                            "response": []
-                        },
-                        {
                             "name": "Unlink reservation",
                             "request": {
                                 "method": "DELETE",
@@ -4539,67 +4649,6 @@
                                 ],
                                 "url": "{{baseUrl}}/api/v1/staff/tables/{{tableId}}/active-service-session",
                                 "description": "Return the active checked-in reservation-backed service session currently occupying the requested table.\n\nSignature: `GET api/v1/staff/tables/{table_id}/active-service-session`\nAuth mode: `staff_api_key`\nContract grade: `full`"
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "Show staff reservation detail",
-                            "request": {
-                                "method": "GET",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}",
-                                "description": "Return the staff-scoped reservation detail read model with tables, user context, order lines, and financial snapshots needed for operational drawers and linked order workflows. Reads fail closed outside the actor explicit branch entitlement scope.\n\nSignature: `GET api/v1/staff/reservations/{reservation_id}`\nAuth mode: `staff_api_key`\nContract grade: `full`"
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "Start walk-in service session",
-                            "request": {
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Idempotency-Key",
-                                        "value": "restaurantpos-{{$guid}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/staff/service-sessions/walk-in",
-                                "description": "Create a checked-in reservation-backed service session for a walk-in party, optionally provisioning a lightweight customer profile.\n\nSignature: `POST api/v1/staff/service-sessions/walk-in`\nAuth mode: `staff_api_key`\nContract grade: `full`",
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n    \"guest_name\": \"Walk-in Guest\",\n    \"phone\": \"0901234567\",\n    \"table_ids\": [\n        12\n    ],\n    \"guest_count\": 2,\n    \"service_minutes\": 120,\n    \"notes\": \"Counter seating\"\n}",
-                                    "options": {
-                                        "raw": {
-                                            "language": "json"
-                                        }
-                                    }
-                                }
                             },
                             "response": []
                         }

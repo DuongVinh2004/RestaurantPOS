@@ -87,6 +87,7 @@ class RefundExecutionService
         $reservationId = (int) $reservation->reservation_id;
         $currentStatus = (string) ($reservation->status?->value ?? $reservation->status);
         $this->assertRefundableStatus($currentStatus, $cancelAfterPayment);
+        $this->assertPaymentsBelongToReservation($reservationId, $payments);
 
         $expectedPaymentCurrency = trim((string) ($reservation->bill_currency ?? '')) !== ''
             ? (string) $reservation->bill_currency
@@ -241,6 +242,27 @@ class RefundExecutionService
             'refund_amount_this_call' => Money::minorToFloat(Money::sumMinor($refundPayments, fn (Payment $payment): mixed => $payment->amount ?? 0, true)),
             'currency' => $effectivePaymentCurrency,
         ];
+    }
+
+    /**
+     * @param  Collection<int,Payment>  $payments
+     */
+    private function assertPaymentsBelongToReservation(int $reservationId, Collection $payments): void
+    {
+        if ($reservationId <= 0) {
+            throw ValidationException::withMessages([
+                'reservation_id' => ['Refund execution requires a persisted reservation.'],
+            ]);
+        }
+
+        foreach ($payments as $payment) {
+            $paymentReservationId = $payment->reservation_id;
+            if ($paymentReservationId === null || $paymentReservationId === '' || (int) $paymentReservationId !== $reservationId) {
+                throw ValidationException::withMessages([
+                    'refund_of_payment_id' => ['Refund source payments must belong to the reservation being refunded.'],
+                ]);
+            }
+        }
     }
 
     /**

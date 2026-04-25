@@ -134,6 +134,38 @@ final class CustomerOrStaffMiddlewareTest extends TestCase
         $this->assertSame(200, $response->getData(true)['resolved_user_id'] ?? null);
     }
 
+    public function test_it_keeps_an_authenticated_customer_owner_context_when_a_session_hint_is_also_present(): void
+    {
+        $resolver = Mockery::mock(StaffApiKeyActorResolver::class);
+        $resolver->shouldReceive('extractProvidedKey')
+            ->once()
+            ->andReturn('');
+
+        $customer = $this->makeUser(userId: 42, roleId: 3, roleName: 'Customer');
+
+        $request = Request::create('/api/v1/reservations/10', 'GET', [
+            'session_id' => 'sess-owner-should-win',
+        ]);
+        $request->setUserResolver(static fn () => $customer);
+        $this->bindMatchedRoute($request);
+
+        $response = $this->middleware($resolver)->handle($request, function (Request $request) {
+            return response()->json([
+                'request_actor_type' => $request->attributes->get('request_actor_type'),
+                'customer_actor_user_id' => $request->attributes->get('customer_actor_user_id'),
+                'customer_session_flow' => (bool) $request->attributes->get('customer_session_flow', false),
+                'customer_session_id' => $request->attributes->get('customer_session_id'),
+                'resolved_user_id' => $request->user()?->user_id,
+            ], 200);
+        });
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('customer_owner', $response->getData(true)['request_actor_type'] ?? null);
+        $this->assertSame(42, $response->getData(true)['customer_actor_user_id'] ?? null);
+        $this->assertSame(false, $response->getData(true)['customer_session_flow'] ?? null);
+        $this->assertSame(42, $response->getData(true)['resolved_user_id'] ?? null);
+    }
+
     public function test_it_does_not_fallback_to_session_flow_when_staff_key_is_invalid(): void
     {
         $resolver = Mockery::mock(StaffApiKeyActorResolver::class);
@@ -210,6 +242,17 @@ final class CustomerOrStaffMiddlewareTest extends TestCase
             $resolver,
             new CustomerSessionRouteContract($this->createMock(ReservationSessionAccessWorkflow::class)),
         );
+    }
+
+    private function makeUser(int $userId, int $roleId, string $roleName, bool $isDeleted = false): User
+    {
+        $user = new User;
+        $user->user_id = $userId;
+        $user->role_id = $roleId;
+        $user->is_deleted = $isDeleted;
+        $user->setRelation('role', new Role(['role_name' => $roleName]));
+
+        return $user;
     }
 
     private function bindMatchedRoute(Request $request): void

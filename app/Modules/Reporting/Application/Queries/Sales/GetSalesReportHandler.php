@@ -17,11 +17,22 @@ final class GetSalesReportHandler
      * @param  array<string,mixed>  $filters
      * @return array{paginator:LengthAwarePaginator,snapshot_health:array<string,mixed>}
      */
-    public function handle(array $filters = []): array
-    {
+    public function handle(
+        array $filters = [],
+        ?int $staffActorUserId = null,
+        ?int $staffActorRoleId = null,
+        ?string $staffActorRoleName = null,
+    ): array {
+        $scopedFilters = $this->reportingSnapshotWorkflow->scopeFiltersForStaff(
+            $filters,
+            $staffActorUserId,
+            $staffActorRoleId,
+            $staffActorRoleName,
+        );
+
         return [
-            'paginator' => $this->reportingSnapshotWorkflow->paginateDailySales($filters),
-            'snapshot_health' => $this->reportingSnapshotWorkflow->filteredSnapshotHealth('sales', $filters),
+            'paginator' => $this->reportingSnapshotWorkflow->paginateDailySales($scopedFilters),
+            'snapshot_health' => $this->reportingSnapshotWorkflow->filteredSnapshotHealth('sales', $scopedFilters),
         ];
     }
 }

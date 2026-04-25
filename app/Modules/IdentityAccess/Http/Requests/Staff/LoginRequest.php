@@ -20,6 +20,7 @@ class LoginRequest extends FormRequest
             'password' => ['required', 'string', 'max:255'],
             'label' => ['nullable', 'string', 'max:100'],
             'device_name' => ['nullable', 'string', 'max:100'],
+            'session_transport' => ['nullable', 'string', 'in:refresh_cookie'],
         ];
     }
 }

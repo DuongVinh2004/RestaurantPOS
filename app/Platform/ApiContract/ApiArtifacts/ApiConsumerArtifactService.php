@@ -34,6 +34,7 @@ class ApiConsumerArtifactService
         $outputRoot = $this->normalizeRelativePath($outputRoot ?: (string) config('api_artifacts.output_root', 'build/api-consumer'));
         $specRelativePath = $this->normalizeRelativePath($specPath ?: (string) config('api_artifacts.source_openapi_path', 'storage/app/booking_release/openapi-v1.json'));
         $spec = $this->loadSpec($specRelativePath, $refreshOpenApi);
+        $minimumArtifactModifiedTime = $this->sourceArtifactModifiedTime($specRelativePath);
         $contractReport = $this->openApiSpec->report($spec);
         $this->componentSchemas = (array) ($spec['components']['schemas'] ?? []);
         $operationsBySignature = $this->operationsBySignature($spec);
@@ -65,20 +66,20 @@ class ApiConsumerArtifactService
         $sdkSource = $this->buildTypeScriptSdk($sdkOperations, (array) ($spec['components']['schemas'] ?? []), $specRelativePath);
         $sdkReadme = $this->buildSdkReadme($specRelativePath, $selectedGroupOperations);
         $mutationContractReadme = $this->buildMutationContractReadme($specRelativePath, $mutationContractGroups, $selectedSignatures);
-        $enumArtifacts = $this->enumStateArtifacts->generate($outputRoot);
+        $enumArtifacts = $this->enumStateArtifacts->generate($outputRoot, $minimumArtifactModifiedTime);
 
         $written = [
-            'collection' => $this->writeArtifact($outputRoot, (string) config('api_artifacts.postman.collection'), $collection),
-            'local_environment' => $this->writeArtifact($outputRoot, (string) config('api_artifacts.postman.local_template'), $localEnvironment),
-            'staging_environment' => $this->writeArtifact($outputRoot, (string) config('api_artifacts.postman.staging_template'), $stagingEnvironment),
-            'sdk_typescript' => $this->writeArtifact($outputRoot, (string) config('api_artifacts.sdk.typescript'), $sdkSource),
-            'sdk_readme' => $this->writeArtifact($outputRoot, (string) config('api_artifacts.sdk.readme'), $sdkReadme),
-            'mutation_contract' => $this->writeArtifact($outputRoot, (string) config('api_artifacts.mutation_contract.readme'), $mutationContractReadme),
+            'collection' => $this->writeArtifact($outputRoot, (string) config('api_artifacts.postman.collection'), $collection, $minimumArtifactModifiedTime),
+            'local_environment' => $this->writeArtifact($outputRoot, (string) config('api_artifacts.postman.local_template'), $localEnvironment, $minimumArtifactModifiedTime),
+            'staging_environment' => $this->writeArtifact($outputRoot, (string) config('api_artifacts.postman.staging_template'), $stagingEnvironment, $minimumArtifactModifiedTime),
+            'sdk_typescript' => $this->writeArtifact($outputRoot, (string) config('api_artifacts.sdk.typescript'), $sdkSource, $minimumArtifactModifiedTime),
+            'sdk_readme' => $this->writeArtifact($outputRoot, (string) config('api_artifacts.sdk.readme'), $sdkReadme, $minimumArtifactModifiedTime),
+            'mutation_contract' => $this->writeArtifact($outputRoot, (string) config('api_artifacts.mutation_contract.readme'), $mutationContractReadme, $minimumArtifactModifiedTime),
         ];
         $written = array_merge($written, (array) ($enumArtifacts['artifacts'] ?? []));
 
         if ($uatEnvironment !== null) {
-            $written['uat_environment'] = $this->writeArtifact($outputRoot, (string) config('api_artifacts.postman.uat_environment'), $uatEnvironment);
+            $written['uat_environment'] = $this->writeArtifact($outputRoot, (string) config('api_artifacts.postman.uat_environment'), $uatEnvironment, $minimumArtifactModifiedTime);
         }
 
         return [
@@ -122,6 +123,13 @@ class ApiConsumerArtifactService
         $spec = json_decode((string) File::get($specAbsolutePath), true, 512, JSON_THROW_ON_ERROR);
 
         return $spec;
+    }
+
+    private function sourceArtifactModifiedTime(string $specRelativePath): ?int
+    {
+        $specAbsolutePath = base_path($specRelativePath);
+
+        return File::exists($specAbsolutePath) ? File::lastModified($specAbsolutePath) : null;
     }
 
     /**
@@ -377,6 +385,9 @@ class ApiConsumerArtifactService
                 : $this->disabledHeader('X-Session-Id', '{{customerSessionId}}');
         } elseif ($authMode === 'staff_api_key') {
             $headers[] = $this->enabledHeader('X-Staff-Key', str_starts_with($path, '/api/v1/admin/') ? '{{adminApiKey}}' : '{{staffApiKey}}');
+        } elseif ($authMode === 'staff_browser_refresh_cookie') {
+            $headers[] = $this->enabledHeader((string) config('staff_auth.browser_session.csrf_header', 'X-Staff-CSRF'), '{{staffCsrfToken}}');
+            $headers[] = $this->disabledHeader('X-Staff-Key', '{{staffApiKey}}');
         } elseif ($authMode === 'customer_or_staff') {
             $headers[] = $this->enabledHeader('X-Customer-Token', '{{customerToken}}');
             $headers[] = $supportsCustomerSession
@@ -853,6 +864,10 @@ class ApiConsumerArtifactService
         ];
 
         foreach ($selectedSignatures as $signature) {
+            if (in_array($signature, ['POST api/v1/auth/staff/refresh', 'POST api/v1/auth/staff/logout'], true)) {
+                $keys[] = 'staffCsrfToken';
+            }
+
             $aliases = (array) config("api_artifacts.postman.parameter_aliases.$signature", []);
 
             foreach (['path', 'query'] as $scope) {
@@ -927,8 +942,9 @@ class ApiConsumerArtifactService
             'userVoucherId' => data_get($manifest, 'scenarios.benefits.user_voucher_id'),
             'loyaltyPoints' => data_get($manifest, 'scenarios.benefits.loyalty_points'),
             'customerUserIdSecondary' => data_get($manifest, 'scenarios.waiting_list_lifecycle.customer_user_id'),
-            'checkedInAt' => now('UTC')->toIso8601String(),
-            'paymentWebhookOccurredAt' => now('UTC')->toIso8601String(),
+            // Keep generated UAT environments reproducible while still letting Postman resolve fresh values at send time.
+            'checkedInAt' => '{{$isoTimestamp}}',
+            'paymentWebhookOccurredAt' => '{{$isoTimestamp}}',
         ], static fn (mixed $value): bool => $value !== null && $value !== '');
     }
 
@@ -970,7 +986,7 @@ class ApiConsumerArtifactService
     /**
      * @param  array<string,mixed>  $payload
      */
-    private function writeArtifact(string $outputRoot, string $relativePath, array|string $payload): string
+    private function writeArtifact(string $outputRoot, string $relativePath, array|string $payload, ?int $minimumModifiedTime = null): string
     {
         $relativeOutputPath = $this->normalizeRelativePath($outputRoot.'/'.ltrim($relativePath, '/\\'));
         $absolutePath = base_path($relativeOutputPath);
@@ -980,7 +996,15 @@ class ApiConsumerArtifactService
             ? json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
             : $payload;
 
-        File::put($absolutePath, $contents);
+        if (! File::exists($absolutePath) || (string) File::get($absolutePath) !== $contents) {
+            File::put($absolutePath, $contents);
+        } elseif ($minimumModifiedTime !== null && File::lastModified($absolutePath) < $minimumModifiedTime) {
+            if (! touch($absolutePath, $minimumModifiedTime)) {
+                throw new RuntimeException(sprintf('Unable to refresh generated artifact timestamp [%s].', $relativeOutputPath));
+            }
+
+            clearstatcache(true, $absolutePath);
+        }
 
         return $relativeOutputPath;
     }
@@ -1056,18 +1080,21 @@ class ApiConsumerArtifactService
 
         $typeSection = implode("\n\n", $typeBlocks);
         $methodSection = implode("\n\n", $methodBlocks);
+        $staffCsrfHeaderName = json_encode((string) config('staff_auth.browser_session.csrf_header', 'X-Staff-CSRF'), JSON_THROW_ON_ERROR);
 
         return <<<TS
 /* Generated from {$specRelativePath}. Do not edit by hand. */
 
-export type AuthMode = 'auto' | 'none' | 'customer' | 'staff' | 'session' | 'customerOrSession';
+export type AuthMode = 'auto' | 'none' | 'customer' | 'staff' | 'session' | 'customerOrSession' | 'staffBrowserSession';
 
 export interface RestaurantPosClientOptions {
   baseUrl: string;
   fetchImpl?: typeof fetch;
   customerToken?: string | (() => string | null | undefined);
   staffApiKey?: string | (() => string | null | undefined);
+  staffCsrfToken?: string | (() => string | null | undefined);
   customerSessionId?: string | (() => string | null | undefined);
+  credentials?: RequestCredentials;
   defaultHeaders?: Record<string, string>;
 }
 
@@ -1076,6 +1103,8 @@ export interface RequestOptions {
   signal?: AbortSignal;
   authMode?: AuthMode;
   idempotencyKey?: string;
+  credentials?: RequestCredentials;
+  staffCsrfToken?: string | (() => string | null | undefined);
 }
 
 export class RestaurantPosApiError<T = unknown> extends Error {
@@ -1141,7 +1170,11 @@ export class RestaurantPosClient {
       headers.set('Content-Type', 'application/json');
     }
 
-    this.applyAuthHeaders(headers, authMode, options.authMode ?? 'auto', routeSupportsCustomerSession);
+    const staffCsrfToken = options.staffCsrfToken === undefined
+      ? this.resolveValue(this.options.staffCsrfToken)
+      : this.resolveValue(options.staffCsrfToken);
+
+    this.applyAuthHeaders(headers, authMode, options.authMode ?? 'auto', routeSupportsCustomerSession, staffCsrfToken);
 
     if (requiresIdempotency && options.idempotencyKey) {
       headers.set('Idempotency-Key', options.idempotencyKey);
@@ -1157,6 +1190,7 @@ export class RestaurantPosClient {
       method,
       headers,
       signal: options.signal,
+      credentials: options.credentials ?? this.options.credentials,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
 
@@ -1191,6 +1225,7 @@ export class RestaurantPosClient {
     routeAuthMode: AuthMode,
     requestedAuthMode: AuthMode,
     routeSupportsCustomerSession: boolean,
+    staffCsrfToken: string | undefined,
   ): void {
     if (routeAuthMode === 'none' || requestedAuthMode === 'none') {
       return;
@@ -1221,6 +1256,16 @@ export class RestaurantPosClient {
 
     if (selectedMode === 'staff' && staffApiKey) {
       headers.set('X-Staff-Key', staffApiKey);
+      return;
+    }
+
+    if (selectedMode === 'staffBrowserSession') {
+      if (staffApiKey) {
+        headers.set('X-Staff-Key', staffApiKey);
+      }
+      if (staffCsrfToken) {
+        headers.set({$staffCsrfHeaderName}, staffCsrfToken);
+      }
       return;
     }
 
@@ -1543,6 +1588,7 @@ TS;
             'customer_access_token' => 'customer',
             'customer_or_session' => 'customerOrSession',
             'staff_api_key' => 'staff',
+            'staff_browser_refresh_cookie' => 'staffBrowserSession',
             'customer_or_staff' => 'auto',
             default => 'none',
         };
@@ -1851,6 +1897,7 @@ MD;
 
         return match ($authMode) {
             'staff_api_key' => 'missing/invalid X-Staff-Key',
+            'staff_browser_refresh_cookie' => 'missing/invalid staff refresh cookie or X-Staff-CSRF',
             'customer_access_token' => $sessionAware ? 'missing customer auth or session' : 'missing/invalid X-Customer-Token',
             'customer_or_session' => 'missing customer auth or session',
             'customer_or_staff' => $sessionAware ? 'missing customer/staff auth or session' : 'missing customer/staff auth',
@@ -1984,6 +2031,7 @@ const client = new RestaurantPosClient({
   customerToken: () => localStorage.getItem('customerToken') ?? undefined,
   customerSessionId: () => sessionStorage.getItem('customerSessionId') ?? undefined,
   staffApiKey: () => localStorage.getItem('staffApiKey') ?? undefined,
+  staffCsrfToken: () => readCookie('staff_web_csrf') ?? undefined,
 });
 
 const login = await client.postV1AuthCustomerLogin({
@@ -1996,6 +2044,7 @@ const login = await client.postV1AuthCustomerLogin({
 Limitations:
 
 - On curated customer routes whose mutation contract requires session propagation, the generated client keeps `X-Customer-Token` and `X-Session-Id` together when both are configured.
+- Staff refresh-cookie login/refresh/logout can opt into `credentials: 'include'`; refresh/logout also send `staffCsrfToken` as `X-Staff-CSRF` when provided.
 - The SDK is intentionally scoped to the curated priority batch, not every full-contract or fallback endpoint.
 - Enum/state exports are generated separately in `restaurantpos-enums.ts` and `enum-state-map.json` so FE can consume stable state values without inferring them from incidental payload strings.
 - Response typing follows the frozen OpenAPI artifact. Routes still below contract-grade remain outside the official SDK batch and can stay coarse in the spec.

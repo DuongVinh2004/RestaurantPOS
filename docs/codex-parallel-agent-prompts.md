@@ -200,7 +200,7 @@ Branch: codex/backend-foh-reservations
 Owned files:
 - app/Modules/BranchScheduling/**
 - app/Modules/Reservations/**
-- app/Modules/FloorOps/**
+- app/Modules/FloorOperations/**
 - tests/Feature/Reservation/**
 - tests/Feature/Table/**
 - tests/Feature/Staff/StaffTableBoard*
@@ -257,7 +257,9 @@ Task: Harden checkout, refunds, payment sessions, webhook, cashier shift, and re
 Branch: codex/backend-checkout-finance
 
 Owned files:
-- app/Modules/CheckoutPayments/**
+- app/Modules/Billing/**
+- app/Modules/Payments/**
+- app/Modules/Cashiering/**
 - tests/Feature/Staff/StaffCheckout*
 - tests/Feature/Staff/StaffCashierShift*
 - tests/Feature/Staff/StaffFinance*
@@ -286,10 +288,10 @@ Task: Harden inventory, reporting, and ops only where launch truth depends on th
 Branch: codex/backend-inventory-reporting-ops
 
 Owned files:
-- app/Modules/BenefitsLoyalty/** chi neu launch truth can
+- app/Modules/Loyalty/** chi neu launch truth can
 - app/Modules/Reporting/**
 - app/Modules/Notifications/**
-- app/Modules/PrivacyAudit/** chi neu readiness can
+- app/Modules/PrivacyCompliance/** chi neu readiness can
 - inventory services/tests lien quan
 - ops/realtime/health tests lien quan
 

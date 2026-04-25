@@ -10,6 +10,7 @@ use Tests\TestCase;
 class RowVersionSourceOfTruthInventoryTest extends TestCase
 {
     private const EXPECTED_ROW_VERSION_TABLES = [
+        'kitchen_order_item_tickets',
         'loyalty_tiers',
         'payments',
         'reservation_order_items',

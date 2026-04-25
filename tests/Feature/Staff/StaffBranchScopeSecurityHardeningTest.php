@@ -26,6 +26,7 @@ class StaffBranchScopeSecurityHardeningTest extends TestCase
     public function test_staff_cannot_open_cashier_shift_on_branch_outside_explicit_scope(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->grantStaffCapabilities($staffId, ['cashier.shift.manage']);
         $branchId = $this->createBranch([
             'branch_code' => 'SHIFT-LOCKED',
             'branch_name' => 'Locked Shift Branch',
@@ -45,6 +46,7 @@ class StaffBranchScopeSecurityHardeningTest extends TestCase
     public function test_open_cashier_shift_state_does_not_expand_branch_scoped_read_access(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->grantStaffCapabilities($staffId, ['audit.view', 'settlement.manage']);
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $branchId = $this->createBranch([
             'branch_code' => 'SCOPE-ANNEX',
@@ -118,9 +120,41 @@ class StaffBranchScopeSecurityHardeningTest extends TestCase
         self::assertNotNull($conversationId);
     }
 
+    public function test_custom_staff_roles_without_explicit_branch_scope_cannot_inherit_default_branch_access(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'ScopedOpsNoBranch']);
+
+        config()->set('staff_capabilities.role_capabilities.ScopedOpsNoBranch', [
+            'reservation.manage',
+            'cashier.shift.manage',
+        ]);
+
+        $headers = $this->staffAuthHeaders($staffId, 'staff-scope-no-default');
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/branches')
+            ->assertOk()
+            ->assertJsonPath('meta.count', 0)
+            ->assertJsonPath('meta.accessible_branch_ids', [])
+            ->assertJsonPath('meta.branch_access.default_branch_id', 1)
+            ->assertJsonPath('meta.branch_access.current_branch_id', null)
+            ->assertJsonPath('meta.branch_access.has_default_branch_access', false)
+            ->assertJsonPath('meta.branch_access.access_source', 'fallback_branch_scopes');
+
+        $this->postJson('/api/v1/staff/cashier/shifts/open', [
+            'branch_id' => 1,
+            'opening_float_amount' => 50000,
+            'currency' => 'VND',
+        ], $this->withIdempotencyKey('staff-shift-no-default-branch-open', $headers))
+            ->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonValidationErrors(['branch_id']);
+    }
+
     public function test_explicit_branch_scope_configuration_keeps_legitimate_branch_flow_working(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->grantStaffCapabilities($staffId, ['audit.view', 'cashier.shift.manage', 'settlement.manage']);
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $branchId = $this->createBranch([
             'branch_code' => 'SCOPE-ALLOW',
@@ -200,6 +234,7 @@ class StaffBranchScopeSecurityHardeningTest extends TestCase
     public function test_staff_cannot_issue_invoice_for_cross_branch_reservation_even_with_existing_shift(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->grantStaffCapabilities($staffId, ['settlement.manage']);
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $branchId = $this->createBranch([
             'branch_code' => 'INVOICE-LOCKED',
@@ -243,6 +278,7 @@ class StaffBranchScopeSecurityHardeningTest extends TestCase
     public function test_staff_payment_and_refund_replay_paths_do_not_bypass_branch_scope(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->grantStaffCapabilities($staffId, ['payment.refund', 'settlement.manage']);
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $branchId = $this->createBranch([
             'branch_code' => 'REPLAY-LOCKED',
@@ -343,5 +379,31 @@ class StaffBranchScopeSecurityHardeningTest extends TestCase
             'subject_id' => (string) $reservationId,
             'subject_role' => 'reservation',
         ]);
+    }
+
+    /**
+     * @param  list<string>  $extraCapabilities
+     */
+    private function grantStaffCapabilities(int $staffId, array $extraCapabilities): void
+    {
+        $user = DB::table('users')
+            ->join('roles', 'roles.role_id', '=', 'users.role_id')
+            ->where('users.user_id', $staffId)
+            ->first(['users.role_id', 'roles.role_name']);
+
+        $roleId = (int) ($user->role_id ?? 0);
+        $roleName = (string) ($user->role_name ?? '');
+        $roleIdCapabilities = (array) config('staff_capabilities.role_id_capabilities', []);
+        $baseCapabilities = (array) ($roleIdCapabilities[$roleId]
+            ?? $roleIdCapabilities[(string) $roleId]
+            ?? config('staff_capabilities.role_capabilities.'.$roleName, []));
+
+        $roleIdCapabilities[$roleId] = array_values(array_unique(array_filter(array_map(
+            'strval',
+            array_merge($baseCapabilities, $extraCapabilities),
+        ))));
+
+        sort($roleIdCapabilities[$roleId]);
+        config()->set('staff_capabilities.role_id_capabilities', $roleIdCapabilities);
     }
 }

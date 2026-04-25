@@ -1,13 +1,13 @@
 {
     "pack": {
         "name": "restaurantpos-uat-demo",
-        "generated_at_utc": "2026-04-20T13:36:58+00:00",
+        "generated_at_utc": "2026-04-25T11:40:19+00:00",
         "environment": "local",
         "base_url": "http://127.0.0.1:8000",
         "reset_recommended_before_full_run": true
     },
     "branch": {
-        "branch_id": 2,
+        "branch_id": 3,
         "branch_code": "UATDEMO",
         "branch_name": "UAT Demo Branch",
         "timezone": "Asia/Ho_Chi_Minh",
@@ -93,27 +93,27 @@
     },
     "auth": {
         "admin": {
-            "user_id": 3,
+            "user_id": 7,
             "username": "uat.admin",
             "password": "UatDemo!123",
             "full_name": "UAT Admin",
             "email": "uat.admin@example.test",
             "phone": "0900001001",
             "role_name": "Admin",
-            "api_key": "spk_wupmtlipdmxm2kg33lvkvdu0yaxydyws2q90l1zlfxnyrz3m"
+            "api_key": "spk_crei0wzvfgxvywf6l2awkxmnwqx1gbrnwa0iebfj64xn6fge"
         },
         "staff": {
-            "user_id": 4,
+            "user_id": 8,
             "username": "uat.staff",
             "password": "UatDemo!123",
             "full_name": "UAT Staff",
             "email": "uat.staff@example.test",
             "phone": "0900001002",
             "role_name": "Staff",
-            "api_key": "spk_abqeniyt18usdkz8bmmkjtie4swzfwrapo5c79kzapsxrreo"
+            "api_key": "spk_gs7xhumtoqlam8tlhidzijyx3aeuuirimzbbdjozr3cdtbh1"
         },
         "customer_primary": {
-            "user_id": 5,
+            "user_id": 9,
             "username": "uat.customer.primary",
             "password": "UatDemo!123",
             "full_name": "UAT Customer Primary",
@@ -123,7 +123,7 @@
             "api_key": null
         },
         "customer_secondary": {
-            "user_id": 6,
+            "user_id": 10,
             "username": "uat.customer.secondary",
             "password": "UatDemo!123",
             "full_name": "UAT Customer Secondary",
@@ -135,7 +135,7 @@
     },
     "tables": {
         "main_2p": {
-            "table_id": 9,
+            "table_id": 21,
             "table_code": "UATDEMO-M-01",
             "zone": "Main",
             "status": "Available",
@@ -144,7 +144,7 @@
             "seats": 2
         },
         "main_4p": {
-            "table_id": 10,
+            "table_id": 22,
             "table_code": "UATDEMO-M-02",
             "zone": "Main",
             "status": "Available",
@@ -153,7 +153,7 @@
             "seats": 4
         },
         "patio_4p": {
-            "table_id": 14,
+            "table_id": 26,
             "table_code": "UATDEMO-P-02",
             "zone": "Patio",
             "status": "Available",
@@ -162,7 +162,7 @@
             "seats": 4
         },
         "vip_4p": {
-            "table_id": 18,
+            "table_id": 30,
             "table_code": "UATDEMO-VIP-02",
             "zone": "VIP",
             "status": "Available",
@@ -194,48 +194,48 @@
     "menu": {
         "categories": {
             "signatures": {
-                "category_id": 3,
+                "category_id": 5,
                 "name": "UAT Signatures"
             },
             "drinks": {
-                "category_id": 4,
+                "category_id": 6,
                 "name": "UAT Drinks"
             }
         },
         "items": {
             "steak": {
-                "item_id": 4,
+                "item_id": 8,
                 "code": "UAT-STEAK",
                 "name": "UAT Pepper Steak",
-                "category_id": 3,
-                "active_price_id": 4,
+                "category_id": 5,
+                "active_price_id": 8,
                 "current_price": "180000.00",
                 "currency": "VND"
             },
             "pho": {
-                "item_id": 5,
+                "item_id": 9,
                 "code": "UAT-PHO",
                 "name": "UAT Beef Pho",
-                "category_id": 3,
-                "active_price_id": 5,
+                "category_id": 5,
+                "active_price_id": 9,
                 "current_price": "95000.00",
                 "currency": "VND"
             },
             "dessert": {
-                "item_id": 6,
+                "item_id": 10,
                 "code": "UAT-DESSERT",
                 "name": "UAT Caramel Flan",
-                "category_id": 3,
-                "active_price_id": 6,
+                "category_id": 5,
+                "active_price_id": 10,
                 "current_price": "45000.00",
                 "currency": "VND"
             },
             "tea": {
-                "item_id": 7,
+                "item_id": 11,
                 "code": "UAT-TEA",
                 "name": "UAT Peach Tea",
-                "category_id": 4,
-                "active_price_id": 7,
+                "category_id": 6,
+                "active_price_id": 11,
                 "current_price": "35000.00",
                 "currency": "VND"
             }
@@ -248,228 +248,228 @@
             "available_points": 500
         },
         "voucher": {
-            "voucher_id": 1,
+            "voucher_id": 2,
             "voucher_code": "UAT-VOUCHER-50",
-            "user_voucher_id": 1,
+            "user_voucher_id": 2,
             "discount_value": "50000.00"
         }
     },
     "reservations": {
         "deposit_pending": {
-            "reservation_id": 1,
+            "reservation_id": 6,
             "reservation_code": "UAT-DEP-001",
             "status": "Confirmed",
             "row_version": 1,
-            "start_time_utc": "2026-04-20T17:45:00+00:00",
-            "end_time_utc": "2026-04-20T19:45:00+00:00",
+            "start_time_utc": "2026-04-25T15:45:00+00:00",
+            "end_time_utc": "2026-04-25T17:45:00+00:00",
             "bill_currency": "VND",
             "deposit_status": "Pending"
         },
         "dine_in_checkin": {
-            "reservation_id": 2,
+            "reservation_id": 7,
             "reservation_code": "UAT-DINE-001",
             "status": "Confirmed",
             "row_version": 1,
-            "start_time_utc": "2026-04-20T13:50:00+00:00",
-            "end_time_utc": "2026-04-20T15:50:00+00:00",
+            "start_time_utc": "2026-04-25T11:50:00+00:00",
+            "end_time_utc": "2026-04-25T13:50:00+00:00",
             "bill_currency": "VND",
             "deposit_status": "NotRequired"
         },
         "benefits_pending": {
-            "reservation_id": 3,
+            "reservation_id": 8,
             "reservation_code": "UAT-BEN-001",
             "status": "Confirmed",
             "row_version": 1,
-            "start_time_utc": "2026-04-20T19:45:00+00:00",
-            "end_time_utc": "2026-04-20T21:45:00+00:00",
+            "start_time_utc": "2026-04-25T17:45:00+00:00",
+            "end_time_utc": "2026-04-25T19:45:00+00:00",
             "bill_currency": "VND",
             "deposit_status": "NotRequired",
-            "user_voucher_id": 1,
+            "user_voucher_id": 2,
             "available_points": 500
         },
         "refund_partial_ready": {
-            "reservation_id": 4,
+            "reservation_id": 9,
             "reservation_code": "UAT-RF-001",
             "status": "Completed",
             "row_version": 1,
-            "start_time_utc": "2026-04-20T09:36:58+00:00",
-            "end_time_utc": "2026-04-20T11:36:58+00:00",
+            "start_time_utc": "2026-04-25T07:40:19+00:00",
+            "end_time_utc": "2026-04-25T09:40:19+00:00",
             "bill_currency": "VND",
             "deposit_status": "Paid"
         },
         "refund_cancel_ready": {
-            "reservation_id": 5,
+            "reservation_id": 10,
             "reservation_code": "UAT-RFC-001",
             "status": "Reserved",
             "row_version": 1,
-            "start_time_utc": "2026-04-20T10:36:58+00:00",
-            "end_time_utc": "2026-04-20T14:36:58+00:00",
+            "start_time_utc": "2026-04-25T08:40:19+00:00",
+            "end_time_utc": "2026-04-25T12:40:19+00:00",
             "bill_currency": "VND",
             "deposit_status": "Paid"
         }
     },
     "waiting_list": {
         "seeded_waiting_entry": {
-            "waiting_id": 1,
+            "waiting_id": 2,
             "status": "Waiting",
             "guest_name": "UAT Conversation Queue"
         }
     },
     "conversation": {
         "conversation_id": "00000000-0000-0000-0000-0000000001a1",
-        "linked_reservation_id": 1,
-        "linked_waiting_list_id": 1,
+        "linked_reservation_id": 6,
+        "linked_waiting_list_id": 2,
         "status": "Open"
     },
     "feature_flags": [
         {
             "feature_key": "customer.bill_self_payment",
             "environment": "local",
-            "branch_id": 2,
-            "description": "Customer-facing bill self-payment preview and new payment-session creation.",
+            "branch_id": 3,
+            "description": "Customer-facing bill self-payment session creation. Contract-visible, but outside the day-1 launch promise.",
             "kill_switch": true,
             "safe_default": false,
-            "disabled_message": "Customer bill self-payment is disabled for this rollout. Use staff settlement.",
+            "disabled_message": "Customer bill self-payment is disabled for day 1. Keep bill preview and active-order reads only, and use staff settlement.",
             "enabled": true,
             "source": "database_override",
             "matched_environment": "local",
-            "matched_branch_id": 2,
+            "matched_branch_id": 3,
             "default_enabled": true,
             "override_reason": "Enabled for canonical UAT/demo scenario pack.",
-            "updated_at": "2026-04-20T13:36:58+00:00",
-            "updated_by": 3,
+            "updated_at": "2026-04-25T11:40:19+00:00",
+            "updated_by": 7,
             "row_version": 1,
             "message": "Feature flag is enabled."
         },
         {
             "feature_key": "waiting_list.advanced_automation",
             "environment": "local",
-            "branch_id": 2,
-            "description": "Semi-automated waiting-list queue advancement after decline or invite expiry.",
+            "branch_id": 3,
+            "description": "Semi-automated waiting-list queue advancement after decline or invite expiry. Day 1 keeps waiting-list work manual.",
             "kill_switch": true,
             "safe_default": false,
-            "disabled_message": "Advanced waiting-list automation is disabled for this rollout. Use canonical notify and seat flows.",
+            "disabled_message": "Advanced waiting-list automation is disabled for day 1. Use canonical manual notify and seat flows.",
             "enabled": true,
             "source": "database_override",
             "matched_environment": "local",
-            "matched_branch_id": 2,
+            "matched_branch_id": 3,
             "default_enabled": true,
             "override_reason": "Enabled for canonical UAT/demo scenario pack.",
-            "updated_at": "2026-04-20T13:36:58+00:00",
-            "updated_by": 3,
+            "updated_at": "2026-04-25T11:40:19+00:00",
+            "updated_by": 7,
             "row_version": 1,
             "message": "Feature flag is enabled."
         },
         {
             "feature_key": "inventory.uplift",
             "environment": "local",
-            "branch_id": 2,
-            "description": "Advanced inventory and purchasing foundation workflows.",
+            "branch_id": 3,
+            "description": "Advanced inventory and purchasing workflows outside the day-1 launch promise.",
             "kill_switch": true,
             "safe_default": false,
-            "disabled_message": "Inventory uplift features are disabled for this rollout.",
+            "disabled_message": "Inventory uplift features are disabled for day 1.",
             "enabled": true,
             "source": "database_override",
             "matched_environment": "local",
-            "matched_branch_id": 2,
+            "matched_branch_id": 3,
             "default_enabled": true,
             "override_reason": "Enabled for canonical UAT/demo scenario pack.",
-            "updated_at": "2026-04-20T13:36:58+00:00",
-            "updated_by": 3,
+            "updated_at": "2026-04-25T11:40:19+00:00",
+            "updated_by": 7,
             "row_version": 1,
             "message": "Feature flag is enabled."
         },
         {
             "feature_key": "staff.conversation_inbox",
             "environment": "local",
-            "branch_id": 2,
-            "description": "Staff conversation inbox read and workflow surfaces.",
+            "branch_id": 3,
+            "description": "Staff conversation inbox read and workflow surfaces. Contract-visible, but held back from day-1 launch.",
             "kill_switch": true,
             "safe_default": false,
-            "disabled_message": "Conversation inbox is disabled for this rollout.",
+            "disabled_message": "Conversation inbox is disabled for day 1.",
             "enabled": true,
             "source": "database_override",
             "matched_environment": "local",
-            "matched_branch_id": 2,
+            "matched_branch_id": 3,
             "default_enabled": true,
             "override_reason": "Enabled for canonical UAT/demo scenario pack.",
-            "updated_at": "2026-04-20T13:36:58+00:00",
-            "updated_by": 3,
+            "updated_at": "2026-04-25T11:40:19+00:00",
+            "updated_by": 7,
             "row_version": 1,
             "message": "Feature flag is enabled."
         },
         {
             "feature_key": "staff.kitchen_dispatch",
             "environment": "local",
-            "branch_id": 2,
-            "description": "Staff kitchen dispatch and ticket mutation flows.",
+            "branch_id": 3,
+            "description": "Staff kitchen dispatch and ticket mutation flows. Read-only kitchen visibility may remain, but KDS mutation rollout is held back on day 1.",
             "kill_switch": true,
             "safe_default": false,
-            "disabled_message": "Kitchen dispatch features are disabled for this rollout.",
+            "disabled_message": "Kitchen dispatch and ticket mutations are disabled for day 1.",
             "enabled": true,
             "source": "database_override",
             "matched_environment": "local",
-            "matched_branch_id": 2,
+            "matched_branch_id": 3,
             "default_enabled": true,
             "override_reason": "Enabled for canonical UAT/demo scenario pack.",
-            "updated_at": "2026-04-20T13:36:58+00:00",
-            "updated_by": 3,
+            "updated_at": "2026-04-25T11:40:19+00:00",
+            "updated_by": 7,
             "row_version": 1,
             "message": "Feature flag is enabled."
         }
     ],
     "scenarios": {
         "availability_hold_reservation": {
-            "branch_id": 2,
+            "branch_id": 3,
             "guest_count": 4,
             "session_id": "uat-session-booking",
-            "from_utc": "2026-04-20T17:45:00+00:00",
-            "to_utc": "2026-04-20T19:45:00+00:00",
+            "from_utc": "2026-04-25T15:45:00+00:00",
+            "to_utc": "2026-04-25T17:45:00+00:00",
             "preferred_table_ids": [
-                18
+                30
             ]
         },
         "deposit_self_pay": {
-            "reservation_id": 1,
+            "reservation_id": 6,
             "payment_amount": "100000.00",
             "provider_code": "simulated"
         },
         "dine_in_checkout": {
-            "reservation_id": 2,
-            "table_id": 10,
+            "reservation_id": 7,
+            "table_id": 22,
             "menu_item_ids": [
-                4,
-                7
+                8,
+                11
             ]
         },
         "refund_partial": {
-            "reservation_id": 4,
+            "reservation_id": 9,
             "refund_scope": "deposit",
             "refund_amount": "20000.00"
         },
         "refund_cancel": {
-            "reservation_id": 5,
+            "reservation_id": 10,
             "refund_scope": "all"
         },
         "waiting_list_lifecycle": {
-            "branch_id": 2,
-            "customer_user_id": 5,
-            "table_id": 14
+            "branch_id": 3,
+            "customer_user_id": 9,
+            "table_id": 26
         },
         "benefits": {
-            "reservation_id": 3,
-            "user_voucher_id": 1,
+            "reservation_id": 8,
+            "user_voucher_id": 2,
             "loyalty_points": 50
         },
         "admin_master_data": {
-            "branch_id": 2,
+            "branch_id": 3,
             "template_id": 2,
             "menu_category_name": "UAT Scenario Specials",
             "menu_item_code": "UAT-SCENARIO-ITEM"
         },
         "conversation_inbox": {
             "conversation_id": "00000000-0000-0000-0000-0000000001a1",
-            "branch_id": 2
+            "branch_id": 3
         }
     }
 }

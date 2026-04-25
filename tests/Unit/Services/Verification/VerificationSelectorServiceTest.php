@@ -27,6 +27,25 @@ class VerificationSelectorServiceTest extends TestCase
         $this->assertNotContains('php artisan test', $commands);
     }
 
+    public function test_build_report_matches_current_priority_lane_module_roots(): void
+    {
+        $service = new VerificationSelectorService;
+
+        foreach (
+            [
+                ['path' => 'app/Modules/IdentityAccess/Application/UseCases/Authentication/LoginStaffHandler.php', 'domain' => 'auth_rbac'],
+                ['path' => 'app/Modules/FloorOperations/Application/UseCases/Boards/StaffMoveTableService.php', 'domain' => 'foh_reservations'],
+                ['path' => 'app/Modules/Ordering/Application/UseCases/Orders/StaffTableOrderService.php', 'domain' => 'order_lifecycle'],
+                ['path' => 'app/Modules/InventoryProcurement/Application/UseCases/Inventory/InventoryManagementService.php', 'domain' => 'inventory_purchasing'],
+            ] as $case
+        ) {
+            $report = $service->buildReport([$case['path']]);
+            $domainKeys = array_map(static fn (array $domain): string => (string) $domain['key'], $report['domains']);
+
+            $this->assertContains($case['domain'], $domainKeys, $case['path']);
+        }
+    }
+
     public function test_build_report_keeps_docs_only_changes_out_of_full_suite(): void
     {
         $service = new VerificationSelectorService;
@@ -83,7 +102,7 @@ class VerificationSelectorServiceTest extends TestCase
         $service = new VerificationSelectorService;
 
         $report = $service->buildReport([
-            'app/Services/Harness/HarnessSuiteService.php',
+            'app/Platform/Harness/HarnessSuiteService.php',
             'routes/console/harness.php',
             'docs/runbooks/api-consumer-artifacts.md',
         ]);
@@ -96,6 +115,32 @@ class VerificationSelectorServiceTest extends TestCase
         $this->assertContains('restaurantpos-web-client-contracts', $report['skills']);
         $this->assertContains('php artisan booking:harness:fe-contract --json', $commands);
         $this->assertContains('php artisan booking:harness:web-auth --json', $commands);
+    }
+
+    public function test_build_report_matches_release_control_plane_domain_and_commands(): void
+    {
+        $service = new VerificationSelectorService;
+
+        $report = $service->buildReport([
+            'config/booking_release.php',
+            'scripts/release/check-package-integrity.mjs',
+            'app/Platform/Release/Services/ReleaseArtifactManifestService.php',
+        ]);
+
+        $domainKeys = array_map(static fn (array $domain): string => (string) $domain['key'], $report['domains']);
+        $commands = array_map(static fn (array $command): string => (string) $command['command'], $report['commands']);
+        $escalationKeys = array_map(static fn (array $item): string => (string) $item['key'], $report['escalations']);
+
+        $this->assertContains('ops_release_contract', $domainKeys);
+        $this->assertContains('restaurantpos-ops-release-contract', $report['skills']);
+        $this->assertContains('restaurantpos-runtime-smoke', $report['skills']);
+        $this->assertContains('runtime_sensitive', $escalationKeys);
+        $this->assertContains('node scripts/release/check-package-integrity.mjs --json', $commands);
+        $this->assertContains('php artisan booking:release-manifest --json', $commands);
+        $this->assertContains(
+            'php artisan test tests/Unit/Services/ReleaseArtifactManifestServiceTest.php tests/Unit/Services/ReleasePackageServiceTest.php',
+            $commands
+        );
     }
 
     public function test_build_report_falls_back_to_static_analysis_when_no_domain_matches_cleanly(): void

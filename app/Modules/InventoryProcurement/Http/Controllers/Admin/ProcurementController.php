@@ -23,7 +23,6 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class ProcurementController extends Controller
 {
@@ -114,7 +113,15 @@ class ProcurementController extends Controller
             $request,
             isset($validated['branch_id']) ? (int) $validated['branch_id'] : null,
         );
-        $paginator = $this->purchasingService->paginatePurchaseOrders($validated);
+
+        try {
+            $paginator = $this->purchasingService->paginatePurchaseOrders(
+                $validated,
+                $this->resolveStaffActorUserId($request),
+            );
+        } catch (ModelNotFoundException) {
+            return $this->branchNotFoundResponse($request);
+        }
 
         return response()->json([
             'data' => PurchaseOrderResource::collection(collect($paginator->items()))->toArray($request),
@@ -153,16 +160,16 @@ class ProcurementController extends Controller
 
     public function showPurchaseOrder(int $id, ListPurchaseOrdersRequest $request): JsonResponse
     {
-        $branchId = $this->resolvePurchaseOrderBranchId($id);
-        if ($branchId !== null) {
-            $this->assertInventoryUpliftEnabled($request, $branchId);
-        }
-
         try {
-            $order = $this->purchasingService->findPurchaseOrder($id);
+            $order = $this->purchasingService->findPurchaseOrder(
+                $id,
+                $this->resolveStaffActorUserId($request),
+            );
         } catch (ModelNotFoundException) {
             return $this->purchaseOrderNotFoundResponse($request);
         }
+
+        $this->assertInventoryUpliftEnabled($request, (int) $order->branch_id);
 
         return response()->json([
             'data' => (new PurchaseOrderResource($order))->toArray($request),
@@ -177,10 +184,14 @@ class ProcurementController extends Controller
             isset($validated['branch_id']) ? (int) $validated['branch_id'] : null,
         );
 
-        $order = $this->purchasingService->createPurchaseOrder(
-            $validated,
-            $this->resolveStaffActorUserId($request)
-        );
+        try {
+            $order = $this->purchasingService->createPurchaseOrder(
+                $validated,
+                $this->resolveStaffActorUserId($request)
+            );
+        } catch (ModelNotFoundException) {
+            return $this->branchNotFoundResponse($request);
+        }
 
         return response()->json([
             'data' => (new PurchaseOrderResource($order))->toArray($request),
@@ -189,12 +200,13 @@ class ProcurementController extends Controller
 
     public function updatePurchaseOrder(int $id, UpdatePurchaseOrderRequest $request): JsonResponse
     {
-        $branchId = $this->resolvePurchaseOrderBranchId($id);
-        if ($branchId !== null) {
-            $this->assertInventoryUpliftEnabled($request, $branchId);
-        }
-
         try {
+            $existingOrder = $this->purchasingService->findPurchaseOrder(
+                $id,
+                $this->resolveStaffActorUserId($request),
+            );
+            $this->assertInventoryUpliftEnabled($request, (int) $existingOrder->branch_id);
+
             $order = $this->purchasingService->updatePurchaseOrder(
                 $id,
                 $request->validated(),
@@ -211,13 +223,17 @@ class ProcurementController extends Controller
 
     public function listPurchaseOrderReceipts(int $id, ListPurchaseOrdersRequest $request): JsonResponse
     {
-        $branchId = $this->resolvePurchaseOrderBranchId($id);
-        if ($branchId !== null) {
-            $this->assertInventoryUpliftEnabled($request, $branchId);
-        }
-
         try {
-            $result = $this->purchasingService->listPurchaseOrderReceipts($id);
+            $order = $this->purchasingService->findPurchaseOrder(
+                $id,
+                $this->resolveStaffActorUserId($request),
+            );
+            $this->assertInventoryUpliftEnabled($request, (int) $order->branch_id);
+
+            $result = $this->purchasingService->listPurchaseOrderReceipts(
+                $id,
+                $this->resolveStaffActorUserId($request),
+            );
         } catch (ModelNotFoundException) {
             return $this->purchaseOrderNotFoundResponse($request);
         }
@@ -233,12 +249,13 @@ class ProcurementController extends Controller
 
     public function createPurchaseOrderReceipt(int $id, CreatePurchaseOrderReceiptRequest $request): JsonResponse
     {
-        $branchId = $this->resolvePurchaseOrderBranchId($id);
-        if ($branchId !== null) {
-            $this->assertInventoryUpliftEnabled($request, $branchId);
-        }
-
         try {
+            $order = $this->purchasingService->findPurchaseOrder(
+                $id,
+                $this->resolveStaffActorUserId($request),
+            );
+            $this->assertInventoryUpliftEnabled($request, (int) $order->branch_id);
+
             $result = $this->purchasingService->createReceipt(
                 $id,
                 $request->validated(),
@@ -276,20 +293,21 @@ class ProcurementController extends Controller
         );
     }
 
+    private function branchNotFoundResponse(Request $request): JsonResponse
+    {
+        return ApiErrorResponse::json(
+            $request,
+            404,
+            'not_found',
+            'Branch not found.',
+        );
+    }
+
     private function resolveStaffActorUserId(mixed $request): ?int
     {
         $actor = $request->attributes->get('staff_actor_user_id');
 
         return is_numeric($actor) ? (int) $actor : null;
-    }
-
-    private function resolvePurchaseOrderBranchId(int $purchaseOrderId): ?int
-    {
-        $branchId = DB::table('purchase_orders')
-            ->where('purchase_order_id', $purchaseOrderId)
-            ->value('branch_id');
-
-        return $branchId !== null ? (int) $branchId : null;
     }
 
     private function assertInventoryUpliftEnabled(Request $request, ?int $branchId = null): void

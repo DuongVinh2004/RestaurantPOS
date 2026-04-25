@@ -29,6 +29,7 @@ class BookingEnvironmentValidator
         $this->addCheck($checks, 'notifications.outbox', $this->validateNotificationsConfig());
         $this->addCheck($checks, 'loyalty', $this->validateLoyaltyConfig());
         $this->addCheck($checks, 'staff_auth', $this->validateStaffAuthConfig());
+        $this->addCheck($checks, 'staff_branch_assignment_policy', $this->validateStaffBranchAssignmentPolicy());
         $this->addCheck($checks, 'customer_auth', $this->validateCustomerAuthConfig());
         $this->addCheck($checks, 'payment_providers', $this->validatePaymentProviderConfig());
 
@@ -456,6 +457,71 @@ class BookingEnvironmentValidator
         }
 
         return $this->ok('Staff authentication configuration looks valid.', $meta);
+    }
+
+    private function validateStaffBranchAssignmentPolicy(): array
+    {
+        $environment = (string) config('app.env', 'production');
+        $productionLikeEnvironments = $this->normalizedStringList(config(
+            'staff_capabilities.production_like_environments',
+            config('staff_auth.production_like_environments', ['production']),
+        ));
+        $isProductionLike = in_array(mb_strtolower(trim($environment)), $productionLikeEnvironments, true);
+        $denyOperationalFallback = (bool) config(
+            'staff_capabilities.deny_operational_role_branch_fallback_in_production_like',
+            true,
+        );
+        $operationalRoles = $this->normalizedStringList(config('staff_capabilities.operational_branch_assignment_roles', [
+            'Staff',
+            'Server',
+            'Waiter',
+            'Cashier',
+            'Kitchen',
+        ]));
+        $roleBranchScopes = (array) config('staff_capabilities.role_branch_scopes', []);
+        $operationalRoleBranchScopes = [];
+
+        foreach ($roleBranchScopes as $roleName => $scopeTokens) {
+            $normalizedRoleName = mb_strtolower(trim((string) $roleName));
+            if (! in_array($normalizedRoleName, $operationalRoles, true)) {
+                continue;
+            }
+
+            $operationalRoleBranchScopes[(string) $roleName] = array_values(array_filter(array_map(
+                'strval',
+                (array) $scopeTokens,
+            )));
+        }
+
+        $meta = [
+            'environment' => $environment,
+            'production_like_environments' => $productionLikeEnvironments,
+            'is_production_like' => $isProductionLike,
+            'deny_operational_role_branch_fallback_in_production_like' => $denyOperationalFallback,
+            'operational_branch_assignment_roles' => $operationalRoles,
+            'operational_role_branch_scopes' => $operationalRoleBranchScopes,
+        ];
+
+        if ($isProductionLike && $operationalRoles === []) {
+            return $this->error('Production-like staff branch assignment policy has no operational roles configured.', $meta);
+        }
+
+        if ($isProductionLike && ! $denyOperationalFallback) {
+            return $this->error('Production-like environment allows operational staff to fall back to configured branch scopes without explicit staff_branch_assignments.', $meta);
+        }
+
+        return $this->ok('Staff branch assignment policy looks valid.', $meta);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizedStringList(mixed $values): array
+    {
+        return array_values(array_filter(array_map(
+            static fn (mixed $value): string => mb_strtolower(trim((string) $value)),
+            (array) $values,
+        )));
     }
 
     private function validateCustomerAuthConfig(): array

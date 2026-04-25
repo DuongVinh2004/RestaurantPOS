@@ -6,7 +6,7 @@ const sessionIdKey = "restaurantpos.customer.session-id.v1";
 
 export type StoredCustomerAuth = {
   customerToken: string | null;
-  sessionId: string;
+  sessionId: string | null;
   expiresAtUtc: string | null;
 };
 
@@ -54,7 +54,7 @@ export function getCustomerSessionId(): string | null {
 export function getStoredCustomerAuth(): StoredCustomerAuth {
   return {
     customerToken: getCustomerToken(),
-    sessionId: ensureCustomerSessionId(),
+    sessionId: getCustomerSessionId(),
     expiresAtUtc: browserStorage("local")?.getItem(tokenExpiresKey) ?? null,
   };
 }

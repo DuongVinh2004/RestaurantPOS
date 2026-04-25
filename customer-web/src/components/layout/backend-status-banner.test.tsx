@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
     },
     depositSelfPay: {
       liveProofSummary:
-        "Deposit self-pay is live-ready against the backend contract. Current local UAT proof uses the simulated provider, so production PSP configuration remains a separate release prerequisite.",
+        "Deposit self-pay is contract-visible and runtime-conditional. Simulated-provider or local UAT proof does not make it part of the day-1 launch promise.",
     },
   },
   runtimeDiagnostics: {

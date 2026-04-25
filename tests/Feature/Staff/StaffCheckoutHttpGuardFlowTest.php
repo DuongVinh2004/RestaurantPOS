@@ -39,7 +39,7 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
 
     public function test_pay_endpoint_allows_partial_payment_without_completing_order(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
         $headers = $this->withIdempotencyKey($this->staffAuthHeaders($staffId, 'staff-http-pay-1'), 'idem-http-pay-1');
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
@@ -82,7 +82,7 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
 
     public function test_pay_endpoint_rejects_overpay(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
         $headers = $this->withIdempotencyKey($this->staffAuthHeaders($staffId, 'staff-http-pay-2'), 'idem-http-pay-2');
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation(['status' => 'Reserved']);
@@ -148,7 +148,7 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
 
     public function test_finalize_endpoint_replays_same_idempotency_key_and_rejects_payload_conflict(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
         $headers = $this->withIdempotencyKey($this->staffAuthHeaders($staffId, 'staff-http-finalize-1'), 'idem-http-finalize-1');
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation(['status' => 'Reserved']);
@@ -193,7 +193,7 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
 
     public function test_finalize_endpoint_rejects_idempotency_key_longer_than_payment_storage_limit(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
         $headers = $this->withIdempotencyKey(
             $this->staffAuthHeaders($staffId, 'staff-http-finalize-too-long'),
             str_repeat('f', Payment::IDEMPOTENCY_KEY_MAX_LENGTH + 1),

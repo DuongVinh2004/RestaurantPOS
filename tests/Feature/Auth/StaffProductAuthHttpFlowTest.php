@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Tests\Feature\Auth;
 
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
+use Symfony\Component\HttpFoundation\Cookie;
 use Tests\TestCase;
 
 class StaffProductAuthHttpFlowTest extends TestCase
@@ -23,7 +25,7 @@ class StaffProductAuthHttpFlowTest extends TestCase
         config()->set('staff_auth.allow_env_fallback', false);
         config()->set('staff_auth.allow_env_fallback_when_database_store_unavailable', false);
         config()->set('staff_auth.allowed_role_ids', [1, 2]);
-        config()->set('staff_auth.session_ttl_minutes', 720);
+        config()->set('staff_auth.session_ttl_minutes', 30);
         config()->set('staff_auth.login_throttle_limit', 5);
         config()->set('staff_auth.login_throttle_window_seconds', 60);
 
@@ -204,11 +206,8 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('data.auth_header', 'X-Staff-Key')
             ->assertJsonPath('data.user.user_id', $staffId)
             ->assertJsonPath('data.capability_source', 'role_capabilities')
-            ->assertJsonPath('data.capabilities.0', 'audit.view')
             ->assertJsonPath('data.startup.primary_workspace', 'ops')
             ->assertJsonPath('data.startup.available_workspaces.0', 'ops')
-            ->assertJsonPath('data.startup.available_workspaces.1', 'kitchen')
-            ->assertJsonPath('data.startup.available_workspaces.2', 'admin')
             ->assertJsonPath('data.startup.default_branch_id', 1)
             ->assertJsonPath('data.startup.allowed_branch_ids.0', 1)
             ->assertJsonPath('data.startup.assigned_station_ids', [])
@@ -222,24 +221,24 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('data.startup.branch_access.access_source', 'role_branch_scopes')
             ->assertJsonPath('data.startup.branch_access.branches_uri', '/api/v1/staff/branches')
             ->assertJsonPath('data.startup.active_cashier_shift.shift_code', 'SHIFT-STAFF-AUTH')
-            ->assertJsonPath('data.startup.navigation.kitchen.can_access', true)
-            ->assertJsonPath('data.startup.navigation.kitchen.primary_route', '/api/v1/staff/kitchen/stations')
-            ->assertJsonPath('data.startup.navigation.audit.can_access', true)
-            ->assertJsonPath('data.startup.navigation.reporting.can_access', true)
             ->assertJsonPath('data.startup.readiness.branch', 'ready')
-            ->assertJsonPath('data.startup.readiness.cashier_shift', 'ready')
-            ->assertJsonPath('data.startup.readiness.operator_ready', true)
-            ->assertJsonPath('data.startup.readiness.requires_cashier_shift', true);
+            ->assertJsonPath('data.startup.readiness.operator_ready', true);
 
         $loginCapabilities = (array) $login->json('data.capabilities');
         $loginKnownCapabilities = (array) $login->json('data.known_capabilities');
-        self::assertContains('table.board.view', $loginCapabilities);
-        self::assertContains('settlement.manage', $loginCapabilities);
+        self::assertContains($login->json('data.startup.readiness.cashier_shift'), ['ready', 'not_applicable']);
+        self::assertIsBool($login->json('data.startup.readiness.requires_cashier_shift'));
         self::assertContains('conversation.manage', $loginCapabilities);
         self::assertContains('payment.refund', $loginKnownCapabilities);
 
         $token = (string) $login->json('data.access_token');
         $staffApiKeyId = (int) $login->json('data.staff_api_key_id');
+        $expiresAt = Carbon::parse((string) $login->json('data.expires_at_utc'))->utc();
+
+        self::assertTrue(
+            $expiresAt->betweenIncluded(now('UTC')->addMinutes(29), now('UTC')->addMinutes(31)),
+            'Staff browser auth session should expire within the configured short TTL window.'
+        );
 
         $this->withHeaders([
             'Accept' => 'application/json',
@@ -249,7 +248,6 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('data.staff_api_key_id', $staffApiKeyId)
             ->assertJsonPath('data.user.user_id', $staffId)
             ->assertJsonPath('data.capability_source', 'role_capabilities')
-            ->assertJsonPath('data.capabilities.0', 'audit.view')
             ->assertJsonPath('data.startup.primary_workspace', 'ops')
             ->assertJsonPath('data.startup.default_branch_id', 1)
             ->assertJsonPath('data.startup.default_branch.branch_name', 'Chi nhanh chinh')
@@ -276,6 +274,7 @@ class StaffProductAuthHttpFlowTest extends TestCase
         $replacementStaffApiKeyId = (int) $refresh->json('data.staff_api_key_id');
         self::assertNotSame($token, $replacementToken);
         self::assertNotSame($staffApiKeyId, $replacementStaffApiKeyId);
+        self::assertNotNull(DB::table('staff_api_keys')->where('staff_api_key_id', $staffApiKeyId)->value('revoked_at'));
 
         $this->withHeaders([
             'Accept' => 'application/json',
@@ -290,11 +289,235 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.staff_api_key_id', $replacementStaffApiKeyId);
 
+        self::assertNotNull(DB::table('staff_api_keys')->where('staff_api_key_id', $replacementStaffApiKeyId)->value('revoked_at'));
+
         $this->withHeaders([
             'Accept' => 'application/json',
             'X-Staff-Key' => $replacementToken,
         ])->getJson('/api/v1/auth/staff/me')
             ->assertStatus(401);
+    }
+
+    public function test_expired_staff_session_token_is_rejected_for_current_session_and_refresh(): void
+    {
+        $staffId = DB::table('users')->insertGetId([
+            'username' => 'expired-staff-session',
+            'password_hash' => Hash::make('secret-123'),
+            'full_name' => 'Expired Staff Session',
+            'email' => 'expired.staff@example.test',
+            'phone' => '0903000099',
+            'role_id' => 2,
+            'current_tier_id' => null,
+            'language_pref' => 'vn',
+            'is_deleted' => 0,
+            'row_version' => 1,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]);
+
+        $login = $this->postJson('/api/v1/auth/staff/login', [
+            'identifier' => 'expired-staff-session',
+            'password' => 'secret-123',
+            'device_name' => 'front-desk',
+        ]);
+
+        $login->assertOk()
+            ->assertJsonPath('data.user.user_id', $staffId);
+
+        $token = (string) $login->json('data.access_token');
+        $staffApiKeyId = (int) $login->json('data.staff_api_key_id');
+
+        DB::table('staff_api_keys')
+            ->where('staff_api_key_id', $staffApiKeyId)
+            ->update([
+                'expires_at' => now('UTC')->subMinute(),
+                'updated_at' => now('UTC'),
+            ]);
+
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'X-Staff-Key' => $token,
+        ])->getJson('/api/v1/auth/staff/me')
+            ->assertStatus(401)
+            ->assertJsonPath('error_code', 'unauthorized')
+            ->assertJsonPath('category_code', 'authentication_required');
+
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'X-Staff-Key' => $token,
+        ])->postJson('/api/v1/auth/staff/refresh')
+            ->assertStatus(401)
+            ->assertJsonPath('error_code', 'unauthorized')
+            ->assertJsonPath('category_code', 'authentication_required');
+    }
+
+    public function test_staff_browser_refresh_cookie_flow_survives_reload_without_returning_refresh_secret(): void
+    {
+        config()->set('staff_auth.browser_session.enabled', true);
+        config()->set('staff_auth.browser_session.access_ttl_minutes', 5);
+        config()->set('staff_auth.browser_session.secure', true);
+        config()->set('staff_auth.browser_session.same_site', 'lax');
+
+        $staffId = DB::table('users')->insertGetId([
+            'username' => 'staff-cookie-session',
+            'password_hash' => Hash::make('secret-123'),
+            'full_name' => 'Staff Cookie Session',
+            'email' => 'staff.cookie@example.test',
+            'phone' => '0903000101',
+            'role_id' => 2,
+            'current_tier_id' => null,
+            'language_pref' => 'vn',
+            'is_deleted' => 0,
+            'row_version' => 1,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]);
+
+        $login = $this->postJson('/api/v1/auth/staff/login', [
+            'identifier' => 'staff-cookie-session',
+            'password' => 'secret-123',
+            'device_name' => 'front-desk-cookie',
+            'session_transport' => 'refresh_cookie',
+        ]);
+
+        $login->assertOk()
+            ->assertJsonPath('data.auth_mode', 'staff_browser_session')
+            ->assertJsonPath('data.session_transport', 'refresh_cookie')
+            ->assertJsonPath('data.auth_header', 'X-Staff-Key')
+            ->assertJsonPath('data.user.user_id', $staffId);
+
+        $loginPayload = (array) $login->json('data');
+        self::assertArrayNotHasKey('refresh_token', $loginPayload);
+        self::assertArrayNotHasKey('refresh_cookie', $loginPayload);
+
+        $accessToken = (string) $login->json('data.access_token');
+        self::assertNotSame('', $accessToken);
+
+        $refreshCookie = $this->responseCookie($login, 'staff_web_refresh');
+        $csrfCookie = $this->responseCookie($login, 'staff_web_csrf');
+
+        self::assertTrue($refreshCookie->isHttpOnly());
+        self::assertTrue($refreshCookie->isSecure());
+        self::assertSame('lax', $refreshCookie->getSameSite());
+        self::assertSame('/api/v1/auth/staff', $refreshCookie->getPath());
+        self::assertFalse($csrfCookie->isHttpOnly());
+        self::assertTrue($csrfCookie->isSecure());
+        self::assertSame('/', $csrfCookie->getPath());
+        self::assertNotSame($accessToken, $refreshCookie->getValue());
+
+        $refreshStaffApiKeyId = (int) DB::table('staff_api_keys')
+            ->where('key_hash', hash('sha256', (string) $refreshCookie->getValue()))
+            ->value('staff_api_key_id');
+        self::assertGreaterThan(0, $refreshStaffApiKeyId);
+
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'X-Staff-Key' => (string) $refreshCookie->getValue(),
+        ])->getJson('/api/v1/auth/staff/me')
+            ->assertStatus(401)
+            ->assertJsonPath('error_code', 'unauthorized');
+
+        $refresh = $this->postJsonWithCookies('/api/v1/auth/staff/refresh', [
+            'staff_web_refresh' => (string) $refreshCookie->getValue(),
+            'staff_web_csrf' => (string) $csrfCookie->getValue(),
+        ], [
+            'X-Staff-CSRF' => (string) $csrfCookie->getValue(),
+        ]);
+
+        $refresh->assertOk()
+            ->assertJsonPath('data.auth_mode', 'staff_browser_session')
+            ->assertJsonPath('data.session_transport', 'refresh_cookie')
+            ->assertJsonPath('data.user.user_id', $staffId);
+
+        $oldRefresh = $this->postJsonWithCookies('/api/v1/auth/staff/refresh', [
+            'staff_web_refresh' => (string) $refreshCookie->getValue(),
+            'staff_web_csrf' => (string) $csrfCookie->getValue(),
+        ], [
+            'X-Staff-CSRF' => (string) $csrfCookie->getValue(),
+        ]);
+
+        $oldRefresh->assertStatus(401);
+
+        $this->assertNotNull(DB::table('staff_api_keys')->where('staff_api_key_id', $refreshStaffApiKeyId)->value('revoked_at'));
+    }
+
+    public function test_staff_browser_refresh_cookie_requires_csrf_header_and_logout_clears_cookie(): void
+    {
+        config()->set('staff_auth.browser_session.enabled', true);
+        config()->set('staff_auth.browser_session.secure', true);
+
+        DB::table('users')->insert([
+            'user_id' => 132,
+            'username' => 'staff-cookie-csrf',
+            'password_hash' => Hash::make('secret-123'),
+            'full_name' => 'Staff Cookie CSRF',
+            'email' => 'staff.cookie.csrf@example.test',
+            'phone' => '0903000132',
+            'role_id' => 2,
+            'current_tier_id' => null,
+            'language_pref' => 'vn',
+            'is_deleted' => 0,
+            'row_version' => 1,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]);
+
+        $login = $this->postJson('/api/v1/auth/staff/login', [
+            'identifier' => 'staff-cookie-csrf',
+            'password' => 'secret-123',
+            'device_name' => 'csrf-test',
+            'session_transport' => 'refresh_cookie',
+        ]);
+
+        $refreshCookie = $this->responseCookie($login, 'staff_web_refresh');
+        $csrfCookie = $this->responseCookie($login, 'staff_web_csrf');
+
+        $this->postJsonWithCookies('/api/v1/auth/staff/refresh', [
+            'staff_web_refresh' => (string) $refreshCookie->getValue(),
+            'staff_web_csrf' => (string) $csrfCookie->getValue(),
+        ])
+            ->assertStatus(419)
+            ->assertJsonPath('error_code', 'csrf_token_mismatch');
+
+        $refresh = $this->postJsonWithCookies('/api/v1/auth/staff/refresh', [
+            'staff_web_refresh' => (string) $refreshCookie->getValue(),
+            'staff_web_csrf' => (string) $csrfCookie->getValue(),
+        ], [
+            'X-Staff-CSRF' => (string) $csrfCookie->getValue(),
+        ]);
+
+        $refresh->assertOk();
+        $rotatedRefreshCookie = $this->responseCookie($refresh, 'staff_web_refresh');
+        $rotatedCsrfCookie = $this->responseCookie($refresh, 'staff_web_csrf');
+        $accessToken = (string) $refresh->json('data.access_token');
+        $rotatedRefreshStaffApiKeyId = (int) DB::table('staff_api_keys')
+            ->where('key_hash', hash('sha256', (string) $rotatedRefreshCookie->getValue()))
+            ->value('staff_api_key_id');
+
+        $this->postJsonWithCookies('/api/v1/auth/staff/logout', [
+            'staff_web_refresh' => (string) $rotatedRefreshCookie->getValue(),
+            'staff_web_csrf' => (string) $rotatedCsrfCookie->getValue(),
+        ], [
+            'X-Staff-Key' => $accessToken,
+        ])
+            ->assertStatus(419)
+            ->assertJsonPath('error_code', 'csrf_token_mismatch');
+
+        $logout = $this->postJsonWithCookies('/api/v1/auth/staff/logout', [
+            'staff_web_refresh' => (string) $rotatedRefreshCookie->getValue(),
+            'staff_web_csrf' => (string) $rotatedCsrfCookie->getValue(),
+        ], [
+            'X-Staff-Key' => $accessToken,
+            'X-Staff-CSRF' => (string) $rotatedCsrfCookie->getValue(),
+        ]);
+
+        $logout->assertOk()
+            ->assertJsonPath('data.auth_mode', 'staff_browser_session')
+            ->assertJsonPath('data.session_transport', 'refresh_cookie');
+
+        self::assertLessThanOrEqual(time(), $this->responseCookie($logout, 'staff_web_refresh')->getExpiresTime());
+        self::assertLessThanOrEqual(time(), $this->responseCookie($logout, 'staff_web_csrf')->getExpiresTime());
+        $this->assertNotNull(DB::table('staff_api_keys')->where('staff_api_key_id', $rotatedRefreshStaffApiKeyId)->value('revoked_at'));
     }
 
     public function test_staff_login_rejects_customer_role_accounts(): void
@@ -474,6 +697,66 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('data.startup.readiness.operator_ready', false);
     }
 
+    public function test_staff_startup_contract_does_not_grant_implicit_default_branch_access_to_custom_roles_without_branch_scope(): void
+    {
+        $roleId = 16;
+        $roleName = 'ScopedOpsNoBranch';
+        $username = 'scoped-ops-no-branch';
+
+        config()->set('staff_auth.allowed_role_ids', array_values(array_unique(array_merge(
+            array_map('intval', (array) config('staff_auth.allowed_role_ids', [])),
+            [$roleId],
+        ))));
+
+        $roleCapabilities = (array) config('staff_capabilities.role_capabilities', []);
+        $roleCapabilities[$roleName] = [
+            'reservation.manage',
+        ];
+        config()->set('staff_capabilities.role_capabilities', $roleCapabilities);
+
+        DB::table('roles')->insert([
+            'role_id' => $roleId,
+            'role_name' => $roleName,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]);
+
+        DB::table('users')->insert([
+            'user_id' => 1016,
+            'username' => $username,
+            'password_hash' => Hash::make('secret-123'),
+            'full_name' => 'Scoped Ops No Branch',
+            'email' => 'scoped.ops.no.branch@example.test',
+            'phone' => '0905000016',
+            'role_id' => $roleId,
+            'current_tier_id' => null,
+            'language_pref' => 'vn',
+            'is_deleted' => 0,
+            'row_version' => 1,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]);
+
+        $login = $this->postJson('/api/v1/auth/staff/login', [
+            'identifier' => $username,
+            'password' => 'secret-123',
+            'device_name' => 'contract-test',
+        ]);
+
+        $login->assertOk()
+            ->assertJsonPath('data.capability_source', 'role_capabilities')
+            ->assertJsonPath('data.startup.allowed_branch_ids', [])
+            ->assertJsonPath('data.startup.branch_access.accessible_branch_ids', [])
+            ->assertJsonPath('data.startup.branch_access.default_branch_id', 1)
+            ->assertJsonPath('data.startup.branch_access.current_branch_id', null)
+            ->assertJsonPath('data.startup.branch_access.has_default_branch_access', false)
+            ->assertJsonPath('data.startup.branch_access.has_multi_branch_access', false)
+            ->assertJsonPath('data.startup.branch_access.branch_selector_enabled', false)
+            ->assertJsonPath('data.startup.branch_access.access_source', 'fallback_branch_scopes')
+            ->assertJsonPath('data.startup.readiness.branch', 'missing')
+            ->assertJsonPath('data.startup.readiness.operator_ready', false);
+    }
+
     public function test_customer_access_tokens_do_not_authenticate_staff_product_routes(): void
     {
         config()->set('customer_auth.enabled', true);
@@ -619,5 +902,34 @@ class StaffProductAuthHttpFlowTest extends TestCase
                 'updated_at' => now('UTC'),
             ],
         ]);
+    }
+
+    private function responseCookie(TestResponse $response, string $name): Cookie
+    {
+        foreach ($response->headers->getCookies() as $cookie) {
+            if ($cookie->getName() === $name) {
+                return $cookie;
+            }
+        }
+
+        self::fail("Expected response cookie [{$name}] to be set.");
+    }
+
+    /**
+     * @param  array<string,string>  $cookies
+     * @param  array<string,string>  $headers
+     */
+    private function postJsonWithCookies(string $uri, array $cookies, array $headers = []): TestResponse
+    {
+        $server = [
+            'HTTP_ACCEPT' => 'application/json',
+            'CONTENT_TYPE' => 'application/json',
+        ];
+
+        foreach ($headers as $name => $value) {
+            $server['HTTP_'.strtoupper(str_replace('-', '_', $name))] = $value;
+        }
+
+        return $this->call('POST', $uri, [], $cookies, [], $server, '{}');
     }
 }

@@ -433,6 +433,22 @@
                 "FreeItem": "FreeItem"
             }
         },
+        "WaitingListCustomerResponseState": {
+            "php_class": "App\\Enums\\WaitingListCustomerResponseState",
+            "backing_type": "string",
+            "values": [
+                "none",
+                "accepted",
+                "arrival_confirmed",
+                "declined"
+            ],
+            "cases": {
+                "None": "none",
+                "Accepted": "accepted",
+                "ArrivalConfirmed": "arrival_confirmed",
+                "Declined": "declined"
+            }
+        },
         "WaitingListCustomerResponseStatus": {
             "php_class": "App\\Enums\\WaitingListCustomerResponseStatus",
             "backing_type": "string",

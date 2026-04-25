@@ -167,11 +167,11 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
   {
     id: "deposit-self-pay",
     feature: "Deposit self-pay",
-    releaseWave: "wave-1",
-    status: "live-ready",
+    releaseWave: "deferred",
+    status: "live-conditional",
     exposure: "default-on",
     evidence:
-      "Generated SDK Deposit Self-Pay batch plus live UAT proof for preview, acknowledge, intent, revoke, and payment-session create/read/refresh/confirm on the simulated runtime provider path.",
+      "Generated SDK Deposit Self-Pay batch plus contract-visible preview and payment-session routes. Runtime proof exists only on controlled provider paths, not as a day-1 launch promise.",
     routes: [
       "GET /api/v1/reservations/{id}/deposit-preview",
       "POST /api/v1/reservations/{id}/deposit/acknowledge",
@@ -184,18 +184,18 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
     ],
     requiredHeaders: ["X-Customer-Token", "X-Session-Id", "Idempotency-Key"],
     frontendDecision:
-      "Deposit preview and payment-session controls are part of Wave 1 when the backend exposes a real or explicitly simulated runtime provider path.",
+      "Keep deposit preview truthful, but treat payment-session controls as contract-visible only until real provider evidence promotes them into launch scope.",
     liveProofSummary:
-      "Deposit self-pay is live-ready against the backend contract. Current local UAT proof uses the simulated provider, so production PSP configuration remains a separate release prerequisite.",
+      "Deposit self-pay is contract-visible and runtime-conditional. Simulated-provider or local UAT proof does not make it part of the day-1 launch promise.",
   },
   {
     id: "bill-and-active-order",
     feature: "Bill and active order",
-    releaseWave: "wave-1",
-    status: "live-ready",
+    releaseWave: "deferred",
+    status: "live-conditional",
     exposure: "default-on",
     evidence:
-      "Generated SDK Dine-In + Checkout customer routes plus live proof for bill preview, bill detail, positive active-order visibility, and bill payment-session create/read/refresh/confirm.",
+      "Generated SDK Dine-In + Checkout customer routes plus contract-visible bill preview, bill detail, active-order visibility, and bill payment-session routes.",
     routes: [
       "GET /api/v1/reservations/{reservation_id}/active-order",
       "GET /api/v1/reservations/{reservation_id}/bill-preview",
@@ -207,9 +207,9 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
     ],
     requiredHeaders: ["X-Customer-Token", "X-Session-Id", "Idempotency-Key"],
     frontendDecision:
-      "Bill preview, unavailable states, positive active-order visibility, and bill payment sessions stay live when the backend bill is ready.",
+      "Keep bill preview and active-order visibility truthful, but do not treat customer bill payment-session controls as a day-1 launch promise while staff settlement remains canonical.",
     liveProofSummary:
-      "Bill and active-order self-pay is live-ready against the backend contract. Production PSP configuration and real settlement operations remain release prerequisites outside mock-free customer-web proof.",
+      "Bill preview and active-order reads are contract-visible, but customer bill self-pay remains off by default for day 1. Any bill payment-session proof is contract-ready only until provider evidence and rollout approval promote it.",
   },
   {
     id: "waiting-list",
@@ -229,14 +229,14 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
     ],
     requiredHeaders: ["X-Customer-Token", "Idempotency-Key"],
     frontendDecision:
-      "Keep waiting-list disabled by default. When Wave 2 QA enables it, use customer-token owner mutations, manual refresh, and staff-backed notification setup without faking realtime or final seating.",
+      "Keep customer waiting-list disabled by default for day 1. When Wave 2 QA enables it, use customer-token owner mutations, manual refresh, and staff-backed notification setup without faking realtime or final seating.",
     gateFlag: "enableWaitingList",
     envFlags: ["NEXT_PUBLIC_FEATURE_WAITING_LIST"],
     disabledTitle: "Waiting list is not in this rollout",
     disabledDescription:
       "This build keeps customer waiting-list access off by default. Enable the dedicated waiting-list rollout flag only for a focused QA, UAT, or Wave 2 pass.",
     liveProofSummary:
-      "Waiting-list owner list, create, detail, accept, confirm-arrival, decline, cancel, stale row-version refresh, and owner denial have live proof behind the waiting-list flag. Notification delivery, realtime updates, and final seat-result rollout remain backend runtime prerequisites.",
+      "Waiting-list owner list, create, detail, accept, confirm-arrival, decline, cancel, stale row-version refresh, and owner denial have live proof behind the waiting-list flag. Day 1 still keeps customer waiting-list off; notification delivery, realtime updates, and final seat-result rollout remain backend runtime prerequisites.",
   },
   {
     id: "account-benefits",

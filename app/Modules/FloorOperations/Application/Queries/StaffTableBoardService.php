@@ -56,9 +56,10 @@ class StaffTableBoardService
         \DateTimeInterface $to,
         mixed $branchId = null,
         ?string $zone = null,
-        bool $includeHolds = true
+        bool $includeHolds = true,
+        ?array $accessibleBranchIds = null,
     ): array {
-        return $this->buildBoardSnapshot($from, $to, $branchId, $zone, $includeHolds)['data'];
+        return $this->buildBoardSnapshot($from, $to, $branchId, $zone, $includeHolds, $accessibleBranchIds)['data'];
     }
 
     /**
@@ -69,11 +70,13 @@ class StaffTableBoardService
         \DateTimeInterface $to,
         mixed $branchId = null,
         ?string $zone = null,
-        bool $includeHolds = true
+        bool $includeHolds = true,
+        ?array $accessibleBranchIds = null,
     ): array {
         $fromUtc = Carbon::instance(\DateTimeImmutable::createFromInterface($from))->utc();
         $toUtc = Carbon::instance(\DateTimeImmutable::createFromInterface($to))->utc();
         $resolvedBranchId = $this->resolveBranchId($branchId);
+        $accessibleBranchIds = $accessibleBranchIds !== null ? $this->normalizeBranchIds($accessibleBranchIds) : null;
         $zone = $this->normalizeZone($zone);
         $nowUtc = Carbon::now('UTC');
         $checkInGraceMinutes = $this->resolveCheckInGraceMinutes();
@@ -84,18 +87,20 @@ class StaffTableBoardService
         $closeFitMaxExtraSeats = max(0, (int) config('booking.staff_table_board_close_fit_max_extra_seats', 2));
         $candidatePreviewLimit = max(1, (int) config('booking.staff_table_board_candidate_preview_limit', 5));
 
-        $tables = RestaurantTable::query()
-            ->notDeleted()
-            ->when($resolvedBranchId !== null, static fn ($query) => $query->where('branch_id', $resolvedBranchId))
+        $tablesQuery = RestaurantTable::query()
+            ->notDeleted();
+        $this->applyBranchScope($tablesQuery, $resolvedBranchId, $accessibleBranchIds);
+        $tables = $tablesQuery
             ->inZone($zone)
             ->with('template')
             ->orderBy('zone')
             ->orderBy('table_code')
             ->get();
 
-        $activeReservations = Reservation::query()
-            ->inTimeRange($fromUtc, $toUtc)
-            ->when($resolvedBranchId !== null, static fn ($query) => $query->where('branch_id', $resolvedBranchId))
+        $reservationsQuery = Reservation::query()
+            ->inTimeRange($fromUtc, $toUtc);
+        $this->applyBranchScope($reservationsQuery, $resolvedBranchId, $accessibleBranchIds);
+        $activeReservations = $reservationsQuery
             ->whereIn('status', ReservationStatus::activeDbValues())
             ->with(['user', 'tables', 'payments'])
             ->get();
@@ -844,6 +849,44 @@ class StaffTableBoardService
         $zone = trim((string) ($zone ?? ''));
 
         return $zone === '' ? null : $zone;
+    }
+
+    /**
+     * @param  list<int>|null  $accessibleBranchIds
+     */
+    private function applyBranchScope(mixed $query, ?int $branchId, ?array $accessibleBranchIds): void
+    {
+        if ($branchId !== null) {
+            $query->where('branch_id', $branchId);
+
+            return;
+        }
+
+        if ($accessibleBranchIds === null) {
+            return;
+        }
+
+        if ($accessibleBranchIds === []) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->whereIn('branch_id', $accessibleBranchIds);
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function normalizeBranchIds(array $branchIds): array
+    {
+        $branchIds = array_values(array_unique(array_filter(
+            array_map(static fn (mixed $branchId): int => is_numeric($branchId) ? (int) $branchId : 0, $branchIds),
+            static fn (int $branchId): bool => $branchId > 0,
+        )));
+        sort($branchIds);
+
+        return $branchIds;
     }
 
     private function resolveCheckInGraceMinutes(): int

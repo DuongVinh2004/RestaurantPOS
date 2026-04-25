@@ -55,6 +55,7 @@ export function KitchenLandingPage() {
   );
   const realtimeVersion = stationsQuery.data?.meta?.realtime.current_version ?? null;
   const changesQuery = useKitchenChangesQuery({
+    branchId,
     currentVersion: realtimeVersion,
     enabled: canLoadStations,
   });

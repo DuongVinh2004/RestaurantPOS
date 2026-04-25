@@ -16,15 +16,15 @@ class ApiEnumStateArtifactService
     /**
      * @return array<string,mixed>
      */
-    public function generate(?string $outputRoot = null): array
+    public function generate(?string $outputRoot = null, ?int $minimumModifiedTime = null): array
     {
         $outputRoot = $this->normalizeRelativePath($outputRoot ?: (string) config('api_artifacts.output_root', 'build/api-consumer'));
         $payload = $this->buildPayload();
         $typescript = $this->buildTypeScript($payload);
 
         $artifacts = [
-            'enum_state_json' => $this->writeArtifact($outputRoot, (string) config('api_artifacts.enums.json', 'enum-state-map.json'), $payload),
-            'enum_state_typescript' => $this->writeArtifact($outputRoot, (string) config('api_artifacts.enums.typescript', 'sdk/typescript/restaurantpos-enums.ts'), $typescript),
+            'enum_state_json' => $this->writeArtifact($outputRoot, (string) config('api_artifacts.enums.json', 'enum-state-map.json'), $payload, $minimumModifiedTime),
+            'enum_state_typescript' => $this->writeArtifact($outputRoot, (string) config('api_artifacts.enums.typescript', 'sdk/typescript/restaurantpos-enums.ts'), $typescript, $minimumModifiedTime),
         ];
 
         return [
@@ -198,16 +198,24 @@ class ApiEnumStateArtifactService
     /**
      * @param  array<string,mixed>|string  $contents
      */
-    private function writeArtifact(string $outputRoot, string $relativePath, array|string $contents): string
+    private function writeArtifact(string $outputRoot, string $relativePath, array|string $contents, ?int $minimumModifiedTime = null): string
     {
         $relativePath = $this->normalizeRelativePath($relativePath);
         $absolutePath = base_path($outputRoot.DIRECTORY_SEPARATOR.$relativePath);
         File::ensureDirectoryExists(dirname($absolutePath));
 
-        if (is_array($contents)) {
-            File::put($absolutePath, json_encode($contents, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
-        } else {
-            File::put($absolutePath, $contents);
+        $serialized = is_array($contents)
+            ? json_encode($contents, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)
+            : $contents;
+
+        if (! File::exists($absolutePath) || (string) File::get($absolutePath) !== $serialized) {
+            File::put($absolutePath, $serialized);
+        } elseif ($minimumModifiedTime !== null && File::lastModified($absolutePath) < $minimumModifiedTime) {
+            if (! touch($absolutePath, $minimumModifiedTime)) {
+                throw new RuntimeException(sprintf('Unable to refresh generated enum artifact timestamp [%s].', $outputRoot.'/'.$relativePath));
+            }
+
+            clearstatcache(true, $absolutePath);
         }
 
         return str_replace('\\', '/', $outputRoot.'/'.$relativePath);

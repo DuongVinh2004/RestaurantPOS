@@ -2,6 +2,16 @@ import { formatLocalDateTimeInput } from "@/lib/contracts/datetime";
 import { stringValue } from "@/lib/contracts/format";
 import { asRecord, booleanValue, numberValue, recordValue } from "@/lib/contracts/loose";
 import { getSupportMatrixEntryById } from "@/lib/config/support-matrix";
+import {
+  depositStatusValues,
+  paymentStatusValues,
+  reservationBillPaymentSessionStatusValues,
+  reservationBillPaymentSettlementStatusValues,
+  reservationDepositPaymentSessionStatusValues,
+  reservationDepositPaymentSettlementStatusValues,
+  restaurantPosEnumStateMap,
+  tableHoldStatusValues,
+} from "@/lib/contracts/generated/restaurantpos-enums";
 import type {
   CustomerBillPaymentSession,
   CustomerDepositPaymentSession,
@@ -10,20 +20,56 @@ import type {
   ReservationSummary,
 } from "@/lib/contracts/generated/restaurantpos-sdk";
 
-const ACTIVE_RESERVATION_STATUSES = new Set(["Confirmed", "Reserved"]);
-const SETTLED_DEPOSIT_STATUSES = new Set(["Paid", "Refunded", "PartiallyRefunded", "Forfeited"]);
-const INACTIVE_HOLD_STATUSES = new Set(["Expired", "Released", "Cancelled", "Confirmed"]);
-const SETTLED_BILL_PAYMENT_STATUSES = new Set(["Paid", "Succeeded", "Success"]);
-const PAYMENT_PENDING_SESSION_STATUSES = new Set(["Pending", "Created", "Ready", "Open", "Processing", "Submitted"]);
-const PAYMENT_CONFIRMED_SESSION_STATUSES = new Set(["Confirmed"]);
-const PAYMENT_SUCCEEDED_SESSION_STATUSES = new Set(["Succeeded", "Paid", "Success", "Completed"]);
-const PAYMENT_FAILED_SESSION_STATUSES = new Set(["Failed"]);
-const PAYMENT_CANCELLED_SESSION_STATUSES = new Set(["Cancelled"]);
-const PAYMENT_EXPIRED_SESSION_STATUSES = new Set(["Expired"]);
-const SETTLEMENT_APPLIED_STATUSES = new Set(["Succeeded", "Paid", "Success", "Completed"]);
-const SETTLEMENT_FAILED_STATUSES = new Set(["Failed"]);
-const SETTLEMENT_CANCELLED_STATUSES = new Set(["Cancelled"]);
-const SETTLEMENT_EXPIRED_STATUSES = new Set(["Expired"]);
+const reservationStatusHints = restaurantPosEnumStateMap.ReservationStatus.stateHints;
+const paymentSessionStatusValues = [
+  ...reservationDepositPaymentSessionStatusValues,
+  ...reservationBillPaymentSessionStatusValues,
+];
+const paymentSettlementStatusValues = [
+  ...reservationDepositPaymentSettlementStatusValues,
+  ...reservationBillPaymentSettlementStatusValues,
+];
+
+const ACTIVE_RESERVATION_STATUSES = new Set<string>(reservationStatusHints.active_db_values);
+const SETTLED_DEPOSIT_STATUSES = new Set<string>(
+  depositStatusValues.filter((status) => status !== "Pending" && status !== "NotRequired"),
+);
+const INACTIVE_HOLD_STATUSES = new Set<string>([
+  ...tableHoldStatusValues.filter((status) => status !== "Holding" && status !== "Pending"),
+  "Released",
+]);
+const SETTLED_BILL_PAYMENT_STATUSES = new Set<string>([
+  ...paymentStatusValues.filter((status) => status === "Success" || status === "Refunded"),
+  "Paid",
+  "Succeeded",
+]);
+const PAYMENT_PENDING_SESSION_STATUSES = new Set<string>([
+  ...paymentSessionStatusValues.filter((status) => status === "Pending" || status === "Created"),
+  "Ready",
+  "Open",
+  "Processing",
+  "Submitted",
+]);
+const PAYMENT_CONFIRMED_SESSION_STATUSES = new Set<string>(["Confirmed"]);
+const PAYMENT_SUCCEEDED_SESSION_STATUSES = new Set<string>([
+  ...paymentSessionStatusValues.filter((status) => status === "Succeeded"),
+  ...paymentStatusValues.filter((status) => status === "Success"),
+  "Paid",
+  "Completed",
+]);
+const PAYMENT_FAILED_SESSION_STATUSES = new Set<string>(paymentSessionStatusValues.filter((status) => status === "Failed"));
+const PAYMENT_CANCELLED_SESSION_STATUSES = new Set<string>(paymentSessionStatusValues.filter((status) => status === "Cancelled"));
+const PAYMENT_EXPIRED_SESSION_STATUSES = new Set<string>(paymentSessionStatusValues.filter((status) => status === "Expired"));
+const SETTLEMENT_APPLIED_STATUSES = new Set<string>([
+  ...paymentSettlementStatusValues.filter((status) => status === "Applied"),
+  "Succeeded",
+  "Paid",
+  "Success",
+  "Completed",
+]);
+const SETTLEMENT_FAILED_STATUSES = new Set<string>(["Failed"]);
+const SETTLEMENT_CANCELLED_STATUSES = new Set<string>(["Cancelled"]);
+const SETTLEMENT_EXPIRED_STATUSES = new Set<string>(["Expired"]);
 const SESSION_AUTO_REFRESH_INTERVAL_MS = 5_000;
 const SESSION_AUTO_REFRESH_WINDOW_MS = 60_000;
 

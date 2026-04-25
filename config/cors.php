@@ -15,8 +15,10 @@ return [
     | are allowed. An empty CORS_ALLOWED_ORIGINS denies all cross-origin
     | requests (same-origin only).
     |
-    | This API uses header-based authentication (X-Customer-Token, X-Staff-Key),
-    | not cookie sessions, so supports_credentials is false.
+    | The default API contract uses header-based authentication
+    | (X-Customer-Token, X-Staff-Key), so supports_credentials is false.
+    | Staff browser refresh cookies are opt-in only; when enabled, credentials
+    | are still constrained to exact origins from CORS_ALLOWED_ORIGINS.
     |
     | See: docs/runbooks/api-consumer-artifacts.md, section "Cross-Origin (CORS)"
     |
@@ -48,6 +50,7 @@ return [
         'Authorization',
         'X-Customer-Token',
         'X-Staff-Key',
+        'X-Staff-CSRF',
         'X-Session-Id',
         'Idempotency-Key',
         'X-Idempotency-Key',
@@ -61,6 +64,9 @@ return [
 
     'max_age' => 7200,
 
-    'supports_credentials' => false,
+    'supports_credentials' => (bool) env(
+        'CORS_SUPPORTS_CREDENTIALS',
+        (bool) env('STAFF_AUTH_BROWSER_SESSION_COOKIE_ENABLED', false)
+    ),
 
 ];

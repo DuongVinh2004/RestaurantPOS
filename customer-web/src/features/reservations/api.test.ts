@@ -127,7 +127,16 @@ describe("reservations api", () => {
 
     await cancelReservation(7, 9, "Change of plans");
 
-    expect(mocks.idempotentSessionOptions).toHaveBeenCalledWith("reservation-cancel");
+    expect(mocks.createStableIdempotencyKey).toHaveBeenCalledWith(
+      "reservation-cancel",
+      {
+        cancel_reason: "Change of plans",
+        reservation_id: 7,
+        row_version: 9,
+        session_id: "session-456",
+      },
+    );
+    expect(mocks.idempotentSessionOptions).toHaveBeenCalledWith("reservation-cancel", { idempotencyKey: "idem-stable-456" });
     expect(mocks.postV1ReservationsIdCancel).toHaveBeenCalledWith(
       { id: 7 },
       {
@@ -150,7 +159,21 @@ describe("reservations api", () => {
       reason: "Running late",
     });
 
-    expect(mocks.idempotentSessionOptions).toHaveBeenCalledWith("reservation-reschedule");
+    expect(mocks.createStableIdempotencyKey).toHaveBeenCalledWith(
+      "reservation-reschedule",
+      {
+        end_time: "2026-04-18T20:00:00Z",
+        guest_count: 4,
+        notes: null,
+        reason: "Running late",
+        reservation_id: 7,
+        row_version: 9,
+        session_id: "session-456",
+        start_time: "2026-04-18T18:30:00Z",
+        table_ids: [],
+      },
+    );
+    expect(mocks.idempotentSessionOptions).toHaveBeenCalledWith("reservation-reschedule", { idempotencyKey: "idem-stable-456" });
     expect(mocks.postV1ReservationsIdReschedule).toHaveBeenCalledWith(
       { id: 7 },
       {

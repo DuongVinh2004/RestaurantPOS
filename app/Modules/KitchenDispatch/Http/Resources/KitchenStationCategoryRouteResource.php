@@ -14,6 +14,7 @@ class KitchenStationCategoryRouteResource extends JsonResource
         return [
             'route_id' => (int) $this->route_id,
             'station_id' => (int) $this->station_id,
+            'branch_id' => (int) $this->branch_id,
             'category_id' => (int) $this->category_id,
             'sort_order' => (int) $this->sort_order,
             'is_active' => (bool) $this->is_active,
@@ -24,6 +25,7 @@ class KitchenStationCategoryRouteResource extends JsonResource
             ]),
             'station' => $this->whenLoaded('station', fn () => [
                 'station_id' => (int) $this->station->station_id,
+                'branch_id' => (int) $this->station->branch_id,
                 'code' => (string) $this->station->code,
                 'name' => (string) $this->station->name,
             ]),

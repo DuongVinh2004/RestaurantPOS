@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import { formatStaffFacingApiError, isApiStatus } from '../../shared/api/errors';
-import { getCurrentStaffSession, loginStaff, logoutStaff, refreshStaffSession } from '../../shared/api/staff-auth-api';
+import {
+  canAttemptStaffBrowserSessionRefresh,
+  getCurrentStaffSession,
+  loginStaff,
+  logoutStaff,
+  refreshStaffSession,
+} from '../../shared/api/staff-auth-api';
 import { registerStaffAuthFailureHandler } from '../../shared/auth/session-events';
 import { readStoredStaffToken, writeStoredStaffToken, type StaffSession } from '../../shared/auth/storage';
 import { resolveDefaultStaffPath, resolveRecommendedStaffPath } from '../router/session-paths';
@@ -41,6 +47,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     bootstrapPromise = (async () => {
+      if (!readStoredStaffToken() && canAttemptStaffBrowserSessionRefresh()) {
+        try {
+          const session = await refreshStaffSession();
+          get().setSession(session);
+          return;
+        } catch (error) {
+          if (isApiStatus(error, 401) || isApiStatus(error, 419)) {
+            get().expire(STAFF_SESSION_EXPIRED_MESSAGE);
+            return;
+          }
+
+          useFlowStore.getState().syncSessionContext(null);
+          useWorkspaceStore.getState().syncSession(null);
+          set({
+            session: null,
+            lastSessionSyncAt: null,
+            status: 'anonymous',
+            notice: {
+              tone: 'error',
+              message: formatStaffFacingApiError(
+                error,
+                'Không thể khôi phục phiên làm việc. Hãy thử làm mới hoặc đăng nhập lại.',
+              ),
+            },
+          });
+          return;
+        }
+      }
+
       if (!readStoredStaffToken()) {
         useFlowStore.getState().syncSessionContext(null);
         useWorkspaceStore.getState().syncSession(null);

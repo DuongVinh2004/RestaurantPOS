@@ -88,10 +88,16 @@ class ReleaseLoopServiceTest extends TestCase
             'backend_golden_flows',
             'backend_doctor',
             'backend_deploy_preflight',
-            'frontend_test',
-            'frontend_build',
+            'staff_web_test',
+            'staff_web_build',
+            'customer_web_contracts',
+            'customer_web_lint',
+            'customer_web_typecheck',
+            'customer_web_test',
+            'customer_web_build',
+            'customer_web_e2e_smoke',
             'preview_deploy',
-            'frontend_live_smoke',
+            'staff_web_live_smoke',
             'backend_launch_readiness',
         ], $service->stepKeys);
         $this->assertSame('https://preview.example.test', data_get($report, 'preview.url'));
@@ -161,16 +167,22 @@ class ReleaseLoopServiceTest extends TestCase
             'backend_golden_flows',
             'backend_doctor',
             'backend_deploy_preflight',
-            'frontend_test',
-            'frontend_build',
+            'staff_web_test',
+            'staff_web_build',
+            'customer_web_contracts',
+            'customer_web_lint',
+            'customer_web_typecheck',
+            'customer_web_test',
+            'customer_web_build',
+            'customer_web_e2e_smoke',
             'preview_deploy',
-            'frontend_live_smoke',
+            'staff_web_live_smoke',
             'backend_launch_readiness',
         ], $service->stepKeys);
         $this->assertCount(1, (array) ($report['blocking_failures'] ?? []));
         $this->assertSame('backend_doctor', data_get($report, 'blocking_failures.0.step_key'));
-        $this->assertSame('frontend_test', data_get($report, 'steps.7.key'));
-        $this->assertSame('backend_launch_readiness', data_get($report, 'steps.11.key'));
+        $this->assertSame('staff_web_test', data_get($report, 'steps.7.key'));
+        $this->assertSame('backend_launch_readiness', data_get($report, 'steps.17.key'));
         $this->assertSame('skipped', data_get($report, 'preview.status'));
         $this->assertStringContainsString(
             'Observability: Sentry release/runtime evidence unavailable;',
@@ -209,7 +221,7 @@ class ReleaseLoopServiceTest extends TestCase
         $this->assertFalse((bool) data_get($report, 'preview.linked_project_detected', true));
         $this->assertStringContainsString(
             'external platform blocker',
-            (string) data_get($report, 'steps.9.summary')
+            (string) data_get($report, 'steps.15.summary')
         );
         $this->assertStringContainsString(
             'Preview deploy: no linked preview project detected',
@@ -358,8 +370,8 @@ class ReleaseLoopServiceTest extends TestCase
             'ops.conversation_inbox: Conversation inbox backlog needs operator review before rollout.',
             data_get($report, 'steps.6.summary')
         );
-        $this->assertSame('warn', data_get($report, 'steps.11.status'));
-        $this->assertSame('decision=ready_with_warnings', data_get($report, 'steps.11.summary'));
+        $this->assertSame('warn', data_get($report, 'steps.17.status'));
+        $this->assertSame('decision=ready_with_warnings', data_get($report, 'steps.17.summary'));
         $this->assertSame([], (array) ($report['blocking_failures'] ?? []));
         $this->assertContains(
             'Backend deploy preflight: ops.conversation_inbox: Conversation inbox backlog needs operator review before rollout.',
@@ -431,7 +443,7 @@ class ReleaseLoopServiceTest extends TestCase
         $this->assertSame('block', $report['decision'] ?? null);
         $this->assertSame('backend_deploy_preflight', data_get($report, 'blocking_failures.0.step_key'));
         $this->assertStringContainsString('timed out after 1 seconds', (string) data_get($report, 'steps.6.summary'));
-        $this->assertSame('frontend_test', data_get($report, 'steps.7.key'));
+        $this->assertSame('staff_web_test', data_get($report, 'steps.7.key'));
         $this->assertContains('backend_launch_readiness', $service->stepKeys);
     }
 }

@@ -6,6 +6,8 @@ namespace Tests\Feature\Staff;
 
 use App\Modules\KitchenDispatch\Application\Workflows\KitchenRoutingService;
 use App\Modules\KitchenDispatch\Application\Workflows\KitchenTicketReconciliationService;
+use App\Platform\Realtime\Services\OperationalRealtimeService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -46,7 +48,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
     public function test_staff_can_dispatch_fire_bump_recall_and_complete_kitchen_ticket_without_breaking_order_lifecycle(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-dispatch-key');
 
         $categoryId = $this->ensureMenuCategory('Kitchen Mains');
@@ -130,7 +132,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             ->assertJsonPath('data.has_changes', true);
 
         $fire = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-fire-1'))
-            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire');
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire', $this->ticketActionPayload($ticketId));
 
         $fire->assertOk()
             ->assertJsonPath('meta.action', 'kitchen_ticket_fired')
@@ -144,7 +146,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
         self::assertSame($itemRowVersion, (int) $fire->json('data.order_item.row_version'));
 
         $bump = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-bump-1'))
-            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/bump');
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/bump', $this->ticketActionPayload($ticketId));
 
         $bump->assertOk()
             ->assertJsonPath('meta.action', 'kitchen_ticket_bumped')
@@ -152,7 +154,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             ->assertJsonPath('data.lifecycle.allowed_actions.0', 'recall');
 
         $recall = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-recall-1'))
-            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/recall');
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/recall', $this->ticketActionPayload($ticketId));
 
         $recall->assertOk()
             ->assertJsonPath('meta.action', 'kitchen_ticket_recalled')
@@ -187,7 +189,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
     public function test_dispatch_rejects_stale_order_row_version_with_utf8_message(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-dispatch-stale-key');
 
         $categoryId = $this->ensureMenuCategory('Kitchen Dispatch Stale');
@@ -240,9 +242,186 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
         self::assertSame($stationId, (int) $this->table('kitchen_station_category_routes')->where('category_id', $categoryId)->value('station_id'));
     }
 
+    public function test_ticket_actions_require_ticket_row_version(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Manager']);
+        $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-ticket-row-version-required-key');
+        $scenario = $this->createRoutedKitchenOrderScenario('Kitchen Required Row Version');
+
+        $ticketId = $this->createKitchenOrderTicket([
+            'station_id' => $scenario['station_id'],
+            'route_id' => $scenario['route_id'],
+            'order_item_id' => $scenario['order_item_id'],
+            'item_id' => $scenario['item_id'],
+            'category_id' => $scenario['category_id'],
+            'ticket_status' => 'Queued',
+        ]);
+
+        foreach (['fire', 'bump', 'recall'] as $action) {
+            $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-'.$action.'-missing-row-version'))
+                ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/'.$action)
+                ->assertStatus(422)
+                ->assertJsonValidationErrors(['row_version']);
+        }
+    }
+
+    public function test_ticket_actions_reject_stale_ticket_row_version(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Manager']);
+        $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-ticket-row-version-stale-key');
+        $scenario = $this->createRoutedKitchenOrderScenario('Kitchen Stale Ticket Row Version');
+
+        $dispatch = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-ticket-stale-dispatch'))
+            ->postJson('/api/v1/staff/orders/'.$scenario['order_id'].'/kitchen/dispatch', [
+                'row_version' => 1,
+            ]);
+
+        $dispatch->assertOk()
+            ->assertJsonPath('data.0.row_version', 1);
+
+        $ticketId = (int) $dispatch->json('data.0.ticket_id');
+        $staleRowVersion = (int) $dispatch->json('data.0.row_version');
+
+        DB::table('kitchen_order_item_tickets')
+            ->where('ticket_id', $ticketId)
+            ->update([
+                'row_version' => $staleRowVersion + 1,
+                'updated_at' => $this->nowUtc(),
+            ]);
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-ticket-stale-fire'))
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire', [
+                'row_version' => $staleRowVersion,
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
+            ->assertJsonPath('category_code', 'stale_write')
+            ->assertJsonValidationErrors(['row_version']);
+
+        $fire = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-ticket-fresh-fire'))
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire', $this->ticketActionPayload($ticketId));
+
+        $fire->assertOk()
+            ->assertJsonPath('data.ticket_status', 'Fired');
+
+        $firedVersion = (int) $fire->json('data.row_version');
+        self::assertGreaterThan($staleRowVersion + 1, $firedVersion);
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-ticket-stale-bump'))
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/bump', [
+                'row_version' => $staleRowVersion + 1,
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
+            ->assertJsonPath('category_code', 'stale_write')
+            ->assertJsonValidationErrors(['row_version']);
+
+        $bump = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-ticket-fresh-bump'))
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/bump', [
+                'row_version' => $firedVersion,
+            ]);
+
+        $bump->assertOk()
+            ->assertJsonPath('data.ticket_status', 'Ready');
+
+        $readyVersion = (int) $bump->json('data.row_version');
+        self::assertGreaterThan($firedVersion, $readyVersion);
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-ticket-stale-recall'))
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/recall', [
+                'row_version' => $firedVersion,
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
+            ->assertJsonPath('category_code', 'stale_write')
+            ->assertJsonValidationErrors(['row_version']);
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-ticket-fresh-recall'))
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/recall', [
+                'row_version' => $readyVersion,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.ticket_status', 'Fired')
+            ->assertJsonPath('data.recall_count', 1);
+    }
+
+    public function test_floor_staff_dispatches_and_kitchen_staff_owns_ticket_actions(): void
+    {
+        $floorRoleId = $this->ensureRole('Floor Handoff');
+        $kitchenRoleId = $this->ensureRole('Kitchen Handoff');
+        $floorStaffId = $this->createUser(['role_id' => $floorRoleId, 'role_name' => 'Floor Handoff']);
+        $kitchenStaffId = $this->createUser(['role_id' => $kitchenRoleId, 'role_name' => 'Kitchen Handoff']);
+
+        config()->set('staff_auth.allowed_role_ids', [$floorRoleId, $kitchenRoleId]);
+        config()->set('staff_capabilities.role_id_capabilities', [
+            $floorRoleId => ['order.manage'],
+            $kitchenRoleId => ['kitchen.manage'],
+        ]);
+        config()->set('staff_capabilities.role_id_branch_scopes', [
+            $floorRoleId => ['default'],
+            $kitchenRoleId => ['default'],
+        ]);
+
+        $floorHeaders = $this->staffAuthHeaders($floorStaffId, 'staff-kitchen-floor-handoff-key');
+        $kitchenHeaders = $this->staffAuthHeaders($kitchenStaffId, 'staff-kitchen-action-handoff-key');
+        $scenario = $this->createRoutedKitchenOrderScenario('Kitchen Floor Handoff');
+
+        $dispatch = $this->withHeaders($this->withIdempotencyKey($floorHeaders, 'idem-staff-kitchen-floor-dispatch'))
+            ->postJson('/api/v1/staff/orders/'.$scenario['order_id'].'/kitchen/dispatch', [
+                'row_version' => 1,
+            ]);
+
+        $dispatch->assertOk()
+            ->assertJsonPath('meta.action', 'kitchen_order_dispatched')
+            ->assertJsonPath('data.0.ticket_status', 'Queued')
+            ->assertJsonPath('data.0.row_version', 1);
+
+        $ticketId = (int) $dispatch->json('data.0.ticket_id');
+
+        $this->withHeaders($this->withIdempotencyKey($floorHeaders, 'idem-staff-kitchen-floor-fire-denied'))
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire', $this->ticketActionPayload($ticketId))
+            ->assertStatus(403)
+            ->assertJsonPath('required_capability', 'kitchen.manage');
+
+        foreach (['bump', 'recall'] as $action) {
+            $this->withHeaders($this->withIdempotencyKey($floorHeaders, 'idem-staff-kitchen-floor-'.$action.'-denied'))
+                ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/'.$action, $this->ticketActionPayload($ticketId))
+                ->assertStatus(403)
+                ->assertJsonPath('required_capability', 'kitchen.manage');
+        }
+
+        $this->withHeaders($this->withIdempotencyKey($kitchenHeaders, 'idem-staff-kitchen-action-dispatch-denied'))
+            ->postJson('/api/v1/staff/orders/'.$scenario['order_id'].'/kitchen/dispatch', [
+                'row_version' => 1,
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('required_capability', 'order.manage');
+
+        $fire = $this->withHeaders($this->withIdempotencyKey($kitchenHeaders, 'idem-staff-kitchen-action-fire'))
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire', $this->ticketActionPayload($ticketId));
+
+        $fire->assertOk()
+            ->assertJsonPath('meta.action', 'kitchen_ticket_fired')
+            ->assertJsonPath('data.ticket_status', 'Fired')
+            ->assertJsonPath('data.order_item.status', 'InProgress');
+
+        $bump = $this->withHeaders($this->withIdempotencyKey($kitchenHeaders, 'idem-staff-kitchen-action-bump'))
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/bump', $this->ticketActionPayload($ticketId));
+
+        $bump->assertOk()
+            ->assertJsonPath('meta.action', 'kitchen_ticket_bumped')
+            ->assertJsonPath('data.ticket_status', 'Ready');
+
+        $this->withHeaders($this->withIdempotencyKey($kitchenHeaders, 'idem-staff-kitchen-action-recall'))
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/recall', $this->ticketActionPayload($ticketId))
+            ->assertOk()
+            ->assertJsonPath('meta.action', 'kitchen_ticket_recalled')
+            ->assertJsonPath('data.ticket_status', 'Fired');
+    }
+
     public function test_ticket_must_be_fired_before_it_can_be_bumped(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-bump-guard-key');
 
         $categoryId = $this->ensureMenuCategory('Kitchen Bump Guard');
@@ -277,7 +456,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
         ]);
 
         $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-bump-before-fire'))
-            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/bump')
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/bump', $this->ticketActionPayload($ticketId))
             ->assertStatus(422)
             ->assertJsonValidationErrors(['ticket_id']);
 
@@ -287,7 +466,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
     public function test_dispatch_skips_unrouted_items_without_breaking_order(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-unrouted-key');
 
         $mappedCategoryId = $this->ensureMenuCategory('Mapped Kitchen');
@@ -341,7 +520,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
     public function test_dispatch_with_only_unrouted_items_emits_change_feed_signal_without_creating_tickets(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-all-unrouted-key');
 
         $unroutedCategoryId = $this->ensureMenuCategory('All Unrouted Kitchen');
@@ -409,7 +588,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
     public function test_cancelled_order_item_after_dispatch_marks_ticket_cancelled_without_silent_drift(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-cancelled-after-dispatch-key');
 
         $categoryId = $this->ensureMenuCategory('Kitchen Cancel Sync');
@@ -484,11 +663,11 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
     public function test_kitchen_station_reads_can_be_scoped_to_branch_workload(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-branch-scope-key');
         $branchA = $this->createBranch(['branch_code' => 'KITCHA', 'branch_name' => 'Kitchen A']);
         $branchB = $this->createBranch(['branch_code' => 'KITCHB', 'branch_name' => 'Kitchen B']);
-        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $branchA]);
+        config()->set('staff_capabilities.role_branch_scopes.Manager', ['default', (string) $branchA]);
 
         $categoryId = $this->ensureMenuCategory('Kitchen Branch Scope');
         $itemId = $this->createMenuItem([
@@ -497,6 +676,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             'name' => 'Kitchen Branch Bowl',
         ]);
         $stationId = $this->createKitchenStation([
+            'branch_id' => $branchA,
             'code' => 'BRANCH-PASS',
             'name' => 'Branch Pass',
             'output_mode' => 'Both',
@@ -594,17 +774,45 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             ->assertJsonPath('message', 'Order not found.');
 
         $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-ticket-branch-scope-deny'))
-            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketB.'/fire')
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketB.'/fire', $this->ticketActionPayload($ticketB))
             ->assertNotFound()
             ->assertJsonPath('error_code', 'not_found')
             ->assertJsonPath('message', 'Kitchen ticket not found.');
+
+        $realtime = app(OperationalRealtimeService::class);
+        $realtime->publishKitchenEvent('kitchen.allowed_branch_event', [
+            'branch_id' => $branchA,
+            'ticket_id' => $ticketA,
+        ]);
+        $realtime->publishKitchenEvent('kitchen.denied_branch_event', [
+            'branch_id' => $branchB,
+            'ticket_id' => $ticketB,
+        ]);
+
+        $changes = $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/kitchen/changes');
+        $changes->assertOk()
+            ->assertJsonPath('data.topic', 'kitchen')
+            ->assertJsonPath('data.channel', 'staff.kitchen')
+            ->assertJsonPath('data.has_changes', true);
+
+        self::assertSame(
+            ['kitchen.allowed_branch_event'],
+            collect($changes->json('data.events'))->pluck('type')->values()->all(),
+        );
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/kitchen/changes?branch_id='.$branchB)
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonPath('message', 'Branch not found.');
     }
 
     public function test_kitchen_station_reads_fail_closed_when_staff_has_no_accessible_branch_entitlement(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-no-branch-scope-key');
-        config()->set('staff_capabilities.role_branch_scopes.Staff', ['UNKNOWN-BRANCH']);
+        config()->set('staff_capabilities.role_branch_scopes.Manager', ['UNKNOWN-BRANCH']);
 
         $categoryId = $this->ensureMenuCategory('Kitchen No Scope');
         $itemId = $this->createMenuItem([
@@ -665,6 +873,75 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
         self::assertSame($ticketId, (int) $this->table('kitchen_order_item_tickets')->where('ticket_id', $ticketId)->value('ticket_id'));
     }
 
+    public function test_order_item_sync_fails_closed_when_actor_cannot_access_ticket_branch(): void
+    {
+        $branchA = $this->createBranch([
+            'branch_code' => 'KDS-SYNC-A',
+            'branch_name' => 'KDS Sync Branch A',
+        ]);
+        $branchB = $this->createBranch([
+            'branch_code' => 'KDS-SYNC-B',
+            'branch_name' => 'KDS Sync Branch B',
+        ]);
+
+        config()->set('staff_capabilities.role_branch_scopes.Manager', [(string) $branchA]);
+
+        $staffId = $this->createUser(['role_name' => 'Manager']);
+        $categoryId = $this->ensureMenuCategory('Kitchen Sync Branch Guard');
+        $itemId = $this->createMenuItem([
+            'category_id' => $categoryId,
+            'code' => 'KDS-SYNC-BRANCH-01',
+            'name' => 'Sync Branch Guard Bowl',
+        ]);
+        $stationId = $this->createKitchenStation([
+            'code' => 'SYNC-BRANCH',
+            'name' => 'Sync Branch Guard',
+            'output_mode' => 'KDS',
+        ]);
+        $routeId = $this->createKitchenStationRoute([
+            'station_id' => $stationId,
+            'category_id' => $categoryId,
+            'sort_order' => 10,
+        ]);
+
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $reservationId = $this->createReservation([
+            'branch_id' => $branchB,
+            'user_id' => $customerId,
+            'status' => 'Reserved',
+        ]);
+        $orderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'status' => 'Active',
+        ]);
+        $orderItemId = $this->createOrderItem([
+            'order_id' => $orderId,
+            'item_id' => $itemId,
+            'status' => 'Served',
+            'row_version' => 1,
+        ]);
+        $ticketId = $this->createKitchenOrderTicket([
+            'station_id' => $stationId,
+            'route_id' => $routeId,
+            'order_id' => $orderId,
+            'reservation_id' => $reservationId,
+            'order_item_id' => $orderItemId,
+            'item_id' => $itemId,
+            'category_id' => $categoryId,
+            'ticket_status' => 'Fired',
+            'fired_at' => $this->nowUtc(),
+        ]);
+
+        try {
+            app(KitchenRoutingService::class)->syncTicketForOrderItem($orderItemId, $staffId);
+            $this->fail('Expected kitchen ticket sync to fail closed outside the staff branch scope.');
+        } catch (ModelNotFoundException) {
+            self::assertSame('Fired', (string) $this->table('kitchen_order_item_tickets')->where('ticket_id', $ticketId)->value('ticket_status'));
+            self::assertNull($this->table('kitchen_order_item_tickets')->where('ticket_id', $ticketId)->value('completed_at'));
+            self::assertSame('Served', (string) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('status'));
+        }
+    }
+
     public function test_branch_flag_can_disable_kitchen_dispatch_mutations(): void
     {
         $branchId = $this->createBranch([
@@ -679,9 +956,9 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             ['reason' => 'branch still on manual expo'],
         );
 
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-feature-flag-key');
-        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $branchId]);
+        config()->set('staff_capabilities.role_branch_scopes.Manager', ['default', (string) $branchId]);
         $categoryId = $this->ensureMenuCategory('Kitchen Disabled');
         $itemId = $this->createMenuItem([
             'category_id' => $categoryId,
@@ -735,9 +1012,9 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             ['reason' => 'kitchen terminal rollout paused'],
         );
 
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-fire-flag-off-key');
-        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $branchId]);
+        config()->set('staff_capabilities.role_branch_scopes.Manager', ['default', (string) $branchId]);
 
         $categoryId = $this->ensureMenuCategory('Kitchen Fire Flagged');
         $itemId = $this->createMenuItem([
@@ -792,17 +1069,17 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
         ]);
 
         $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-fire-flag-disabled'))
-            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire')
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire', $this->ticketActionPayload($ticketId))
             ->assertOk()
             ->assertJsonPath('data.ticket_status', 'Fired');
 
         $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-bump-flag-disabled'))
-            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/bump')
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/bump', $this->ticketActionPayload($ticketId))
             ->assertOk()
             ->assertJsonPath('data.ticket_status', 'Ready');
 
         $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-recall-flag-disabled'))
-            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/recall')
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/recall', $this->ticketActionPayload($ticketId))
             ->assertOk()
             ->assertJsonPath('data.ticket_status', 'Fired');
 
@@ -833,7 +1110,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
     public function test_redispatch_preserves_ready_ticket_state_and_fire_requires_a_queued_ticket(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-ready-guard-key');
 
         $categoryId = $this->ensureMenuCategory('Kitchen Ready Guard');
@@ -885,12 +1162,12 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
         $ticketId = (int) $dispatch->json('data.0.ticket_id');
 
         $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-ready-fire-a'))
-            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire')
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire', $this->ticketActionPayload($ticketId))
             ->assertOk()
             ->assertJsonPath('data.ticket_status', 'Fired');
 
         $bump = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-ready-bump-a'))
-            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/bump');
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/bump', $this->ticketActionPayload($ticketId));
 
         $bump->assertOk()
             ->assertJsonPath('data.ticket_status', 'Ready');
@@ -913,7 +1190,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
         self::assertSame($readyAt, (string) $this->table('kitchen_order_item_tickets')->where('ticket_id', $ticketId)->value('ready_at'));
 
         $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-ready-fire-b'))
-            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire')
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire', $this->ticketActionPayload($ticketId))
             ->assertStatus(422)
             ->assertJsonValidationErrors(['ticket_id']);
 
@@ -922,7 +1199,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
     public function test_active_ticket_route_cannot_be_removed_and_repeat_dispatch_keeps_existing_ticket_routing_snapshot(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-route-guard-key');
 
         $categoryId = $this->ensureMenuCategory('Kitchen Guard');
@@ -976,7 +1253,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
         $ticketId = (int) $dispatch->json('data.0.ticket_id');
 
-        $this->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire', [], $this->withIdempotencyKey($headers, 'idem-staff-kitchen-fire-guard-a'))
+        $this->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire', $this->ticketActionPayload($ticketId), $this->withIdempotencyKey($headers, 'idem-staff-kitchen-fire-guard-a'))
             ->assertOk();
 
         $service = app(KitchenRoutingService::class);
@@ -1009,7 +1286,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
     public function test_repeat_dispatch_rejects_active_ticket_with_drifted_route_snapshot(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-drifted-redispatch-key');
 
         $categoryId = $this->ensureMenuCategory('Kitchen Drifted Route');
@@ -1076,7 +1353,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
     public function test_generic_ticket_sync_keeps_ready_state_until_explicit_recall(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-sync-ready-key');
 
         $categoryId = $this->ensureMenuCategory('Kitchen Sync Ready');
@@ -1124,13 +1401,13 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
         $ticketId = (int) $dispatch->json('data.0.ticket_id');
 
         $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-sync-ready-fire'))
-            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire')
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire', $this->ticketActionPayload($ticketId))
             ->assertOk()
             ->assertJsonPath('data.ticket_status', 'Fired')
             ->assertJsonPath('data.order_item.status', 'InProgress');
 
         $bump = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-sync-ready-bump'))
-            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/bump');
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/bump', $this->ticketActionPayload($ticketId));
 
         $bump->assertOk()
             ->assertJsonPath('data.ticket_status', 'Ready')
@@ -1159,9 +1436,102 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             ->assertJsonCount(0, 'data.events');
     }
 
+    public function test_staff_branch_scope_hides_other_branch_stations_and_keeps_empty_station_visible(): void
+    {
+        $branchAId = (int) (DB::table('branches')->where('is_default', 1)->value('branch_id') ?? 1);
+        $branchBId = $this->createBranch([
+            'branch_code' => 'KDS-BR-B',
+            'branch_name' => 'KDS Branch B',
+        ]);
+        $roleId = $this->ensureRole('Kitchen Staff');
+        $staffId = $this->createUser(['role_id' => $roleId, 'role_name' => 'Kitchen Staff']);
+
+        config()->set('staff_auth.allowed_role_ids', [$roleId]);
+        config()->set('staff_capabilities.role_id_capabilities', [
+            $roleId => ['kitchen.manage', 'order.manage'],
+        ]);
+        config()->set('staff_capabilities.role_id_branch_scopes', [
+            $roleId => [(string) $branchAId],
+        ]);
+
+        $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-branch-scope-key');
+
+        $emptyStationAId = $this->createKitchenStation([
+            'branch_id' => $branchAId,
+            'code' => 'EMPTY-A',
+            'name' => 'Empty Branch A Pass',
+        ]);
+
+        $categoryId = $this->ensureMenuCategory('Kitchen Branch Scoped');
+        $itemId = $this->createMenuItem([
+            'category_id' => $categoryId,
+            'code' => 'KDS-BRANCH-SCOPE',
+            'name' => 'Branch Scoped Bowl',
+        ]);
+        $stationBId = $this->createKitchenStation([
+            'branch_id' => $branchBId,
+            'code' => 'HOT-BR-B',
+            'name' => 'Hot Branch B Pass',
+        ]);
+        $routeBId = $this->createKitchenStationRoute([
+            'station_id' => $stationBId,
+            'branch_id' => $branchBId,
+            'category_id' => $categoryId,
+        ]);
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $reservationBId = $this->createReservation([
+            'branch_id' => $branchBId,
+            'user_id' => $customerId,
+            'status' => 'Reserved',
+        ]);
+        $orderBId = $this->createOrder([
+            'reservation_id' => $reservationBId,
+            'status' => 'Active',
+        ]);
+        $orderItemBId = $this->createOrderItem([
+            'order_id' => $orderBId,
+            'item_id' => $itemId,
+            'status' => 'Ordered',
+        ]);
+        $ticketBId = $this->createKitchenOrderTicket([
+            'station_id' => $stationBId,
+            'route_id' => $routeBId,
+            'order_id' => $orderBId,
+            'reservation_id' => $reservationBId,
+            'order_item_id' => $orderItemBId,
+            'item_id' => $itemId,
+            'category_id' => $categoryId,
+            'ticket_status' => 'Queued',
+        ]);
+
+        $stations = $this->withHeaders($headers)->getJson('/api/v1/staff/kitchen/stations');
+
+        $stations->assertOk()
+            ->assertJsonPath('meta.count', 1)
+            ->assertJsonPath('data.0.station_id', $emptyStationAId)
+            ->assertJsonPath('data.0.branch_id', $branchAId)
+            ->assertJsonPath('data.0.ticket_counts.queued', 0);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/kitchen/stations/'.$emptyStationAId.'/tickets')
+            ->assertOk()
+            ->assertJsonPath('meta.count', 0)
+            ->assertJsonCount(0, 'data');
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/kitchen/stations/'.$stationBId.'/tickets')
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-branch-b-ticket-fire'))
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketBId.'/fire', $this->ticketActionPayload($ticketBId))
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+    }
+
     public function test_completed_ticket_cannot_be_recalled_and_order_item_state_stays_served(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-terminal-recall-key');
 
         $categoryId = $this->ensureMenuCategory('Kitchen Terminal Recall');
@@ -1208,7 +1578,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
         $ticketId = (int) $dispatch->json('data.0.ticket_id');
 
         $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-terminal-fire'))
-            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire')
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire', $this->ticketActionPayload($ticketId))
             ->assertOk()
             ->assertJsonPath('data.order_item.status', 'InProgress');
 
@@ -1225,7 +1595,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             ->assertJsonPath('meta.status', 'Served');
 
         $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-terminal-recall'))
-            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/recall')
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/recall', $this->ticketActionPayload($ticketId))
             ->assertStatus(422)
             ->assertJsonValidationErrors(['ticket_id']);
 
@@ -1292,7 +1662,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
 
     public function test_missing_kitchen_resources_return_standardized_not_found_envelope(): void
     {
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-missing-resource-key');
 
         $this->withHeaders(array_merge($headers, [
@@ -1322,7 +1692,7 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
         ]), 'idem-staff-kitchen-ticket-404');
 
         $this->withHeaders($fireHeaders)
-            ->postJson('/api/v1/staff/kitchen/tickets/999999/fire')
+            ->postJson('/api/v1/staff/kitchen/tickets/999999/fire', ['row_version' => 1])
             ->assertNotFound()
             ->assertHeader('X-Request-Id', 'req-staff-kitchen-ticket-404')
             ->assertJsonPath('error_code', 'not_found')
@@ -1332,5 +1702,64 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
     private function table(string $table)
     {
         return DB::table($table);
+    }
+
+    /**
+     * @return array{category_id:int,item_id:int,station_id:int,route_id:int,reservation_id:int,order_id:int,order_item_id:int}
+     */
+    private function createRoutedKitchenOrderScenario(string $label): array
+    {
+        $categoryId = $this->ensureMenuCategory($label);
+        $itemId = $this->createMenuItem([
+            'category_id' => $categoryId,
+            'name' => $label.' Item',
+        ]);
+        $stationId = $this->createKitchenStation([
+            'name' => $label.' Station',
+        ]);
+        $routeId = $this->createKitchenStationRoute([
+            'station_id' => $stationId,
+            'category_id' => $categoryId,
+            'sort_order' => 10,
+        ]);
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Reserved',
+        ]);
+        $orderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'status' => 'Active',
+            'row_version' => 1,
+        ]);
+        $orderItemId = $this->createOrderItem([
+            'order_id' => $orderId,
+            'item_id' => $itemId,
+            'quantity' => 1,
+            'status' => 'Ordered',
+            'row_version' => 1,
+        ]);
+
+        return [
+            'category_id' => $categoryId,
+            'item_id' => $itemId,
+            'station_id' => $stationId,
+            'route_id' => $routeId,
+            'reservation_id' => $reservationId,
+            'order_id' => $orderId,
+            'order_item_id' => $orderItemId,
+        ];
+    }
+
+    /**
+     * @return array{row_version:int}
+     */
+    private function ticketActionPayload(int $ticketId): array
+    {
+        return [
+            'row_version' => max(1, (int) ($this->table('kitchen_order_item_tickets')
+                ->where('ticket_id', $ticketId)
+                ->value('row_version') ?? 1)),
+        ];
     }
 }

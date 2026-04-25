@@ -73,6 +73,7 @@ class OpenApiSpecService
 
         $paths = [];
         $requestSchemas = [];
+        $duplicatedRequestSchemaNames = $this->duplicatedRequestSchemaNames((array) ($definition['expected_routes'] ?? []));
         $priorityOperations = $this->metadata->priorityOperations();
 
         foreach ((array) ($definition['expected_routes'] ?? []) as $routeDefinition) {
@@ -89,6 +90,7 @@ class OpenApiSpecService
                 runtimeRoute: $runtimeRoute,
                 aliasMap: $aliasMap,
                 requestSchemas: $requestSchemas,
+                duplicatedRequestSchemaNames: $duplicatedRequestSchemaNames,
                 metadata: $priorityOperations[$method.' '.$uri] ?? [],
             );
 
@@ -172,17 +174,26 @@ class OpenApiSpecService
      * @param  array<string,mixed>  $routeDefinition
      * @param  array<string,string>  $aliasMap
      * @param  array<string,array<string,mixed>>  $requestSchemas
+     * @param  array<string,bool>  $duplicatedRequestSchemaNames
      * @param  array<string,mixed>  $metadata
      * @return array<string,mixed>
      */
-    private function buildOperation(array $routeDefinition, IlluminateRoute $runtimeRoute, array $aliasMap, array &$requestSchemas, array $metadata): array
-    {
+    private function buildOperation(
+        array $routeDefinition,
+        IlluminateRoute $runtimeRoute,
+        array $aliasMap,
+        array &$requestSchemas,
+        array $duplicatedRequestSchemaNames,
+        array $metadata
+    ): array {
         $method = strtoupper((string) ($routeDefinition['method'] ?? 'GET'));
         $uri = (string) ($routeDefinition['uri'] ?? '');
         $action = (string) ($routeDefinition['action'] ?? $runtimeRoute->getActionName());
         $middleware = array_values(array_map('strval', $runtimeRoute->gatherMiddleware()));
         $reflection = $this->reflectAction($action);
         $requestClass = $reflection['form_request'] ?? null;
+
+        $operationId = (string) ($routeDefinition['key'] ?? Str::slug($method.' '.$uri, '_'));
 
         $parameters = array_merge(
             $this->pathParameters($uri, $reflection['path_parameter_types'] ?? []),
@@ -193,8 +204,9 @@ class OpenApiSpecService
             $this->idempotencyParameters($middleware),
         );
 
-        $isDeprecated = isset($aliasMap['/'.ltrim($uri, '/')]);
-        $canonicalRoute = $isDeprecated ? $aliasMap['/'.ltrim($uri, '/')] : null;
+        $isAliasDeprecated = isset($aliasMap['/'.ltrim($uri, '/')]);
+        $isDeprecated = $isAliasDeprecated || (bool) ($metadata['deprecated'] ?? false);
+        $canonicalRoute = $isAliasDeprecated ? $aliasMap['/'.ltrim($uri, '/')] : null;
         $description = (string) ($metadata['description'] ?? 'Runtime route mirrored from Laravel route inventory.');
 
         if ($isDeprecated && $canonicalRoute !== null) {
@@ -202,7 +214,7 @@ class OpenApiSpecService
         }
 
         $operation = [
-            'operationId' => (string) ($routeDefinition['key'] ?? Str::slug($method.' '.$uri, '_')),
+            'operationId' => $operationId,
             'summary' => (string) ($metadata['summary'] ?? $this->defaultSummary($method, $uri)),
             'description' => $description,
             'tags' => (array) ($metadata['tags'] ?? [$this->defaultTag($uri)]),
@@ -222,7 +234,11 @@ class OpenApiSpecService
         }
 
         if ($requestClass !== null && ! in_array($method, ['GET', 'DELETE'], true) && ! isset($metadata['request_body'])) {
-            $requestInfo = $this->describeRequestClass($requestClass, $requestSchemas);
+            $requestInfo = $this->describeRequestClass(
+                $requestClass,
+                $requestSchemas,
+                $duplicatedRequestSchemaNames,
+            );
             $content = [
                 'application/json' => [
                     'schema' => ['$ref' => '#/components/schemas/'.$requestInfo['schema_name']],
@@ -307,12 +323,64 @@ class OpenApiSpecService
      *   request_example:array<string,mixed>|null
      * }
      */
-    private function describeRequestClass(string $requestClass, array &$requestSchemas): array
+    private function describeRequestClass(string $requestClass, array &$requestSchemas, array $duplicatedRequestSchemaNames = []): array
     {
         $requestInfo = $this->formRequestSchemas->describe($requestClass);
+        if (($duplicatedRequestSchemaNames[$requestInfo['schema_name']] ?? false) === true) {
+            $requestInfo['schema_name'] = $this->disambiguatedRequestSchemaName($requestClass, $requestInfo['schema_name']);
+        }
+
         $requestSchemas[$requestInfo['schema_name']] = $requestInfo['schema'];
 
         return $requestInfo;
+    }
+
+    /**
+     * @param  array<int,array<string,mixed>>  $routeDefinitions
+     * @return array<string,bool>
+     */
+    private function duplicatedRequestSchemaNames(array $routeDefinitions): array
+    {
+        $counts = [];
+
+        foreach ($routeDefinitions as $routeDefinition) {
+            $method = strtoupper((string) ($routeDefinition['method'] ?? 'GET'));
+            $uri = (string) ($routeDefinition['uri'] ?? '');
+            $runtimeRoute = $this->findRoute($method, $uri);
+            if (! $runtimeRoute instanceof IlluminateRoute) {
+                continue;
+            }
+
+            $reflection = $this->reflectAction((string) ($routeDefinition['action'] ?? $runtimeRoute->getActionName()));
+            $requestClass = $reflection['form_request'] ?? null;
+            if ($requestClass === null || in_array($method, ['GET', 'DELETE'], true)) {
+                continue;
+            }
+
+            $schemaName = $this->formRequestSchemas->describe($requestClass)['schema_name'];
+            $counts[$schemaName] = ($counts[$schemaName] ?? 0) + 1;
+        }
+
+        return array_fill_keys(
+            array_keys(array_filter($counts, static fn (int $count): bool => $count > 1)),
+            true,
+        );
+    }
+
+    private function disambiguatedRequestSchemaName(string $requestClass, string $baseName): string
+    {
+        $parts = explode('\\', trim($requestClass, '\\'));
+        $requestIndex = array_search('Requests', $parts, true);
+        $context = $requestIndex !== false && isset($parts[$requestIndex + 1])
+            ? (string) $parts[$requestIndex + 1]
+            : '';
+
+        $context = Str::studly($context);
+        if ($context === '' || str_starts_with($baseName, $context)) {
+            return $baseName;
+        }
+
+        return $context.$baseName;
     }
 
     /**
@@ -412,6 +480,13 @@ class OpenApiSpecService
             return [];
         }
 
+        if ($this->containsMiddleware($middleware, 'StaffRefreshSessionMiddleware')) {
+            return [
+                ['StaffBrowserRefreshCookie' => [], 'StaffBrowserCsrfToken' => []],
+                ['StaffApiKey' => []],
+            ];
+        }
+
         if ($this->containsMiddleware($middleware, 'StaffApiKeyMiddleware')) {
             return [['StaffApiKey' => []]];
         }
@@ -434,6 +509,10 @@ class OpenApiSpecService
     {
         if (str_starts_with($uri, 'api/v1/payments/providers/') || str_starts_with($uri, 'api/v1/health')) {
             return 'public';
+        }
+
+        if ($this->containsMiddleware($middleware, 'StaffRefreshSessionMiddleware')) {
+            return 'staff_browser_refresh_cookie';
         }
 
         if ($this->containsMiddleware($middleware, 'StaffApiKeyMiddleware')) {
@@ -584,6 +663,18 @@ class OpenApiSpecService
                 'in' => 'header',
                 'name' => 'X-Staff-Key',
                 'description' => 'Opaque staff API key used for staff and admin operational endpoints.',
+            ],
+            'StaffBrowserRefreshCookie' => [
+                'type' => 'apiKey',
+                'in' => 'cookie',
+                'name' => (string) config('staff_auth.browser_session.refresh_cookie_name', 'staff_web_refresh'),
+                'description' => 'HttpOnly staff-web browser refresh cookie used by staff refresh/logout when the refresh-cookie rollout is enabled.',
+            ],
+            'StaffBrowserCsrfToken' => [
+                'type' => 'apiKey',
+                'in' => 'header',
+                'name' => (string) config('staff_auth.browser_session.csrf_header', 'X-Staff-CSRF'),
+                'description' => 'Double-submit CSRF token required with the staff browser refresh cookie on staff refresh/logout.',
             ],
         ];
     }

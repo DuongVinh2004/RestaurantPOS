@@ -153,7 +153,7 @@ class UatScenarioPackConsoleCommandTest extends TestCase
 
         $branchId = (int) data_get($manifest, 'branch.branch_id');
         $steakItemId = (int) data_get($manifest, 'menu.items.steak.item_id');
-        $businessDate = now('UTC')->addDay()->toDateString();
+        $businessDate = now('UTC')->addDays(30)->toDateString();
         $ingredientId = $this->createIngredient();
         $unitCode = (string) (DB::table('ingredients')->where('ingredient_id', $ingredientId)->value('unit_code') ?? 'unit');
         $externalOrderItemId = $this->createOrderItem([

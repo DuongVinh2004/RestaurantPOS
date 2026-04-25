@@ -2,7 +2,9 @@
 
 This frontend is now intentionally narrowed around one usable operational chain:
 
-`login -> table board -> reservation handling -> walk-in / assign table -> active order -> dispatch to kitchen -> kitchen ticket handling -> checkout / settlement / refund`
+`login -> table board -> reservation handling -> walk-in / assign table -> active order -> checkout / settlement / refund`
+
+Kitchen/KDS, conversation inbox, and inventory uplift can remain mounted or contract-visible, but they are not part of the day-1 launch promise.
 
 The app uses:
 
@@ -26,20 +28,23 @@ These files define the shared UI direction for the active app shell and shared p
 
 ## Current scope
 
-The shell and route tree only expose the core staff flow:
+Day-1 ON:
 
 - `Login`
 - `Table Board`
 - `Reservations`
-- `Waiting List`
+- `Waiting List` for manual operator notify, seat, and cancel only
 - `Active Order`
+- `Checkout + Refund`
+- `Cashier Shift`
+- `Finance Review`
+
+Mounted or contract-visible, but not day-1 launch-promised:
+
 - `Kitchen` (`/kitchen` landing, `/kitchen/board` ticket queue)
 - `Admin Home`
 - `Admin Settings`
 - `Admin Inventory`
-- `Checkout + Refund`
-- `Cashier Shift`
-- `Finance Review`
 - `Conversation Inbox`
 - `Audit Trail`
 - `Reporting`
@@ -80,8 +85,10 @@ The FE does **not** fake completeness where backend contracts are still thin.
 
 - Order line item update/status routes exist, but `GET /api/v1/staff/orders/{order_id}` does not expose per-item `row_version`.
 - Because of that, the order workspace keeps line-level edit/status explicitly blocked for now.
-- Add-item, dispatch, settlement, and reservation-linked refund still run live.
+- Add-item, settlement, and reservation-linked refund still run live.
+- Kitchen routing and ticket surfaces can still be mounted, but day-1 launch posture keeps kitchen dispatch mutations behind the backend holdback.
 - Waiting list create/advance/cancel routes are wired live through the local `staff-api` adapter because the generated TypeScript SDK does not currently expose those endpoints.
+- Customer waiting-list remains off on day 1; staff waiting-list is the manual operator path only.
 - Waiting-list notify prefers board-driven table selection when `table.board.view` is granted; otherwise the UI falls back to explicit `table_id` entry instead of pretending the board data exists.
 - Checkout finalize is still intentionally blocked whenever startup readiness says an active cashier shift is required and the session has not refreshed into that state yet.
 - Refund is mounted at `/ops/refunds` and reuses the checkout domain flow instead of branching into a separate mixed shell.
@@ -142,10 +149,10 @@ npx vitest run src/shared/auth/capabilities.test.ts src/app/router/journey.test.
 
 ## Next recommended module after this batch
 
-Once this chain is stable, the next highest-value follow-up is:
+Once the day-1 chain is stable, the next highest-value follow-up is:
 
 1. cashier shift -> checkout handoff polish and reconciliation detail
 2. order line-item edit/status after backend exposes per-item `row_version`
-3. conversation inbox
-4. audit
-5. reporting
+3. kitchen/KDS promotion after rollout evidence exists
+4. conversation inbox
+5. audit and reporting

@@ -158,7 +158,8 @@ Current scope:
 
 - generated from the frozen OpenAPI artifact
 - typed request/response aliases for the curated route set
-- auth-aware request helper for customer token, staff API key, and customer session id
+- auth-aware request helper for customer token, staff API key, customer session id, and staff browser refresh-cookie CSRF
+- staff refresh/logout request options support `credentials: 'include'` and `staffCsrfToken` for the opt-in staff-web refresh-cookie rollout
 - session-aware customer routes keep `X-Customer-Token` and `X-Session-Id` together when both are configured, so browser clients do not silently lose session correlation after login
 - staff auth session typing now includes the Batch 1 startup surface on `login`, `auth/staff/me`, and `auth/staff/refresh`:
   - `data.startup.default_branch`
@@ -275,7 +276,7 @@ If `--strict-generated` fails on a dirty development worktree, confirm the gener
 
 For the full release chain ending in an immutable package, use `php artisan booking:release-build` or `composer release:package`.
 
-For the full backend + `staff-web` release candidate loop, use `php artisan booking:release-loop` or `composer release:loop`. That loop keeps contract artifacts, backend harnesses, `staff-web` test/build, preview metadata, live smoke, and launch-readiness evidence in one report bundle.
+For the full backend + split-web release candidate loop, use `php artisan booking:release-loop` or `composer release:loop`. That loop keeps contract artifacts, backend harnesses, `staff-web` test/build/live smoke, `customer-web` contract/lint/typecheck/test/build/browser smoke, preview metadata, and launch-readiness evidence in one report bundle.
 
 Canonical release loop example:
 
@@ -324,7 +325,7 @@ The backend CORS contract is intentionally narrow:
 |---|---|
 | Paths | `api/*` only |
 | Allowed methods | `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS` |
-| Credentials mode | `supports_credentials=false` |
+| Credentials mode | `supports_credentials=false` by default; staff refresh-cookie rollout may enable it only for exact allowlisted origins |
 | Exposed response headers | `X-Request-Id` |
 | Wildcard origins | Not used; list exact origins in `CORS_ALLOWED_ORIGINS` |
 
@@ -336,6 +337,7 @@ FE apps can send these custom headers without triggering a blocked preflight:
 |---|---|
 | `X-Customer-Token` | Customer authentication |
 | `X-Staff-Key` | Staff API key authentication |
+| `X-Staff-CSRF` | Staff browser refresh-cookie CSRF guard |
 | `X-Session-Id` | Session correlation (holds, reservations) |
 | `Idempotency-Key` | Idempotent mutation guard (canonical) |
 | `X-Idempotency-Key` | Idempotent mutation guard (alias) |
@@ -375,7 +377,7 @@ Do not hand-edit files under `build/api-consumer`, `storage/app/booking_release`
 
 ### Credentials mode
 
-The API uses **header-based auth** (not cookies), so FE `fetch` calls should **not** set `credentials: 'include'`. The backend's `supports_credentials` is `false`.
+The default API uses **header-based auth** (not cookies), so FE `fetch` calls should **not** set `credentials: 'include'`. The backend's default `supports_credentials` is `false`.
 
 ```typescript
 // Correct
@@ -386,6 +388,8 @@ fetch(`${API_BASE}/tables/available?branch_id=1`, {
 // Incorrect - do not use credentials mode
 fetch(url, { credentials: 'include' }); // not needed, would fail
 ```
+
+Exception: the staff-web refresh-cookie rollout may set `credentials: 'include'` only for `/auth/staff/login`, `/auth/staff/refresh`, and `/auth/staff/logout`. That rollout requires exact `CORS_ALLOWED_ORIGINS`, `CORS_SUPPORTS_CREDENTIALS=true`, `STAFF_AUTH_BROWSER_SESSION_COOKIE_ENABLED=true`, CSRF header `X-Staff-CSRF`, and no wildcard origins or origin patterns.
 
 ## Current limitations
 

@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "./auth-provider";
 
 const mocks = vi.hoisted(() => ({
   bootstrapCustomerSession: vi.fn(),
+  getCustomerAuthRuntimeBlock: vi.fn(),
   logoutCustomer: vi.fn(),
   push: vi.fn(),
 }));
@@ -20,6 +21,10 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/features/auth/api", () => ({
   bootstrapCustomerSession: mocks.bootstrapCustomerSession,
   logoutCustomer: mocks.logoutCustomer,
+}));
+
+vi.mock("@/lib/auth/runtime-block", () => ({
+  getCustomerAuthRuntimeBlock: mocks.getCustomerAuthRuntimeBlock,
 }));
 
 function AuthProbe() {
@@ -67,6 +72,8 @@ describe("AuthProvider", () => {
     window.localStorage.clear();
     window.sessionStorage.clear();
     mocks.bootstrapCustomerSession.mockReset();
+    mocks.getCustomerAuthRuntimeBlock.mockReset();
+    mocks.getCustomerAuthRuntimeBlock.mockReturnValue(null);
     mocks.logoutCustomer.mockReset();
     mocks.push.mockReset();
   });
@@ -266,5 +273,39 @@ describe("AuthProvider", () => {
       expect(getCustomerSessionId()).toBeNull();
     });
     expect(mocks.push).toHaveBeenCalledWith("/login");
+  });
+
+  it("fails closed before bootstrap when the runtime points at a local API host from a non-local app host", async () => {
+    storeCustomerAuthSession({
+      data: {
+        auth_mode: "customer_access_session",
+        token_type: "opaque",
+        auth_header: "X-Customer-Token",
+        access_token: "token-runtime-blocked",
+        access_session_id: 97,
+        session_id: "session-runtime-blocked",
+        expires_at_utc: "2030-04-18T00:00:00Z",
+        user: { user_id: 97, full_name: "Runtime Blocked Customer" },
+      },
+    });
+
+    mocks.getCustomerAuthRuntimeBlock.mockReturnValue({
+      kind: "backend_unavailable",
+      restoreKind: "backend_unavailable",
+      status: null,
+      message:
+        "This app is running on uat.customer-web.example, but NEXT_PUBLIC_API_BASE_URL still points to http://127.0.0.1:8000. Update the customer-web runtime configuration to the correct API host and reload the page.",
+      errorCode: "api_base_url_misconfigured",
+      categoryCode: "api_base_url_misconfigured",
+      requestId: null,
+      validationErrors: null,
+    });
+
+    renderProvider();
+
+    expect(await screen.findByText("error:backend_unavailable")).toBeInTheDocument();
+    expect(mocks.bootstrapCustomerSession).not.toHaveBeenCalled();
+    expect(getCustomerToken()).toBe("token-runtime-blocked");
+    expect(getCustomerSessionId()).toBe("session-runtime-blocked");
   });
 });

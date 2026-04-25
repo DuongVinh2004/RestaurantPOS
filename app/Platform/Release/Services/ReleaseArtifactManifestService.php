@@ -419,11 +419,69 @@ class ReleaseArtifactManifestService
 
         $absolutePath = base_path($relativePath);
         File::ensureDirectoryExists(dirname($absolutePath));
-        // Keep the frozen snapshot file timestamp aligned with the last explicit refresh.
-        // Package integrity and packaging flows treat that timestamp as release truth.
-        File::put($absolutePath, json_encode($snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
+        $contents = json_encode($snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL;
+
+        if (File::exists($absolutePath)) {
+            $existing = (string) File::get($absolutePath);
+            if ($existing === $contents) {
+                return $snapshot;
+            }
+
+            $decoded = json_decode($existing, true);
+            if (
+                is_array($decoded)
+                && $this->normalizeSnapshotForComparison($decoded) === $this->normalizeSnapshotForComparison($snapshot)
+            ) {
+                if ($this->freshnessMetadataChanged($decoded, $snapshot)) {
+                    File::put($absolutePath, $contents);
+
+                    return $snapshot;
+                }
+
+                return $decoded;
+            }
+        }
+
+        // Keep the frozen snapshot file timestamp aligned with meaningful refreshes, not cosmetic metadata churn.
+        File::put($absolutePath, $contents);
 
         return $snapshot;
+    }
+
+    /**
+     * @param  array<string, mixed>  $existing
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function freshnessMetadataChanged(array $existing, array $snapshot): bool
+    {
+        $trackedArtifactKeys = [];
+
+        foreach ((array) config('booking_release.artifact_freshness', []) as $artifactKey => $dependencyKeys) {
+            if (is_scalar($artifactKey) && trim((string) $artifactKey) !== '') {
+                $trackedArtifactKeys[trim((string) $artifactKey)] = true;
+            }
+
+            foreach ((array) $dependencyKeys as $dependencyKey) {
+                if (is_scalar($dependencyKey) && trim((string) $dependencyKey) !== '') {
+                    $trackedArtifactKeys[trim((string) $dependencyKey)] = true;
+                }
+            }
+        }
+
+        foreach (array_keys($trackedArtifactKeys) as $artifactKey) {
+            $existingModifiedEpoch = data_get($existing, 'artifacts.'.$artifactKey.'.modified_epoch');
+            $currentModifiedEpoch = data_get($snapshot, 'artifacts.'.$artifactKey.'.modified_epoch');
+
+            if ($existingModifiedEpoch === null || $currentModifiedEpoch === null) {
+                continue;
+            }
+
+            if ((int) $existingModifiedEpoch !== (int) $currentModifiedEpoch) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\ResolveCustomerAuthMiddleware;
 use App\Http\Middleware\StaffApiKeyMiddleware;
+use App\Http\Middleware\StaffRefreshSessionMiddleware;
 use App\Modules\IdentityAccess\Http\Controllers\Customer\AuthController as CustomerAuthController;
 use App\Modules\IdentityAccess\Http\Controllers\Staff\AuthController as StaffAuthController;
 use Illuminate\Support\Facades\Route;
@@ -30,6 +31,9 @@ Route::prefix('auth')->group(function () {
 
         Route::middleware([StaffApiKeyMiddleware::class])->group(function () {
             Route::get('me', [StaffAuthController::class, 'me']);
+        });
+
+        Route::middleware([StaffRefreshSessionMiddleware::class])->group(function () {
             Route::post('refresh', [StaffAuthController::class, 'refresh']);
             Route::post('logout', [StaffAuthController::class, 'logout']);
         });

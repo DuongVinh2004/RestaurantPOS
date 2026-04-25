@@ -5,7 +5,7 @@ import type {
   CustomerWaitingListCollectionEnvelope,
   CustomerWaitingListEntry,
   CustomerWaitingListEnvelope,
-  RespondOwnerWaitingListRequest,
+  CustomerRespondWaitlistInviteRequest,
 } from "@/lib/contracts/generated/restaurantpos-sdk";
 import type { WaitingListCreateValues } from "./schemas";
 
@@ -31,7 +31,7 @@ export function createWaitingListEntry(values: WaitingListCreateValues): Promise
   );
 }
 
-export function acceptWaitingListEntry(id: number, body: RespondOwnerWaitingListRequest): Promise<WaitingListMutationResult> {
+export function acceptWaitingListEntry(id: number, body: CustomerRespondWaitlistInviteRequest): Promise<WaitingListMutationResult> {
   return apiCall((client) =>
     client.postV1WaitingListIdAccept({ id }, body, waitingListOwnerMutationOptions("waiting-list-accept")),
   ).then(waitingListMutationResult);
@@ -39,20 +39,20 @@ export function acceptWaitingListEntry(id: number, body: RespondOwnerWaitingList
 
 export function confirmWaitingListArrival(
   id: number,
-  body: RespondOwnerWaitingListRequest,
+  body: CustomerRespondWaitlistInviteRequest,
 ): Promise<WaitingListMutationResult> {
   return apiCall((client) =>
     client.postV1WaitingListIdConfirmArrival({ id }, body, waitingListOwnerMutationOptions("waiting-list-arrival")),
   ).then(waitingListMutationResult);
 }
 
-export function declineWaitingListEntry(id: number, body: RespondOwnerWaitingListRequest): Promise<WaitingListMutationResult> {
+export function declineWaitingListEntry(id: number, body: CustomerRespondWaitlistInviteRequest): Promise<WaitingListMutationResult> {
   return apiCall((client) =>
     client.postV1WaitingListIdDecline({ id }, body, waitingListOwnerMutationOptions("waiting-list-decline")),
   ).then(waitingListMutationResult);
 }
 
-export function cancelWaitingListEntry(id: number, body: RespondOwnerWaitingListRequest): Promise<WaitingListMutationResult> {
+export function cancelWaitingListEntry(id: number, body: CustomerRespondWaitlistInviteRequest): Promise<WaitingListMutationResult> {
   return apiCall((client) =>
     client.postV1WaitingListIdCancel({ id }, body, waitingListOwnerMutationOptions("waiting-list-cancel")),
   ).then(waitingListMutationResult);
