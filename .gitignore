@@ -56,6 +56,7 @@ Thumbs.db
 /storage/redis
 /test-logs
 /tmp/phar-debug
+/tmp/
 
 # Local scratch files
 *.pyc

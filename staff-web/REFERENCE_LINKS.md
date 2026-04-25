@@ -6,8 +6,12 @@ Selected style inspirations:
 - IBM
 - Sentry
 
-Local traceability files in the imported bundle:
-- tmp/codex_design_bundle/references/original-repo/design-md/linear.app/README.md
-- tmp/codex_design_bundle/references/original-repo/design-md/airtable/README.md
-- tmp/codex_design_bundle/references/original-repo/design-md/ibm/README.md
-- tmp/codex_design_bundle/references/original-repo/design-md/sentry/README.md
+Reference links:
+- https://linear.app/
+- https://airtable.com/
+- https://carbondesignsystem.com/
+- https://sentry.io/
+
+Repository source of truth:
+- `staff-web/DESIGN.md`
+- `staff-web/UI_SCOPE.md`
