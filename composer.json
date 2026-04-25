@@ -1,6 +1,6 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "duongvinh2004/restaurantpos",
     "type": "project",
     "description": "SQL-first Laravel backend for RestaurantPOS reservations, POS, checkout, inventory, and ops tooling.",
     "keywords": [
@@ -11,6 +11,13 @@
         "inventory"
     ],
     "license": "MIT",
+    "homepage": "https://github.com/DuongVinh2004/RestaurantPOS",
+    "support": {
+        "issues": "https://github.com/DuongVinh2004/RestaurantPOS/issues",
+        "source": "https://github.com/DuongVinh2004/RestaurantPOS",
+        "docs": "https://github.com/DuongVinh2004/RestaurantPOS/tree/main/docs/runbooks",
+        "security": "https://github.com/DuongVinh2004/RestaurantPOS/security/advisories/new"
+    },
     "require": {
         "php": "^8.2",
         "laravel/framework": "^12.0",

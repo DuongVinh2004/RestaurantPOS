@@ -1,195 +1,219 @@
-# RestaurantPOS Laravel Backend
+# RestaurantPOS
 
-SQL-first Laravel 12 backend for RestaurantPOS. This repository covers reservation and front-of-house flows, dine-in POS and order lifecycle, kitchen dispatch foundations, checkout and refunds, inventory basics, reporting, and release/ops hardening.
+[![Backend CI](https://github.com/DuongVinh2004/RestaurantPOS/actions/workflows/booking-ci.yml/badge.svg?branch=main)](https://github.com/DuongVinh2004/RestaurantPOS/actions/workflows/booking-ci.yml)
+[![Release Gate](https://github.com/DuongVinh2004/RestaurantPOS/actions/workflows/booking-release-gate.yml/badge.svg?branch=main)](https://github.com/DuongVinh2004/RestaurantPOS/actions/workflows/booking-release-gate.yml)
 
-The repo also includes:
+SQL-first RestaurantPOS monorepo built around a Laravel 12 backend, branch-aware operational workflows, and release/runtime gates that are meant to survive real deployment conditions.
 
-- `staff-web/`: React + TypeScript operator client
-- `build/api-consumer/`: generated API consumer artifacts
-- `docs/runbooks/`: operational and release runbooks
+This repository is not a demo scaffold. It owns:
 
-## Core scope
-
-- customer and staff authentication / RBAC
 - reservation, table hold, waiting-list, and service-session flows
-- dine-in ordering and kitchen handoff
-- checkout, payment webhook, refund, and cashier shift flows
-- inventory and purchasing foundations
-- reporting, release packaging, launch-readiness, and backup/restore checks
+- dine-in ordering, cashier settlement, refunds, and payment webhook handling
+- kitchen dispatch and branch routing foundations
+- inventory, purchasing, and reporting foundations
+- operator-facing `staff-web/`, customer-facing `customer-web/`, and generated API consumer artifacts
+- deploy, release, launch-readiness, DR, and runtime health contracts
 
-## Tech stack
+## Project Status
+
+The codebase is being hardened toward a production-grade RestaurantPOS backend. Some domains are fully contract-visible before they are fully launch-enabled; use feature flags, runbooks, and launch-readiness evidence instead of assuming that every exposed route is day-1 enabled.
+
+The most important repository rule is unchanged: environment provisioning is SQL-first. Do not treat `php artisan migrate` as the default bootstrap path for local, staging, or release validation.
+
+## Repository Standards
+
+- [Contributing guide](./CONTRIBUTING.md)
+- [Security policy](./SECURITY.md)
+- [PR template](./.github/PULL_REQUEST_TEMPLATE.md)
+- [Issue templates](./.github/ISSUE_TEMPLATE/)
+- [MIT license](./LICENSE)
+
+## What Is Included
+
+- `app/`: Laravel application code and domain modules
+- `routes/`: API and console route entry points
+- `database/schema/mysql-schema.sql`: canonical schema dump used for provisioning
+- `database/patches/`: ordered SQL patch inventory that completes the release contract
+- `tools/mysql/`: bootstrap, verification, and MySQL release helpers
+- `staff-web/`: operator-facing React + TypeScript client
+- `customer-web/`: customer-facing web client
+- `build/api-consumer/`: generated SDK, Postman, enum state, and mutation contract artifacts
+- `docs/runbooks/`: operator and release documentation
+- `docs/architecture/`: module ownership, structure, and decomposition references
+- `storage/app/booking_release/`: release evidence and manifest snapshots
+
+## Core Capabilities
+
+- Auth / RBAC for staff, customer access sessions, and web auth session hardening
+- Front-of-house reservations, board views, branch scope, check-in, move-table, and release flows
+- Dine-in ordering, active-order read models, and kitchen dispatch foundations
+- Checkout, deposit capture, bill self-pay support, refunds, invoices, cashier shifts, and reconciliation
+- Waiting-list orchestration and customer response flows
+- Inventory, purchasing, supplier receiving, and reporting read models
+- Release packaging, launch-readiness checks, doctor/outbox health, and DR verification
+
+## Stack
 
 - PHP 8.2
 - Laravel 12
 - MySQL 8
 - Redis
+- Node.js / npm
 - Vite + Tailwind CSS
-- `staff-web/` with React, TypeScript, and Vite
+- React + TypeScript in `staff-web/` and `customer-web/`
 
-## Repository layout
+## Architecture References
 
-- `app/`: backend application code
-- `database/schema/mysql-schema.sql`: canonical schema dump
-- `database/patches/`: required SQL patch inventory
-- `tools/mysql/`: bootstrap, verify, backup, and restore helpers
-- `build/api-consumer/`: frozen/generated API consumer artifacts
-- `storage/app/booking_release/`: tracked release-contract snapshots
-- `staff-web/`: staff-facing web client
-- `docs/runbooks/`: setup, deployment, DR, and launch-readiness guides
+- [Refactored app structure guide](./docs/architecture/refactored-app-structure-guide.md)
+- [Module ownership map](./docs/architecture/module-ownership-map.md)
+- [Module dependency rules](./docs/architecture/module-dependency-rules.md)
+- [API contract runbook](./docs/runbooks/booking-api-contract.md)
+- [Launch readiness runbook](./docs/runbooks/booking-launch-readiness.md)
 
-## Bootstrap contract
+## Bootstrap Contract
 
-This project is not migration-first for environment provisioning.
-
-Canonical bootstrap uses:
+Canonical provisioning uses this sequence:
 
 1. `database/schema/mysql-schema.sql`
 2. `database/patches/*.sql`
-3. `tools/mysql/bootstrap_release.*`
+3. `tools/mysql/bootstrap_release.php` or `composer bootstrap:booking`
 
-Do not treat `php artisan migrate` as the primary path for local, staging, or release validation.
+`composer bootstrap:booking` imports the schema, applies every required patch, seeds reference data, refreshes release artifacts, rebuilds reporting snapshots, and primes the scheduler heartbeat once so runtime gates can run immediately.
 
-## Runtime prerequisites
+If you change schema-sensitive behavior, keep these files aligned:
 
-- PHP 8.2 with standard Laravel extensions, including `mbstring`, `openssl`, `pdo_mysql`, `fileinfo`, `tokenizer`, `xml`, and `ctype`
-- MySQL 8 compatible server and the `mysql` CLI in `PATH`
-- Redis plus the PHP Redis extension when `REQUIRE_REDIS_FOR_BOOKING_API=true`
+- `database/schema/mysql-schema.sql`
+- `database/patches/*.sql`
+- `db_all.sql`
+
+## Prerequisites
+
+- PHP 8.2 with common Laravel extensions, including `mbstring`, `openssl`, `pdo_mysql`, `fileinfo`, `tokenizer`, `xml`, and `ctype`
+- MySQL 8 compatible server plus the `mysql` CLI in `PATH`
+- Redis and the PHP Redis extension when `REQUIRE_REDIS_FOR_BOOKING_API=true`
 - Composer 2
-- Node.js / npm for frontend assets
+- Node.js and npm
 
-## Quick start
+## Quick Start
 
-1. Copy the environment file and configure MySQL / Redis values.
+1. Copy the environment file and configure MySQL and Redis values.
    - Windows: `copy .env.example .env`
    - macOS / Linux: `cp .env.example .env`
 2. Install backend dependencies.
    - `composer install`
-3. Generate the app key if `.env` does not already contain one.
+3. Generate the application key if `.env` does not already contain one.
    - `php artisan key:generate --ansi --force`
 4. Run the SQL-first bootstrap flow.
    - `composer bootstrap:booking`
-5. Install and build root frontend assets when needed.
+5. Build root frontend assets when needed.
    - `npm install`
    - `npm run build`
-6. If you are working on the staff client, bootstrap it separately.
-   - `cd staff-web`
-   - `npm install`
-   - `npm run build`
+6. Build the web clients you are actively changing.
+   - `cd staff-web && npm install && npm run build`
+   - `cd customer-web && npm install && npm run build`
 
-`composer setup` wraps the backend bootstrap plus the root frontend asset build.
+`composer setup` wraps backend install/bootstrap plus the root frontend build. It is useful for a first machine bootstrap, but release validation should still use the SQL-first contract explicitly.
 
-For a Windows `cmd.exe` daily-use runbook inside VSCode, see `docs/runbooks/booking-local-windows-vscode-cmd-runbook.md`.
+## Local Development
 
-For the Windows local daily runtime lane, use:
+For a runtime-like local lane:
 
-- `npm run runtime:up` to ensure repo-local MySQL, Redis, backend HTTP, and `schedule:work` are running and to prime the scheduler heartbeat once
-- `npm run runtime:down` to stop the same repo-local runtime processes
-- `npm run runtime:preflight` when you want the full doctor/outbox readiness gate after startup
+- `npm run runtime:up`
+- `npm run runtime:preflight`
+- `npm run runtime:down`
 
-For the simple dev lane:
+This path brings up repo-local MySQL, Redis, backend HTTP, and scheduler work, then validates the runtime lane with doctor and related health checks.
 
-- `npm run dev:be` ensures repo-local Redis, runs `composer bootstrap:booking`, refreshes the local UAT login/demo pack, and starts `php artisan serve --host=127.0.0.1 --port=8000`
-- `npm run dev:all` runs backend, `customer-web`, and `staff-web` together on `127.0.0.1:8000`, `127.0.0.1:3000`, and `127.0.0.1:5173`
+For faster UI-focused iteration:
 
-The simple dev lane is for UI and fixture-driven iteration. It does not replace `npm run runtime:up` plus `npm run runtime:preflight` when scheduler heartbeat, outbox drain, or `booking:doctor` evidence matters.
+- `npm run dev:be`
+- `npm run dev:all`
+- `npm run dev:smoke`
 
-The simple dev lane writes fresh demo credentials to `storage/app/uat/scenario-pack.json`. Use `uat.customer.primary` or `uat.staff` with password `UatDemo!123` after startup. If you intentionally want backend bootstrap without the demo login pack, run `npm run dev:be -- -SkipUatPack`.
-If you intentionally want to use an already-managed Redis instance and skip the repo-local Redis helper, run `npm run dev:be -- -SkipRedis`.
+The simple dev lane is convenient for browser iteration, but it does not replace the runtime lane when scheduler heartbeat freshness, outbox health, Redis, or release evidence matters.
 
-## What `composer bootstrap:booking` does
+The dev bootstrap refreshes demo credentials into `storage/app/uat/scenario-pack.json`. See [local login accounts](./docs/runbooks/local-login-accounts.md) and [UAT scenario pack](./docs/runbooks/uat-demo-scenario-pack.md) for the expected accounts and seeded flows.
 
-- imports `database/schema/mysql-schema.sql`
-- applies every patch in `database/patches/*.sql`
-- seeds `ReferenceDataSeeder`
-- clears Laravel caches
-- runs `booking:bootstrap-site`
-- rebuilds reporting snapshots
-- normalizes release artifacts
-- refreshes the release manifest snapshot
-- primes the scheduler heartbeat once for immediate runtime verification
+For Windows `cmd.exe` usage in VSCode, use [booking-local-windows-vscode-cmd-runbook.md](./docs/runbooks/booking-local-windows-vscode-cmd-runbook.md).
 
 ## Verification
 
-For repo handoff or snapshot triage, verify package shape before spending time on builds or smoke:
-
-- `npm run verify:package`
-- `node scripts/release/check-package-integrity.mjs --json`
-- `cd staff-web && npm run integrity:check`
-
-The package-integrity gate reports three explicit buckets:
-
-- `required to run`
-- `required for build/test/smoke`
-- `useful for handover`
-
-Missing items in the first two buckets block the command. Missing handover-only items return `decision=warn` so reviewers can fix setup or contract notes without mistaking them for runtime blockers.
-
-Canonical local FE-facing artifacts for this snapshot are:
-
-- `build/api-consumer/sdk/typescript/restaurantpos-sdk.ts`
-- `build/api-consumer/sdk/typescript/restaurantpos-enums.ts`
-- `build/api-consumer/mutation-contracts.md`
-- `storage/app/booking_release/openapi-v1.json`
-- `storage/app/booking_release/release_manifest_snapshot.json`
-
-When validating `staff-web`, remember that `npm run smoke:live` is read-only by default. Order create, kitchen dispatch, settlement finalize, refund execute, and cashier open/close remain mutation-gated until the corresponding `STAFF_WEB_SMOKE_ALLOW_*` flags are enabled or the manifest-backed gate explicitly allows them.
-
-Start with the changed-file selector instead of jumping straight to the full suite:
+Start with the selector instead of jumping straight to the full suite:
 
 - `composer verify:select -- --path=app/Services/Staff/StaffCheckoutService.php`
 - `php artisan booking:verify-select --base=origin/main --json`
 
-The selector escalates automatically when a change touches shared seams, SQL/bootstrap artifacts, route or API contract surface, auth boundaries, finance flows, feature flags, or release/runtime wiring.
+Typical verification layers:
 
-Representative outcomes:
+- formatting: `vendor/bin/pint --test`
+- static analysis: `vendor/bin/phpstan analyse --memory-limit=1G --no-progress`
+- targeted tests: `php artisan test ...`
+- full automated suite: `php artisan test`
+- runtime and release gates:
+  - `php artisan booking:doctor --json`
+  - `php artisan notifications:outbox-health --json`
+  - `php artisan booking:deploy-check --mode=preflight`
+  - `php artisan booking:release-manifest --json`
+  - `php artisan booking:launch-readiness --target=staging --json`
 
-- checkout/payment change: targeted checkout/payment tests plus `booking:round5-gate --json`
-- route or request/resource change: API artifact regeneration plus `booking:route-gate --json`
-- schema or CI/release contract change: console/infrastructure tests plus `booking:doctor --json`, `booking:deploy-check --mode=preflight`, and `booking:release-manifest --json`
-- docs-only change: review the docs manually instead of defaulting to the full test suite
+If MySQL, Redis, scheduler heartbeat, or backend HTTP are unavailable, treat those failures as runtime blockers, not as false positives.
 
-Core release and runtime checks after bootstrap:
+## CI And Release
 
-- `php artisan notifications:outbox-health --json`
-- `php artisan booking:launch-readiness --target=staging --json`
-- `php artisan booking:dr-drill --mode=metadata-verify --json`
-- `php artisan booking:release-manifest --json`
-- `php artisan booking:deploy-check --mode=preflight`
-- `php artisan booking:doctor --json`
-- `php artisan test`
+This repository already carries two important GitHub workflows:
 
-If MySQL, Redis, scheduler heartbeat, or backend HTTP are unavailable, treat the resulting failures as runtime blockers rather than false positives.
+- `booking-backend-ci`: fast contracts, smoke, and full-gate CI lanes
+- `booking-release-gate`: release evidence and packaging gate
 
-## Split frontend delivery
+Release and operator documentation lives in:
 
-For separate `customer-web` and `staff-web` deployments:
+- [CI/CD runbook](./docs/runbooks/booking-ci-cd-runbook.md)
+- [Release packaging runbook](./docs/runbooks/booking-release-packaging-runbook.md)
+- [Deploy runbook](./docs/runbooks/booking-deploy-runbook.md)
+- [Performance verification](./docs/runbooks/booking-performance-verification.md)
+- [Backup and restore](./docs/runbooks/booking-backup-restore-runbook.md)
+- [Disaster recovery drill](./docs/runbooks/booking-disaster-recovery-drill.md)
 
-- set `CORS_ALLOWED_ORIGINS` on the backend to the exact frontend origins allowed to call `/api/*`
-- point `customer-web` at the backend origin only, for example `http://127.0.0.1:8000`
-- point `staff-web` at its existing API base URL, for example `http://127.0.0.1:8000/api/v1`
-- keep auth header-based (`X-Customer-Token`, `X-Staff-Key`, `X-Session-Id`) instead of cookie credential mode
+## Generated Artifacts
 
-Treat an exact origin as `scheme://host:port` with no path or trailing slash. `http://localhost:3000` and `http://127.0.0.1:3000` are different origins and both must be listed if both are used.
+Frontend and external consumers should rely on the generated contract artifacts instead of reverse-engineering routes by hand.
 
-The canonical artifact and CORS runbook is `docs/runbooks/api-consumer-artifacts.md`.
+Key artifacts:
 
-## Important runbooks
+- `build/api-consumer/sdk/typescript/restaurantpos-sdk.ts`
+- `build/api-consumer/sdk/typescript/restaurantpos-enums.ts`
+- `build/api-consumer/mutation-contracts.md`
+- `build/api-consumer/postman/`
+- `storage/app/booking_release/openapi-v1.json`
+- `storage/app/booking_release/release_manifest_snapshot.json`
 
-- `docs/runbooks/booking-launch-readiness.md`
-- `docs/runbooks/booking-performance-verification.md`
-- `docs/runbooks/booking-disaster-recovery-drill.md`
-- `docs/runbooks/booking-release-packaging-runbook.md`
-- `docs/runbooks/booking-ci-cd-runbook.md`
-- `docs/runbooks/booking-backup-restore-runbook.md`
+See [api-consumer-artifacts.md](./docs/runbooks/api-consumer-artifacts.md) for regeneration and delivery rules.
 
-## Environment notes
+## Split Frontend Delivery
 
-- `.env.example` uses file-backed cache/session storage and sync queues because the SQL-first bootstrap does not provision Laravel's optional cache/session/job tables.
-- Staging and production-like environments should set a dedicated `CUSTOMER_AUTH_JWT_SECRET` instead of relying on `APP_KEY`.
-- If you enable `REQUIRE_REDIS_FOR_BOOKING_API=true`, full booking flows expect Redis to be reachable.
-- Long-lived environments still need `php artisan schedule:work` or another scheduler runner so `booking:doctor` stays green.
-- Schema changes must be reflected in `database/schema/mysql-schema.sql`, `database/patches/*.sql`, and `db_all.sql` when the full dump is part of the release artifact set.
+When `customer-web` and `staff-web` are deployed separately:
+
+- set `CORS_ALLOWED_ORIGINS` to exact frontend origins
+- point `customer-web` to the backend origin, for example `http://127.0.0.1:8000`
+- point `staff-web` to the API base URL, for example `http://127.0.0.1:8000/api/v1`
+- keep auth header-based with `X-Customer-Token`, `X-Staff-Key`, and `X-Session-Id`
+
+Exact origin means `scheme://host:port` with no path and no trailing slash.
+
+## Contribution Workflow
+
+Use the repository standards before opening a PR:
+
+1. Read [CONTRIBUTING.md](./CONTRIBUTING.md).
+2. Keep changes aligned with the SQL-first bootstrap and release contract.
+3. Run the smallest verification set that proves the change.
+4. Update docs or runbooks when operator behavior changes.
+5. Fill the existing PR template with intent, changed files, verification, tests, and remaining risks.
+
+## Security
+
+Please do not open public issues for exploitable vulnerabilities. Use [SECURITY.md](./SECURITY.md) and GitHub Security Advisories for responsible reporting.
 
 ## License
 
-This repository currently declares `MIT` in `composer.json`, and the top-level `LICENSE` file matches that declaration.
+This repository is licensed under MIT. See [LICENSE](./LICENSE).
