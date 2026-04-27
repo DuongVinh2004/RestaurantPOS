@@ -117,7 +117,6 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
             'bank_name' => 'ACB',
             'account_holder_name' => 'Privacy Guest',
             'is_default' => 1,
-            'default_user_id' => $customerId,
             'created_at' => $this->nowUtc(),
         ]);
 
@@ -242,7 +241,7 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
 
         DB::table('user_auth_tokens')->insert([
             'user_id' => $customerId,
-            'purpose' => 'MagicLink',
+            'purpose' => 'VerifyEmail',
             'channel' => 'Email',
             'recipient' => 'admin-export@example.test',
             'token_hash' => hash('sha256', 'admin-export-token'),
@@ -446,7 +445,6 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
             'bank_name' => 'VCB',
             'account_holder_name' => 'Delete Me',
             'is_default' => 1,
-            'default_user_id' => $customerId,
             'created_at' => $this->nowUtc(),
         ]);
 

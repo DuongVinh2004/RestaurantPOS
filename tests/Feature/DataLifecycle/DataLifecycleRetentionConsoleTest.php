@@ -29,6 +29,7 @@ final class DataLifecycleRetentionConsoleTest extends TestCase
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $old = $this->nowUtc()->copy()->subDays(120);
+        $oldCreatedAt = $old->copy()->subDays(2);
         $recent = $this->nowUtc()->copy()->subDays(2);
 
         DB::table('customer_access_sessions')->insert([
@@ -45,7 +46,7 @@ final class DataLifecycleRetentionConsoleTest extends TestCase
             'created_ip' => null,
             'user_agent' => 'PHPUnit',
             'row_version' => 1,
-            'created_at' => $old,
+            'created_at' => $oldCreatedAt,
             'updated_at' => $old,
         ]);
 
@@ -62,7 +63,7 @@ final class DataLifecycleRetentionConsoleTest extends TestCase
             'used_at' => $old,
             'created_ip' => null,
             'user_agent' => 'PHPUnit',
-            'created_at' => $old,
+            'created_at' => $oldCreatedAt,
         ]);
 
         $outboxId = (int) DB::table('notification_outbox')->insertGetId([
