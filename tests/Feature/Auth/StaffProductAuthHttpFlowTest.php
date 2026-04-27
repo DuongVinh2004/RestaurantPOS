@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature\Auth;
 
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Routing\Middleware\ThrottleRequestsWithRedis;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -28,6 +30,10 @@ class StaffProductAuthHttpFlowTest extends TestCase
         config()->set('staff_auth.session_ttl_minutes', 30);
         config()->set('staff_auth.login_throttle_limit', 120);
         config()->set('staff_auth.login_throttle_window_seconds', 60);
+        $this->withoutMiddleware([
+            ThrottleRequests::class,
+            ThrottleRequestsWithRedis::class,
+        ]);
 
         DB::purge('sqlite');
         DB::reconnect('sqlite');
