@@ -225,7 +225,7 @@ final class BranchSchedulingPolicyServiceTest extends TestCase
     {
         $branchId = $this->createBranch([
             'branch_code' => 'BSP-CFG1',
-            'timezone' => null,
+            'timezone' => 'Invalid/Timezone',
             'business_hours' => null,
             'booking_policy' => null,
         ]);
@@ -237,7 +237,7 @@ final class BranchSchedulingPolicyServiceTest extends TestCase
         $readiness = $service->schedulingReadiness($branchId, false);
 
         self::assertFalse($readiness['bookable']);
-        self::assertContains('branch_timezone_missing', $readiness['reasons']);
+        self::assertContains('branch_timezone_invalid', $readiness['reasons']);
         self::assertNotContains('business_hours_missing', $readiness['reasons']);
         self::assertNotContains('booking_policy_missing', $readiness['reasons']);
 

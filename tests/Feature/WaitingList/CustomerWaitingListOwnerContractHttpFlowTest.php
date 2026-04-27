@@ -499,11 +499,13 @@ class CustomerWaitingListOwnerContractHttpFlowTest extends TestCase
         ]);
         $ownerHeaders = $this->customerAuthHeaders($ownerId, 'sess-owner-contract-expired-access');
         $token = (string) ($ownerHeaders['X-Customer-Token'] ?? '');
+        $expiredAt = Carbon::now('UTC')->subMinute();
 
         DB::table('customer_access_sessions')
             ->where('token_hash', hash('sha256', $token))
             ->update([
-                'expires_at' => Carbon::now('UTC')->subMinute(),
+                'created_at' => $expiredAt->copy()->subHour(),
+                'expires_at' => $expiredAt,
                 'updated_at' => Carbon::now('UTC'),
             ]);
 

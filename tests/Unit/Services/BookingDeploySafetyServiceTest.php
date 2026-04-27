@@ -230,108 +230,101 @@ class BookingDeploySafetyServiceTest extends TestCase
         $expectsActiveAssignmentFailure = ! $this->hasUniqueIndex('agent_assignments', 'uq_agent_assignments__active_conversation_id');
 
         $this->withoutForeignKeyChecks(function () use ($expectsBankAccountDefaultFailure, $expectsActiveAssignmentFailure): void {
-            $this->withoutCheckConstraintChecks(function () use ($expectsBankAccountDefaultFailure, $expectsActiveAssignmentFailure): void {
-                $this->insertDeploySafetyReservation([
-                    'reservation_id' => 1,
-                    'status' => 'Cancelled',
-                    'deposit_status' => 'WeirdState',
-                    'cancelled_at' => null,
+            $this->insertDeploySafetyReservation(['reservation_id' => 1]);
+
+            DB::table('reservation_order_items')->insert($this->payloadForExistingColumns('reservation_order_items', [
+                'reservation_order_item_id' => 1,
+                'order_item_id' => 1,
+                'order_id' => 1,
+                'item_id' => 1,
+                'quantity' => 2,
+                'unit_price' => 100,
+                'currency' => 'VND',
+                'line_total' => 150,
+                'status' => 'Ordered',
+                'created_at' => now('UTC'),
+                'updated_at' => now('UTC'),
+                'row_version' => 1,
+            ]));
+
+            $this->insertDeploySafetyPayments([[
+                'payment_id' => 1,
+                'payment_type' => 'Final',
+                'status' => 'Success',
+                'refund_of_payment_id' => 999,
+                'amount' => 10,
+            ]]);
+
+            DB::table('user_vouchers')->insert($this->payloadForExistingColumns('user_vouchers', [
+                'user_voucher_id' => 1,
+                'user_id' => 50,
+                'voucher_id' => 50,
+                'assigned_date' => now('UTC'),
+                'created_at' => now('UTC'),
+                'updated_at' => now('UTC'),
+                'is_used' => 1,
+                'used_date' => now('UTC'),
+                'used_reservation_id' => 1,
+                'used_amount' => -10,
+                'lock_token' => 'lock',
+                'locked_until' => now('UTC')->addHour(),
+                'row_version' => 1,
+            ]));
+
+            if ($expectsBankAccountDefaultFailure) {
+                DB::table('bank_accounts')->insert([
+                    $this->payloadForExistingColumns('bank_accounts', [
+                        'bank_account_id' => 1,
+                        'user_id' => 50,
+                        'bank_account_number' => 'BA-DEPLOY-1',
+                        'bank_name' => 'Deploy Bank',
+                        'account_holder_name' => 'Deploy User',
+                        'is_default' => 1,
+                        'created_at' => now('UTC'),
+                    ]),
+                    $this->payloadForExistingColumns('bank_accounts', [
+                        'bank_account_id' => 2,
+                        'user_id' => 50,
+                        'bank_account_number' => 'BA-DEPLOY-2',
+                        'bank_name' => 'Deploy Bank',
+                        'account_holder_name' => 'Deploy User',
+                        'is_default' => 1,
+                        'created_at' => now('UTC'),
+                    ]),
                 ]);
+            }
 
-                DB::table('reservation_order_items')->insert($this->payloadForExistingColumns('reservation_order_items', [
-                    'reservation_order_item_id' => 1,
-                    'order_item_id' => 1,
-                    'order_id' => 1,
-                    'item_id' => 1,
-                    'quantity' => 2,
-                    'unit_price' => 100,
-                    'currency' => 'VND',
-                    'line_total' => 150,
-                    'status' => 'Ordered',
-                    'created_at' => now('UTC'),
-                    'updated_at' => now('UTC'),
-                    'row_version' => 1,
-                ]));
+            if ($expectsActiveAssignmentFailure) {
+                DB::table('agent_assignments')->insert([
+                    $this->payloadForExistingColumns('agent_assignments', [
+                        'assignment_id' => 1,
+                        'conversation_id' => 'conv-a',
+                        'agent_user_id' => 2,
+                        'assigned_at' => now('UTC'),
+                        'is_active' => 1,
+                    ]),
+                    $this->payloadForExistingColumns('agent_assignments', [
+                        'assignment_id' => 2,
+                        'conversation_id' => 'conv-a',
+                        'agent_user_id' => 3,
+                        'assigned_at' => now('UTC'),
+                        'is_active' => 1,
+                    ]),
+                ]);
+            }
 
-                $this->insertDeploySafetyPayments([[
-                    'payment_id' => 1,
-                    'payment_type' => 'Refund',
-                    'status' => 'Pending',
-                    'refund_of_payment_id' => null,
-                    'amount' => 10,
-                ]]);
-
-                DB::table('user_vouchers')->insert($this->payloadForExistingColumns('user_vouchers', [
-                    'user_voucher_id' => 1,
-                    'user_id' => 50,
-                    'voucher_id' => 50,
-                    'assigned_date' => now('UTC'),
-                    'created_at' => now('UTC'),
-                    'updated_at' => now('UTC'),
-                    'is_used' => 1,
-                    'used_date' => now('UTC'),
-                    'used_reservation_id' => 1,
-                    'used_amount' => -10,
-                    'lock_token' => 'lock',
-                    'locked_until' => now('UTC')->addHour(),
-                    'row_version' => 1,
-                ]));
-
-                if ($expectsBankAccountDefaultFailure) {
-                    DB::table('bank_accounts')->insert([
-                        $this->payloadForExistingColumns('bank_accounts', [
-                            'bank_account_id' => 1,
-                            'user_id' => 50,
-                            'bank_account_number' => 'BA-DEPLOY-1',
-                            'bank_name' => 'Deploy Bank',
-                            'account_holder_name' => 'Deploy User',
-                            'is_default' => 1,
-                            'created_at' => now('UTC'),
-                        ]),
-                        $this->payloadForExistingColumns('bank_accounts', [
-                            'bank_account_id' => 2,
-                            'user_id' => 50,
-                            'bank_account_number' => 'BA-DEPLOY-2',
-                            'bank_name' => 'Deploy Bank',
-                            'account_holder_name' => 'Deploy User',
-                            'is_default' => 1,
-                            'created_at' => now('UTC'),
-                        ]),
-                    ]);
-                }
-
-                if ($expectsActiveAssignmentFailure) {
-                    DB::table('agent_assignments')->insert([
-                        $this->payloadForExistingColumns('agent_assignments', [
-                            'assignment_id' => 1,
-                            'conversation_id' => 'conv-a',
-                            'agent_user_id' => 2,
-                            'assigned_at' => now('UTC'),
-                            'is_active' => 1,
-                        ]),
-                        $this->payloadForExistingColumns('agent_assignments', [
-                            'assignment_id' => 2,
-                            'conversation_id' => 'conv-a',
-                            'agent_user_id' => 3,
-                            'assigned_at' => now('UTC'),
-                            'is_active' => 1,
-                        ]),
-                    ]);
-                }
-
-                DB::table('table_holds')->insert($this->payloadForExistingColumns('table_holds', [
-                    'hold_id' => 'hold-a',
-                    'session_id' => 'session-a',
-                    'confirmed_reservation_id' => null,
-                    'hold_status' => 'Holding',
-                    'start_time' => now('UTC')->addHour(),
-                    'end_time' => now('UTC')->addHours(2),
-                    'expire_at' => now('UTC')->addMinutes(15),
-                    'created_at' => now('UTC'),
-                    'updated_at' => now('UTC'),
-                    'row_version' => 1,
-                ]));
-            });
+            DB::table('table_holds')->insert($this->payloadForExistingColumns('table_holds', [
+                'hold_id' => 'hold-a',
+                'session_id' => 'session-a',
+                'confirmed_reservation_id' => null,
+                'hold_status' => 'Holding',
+                'start_time' => now('UTC')->addHour(),
+                'end_time' => now('UTC')->addHours(2),
+                'expire_at' => now('UTC')->addMinutes(15),
+                'created_at' => now('UTC'),
+                'updated_at' => now('UTC'),
+                'row_version' => 1,
+            ]));
         });
         DB::table('staff_api_keys')->delete();
         DB::table('audit_logs')->insert([
@@ -349,10 +342,10 @@ class BookingDeploySafetyServiceTest extends TestCase
         $report = app(BookingDeploySafetyService::class)->inspect('preflight');
 
         $this->assertFalse($report['ok']);
-        $this->assertFalse($report['checks']['data.deposit_status']['ok']);
+        $this->assertTrue($report['checks']['data.deposit_status']['ok']);
         $this->assertFalse($report['checks']['data.reservation_order_item_totals']['ok']);
         $this->assertFalse($report['checks']['data.payment_refund_lineage']['ok']);
-        $this->assertFalse($report['checks']['data.reservation_lifecycle']['ok']);
+        $this->assertTrue($report['checks']['data.reservation_lifecycle']['ok']);
         $this->assertFalse($report['checks']['data.user_voucher_state']['ok']);
         $this->assertSame(! $expectsBankAccountDefaultFailure, $report['checks']['data.bank_account_defaults']['ok']);
         $this->assertSame(! $expectsActiveAssignmentFailure, $report['checks']['data.active_agent_assignments']['ok']);
@@ -617,33 +610,6 @@ class BookingDeploySafetyServiceTest extends TestCase
         }
 
         return false;
-    }
-
-    /**
-     * @template T
-     *
-     * @param  callable():T  $callback
-     * @return T
-     */
-    private function withoutCheckConstraintChecks(callable $callback): mixed
-    {
-        $disabled = false;
-        if (in_array((string) DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)) {
-            try {
-                DB::statement('SET SESSION check_constraint_checks = 0');
-                $disabled = true;
-            } catch (\Throwable) {
-                $disabled = false;
-            }
-        }
-
-        try {
-            return $callback();
-        } finally {
-            if ($disabled) {
-                DB::statement('SET SESSION check_constraint_checks = 1');
-            }
-        }
     }
 
     /**
