@@ -136,11 +136,33 @@ jobs:
           mysql -h 127.0.0.1 -P 3306 -uroot -proot -e "SET GLOBAL log_bin_trust_function_creators = 1;"
           mysql -h 127.0.0.1 -P 3306 -uroot -proot -e "SHOW VARIABLES LIKE 'log_bin_trust_function_creators';"
 
+      - name: Wait for Redis
+        run: |
+          php -r '
+          $host = getenv("REDIS_HOST") ?: "127.0.0.1";
+          $port = (int) (getenv("REDIS_PORT") ?: 6379);
+          for ($i = 0; $i < 30; $i++) {
+              try {
+                  $redis = new Redis();
+                  if (@$redis->connect($host, $port, 1.0) && $redis->ping()) {
+                      exit(0);
+                  }
+              } catch (Throwable) {
+                  // Retry until the service container is reachable from the runner.
+              }
+              sleep(2);
+          }
+          fwrite(STDERR, "Redis service did not become ready in time.\n");
+          exit(1);
+          '
+
       - name: Validate repository prerequisites
         run: bash scripts/ci/booking-repo-prereq-check.sh
 
       - name: Bootstrap CI environment
-        run: bash scripts/ci/booking-ci-bootstrap.sh
+        run: |
+          set -o pipefail
+          bash scripts/ci/booking-ci-bootstrap.sh 2>&1 | tee build/booking-ci/bootstrap.log
 
       - name: Run ${{ matrix.lane.name }}
         run: ${{ matrix.lane.command }}
