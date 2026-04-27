@@ -27,7 +27,7 @@ final class BranchSchedulingPolicyServiceTest extends TestCase
     public function test_reservation_window_uses_branch_timezone_business_hours_and_closure_windows(): void
     {
         $branchId = $this->createBranch([
-            'branch_code' => 'SGN',
+            'branch_code' => 'BSP-SGN',
             'timezone' => 'Asia/Ho_Chi_Minh',
             'business_hours' => $this->dailyBusinessHours('10:00', '22:00'),
             'closure_windows' => [
@@ -83,7 +83,7 @@ final class BranchSchedulingPolicyServiceTest extends TestCase
     public function test_reservation_window_applies_lead_cutoff_and_max_advance_in_branch_timezone(): void
     {
         $branchId = $this->createBranch([
-            'branch_code' => 'NYC',
+            'branch_code' => 'BSP-NYC',
             'timezone' => 'America/New_York',
             'business_hours' => $this->dailyBusinessHours('00:00', '24:00'),
             'booking_policy' => [
@@ -151,7 +151,7 @@ final class BranchSchedulingPolicyServiceTest extends TestCase
         $service = app(BranchSchedulingPolicyService::class);
 
         $disabledBranchId = $this->createBranch([
-            'branch_code' => 'OFF',
+            'branch_code' => 'BSP-OFF',
             'timezone' => 'UTC',
             'business_hours' => $this->dailyBusinessHours('00:00', '24:00'),
             'booking_policy' => [
@@ -169,7 +169,7 @@ final class BranchSchedulingPolicyServiceTest extends TestCase
         }
 
         $openWindowBranchId = $this->createBranch([
-            'branch_code' => 'DAY',
+            'branch_code' => 'BSP-DAY',
             'timezone' => 'Asia/Ho_Chi_Minh',
             'business_hours' => $this->dailyBusinessHours('10:00', '20:00'),
             'closure_windows' => [
@@ -200,7 +200,7 @@ final class BranchSchedulingPolicyServiceTest extends TestCase
     public function test_null_branch_policy_payloads_fall_back_to_defaults_for_readiness(): void
     {
         $branchId = $this->createBranch([
-            'branch_code' => 'CFG0',
+            'branch_code' => 'BSP-CFG0',
             'timezone' => 'UTC',
             'business_hours' => null,
             'booking_policy' => null,
@@ -224,7 +224,7 @@ final class BranchSchedulingPolicyServiceTest extends TestCase
     public function test_incomplete_branch_scheduling_is_not_bookable_for_availability_waiting_list_and_service_sessions(): void
     {
         $branchId = $this->createBranch([
-            'branch_code' => 'CFG1',
+            'branch_code' => 'BSP-CFG1',
             'timezone' => null,
             'business_hours' => null,
             'booking_policy' => null,
@@ -267,7 +267,7 @@ final class BranchSchedulingPolicyServiceTest extends TestCase
         }
 
         $emptyHoursBranchId = $this->createBranch([
-            'branch_code' => 'CFG2',
+            'branch_code' => 'BSP-CFG2',
             'timezone' => 'UTC',
             'business_hours' => [],
             'booking_policy' => null,

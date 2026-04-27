@@ -38,17 +38,22 @@ class AdminFinanceTaxInvoiceFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('data.effective_profile.tax_code', 'VAT10')
             ->assertJsonPath('data.effective_profile.prices_include_tax', true);
 
+        $createPayload = [
+            'tax_code' => 'VAT08',
+            'tax_name' => 'VAT 8%',
+            'tax_rate_percentage' => 8,
+            'prices_include_tax' => true,
+            'invoice_prefix' => 'HDDT',
+            'seller_name' => 'Restaurant POS Test',
+            'seller_tax_id' => '0301234567',
+            'seller_address' => '123 Nguyen Hue',
+        ];
+        if ($show->json('data.updated_at') !== null) {
+            $createPayload['expected_updated_at'] = (string) $show->json('data.updated_at');
+        }
+
         $create = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-finance-profile-upsert-a'))
-            ->postJson('/api/v1/admin/settings/finance/tax-profile', [
-                'tax_code' => 'VAT08',
-                'tax_name' => 'VAT 8%',
-                'tax_rate_percentage' => 8,
-                'prices_include_tax' => true,
-                'invoice_prefix' => 'HDDT',
-                'seller_name' => 'Restaurant POS Test',
-                'seller_tax_id' => '0301234567',
-                'seller_address' => '123 Nguyen Hue',
-            ]);
+            ->postJson('/api/v1/admin/settings/finance/tax-profile', $createPayload);
 
         $create->assertOk()
             ->assertJsonPath('meta.action', 'admin_finance_tax_profile_upserted')

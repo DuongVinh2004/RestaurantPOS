@@ -310,7 +310,7 @@ final class LoyaltySyncServicesTest extends TestCase
         $this->createPayment([
             'reservation_id' => $reservationId,
             'payment_type' => 'Refund',
-            'status' => 'Success',
+            'status' => 'Refunded',
             'amount' => '20000.00',
             'currency' => 'VND',
             'refund_of_payment_id' => $depositPaymentId,

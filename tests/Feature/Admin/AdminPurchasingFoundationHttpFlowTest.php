@@ -1016,16 +1016,17 @@ class AdminPurchasingFoundationHttpFlowTest extends TestCase
         $receiptLineId = (int) $receiptResponse->json('data.lines.0.receipt_line_id');
         $stockMovementId = (int) $receiptResponse->json('data.lines.0.stock_movement_id');
 
-        DB::table('ingredient_stock_movements')
-            ->where('movement_id', $stockMovementId)
-            ->delete();
+        DB::table('purchase_receipt_lines')
+            ->where('receipt_line_id', $receiptLineId)
+            ->update(['stock_movement_id' => null]);
 
         $report = app(PurchaseOrderReconciliationService::class)->report($purchaseOrderId);
 
         $this->assertSame(1, (int) $report['issue_count']);
         $this->assertSame(1, (int) $report['movement_issue_count']);
         $this->assertSame('receipt_line_stock_movement_missing', data_get($report, 'issues.0.type'));
-        $this->assertSame($stockMovementId, (int) DB::table('purchase_receipt_lines')->where('receipt_line_id', $receiptLineId)->value('stock_movement_id'));
+        $this->assertNull(DB::table('purchase_receipt_lines')->where('receipt_line_id', $receiptLineId)->value('stock_movement_id'));
+        $this->assertDatabaseHas('ingredient_stock_movements', ['movement_id' => $stockMovementId]);
     }
 
     public function test_missing_supplier_and_purchase_order_return_standardized_not_found_envelope(): void
