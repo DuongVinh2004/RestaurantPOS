@@ -105,7 +105,11 @@ class PaymentWebhookIngestionWorkflow
 
             return $result;
         } catch (ValidationException $exception) {
-            $result = $this->failReceipt($storedReceipt, $this->firstValidationMessage($exception));
+            $result = $this->failReceipt(
+                $storedReceipt,
+                $this->firstValidationMessage($exception),
+                $this->webhookFailureResponseContext($event),
+            );
 
             if ($isDuplicateDelivery) {
                 $result['duplicate'] = true;
@@ -128,7 +132,7 @@ class PaymentWebhookIngestionWorkflow
             $receipt->provider_code = $providerCode;
             $receipt->provider_event_code = (string) $event['provider_event_code'];
             $receipt->provider_session_code = (string) $event['provider_session_code'];
-            $receipt->payment_scope = is_string($event['payment_scope'] ?? null) ? (string) $event['payment_scope'] : null;
+            $receipt->payment_scope = $this->paymentScopeForStorage($event['payment_scope'] ?? null);
             $receipt->event_type = (string) ($event['event_type'] ?? 'payment.session.updated');
             $receipt->delivery_status = PaymentProviderWebhookReceiptStatus::Received;
             $receipt->request_signature = PaymentProviderPayloadSanitizer::signatureDigest($event['request_signature'] ?? null);
@@ -175,7 +179,7 @@ class PaymentWebhookIngestionWorkflow
             $messages[] = 'Webhook provider_event_code is already bound to a different provider_session_code.';
         }
 
-        $incomingScope = $this->normalizeNullableString($event['payment_scope'] ?? null);
+        $incomingScope = $this->paymentScopeForStorage($event['payment_scope'] ?? null);
         $storedScope = $this->normalizeNullableString($receipt->payment_scope);
         if ($storedScope !== $incomingScope) {
             $messages[] = 'Webhook provider_event_code is already bound to a different payment_scope.';
@@ -505,6 +509,27 @@ class PaymentWebhookIngestionWorkflow
     private function resolveScope(string $providerCode, string $providerSessionCode, mixed $declaredScope): PaymentSessionScope
     {
         return $this->sessionScopeGuard->resolveVerifiedScope($providerCode, $providerSessionCode, $declaredScope);
+    }
+
+    private function paymentScopeForStorage(mixed $value): ?string
+    {
+        $normalized = $this->normalizeNullableString($value);
+        if ($normalized === null) {
+            return null;
+        }
+
+        return PaymentSessionScope::tryFrom($normalized)?->value;
+    }
+
+    /**
+     * @param  array<string,mixed>  $event
+     * @return array<string,mixed>
+     */
+    private function webhookFailureResponseContext(array $event): array
+    {
+        $declaredScope = $this->normalizeNullableString($event['payment_scope'] ?? null);
+
+        return $declaredScope !== null ? ['payment_scope' => $declaredScope] : [];
     }
 
     /**

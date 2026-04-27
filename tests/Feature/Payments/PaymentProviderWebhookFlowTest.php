@@ -753,6 +753,11 @@ class PaymentProviderWebhookFlowTest extends TestCase
                 ->where('provider_event_code', 'evt-invalid-scope-1')
                 ->value('delivery_status')
         );
+        self::assertNull(
+            DB::table('payment_provider_webhook_receipts')
+                ->where('provider_event_code', 'evt-invalid-scope-1')
+                ->value('payment_scope')
+        );
     }
 
     public function test_webhook_with_declared_scope_that_does_not_match_stored_session_fails_cleanly(): void

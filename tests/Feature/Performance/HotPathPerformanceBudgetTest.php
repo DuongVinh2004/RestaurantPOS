@@ -320,9 +320,10 @@ class HotPathPerformanceBudgetTest extends TestCase
     private function seedBoardCandidateScenario(): void
     {
         $now = Carbon::now('UTC')->startOfMinute();
+        $tableIds = [];
 
         for ($index = 1; $index <= 12; $index++) {
-            $this->createRestaurantTableWithSeats(4 + ($index % 4), [
+            $tableIds[$index] = $this->createRestaurantTableWithSeats(4 + ($index % 4), [
                 'table_code' => sprintf('PF-%02d', $index),
                 'zone' => $index <= 10 ? 'Main' : 'Patio',
                 'status' => 'Available',
@@ -340,7 +341,7 @@ class HotPathPerformanceBudgetTest extends TestCase
         }
 
         for ($index = 1; $index <= 3; $index++) {
-            $tableId = (int) $index;
+            $tableId = (int) $tableIds[$index];
             $reservationId = $this->createReservation([
                 'reservation_code' => sprintf('PF-AS-%02d', $index),
                 'status' => 'Confirmed',
@@ -356,7 +357,7 @@ class HotPathPerformanceBudgetTest extends TestCase
             'end_time' => $now->copy()->addMinutes(80),
             'expire_at' => $now->copy()->addMinutes(90),
             'hold_status' => 'Holding',
-        ], [4, 5]);
+        ], [(int) $tableIds[4], (int) $tableIds[5]]);
     }
 
     private function seedWaitingListQueueScenario(): void
