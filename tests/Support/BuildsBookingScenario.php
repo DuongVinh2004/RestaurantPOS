@@ -3172,13 +3172,67 @@ SQL);
         DB::table('table_holds')->insert($payload);
 
         foreach ($tableIds ?: [$this->createRestaurantTable()] as $tableId) {
+            try {
+                DB::table('table_hold_details')->insert([
+                    'hold_id' => $holdId,
+                    'table_id' => $tableId,
+                ]);
+            } catch (\Throwable $exception) {
+                if (! str_contains((string) $exception->getMessage(), 'table_hold_details overlap conflict with active reservation')) {
+                    throw $exception;
+                }
+
+                $this->forceAttachTableHoldDetailForReadModel($holdId, (int) $tableId, $start, $end);
+            }
+        }
+
+        return $holdId;
+    }
+
+    protected function forceAttachTableHoldDetailForReadModel(string $holdId, int $tableId, Carbon $start, Carbon $end): void
+    {
+        $hold = DB::table('table_holds')
+            ->where('hold_id', $holdId)
+            ->first(['hold_id', 'confirmed_reservation_id']);
+
+        if ($hold === null) {
+            throw new \RuntimeException('Table hold not found for forceAttachTableHoldDetailForReadModel.');
+        }
+
+        $conflictingReservationId = DB::table('reservation_tables as rt')
+            ->join('reservations as r', 'r.reservation_id', '=', 'rt.reservation_id')
+            ->where('rt.table_id', $tableId)
+            ->whereIn('r.status', ['Confirmed', 'Reserved'])
+            ->where('r.start_time', '<', $end)
+            ->where('r.end_time', '>', $start)
+            ->orderBy('r.reservation_id')
+            ->value('r.reservation_id');
+
+        if ($conflictingReservationId === null) {
+            throw new \RuntimeException('No active reservation conflict found for forceAttachTableHoldDetailForReadModel.');
+        }
+
+        $now = $this->nowUtc();
+        DB::table('table_holds')
+            ->where('hold_id', $holdId)
+            ->update([
+                'confirmed_reservation_id' => (int) $conflictingReservationId,
+                'updated_at' => $now,
+            ]);
+
+        try {
             DB::table('table_hold_details')->insert([
                 'hold_id' => $holdId,
                 'table_id' => $tableId,
             ]);
+        } finally {
+            DB::table('table_holds')
+                ->where('hold_id', $holdId)
+                ->update([
+                    'confirmed_reservation_id' => $hold->confirmed_reservation_id,
+                    'updated_at' => $now,
+                ]);
         }
-
-        return $holdId;
     }
 
     /**

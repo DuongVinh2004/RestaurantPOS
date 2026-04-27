@@ -255,6 +255,32 @@ class ReservationService
                 $reservation->created_by = $actorUserId;
                 $reservation->updated_by = $actorUserId;
                 $reservation->save();
+
+                if (is_string($holdId) && $holdId !== '' && is_string($sessionId) && $sessionId !== '') {
+                    $hold = TableHold::query()
+                        ->whereKey($holdId)
+                        ->where('session_id', $sessionId)
+                        ->where('branch_id', $tableBranchId)
+                        ->whereIn('hold_status', [TableHoldStatus::Holding->value, TableHoldStatus::Pending->value])
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (! $hold instanceof TableHold) {
+                        throw ValidationException::withMessages([
+                            'hold_id' => ['Hold đã thay đổi trạng thái trong lúc tạo reservation. Hãy reload rồi thử lại.'],
+                        ]);
+                    }
+
+                    $hold->branch_id = $tableBranchId;
+                    $hold->hold_status = TableHoldStatus::Confirmed;
+                    $hold->confirmed_reservation_id = (int) $reservation->reservation_id;
+                    $hold->user_id = $userId;
+                    $hold->expire_at = $now;
+                    $hold->updated_at = $now;
+                    $hold->updated_by = $actorUserId;
+                    $hold->save();
+                }
+
                 $reservation->tables()->attach($tableIds);
 
                 $preOrderItems = $payload['pre_order_items'] ?? null;
@@ -299,31 +325,6 @@ class ReservationService
                         $item->updated_by = $actorUserId;
                         $item->save();
                     }
-                }
-
-                if (is_string($holdId) && $holdId !== '' && is_string($sessionId) && $sessionId !== '') {
-                    $hold = TableHold::query()
-                        ->whereKey($holdId)
-                        ->where('session_id', $sessionId)
-                        ->where('branch_id', $tableBranchId)
-                        ->whereIn('hold_status', [TableHoldStatus::Holding->value, TableHoldStatus::Pending->value])
-                        ->lockForUpdate()
-                        ->first();
-
-                    if (! $hold instanceof TableHold) {
-                        throw ValidationException::withMessages([
-                            'hold_id' => ['Hold đã thay đổi trạng thái trong lúc tạo reservation. Hãy reload rồi thử lại.'],
-                        ]);
-                    }
-
-                    $hold->branch_id = $tableBranchId;
-                    $hold->hold_status = TableHoldStatus::Confirmed;
-                    $hold->confirmed_reservation_id = (int) $reservation->reservation_id;
-                    $hold->user_id = $userId;
-                    $hold->expire_at = $now;
-                    $hold->updated_at = $now;
-                    $hold->updated_by = $actorUserId;
-                    $hold->save();
                 }
 
                 AuditEvent::info('reservation_created', [
