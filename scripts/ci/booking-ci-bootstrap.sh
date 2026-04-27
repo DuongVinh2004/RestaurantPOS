@@ -32,7 +32,26 @@ if [[ "${BOOKING_CI_BOOTSTRAP_REPORTING:-false}" != "true" ]]; then
   bootstrap_args+=(--skip-reporting)
 fi
 
-composer bootstrap:booking -- "${bootstrap_args[@]}"
+escape_github_annotation() {
+  local data="$1"
+  data="${data//'%'/'%25'}"
+  data="${data//$'\r'/'%0D'}"
+  data="${data//$'\n'/'%0A'}"
+  printf '%s' "$data"
+}
+
+bootstrap_log="build/booking-ci/bootstrap.log"
+mkdir -p "$(dirname "$bootstrap_log")"
+
+if ! composer bootstrap:booking -- "${bootstrap_args[@]}" 2>&1 | tee "$bootstrap_log"; then
+  bootstrap_status="${PIPESTATUS[0]}"
+  bootstrap_tail="$(tail -n 40 "$bootstrap_log" 2>/dev/null || true)"
+  if [[ -n "$bootstrap_tail" && -n "${GITHUB_ACTIONS:-}" ]]; then
+    printf '::error title=Booking CI bootstrap failed::%s\n' "$(escape_github_annotation "$bootstrap_tail")"
+  fi
+
+  exit "$bootstrap_status"
+fi
 
 bootstrap_node_workspace() {
   local flag_name="$1"

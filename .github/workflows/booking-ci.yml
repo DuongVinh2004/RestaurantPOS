@@ -160,9 +160,7 @@ jobs:
         run: bash scripts/ci/booking-repo-prereq-check.sh
 
       - name: Bootstrap CI environment
-        run: |
-          set -o pipefail
-          bash scripts/ci/booking-ci-bootstrap.sh 2>&1 | tee build/booking-ci/bootstrap.log
+        run: bash scripts/ci/booking-ci-bootstrap.sh
 
       - name: Run ${{ matrix.lane.name }}
         run: ${{ matrix.lane.command }}
