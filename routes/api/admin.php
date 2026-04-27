@@ -52,7 +52,8 @@ Route::middleware([
                     Route::get('menu/categories/export', [MasterDataExportController::class, 'export'])
                         ->defaults('domain', 'menu-categories');
                     Route::post('menu/categories/import', [MasterDataImportController::class, 'import'])
-                        ->defaults('domain', 'menu-categories');
+                        ->defaults('domain', 'menu-categories')
+                        ->middleware('idempotency:admin.menu-categories.import,mode,commit');
                     Route::post('menu/categories', [MenuCategoryController::class, 'store'])
                         ->middleware('idempotency:admin.menu-categories.store');
                     Route::patch('menu/categories/{category_id}', [MenuCategoryController::class, 'update'])
@@ -62,7 +63,8 @@ Route::middleware([
                     Route::get('menu/items/export', [MasterDataExportController::class, 'export'])
                         ->defaults('domain', 'menu-items');
                     Route::post('menu/items/import', [MasterDataImportController::class, 'import'])
-                        ->defaults('domain', 'menu-items');
+                        ->defaults('domain', 'menu-items')
+                        ->middleware('idempotency:admin.menu-items.import,mode,commit');
                     Route::get('menu/items/{item_id}', [MenuItemController::class, 'show'])->whereNumber('item_id');
                     Route::post('menu/items', [MenuItemController::class, 'store'])
                         ->middleware('idempotency:admin.menu-items.store');
@@ -72,7 +74,8 @@ Route::middleware([
                     Route::get('menu/prices/export', [MasterDataExportController::class, 'export'])
                         ->defaults('domain', 'menu-prices');
                     Route::post('menu/prices/import', [MasterDataImportController::class, 'import'])
-                        ->defaults('domain', 'menu-prices');
+                        ->defaults('domain', 'menu-prices')
+                        ->middleware('idempotency:admin.prices.import,mode,commit');
                     Route::get('menu/items/{item_id}/prices', [MenuItemPriceController::class, 'index'])->whereNumber('item_id');
                     Route::get('menu/prices/{price_id}', [MenuItemPriceController::class, 'show'])->whereNumber('price_id');
                     Route::post('menu/items/{item_id}/prices', [MenuItemPriceController::class, 'store'])
@@ -88,7 +91,8 @@ Route::middleware([
                     Route::get('benefits/vouchers/export', [MasterDataExportController::class, 'export'])
                         ->defaults('domain', 'vouchers');
                     Route::post('benefits/vouchers/import', [MasterDataImportController::class, 'import'])
-                        ->defaults('domain', 'vouchers');
+                        ->defaults('domain', 'vouchers')
+                        ->middleware('idempotency:admin.master-data.import,mode,commit');
                     Route::get('benefits/vouchers/{id}', [VoucherController::class, 'show'])->whereNumber('id');
                     Route::post('benefits/vouchers', [VoucherController::class, 'store'])
                         ->middleware('idempotency:admin.benefits-vouchers.store');
@@ -99,7 +103,8 @@ Route::middleware([
                     Route::get('benefits/loyalty-tiers/export', [MasterDataExportController::class, 'export'])
                         ->defaults('domain', 'loyalty-tiers');
                     Route::post('benefits/loyalty-tiers/import', [MasterDataImportController::class, 'import'])
-                        ->defaults('domain', 'loyalty-tiers');
+                        ->defaults('domain', 'loyalty-tiers')
+                        ->middleware('idempotency:admin.master-data.import,mode,commit');
                     Route::get('benefits/loyalty-tiers/{id}', [LoyaltyTierController::class, 'show'])->whereNumber('id');
                     Route::post('benefits/loyalty-tiers', [LoyaltyTierController::class, 'store'])
                         ->middleware('idempotency:admin.loyalty-tiers.store');
@@ -116,7 +121,8 @@ Route::middleware([
                     Route::get('settings/branches/export', [MasterDataExportController::class, 'export'])
                         ->defaults('domain', 'branches');
                     Route::post('settings/branches/import', [MasterDataImportController::class, 'import'])
-                        ->defaults('domain', 'branches');
+                        ->defaults('domain', 'branches')
+                        ->middleware('idempotency:admin.branches.import,mode,commit');
                     Route::post('settings/branches', [BranchController::class, 'store'])
                         ->middleware('idempotency:admin.settings-branches.store');
                     Route::get('settings/branches/{id}', [BranchController::class, 'show'])->whereNumber('id');
@@ -146,7 +152,8 @@ Route::middleware([
                     Route::get('restaurant/tables/export', [MasterDataExportController::class, 'export'])
                         ->defaults('domain', 'restaurant-tables');
                     Route::post('restaurant/tables/import', [MasterDataImportController::class, 'import'])
-                        ->defaults('domain', 'restaurant-tables');
+                        ->defaults('domain', 'restaurant-tables')
+                        ->middleware('idempotency:admin.tables.import,mode,commit');
                     Route::post('restaurant/tables', [RestaurantTableController::class, 'store'])
                         ->middleware('idempotency:admin.restaurant-tables.store');
                     Route::get('restaurant/tables/{id}', [RestaurantTableController::class, 'show'])->whereNumber('id');

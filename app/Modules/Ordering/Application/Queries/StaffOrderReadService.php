@@ -12,6 +12,7 @@ use App\Modules\BranchScheduling\Application\Services\ReservationBranchScopeServ
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Reservations\Domain\Models\Reservation;
+use App\Support\Auth\StaffActorGuard;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Collection;
@@ -31,6 +32,8 @@ class StaffOrderReadService
 
     public function findOrder(int $orderId, ?int $staffUserId = null): ?ReservationOrder
     {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
+
         $query = $this->baseOrderQuery()
             ->where('order_id', $orderId);
 
@@ -47,6 +50,8 @@ class StaffOrderReadService
 
     public function findActiveOrderByTable(int $tableId, ?int $staffUserId = null): ?ReservationOrder
     {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
+
         $query = $this->baseOrderQuery()
             ->where('reservation_orders.status', ReservationOrderStatus::Active->value)
             ->whereExists(function ($query) use ($tableId): void {
@@ -72,6 +77,8 @@ class StaffOrderReadService
 
     public function findActiveOrderByReservation(int $reservationId, ?int $staffUserId = null): ?ReservationOrder
     {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
+
         $query = $this->baseOrderQuery()
             ->where('reservation_id', $reservationId)
             ->where('status', ReservationOrderStatus::Active->value)
@@ -94,15 +101,15 @@ class StaffOrderReadService
      */
     public function listOrdersByReservation(int $reservationId, ?int $staffUserId = null): Collection
     {
-        $reservationQuery = Reservation::query()->where('reservation_id', $reservationId);
-        if ($staffUserId !== null && $staffUserId > 0) {
-            $accessibleBranchIds = $this->staffBranchContextService()->accessibleBranchIds($staffUserId);
-            if ($accessibleBranchIds === []) {
-                throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
-            }
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
-            $reservationQuery->whereIn('branch_id', $accessibleBranchIds);
+        $reservationQuery = Reservation::query()->where('reservation_id', $reservationId);
+        $accessibleBranchIds = $this->staffBranchContextService()->accessibleBranchIds($staffUserId);
+        if ($accessibleBranchIds === []) {
+            throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
         }
+
+        $reservationQuery->whereIn('branch_id', $accessibleBranchIds);
 
         $reservationQuery->firstOrFail();
 
@@ -156,9 +163,7 @@ class StaffOrderReadService
      */
     private function constrainOrderQueryToStaffBranchScope(Builder $query, ?int $staffUserId): void
     {
-        if ($staffUserId === null || $staffUserId <= 0) {
-            return;
-        }
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
         $accessibleBranchIds = $this->staffBranchContextService()->accessibleBranchIds($staffUserId);
         if ($accessibleBranchIds === []) {

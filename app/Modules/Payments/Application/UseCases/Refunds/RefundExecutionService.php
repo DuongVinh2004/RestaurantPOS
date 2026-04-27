@@ -14,6 +14,7 @@ use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
 use App\Support\AuditEvent;
+use App\Support\Auth\StaffActorGuard;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -84,6 +85,8 @@ class RefundExecutionService
         callable $throwIfDuplicatePaymentConstraint,
         ?string $requestFingerprint = null,
     ): array {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
+
         $reservationId = (int) $reservation->reservation_id;
         $currentStatus = (string) ($reservation->status?->value ?? $reservation->status);
         $this->assertRefundableStatus($currentStatus, $cancelAfterPayment);

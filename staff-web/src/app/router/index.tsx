@@ -43,6 +43,7 @@ const ConversationInboxPage = lazyRoute(
   'ConversationInboxPage',
 );
 const AdminLandingPage = lazyRoute(() => import('../../workspaces/admin/pages/landing/AdminLandingPage'), 'AdminLandingPage');
+const AdminCatalogPage = lazyRoute(() => import('../../workspaces/admin/pages/catalog/AdminCatalogPage'), 'AdminCatalogPage');
 const AdminSettingsPage = lazyRoute(() => import('../../workspaces/admin/pages/settings/AdminSettingsPage'), 'AdminSettingsPage');
 const AdminInventoryPage = lazyRoute(() => import('../../workspaces/admin/pages/inventory/AdminInventoryPage'), 'AdminInventoryPage');
 const AuditTrailPage = lazyRoute(() => import('../../workspaces/admin/pages/audit/AuditTrailPage'), 'AuditTrailPage');
@@ -104,6 +105,8 @@ function renderWorkspacePage(page: StaffWorkspacePageId): JSX.Element {
   switch (page) {
     case 'admin-landing':
       return <AdminLandingPage />;
+    case 'admin-catalog':
+      return <AdminCatalogPage />;
     case 'admin-settings':
       return <AdminSettingsPage />;
     case 'admin-inventory':

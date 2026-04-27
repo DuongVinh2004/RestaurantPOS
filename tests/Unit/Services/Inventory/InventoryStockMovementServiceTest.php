@@ -27,6 +27,78 @@ class InventoryStockMovementServiceTest extends TestCase
         return app(InventoryStockMovementService::class);
     }
 
+    public function test_inventory_adjustment_decrease_rejects_when_insufficient_stock(): void
+    {
+        $branchId = $this->createBranch([
+            'branch_code' => 'INV-SVC-NEG',
+            'branch_name' => 'Inventory Negative Guard Branch',
+        ]);
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-SVC-NEG',
+            'name' => 'Negative Guard Rice',
+            'unit_code' => 'kg',
+        ]);
+
+        try {
+            $this->makeService()->recordMovement($ingredientId, [
+                'branch_id' => $branchId,
+                'movement_type' => 'AdjustmentDecrease',
+                'quantity' => '1.000',
+                'unit_code' => 'kg',
+                'notes' => 'Manual shrinkage',
+            ], 99);
+
+            self::fail('Expected insufficient stock adjustment decrease to be rejected.');
+        } catch (ValidationException $exception) {
+            self::assertArrayHasKey('quantity', $exception->errors());
+            self::assertStringContainsString('below zero', $exception->errors()['quantity'][0] ?? '');
+        }
+
+        self::assertSame(
+            0,
+            (int) DB::table('ingredient_stock_movements')
+                ->where('ingredient_id', $ingredientId)
+                ->where('branch_id', $branchId)
+                ->count()
+        );
+        self::assertSame('0.000', $this->makeService()->currentStockOnHand($ingredientId, $branchId));
+    }
+
+    public function test_purchase_receipt_increases_stock_then_stockout_succeeds(): void
+    {
+        $branchId = $this->createBranch([
+            'branch_code' => 'INV-SVC-STOCKOUT',
+            'branch_name' => 'Inventory Stockout Branch',
+        ]);
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-SVC-STOCKOUT',
+            'name' => 'Stockout Rice',
+            'unit_code' => 'kg',
+        ]);
+
+        $stockIn = $this->makeService()->recordMovement($ingredientId, [
+            'branch_id' => $branchId,
+            'movement_type' => 'StockIn',
+            'quantity' => '5.000',
+            'unit_code' => 'kg',
+            'reference_type' => 'PurchaseReceipt',
+            'reference_id' => 'GRN-SVC-STOCKOUT-0001:10',
+        ], 101);
+
+        $stockOut = $this->makeService()->recordMovement($ingredientId, [
+            'branch_id' => $branchId,
+            'movement_type' => 'StockOut',
+            'quantity' => '3.000',
+            'unit_code' => 'kg',
+            'notes' => 'Manual stock out after receipt',
+        ], 102);
+
+        self::assertSame('StockIn', (string) $stockIn->movement_type);
+        self::assertSame('StockOut', (string) $stockOut->movement_type);
+        self::assertSame('-3.000', number_format((float) $stockOut->quantity_delta, 3, '.', ''));
+        self::assertSame('2.000', $this->makeService()->currentStockOnHand($ingredientId, $branchId));
+    }
+
     public function test_purchase_receipt_reference_replay_returns_existing_stock_movement(): void
     {
         $branchId = $this->createBranch([
@@ -89,6 +161,14 @@ class InventoryStockMovementServiceTest extends TestCase
             'name' => 'Replay Drift Chili',
             'unit_code' => 'kg',
         ]);
+
+        $this->makeService()->recordMovement($ingredientId, [
+            'branch_id' => $branchId,
+            'movement_type' => 'StockIn',
+            'quantity' => '5.000',
+            'unit_code' => 'kg',
+            'notes' => 'Seed stock for replay drift guard',
+        ], 302);
 
         $this->makeService()->recordMovement($ingredientId, [
             'branch_id' => $branchId,

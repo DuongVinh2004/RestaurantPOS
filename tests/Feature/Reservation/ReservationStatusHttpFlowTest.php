@@ -72,6 +72,72 @@ class ReservationStatusHttpFlowTest extends TestCase
             ->assertJsonPath('details.errors.row_version.0', 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.');
     }
 
+    public function test_status_update_requires_row_version(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Admin']);
+        $reservationId = $this->createReservation(['status' => ReservationStatus::Confirmed->value, 'row_version' => 2]);
+        $this->attachReservationTable($reservationId, $this->createRestaurantTableWithSeats(4));
+
+        $response = $this->withHeaders($this->withIdempotencyKey('reservation-status-missing-row-version', $this->staffAuthHeaders($staffId)))
+            ->patchJson("/api/v1/reservations/{$reservationId}/status", [
+                'status' => ReservationStatus::Cancelled->value,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonPath('details.errors.row_version.0', fn ($value) => is_string($value) && $value !== '');
+
+        self::assertSame(
+            ReservationStatus::Confirmed->value,
+            DB::table('reservations')->where('reservation_id', $reservationId)->value('status')
+        );
+    }
+
+    public function test_staff_cannot_update_reservation_status_outside_assigned_branch(): void
+    {
+        $allowedBranchId = $this->createBranch([
+            'branch_code' => 'STATUS-A',
+            'branch_name' => 'Status Allowed Branch',
+        ]);
+        $deniedBranchId = $this->createBranch([
+            'branch_code' => 'STATUS-B',
+            'branch_name' => 'Status Denied Branch',
+        ]);
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $this->assignStaffBranch($staffId, $allowedBranchId);
+
+        $reservationId = $this->createReservation([
+            'branch_id' => $deniedBranchId,
+            'status' => ReservationStatus::Confirmed->value,
+            'row_version' => 5,
+        ]);
+        $this->attachReservationTable(
+            $reservationId,
+            $this->createRestaurantTableWithSeats(4, ['branch_id' => $deniedBranchId])
+        );
+        $orderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'status' => 'Active',
+        ]);
+
+        $response = $this->withHeaders($this->withIdempotencyKey('reservation-status-branch-denied', $this->staffAuthHeaders($staffId)))
+            ->patchJson("/api/v1/reservations/{$reservationId}/status", [
+                'status' => ReservationStatus::Cancelled->value,
+                'row_version' => 5,
+                'cancel_reason' => 'Wrong branch attempt',
+            ]);
+
+        $response->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonMissingPath('data');
+
+        self::assertSame(
+            ReservationStatus::Confirmed->value,
+            DB::table('reservations')->where('reservation_id', $reservationId)->value('status')
+        );
+        self::assertSame('Active', DB::table('reservation_orders')->where('order_id', $orderId)->value('status'));
+    }
+
     public function test_generic_status_endpoint_rejects_completed_transition(): void
     {
         $staffId = $this->createUser(['role_name' => 'Admin']);
@@ -195,5 +261,18 @@ class ReservationStatusHttpFlowTest extends TestCase
         self::assertSame('NoShow', DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
         self::assertNotNull(DB::table('reservations')->where('reservation_id', $reservationId)->value('no_show_at'));
         self::assertSame('Cancelled', DB::table('reservation_orders')->where('order_id', $orderId)->value('status'));
+    }
+
+    private function assignStaffBranch(int $staffId, int $branchId): void
+    {
+        DB::table('staff_branch_assignments')->insert([
+            'user_id' => $staffId,
+            'branch_id' => $branchId,
+            'is_primary' => 1,
+            'assigned_at' => $this->nowUtc(),
+            'revoked_at' => null,
+            'created_at' => $this->nowUtc(),
+            'updated_at' => $this->nowUtc(),
+        ]);
     }
 }

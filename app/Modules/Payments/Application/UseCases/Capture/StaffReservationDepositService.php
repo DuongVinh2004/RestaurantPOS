@@ -8,6 +8,9 @@ use App\Enums\ReservationStatus;
 use App\Modules\Billing\Application\UseCases\Previews\SettlementAmountCalculator;
 use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancialSyncService;
 use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
+use App\Modules\BranchScheduling\Application\Services\BranchContextService;
+use App\Modules\Cashiering\Application\UseCases\Shifts\StaffCashierShiftService;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Payments\Domain\Policies\PaymentStatusTransitionPolicy;
 use App\Modules\Reservations\Application\Services\ReservationDepositReadService;
@@ -17,6 +20,7 @@ use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
 use App\Support\AuditEvent;
+use App\Support\Auth\StaffActorGuard;
 use App\Support\DatabaseWriteConflictMapper;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
@@ -33,6 +37,9 @@ class StaffReservationDepositService
         private readonly ?ReservationDepositSelfServiceStateService $depositSelfServiceStateService = null,
         private readonly ?ReservationDepositReadService $depositReadService = null,
         private readonly ?ReservationDepositRealtimePublisher $depositRealtimePublisher = null,
+        private readonly ?BranchContextService $branchContextService = null,
+        private readonly ?StaffBranchContextService $staffBranchContextService = null,
+        private readonly ?StaffCashierShiftService $cashierShiftService = null,
     ) {}
 
     /**
@@ -60,6 +67,7 @@ class StaffReservationDepositService
         ?int $staffUserId = null,
         string $idempotencyKey = ''
     ): array {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $paymentMethod = trim($paymentMethod);
         if ($paymentMethod === '') {
             throw ValidationException::withMessages(['payment_method' => 'payment_method is required']);
@@ -129,6 +137,8 @@ class StaffReservationDepositService
 
                     $this->assertExpectedReservationRowVersion($reservation, $expectedRowVersion);
                     $this->assertReservationCanCollectDeposit($reservation);
+                    $reservationBranchId = $this->resolveReservationBranchId($reservation);
+                    $this->staffBranchContextService()->assertAccessibleBranch($staffUserId, $reservationBranchId);
 
                     /** @var Collection<int,Payment> $payments */
                     $payments = Payment::query()
@@ -159,6 +169,7 @@ class StaffReservationDepositService
                             'currency' => ['Payment currency must match reservation bill currency.'],
                         ]);
                     }
+                    $this->cashierShiftService()->requireOpenShiftForMutation($staffUserId, $reservationBranchId, $paymentCurrency);
 
                     $requiredAmountMinor = Money::minorUnits($reservation->deposit_required_amount ?? 0, true);
                     $requiredAmount = Money::minorToFloat($requiredAmountMinor);
@@ -190,6 +201,7 @@ class StaffReservationDepositService
                     }
 
                     $payment = new Payment;
+                    $payment->branch_id = $reservationBranchId;
                     $payment->reservation_id = $reservationId;
                     $payment->amount = Money::formatMinor($normalizedAmountMinor);
                     $payment->currency = $paymentCurrency;
@@ -359,6 +371,15 @@ class StaffReservationDepositService
         return Money::minorToFloat(max(0, $requiredMinor - $paidMinor));
     }
 
+    private function resolveReservationBranchId(Reservation $reservation): int
+    {
+        if ($reservation->branch_id !== null && $reservation->branch_id !== '') {
+            return $this->branchContextService()->resolveBranchId($reservation->branch_id, false);
+        }
+
+        return $this->branchContextService()->resolveBranchId(null, false);
+    }
+
     private function assertReservationCanCollectDeposit(Reservation $reservation): void
     {
         $status = (string) ($reservation->status?->value ?? $reservation->status);
@@ -502,6 +523,21 @@ class StaffReservationDepositService
     private function depositReadService(): ReservationDepositReadService
     {
         return $this->depositReadService ?? app(ReservationDepositReadService::class);
+    }
+
+    private function branchContextService(): BranchContextService
+    {
+        return $this->branchContextService ?? app(BranchContextService::class);
+    }
+
+    private function staffBranchContextService(): StaffBranchContextService
+    {
+        return $this->staffBranchContextService ?? app(StaffBranchContextService::class);
+    }
+
+    private function cashierShiftService(): StaffCashierShiftService
+    {
+        return $this->cashierShiftService ?? app(StaffCashierShiftService::class);
     }
 
     private function isDuplicatePaymentIdempotencyConstraint(QueryException $e): bool

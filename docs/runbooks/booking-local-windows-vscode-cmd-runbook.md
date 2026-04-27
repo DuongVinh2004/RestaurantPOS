@@ -789,16 +789,21 @@ php artisan config:clear
 
 ## 15. Loi thuong gap va cach xu ly
 
-### 15.1. `mysql` khong tim thay
+### 15.1. `mysql` khong tim thay hoac MySQL connection refused
 
 Nguyen nhan:
 
 - `mysql.exe` khong nam trong `PATH`
+- MySQL chua chay tren `DB_HOST:DB_PORT`
+- `.env` dang tro sai `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, hoac `DB_PASSWORD`
+- `mysqld.exe` trong `PATH` la MariaDB/XAMPP, khong phai MySQL Server 8 repo-local bootstrap
 
 Cach xu ly:
 
 - them MySQL vao `PATH`
 - hoac set `MYSQL_BIN=` trong `.env`
+- neu dung script repo-local, co the set them `MYSQLD_BIN=` trong `.env`
+- neu chi co XAMPP/MariaDB, hay start database do nhu external service tren `DB_HOST:DB_PORT`; dung repo-local script can MySQL Server 8 `mysqld.exe`
 
 Neu MySQL service cua may khong start duoc bang user hien tai, chay MySQL local cua repo:
 
@@ -806,11 +811,39 @@ Neu MySQL service cua may khong start duoc bang user hien tai, chay MySQL local 
 powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-mysql.ps1 -Restart
 ```
 
+Kiem tra TCP/credential bang dung port trong `.env`:
+
+```cmd
+mysql --protocol=tcp -h 127.0.0.1 -P 3306 -u root -p restaurantdb -e "SELECT 1;"
+```
+
+Neu dung Docker Compose testing fallback:
+
+```cmd
+docker compose -f docker-compose.testing.yml up -d mysql redis
+```
+
+Sau do sua `.env` de MySQL tro vao port compose expose:
+
+```env
+DB_HOST=127.0.0.1
+DB_PORT=3307
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+```
+
+Chay lai SQL-first bootstrap:
+
+```cmd
+composer bootstrap:booking
+```
+
 ### 15.2. `Redis connection refused`
 
 Nguyen nhan:
 
 - Redis chua chay
+- `.env` dang tro sai `REDIS_HOST` hoac `REDIS_PORT`
 
 Cach xu ly:
 
@@ -823,6 +856,12 @@ Neu ban muon debug rieng Redis:
 ```cmd
 powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-redis.ps1 -Restart
 redis-cli ping
+```
+
+Ket qua phai la:
+
+```text
+PONG
 ```
 
 ### 15.3. `scheduler` fail trong `booking:doctor`
@@ -848,7 +887,33 @@ php artisan booking:doctor --json
 
 Neu thong diep noi ro `Blocked by runtime.redis failure`, do la blocker Redis/runtime chu khong phai drift rieng cua scheduler.
 
-### 15.4. Vua sua `.env` nhung app khong nhan
+Neu can debug heartbeat rieng:
+
+```cmd
+php artisan schedule:work
+php artisan booking:ops-heartbeat:touch scheduler --json
+```
+
+### 15.4. SQL bootstrap not applied
+
+Trieu chung thuong gap:
+
+- `notifications:outbox-health --json` bao `notification_outbox table is missing`
+- `booking:deploy-check --mode=preflight` skip cac data/ops guard vi database runtime chua dung
+- API health co DB reachable nhung business table khong ton tai
+
+Cach xu ly dung contract cua repo:
+
+```cmd
+composer bootstrap:booking
+php artisan booking:release-manifest --json
+php artisan booking:doctor --json
+php artisan booking:deploy-check --mode=preflight
+```
+
+Khong dung `php artisan migrate` lam duong setup chinh cho local/staging/release. Bootstrap phai import `database/schema/mysql-schema.sql`, apply `database/patches/*.sql`, va chay `tools/mysql/verify_release_contract.sql`.
+
+### 15.5. Vua sua `.env` nhung app khong nhan
 
 ```cmd
 php artisan config:clear
@@ -857,7 +922,7 @@ php artisan route:clear
 php artisan view:clear
 ```
 
-### 15.5. App len duoc nhung flow business bi ho
+### 15.6. App len duoc nhung flow business bi ho
 
 Thuong la do thieu 1 trong 2 process nay:
 

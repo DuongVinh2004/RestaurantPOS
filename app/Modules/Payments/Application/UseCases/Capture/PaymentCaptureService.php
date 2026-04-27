@@ -18,6 +18,7 @@ use App\Modules\Payments\Domain\Policies\PaymentStatusTransitionPolicy;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
 use App\Support\AuditEvent;
+use App\Support\Auth\StaffActorGuard;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
@@ -74,6 +75,8 @@ class PaymentCaptureService
         string $idempotencyKey,
         ?string $requestFingerprint = null,
     ): ReservationOrder {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
+
         if (($reservation->status?->value ?? (string) $reservation->status) !== ReservationStatus::Reserved->value) {
             throw ValidationException::withMessages(['reservation' => 'Reservation must be in service (Reserved) to pay.']);
         }

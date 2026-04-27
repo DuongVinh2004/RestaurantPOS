@@ -262,6 +262,59 @@ function Get-MySqlCommand {
     return $null
 }
 
+function Test-MySqlServerBinaryCompatible {
+    param(
+        [string] $Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path $Path)) {
+        return $false
+    }
+
+    try {
+        $versionOutput = (& $Path '--version' 2>&1 | Out-String).Trim()
+        return $versionOutput -match 'MySQL' -and $versionOutput -match '\b8\.'
+    } catch {
+        return $false
+    }
+}
+
+function Get-MySqlServerCommand {
+    param(
+        [string] $ConfiguredPath = '',
+        [string[]] $KnownPaths = @()
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($ConfiguredPath)) {
+        if (-not (Test-Path $ConfiguredPath)) {
+            throw "Configured MYSQLD_BIN was not found: $ConfiguredPath"
+        }
+
+        if (Test-MySqlServerBinaryCompatible -Path $ConfiguredPath) {
+            return $ConfiguredPath
+        }
+
+        throw "Configured MYSQLD_BIN is not a MySQL Server 8 compatible mysqld.exe: $ConfiguredPath"
+    }
+
+    foreach ($knownPath in $KnownPaths) {
+        if ((Test-Path $knownPath) -and (Test-MySqlServerBinaryCompatible -Path $knownPath)) {
+            return $knownPath
+        }
+    }
+
+    $command = Get-Command 'mysqld.exe' -ErrorAction SilentlyContinue
+    if ($command) {
+        if (Test-MySqlServerBinaryCompatible -Path $command.Source) {
+            return $command.Source
+        }
+
+        throw "mysqld.exe was found at $($command.Source), but it is not MySQL Server 8 compatible. Start that database externally on DB_HOST:DB_PORT, install MySQL Server 8, or set MYSQLD_BIN to a MySQL Server 8 mysqld.exe."
+    }
+
+    return $null
+}
+
 function Initialize-LocalMySqlDataDir {
     param(
         [string] $MySqlServer,
@@ -274,6 +327,10 @@ function Initialize-LocalMySqlDataDir {
     }
 
     New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
+    $existingEntries = @(Get-ChildItem -LiteralPath $DataDir -Force -ErrorAction SilentlyContinue)
+    if ($existingEntries.Count -gt 0) {
+        throw "Local MySQL data directory exists but is not a complete MySQL Server 8 data directory: $DataDir. Move or remove that generated runtime directory before retrying repo-local MySQL initialization."
+    }
 
     & $MySqlServer '--initialize-insecure' "--basedir=$BaseDir" "--datadir=$DataDir" '--console'
     if ($LASTEXITCODE -ne 0) {
@@ -421,7 +478,7 @@ if ($existingConnection) {
     }
 }
 
-$mySqlServer = Get-MySqlCommand -ExecutableName 'mysqld.exe' -ConfiguredPath $configuredMySqlServer -KnownPaths @($knownMySqlServer)
+$mySqlServer = Get-MySqlServerCommand -ConfiguredPath $configuredMySqlServer -KnownPaths @($knownMySqlServer)
 if (-not $mySqlServer) {
     throw 'mysqld.exe was not found. Install MySQL Server 8, add mysqld.exe to PATH, set MYSQLD_BIN in .env, or start a MySQL-compatible service on the configured DB_PORT before running this script.'
 }

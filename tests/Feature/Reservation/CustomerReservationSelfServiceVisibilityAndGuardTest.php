@@ -205,6 +205,37 @@ class CustomerReservationSelfServiceVisibilityAndGuardTest extends TestCase
             ->assertJsonPath('error_code', 'forbidden');
     }
 
+    public function test_other_customer_cannot_read_or_cancel_owned_reservation(): void
+    {
+        $ownerUserId = $this->createUser(['role_name' => 'Customer']);
+        $otherUserId = $this->createUser(['role_name' => 'Customer']);
+        $otherUser = User::query()->findOrFail($otherUserId);
+        $reservationId = $this->createReservation([
+            'user_id' => $ownerUserId,
+            'start_time' => $this->nowUtc()->copy()->addHours(5),
+            'end_time' => $this->nowUtc()->copy()->addHours(7),
+            'status' => 'Confirmed',
+            'row_version' => 1,
+        ]);
+        $this->attachReservationTable($reservationId, $this->createRestaurantTableWithSeats(4));
+
+        $this->actingAs($otherUser)
+            ->getJson('/api/v1/reservations/'.$reservationId)
+            ->assertStatus(404)
+            ->assertJsonPath('error_code', 'not_found');
+
+        $this->actingAs($otherUser)
+            ->postJson(
+                '/api/v1/reservations/'.$reservationId.'/cancel',
+                ['row_version' => 1],
+                $this->withIdempotencyKey('customer-self-service-other-owner-cancel')
+            )
+            ->assertStatus(404)
+            ->assertJsonPath('error_code', 'not_found');
+
+        self::assertSame('Confirmed', (string) DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
+    }
+
     public function test_pre_resolved_staff_user_is_not_treated_as_customer_owner_on_shared_customer_routes(): void
     {
         $staffUserId = $this->createUser(['role_name' => 'Staff']);

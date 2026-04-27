@@ -8,6 +8,10 @@ mkdir -p build/booking-ci storage/logs
 
 bash scripts/ci/booking-smoke-gate.sh
 
+php artisan test
+vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+vendor/bin/pint --test
+
 php artisan booking:route-gate --json | tee build/booking-ci/booking-route-gate.json >/dev/null
 php artisan booking:core-ops-gate --json | tee build/booking-ci/booking-core-ops-gate.json >/dev/null
 php artisan booking:round5-gate --json | tee build/booking-ci/booking-round5-gate.json >/dev/null

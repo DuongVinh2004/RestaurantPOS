@@ -126,6 +126,25 @@ class CustomerReservationOrderBillSessionAccessFlowTest extends TestCase
             ->assertJsonPath('error_code', 'forbidden');
     }
 
+    public function test_wrong_session_cannot_view_active_order_or_bill_preview(): void
+    {
+        [, , $reservationId] = $this->seedLinkedInServiceScenario(lockBill: true);
+
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'X-Session-Id' => 'sess-bill-unlinked',
+        ])->getJson('/api/v1/reservations/'.$reservationId.'/active-order')
+            ->assertStatus(404)
+            ->assertJsonPath('error_code', 'not_found');
+
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'X-Session-Id' => 'sess-bill-unlinked',
+        ])->getJson('/api/v1/reservations/'.$reservationId.'/bill-preview')
+            ->assertStatus(404)
+            ->assertJsonPath('error_code', 'not_found');
+    }
+
     /**
      * @return array{0:int,1:int,2:int,3:int,4:string}
      */

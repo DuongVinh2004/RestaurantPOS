@@ -76,6 +76,15 @@
   - no separate queue worker is required for the current booking outbox path
   - queue configuration alone is not the readiness proof lane; the proof lane is MySQL + Redis + `schedule:work` + `notifications:process-outbox`
   - notification outbox processing is scheduler-driven through `notifications:process-outbox`
+- Scheduler process:
+  - production must run exactly one active scheduler lane for the release:
+    - cron model: `* * * * * cd /var/www/restaurantpos/current && php artisan schedule:run >> /dev/null 2>&1`
+    - long-running model: run `php artisan schedule:work` under the production process manager
+  - Supervisor/systemd/Docker deployments should pin the scheduler to one replica/node set; do not run it on every web replica unless the process manager guarantees singleton execution
+  - verify the scheduler entry before promotion with `php artisan schedule:list`; `scheduler-heartbeat` must be listed every minute
+  - after the scheduler has run, `php artisan booking:doctor --json` must report `runtime.scheduler.ok = true`
+  - `php artisan booking:ops-heartbeat:touch scheduler --json` is only for bootstrap/smoke priming after cache clears; it is not a substitute for the production scheduler process
+  - if `booking:doctor` later reports a stale or missing scheduler heartbeat while Redis is healthy, treat it as a scheduler process outage
 - Logging and audit:
   - keep the `audit` log channel writable
   - retain `booking:doctor`, `booking:deploy-check`, `booking:release-manifest`, `booking:launch-readiness`, `booking:ops-snapshot`, and `notifications:outbox-health` output as release evidence for staging/UAT

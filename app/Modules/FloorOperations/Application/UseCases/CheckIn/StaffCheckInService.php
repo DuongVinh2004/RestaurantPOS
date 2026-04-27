@@ -19,6 +19,7 @@ use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Support\AuditEvent;
+use App\Support\Auth\StaffActorGuard;
 use App\Support\DatabaseWriteConflictMapper;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
@@ -64,6 +65,7 @@ class StaffCheckInService
 
     public function checkIn(int $reservationId, ?array $tableIds, \DateTimeInterface $checkedInAt, ?int $staffUserId = null, array $ignoredHoldIds = [], bool $skipLocking = false, ?int $expectedRowVersion = null): Reservation
     {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $requestedTableIds = $tableIds === null ? [] : array_values(array_unique(array_map('intval', $tableIds)));
         sort($requestedTableIds);
         $ignoredHoldIds = array_values(array_unique(array_filter(array_map('strval', $ignoredHoldIds), static fn (string $value) => $value !== '')));
@@ -273,10 +275,11 @@ class StaffCheckInService
 
     private function assertOperationalBranchAccessible(?int $branchId, ?int $staffUserId): void
     {
-        if ($staffUserId === null || $staffUserId <= 0 || $branchId === null || $branchId <= 0) {
+        if ($branchId === null || $branchId <= 0) {
             return;
         }
 
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $this->staffBranchContextService()->assertAccessibleBranch($staffUserId, $branchId);
     }
 

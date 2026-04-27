@@ -16,6 +16,13 @@ export const adminWorkspaceRoutes: Array<StaffWorkspaceRouteDefinition> = [
     capability: 'settings.manage',
   },
   {
+    key: 'catalog',
+    path: 'catalog',
+    absolutePath: staffRoutePaths.admin.catalog,
+    page: 'admin-catalog',
+    capability: 'menu.manage',
+  },
+  {
     key: 'inventory',
     path: 'inventory',
     absolutePath: staffRoutePaths.admin.inventory,

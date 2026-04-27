@@ -14,6 +14,7 @@ use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Support\AuditEvent;
+use App\Support\Auth\StaffActorGuard;
 use App\Support\AvailabilityCacheVersion;
 use App\Support\DatabaseWriteConflictMapper;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -48,6 +49,8 @@ class StaffReservationBoardAssignmentService
         ?\DateTimeInterface $boardTo = null,
         bool $includeSlotOnlyCandidates = true,
     ): array {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
+
         if ($tableId <= 0) {
             throw ValidationException::withMessages([
                 'table_id' => ['table_id must be a positive integer.'],
@@ -138,6 +141,8 @@ class StaffReservationBoardAssignmentService
         ?\DateTimeInterface $boardTo = null,
         bool $includeSlotOnlyCandidates = true,
     ): array {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
+
         $reservation = Reservation::query()->find($reservationId);
         if (! $reservation) {
             throw new ModelNotFoundException('Reservation not found');

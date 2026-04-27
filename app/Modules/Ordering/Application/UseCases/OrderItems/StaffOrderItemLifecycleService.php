@@ -19,6 +19,7 @@ use App\Modules\Ordering\Domain\Policies\ReservationOrderItemStatusTransitionPol
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Support\AuditEvent;
+use App\Support\Auth\StaffActorGuard;
 use App\Support\DatabaseWriteConflictMapper;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +52,7 @@ class StaffOrderItemLifecycleService
         ?int $expectedOrderRowVersion = null,
         ?int $expectedItemRowVersion = null,
     ): ReservationOrder {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         [$reservationId, $tableIds] = $this->resolveLockContext($orderId);
 
         try {
@@ -132,6 +134,7 @@ class StaffOrderItemLifecycleService
         ?int $expectedOrderRowVersion = null,
         ?int $expectedItemRowVersion = null,
     ): ReservationOrder {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         [$reservationId, $tableIds] = $this->resolveLockContext($orderId);
         $target = $targetStatus instanceof ReservationOrderItemStatus
             ? $targetStatus
@@ -321,9 +324,7 @@ class StaffOrderItemLifecycleService
 
     private function assertOperationalBranchAccessible(int $branchId, ?int $staffUserId): void
     {
-        if ($staffUserId === null || $staffUserId <= 0) {
-            return;
-        }
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
         $this->staffBranchContextService->assertAccessibleBranch($staffUserId, $branchId);
     }

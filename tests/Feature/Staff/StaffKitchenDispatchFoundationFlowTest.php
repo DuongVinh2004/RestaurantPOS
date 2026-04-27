@@ -187,7 +187,33 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             ->assertJsonPath('data.0.order_item.status', 'Served');
     }
 
-    public function test_dispatch_rejects_stale_order_row_version_with_utf8_message(): void
+    public function test_staff_kitchen_dispatch_requires_order_row_version(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Manager']);
+        $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-dispatch-required-row-version-key');
+        $scenario = $this->createRoutedKitchenOrderScenario('Kitchen Dispatch Required Row Version');
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-dispatch-missing-row-version'))
+            ->postJson('/api/v1/staff/orders/'.$scenario['order_id'].'/kitchen/dispatch')
+            ->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonValidationErrors(['row_version']);
+
+        self::assertSame(0, (int) $this->table('kitchen_order_item_tickets')->where('order_id', $scenario['order_id'])->count());
+        self::assertSame('Active', (string) $this->table('reservation_orders')->where('order_id', $scenario['order_id'])->value('status'));
+
+        try {
+            app(KitchenRoutingService::class)->dispatchOrder($scenario['order_id'], null, $staffId);
+            self::fail('Expected kitchen dispatch without an order row_version to fail closed.');
+        } catch (ValidationException $exception) {
+            self::assertArrayHasKey('row_version', $exception->errors());
+        }
+
+        self::assertSame(0, (int) $this->table('kitchen_order_item_tickets')->where('order_id', $scenario['order_id'])->count());
+        self::assertSame('Active', (string) $this->table('reservation_orders')->where('order_id', $scenario['order_id'])->value('status'));
+    }
+
+    public function test_staff_kitchen_dispatch_rejects_stale_order_row_version(): void
     {
         $staffId = $this->createUser(['role_name' => 'Manager']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-dispatch-stale-key');
@@ -242,6 +268,76 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
         self::assertSame($stationId, (int) $this->table('kitchen_station_category_routes')->where('category_id', $categoryId)->value('station_id'));
     }
 
+    public function test_staff_kitchen_dispatch_duplicate_replay_does_not_create_duplicate_ticket(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Manager']);
+        $headers = $this->withIdempotencyKey(
+            $this->staffAuthHeaders($staffId, 'staff-kitchen-dispatch-replay-key'),
+            'idem-staff-kitchen-dispatch-replay'
+        );
+        $scenario = $this->createRoutedKitchenOrderScenario('Kitchen Dispatch Replay');
+        $payload = ['row_version' => 1];
+
+        $first = $this->withHeaders($headers)
+            ->postJson('/api/v1/staff/orders/'.$scenario['order_id'].'/kitchen/dispatch', $payload);
+        $second = $this->withHeaders($headers)
+            ->postJson('/api/v1/staff/orders/'.$scenario['order_id'].'/kitchen/dispatch', $payload);
+
+        $first->assertOk()
+            ->assertHeader('Idempotency-Replayed', 'false')
+            ->assertJsonPath('meta.action', 'kitchen_order_dispatched')
+            ->assertJsonPath('meta.created_count', 1);
+        $second->assertOk()
+            ->assertHeader('Idempotency-Replayed', 'true')
+            ->assertJsonPath('data.0.ticket_id', $first->json('data.0.ticket_id'));
+
+        self::assertSame(1, (int) $this->table('kitchen_order_item_tickets')
+            ->where('order_id', $scenario['order_id'])
+            ->where('order_item_id', $scenario['order_item_id'])
+            ->count());
+        self::assertSame('Queued', (string) $this->table('kitchen_order_item_tickets')
+            ->where('ticket_id', (int) $first->json('data.0.ticket_id'))
+            ->value('ticket_status'));
+        self::assertSame('Active', (string) $this->table('reservation_orders')
+            ->where('order_id', $scenario['order_id'])
+            ->value('status'));
+    }
+
+    public function test_staff_kitchen_dispatch_rejects_same_idempotency_key_with_different_payload(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Manager']);
+        $headers = $this->withIdempotencyKey(
+            $this->staffAuthHeaders($staffId, 'staff-kitchen-dispatch-conflict-key'),
+            'idem-staff-kitchen-dispatch-conflict'
+        );
+        $scenario = $this->createRoutedKitchenOrderScenario('Kitchen Dispatch Conflict');
+
+        $first = $this->withHeaders($headers)
+            ->postJson('/api/v1/staff/orders/'.$scenario['order_id'].'/kitchen/dispatch', [
+                'row_version' => 1,
+            ]);
+
+        $first->assertOk()
+            ->assertHeader('Idempotency-Replayed', 'false')
+            ->assertJsonPath('meta.created_count', 1);
+
+        $conflict = $this->withHeaders($headers)
+            ->postJson('/api/v1/staff/orders/'.$scenario['order_id'].'/kitchen/dispatch', [
+                'row_version' => 2,
+            ]);
+
+        $conflict->assertStatus(409)
+            ->assertJsonPath('error', 'idempotency_conflict')
+            ->assertJsonPath('error_code', 'idempotency_conflict')
+            ->assertJsonPath('conflict_type', 'idempotency_payload_mismatch')
+            ->assertJsonPath('replay_state', 'payload_mismatch');
+
+        self::assertSame(1, (int) $this->table('kitchen_order_item_tickets')
+            ->where('order_id', $scenario['order_id'])
+            ->where('order_item_id', $scenario['order_item_id'])
+            ->count());
+    }
+
     public function test_ticket_actions_require_ticket_row_version(): void
     {
         $staffId = $this->createUser(['role_name' => 'Manager']);
@@ -263,6 +359,49 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
                 ->assertStatus(422)
                 ->assertJsonValidationErrors(['row_version']);
         }
+    }
+
+    public function test_ticket_action_replays_same_idempotency_key_and_rejects_payload_conflict(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Manager']);
+        $headers = $this->staffAuthHeaders($staffId, 'staff-kitchen-ticket-idem-key');
+        $scenario = $this->createRoutedKitchenOrderScenario('Kitchen Ticket Idempotency');
+
+        $dispatch = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-ticket-idem-dispatch'))
+            ->postJson('/api/v1/staff/orders/'.$scenario['order_id'].'/kitchen/dispatch', [
+                'row_version' => 1,
+            ]);
+
+        $dispatch->assertOk()
+            ->assertJsonPath('data.0.row_version', 1);
+
+        $ticketId = (int) $dispatch->json('data.0.ticket_id');
+        $fireHeaders = $this->withIdempotencyKey($headers, 'idem-staff-kitchen-fire-replay-conflict');
+        $payload = ['row_version' => 1];
+
+        $first = $this->withHeaders($fireHeaders)
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire', $payload);
+        $replay = $this->withHeaders($fireHeaders)
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire', $payload);
+        $conflict = $this->withHeaders($fireHeaders)
+            ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire', [
+                'row_version' => 2,
+            ]);
+
+        $first->assertOk()
+            ->assertHeader('Idempotency-Replayed', 'false')
+            ->assertJsonPath('data.ticket_status', 'Fired');
+        $replay->assertOk()
+            ->assertHeader('Idempotency-Replayed', 'true')
+            ->assertJsonPath('data.ticket_id', $ticketId)
+            ->assertJsonPath('data.ticket_status', 'Fired');
+        $conflict->assertStatus(409)
+            ->assertJsonPath('error_code', 'idempotency_conflict')
+            ->assertJsonPath('conflict_type', 'idempotency_payload_mismatch');
+
+        self::assertSame('Fired', (string) $this->table('kitchen_order_item_tickets')
+            ->where('ticket_id', $ticketId)
+            ->value('ticket_status'));
     }
 
     public function test_ticket_actions_reject_stale_ticket_row_version(): void

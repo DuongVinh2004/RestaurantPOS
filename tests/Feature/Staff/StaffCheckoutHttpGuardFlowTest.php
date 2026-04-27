@@ -146,6 +146,42 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
         $this->assertNull(DB::table('reservations')->where('reservation_id', $reservationId)->value('billed_at'));
     }
 
+    public function test_finalize_endpoint_requires_row_version_before_creating_payment(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
+        $headers = $this->withIdempotencyKey($this->staffAuthHeaders($staffId, 'staff-http-finalize-row-version'), 'idem-http-finalize-row-version');
+        $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
+        $reservationId = $this->createReservation(['status' => 'Reserved']);
+        $this->openCashierShiftForReservationBranch($staffId, $reservationId);
+        $this->attachReservationTable($reservationId, $tableId);
+        $orderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'order_type' => 'OnSpot',
+            'status' => 'Active',
+            'row_version' => 1,
+        ]);
+        $this->createOrderItem([
+            'order_id' => $orderId,
+            'quantity' => 2,
+            'unit_price' => '50000.00',
+            'currency' => 'VND',
+            'line_total' => '100000.00',
+        ]);
+
+        $response = $this->postJson('/api/v1/staff/orders/'.$orderId.'/settlement/finalize', [
+            'payment_method' => 'Cash',
+            'payment_provider' => 'Cash',
+            'paid_amount' => 100000,
+            'currency' => 'VND',
+            'transaction_code' => 'HTTP-FINALIZE-MISSING-RV-1',
+        ], $headers);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error_code', 'validation_error')
+            ->assertJsonValidationErrors(['row_version']);
+        $this->assertSame(0, (int) DB::table('payments')->where('reservation_id', $reservationId)->count());
+    }
+
     public function test_finalize_endpoint_replays_same_idempotency_key_and_rejects_payload_conflict(): void
     {
         $staffId = $this->createUser(['role_name' => 'Cashier']);

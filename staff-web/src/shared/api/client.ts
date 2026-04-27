@@ -43,6 +43,7 @@ import {
   type StaffConversationDetailEnvelope,
   type StaffKitchenDispatchEnvelope,
   type StaffKitchenStationCollectionEnvelope,
+  type StaffKitchenTicketActionRequest,
   type StaffKitchenTicketCollectionEnvelope,
   type StaffKitchenTicketEnvelope,
   type StaffOperationalRealtimeEnvelope,
@@ -311,7 +312,7 @@ export async function loadKitchenStationTickets(
 
 export async function dispatchKitchenOrder(
   orderId: number,
-  payload: DispatchKitchenTicketsRequest = {},
+  payload: DispatchKitchenTicketsRequest,
 ): Promise<StaffKitchenDispatchEnvelope> {
   return staffClient.postV1StaffOrdersOrderIdKitchenDispatch(
     { order_id: orderId },
@@ -320,23 +321,26 @@ export async function dispatchKitchenOrder(
   );
 }
 
-export async function fireKitchenTicket(ticketId: number): Promise<StaffKitchenTicketEnvelope> {
+export async function fireKitchenTicket(ticketId: number, rowVersion: StaffKitchenTicketActionRequest['row_version']): Promise<StaffKitchenTicketEnvelope> {
   return staffClient.postV1StaffKitchenTicketsTicketIdFire(
     { ticket_id: ticketId },
+    { row_version: rowVersion },
     { idempotencyKey: createIdempotencyKey(`kitchen-fire-${ticketId}`) },
   );
 }
 
-export async function bumpKitchenTicket(ticketId: number): Promise<StaffKitchenTicketEnvelope> {
+export async function bumpKitchenTicket(ticketId: number, rowVersion: StaffKitchenTicketActionRequest['row_version']): Promise<StaffKitchenTicketEnvelope> {
   return staffClient.postV1StaffKitchenTicketsTicketIdBump(
     { ticket_id: ticketId },
+    { row_version: rowVersion },
     { idempotencyKey: createIdempotencyKey(`kitchen-bump-${ticketId}`) },
   );
 }
 
-export async function recallKitchenTicket(ticketId: number): Promise<StaffKitchenTicketEnvelope> {
+export async function recallKitchenTicket(ticketId: number, rowVersion: StaffKitchenTicketActionRequest['row_version']): Promise<StaffKitchenTicketEnvelope> {
   return staffClient.postV1StaffKitchenTicketsTicketIdRecall(
     { ticket_id: ticketId },
+    { row_version: rowVersion },
     { idempotencyKey: createIdempotencyKey(`kitchen-recall-${ticketId}`) },
   );
 }

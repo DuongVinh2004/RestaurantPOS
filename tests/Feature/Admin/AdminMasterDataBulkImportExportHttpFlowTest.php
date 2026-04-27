@@ -62,7 +62,7 @@ final class AdminMasterDataBulkImportExportHttpFlowTest extends TestCase
             ->assertJsonPath('data.summary.update_count', 1)
             ->assertJsonPath('data.summary.invalid_rows', 0);
 
-        $commit = $this->withHeaders($headers)
+        $commit = $this->withHeaders($this->withIdempotencyKey($headers, 'bulk-branches-commit'))
             ->postJson('/api/v1/admin/settings/branches/import', [
                 'mode' => 'commit',
                 'format' => 'csv',
@@ -97,7 +97,7 @@ final class AdminMasterDataBulkImportExportHttpFlowTest extends TestCase
     {
         [, $headers] = $this->adminHeaders('bulk-branches-duplicate-key');
 
-        $response = $this->withHeaders($headers)
+        $response = $this->withHeaders($this->withIdempotencyKey($headers, 'bulk-branches-duplicate-commit'))
             ->postJson('/api/v1/admin/settings/branches/import', [
                 'mode' => 'commit',
                 'format' => 'json',
@@ -199,7 +199,7 @@ final class AdminMasterDataBulkImportExportHttpFlowTest extends TestCase
             'description' => 'Old desc',
         ]);
 
-        $itemCommit = $this->withHeaders($headers)
+        $itemCommit = $this->withHeaders($this->withIdempotencyKey($headers, 'bulk-menu-items-commit'))
             ->postJson('/api/v1/admin/menu/items/import', [
                 'mode' => 'commit',
                 'format' => 'json',
@@ -248,7 +248,7 @@ final class AdminMasterDataBulkImportExportHttpFlowTest extends TestCase
             'effective_to' => null,
         ]);
 
-        $priceCommit = $this->withHeaders($headers)
+        $priceCommit = $this->withHeaders($this->withIdempotencyKey($headers, 'bulk-menu-prices-commit'))
             ->postJson('/api/v1/admin/menu/prices/import', [
                 'mode' => 'commit',
                 'format' => 'json',
@@ -283,7 +283,7 @@ final class AdminMasterDataBulkImportExportHttpFlowTest extends TestCase
         $this->assertAuditLogRecorded('master_data.menu_price.updated', 'menu_price', $priceSeedId);
         $this->assertAuditLogRecorded('master_data.menu_price.created', 'menu_price', $pastaPriceId);
 
-        $replay = $this->withHeaders($headers)
+        $replay = $this->withHeaders($this->withIdempotencyKey($headers, 'bulk-menu-items-noop-commit'))
             ->postJson('/api/v1/admin/menu/items/import', [
                 'mode' => 'commit',
                 'format' => 'json',
@@ -345,7 +345,7 @@ final class AdminMasterDataBulkImportExportHttpFlowTest extends TestCase
             ->assertJsonPath('data.can_commit', false)
             ->assertJsonPath('data.summary.invalid_rows', 1);
 
-        $voucherCommit = $this->withHeaders($headers)
+        $voucherCommit = $this->withHeaders($this->withIdempotencyKey($headers, 'bulk-vouchers-commit'))
             ->postJson('/api/v1/admin/benefits/vouchers/import', [
                 'mode' => 'commit',
                 'format' => 'json',
@@ -369,7 +369,7 @@ final class AdminMasterDataBulkImportExportHttpFlowTest extends TestCase
         $voucherLog = $this->assertAuditLogRecorded('master_data.voucher.created', 'voucher', $voucherId);
         self::assertSame($adminId, $voucherLog->actor_user_id);
 
-        $loyaltyCommit = $this->withHeaders($headers)
+        $loyaltyCommit = $this->withHeaders($this->withIdempotencyKey($headers, 'bulk-loyalty-tiers-commit'))
             ->postJson('/api/v1/admin/benefits/loyalty-tiers/import', [
                 'mode' => 'commit',
                 'format' => 'json',
@@ -407,7 +407,7 @@ final class AdminMasterDataBulkImportExportHttpFlowTest extends TestCase
             'description' => 'Bulk template',
         ]);
 
-        $createCommit = $this->withHeaders($headers)
+        $createCommit = $this->withHeaders($this->withIdempotencyKey($headers, 'bulk-tables-commit'))
             ->postJson('/api/v1/admin/restaurant/tables/import', [
                 'mode' => 'commit',
                 'format' => 'json',

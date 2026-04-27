@@ -83,10 +83,9 @@ This build binds directly to the staff backend and uses real APIs for the core f
 
 The FE does **not** fake completeness where backend contracts are still thin.
 
-- Order line item update/status routes exist, but `GET /api/v1/staff/orders/{order_id}` does not expose per-item `row_version`.
-- Because of that, the order workspace keeps line-level edit/status explicitly blocked for now.
+- Order line item update/status routes stay disabled until `GET /api/v1/staff/orders/{order_id}` exposes both order and per-item `row_version`.
 - Add-item, settlement, and reservation-linked refund still run live.
-- Kitchen routing and ticket surfaces can still be mounted, but day-1 launch posture keeps kitchen dispatch mutations behind the backend holdback.
+- Kitchen routing and ticket surfaces can still be mounted; dispatch and ticket actions require granted capability, branch/station context, `row_version`, and `Idempotency-Key`.
 - Waiting list create/advance/cancel routes are wired live through the local `staff-api` adapter because the generated TypeScript SDK does not currently expose those endpoints.
 - Customer waiting-list remains off on day 1; staff waiting-list is the manual operator path only.
 - Waiting-list notify prefers board-driven table selection when `table.board.view` is granted; otherwise the UI falls back to explicit `table_id` entry instead of pretending the board data exists.
@@ -143,16 +142,19 @@ Keep the frontend origin aligned with the backend CORS allow-list. `http://local
 ## Verification used for this batch
 
 ```bash
+npm run integrity:check
 npm run build
-npx vitest run src/shared/auth/capabilities.test.ts src/app/router/journey.test.ts src/app/router/navigation.test.ts
+npx vitest run src/shared/auth/capabilities.compat.test.ts src/workspaces/workspaces.test.ts src/app/router/workspace-route-guards.test.tsx src/workspaces/kitchen/pages/board/KitchenBoardPage.test.tsx src/workspaces/ops/pages/checkout/CheckoutPage.test.tsx
 ```
+
+MVP local/staging smoke steps are documented in `../docs/runbooks/staff-web-mvp-smoke.md`.
 
 ## Next recommended module after this batch
 
 Once the day-1 chain is stable, the next highest-value follow-up is:
 
 1. cashier shift -> checkout handoff polish and reconciliation detail
-2. order line-item edit/status after backend exposes per-item `row_version`
+2. order line-item edit/status smoke against real row-version fixtures
 3. kitchen/KDS promotion after rollout evidence exists
 4. conversation inbox
 5. audit and reporting

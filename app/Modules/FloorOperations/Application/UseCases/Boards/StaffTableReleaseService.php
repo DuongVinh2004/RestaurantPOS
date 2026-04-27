@@ -15,6 +15,7 @@ use App\Modules\FloorOperations\Domain\Guards\TableReleaseGuard;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Support\AuditEvent;
+use App\Support\Auth\StaffActorGuard;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -36,6 +37,8 @@ class StaffTableReleaseService
 
     public function release(int $tableId, ?int $staffUserId = null, bool $force = false, ?string $notes = null, ?int $expectedRowVersion = null): RestaurantTable
     {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
+
         /** @var RestaurantTable $table */
         $table = $this->locks->withTableLocks([$tableId], function () use ($tableId, $staffUserId, $force, $notes, $expectedRowVersion) {
             return DB::transaction(function () use ($tableId, $staffUserId, $force, $notes, $expectedRowVersion) {
@@ -46,6 +49,8 @@ class StaffTableReleaseService
                     'Table release target must belong to a single branch.',
                     'table_id',
                 );
+                $this->assertOperationalBranchAccessible($tableBranchId, $staffUserId);
+
                 StaffReservationOperationGuard::assertExpectedTableRowVersion($table, $expectedRowVersion);
                 StaffReservationOperationGuard::assertTableReleaseAllowed($table, $this->tableStateService, $force);
 
@@ -91,8 +96,6 @@ class StaffTableReleaseService
                     ]);
                 }
 
-                $this->assertOperationalBranchAccessible($tableBranchId, $staffUserId);
-
                 $table = $this->tableStateService->releaseModelSafely(
                     $table,
                     null,
@@ -132,10 +135,11 @@ class StaffTableReleaseService
 
     private function assertOperationalBranchAccessible(int $branchId, ?int $staffUserId): void
     {
-        if ($staffUserId === null || $staffUserId <= 0 || $branchId <= 0) {
+        if ($branchId <= 0) {
             return;
         }
 
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $this->staffBranchContextService()->assertAccessibleBranch($staffUserId, $branchId);
     }
 

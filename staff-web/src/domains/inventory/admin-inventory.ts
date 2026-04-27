@@ -3,6 +3,7 @@ import type {
   GetV1AdminInventoryPurchaseOrdersQueryParams,
   GetV1AdminInventorySuppliersQueryParams,
 } from '../../shared/api/sdk';
+import type { AdminIngredientMovementQuery } from '../../shared/api/staff-api';
 
 export type AdminInventoryFilterState = {
   ingredientQuery: string;
@@ -41,6 +42,27 @@ type PurchaseOrderLike = {
     remaining_total_quantity: string | number | null;
   };
 };
+
+type IngredientMovementLike = {
+  movement_type: string;
+  quantity_delta: string | number | null;
+  created_by?: number | null;
+};
+
+type PurchaseReceiptLike = {
+  receipt_status: string;
+  summary: {
+    received_total_quantity: string | number | null;
+  };
+};
+
+export const inventoryMovementTypeOptions = [
+  { value: 'AdjustmentIncrease', label: 'Adjustment increase' },
+  { value: 'AdjustmentDecrease', label: 'Adjustment decrease' },
+  { value: 'Wastage', label: 'Wastage' },
+  { value: 'StockIn', label: 'Stock in' },
+  { value: 'StockOut', label: 'Stock out' },
+] as const;
 
 export const adminInventoryLaneNotes = [
   'Ingredients, suppliers, and purchase orders stay together under one admin supply lane.',
@@ -86,6 +108,17 @@ export function buildAdminPurchaseOrderQuery(
   };
 }
 
+export function buildAdminIngredientMovementQuery(
+  branchId: number | null,
+  perPage = 8,
+): AdminIngredientMovementQuery {
+  return {
+    branch_id: branchId ?? undefined,
+    per_page: perPage,
+    sort: '-created_at',
+  };
+}
+
 export function summarizeAdminIngredients<TIngredient extends IngredientLike>(ingredients: Array<TIngredient>) {
   return {
     displayedCount: ingredients.length,
@@ -112,6 +145,24 @@ export function summarizeAdminPurchaseOrders<TPurchaseOrder extends PurchaseOrde
   };
 }
 
+export function summarizeAdminIngredientMovements<TMovement extends IngredientMovementLike>(movements: Array<TMovement>) {
+  return {
+    displayedCount: movements.length,
+    adjustmentCount: movements.filter((movement) => movement.movement_type.startsWith('Adjustment')).length,
+    wastageCount: movements.filter((movement) => movement.movement_type === 'Wastage').length,
+    netQuantity: movements.reduce((sum, movement) => sum + numericValue(movement.quantity_delta), 0),
+    auditedCount: movements.filter((movement) => movement.created_by !== null && movement.created_by !== undefined).length,
+  };
+}
+
+export function summarizeAdminPurchaseReceipts<TReceipt extends PurchaseReceiptLike>(receipts: Array<TReceipt>) {
+  return {
+    displayedCount: receipts.length,
+    receivedCount: receipts.filter((receipt) => receipt.receipt_status === 'Received').length,
+    receivedQuantity: receipts.reduce((sum, receipt) => sum + numericValue(receipt.summary.received_total_quantity), 0),
+  };
+}
+
 export function adminPurchaseOrderTone(status: string): 'success' | 'warning' | 'error' | 'processing' {
   switch (status) {
     case 'Received':
@@ -122,6 +173,21 @@ export function adminPurchaseOrderTone(status: string): 'success' | 'warning' | 
       return 'processing';
     default:
       return 'warning';
+  }
+}
+
+export function inventoryMovementTone(type: string): 'success' | 'warning' | 'error' | 'processing' | 'default' {
+  switch (type) {
+    case 'StockIn':
+    case 'AdjustmentIncrease':
+      return 'success';
+    case 'StockOut':
+    case 'AdjustmentDecrease':
+      return 'warning';
+    case 'Wastage':
+      return 'error';
+    default:
+      return 'default';
   }
 }
 

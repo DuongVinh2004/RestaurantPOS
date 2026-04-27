@@ -579,8 +579,12 @@ export function OrderWorkspacePage() {
         throw new Error('Chọn hoặc tạo một đơn hàng đang phục vụ trước khi chuyển bếp.');
       }
 
+      if (resolvedOrderRowVersion === null || resolvedOrderRowVersion === undefined) {
+        throw new Error('Hãy tải lại đơn hàng để lấy phiên bản mới nhất trước khi chuyển bếp.');
+      }
+
       return dispatchKitchenOrder(resolvedOrderId, {
-        row_version: resolvedOrderRowVersion ?? undefined,
+        row_version: resolvedOrderRowVersion,
       });
     },
     onSuccess: async (dispatchEnvelope) => {
@@ -667,7 +671,12 @@ export function OrderWorkspacePage() {
             <Button onClick={() => orderDetailQuery.refetch()} disabled={!resolvedOrderId} loading={orderDetailQuery.isFetching}>
               Làm mới đơn hàng
             </Button>
-            <Button type="primary" onClick={handleDispatch} disabled={!resolvedOrderId} loading={dispatchMutation.isPending}>
+            <Button
+              type="primary"
+              onClick={handleDispatch}
+              disabled={!resolvedOrderId || resolvedOrderRowVersion === null || resolvedOrderRowVersion === undefined}
+              loading={dispatchMutation.isPending}
+            >
               Chuyển sang bếp
             </Button>
           </>

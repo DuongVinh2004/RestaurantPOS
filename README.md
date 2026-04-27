@@ -119,10 +119,18 @@ If you change schema-sensitive behavior, keep these files aligned:
 For a runtime-like local lane:
 
 - `npm run runtime:up`
+- `composer bootstrap:booking`
 - `npm run runtime:preflight`
 - `npm run runtime:down`
 
-This path brings up repo-local MySQL, Redis, backend HTTP, and scheduler work, then validates the runtime lane with doctor and related health checks.
+`npm run runtime:up` brings up repo-local MySQL, Redis, backend HTTP, and scheduler work. Run `composer bootstrap:booking` after services are reachable on a fresh machine or after schema drift; that is the SQL-first bootstrap and it must not be replaced by `php artisan migrate`. `npm run runtime:preflight` then validates backend HTTP, MySQL TCP, Redis TCP, `booking:doctor`, scheduler heartbeat, and notification outbox health.
+
+Runtime gate recovery checklist:
+
+- MySQL refused: run `npm run mysql:local:restart`, confirm `.env` `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, and set `MYSQL_BIN` if the `mysql` CLI is not on `PATH`.
+- Redis refused: run `powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-redis.ps1 -Restart` or start an external Redis service on `.env` `REDIS_HOST:REDIS_PORT`.
+- Scheduler heartbeat missing: keep `php artisan schedule:work` running, or restart the unified lane with `npm run runtime:restart`.
+- SQL bootstrap not applied: run `composer bootstrap:booking`, then `php artisan booking:doctor --json` and `php artisan booking:deploy-check --mode=preflight`.
 
 For faster UI-focused iteration:
 

@@ -3,6 +3,7 @@ import {
   buildFinanceReviewSearch,
   buildFinanceQuery,
   canIssueInvoiceForRow,
+  financeDateRangeError,
   financeFlagLabels,
   readFinanceReviewUrlState,
   summarizeFinance,
@@ -48,6 +49,12 @@ describe('finance review helpers', () => {
       per_page: 15,
       sort: '-last_payment_activity_at',
     });
+  });
+
+  it('classifies invalid activity date ranges before issuing a reconciliation query', () => {
+    expect(financeDateRangeError({ activityFrom: '2026-04-10', activityTo: '2026-04-01' })).toBe('Activity end date must be on or after activity start date.');
+    expect(financeDateRangeError({ activityFrom: '2026-04-01', activityTo: '2026-04-10' })).toBeNull();
+    expect(financeDateRangeError({ activityFrom: '2026-04-01', activityTo: '' })).toBeNull();
   });
 
   it('summarizes discrepancies, outstanding totals and settled rows', () => {

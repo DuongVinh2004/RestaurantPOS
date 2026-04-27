@@ -260,6 +260,60 @@ EXECUTE verify_stmt;
 DEALLOCATE PREPARE verify_stmt;
 
 SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.key_column_usage
+        WHERE constraint_schema = DATABASE()
+          AND table_name = 'cashier_shifts'
+          AND constraint_name = 'fk_cashier_shifts__cashier_user_id__users'
+          AND column_name = 'cashier_user_id'
+          AND referenced_table_name = 'users'
+          AND referenced_column_name = 'user_id'
+    ),
+    'SELECT "cashier_shifts.cashier_user_id_fk:ok"',
+    'SELECT * FROM __missing_restore_contract_cashier_shifts_cashier_user_fk__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.key_column_usage
+        WHERE constraint_schema = DATABASE()
+          AND table_name = 'cashier_shifts'
+          AND constraint_name = 'fk_cashier_shifts__opened_by__users'
+          AND column_name = 'opened_by'
+          AND referenced_table_name = 'users'
+          AND referenced_column_name = 'user_id'
+    ),
+    'SELECT "cashier_shifts.opened_by_fk:ok"',
+    'SELECT * FROM __missing_restore_contract_cashier_shifts_opened_by_fk__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.key_column_usage
+        WHERE constraint_schema = DATABASE()
+          AND table_name = 'cashier_shifts'
+          AND constraint_name = 'fk_cashier_shifts__closed_by__users'
+          AND column_name = 'closed_by'
+          AND referenced_table_name = 'users'
+          AND referenced_column_name = 'user_id'
+    ),
+    'SELECT "cashier_shifts.closed_by_fk:ok"',
+    'SELECT * FROM __missing_restore_contract_cashier_shifts_closed_by_fk__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
     EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'customer_privacy_requests'),
     'SELECT "customer_privacy_requests:ok"',
     'SELECT * FROM __missing_restore_contract_customer_privacy_requests__'

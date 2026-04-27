@@ -1229,7 +1229,7 @@ export type DeleteV1TableHoldsHoldIdQueryParams = {
 };
 
 export type DispatchKitchenTicketRequest = {
-  row_version?: (number) | null;
+  row_version: number;
 };
 
 export type GenericDataEnvelope = {

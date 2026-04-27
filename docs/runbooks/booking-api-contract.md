@@ -102,7 +102,7 @@ Default API error payload:
 
 Canonical optional top-level fields:
 
-- `category_code`: canonical frontend branch key for important failure families such as `authentication_required`, `forbidden_capability`, `owner_scope_denied`, `policy_denied`, `resource_conflict`, `stale_write`, `domain_invariant_violation`, and `idempotency_conflict`
+- `category_code`: canonical frontend branch key for important failure families such as `authentication_required`, `forbidden_capability`, `owner_scope_denied`, `policy_denied`, `resource_conflict`, `stale_write`, `domain_invariant_violation`, `idempotency_conflict`, and `dependency_unavailable`
 - `errors`: validation-style field map when request or domain validation details exist
 - `conflict_type`: machine-readable conflict family such as `stale_write`, `state_conflict`, or `idempotency_payload_mismatch`
 - `replay_state`: idempotency replay state such as `in_progress` or `payload_mismatch`

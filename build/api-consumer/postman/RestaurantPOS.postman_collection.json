@@ -2442,7 +2442,7 @@
                             }
                         ],
                         "url": "{{baseUrl}}/api/v1/staff/orders/{{orderId}}/kitchen/dispatch",
-                        "description": "Route the current order items into kitchen tickets using station category routing while preserving ticket state for redispatch-safe cases.\n\nSignature: `POST api/v1/staff/orders/{order_id}/kitchen/dispatch`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "description": "Route the current order items into kitchen tickets using station category routing while preserving ticket state for redispatch-safe cases. Requires the current order row_version for stale-write protection.\n\nSignature: `POST api/v1/staff/orders/{order_id}/kitchen/dispatch`\nAuth mode: `staff_api_key`\nContract grade: `full`",
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"row_version\": \"{{orderRowVersion}}\"\n}",

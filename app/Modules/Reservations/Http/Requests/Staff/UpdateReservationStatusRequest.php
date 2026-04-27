@@ -24,7 +24,7 @@ class UpdateReservationStatusRequest extends FormRequest
                     static fn (string $status) => $status !== ReservationStatus::Completed->value,
                 ))),
             ],
-            'row_version' => ['nullable', 'integer', 'min:1'],
+            'row_version' => ['required', 'integer', 'min:1'],
             'cancel_reason' => ['nullable', 'string', 'max:255'],
             'force' => ['sometimes', 'boolean'],
         ];

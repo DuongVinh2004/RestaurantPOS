@@ -78,6 +78,17 @@ export function buildInventoryQuery(
   };
 }
 
+export function reportingDateRangeError(filters: Pick<ReportingFilterState, 'dateFrom' | 'dateTo'>): string | null {
+  const startDate = nullableString(filters.dateFrom);
+  const endDate = nullableString(filters.dateTo);
+
+  if (!startDate || !endDate) {
+    return null;
+  }
+
+  return startDate <= endDate ? null : 'End date must be on or after start date.';
+}
+
 export function summarizeSales(rows: Array<ReportingDailySalesSnapshot>) {
   return rows.reduce((carry, row) => ({
     netPaidAmount: carry.netPaidAmount + row.payments.net_paid_amount,

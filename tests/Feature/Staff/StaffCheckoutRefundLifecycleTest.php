@@ -80,6 +80,58 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
         $this->assertSame('VND', (string) ($refundRow->currency ?? ''));
     }
 
+    public function test_refund_rejects_currency_mismatch_against_captured_payment_currency(): void
+    {
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'currency' => 'USD',
+        ]);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Completed',
+            'deposit_required_amount' => '50000.00',
+            'deposit_paid_amount' => '50000.00',
+            'deposit_status' => 'Paid',
+            'bill_currency' => 'VND',
+        ]);
+
+        $this->createPayment([
+            'reservation_id' => $reservationId,
+            'payment_type' => 'Deposit',
+            'status' => 'Success',
+            'amount' => '50000.00',
+            'currency' => 'VND',
+            'transaction_code' => 'DEP-CURRENCY-MISMATCH-1',
+        ]);
+
+        try {
+            $this->makeCheckoutService()->refundReservation(
+                reservationId: $reservationId,
+                paymentMethod: 'Cash',
+                refundScope: 'deposit',
+                refundAmount: 10000.00,
+                currency: 'USD',
+                transactionCode: 'RF-CURRENCY-MISMATCH-1',
+                paymentProvider: 'Cash',
+                notes: 'currency mismatch should be rejected',
+                reason: 'customer_request',
+                expectedRowVersion: 1,
+                staffUserId: $staffId,
+                idempotencyKey: 'idem-rf-currency-mismatch-1'
+            );
+
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $errors = $e->errors();
+            $this->assertArrayHasKey('currency', $errors);
+            $this->assertSame('Refund currency must match the reservation payment currency.', $errors['currency'][0]);
+        }
+
+        $this->assertSame(0, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Refund')->count());
+    }
+
     public function test_second_refund_attempt_after_full_refund_is_rejected_without_creating_new_refund_payment(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);

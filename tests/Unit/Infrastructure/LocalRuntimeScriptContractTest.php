@@ -42,12 +42,32 @@ final class LocalRuntimeScriptContractTest extends TestCase
         self::assertNotFalse($readme);
         self::assertStringContainsString('npm run runtime:up', $readme);
         self::assertStringContainsString('npm run runtime:down', $readme);
+        self::assertStringContainsString('composer bootstrap:booking', $readme);
+        self::assertStringContainsString('Runtime gate recovery checklist', $readme);
 
         $runbook = file_get_contents(base_path('docs/runbooks/booking-local-windows-vscode-cmd-runbook.md'));
         self::assertNotFalse($runbook);
         self::assertStringContainsString('npm run runtime:up', $runbook);
         self::assertStringContainsString('npm run runtime:down', $runbook);
         self::assertStringContainsString('npm run runtime:preflight', $runbook);
+    }
+
+    public function test_runtime_runbook_covers_dependency_recovery_blockers(): void
+    {
+        $runbook = file_get_contents(base_path('docs/runbooks/booking-local-windows-vscode-cmd-runbook.md'));
+        self::assertNotFalse($runbook);
+
+        foreach ([
+            'MySQL connection refused',
+            'Redis connection refused',
+            'scheduler',
+            'SQL bootstrap not applied',
+            'composer bootstrap:booking',
+            'php artisan booking:deploy-check --mode=preflight',
+            'tools/mysql/verify_release_contract.sql',
+        ] as $expected) {
+            self::assertStringContainsString($expected, $runbook, $expected);
+        }
     }
 
     public function test_runtime_script_keeps_repo_local_backend_on_127001_unless_app_url_explicitly_pins_an_endpoint(): void
@@ -111,6 +131,18 @@ final class LocalRuntimeScriptContractTest extends TestCase
 
         self::assertStringContainsString('function Test-RedisPing', $redisScript);
         self::assertStringContainsString('Redis-compatible service is already running', $redisScript);
+    }
+
+    public function test_mysql_runtime_script_rejects_non_mysql8_server_binary_for_repo_local_bootstrap(): void
+    {
+        $script = file_get_contents(base_path('scripts/ops/start-local-mysql.ps1'));
+        self::assertNotFalse($script);
+
+        self::assertStringContainsString('function Test-MySqlServerBinaryCompatible', $script);
+        self::assertStringContainsString('$versionOutput -match \'MySQL\' -and $versionOutput -match \'\\b8\\.\'', $script);
+        self::assertStringContainsString('function Get-MySqlServerCommand', $script);
+        self::assertStringContainsString('not MySQL Server 8 compatible', $script);
+        self::assertStringContainsString('not a complete MySQL Server 8 data directory', $script);
     }
 
     public function test_runtime_preflight_can_discover_common_windows_php_binary(): void

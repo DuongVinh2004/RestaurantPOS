@@ -19,6 +19,7 @@ use App\Modules\Payments\Http\Requests\Staff\RefundReservationRequest;
 use App\Modules\Promotions\Http\Requests\Staff\ApplyReservationVoucherRequest;
 use App\Modules\Promotions\Http\Requests\Staff\RemoveReservationVoucherRequest;
 use App\Modules\Reservations\Http\Requests\Staff\RescheduleReservationRequest;
+use App\Modules\Reservations\Http\Requests\Staff\UpdateReservationStatusRequest;
 use App\Modules\Waitlist\Http\Requests\Staff\CancelWaitlistRequest;
 use App\Modules\Waitlist\Http\Requests\Staff\InviteWaitlistCustomerRequest;
 use App\Modules\Waitlist\Http\Requests\Staff\SeatWaitlistRequest;
@@ -49,6 +50,7 @@ final class StaffMutationRowVersionContract
             RemoveReservationVoucherRequest::class => 'staff.reservation-voucher-remove',
             RescheduleReservationRequest::class => 'staff.reservation-reschedule',
             SeatWaitlistRequest::class => 'staff.waiting-list-seat',
+            UpdateReservationStatusRequest::class => 'staff.reservation-status',
         ];
     }
 

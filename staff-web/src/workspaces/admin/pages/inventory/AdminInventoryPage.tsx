@@ -1,29 +1,39 @@
-import { Card, Col, Input, Row, Select, Space, Statistic, Switch, Typography } from 'antd';
+import { Button, Card, Col, Input, InputNumber, Row, Select, Space, Statistic, Switch, Typography } from 'antd';
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFlowStore } from '../../../../app/store/flow-store';
 import {
   adminInventoryLaneNotes,
   adminPurchaseOrderTone,
+  buildAdminIngredientMovementQuery,
   buildAdminIngredientQuery,
   buildAdminPurchaseOrderQuery,
   buildAdminSupplierQuery,
   formatInventoryQuantity,
+  inventoryMovementTone,
+  inventoryMovementTypeOptions,
+  summarizeAdminIngredientMovements,
   summarizeAdminIngredients,
   summarizeAdminPurchaseOrders,
+  summarizeAdminPurchaseReceipts,
   summarizeAdminSuppliers,
   type AdminInventoryFilterState,
 } from '../../../../domains/inventory/admin-inventory';
 import {
+  createAdminIngredientMovement,
   listAdminIngredients,
+  listAdminIngredientMovements,
   listAdminPurchaseOrders,
+  listAdminPurchaseOrderReceipts,
   listAdminSuppliers,
 } from '../../../../shared/api/staff-api';
+import { formatApiError } from '../../../../shared/api/errors';
 import { formatDateTime } from '../../../../shared/utils/format';
 import { PageHeader } from '../../../../shared/ui/layout/PageHeader';
 import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
 import { ApiStateBlock, EmptyBlock, InlineLoading } from '../../../../shared/ui/states/StateBlocks';
 import { StatusChip } from '../../../../shared/ui/status/StatusChip';
+import { toast } from '../../../../shared/ui/feedback/toast';
 
 const purchaseOrderStatusOptions = [
   { value: '', label: 'All statuses' },
@@ -35,6 +45,7 @@ const purchaseOrderStatusOptions = [
 ];
 
 export function AdminInventoryPage() {
+  const queryClient = useQueryClient();
   const branchId = useFlowStore((state) => state.branchId);
   const [filters, setFilters] = useState<AdminInventoryFilterState>({
     ingredientQuery: '',
@@ -44,6 +55,13 @@ export function AdminInventoryPage() {
     purchaseOrderQuery: '',
     purchaseOrderStatus: '',
     branchIdInput: branchId ? String(branchId) : '',
+  });
+  const [selectedIngredientId, setSelectedIngredientId] = useState<number | null>(null);
+  const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<number | null>(null);
+  const [movementForm, setMovementForm] = useState({
+    movementType: 'AdjustmentDecrease',
+    quantity: '',
+    notes: '',
   });
 
   const ingredientsQuery = useQuery({
@@ -61,13 +79,73 @@ export function AdminInventoryPage() {
     queryFn: () => listAdminPurchaseOrders(buildAdminPurchaseOrderQuery(filters, branchId)),
   });
 
+  const ingredientMovementsQuery = useQuery({
+    queryKey: ['admin-inventory-ingredient-movements', selectedIngredientId, filters.branchIdInput, branchId],
+    queryFn: () => listAdminIngredientMovements(
+      selectedIngredientId as number,
+      buildAdminIngredientMovementQuery(Number(filters.branchIdInput) || branchId),
+    ),
+    enabled: selectedIngredientId !== null,
+  });
+
+  const purchaseOrderReceiptsQuery = useQuery({
+    queryKey: ['admin-inventory-purchase-order-receipts', selectedPurchaseOrderId],
+    queryFn: () => listAdminPurchaseOrderReceipts(selectedPurchaseOrderId as number),
+    enabled: selectedPurchaseOrderId !== null,
+  });
+
   const ingredientRows = useMemo(() => ingredientsQuery.data?.data ?? [], [ingredientsQuery.data?.data]);
   const supplierRows = useMemo(() => suppliersQuery.data?.data ?? [], [suppliersQuery.data?.data]);
   const purchaseOrderRows = useMemo(() => purchaseOrdersQuery.data?.data ?? [], [purchaseOrdersQuery.data?.data]);
+  const movementRows = useMemo(() => ingredientMovementsQuery.data?.data ?? [], [ingredientMovementsQuery.data?.data]);
+  const receiptRows = useMemo(() => purchaseOrderReceiptsQuery.data?.data ?? [], [purchaseOrderReceiptsQuery.data?.data]);
+  const selectedIngredient = useMemo(
+    () => ingredientRows.find((ingredient) => ingredient.ingredient_id === selectedIngredientId) ?? null,
+    [ingredientRows, selectedIngredientId],
+  );
+  const selectedPurchaseOrder = useMemo(
+    () => purchaseOrderRows.find((purchaseOrder) => purchaseOrder.purchase_order_id === selectedPurchaseOrderId) ?? null,
+    [purchaseOrderRows, selectedPurchaseOrderId],
+  );
 
   const ingredientSummary = useMemo(() => summarizeAdminIngredients(ingredientRows), [ingredientRows]);
   const supplierSummary = useMemo(() => summarizeAdminSuppliers(supplierRows), [supplierRows]);
   const purchaseOrderSummary = useMemo(() => summarizeAdminPurchaseOrders(purchaseOrderRows), [purchaseOrderRows]);
+  const movementSummary = useMemo(() => summarizeAdminIngredientMovements(movementRows), [movementRows]);
+  const receiptSummary = useMemo(() => summarizeAdminPurchaseReceipts(receiptRows), [receiptRows]);
+
+  const createMovementMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedIngredient) {
+        throw new Error('Select an ingredient before creating a movement.');
+      }
+
+      const quantity = Number(movementForm.quantity);
+      const scopedBranchId = Number(filters.branchIdInput) || branchId;
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        throw new Error('Movement quantity must be greater than zero.');
+      }
+
+      return createAdminIngredientMovement(selectedIngredient.ingredient_id, {
+        movement_type: movementForm.movementType as 'StockIn' | 'StockOut' | 'AdjustmentIncrease' | 'AdjustmentDecrease' | 'Wastage',
+        branch_id: scopedBranchId ?? null,
+        quantity,
+        unit_code: selectedIngredient.unit_code,
+        notes: movementForm.notes.trim() || null,
+      });
+    },
+    onSuccess: async () => {
+      setMovementForm((current) => ({ ...current, quantity: '', notes: '' }));
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin-inventory-ingredients'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin-inventory-ingredient-movements'] }),
+      ]);
+      toast.success('Inventory movement created.');
+    },
+    onError: (error) => {
+      toast.error(formatApiError(error, 'Could not create inventory movement.'));
+    },
+  });
 
   const main = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
@@ -181,7 +259,12 @@ export function AdminInventoryPage() {
           renderRows={() => (
             <div className="staff-admin-surface-list">
               {ingredientRows.map((ingredient) => (
-                <div key={ingredient.ingredient_id} className="staff-admin-surface-item">
+                <button
+                  key={ingredient.ingredient_id}
+                  type="button"
+                  className={`staff-admin-branch-row ${ingredient.ingredient_id === selectedIngredientId ? 'staff-admin-branch-row-selected' : ''}`}
+                  onClick={() => setSelectedIngredientId(ingredient.ingredient_id)}
+                >
                   <div>
                     <strong>{ingredient.name}</strong>
                     <Typography.Paragraph type="secondary">
@@ -195,7 +278,7 @@ export function AdminInventoryPage() {
                   <Typography.Text type="secondary">
                     On hand {formatInventoryQuantity(ingredient.stock.on_hand)} {ingredient.stock.unit_code}
                   </Typography.Text>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -246,7 +329,12 @@ export function AdminInventoryPage() {
           renderRows={() => (
             <div className="staff-admin-surface-list">
               {purchaseOrderRows.map((purchaseOrder) => (
-                <div key={purchaseOrder.purchase_order_id} className="staff-admin-surface-item">
+                <button
+                  key={purchaseOrder.purchase_order_id}
+                  type="button"
+                  className={`staff-admin-branch-row ${purchaseOrder.purchase_order_id === selectedPurchaseOrderId ? 'staff-admin-branch-row-selected' : ''}`}
+                  onClick={() => setSelectedPurchaseOrderId(purchaseOrder.purchase_order_id)}
+                >
                   <div>
                     <strong>{purchaseOrder.order_code}</strong>
                     <Typography.Paragraph type="secondary">
@@ -260,7 +348,7 @@ export function AdminInventoryPage() {
                   <Typography.Text type="secondary">
                     Remaining {formatInventoryQuantity(purchaseOrder.summary.remaining_total_quantity)} • expected {formatDateTime(purchaseOrder.expected_at ?? purchaseOrder.ordered_at ?? purchaseOrder.created_at)}
                   </Typography.Text>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -287,6 +375,118 @@ export function AdminInventoryPage() {
             <Statistic title="Remaining PO quantity" value={purchaseOrderSummary.remainingQuantity} formatter={(value) => formatInventoryQuantity(Number(value ?? 0))} />
           </Col>
         </Row>
+      </Card>
+
+      <Card className="staff-workspace-detail-card" title="Stock movement history">
+        {!selectedIngredient ? (
+          <EmptyBlock title="No ingredient selected" description="Select an ingredient to inspect movement history and create manual adjustments or wastage." />
+        ) : (
+          <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+            <Space wrap size={6}>
+              <StatusChip label={selectedIngredient.name} tone="processing" />
+              <StatusChip label={`${movementSummary.displayedCount} movements`} tone="default" />
+              <StatusChip label={`${movementSummary.auditedCount} audited`} tone="success" />
+            </Space>
+            {ingredientMovementsQuery.isLoading ? <InlineLoading tip="Loading movement history..." /> : null}
+            {ingredientMovementsQuery.error ? (
+              <ApiStateBlock
+                error={ingredientMovementsQuery.error}
+                fallback="Unable to load ingredient movements."
+                onRetry={() => void ingredientMovementsQuery.refetch()}
+              />
+            ) : null}
+            {movementRows.length > 0 ? (
+              <div className="staff-admin-detail-list">
+                {movementRows.map((movement) => (
+                  <div key={movement.movement_id} className="staff-admin-detail-item">
+                    <strong>{movement.movement_type}</strong>
+                    <span>
+                      {formatInventoryQuantity(movement.quantity_delta)} {movement.unit_code} / {formatDateTime(movement.created_at)}
+                    </span>
+                    <StatusChip label={movement.created_by ? `Actor #${movement.created_by}` : 'No actor'} tone={movement.created_by ? 'success' : 'warning'} />
+                  </div>
+                ))}
+              </div>
+            ) : !ingredientMovementsQuery.isLoading && !ingredientMovementsQuery.error ? (
+              <EmptyBlock title="No movement history" description="No movements matched the current branch scope." />
+            ) : null}
+
+            <Select
+              aria-label="Inventory movement type"
+              style={{ width: '100%' }}
+              options={[...inventoryMovementTypeOptions]}
+              value={movementForm.movementType}
+              onChange={(value) => setMovementForm((current) => ({ ...current, movementType: value }))}
+            />
+            <InputNumber
+              aria-label="Inventory movement quantity"
+              style={{ width: '100%' }}
+              min={0}
+              value={movementForm.quantity === '' ? null : Number(movementForm.quantity)}
+              placeholder={`Quantity (${selectedIngredient.unit_code})`}
+              onChange={(value) => setMovementForm((current) => ({ ...current, quantity: value === null ? '' : String(value) }))}
+            />
+            <Input
+              aria-label="Inventory movement notes"
+              autoComplete="off"
+              value={movementForm.notes}
+              placeholder="Adjustment notes"
+              onChange={(event) => setMovementForm((current) => ({ ...current, notes: event.target.value }))}
+            />
+            <Space wrap>
+              <Button
+                type="primary"
+                onClick={() => createMovementMutation.mutate()}
+                loading={createMovementMutation.isPending}
+                disabled={createMovementMutation.isPending}
+              >
+                Create movement
+              </Button>
+              <StatusChip label={inventoryMovementTypeOptions.find((option) => option.value === movementForm.movementType)?.label ?? movementForm.movementType} tone={inventoryMovementTone(movementForm.movementType)} />
+            </Space>
+            {createMovementMutation.error ? (
+              <Typography.Text type="danger">
+                {formatApiError(createMovementMutation.error, 'Could not create inventory movement.')}
+              </Typography.Text>
+            ) : null}
+          </Space>
+        )}
+      </Card>
+
+      <Card className="staff-workspace-detail-card" title="Receiving receipts">
+        {!selectedPurchaseOrder ? (
+          <EmptyBlock title="No purchase order selected" description="Select a purchase order to inspect backend receipt history." />
+        ) : (
+          <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+            <Space wrap size={6}>
+              <StatusChip label={selectedPurchaseOrder.order_code} tone="processing" />
+              <StatusChip label={`${receiptSummary.displayedCount} receipts`} tone="default" />
+              <StatusChip label={`${formatInventoryQuantity(receiptSummary.receivedQuantity)} received`} tone="success" />
+            </Space>
+            {purchaseOrderReceiptsQuery.isLoading ? <InlineLoading tip="Loading receipt history..." /> : null}
+            {purchaseOrderReceiptsQuery.error ? (
+              <ApiStateBlock
+                error={purchaseOrderReceiptsQuery.error}
+                fallback="Unable to load purchase-order receipts."
+                onRetry={() => void purchaseOrderReceiptsQuery.refetch()}
+              />
+            ) : null}
+            {receiptRows.length > 0 ? (
+              <div className="staff-admin-detail-list">
+                {receiptRows.map((receipt) => (
+                  <div key={receipt.receipt_id} className="staff-admin-detail-item">
+                    <strong>{receipt.receipt_code}</strong>
+                    <span>
+                      {receipt.receipt_status} / {formatInventoryQuantity(receipt.summary.received_total_quantity)} received / {formatDateTime(receipt.received_at ?? receipt.created_at)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : !purchaseOrderReceiptsQuery.isLoading && !purchaseOrderReceiptsQuery.error ? (
+              <EmptyBlock title="No receipts yet" description="Receiving commit remains hidden until the line-detail create contract is promoted into the staff-web facade." />
+            ) : null}
+          </Space>
+        )}
       </Card>
 
       <Card className="staff-workspace-detail-card" title="Lane notes">

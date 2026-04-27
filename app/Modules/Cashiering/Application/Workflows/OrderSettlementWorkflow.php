@@ -33,6 +33,7 @@ use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\SharedKernel\Money\Money;
+use App\Support\Auth\StaffActorGuard;
 use App\Support\DatabaseWriteConflictMapper;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
@@ -133,6 +134,7 @@ class OrderSettlementWorkflow
         ?int $staffUserId = null,
         string $idempotencyKey = ''
     ): array {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $idempotencyKey = trim($idempotencyKey);
         $cashieringReplayScope = CashieringReplayRecorder::SCOPE_STAFF_CHECKOUT;
         $settlementCompletedRealtimePayload = null;
@@ -281,6 +283,7 @@ class OrderSettlementWorkflow
      */
     public function lockBill(int $orderId, ?float $discountAmount = null, string $notes = '', ?int $expectedRowVersion = null, ?int $staffUserId = null): ReservationOrder
     {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $context = $this->getReservationLockContextForOrder($orderId);
 
         return $this->locks->withLockKeys($context['lock_keys'], function () use ($orderId, $discountAmount, $notes, $expectedRowVersion, $staffUserId) {
@@ -301,6 +304,7 @@ class OrderSettlementWorkflow
      */
     public function previewSettlement(int $orderId, string $fallbackCurrency = 'VND', ?int $staffUserId = null): array
     {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $order = $this->loadSettlementReadOrder($orderId);
 
         if ($order->reservation instanceof Reservation) {
@@ -323,6 +327,7 @@ class OrderSettlementWorkflow
         ?bool $cancelAfterPayment = null,
         ?int $staffUserId = null
     ): array {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         /** @var Reservation $reservation */
         $reservation = Reservation::query()
             ->with(['user', 'tables', 'orders.items.item', 'payments', 'appliedUserVoucher.voucher'])
@@ -391,6 +396,7 @@ class OrderSettlementWorkflow
         string $idempotencyKey = '',
         bool $useTransaction = true
     ): ReservationOrder {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $idempotencyKey = trim($idempotencyKey);
         $cashieringReplayScope = CashieringReplayRecorder::SCOPE_STAFF_PAY_ORDER;
         $settlementCompletedRealtimePayload = null;
@@ -485,6 +491,7 @@ class OrderSettlementWorkflow
         ?int $staffUserId = null,
         string $idempotencyKey = ''
     ): array {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $context = $this->getReservationLockContextForReservation($reservationId);
 
         return $this->locks->withLockKeys($context['lock_keys'], function () use (
@@ -538,6 +545,7 @@ class OrderSettlementWorkflow
         ?int $staffUserId = null,
         string $idempotencyKey = ''
     ): array {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $context = $this->getReservationLockContextForReservation($reservationId);
 
         return $this->locks->withLockKeys($context['lock_keys'], function () use (
@@ -963,6 +971,7 @@ class OrderSettlementWorkflow
      */
     private function ensureReservationBranchScopeLocked(Reservation $reservation, ?int $staffUserId = null, ?array $tableIds = null): int
     {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $tableIds = $tableIds ?? DB::table('reservation_tables')
             ->where('reservation_id', (int) $reservation->reservation_id)
             ->orderBy('table_id')
@@ -1019,9 +1028,7 @@ class OrderSettlementWorkflow
 
     private function assertOperationalBranchAccessible(int $branchId, ?int $staffUserId): void
     {
-        if ($staffUserId === null || $staffUserId <= 0) {
-            return;
-        }
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
         $this->staffBranchContextService->assertAccessibleBranch($staffUserId, $branchId);
     }
@@ -1039,9 +1046,7 @@ class OrderSettlementWorkflow
 
     private function assertSettlementOrderBranchAccessible(ReservationOrder $order, ?int $staffUserId): void
     {
-        if ($staffUserId === null || $staffUserId <= 0) {
-            return;
-        }
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
         $reservation = $order->relationLoaded('reservation') ? $order->reservation : null;
         if (! $reservation instanceof Reservation && (int) ($order->reservation_id ?? 0) > 0) {
@@ -1059,9 +1064,7 @@ class OrderSettlementWorkflow
 
     private function assertOpenCashierShiftForBranch(?int $staffUserId, int $branchId, ?string $currency = null): void
     {
-        if ($staffUserId === null || $staffUserId <= 0) {
-            return;
-        }
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
         $this->cashierShiftService->requireOpenShiftForMutation($staffUserId, $branchId, $currency);
     }

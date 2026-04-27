@@ -11,13 +11,23 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 class IdempotencyMiddleware
 {
-    public function handle(Request $request, Closure $next, string $scope = 'default')
-    {
+    public function handle(
+        Request $request,
+        Closure $next,
+        string $scope = 'default',
+        ?string $requiredInput = null,
+        ?string $requiredValue = null,
+    ) {
+        if ($this->shouldBypassForInputCondition($request, $requiredInput, $requiredValue)) {
+            return $next($request);
+        }
+
         $required = (bool) config('booking.idempotency_required_for_reservations', true);
 
         $requiredScopes = config('booking.idempotency_required_scopes', null);
@@ -438,6 +448,19 @@ class IdempotencyMiddleware
 
     private function ksortRecursive($value)
     {
+        if ($value instanceof UploadedFile) {
+            $path = $value->getRealPath();
+            $hash = is_string($path) && is_file($path) ? hash_file('sha256', $path) : false;
+
+            return [
+                '__uploaded_file' => true,
+                'client_name' => $value->getClientOriginalName(),
+                'mime_type' => $value->getClientMimeType(),
+                'size' => $value->getSize(),
+                'sha256' => is_string($hash) ? $hash : null,
+            ];
+        }
+
         if (! is_array($value)) {
             return $value;
         }
@@ -452,6 +475,23 @@ class IdempotencyMiddleware
         }
 
         return $value;
+    }
+
+    private function shouldBypassForInputCondition(Request $request, ?string $requiredInput, ?string $requiredValue): bool
+    {
+        $input = trim((string) $requiredInput);
+        $expected = mb_strtolower(trim((string) $requiredValue));
+
+        if ($input === '' || $expected === '') {
+            return false;
+        }
+
+        $actual = $request->input($input);
+        if (is_array($actual) || is_object($actual)) {
+            return true;
+        }
+
+        return mb_strtolower(trim((string) $actual)) !== $expected;
     }
 
     private function extractJsonBody(Response $response): mixed

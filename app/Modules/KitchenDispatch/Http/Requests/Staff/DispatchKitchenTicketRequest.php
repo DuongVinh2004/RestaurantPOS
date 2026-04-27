@@ -25,7 +25,7 @@ class DispatchKitchenTicketRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'row_version' => ['nullable', 'integer', 'min:1'],
+            'row_version' => ['required', 'integer', 'min:1'],
         ];
     }
 }

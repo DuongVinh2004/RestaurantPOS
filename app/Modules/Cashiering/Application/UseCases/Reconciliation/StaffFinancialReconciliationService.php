@@ -9,6 +9,7 @@ use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
+use App\Support\Auth\StaffActorGuard;
 use App\Support\Listing\SafeLike;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
@@ -29,6 +30,7 @@ class StaffFinancialReconciliationService
      */
     public function paginate(array $filters = [], ?int $staffActorUserId = null): LengthAwarePaginator
     {
+        $staffActorUserId = StaffActorGuard::requireStaffUserId($staffActorUserId);
         $filters = $this->withAccessibleBranchScope($filters, $staffActorUserId);
         $perPage = max(1, min((int) ($filters['per_page'] ?? 25), 100));
         $page = max(1, (int) ($filters['page'] ?? 1));
@@ -46,6 +48,7 @@ class StaffFinancialReconciliationService
      */
     public function exportRows(array $filters = [], ?int $staffActorUserId = null): array
     {
+        $staffActorUserId = StaffActorGuard::requireStaffUserId($staffActorUserId);
         $filters = $this->withAccessibleBranchScope($filters, $staffActorUserId);
         $limit = max(1, min((int) ($filters['limit'] ?? 500), 1000));
 
@@ -62,6 +65,7 @@ class StaffFinancialReconciliationService
      */
     public function show(int $reservationId, ?int $branchId = null, ?int $staffActorUserId = null): array
     {
+        $staffActorUserId = StaffActorGuard::requireStaffUserId($staffActorUserId);
         $branchScope = $this->resolveShowBranchScope($branchId, $staffActorUserId);
 
         /** @var Reservation $reservation */
@@ -154,9 +158,7 @@ class StaffFinancialReconciliationService
      */
     private function resolveShowBranchScope(?int $branchId = null, ?int $staffActorUserId = null): array
     {
-        if ($branchId !== null && ($staffActorUserId === null || $staffActorUserId <= 0)) {
-            return [$branchId];
-        }
+        $staffActorUserId = StaffActorGuard::requireStaffUserId($staffActorUserId);
 
         return $this->branchContextService->branchScopeOrAccessible($staffActorUserId, $branchId);
     }
@@ -317,6 +319,7 @@ class StaffFinancialReconciliationService
      */
     private function withAccessibleBranchScope(array $filters, ?int $staffActorUserId = null): array
     {
+        $staffActorUserId = StaffActorGuard::requireStaffUserId($staffActorUserId);
         $filters['branch_scope'] = $this->branchContextService->branchScopeOrAccessible(
             $staffActorUserId,
             isset($filters['branch_id']) && $filters['branch_id'] !== null ? (int) $filters['branch_id'] : null,

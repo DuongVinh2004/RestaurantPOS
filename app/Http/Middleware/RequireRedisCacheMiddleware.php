@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\ApiErrorCategory;
+use App\Support\ApiErrorResponse;
 use Closure;
 use Illuminate\Cache\Repository;
 use Illuminate\Http\Request;
@@ -34,13 +36,23 @@ class RequireRedisCacheMiddleware
             Log::channel('audit')->error('redis_required_but_unavailable', [
                 'path' => $request->path(),
                 'ip' => $request->ip(),
-                'error' => $e->getMessage(),
+                'exception_class' => $e::class,
             ]);
 
-            return response()->json([
-                'message' => 'Redis cache is required for this API in HA mode, but it is not available.',
-                'error' => 'redis_required',
-            ], 503);
+            return ApiErrorResponse::json(
+                $request,
+                503,
+                'redis_required',
+                'Redis cache is required for this API in HA mode, but it is not available.',
+                ['dependency' => 'redis'],
+                extra: [
+                    'category_code' => ApiErrorCategory::DEPENDENCY_UNAVAILABLE,
+                    'state_reason' => 'redis_unavailable',
+                    'next_actions' => [
+                        'retry_after_dependency_recovery',
+                    ],
+                ],
+            );
         }
     }
 }

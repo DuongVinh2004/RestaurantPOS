@@ -21,6 +21,7 @@ use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Support\AuditEvent;
+use App\Support\Auth\StaffActorGuard;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +44,7 @@ class StaffServiceSessionService
 
     public function createWalkInSession(array $payload, ?int $staffUserId = null): Reservation
     {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $tableIds = $this->normalizeTableIds((array) ($payload['table_ids'] ?? []));
         $guestCount = (int) ($payload['guest_count'] ?? 0);
         $startedAt = isset($payload['started_at'])
@@ -193,6 +195,8 @@ class StaffServiceSessionService
 
     public function findActiveSessionByTable(int $tableId, ?int $staffUserId = null): ?Reservation
     {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
+
         /** @var RestaurantTable|null $table */
         $table = RestaurantTable::query()
             ->where('table_id', $tableId)
@@ -403,18 +407,14 @@ class StaffServiceSessionService
 
     private function assertOperationalBranchAccessible(int $branchId, ?int $staffUserId): void
     {
-        if ($staffUserId === null || $staffUserId <= 0) {
-            return;
-        }
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
         $this->staffBranchContextService()->assertAccessibleBranch($staffUserId, $branchId);
     }
 
     private function staffCanAccessBranch(int $branchId, ?int $staffUserId): bool
     {
-        if ($staffUserId === null || $staffUserId <= 0) {
-            return true;
-        }
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
         try {
             $this->staffBranchContextService()->assertAccessibleBranch($staffUserId, $branchId);

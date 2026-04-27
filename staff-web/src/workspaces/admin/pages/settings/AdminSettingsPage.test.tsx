@@ -7,14 +7,20 @@ import { useFlowStore } from '../../../../app/store/flow-store';
 import { AdminSettingsPage } from './AdminSettingsPage';
 
 const apiMocks = vi.hoisted(() => ({
+  createAdminRestaurantTable: vi.fn(),
   listAdminBranches: vi.fn(),
+  listAdminRestaurantTables: vi.fn(),
+  listAdminRestaurantTableTemplates: vi.fn(),
 }));
 
 vi.mock('../../../../shared/api/staff-api', async () => {
   const actual = await vi.importActual<object>('../../../../shared/api/staff-api');
   return {
     ...actual,
+    createAdminRestaurantTable: apiMocks.createAdminRestaurantTable,
     listAdminBranches: apiMocks.listAdminBranches,
+    listAdminRestaurantTables: apiMocks.listAdminRestaurantTables,
+    listAdminRestaurantTableTemplates: apiMocks.listAdminRestaurantTableTemplates,
   };
 });
 
@@ -37,6 +43,9 @@ describe('AdminSettingsPage', () => {
     });
     useFlowStore.setState(initialFlowState, true);
     apiMocks.listAdminBranches.mockReset();
+    apiMocks.listAdminRestaurantTables.mockReset();
+    apiMocks.listAdminRestaurantTableTemplates.mockReset();
+    apiMocks.createAdminRestaurantTable.mockReset();
     apiMocks.listAdminBranches.mockResolvedValue({
       data: [
         {
@@ -71,6 +80,49 @@ describe('AdminSettingsPage', () => {
         },
       ],
     });
+    apiMocks.listAdminRestaurantTables.mockResolvedValue({
+      data: [
+        {
+          table_id: 11,
+          branch_id: 1,
+          branch: { branch_id: 1, branch_code: 'MAIN', branch_name: 'Main branch', is_default: true },
+          table_code: 'T-11',
+          template_id: 3,
+          template: { template_id: 3, template_code: 'T2', seats: 2, description: null },
+          capacity: 2,
+          seats: 2,
+          zone: 'Patio',
+          status: 'Available',
+          is_deleted: false,
+          is_active: true,
+          is_allocatable: true,
+          usage: {
+            active_reservation_count: 0,
+            active_hold_count: 0,
+            active_order_count: 0,
+            has_active_operational_links: false,
+          },
+          guards: {
+            can_change_zone: true,
+          },
+          description: null,
+          price: null,
+          row_version: 5,
+          created_at: '2026-04-17T09:00:00Z',
+          updated_at: '2026-04-17T10:00:00Z',
+        },
+      ],
+    });
+    apiMocks.listAdminRestaurantTableTemplates.mockResolvedValue({
+      data: [
+        {
+          template_id: 3,
+          template_code: 'T2',
+          seats: 2,
+          description: null,
+        },
+      ],
+    });
   });
 
   it('shows branch registry detail and configuration ownership surfaces', async () => {
@@ -80,8 +132,16 @@ describe('AdminSettingsPage', () => {
 
     expect(await screen.findByText('Branches and settings lane')).toBeInTheDocument();
     expect(await screen.findByText('Main branch')).toBeInTheDocument();
+    expect((await screen.findAllByText('T-11')).length).toBeGreaterThan(0);
     expect(screen.getByText('Kitchen routing')).toBeInTheDocument();
     expect(apiMocks.listAdminBranches).toHaveBeenCalledWith({ q: undefined, is_active: true });
+    expect(apiMocks.listAdminRestaurantTables).toHaveBeenCalledWith({
+      q: undefined,
+      status: undefined,
+      zone: undefined,
+      include_deleted: undefined,
+      branch_id: 1,
+    });
 
     fireEvent.click(screen.getByText('Annex'));
 

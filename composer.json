@@ -62,6 +62,10 @@
         "release:package": [
             "@php artisan booking:release-build"
         ],
+        "release:go-live-check": [
+            "Composer\\Config::disableProcessTimeout",
+            "node scripts/release/go-live-check.mjs"
+        ],
         "release:loop": [
             "@php artisan booking:release-loop"
         ],
@@ -80,6 +84,45 @@
         "test": [
             "@php artisan config:clear --ansi",
             "@php artisan test"
+        ],
+        "test:security": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
+            "@php artisan test tests/Feature/Security/SecurityAuthRbacBranchIsolationLadderTest.php tests/Feature/Staff/StaffBranchScopeSecurityHardeningTest.php tests/Feature/Staff/StaffCapabilityHttpGuardTest.php tests/Feature/Infrastructure/OpsReleaseAuthorizationMatrixTest.php tests/Unit/Http/Middleware/RequireStaffCapabilityTest.php tests/Unit/Support/StaffCapabilityResolverTest.php tests/Unit/Support/StaffApiKeyActorResolverTest.php"
+        ],
+        "test:orders": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
+            "@php artisan test tests/Feature/Staff/StaffOrderCriticalFlowHttpTest.php tests/Feature/Staff/StaffOrderItemLifecycleFlowTest.php tests/Feature/Staff/StaffOrderReadFlowTest.php tests/Feature/Staff/StaffTableOrderBranchScopeTest.php tests/Feature/Staff/StaffTableOrderConcurrencyGuardServiceTest.php tests/Feature/Staff/StaffTableOrderIdempotencyReplayServiceTest.php tests/Unit/Domain/Policies/ReservationOrderItemStatusTransitionPolicyTest.php tests/Unit/Services/Staff/BillLockServiceTest.php"
+        ],
+        "test:kitchen": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
+            "@php artisan test tests/Feature/Staff/StaffKitchenDispatchFoundationFlowTest.php tests/Feature/Admin/AdminKitchenRoutingFoundationHttpFlowTest.php tests/Feature/Staff/StaffOrderKdsFohActorBoundaryServiceTest.php tests/Feature/Admin/AdminInventoryKitchenPurchasingIdempotencyPolicyTest.php tests/Feature/Admin/AdminInventoryKitchenPurchasingRouteSurfaceTest.php tests/Unit/Domain/Policies/KitchenTicketTransitionPolicyTest.php"
+        ],
+        "test:money": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
+            "@php artisan test tests/Feature/Staff/StaffCheckoutHttpGuardFlowTest.php tests/Feature/Staff/StaffCheckoutConcurrencyGuardFlowTest.php tests/Feature/Staff/StaffCheckoutIdempotencyReplayServiceTest.php tests/Feature/Staff/StaffCheckoutRefundLifecycleTest.php tests/Feature/Staff/StaffCheckoutRefundAllocationGuardTest.php tests/Feature/Staff/StaffCheckoutRefundAndCancelServiceTest.php tests/Feature/Staff/StaffCashierShiftHttpFlowTest.php tests/Feature/Staff/StaffMoneyActorBoundaryServiceTest.php tests/Feature/Staff/StaffBranchScopeSecurityHardeningTest.php tests/Feature/Financial/ReservationPaymentIntegrityFlowTest.php tests/Unit/Domain/Policies/PaymentStatusTransitionPolicyTest.php tests/Unit/Services/Staff/PaymentCaptureServiceTest.php tests/Unit/Services/Staff/RefundExecutionServiceTest.php tests/Unit/Services/Staff/RefundPlannerServiceTest.php tests/Unit/Services/Staff/StaffCashierShiftMoneyTest.php tests/Unit/Support/RefundAllocationPolicyTest.php tests/Unit/Support/PaymentSummaryHardeningTest.php"
+        ],
+        "test:inventory": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
+            "@php artisan test tests/Feature/Admin/AdminInventoryFoundationHttpFlowTest.php tests/Feature/Staff/OrderItemInventoryConsumptionFlowTest.php tests/Feature/Admin/AdminInventoryKitchenPurchasingIdempotencyPolicyTest.php tests/Feature/Admin/AdminInventoryKitchenPurchasingRouteSurfaceTest.php tests/Unit/Services/Inventory/InventoryStockMovementServiceTest.php tests/Unit/Support/RowVersionSourceOfTruthInventoryTest.php"
+        ],
+        "test:release-contract": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
+            "@php artisan test tests/Unit/Config tests/Unit/Infrastructure tests/Unit/Services/BookingEnvironmentValidatorTest.php tests/Unit/Services/BookingReleaseConfigContractTest.php tests/Unit/Services/CoreOpsGateServiceTest.php tests/Unit/Services/DatabaseContractInspectorTest.php tests/Unit/Services/ReleaseArtifactContractTest.php tests/Unit/Services/ReleaseArtifactManifestServiceTest.php tests/Unit/Services/ReleaseArtifactNormalizerServiceTest.php tests/Unit/Services/ReleaseBuildServiceTest.php tests/Unit/Services/ReleaseLoopServiceTest.php tests/Unit/Services/ReleasePackageDefinitionContractTest.php tests/Unit/Services/ReleasePackageServiceTest.php tests/Unit/Services/RoundFiveGateServiceTest.php tests/Unit/Services/RouteInventoryGateServiceTest.php tests/Feature/Console/BookingCoreOpsGateCommandTest.php tests/Feature/Console/BookingDeployCheckCommandTest.php tests/Feature/Console/BookingDoctorCommandTest.php tests/Feature/Console/BookingReleaseBuildCommandTest.php tests/Feature/Console/BookingReleaseManifestCommandTest.php tests/Feature/Console/BookingRouteGateCommandTest.php tests/Feature/Console/BookingRoundFiveGateCommandTest.php tests/Feature/Infrastructure/ApiRouteSurfaceIntegrityTest.php tests/Feature/Infrastructure/ApiOpenApiContractCoverageTest.php"
+        ],
+        "test:critical": [
+            "Composer\\Config::disableProcessTimeout",
+            "@test:security",
+            "@test:orders",
+            "@test:kitchen",
+            "@test:money",
+            "@test:inventory",
+            "@test:release-contract"
         ],
         "verify:select": [
             "@php artisan booking:verify-select"
