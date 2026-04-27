@@ -59,8 +59,8 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
         $script = (string) File::get($smokeGatePath);
 
         $this->assertStringContainsString('php artisan cache:clear || true', $script);
-        $this->assertStringContainsString('php artisan booking:ops-heartbeat:touch scheduler --json >/dev/null', $script);
-        $this->assertStringContainsString('php artisan notifications:outbox-health --json | tee build/booking-ci/booking-outbox-health-smoke.json >/dev/null', $script);
+        $this->assertStringContainsString('php artisan booking:ops-heartbeat:touch scheduler --json | tee build/booking-ci/booking-ops-heartbeat-touch.json', $script);
+        $this->assertStringContainsString('php artisan notifications:outbox-health --json | tee build/booking-ci/booking-outbox-health-smoke.json', $script);
     }
 
     public function test_full_gate_runs_complete_test_static_analysis_and_style_gates(): void

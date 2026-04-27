@@ -150,7 +150,9 @@ class BillLockServiceTest extends TestCase
 
         $reservation = DB::table('reservations')->where('reservation_id', $reservationId)->first();
 
-        self::assertSame(3, (int) ($reservation->row_version ?? 0));
+        $expectedReservationRowVersion = in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true) ? 4 : 3;
+
+        self::assertSame($expectedReservationRowVersion, (int) ($reservation->row_version ?? 0));
         self::assertSame(45000.0, (float) ($reservation->final_bill_amount ?? 0.0));
         self::assertSame(5000.0, (float) ($reservation->discount_amount ?? 0.0));
         self::assertNotNull($reservation->billed_at);

@@ -7,24 +7,24 @@
             "path": "database/schema/mysql-schema.sql",
             "exists": true,
             "optional": false,
-            "sha256": "325ff3c0c0608fc67b86693eef09018f885ff42591ebc4af1a31628ad4dbdf09",
-            "bytes": 171464,
-            "line_count": 2494,
-            "modified_epoch": 1777102969,
-            "modified_at_utc": "2026-04-25T07:42:49+00:00",
-            "required_fragment_count": 50,
+            "sha256": "6cfd1a44ddc63ba33c7dcdfa4fdb079ff08a4e7db5ba2d310f446e41f535345d",
+            "bytes": 172421,
+            "line_count": 2508,
+            "modified_epoch": 1777291085,
+            "modified_at_utc": "2026-04-27T11:58:05+00:00",
+            "required_fragment_count": 55,
             "missing_fragments": []
         },
         "full_dump": {
             "path": "db_all.sql",
             "exists": true,
             "optional": false,
-            "sha256": "fd1bc50909279aa96bb2118aa66219aa88c78d27a5f67608766b68343d73d43f",
-            "bytes": 170987,
-            "line_count": 2491,
-            "modified_epoch": 1777167789,
-            "modified_at_utc": "2026-04-26T01:43:09+00:00",
-            "required_fragment_count": 50,
+            "sha256": "302d8574f6354b8ae39ac21a4160a9310680918bd3aaef624ade1fe891b47d2f",
+            "bytes": 171944,
+            "line_count": 2505,
+            "modified_epoch": 1777291085,
+            "modified_at_utc": "2026-04-27T11:58:05+00:00",
+            "required_fragment_count": 55,
             "missing_fragments": []
         },
         "core_ops_gate_definition": {
@@ -70,8 +70,8 @@
             "sha256": "96131f80547f7bd5a342b2218cb5f0a18bf0a1f65d7ecab44a91d588f9f4e87b",
             "bytes": 2279139,
             "line_count": 55725,
-            "modified_epoch": 1777171588,
-            "modified_at_utc": "2026-04-26T02:46:28+00:00",
+            "modified_epoch": 1777290736,
+            "modified_at_utc": "2026-04-27T11:52:16+00:00",
             "required_fragment_count": 5,
             "missing_fragments": []
         },
@@ -82,8 +82,8 @@
             "sha256": "151cc7a2a80569342aaca4b03454419530fffffb2f867ed06b5a2514585e542b",
             "bytes": 247937,
             "line_count": 4660,
-            "modified_epoch": 1777171588,
-            "modified_at_utc": "2026-04-26T02:46:28+00:00",
+            "modified_epoch": 1777290735,
+            "modified_at_utc": "2026-04-27T11:52:15+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -94,8 +94,8 @@
             "sha256": "a8462a821fa7fa0c10aa4d327980d8b2c3b9b6c955a06d00533d4c2d3186954b",
             "bytes": 18504,
             "line_count": 770,
-            "modified_epoch": 1777171588,
-            "modified_at_utc": "2026-04-26T02:46:28+00:00",
+            "modified_epoch": 1777290735,
+            "modified_at_utc": "2026-04-27T11:52:15+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -106,8 +106,8 @@
             "sha256": "15b2b17d986eb417f485761e26685f579140010a83c06c044599928e9fa82d86",
             "bytes": 18398,
             "line_count": 770,
-            "modified_epoch": 1777171588,
-            "modified_at_utc": "2026-04-26T02:46:28+00:00",
+            "modified_epoch": 1777290735,
+            "modified_at_utc": "2026-04-27T11:52:15+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -118,8 +118,8 @@
             "sha256": "612504883ea787ec1c88b520d07075c4d951365c27605030ac643ef31b88d143",
             "bytes": 151621,
             "line_count": 5470,
-            "modified_epoch": 1777171588,
-            "modified_at_utc": "2026-04-26T02:46:28+00:00",
+            "modified_epoch": 1777290735,
+            "modified_at_utc": "2026-04-27T11:52:15+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -130,8 +130,8 @@
             "sha256": "4cfd7e1b9857a5fd173fee29689fcf93e2d33dc352022815ac8a8a51aad8102a",
             "bytes": 10982,
             "line_count": 206,
-            "modified_epoch": 1777171588,
-            "modified_at_utc": "2026-04-26T02:46:28+00:00",
+            "modified_epoch": 1777290735,
+            "modified_at_utc": "2026-04-27T11:52:15+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -142,8 +142,8 @@
             "sha256": "19f4ce267d930e629c79b4fea5d72d1b9f581d7ba9e7c043b70e6129198ab93d",
             "bytes": 8770,
             "line_count": 218,
-            "modified_epoch": 1777171588,
-            "modified_at_utc": "2026-04-26T02:46:28+00:00",
+            "modified_epoch": 1777290735,
+            "modified_at_utc": "2026-04-27T11:52:15+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -154,8 +154,8 @@
             "sha256": "416b8f751a2b169b87b624aa79dce18de35e7ce2744ee56a68a7524a408e1e44",
             "bytes": 14770,
             "line_count": 481,
-            "modified_epoch": 1777171588,
-            "modified_at_utc": "2026-04-26T02:46:28+00:00",
+            "modified_epoch": 1777290735,
+            "modified_at_utc": "2026-04-27T11:52:15+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -166,8 +166,8 @@
             "sha256": "84ab844c572559925b755f9b70e28861b4f148e4ea59e54b94116d5cdf4db37e",
             "bytes": 15927,
             "line_count": 112,
-            "modified_epoch": 1777171588,
-            "modified_at_utc": "2026-04-26T02:46:28+00:00",
+            "modified_epoch": 1777290735,
+            "modified_at_utc": "2026-04-27T11:52:15+00:00",
             "required_fragment_count": 4,
             "missing_fragments": []
         },
@@ -199,11 +199,11 @@
             "path": "storage/app/booking_release/release_manifest_snapshot.json",
             "exists": true,
             "optional": false,
-            "sha256": "e270da2af7a85dc71e4926372acd6a7a32be8c76d98556469bfc01ecbbcb1f05",
+            "sha256": "f3489518675e46205e1491fae447588a9faeab548c86e58fc488bb818f4d8506",
             "bytes": 16667,
             "line_count": 330,
-            "modified_epoch": 1777167077,
-            "modified_at_utc": "2026-04-26T01:31:17+00:00",
+            "modified_epoch": 1777290736,
+            "modified_at_utc": "2026-04-27T11:52:16+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         }
@@ -264,7 +264,9 @@
             "2026_04_24_000054_branch_fk_integrity_guard.sql",
             "2026_04_24_000055_staff_branch_assignments_foundation.sql",
             "2026_04_24_000056_kitchen_branch_routing_scope.sql",
-            "2026_04_25_000057_kitchen_ticket_row_version.sql"
+            "2026_04_25_000057_kitchen_ticket_row_version.sql",
+            "2026_04_26_000058_cashier_shift_user_fk_contract.sql",
+            "2026_04_27_000059_cashier_shift_row_version.sql"
         ],
         "required": [
             "2026_03_14_000015_access_contract_and_portability_hardening.sql",
@@ -314,16 +316,18 @@
             "2026_04_24_000054_branch_fk_integrity_guard.sql",
             "2026_04_24_000055_staff_branch_assignments_foundation.sql",
             "2026_04_24_000056_kitchen_branch_routing_scope.sql",
-            "2026_04_25_000057_kitchen_ticket_row_version.sql"
+            "2026_04_25_000057_kitchen_ticket_row_version.sql",
+            "2026_04_26_000058_cashier_shift_user_fk_contract.sql",
+            "2026_04_27_000059_cashier_shift_row_version.sql"
         ],
         "missing": [],
-        "count": 55,
-        "required_count": 48
+        "count": 57,
+        "required_count": 50
     },
     "meta": {
-        "generated_at_utc": "2026-04-26T02:46:29+00:00"
+        "generated_at_utc": "2026-04-27T12:30:19+00:00"
     },
     "definition_path": "config/booking_release.php",
-    "definition_sha256": "593efceb7e7a2a6d4ff5fa3347afb9b30d79f5bfdda4124c4d32a2ef79aed91e",
+    "definition_sha256": "a1747f668bc3c65d299a9bfd08115af33346a6217e8c73afb8066b1bc603961a",
     "snapshot_path": "storage/app/booking_release/release_manifest_snapshot.json"
 }
