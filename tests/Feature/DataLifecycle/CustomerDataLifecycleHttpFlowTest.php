@@ -146,7 +146,7 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
             'payment_method' => 'Card',
             'amount' => '200000.00',
             'currency' => 'VND',
-            'session_status' => 'Confirmed',
+            'session_status' => 'Succeeded',
             'settlement_status' => 'Applied',
             'provider_payload_json' => json_encode(['checkout_url' => 'https://provider.test/secret'], JSON_THROW_ON_ERROR),
             'idempotency_key' => 'dep-export-idem-001',
@@ -189,7 +189,7 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
 
         $exportedData = $export->json('data');
         self::assertSame('PAY-PRIV-001', data_get($exportedData, 'tables.payments.0.transaction_code'));
-        self::assertSame('Confirmed', data_get($exportedData, 'tables.reservation_deposit_payment_sessions.0.session_status'));
+        self::assertSame('Succeeded', data_get($exportedData, 'tables.reservation_deposit_payment_sessions.0.session_status'));
         self::assertSame('Need invoice support', data_get($exportedData, 'tables.conversation_messages.0.message_text'));
         self::assertSame('ACB', data_get($exportedData, 'tables.bank_accounts.0.bank_name'));
         $this->assertSanitizedCustomerExport($exportedData);
@@ -297,7 +297,7 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
             'payment_method' => 'Card',
             'amount' => '320000.00',
             'currency' => 'VND',
-            'session_status' => 'Confirmed',
+            'session_status' => 'Succeeded',
             'settlement_status' => 'Applied',
             'provider_payload_json' => json_encode(['checkout_url' => 'https://provider.test/admin-secret'], JSON_THROW_ON_ERROR),
             'idempotency_key' => 'dep-admin-export-idem-001',

@@ -28,6 +28,7 @@ class CustomerSelfServiceErrorEnvelopeContractTest extends TestCase
     public function test_staff_misuse_of_customer_benefits_endpoint_returns_standardized_error_envelope(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        config()->set('staff_auth.allowed_role_ids', [(int) User::query()->whereKey($staffId)->value('role_id')]);
         config()->set('staff_auth.api_keys', ['customer-benefits-envelope-staff-key' => $staffId]);
 
         $response = $this->withHeaders([
@@ -46,6 +47,7 @@ class CustomerSelfServiceErrorEnvelopeContractTest extends TestCase
     public function test_staff_misuse_of_customer_privacy_endpoint_returns_standardized_error_envelope(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
+        config()->set('staff_auth.allowed_role_ids', [(int) User::query()->whereKey($staffId)->value('role_id')]);
         config()->set('staff_auth.api_keys', ['customer-privacy-envelope-staff-key' => $staffId]);
 
         $response = $this->withHeaders([
