@@ -260,11 +260,11 @@ class TableAvailabilityFeatureTest extends TestCase
         self::assertSame([], $response->json('data'));
     }
 
-    public function test_available_endpoint_returns_no_tables_when_branch_scheduling_configuration_is_incomplete(): void
+    public function test_available_endpoint_returns_no_tables_when_branch_scheduling_configuration_is_invalid(): void
     {
         $branchId = $this->createBranch([
             'branch_code' => 'CFG1',
-            'timezone' => null,
+            'timezone' => 'Invalid/Timezone',
             'business_hours' => null,
             'booking_policy' => null,
         ]);

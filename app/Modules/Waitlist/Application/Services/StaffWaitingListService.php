@@ -269,6 +269,13 @@ class StaffWaitingListService
 
                     $this->assertTablesServiceableForSeat($resolvedTableIds);
 
+                    // Consume the invite hold before reservation table attach so MySQL overlap triggers
+                    // do not see the same waiting-list hold as a competing live hold.
+                    $hold->hold_status = TableHoldStatus::Cancelled;
+                    $hold->updated_by = $staffUserId;
+                    $hold->updated_at = Carbon::now('UTC');
+                    $hold->save();
+
                     $reservation = $this->reservationService->createReservation([
                         'branch_id' => (int) $entry->branch_id,
                         'user_id' => $userId,
@@ -293,11 +300,6 @@ class StaffWaitingListService
                         ignoredHoldIds: [(string) $hold->hold_id],
                         skipLocking: true,
                     );
-
-                    $hold->hold_status = TableHoldStatus::Cancelled;
-                    $hold->updated_by = $staffUserId;
-                    $hold->updated_at = Carbon::now('UTC');
-                    $hold->save();
 
                     WaitlistInvitationStateMachine::applySeated($entry, $checkedInAt, $staffUserId, $userId, $notes);
                     $entry->save();

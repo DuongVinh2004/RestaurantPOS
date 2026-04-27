@@ -499,7 +499,14 @@ class StaffWaitingListLifecycleTest extends TestCase
             ->assertJsonPath('data.response.confirmed_arrival_at', null)
             ->assertJsonPath('data.invite_hold.has_active_hold', true);
 
-        self::assertSame('Cancelled', DB::table('table_holds')->where('session_id', 'waiting-list:'.$waitingId)->orderBy('created_at')->first()->hold_status);
+        $firstHoldStatus = DB::table('table_holds as th')
+            ->join('table_hold_details as thd', 'thd.hold_id', '=', 'th.hold_id')
+            ->where('th.session_id', 'waiting-list:'.$waitingId)
+            ->where('thd.table_id', $tableIdOne)
+            ->value('th.hold_status');
+
+        self::assertSame('Cancelled', (string) $firstHoldStatus);
+
         $activeHoldId = DB::table('table_holds')
             ->where('session_id', 'waiting-list:'.$waitingId)
             ->whereIn('hold_status', ['Holding', 'Pending', 'Confirmed'])
