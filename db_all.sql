@@ -2428,8 +2428,8 @@ ALTER TABLE `notification_outbox` ADD CONSTRAINT `fk_notification_outbox__relate
 ALTER TABLE `notification_outbox` ADD CONSTRAINT `fk_notification_outbox__recipient_user_id__users` FOREIGN KEY (`recipient_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `cashier_shifts` ADD CONSTRAINT `fk_cashier_shifts__branch_id__branches` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `cashier_shifts` ADD CONSTRAINT `fk_cashier_shifts__cashier_user_id__users` FOREIGN KEY (`cashier_user_id`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
-ALTER TABLE `cashier_shifts` ADD CONSTRAINT `fk_cashier_shifts__opened_by__users` FOREIGN KEY (`opened_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
-ALTER TABLE `cashier_shifts` ADD CONSTRAINT `fk_cashier_shifts__closed_by__users` FOREIGN KEY (`closed_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
+ALTER TABLE `cashier_shifts` ADD CONSTRAINT `fk_cashier_shifts__opened_by__users` FOREIGN KEY (`opened_by`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+ALTER TABLE `cashier_shifts` ADD CONSTRAINT `fk_cashier_shifts__closed_by__users` FOREIGN KEY (`closed_by`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `payments` ADD CONSTRAINT `fk_payments__branch_id__branches` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `payments` ADD CONSTRAINT `fk_payments__created_by__users` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `payments` ADD CONSTRAINT `fk_payments__refund_of_payment_id__payments` FOREIGN KEY (`refund_of_payment_id`) REFERENCES `payments` (`payment_id`) ON DELETE SET NULL ON UPDATE RESTRICT;

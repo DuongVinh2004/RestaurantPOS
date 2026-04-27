@@ -96,7 +96,7 @@ BEGIN
   ) THEN
     ALTER TABLE `cashier_shifts`
       ADD CONSTRAINT `fk_cashier_shifts__opened_by__users`
-      FOREIGN KEY (`opened_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
+      FOREIGN KEY (`opened_by`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
   END IF;
 
   IF NOT EXISTS (
@@ -109,7 +109,7 @@ BEGIN
   ) THEN
     ALTER TABLE `cashier_shifts`
       ADD CONSTRAINT `fk_cashier_shifts__closed_by__users`
-      FOREIGN KEY (`closed_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
+      FOREIGN KEY (`closed_by`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
   END IF;
 END $$
 

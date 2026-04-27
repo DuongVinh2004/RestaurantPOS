@@ -304,6 +304,18 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
 
             $this->assertStringContainsString('KEY `idx_cashier_shifts__opened_by` (`opened_by`)', $sql);
             $this->assertStringContainsString('KEY `idx_cashier_shifts__closed_by` (`closed_by`)', $sql);
+            foreach (array_keys($expectedConstraints) as $column) {
+                $this->assertStringContainsString(
+                    sprintf('FOREIGN KEY (`%s`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT', $column),
+                    $sql,
+                    sprintf('Release SQL artifact %s must restrict cashier shift user deletes for %s.', $path, $column)
+                );
+                $this->assertStringNotContainsString(
+                    sprintf('FOREIGN KEY (`%s`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT', $column),
+                    $sql,
+                    sprintf('Release SQL artifact %s must not null cashier shift audit user %s on delete.', $path, $column)
+                );
+            }
         }
 
         $patchSql = (string) File::get(base_path('database/patches/2026_04_26_000058_cashier_shift_user_fk_contract.sql'));
@@ -319,6 +331,10 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
             $this->assertStringContainsString(sprintf("column_name = '%s'", $column), $verifySql);
             $this->assertStringContainsString("referenced_table_name = 'users'", $verifySql);
             $this->assertStringContainsString("referenced_column_name = 'user_id'", $verifySql);
+            $this->assertStringContainsString(
+                sprintf('FOREIGN KEY (`%s`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT', $column),
+                $patchSql
+            );
         }
 
         $this->assertStringContainsString('orphan user rows exist', $patchSql);

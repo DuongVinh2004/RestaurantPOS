@@ -27,8 +27,8 @@ CREATE TABLE IF NOT EXISTS `cashier_shifts` (
   KEY `idx_cashier_shifts__cashier_user_id__status__opened_at` (`cashier_user_id`,`status`,`opened_at`),
   KEY `idx_cashier_shifts__status__opened_at` (`status`,`opened_at`),
   CONSTRAINT `fk_cashier_shifts__cashier_user_id__users` FOREIGN KEY (`cashier_user_id`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
-  CONSTRAINT `fk_cashier_shifts__opened_by__users` FOREIGN KEY (`opened_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT,
-  CONSTRAINT `fk_cashier_shifts__closed_by__users` FOREIGN KEY (`closed_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT,
+  CONSTRAINT `fk_cashier_shifts__opened_by__users` FOREIGN KEY (`opened_by`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `fk_cashier_shifts__closed_by__users` FOREIGN KEY (`closed_by`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `chk_cashier_shifts__status` CHECK ((`status` in ('Open','Closed'))),
   CONSTRAINT `chk_cashier_shifts__money_nonneg` CHECK (((`opening_float_amount` >= 0) and ((`expected_cash_amount` is null) or (`expected_cash_amount` >= 0)) and ((`actual_cash_amount` is null) or (`actual_cash_amount` >= 0)))),
   CONSTRAINT `chk_cashier_shifts__open_close_state` CHECK ((((`status` <> 'Open') or (`closed_at` is null and `closed_by` is null and `expected_cash_amount` is null and `actual_cash_amount` is null and `cash_discrepancy_amount` is null)) and ((`status` <> 'Closed') or (`closed_at` is not null and `closed_by` is not null and `expected_cash_amount` is not null and `actual_cash_amount` is not null and `cash_discrepancy_amount` is not null))))
