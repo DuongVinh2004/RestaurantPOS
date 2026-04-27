@@ -763,11 +763,7 @@ class StaffConversationWorkflowService
                 'recipient_user_id' => $support['recipient_user_id'] ?? null,
                 'template_key' => 'conversation.outbound_reply',
                 'event_key' => 'conversation.outbound_reply',
-                'idempotency_key' => sprintf(
-                    'conversation:%s:outbound-reply:%d',
-                    $conversation->conversation_id,
-                    (int) $message->message_id,
-                ),
+                'idempotency_key' => sprintf('conversation-reply:%d', (int) $message->message_id),
                 'dedupe_key' => null,
                 'payload' => $this->buildOutboundReplyNotificationPayload($conversation, $message),
                 'related_reservation_id' => $message->related_reservation_id !== null ? (int) $message->related_reservation_id : null,

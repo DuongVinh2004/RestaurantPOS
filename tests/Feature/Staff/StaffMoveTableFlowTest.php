@@ -284,10 +284,14 @@ class StaffMoveTableFlowTest extends TestCase
         $this->attachReservationTable($movingReservationId, $fromTableId);
         $this->attachReservationTable($blockingReservationId, $fromTableId);
 
+        $movingReservationRowVersion = (int) DB::table('reservations')
+            ->where('reservation_id', $movingReservationId)
+            ->value('row_version');
+
         $response = $this->withHeaders($headers)->postJson("/api/v1/staff/reservations/{$movingReservationId}/move-table", [
             'from_table_id' => $fromTableId,
             'to_table_id' => $toTableId,
-            'row_version' => 1,
+            'row_version' => $movingReservationRowVersion,
         ]);
 
         $response->assertStatus(422)

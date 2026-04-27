@@ -802,6 +802,10 @@ class StaffConversationInboxFlowTest extends TestCase
             ->where('template_key', 'conversation.outbound_reply')
             ->where('recipient_user_id', $customerId)
             ->count());
+        self::assertLessThanOrEqual(64, strlen((string) DB::table('notification_outbox')
+            ->where('template_key', 'conversation.outbound_reply')
+            ->where('recipient_user_id', $customerId)
+            ->value('idempotency_key')));
     }
 
     public function test_branch_flag_can_disable_staff_conversation_inbox_for_a_single_branch(): void
