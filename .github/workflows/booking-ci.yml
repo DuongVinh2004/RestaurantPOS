@@ -163,7 +163,11 @@ jobs:
         run: bash scripts/ci/booking-ci-bootstrap.sh
 
       - name: Run ${{ matrix.lane.name }}
-        run: ${{ matrix.lane.command }}
+        env:
+          BOOKING_CI_LANE_COMMAND: ${{ matrix.lane.command }}
+          BOOKING_CI_LANE_ID: ${{ matrix.lane.id }}
+          BOOKING_CI_LANE_NAME: ${{ matrix.lane.name }}
+        run: bash scripts/ci/booking-ci-run-lane.sh
 
       - name: Upload CI evidence
         if: always()
