@@ -32,7 +32,11 @@ lane_status="${PIPESTATUS[0]}"
 set -e
 
 if [[ "$lane_status" -ne 0 ]]; then
-  lane_tail="$(tail -n 120 "$lane_log" 2>/dev/null || true)"
+  lane_tail="$(sed -n '/FAILED/,$p' "$lane_log" 2>/dev/null | tail -n 100 || true)"
+  if [[ -z "$lane_tail" ]]; then
+    lane_tail="$(tail -n 120 "$lane_log" 2>/dev/null || true)"
+  fi
+
   if [[ -n "$lane_tail" && -n "${GITHUB_ACTIONS:-}" ]]; then
     printf '::error title=Booking CI lane failed (%s)::%s\n' "$lane_name" "$(escape_github_annotation "$lane_tail")"
   fi

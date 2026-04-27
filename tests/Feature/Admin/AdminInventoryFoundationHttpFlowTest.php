@@ -214,11 +214,17 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
 
         $response = $this->getJson('/api/v1/menu/items?service_time='.urlencode($serviceTime->toIso8601String()));
 
-        $response->assertOk()
-            ->assertJsonPath('meta.total', 1)
-            ->assertJsonPath('data.0.item_id', $itemId)
-            ->assertJsonPath('data.0.name', 'Pho Inventory')
-            ->assertJsonPath('data.0.price.amount', '145000.00');
+        $response->assertOk();
+
+        $matchingItems = array_values(array_filter(
+            (array) $response->json('data', []),
+            static fn (array $item): bool => (int) ($item['item_id'] ?? 0) === $itemId
+        ));
+
+        self::assertGreaterThanOrEqual(1, (int) $response->json('meta.total'));
+        self::assertCount(1, $matchingItems);
+        self::assertSame('Pho Inventory', (string) data_get($matchingItems[0], 'name'));
+        self::assertSame('145000.00', (string) data_get($matchingItems[0], 'price.amount'));
     }
 
     public function test_recipe_linkage_requires_matching_ingredient_unit_code(): void

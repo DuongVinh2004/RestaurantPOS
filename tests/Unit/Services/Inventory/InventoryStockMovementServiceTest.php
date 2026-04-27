@@ -27,8 +27,14 @@ class InventoryStockMovementServiceTest extends TestCase
         return app(InventoryStockMovementService::class);
     }
 
+    private function createInventoryActor(): int
+    {
+        return $this->createUser(['role_name' => 'Staff']);
+    }
+
     public function test_inventory_adjustment_decrease_rejects_when_insufficient_stock(): void
     {
+        $actorId = $this->createInventoryActor();
         $branchId = $this->createBranch([
             'branch_code' => 'INV-SVC-NEG',
             'branch_name' => 'Inventory Negative Guard Branch',
@@ -46,7 +52,7 @@ class InventoryStockMovementServiceTest extends TestCase
                 'quantity' => '1.000',
                 'unit_code' => 'kg',
                 'notes' => 'Manual shrinkage',
-            ], 99);
+            ], $actorId);
 
             self::fail('Expected insufficient stock adjustment decrease to be rejected.');
         } catch (ValidationException $exception) {
@@ -66,6 +72,8 @@ class InventoryStockMovementServiceTest extends TestCase
 
     public function test_purchase_receipt_increases_stock_then_stockout_succeeds(): void
     {
+        $stockInActorId = $this->createInventoryActor();
+        $stockOutActorId = $this->createInventoryActor();
         $branchId = $this->createBranch([
             'branch_code' => 'INV-SVC-STOCKOUT',
             'branch_name' => 'Inventory Stockout Branch',
@@ -83,7 +91,7 @@ class InventoryStockMovementServiceTest extends TestCase
             'unit_code' => 'kg',
             'reference_type' => 'PurchaseReceipt',
             'reference_id' => 'GRN-SVC-STOCKOUT-0001:10',
-        ], 101);
+        ], $stockInActorId);
 
         $stockOut = $this->makeService()->recordMovement($ingredientId, [
             'branch_id' => $branchId,
@@ -91,7 +99,7 @@ class InventoryStockMovementServiceTest extends TestCase
             'quantity' => '3.000',
             'unit_code' => 'kg',
             'notes' => 'Manual stock out after receipt',
-        ], 102);
+        ], $stockOutActorId);
 
         self::assertSame('StockIn', (string) $stockIn->movement_type);
         self::assertSame('StockOut', (string) $stockOut->movement_type);
@@ -101,6 +109,8 @@ class InventoryStockMovementServiceTest extends TestCase
 
     public function test_purchase_receipt_reference_replay_returns_existing_stock_movement(): void
     {
+        $firstActorId = $this->createInventoryActor();
+        $replayActorId = $this->createInventoryActor();
         $branchId = $this->createBranch([
             'branch_code' => 'INV-SVC',
             'branch_name' => 'Inventory Service Branch',
@@ -120,7 +130,7 @@ class InventoryStockMovementServiceTest extends TestCase
             'reference_id' => 'GRN-SVC-0001:10',
             'notes' => 'Initial goods receipt',
             'created_at' => $this->nowUtc()->copy()->subMinute(),
-        ], 101);
+        ], $firstActorId);
 
         $replayedMovement = $this->makeService()->recordMovement($ingredientId, [
             'branch_id' => $branchId,
@@ -131,7 +141,7 @@ class InventoryStockMovementServiceTest extends TestCase
             'reference_id' => 'GRN-SVC-0001:10',
             'notes' => 'Retried goods receipt request',
             'created_at' => $this->nowUtc(),
-        ], 202);
+        ], $replayActorId);
 
         self::assertSame((int) $firstMovement->movement_id, (int) $replayedMovement->movement_id);
         self::assertSame(
@@ -152,6 +162,9 @@ class InventoryStockMovementServiceTest extends TestCase
 
     public function test_system_generated_reference_rejects_payload_drift_on_replay(): void
     {
+        $seedActorId = $this->createInventoryActor();
+        $consumeActorId = $this->createInventoryActor();
+        $driftActorId = $this->createInventoryActor();
         $branchId = $this->createBranch([
             'branch_code' => 'INV-SVC-DRIFT',
             'branch_name' => 'Inventory Drift Branch',
@@ -168,7 +181,7 @@ class InventoryStockMovementServiceTest extends TestCase
             'quantity' => '5.000',
             'unit_code' => 'kg',
             'notes' => 'Seed stock for replay drift guard',
-        ], 302);
+        ], $seedActorId);
 
         $this->makeService()->recordMovement($ingredientId, [
             'branch_id' => $branchId,
@@ -178,7 +191,7 @@ class InventoryStockMovementServiceTest extends TestCase
             'reference_type' => 'ReservationOrderItemConsumption',
             'reference_id' => '9001:77:15',
             'notes' => 'Consumed once',
-        ], 303);
+        ], $consumeActorId);
 
         try {
             $this->makeService()->recordMovement($ingredientId, [
@@ -189,7 +202,7 @@ class InventoryStockMovementServiceTest extends TestCase
                 'reference_type' => 'ReservationOrderItemConsumption',
                 'reference_id' => '9001:77:15',
                 'notes' => 'Conflicting retry',
-            ], 404);
+            ], $driftActorId);
 
             self::fail('Expected replay drift to be rejected.');
         } catch (ValidationException $exception) {
@@ -211,6 +224,8 @@ class InventoryStockMovementServiceTest extends TestCase
 
     public function test_replay_safe_reference_cannot_cross_branch_scope(): void
     {
+        $firstActorId = $this->createInventoryActor();
+        $secondActorId = $this->createInventoryActor();
         $firstBranchId = $this->createBranch([
             'branch_code' => 'INV-SVC-BR-A',
             'branch_name' => 'Inventory Replay Branch A',
@@ -232,7 +247,7 @@ class InventoryStockMovementServiceTest extends TestCase
             'unit_code' => 'kg',
             'reference_type' => 'PurchaseReceipt',
             'reference_id' => 'GRN-SVC-BRANCH-0001:10',
-        ], 505);
+        ], $firstActorId);
 
         try {
             $this->makeService()->recordMovement($ingredientId, [
@@ -242,7 +257,7 @@ class InventoryStockMovementServiceTest extends TestCase
                 'unit_code' => 'kg',
                 'reference_type' => 'PurchaseReceipt',
                 'reference_id' => 'GRN-SVC-BRANCH-0001:10',
-            ], 606);
+            ], $secondActorId);
 
             self::fail('Expected replay across branches to be rejected.');
         } catch (ValidationException $exception) {

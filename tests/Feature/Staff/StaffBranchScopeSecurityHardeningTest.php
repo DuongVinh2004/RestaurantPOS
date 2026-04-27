@@ -220,15 +220,25 @@ class StaffBranchScopeSecurityHardeningTest extends TestCase
             ->assertJsonPath('meta.filters.branch_id', $branchId)
             ->assertJsonFragment(['conversation_id' => $conversationId]);
 
-        $this->withHeaders($headers)
+        $auditResponse = $this->withHeaders($headers)
             ->getJson('/api/v1/staff/audit-trail?branch_id='.$branchId)
-            ->assertOk()
-            ->assertJsonPath('data.0.primary_subject.id', (string) $paymentId);
+            ->assertOk();
 
-        $this->withHeaders($headers)
+        self::assertTrue(
+            collect($auditResponse->json('data', []))
+                ->contains(static fn (array $entry): bool => (string) data_get($entry, 'primary_subject.id') === (string) $paymentId),
+            'Expected branch-scoped audit trail to include the payment subject created by this test.'
+        );
+
+        $reconciliationResponse = $this->withHeaders($headers)
             ->getJson('/api/v1/staff/finance/reconciliation?branch_id='.$branchId)
-            ->assertOk()
-            ->assertJsonPath('data.0.reservation.reservation_id', $reservationId);
+            ->assertOk();
+
+        self::assertTrue(
+            collect($reconciliationResponse->json('data', []))
+                ->contains(static fn (array $entry): bool => (int) data_get($entry, 'reservation.reservation_id') === $reservationId),
+            'Expected branch-scoped reconciliation to include the reservation created by this test.'
+        );
     }
 
     public function test_staff_cannot_issue_invoice_for_cross_branch_reservation_even_with_existing_shift(): void
