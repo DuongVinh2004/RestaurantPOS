@@ -468,6 +468,10 @@ class ReservationService
 
         $force = (bool) ($options['force'] ?? false);
         $cancelReason = isset($options['cancel_reason']) ? trim((string) $options['cancel_reason']) : null;
+        $actorType = mb_strtolower(trim((string) ($options['actor_type'] ?? 'staff')));
+        $enforceStaffBranchScope = array_key_exists('enforce_staff_branch_scope', $options)
+            ? (bool) $options['enforce_staff_branch_scope']
+            : $actorType === 'staff';
 
         if ($targetEnum === ReservationStatus::Completed) {
             throw ValidationException::withMessages([
@@ -475,7 +479,7 @@ class ReservationService
             ]);
         }
 
-        return $this->lockService->withReservationLock($reservationId, function () use ($reservationId, $targetEnum, $expectedRowVersion, $actorUserId, $force, $cancelReason) {
+        return $this->lockService->withReservationLock($reservationId, function () use ($reservationId, $targetEnum, $expectedRowVersion, $actorUserId, $force, $cancelReason, $enforceStaffBranchScope) {
             $tableIds = ReservationTable::query()
                 ->where('reservation_id', $reservationId)
                 ->orderBy('table_id')
@@ -484,11 +488,13 @@ class ReservationService
                 ->values()
                 ->all();
 
-            $work = function () use ($reservationId, $targetEnum, $expectedRowVersion, $actorUserId, $force, $cancelReason, $tableIds) {
-                DB::transaction(function () use ($reservationId, $targetEnum, $expectedRowVersion, $actorUserId, $force, $cancelReason, $tableIds) {
+            $work = function () use ($reservationId, $targetEnum, $expectedRowVersion, $actorUserId, $force, $cancelReason, $tableIds, $enforceStaffBranchScope) {
+                DB::transaction(function () use ($reservationId, $targetEnum, $expectedRowVersion, $actorUserId, $force, $cancelReason, $tableIds, $enforceStaffBranchScope) {
                     /** @var Reservation $reservation */
                     $reservation = Reservation::query()->lockForUpdate()->findOrFail($reservationId);
-                    $this->assertStaffCanMutateReservationBranch($reservation, $actorUserId);
+                    if ($enforceStaffBranchScope) {
+                        $this->assertStaffCanMutateReservationBranch($reservation, $actorUserId);
+                    }
 
                     $currentEnum = $reservation->status instanceof ReservationStatus
                         ? $reservation->status

@@ -71,6 +71,7 @@ class CustomerReservationSelfService
             expectedRowVersion: isset($payload['row_version']) ? (int) $payload['row_version'] : null,
             actorUserId: $actorUserId,
             options: [
+                'actor_type' => 'customer',
                 'cancel_reason' => $cancelReason,
                 'force' => false,
                 'audit_context' => $sessionId !== null && trim($sessionId) !== '' && $customerUserId === null

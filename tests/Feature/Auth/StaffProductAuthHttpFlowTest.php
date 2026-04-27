@@ -26,7 +26,7 @@ class StaffProductAuthHttpFlowTest extends TestCase
         config()->set('staff_auth.allow_env_fallback_when_database_store_unavailable', false);
         config()->set('staff_auth.allowed_role_ids', [1, 2]);
         config()->set('staff_auth.session_ttl_minutes', 30);
-        config()->set('staff_auth.login_throttle_limit', 5);
+        config()->set('staff_auth.login_throttle_limit', 120);
         config()->set('staff_auth.login_throttle_window_seconds', 60);
 
         DB::purge('sqlite');

@@ -37,6 +37,7 @@ class ReservationController extends Controller
             expectedRowVersion: $expectedRowVersion,
             actorUserId: $actorUserId,
             options: [
+                'actor_type' => 'staff',
                 'force' => (bool) ($validated['force'] ?? false),
                 'cancel_reason' => isset($validated['cancel_reason']) ? (string) $validated['cancel_reason'] : null,
             ]
