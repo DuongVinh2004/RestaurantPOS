@@ -67,11 +67,11 @@
             "path": "storage/app/booking_release/openapi-v1.json",
             "exists": true,
             "optional": false,
-            "sha256": "96131f80547f7bd5a342b2218cb5f0a18bf0a1f65d7ecab44a91d588f9f4e87b",
-            "bytes": 2279139,
-            "line_count": 55725,
-            "modified_epoch": 1777290736,
-            "modified_at_utc": "2026-04-27T11:52:16+00:00",
+            "sha256": "a8ac0a3fb4c556a335866a349b395b30b7a6bd07fca1a47b4314859127274708",
+            "bytes": 2287228,
+            "line_count": 55886,
+            "modified_epoch": 1777293544,
+            "modified_at_utc": "2026-04-27T12:39:04+00:00",
             "required_fragment_count": 5,
             "missing_fragments": []
         },
@@ -82,8 +82,8 @@
             "sha256": "151cc7a2a80569342aaca4b03454419530fffffb2f867ed06b5a2514585e542b",
             "bytes": 247937,
             "line_count": 4660,
-            "modified_epoch": 1777290735,
-            "modified_at_utc": "2026-04-27T11:52:15+00:00",
+            "modified_epoch": 1777293544,
+            "modified_at_utc": "2026-04-27T12:39:04+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -94,8 +94,8 @@
             "sha256": "a8462a821fa7fa0c10aa4d327980d8b2c3b9b6c955a06d00533d4c2d3186954b",
             "bytes": 18504,
             "line_count": 770,
-            "modified_epoch": 1777290735,
-            "modified_at_utc": "2026-04-27T11:52:15+00:00",
+            "modified_epoch": 1777293544,
+            "modified_at_utc": "2026-04-27T12:39:04+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -106,8 +106,8 @@
             "sha256": "15b2b17d986eb417f485761e26685f579140010a83c06c044599928e9fa82d86",
             "bytes": 18398,
             "line_count": 770,
-            "modified_epoch": 1777290735,
-            "modified_at_utc": "2026-04-27T11:52:15+00:00",
+            "modified_epoch": 1777293544,
+            "modified_at_utc": "2026-04-27T12:39:04+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -118,8 +118,8 @@
             "sha256": "612504883ea787ec1c88b520d07075c4d951365c27605030ac643ef31b88d143",
             "bytes": 151621,
             "line_count": 5470,
-            "modified_epoch": 1777290735,
-            "modified_at_utc": "2026-04-27T11:52:15+00:00",
+            "modified_epoch": 1777293544,
+            "modified_at_utc": "2026-04-27T12:39:04+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -130,8 +130,8 @@
             "sha256": "4cfd7e1b9857a5fd173fee29689fcf93e2d33dc352022815ac8a8a51aad8102a",
             "bytes": 10982,
             "line_count": 206,
-            "modified_epoch": 1777290735,
-            "modified_at_utc": "2026-04-27T11:52:15+00:00",
+            "modified_epoch": 1777293544,
+            "modified_at_utc": "2026-04-27T12:39:04+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -142,8 +142,8 @@
             "sha256": "19f4ce267d930e629c79b4fea5d72d1b9f581d7ba9e7c043b70e6129198ab93d",
             "bytes": 8770,
             "line_count": 218,
-            "modified_epoch": 1777290735,
-            "modified_at_utc": "2026-04-27T11:52:15+00:00",
+            "modified_epoch": 1777293544,
+            "modified_at_utc": "2026-04-27T12:39:04+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -154,8 +154,8 @@
             "sha256": "416b8f751a2b169b87b624aa79dce18de35e7ce2744ee56a68a7524a408e1e44",
             "bytes": 14770,
             "line_count": 481,
-            "modified_epoch": 1777290735,
-            "modified_at_utc": "2026-04-27T11:52:15+00:00",
+            "modified_epoch": 1777293544,
+            "modified_at_utc": "2026-04-27T12:39:04+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -166,8 +166,8 @@
             "sha256": "84ab844c572559925b755f9b70e28861b4f148e4ea59e54b94116d5cdf4db37e",
             "bytes": 15927,
             "line_count": 112,
-            "modified_epoch": 1777290735,
-            "modified_at_utc": "2026-04-27T11:52:15+00:00",
+            "modified_epoch": 1777293544,
+            "modified_at_utc": "2026-04-27T12:39:04+00:00",
             "required_fragment_count": 4,
             "missing_fragments": []
         },
@@ -199,11 +199,11 @@
             "path": "storage/app/booking_release/release_manifest_snapshot.json",
             "exists": true,
             "optional": false,
-            "sha256": "f3489518675e46205e1491fae447588a9faeab548c86e58fc488bb818f4d8506",
-            "bytes": 16667,
-            "line_count": 330,
-            "modified_epoch": 1777290736,
-            "modified_at_utc": "2026-04-27T11:52:16+00:00",
+            "sha256": "6228d38741ab5c289c17b3e53eefb038fb0f89a09860c841b87bdf207e06bee9",
+            "bytes": 16929,
+            "line_count": 334,
+            "modified_epoch": 1777293019,
+            "modified_at_utc": "2026-04-27T12:30:19+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         }
@@ -325,7 +325,7 @@
         "required_count": 50
     },
     "meta": {
-        "generated_at_utc": "2026-04-27T12:30:19+00:00"
+        "generated_at_utc": "2026-04-27T12:39:14+00:00"
     },
     "definition_path": "config/booking_release.php",
     "definition_sha256": "a1747f668bc3c65d299a9bfd08115af33346a6217e8c73afb8066b1bc603961a",

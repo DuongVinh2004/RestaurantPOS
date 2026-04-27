@@ -347,7 +347,17 @@
                 "tags": [
                     "Legacy"
                 ],
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical idempotency header. Compatibility aliases X-Idempotency-Key and body field idempotency_key are also accepted by the current implementation."
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Successful response.",
@@ -356,6 +366,18 @@
                                 "schema": {
                                     "$ref": "#/components/schemas/GenericDataEnvelope"
                                 }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
                     }
@@ -379,7 +401,8 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,1200,60,either",
-                    "staff.capability:voucher.master_data.manage"
+                    "staff.capability:voucher.master_data.manage",
+                    "idempotency:admin.master-data.import,mode,commit"
                 ],
                 "requestBody": {
                     "required": true,
@@ -748,7 +771,17 @@
                 "tags": [
                     "Legacy"
                 ],
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical idempotency header. Compatibility aliases X-Idempotency-Key and body field idempotency_key are also accepted by the current implementation."
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Successful response.",
@@ -757,6 +790,18 @@
                                 "schema": {
                                     "$ref": "#/components/schemas/GenericDataEnvelope"
                                 }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
                     }
@@ -780,7 +825,8 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,1200,60,either",
-                    "staff.capability:voucher.master_data.manage"
+                    "staff.capability:voucher.master_data.manage",
+                    "idempotency:admin.master-data.import,mode,commit"
                 ],
                 "requestBody": {
                     "required": true,
@@ -4626,7 +4672,17 @@
                 "tags": [
                     "Legacy"
                 ],
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical idempotency header. Compatibility aliases X-Idempotency-Key and body field idempotency_key are also accepted by the current implementation."
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Successful response.",
@@ -4635,6 +4691,18 @@
                                 "schema": {
                                     "$ref": "#/components/schemas/GenericDataEnvelope"
                                 }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
                     }
@@ -4658,7 +4726,8 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,1200,60,either",
-                    "staff.capability:menu.manage"
+                    "staff.capability:menu.manage",
+                    "idempotency:admin.menu-categories.import,mode,commit"
                 ],
                 "requestBody": {
                     "required": true,
@@ -5164,7 +5233,17 @@
                 "tags": [
                     "Legacy"
                 ],
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical idempotency header. Compatibility aliases X-Idempotency-Key and body field idempotency_key are also accepted by the current implementation."
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Successful response.",
@@ -5173,6 +5252,18 @@
                                 "schema": {
                                     "$ref": "#/components/schemas/GenericDataEnvelope"
                                 }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
                     }
@@ -5196,7 +5287,8 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,1200,60,either",
-                    "staff.capability:menu.manage"
+                    "staff.capability:menu.manage",
+                    "idempotency:admin.menu-items.import,mode,commit"
                 ],
                 "requestBody": {
                     "required": true,
@@ -5733,7 +5825,17 @@
                 "tags": [
                     "Legacy"
                 ],
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical idempotency header. Compatibility aliases X-Idempotency-Key and body field idempotency_key are also accepted by the current implementation."
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Successful response.",
@@ -5742,6 +5844,18 @@
                                 "schema": {
                                     "$ref": "#/components/schemas/GenericDataEnvelope"
                                 }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
                     }
@@ -5765,7 +5879,8 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,1200,60,either",
-                    "staff.capability:menu.manage"
+                    "staff.capability:menu.manage",
+                    "idempotency:admin.prices.import,mode,commit"
                 ],
                 "requestBody": {
                     "required": true,
@@ -6520,7 +6635,17 @@
                 "tags": [
                     "Legacy"
                 ],
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical idempotency header. Compatibility aliases X-Idempotency-Key and body field idempotency_key are also accepted by the current implementation."
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Successful response.",
@@ -6529,6 +6654,18 @@
                                 "schema": {
                                     "$ref": "#/components/schemas/GenericDataEnvelope"
                                 }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
                     }
@@ -6552,7 +6689,8 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,1200,60,either",
-                    "staff.capability:settings.manage"
+                    "staff.capability:settings.manage",
+                    "idempotency:admin.tables.import,mode,commit"
                 ],
                 "requestBody": {
                     "required": true,
@@ -7347,7 +7485,17 @@
                 "tags": [
                     "Admin Settings"
                 ],
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical idempotency header. Compatibility aliases X-Idempotency-Key and body field idempotency_key are also accepted by the current implementation."
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Successful response.",
@@ -7356,6 +7504,18 @@
                                 "schema": {
                                     "$ref": "#/components/schemas/GenericDataEnvelope"
                                 }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
                     }
@@ -7379,7 +7539,8 @@
                     "require.redis",
                     "App\\Http\\Middleware\\StaffApiKeyMiddleware",
                     "redis.throttle:staff.ops,1200,60,either",
-                    "staff.capability:settings.manage"
+                    "staff.capability:settings.manage",
+                    "idempotency:admin.branches.import,mode,commit"
                 ],
                 "requestBody": {
                     "required": true,
@@ -54759,9 +54920,8 @@
                     },
                     "row_version": {
                         "type": "integer",
-                        "nullable": true,
                         "x-laravel-rules": [
-                            "nullable",
+                            "required",
                             "integer",
                             "min:1"
                         ],
@@ -54786,6 +54946,7 @@
                     }
                 },
                 "required": [
+                    "row_version",
                     "status"
                 ],
                 "additionalProperties": false,
@@ -54796,7 +54957,7 @@
                         "in:Confirmed,Reserved,Cancelled,Expired,NoShow"
                     ],
                     "row_version": [
-                        "nullable",
+                        "required",
                         "integer",
                         "min:1"
                     ],
