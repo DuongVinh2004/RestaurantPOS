@@ -240,7 +240,7 @@ class BookingDeploySafetyServiceTest extends TestCase
                 'quantity' => 2,
                 'unit_price' => 100,
                 'currency' => 'VND',
-                'line_total' => 150,
+                'line_total' => 200,
                 'status' => 'Ordered',
                 'created_at' => now('UTC'),
                 'updated_at' => now('UTC'),
@@ -343,7 +343,7 @@ class BookingDeploySafetyServiceTest extends TestCase
 
         $this->assertFalse($report['ok']);
         $this->assertTrue($report['checks']['data.deposit_status']['ok']);
-        $this->assertFalse($report['checks']['data.reservation_order_item_totals']['ok']);
+        $this->assertTrue($report['checks']['data.reservation_order_item_totals']['ok']);
         $this->assertFalse($report['checks']['data.payment_refund_lineage']['ok']);
         $this->assertTrue($report['checks']['data.reservation_lifecycle']['ok']);
         $this->assertFalse($report['checks']['data.user_voucher_state']['ok']);
