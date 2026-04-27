@@ -16,6 +16,7 @@ use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\Support\AuditEvent;
+use App\Support\Auth\StaffActorGuard;
 use App\Support\AvailabilityCacheVersion;
 use App\Support\DatabaseWriteConflictMapper;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -48,6 +49,8 @@ class StaffMoveTableService
         ?int $staffUserId = null,
         ?int $expectedRowVersion = null
     ): Reservation {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
+
         if ($fromTableId <= 0 || $toTableId <= 0 || $fromTableId === $toTableId) {
             throw ValidationException::withMessages([
                 'table_id' => ['Invalid table ids.'],
@@ -393,10 +396,11 @@ class StaffMoveTableService
 
     private function assertOperationalBranchAccessible(?int $branchId, ?int $staffUserId): void
     {
-        if ($staffUserId === null || $staffUserId <= 0 || $branchId === null || $branchId <= 0) {
+        if ($branchId === null || $branchId <= 0) {
             return;
         }
 
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $this->staffBranchContextService()->assertAccessibleBranch($staffUserId, $branchId);
     }
 

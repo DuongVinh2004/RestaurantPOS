@@ -4,6 +4,7 @@ export type StaffNavIconKey =
   | 'dashboard'
   | 'settings'
   | 'inventory'
+  | 'menu'
   | 'tables'
   | 'reservations'
   | 'waiting'

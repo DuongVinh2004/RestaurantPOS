@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Infrastructure;
 
 use App\Modules\FloorOperations\Http\Controllers\Staff\TableBoardController;
+use App\Modules\Ordering\Http\Controllers\Staff\OrderReadController;
+use App\Modules\Ordering\Http\Controllers\Staff\ReservationOrderController;
 use App\Modules\Waitlist\Http\Controllers\Customer\WaitlistController;
 use App\Modules\Waitlist\Http\Requests\Customer\JoinWaitlistRequest;
 use App\Modules\Waitlist\Http\Requests\Customer\ListWaitlistRequest;
@@ -149,6 +151,33 @@ class LegacyPathCleanupEvidenceTest extends TestCase
 
         self::assertNotNull($legacy);
         self::assertSame('api/v1/staff/table-board', $legacy->uri());
+    }
+
+    public function test_staff_order_reads_stay_on_guarded_read_controller(): void
+    {
+        self::assertFalse(
+            method_exists(ReservationOrderController::class, 'show'),
+            'Legacy direct ReservationOrderController::show read must not be reachable or retained.'
+        );
+
+        $expected = [
+            OrderReadController::class.'@show' => 'api/v1/staff/orders/{order_id}',
+            OrderReadController::class.'@showActiveByTable' => 'api/v1/staff/tables/{table_id}/active-order',
+            OrderReadController::class.'@showActiveByReservation' => 'api/v1/staff/reservations/{reservation_id}/active-order',
+            ReservationOrderController::class.'@indexByReservation' => 'api/v1/staff/reservations/{reservation_id}/orders',
+        ];
+
+        foreach ($expected as $action => $uri) {
+            $route = Route::getRoutes()->getByAction($action);
+
+            self::assertNotNull($route, sprintf('Expected routed staff order read action [%s].', $action));
+            self::assertSame($uri, $route->uri());
+        }
+
+        self::assertNull(
+            Route::getRoutes()->getByAction(ReservationOrderController::class.'@show'),
+            'Legacy direct order show action must not be exposed as a route.'
+        );
     }
 
     private function assertMethodRequestType(string $method, string $expectedClass): void

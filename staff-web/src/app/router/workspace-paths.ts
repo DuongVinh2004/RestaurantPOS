@@ -25,6 +25,7 @@ export const staffRoutePaths = {
     root: '/admin',
     landing: '/admin',
     settings: '/admin/settings',
+    catalog: '/admin/catalog',
     inventory: '/admin/inventory',
     reporting: '/admin/reporting',
     auditTrail: '/admin/audit-trail',

@@ -63,6 +63,19 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
         $this->assertStringContainsString('php artisan notifications:outbox-health --json | tee build/booking-ci/booking-outbox-health-smoke.json >/dev/null', $script);
     }
 
+    public function test_full_gate_runs_complete_test_static_analysis_and_style_gates(): void
+    {
+        $fullGatePath = base_path('scripts/ci/booking-full-gate.sh');
+
+        $this->assertTrue(File::exists($fullGatePath), sprintf('Full gate script is missing: %s', $fullGatePath));
+
+        $script = (string) File::get($fullGatePath);
+
+        $this->assertStringContainsString('php artisan test', $script);
+        $this->assertStringContainsString('vendor/bin/phpstan analyse --no-progress --memory-limit=1G', $script);
+        $this->assertStringContainsString('vendor/bin/pint --test', $script);
+    }
+
     public function test_deploy_scripts_include_json_outbox_health_gate(): void
     {
         foreach ([
@@ -260,5 +273,63 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
         $this->assertStringContainsString('cashier_shifts.branch_id_fk:ok', $verifySql);
         $this->assertStringContainsString('Runtime read paths must not auto-create branch rows', $databaseReadme);
         $this->assertStringContainsString('Runtime read paths are expected to surface missing bootstrap state', $toolsReadme);
+    }
+
+    public function test_release_artifacts_restore_cashier_shift_finance_user_foreign_keys(): void
+    {
+        $expectedConstraints = [
+            'cashier_user_id' => 'fk_cashier_shifts__cashier_user_id__users',
+            'opened_by' => 'fk_cashier_shifts__opened_by__users',
+            'closed_by' => 'fk_cashier_shifts__closed_by__users',
+        ];
+
+        foreach ([
+            base_path('database/schema/mysql-schema.sql'),
+            base_path('db_all.sql'),
+        ] as $path) {
+            $sql = (string) File::get($path);
+
+            foreach ($expectedConstraints as $constraint) {
+                $this->assertStringContainsString(
+                    sprintf('CONSTRAINT `%s`', $constraint),
+                    $sql,
+                    sprintf('Release SQL artifact %s is missing cashier shift finance FK %s.', $path, $constraint)
+                );
+                $this->assertStringNotContainsString(
+                    sprintf('--   cashier_shifts.%s', $constraint),
+                    $sql,
+                    sprintf('Release SQL artifact %s still lists %s as omitted.', $path, $constraint)
+                );
+            }
+
+            $this->assertStringContainsString('KEY `idx_cashier_shifts__opened_by` (`opened_by`)', $sql);
+            $this->assertStringContainsString('KEY `idx_cashier_shifts__closed_by` (`closed_by`)', $sql);
+        }
+
+        $patchSql = (string) File::get(base_path('database/patches/2026_04_26_000058_cashier_shift_user_fk_contract.sql'));
+        $verifySql = (string) File::get(base_path('tools/mysql/verify_release_contract.sql'));
+        $bookingReleaseConfig = (string) File::get(base_path('config/booking_release.php'));
+        $databaseReadme = (string) File::get(base_path('database/README_release_bootstrap.md'));
+        $toolsReadme = (string) File::get(base_path('tools/mysql/README_bootstrap_release.md'));
+
+        foreach ($expectedConstraints as $column => $constraint) {
+            $this->assertStringContainsString($constraint, $patchSql);
+            $this->assertStringContainsString($constraint, $verifySql);
+            $this->assertStringContainsString($constraint, $bookingReleaseConfig);
+            $this->assertStringContainsString(sprintf("column_name = '%s'", $column), $verifySql);
+            $this->assertStringContainsString("referenced_table_name = 'users'", $verifySql);
+            $this->assertStringContainsString("referenced_column_name = 'user_id'", $verifySql);
+        }
+
+        $this->assertStringContainsString('orphan user rows exist', $patchSql);
+        $this->assertStringContainsString('cashier_shifts.cashier_user_id_fk:ok', $verifySql);
+        $this->assertStringContainsString('cashier_shifts.opened_by_fk:ok', $verifySql);
+        $this->assertStringContainsString('cashier_shifts.closed_by_fk:ok', $verifySql);
+        $this->assertStringContainsString('__missing_restore_contract_cashier_shifts_cashier_user_fk__', $verifySql);
+        $this->assertStringContainsString('__missing_restore_contract_cashier_shifts_opened_by_fk__', $verifySql);
+        $this->assertStringContainsString('__missing_restore_contract_cashier_shifts_closed_by_fk__', $verifySql);
+        $this->assertStringContainsString('2026_04_26_000058_cashier_shift_user_fk_contract.sql', $bookingReleaseConfig);
+        $this->assertStringContainsString('cashier shift finance user foreign keys', strtolower($databaseReadme));
+        $this->assertStringContainsString('cashier shift finance user foreign keys', strtolower($toolsReadme));
     }
 }

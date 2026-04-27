@@ -1742,12 +1742,26 @@ CREATE TABLE `cashier_shifts` (
   UNIQUE KEY `uq_cashier_shifts__shift_code` (`shift_code`),
   UNIQUE KEY `uq_cashier_shifts__active_cashier_user_id` (`active_cashier_user_id`),
   KEY `idx_cashier_shifts__cashier_user_id__status__opened_at` (`cashier_user_id`,`status`,`opened_at`),
+  KEY `idx_cashier_shifts__opened_by` (`opened_by`),
+  KEY `idx_cashier_shifts__closed_by` (`closed_by`),
   KEY `idx_cashier_shifts__branch_id__status__opened_at` (`branch_id`,`status`,`opened_at`),
   KEY `idx_cashier_shifts__status__opened_at` (`status`,`opened_at`),
   CONSTRAINT `chk_cashier_shifts__status` CHECK ((`status` in (_utf8mb4'Open',_utf8mb4'Closed'))),
   CONSTRAINT `chk_cashier_shifts__money_nonneg` CHECK (((`opening_float_amount` >= 0) and ((`expected_cash_amount` is null) or (`expected_cash_amount` >= 0)) and ((`actual_cash_amount` is null) or (`actual_cash_amount` >= 0)))),
   CONSTRAINT `chk_cashier_shifts__open_close_state` CHECK ((((`status` <> _utf8mb4'Open') or (`closed_at` is null and `closed_by` is null and `expected_cash_amount` is null and `actual_cash_amount` is null and `cash_discrepancy_amount` is null)) and ((`status` <> _utf8mb4'Closed') or (`closed_at` is not null and `closed_by` is not null and `expected_cash_amount` is not null and `actual_cash_amount` is not null and `cash_discrepancy_amount` is not null))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50003 TRIGGER `trg_cashier_shifts__bi_row_version` BEFORE INSERT ON `cashier_shifts` FOR EACH ROW BEGIN
+    IF NEW.`row_version` IS NULL OR NEW.`row_version` = 0 THEN
+        SET NEW.`row_version` = 1;
+    END IF;
+END */;;
+DELIMITER ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50003 TRIGGER `trg_cashier_shifts__bu_row_version` BEFORE UPDATE ON `cashier_shifts` FOR EACH ROW BEGIN
+    SET NEW.`row_version` = OLD.`row_version` + 1;
+END */;;
+DELIMITER ;
 
 DROP TABLE IF EXISTS `user_auth_tokens`;
 CREATE TABLE `user_auth_tokens` (
@@ -2351,9 +2365,6 @@ DELIMITER ;
 --   table_holds.fk_table_holds__confirmed_reservation_id__reservations
 --   table_holds.fk_table_holds__updated_by__users
 --   table_holds.fk_table_holds__user_id__users
---   cashier_shifts.fk_cashier_shifts__cashier_user_id__users
---   cashier_shifts.fk_cashier_shifts__opened_by__users
---   cashier_shifts.fk_cashier_shifts__closed_by__users
 
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -2416,6 +2427,9 @@ ALTER TABLE `notification_preferences` ADD CONSTRAINT `fk_notification_preferenc
 ALTER TABLE `notification_outbox` ADD CONSTRAINT `fk_notification_outbox__related_reservation_id__reservations` FOREIGN KEY (`related_reservation_id`) REFERENCES `reservations` (`reservation_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `notification_outbox` ADD CONSTRAINT `fk_notification_outbox__recipient_user_id__users` FOREIGN KEY (`recipient_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `cashier_shifts` ADD CONSTRAINT `fk_cashier_shifts__branch_id__branches` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+ALTER TABLE `cashier_shifts` ADD CONSTRAINT `fk_cashier_shifts__cashier_user_id__users` FOREIGN KEY (`cashier_user_id`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+ALTER TABLE `cashier_shifts` ADD CONSTRAINT `fk_cashier_shifts__opened_by__users` FOREIGN KEY (`opened_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
+ALTER TABLE `cashier_shifts` ADD CONSTRAINT `fk_cashier_shifts__closed_by__users` FOREIGN KEY (`closed_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `payments` ADD CONSTRAINT `fk_payments__branch_id__branches` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `payments` ADD CONSTRAINT `fk_payments__created_by__users` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `payments` ADD CONSTRAINT `fk_payments__refund_of_payment_id__payments` FOREIGN KEY (`refund_of_payment_id`) REFERENCES `payments` (`payment_id`) ON DELETE SET NULL ON UPDATE RESTRICT;

@@ -32,5 +32,7 @@ final class ApiErrorCategory
 
     public const DATABASE_ERROR = 'database_error';
 
+    public const DEPENDENCY_UNAVAILABLE = 'dependency_unavailable';
+
     public const INTERNAL_ERROR = 'internal_error';
 }

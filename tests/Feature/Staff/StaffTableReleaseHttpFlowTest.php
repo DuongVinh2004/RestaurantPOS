@@ -35,7 +35,7 @@ class StaffTableReleaseHttpFlowTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_staff_can_release_idle_occupied_table_via_http_flow(): void
+    public function test_same_branch_table_release_still_succeeds_when_releasable(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied', 'row_version' => 1]);
@@ -100,6 +100,7 @@ class StaffTableReleaseHttpFlowTest extends TestCase
             'row_version' => 1,
         ]);
         $this->attachReservationTable($reservationId, $tableId);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['default', (string) $annexBranchId]);
 
         $this->withHeaders($this->withIdempotencyKey('staff-table-release-branch-drift', $this->staffAuthHeaders($staffId)))
             ->postJson('/api/v1/staff/tables/'.$tableId.'/release', [
@@ -143,7 +144,7 @@ class StaffTableReleaseHttpFlowTest extends TestCase
         self::assertSame('Occupied', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
     }
 
-    public function test_release_rejects_table_when_live_active_order_exists_even_if_reservation_is_not_checked_in(): void
+    public function test_same_branch_table_release_still_blocks_active_order(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $customerId = $this->createUser(['role_name' => 'Customer']);
@@ -172,7 +173,7 @@ class StaffTableReleaseHttpFlowTest extends TestCase
         self::assertSame('Occupied', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
     }
 
-    public function test_release_returns_not_found_for_idle_table_outside_staff_operational_branch_scope(): void
+    public function test_out_of_branch_table_release_does_not_disclose_empty_table_state(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $annexBranchId = $this->createBranch([
@@ -185,13 +186,112 @@ class StaffTableReleaseHttpFlowTest extends TestCase
             'branch_id' => $annexBranchId,
         ]);
 
-        $this->withHeaders($this->withIdempotencyKey('staff-table-release-hidden-branch', $this->staffAuthHeaders($staffId)))
-            ->postJson('/api/v1/staff/tables/'.$tableId.'/release', [
-                'row_version' => 1,
-            ])
-            ->assertNotFound()
-            ->assertJsonPath('error_code', 'not_found');
+        $this->assertOutOfBranchReleaseDenied($staffId, $tableId, 'staff-table-release-hidden-empty');
 
         self::assertSame('Occupied', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
+    }
+
+    public function test_out_of_branch_table_release_does_not_disclose_active_reservation_state(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $annexBranchId = $this->createBranch([
+            'branch_code' => 'RELHIDERSV',
+            'branch_name' => 'Release Hidden Reservation Branch',
+        ]);
+        $tableId = $this->createRestaurantTable([
+            'status' => 'Occupied',
+            'row_version' => 1,
+            'branch_id' => $annexBranchId,
+        ]);
+        $reservationId = $this->createReservation([
+            'branch_id' => $annexBranchId,
+            'status' => 'Confirmed',
+            'checked_in_at' => null,
+            'start_time' => $this->nowUtc()->copy()->subMinutes(15),
+            'end_time' => $this->nowUtc()->copy()->addMinutes(45),
+            'row_version' => 1,
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+
+        $this->assertOutOfBranchReleaseDenied($staffId, $tableId, 'staff-table-release-hidden-reservation');
+
+        self::assertSame('Occupied', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
+    }
+
+    public function test_out_of_branch_table_release_does_not_disclose_active_order_state(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $annexBranchId = $this->createBranch([
+            'branch_code' => 'RELHIDEORD',
+            'branch_name' => 'Release Hidden Order Branch',
+        ]);
+        $tableId = $this->createRestaurantTable([
+            'status' => 'Occupied',
+            'row_version' => 1,
+            'branch_id' => $annexBranchId,
+        ]);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'branch_id' => $annexBranchId,
+            'status' => 'Confirmed',
+            'checked_in_at' => null,
+            'row_version' => 1,
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+        $this->createOrder([
+            'reservation_id' => $reservationId,
+            'order_type' => 'OnSpot',
+            'status' => 'Active',
+            'row_version' => 1,
+        ]);
+
+        $this->assertOutOfBranchReleaseDenied($staffId, $tableId, 'staff-table-release-hidden-order');
+
+        self::assertSame('Occupied', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
+    }
+
+    public function test_out_of_branch_table_release_does_not_disclose_active_service_session_state(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $annexBranchId = $this->createBranch([
+            'branch_code' => 'RELHIDESVC',
+            'branch_name' => 'Release Hidden Service Branch',
+        ]);
+        $tableId = $this->createRestaurantTable([
+            'status' => 'Occupied',
+            'row_version' => 1,
+            'branch_id' => $annexBranchId,
+        ]);
+        $reservationId = $this->createReservation([
+            'branch_id' => $annexBranchId,
+            'status' => 'Reserved',
+            'checked_in_at' => $this->nowUtc(),
+            'row_version' => 1,
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+
+        $this->assertOutOfBranchReleaseDenied($staffId, $tableId, 'staff-table-release-hidden-service');
+
+        self::assertSame('Occupied', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
+    }
+
+    private function assertOutOfBranchReleaseDenied(int $staffId, int $tableId, string $idempotencyKey): void
+    {
+        $response = $this->withHeaders($this->withIdempotencyKey($idempotencyKey, $this->staffAuthHeaders($staffId)))
+            ->postJson('/api/v1/staff/tables/'.$tableId.'/release', [
+                'row_version' => 1,
+            ]);
+
+        $response->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonPath('category_code', 'not_found');
+
+        $payload = (string) json_encode($response->json(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        self::assertStringNotContainsString('Cannot release table', $payload);
+        self::assertStringNotContainsString('active service context', $payload);
+        self::assertStringNotContainsString('live order', $payload);
+        self::assertStringNotContainsString('reservation', $payload);
     }
 }

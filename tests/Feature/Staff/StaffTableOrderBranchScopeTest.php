@@ -155,7 +155,7 @@ final class StaffTableOrderBranchScopeTest extends TestCase
         $service = $this->makeService();
 
         $this->expectException(ValidationException::class);
-        $service->createOnSpotOrder(10, 100, []);
+        $service->createOnSpotOrder(10, 100, [], staffUserId: 5001);
     }
 
     public function test_create_on_spot_order_backfills_missing_reservation_branch_from_table_branch(): void
@@ -181,7 +181,7 @@ final class StaffTableOrderBranchScopeTest extends TestCase
             'table_id' => 11,
         ]);
 
-        $order = $this->makeService()->createOnSpotOrder(11, 101, []);
+        $order = $this->makeService()->createOnSpotOrder(11, 101, [], staffUserId: 5001);
 
         self::assertGreaterThan(0, (int) $order->order_id);
         self::assertSame(2, (int) DB::table('reservations')->where('reservation_id', 101)->value('branch_id'));
@@ -231,6 +231,11 @@ final class StaffTableOrderBranchScopeTest extends TestCase
         $locks = Mockery::mock(ReservationLockService::class);
         $locks->shouldReceive('withTableLocks')
             ->andReturnUsing(static fn (array $tableIds, callable $callback) => $callback());
+
+        if ($staffBranchContextService === null) {
+            $staffBranchContextService = Mockery::mock(StaffBranchContextService::class);
+            $staffBranchContextService->shouldReceive('assertAccessibleBranch')->byDefault();
+        }
 
         return new StaffTableOrderService($locks, new BranchContextService, $staffBranchContextService);
     }

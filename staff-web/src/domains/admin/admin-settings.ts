@@ -1,8 +1,17 @@
 import type { GetV1AdminSettingsBranchesQueryParams } from '../../shared/api/sdk';
+import type { AdminRestaurantTableQuery } from '../../shared/api/staff-api';
 
 export type AdminBranchFilterState = {
   query: string;
   activeOnly: boolean;
+};
+
+export type AdminTableFilterState = {
+  query: string;
+  status: string;
+  zone: string;
+  includeDeleted: boolean;
+  branchIdInput: string;
 };
 
 type BranchLike = {
@@ -12,6 +21,16 @@ type BranchLike = {
   business_hours: Array<{ periods: Array<{ start_time: string; end_time: string }> }>;
   closure_windows: Array<unknown>;
   booking_policy: Record<string, unknown>;
+};
+
+type RestaurantTableLike = {
+  status: string;
+  is_active: boolean;
+  is_allocatable: boolean;
+  branch_id: number | null;
+  usage?: {
+    has_active_operational_links: boolean;
+  };
 };
 
 export type AdminSettingsSurface = {
@@ -62,6 +81,19 @@ export function buildAdminBranchesQuery(
   };
 }
 
+export function buildAdminRestaurantTableQuery(
+  filters: AdminTableFilterState,
+  fallbackBranchId: number | null,
+): AdminRestaurantTableQuery {
+  return {
+    q: normalizedString(filters.query),
+    status: normalizedString(filters.status),
+    zone: normalizedString(filters.zone),
+    include_deleted: filters.includeDeleted ? true : undefined,
+    branch_id: parsePositiveInteger(filters.branchIdInput) ?? fallbackBranchId ?? undefined,
+  };
+}
+
 export function pickAdminBranchId<TBranch extends BranchLike>(
   branches: Array<TBranch>,
   currentBranchId: number | null,
@@ -86,6 +118,31 @@ export function summarizeAdminBranches<TBranch extends BranchLike>(branches: Arr
     withClosures: branches.filter((branch) => branch.closure_windows.length > 0).length,
     withBusinessHours: branches.filter((branch) => branch.business_hours.some((day) => day.periods.length > 0)).length,
   };
+}
+
+export function summarizeAdminTables<TTable extends RestaurantTableLike>(tables: Array<TTable>) {
+  return {
+    total: tables.length,
+    active: tables.filter((table) => table.is_active).length,
+    allocatable: tables.filter((table) => table.is_allocatable).length,
+    operationallyLinked: tables.filter((table) => table.usage?.has_active_operational_links === true).length,
+    branchScoped: new Set(tables.map((table) => table.branch_id).filter((branchId) => branchId !== null)).size,
+  };
+}
+
+export function adminTableStatusTone(status: string): 'success' | 'warning' | 'error' | 'processing' | 'default' {
+  switch (status) {
+    case 'Available':
+      return 'success';
+    case 'Reserved':
+    case 'Occupied':
+      return 'processing';
+    case 'Blocked':
+    case 'Maintenance':
+      return 'warning';
+    default:
+      return 'default';
+  }
 }
 
 export function dayOfWeekLabel(dayOfWeek: number): string {
@@ -128,6 +185,11 @@ export function branchWaitingListLabel(branch: BranchLike): string {
 function normalizedString(value: string): string | undefined {
   const normalized = value.trim();
   return normalized === '' ? undefined : normalized;
+}
+
+function parsePositiveInteger(value: string): number | null {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

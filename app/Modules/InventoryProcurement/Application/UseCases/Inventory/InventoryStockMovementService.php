@@ -13,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class InventoryStockMovementService
 {
+    private const QUANTITY_SCALE = 1000;
+
     /**
      * @var list<string>
      */
@@ -58,6 +60,7 @@ class InventoryStockMovementService
             ingredientId: (int) $ingredient->ingredient_id,
             referenceType: $referenceType,
             referenceId: $referenceId,
+            lockForUpdate: true,
         );
         if ($existingMovement instanceof IngredientStockMovement) {
             $this->assertReplayCompatible(
@@ -69,6 +72,14 @@ class InventoryStockMovementService
             );
 
             return $existingMovement;
+        }
+
+        if ($this->isNegativeMovementType($movementType)) {
+            $this->assertStockWillNotGoNegative(
+                (int) $ingredient->ingredient_id,
+                $branchId,
+                $this->toScaledQuantity($quantityDelta),
+            );
         }
 
         $movement = new IngredientStockMovement;
@@ -87,6 +98,76 @@ class InventoryStockMovementService
         $movement->save();
 
         return $movement->fresh() ?? $movement;
+    }
+
+    /**
+     * @param  list<array{
+     *     ingredient_id:int,
+     *     branch_id:int|null,
+     *     movement_type:string,
+     *     quantity:mixed,
+     *     unit_code?:mixed,
+     *     reference_type?:mixed,
+     *     reference_id?:mixed
+     * }>  $movements
+     */
+    public function assertSufficientStockForMovements(array $movements): void
+    {
+        DB::transaction(function () use ($movements): void {
+            $requirements = [];
+
+            foreach ($movements as $movement) {
+                $movementType = (string) $movement['movement_type'];
+                if (! $this->isNegativeMovementType($movementType)) {
+                    continue;
+                }
+
+                $ingredientId = (int) $movement['ingredient_id'];
+                $branchId = $this->branchContextService->resolveBranchId($movement['branch_id'] ?? null);
+
+                /** @var Ingredient $ingredient */
+                $ingredient = Ingredient::query()->findOrFail($ingredientId);
+                $unitCode = $this->resolveIngredientUnitCode($ingredient, $movement['unit_code'] ?? null, 'unit_code');
+                $quantityDelta = $this->normalizeQuantityDelta($movementType, $movement['quantity'] ?? 0);
+                $referenceType = $this->normalizeNullableString($movement['reference_type'] ?? null);
+                $referenceId = $this->normalizeNullableString($movement['reference_id'] ?? null);
+
+                $existingMovement = $this->findReplaySafeMovement(
+                    ingredientId: $ingredientId,
+                    referenceType: $referenceType,
+                    referenceId: $referenceId,
+                );
+                if ($existingMovement instanceof IngredientStockMovement) {
+                    $this->assertReplayCompatible(
+                        existingMovement: $existingMovement,
+                        branchId: $branchId,
+                        movementType: $movementType,
+                        quantityDelta: $quantityDelta,
+                        unitCode: $unitCode,
+                    );
+
+                    continue;
+                }
+
+                $key = $branchId.':'.$ingredientId;
+                $requirements[$key] ??= [
+                    'branch_id' => $branchId,
+                    'ingredient_id' => $ingredientId,
+                    'quantity_delta' => 0,
+                ];
+                $requirements[$key]['quantity_delta'] += $this->toScaledQuantity($quantityDelta);
+            }
+
+            ksort($requirements);
+
+            foreach ($requirements as $requirement) {
+                $this->assertStockWillNotGoNegative(
+                    (int) $requirement['ingredient_id'],
+                    (int) $requirement['branch_id'],
+                    (int) $requirement['quantity_delta'],
+                );
+            }
+        }, 3);
     }
 
     public function currentStockOnHand(int $ingredientId, ?int $branchId = null): string
@@ -111,6 +192,56 @@ class InventoryStockMovementService
             IngredientStockMovement::TYPE_WASTAGE => number_format($absolute * -1, 3, '.', ''),
             default => throw new \InvalidArgumentException(sprintf('Unsupported stock movement type [%s].', $movementType)),
         };
+    }
+
+    private function isNegativeMovementType(string $movementType): bool
+    {
+        return in_array($movementType, [
+            IngredientStockMovement::TYPE_STOCK_OUT,
+            IngredientStockMovement::TYPE_ADJUSTMENT_DECREASE,
+            IngredientStockMovement::TYPE_WASTAGE,
+        ], true);
+    }
+
+    private function assertStockWillNotGoNegative(int $ingredientId, int $branchId, int $quantityDelta): void
+    {
+        Ingredient::query()->where('ingredient_id', $ingredientId)->lockForUpdate()->firstOrFail();
+
+        $currentStock = IngredientStockMovement::query()
+            ->where('ingredient_id', $ingredientId)
+            ->where('branch_id', $branchId)
+            ->orderBy('movement_id')
+            ->lockForUpdate()
+            ->pluck('quantity_delta')
+            ->reduce(
+                fn (int $carry, mixed $quantity): int => $carry + $this->toScaledQuantity($quantity),
+                0,
+            );
+
+        $projectedStock = $currentStock + $quantityDelta;
+        if ($projectedStock >= 0) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'quantity' => [sprintf(
+                'Stock movement cannot reduce ingredient %d in branch %d below zero. Current stock is %s; requested decrease is %s.',
+                $ingredientId,
+                $branchId,
+                $this->formatScaledQuantity($currentStock),
+                $this->formatScaledQuantity(abs($quantityDelta)),
+            )],
+        ]);
+    }
+
+    private function toScaledQuantity(mixed $quantity): int
+    {
+        return (int) round(((float) $quantity) * self::QUANTITY_SCALE);
+    }
+
+    private function formatScaledQuantity(int $quantity): string
+    {
+        return number_format($quantity / self::QUANTITY_SCALE, 3, '.', '');
     }
 
     private function normalizeNullableString(mixed $value): ?string
@@ -148,19 +279,28 @@ class InventoryStockMovementService
         return strtolower(trim($expectedUnitCode)) === strtolower(trim($actualUnitCode));
     }
 
-    private function findReplaySafeMovement(int $ingredientId, ?string $referenceType, ?string $referenceId): ?IngredientStockMovement
-    {
+    private function findReplaySafeMovement(
+        int $ingredientId,
+        ?string $referenceType,
+        ?string $referenceId,
+        bool $lockForUpdate = false,
+    ): ?IngredientStockMovement {
         if ($referenceType === null || $referenceId === null || ! in_array($referenceType, self::REPLAY_SAFE_REFERENCE_TYPES, true)) {
             return null;
         }
 
         /** @var IngredientStockMovement|null $movement */
-        $movement = IngredientStockMovement::query()
+        $query = IngredientStockMovement::query()
             ->where('ingredient_id', $ingredientId)
             ->where('reference_type', $referenceType)
             ->where('reference_id', $referenceId)
-            ->orderByDesc('movement_id')
-            ->first();
+            ->orderByDesc('movement_id');
+
+        if ($lockForUpdate) {
+            $query->lockForUpdate();
+        }
+
+        $movement = $query->first();
 
         return $movement;
     }

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report
+    url: https://github.com/DuongVinh2004/RestaurantPOS/security/advisories/new
+    about: Report exploitable vulnerabilities privately through GitHub Security Advisories.
+  - name: Operator and release runbooks
+    url: https://github.com/DuongVinh2004/RestaurantPOS/tree/main/docs/runbooks
+    about: Read the setup, release, runtime, and launch-readiness runbooks before opening an ops question.
+  - name: Architecture references
+    url: https://github.com/DuongVinh2004/RestaurantPOS/tree/main/docs/architecture
+    about: Review module ownership and dependency guidance before proposing structural refactors.

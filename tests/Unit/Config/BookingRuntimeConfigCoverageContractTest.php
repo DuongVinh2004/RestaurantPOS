@@ -153,8 +153,37 @@ final class BookingRuntimeConfigCoverageContractTest extends TestCase
 
         foreach ([
             'APP_TIMEZONE',
+            'DB_CONNECTION',
+            'DB_HOST',
+            'DB_PORT',
+            'DB_DATABASE',
+            'DB_USERNAME',
+            'DB_PASSWORD',
+            'MYSQL_BIN',
+            'MYSQLD_BIN',
+            'SESSION_DRIVER',
+            'SESSION_CONNECTION',
+            'SESSION_STORE',
+            'SESSION_SECURE_COOKIE',
+            'QUEUE_CONNECTION',
+            'QUEUE_FAILED_DRIVER',
+            'CACHE_STORE',
+            'REDIS_CLIENT',
+            'REDIS_HOST',
+            'REDIS_PORT',
+            'REDIS_DB',
+            'REDIS_CACHE_DB',
             'IDEMPOTENCY_LOCK_SECONDS',
             'IDEMPOTENCY_PENDING_SECONDS',
+            'REQUIRE_REDIS_FOR_BOOKING_API',
+            'STAFF_AUTH_DATABASE_STORE_ENABLED',
+            'STAFF_AUTH_ALLOW_ENV_FALLBACK',
+            'STAFF_AUTH_ALLOW_ROLE_NAME_FALLBACK',
+            'STAFF_AUTH_DENY_ENV_FALLBACK_IN_PRODUCTION_LIKE',
+            'STAFF_AUTH_DENY_ROLE_NAME_FALLBACK_IN_PRODUCTION_LIKE',
+            'STAFF_API_KEYS_JSON',
+            'STAFF_API_KEY',
+            'CUSTOMER_AUTH_JWT_SECRET',
             'BOOKING_CUSTOMER_MENU_PAGE_DEFAULT',
             'BOOKING_CUSTOMER_RESERVATION_SELF_SERVICE_PAGE_DEFAULT',
             'BOOKING_CUSTOMER_WAITING_LIST_PAGE_DEFAULT',
@@ -186,6 +215,15 @@ final class BookingRuntimeConfigCoverageContractTest extends TestCase
             'WAITING_LIST_NOTIFY_HOLD_MINUTES',
         ] as $envName) {
             self::assertStringContainsString($envName.'=', $envExample, $envName);
+        }
+
+        foreach ([
+            'Runtime gate database.',
+            'Runtime gates always probe Redis',
+            'Staff auth production safety.',
+            'Customer JWT auth',
+        ] as $expectedDocumentation) {
+            self::assertStringContainsString($expectedDocumentation, $envExample);
         }
     }
 

@@ -18,6 +18,7 @@ use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\BranchScheduling\Domain\Models\TableHold;
 use App\Modules\Catalog\Application\UseCases\PolicyPreview\MenuPreorderPolicyService;
 use App\Modules\Catalog\Domain\Models\MenuItem;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
@@ -62,6 +63,8 @@ class ReservationService
 
     private MenuPreorderPolicyService $menuPreorderPolicyService;
 
+    private StaffBranchContextService $staffBranchContextService;
+
     public function __construct(
         TableHoldService $tableHoldService,
         ReservationLockService $lockService,
@@ -74,6 +77,7 @@ class ReservationService
         BranchContextService|BranchSchedulingPolicyService|MenuPreorderPolicyService|null $branchContextService = null,
         BranchSchedulingPolicyService|MenuPreorderPolicyService|null $branchSchedulingPolicyService = null,
         ?MenuPreorderPolicyService $menuPreorderPolicyService = null,
+        ?StaffBranchContextService $staffBranchContextService = null,
     ) {
         if ($branchContextService instanceof BranchSchedulingPolicyService && $branchSchedulingPolicyService === null) {
             $branchSchedulingPolicyService = $branchContextService;
@@ -101,6 +105,7 @@ class ReservationService
         $this->branchContextService = $branchContextService ?? app(BranchContextService::class);
         $this->branchSchedulingPolicyService = $branchSchedulingPolicyService ?? app(BranchSchedulingPolicyService::class);
         $this->menuPreorderPolicyService = $menuPreorderPolicyService ?? app(MenuPreorderPolicyService::class);
+        $this->staffBranchContextService = $staffBranchContextService ?? app(StaffBranchContextService::class);
     }
 
     public function createReservation(array $payload, ?int $actorUserId = null, array $options = []): Reservation
@@ -482,6 +487,7 @@ class ReservationService
                 DB::transaction(function () use ($reservationId, $targetEnum, $expectedRowVersion, $actorUserId, $force, $cancelReason, $tableIds) {
                     /** @var Reservation $reservation */
                     $reservation = Reservation::query()->lockForUpdate()->findOrFail($reservationId);
+                    $this->assertStaffCanMutateReservationBranch($reservation, $actorUserId);
 
                     $currentEnum = $reservation->status instanceof ReservationStatus
                         ? $reservation->status
@@ -647,6 +653,16 @@ class ReservationService
 
             return $work();
         });
+    }
+
+    private function assertStaffCanMutateReservationBranch(Reservation $reservation, ?int $actorUserId): void
+    {
+        if ($actorUserId === null || $actorUserId <= 0) {
+            return;
+        }
+
+        $branchId = $this->branchContextService->resolveBranchId($reservation->branch_id ?? null, true);
+        $this->staffBranchContextService->assertAccessibleBranch($actorUserId, $branchId);
     }
 
     private function releaseReservationVoucherForStatusLocked(Reservation $reservation, ?int $actorUserId = null): void

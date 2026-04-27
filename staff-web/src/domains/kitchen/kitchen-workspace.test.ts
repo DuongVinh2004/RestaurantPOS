@@ -141,6 +141,7 @@ function makeStation(stationId: number): KitchenStation {
 function makeTicket(ticketId: number, status: string): KitchenOrderItemTicket {
   return {
     ticket_id: ticketId,
+    row_version: 10 + ticketId,
     ticket_status: status,
     route_source: 'category',
     dispatch_count: 1,
@@ -168,6 +169,7 @@ function makeTicket(ticketId: number, status: string): KitchenOrderItemTicket {
       item_id: 200 + ticketId,
       quantity: 1,
       status: 'Ordered',
+      row_version: 20 + ticketId,
       notes: null,
       item_name_snapshot: `Item ${ticketId}`,
     },

@@ -100,7 +100,7 @@ Deprecated alias routes are intentionally omitted. Use canonical routes only.
 
 | Route | Contract path | Auth | row_version | Idempotency-Key | Session contract | 401 | 403 | 409 | 422 |
 |---|---|---|---|---|---|---|---|---|---|
-| `POST api/v1/staff/orders/{order_id}/kitchen/dispatch` | `SDK` | `staff_api_key` | body.row_version optional | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch |
+| `POST api/v1/staff/orders/{order_id}/kitchen/dispatch` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
 | `POST api/v1/staff/kitchen/tickets/{ticket_id}/fire` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
 | `POST api/v1/staff/kitchen/tickets/{ticket_id}/bump` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
 | `POST api/v1/staff/kitchen/tickets/{ticket_id}/recall` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |

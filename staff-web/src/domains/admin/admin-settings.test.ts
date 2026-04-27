@@ -4,8 +4,10 @@ import {
   branchSameDayCutoffLabel,
   branchWaitingListLabel,
   buildAdminBranchesQuery,
+  buildAdminRestaurantTableQuery,
   formatBusinessPeriods,
   pickAdminBranchId,
+  summarizeAdminTables,
   summarizeAdminBranches,
 } from './admin-settings';
 
@@ -36,6 +38,19 @@ describe('admin settings domain helpers', () => {
       is_active: true,
       q: undefined,
     });
+    expect(buildAdminRestaurantTableQuery({
+      query: '  patio ',
+      status: 'Available',
+      zone: '',
+      includeDeleted: false,
+      branchIdInput: '',
+    }, 3)).toEqual({
+      q: 'patio',
+      status: 'Available',
+      zone: undefined,
+      include_deleted: undefined,
+      branch_id: 3,
+    });
   });
 
   it('prefers preferred then current branch selection', () => {
@@ -55,5 +70,30 @@ describe('admin settings domain helpers', () => {
     expect(branchReservationLeadLabel(branchFixture)).toBe('45 min');
     expect(branchSameDayCutoffLabel(branchFixture)).toBe('18:00');
     expect(branchWaitingListLabel(branchFixture)).toBe('Enabled');
+  });
+
+  it('summarizes table management reads', () => {
+    expect(summarizeAdminTables([
+      {
+        status: 'Available',
+        is_active: true,
+        is_allocatable: true,
+        branch_id: 1,
+        usage: { has_active_operational_links: false },
+      },
+      {
+        status: 'Occupied',
+        is_active: true,
+        is_allocatable: true,
+        branch_id: 2,
+        usage: { has_active_operational_links: true },
+      },
+    ])).toEqual({
+      total: 2,
+      active: 2,
+      allocatable: 2,
+      operationallyLinked: 1,
+      branchScoped: 2,
+    });
   });
 });

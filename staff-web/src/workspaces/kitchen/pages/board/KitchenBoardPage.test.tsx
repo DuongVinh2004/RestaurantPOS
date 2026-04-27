@@ -72,6 +72,8 @@ describe('KitchenBoardPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    confirmActionMock.mockReset();
+    confirmActionMock.mockResolvedValue(true);
     useAuthStore.setState(initialAuthState, true);
     useFlowStore.setState(initialFlowState, true);
     useAuthStore.getState().setSession(buildKitchenSession(['kitchen.manage', 'order.manage']));
@@ -156,6 +158,76 @@ describe('KitchenBoardPage', () => {
     await waitFor(() => expect(apiMocks.listKitchenStations).toHaveBeenCalled());
     expect(screen.queryByRole('button', { name: 'Dispatch order to kitchen' })).not.toBeInTheDocument();
     expect(apiMocks.dispatchKitchenOrder).not.toHaveBeenCalled();
+  });
+
+  it('sends the selected ticket row version with kitchen fast actions', async () => {
+    renderWithProviders('/kitchen?station_id=33&ticket=801');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Fire' }));
+
+    await waitFor(() => expect(confirmActionMock).toHaveBeenCalled());
+    await waitFor(() => expect(apiMocks.fireKitchenTicket).toHaveBeenCalledWith(801, 17));
+  });
+
+  it('locks kitchen fast actions while confirmation is pending', async () => {
+    let resolveConfirm: (value: boolean) => void = () => {};
+    confirmActionMock.mockImplementationOnce(() => new Promise<boolean>((resolve) => {
+      resolveConfirm = resolve;
+    }));
+
+    renderWithProviders('/kitchen?station_id=33&ticket=801');
+
+    const fireButton = await screen.findByRole('button', { name: 'Fire' });
+    fireEvent.click(fireButton);
+
+    await waitFor(() => expect(fireButton).toBeDisabled());
+    fireEvent.click(fireButton);
+    expect(confirmActionMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveConfirm(true);
+    });
+
+    await waitFor(() => expect(apiMocks.fireKitchenTicket).toHaveBeenCalledWith(801, 17));
+  });
+
+  it('refreshes kitchen reads when a fast action reports a stale row version', async () => {
+    apiMocks.fireKitchenTicket.mockRejectedValue({
+      status: 409,
+      payload: {
+        error_code: 'stale_row_version',
+        category_code: 'stale_write',
+        message: 'Ticket row version is stale.',
+      },
+    });
+
+    renderWithProviders('/kitchen?station_id=33&ticket=801');
+
+    await waitFor(() => expect(apiMocks.getKitchenStationTickets).toHaveBeenCalled());
+    apiMocks.getKitchenStationTickets.mockClear();
+    apiMocks.listKitchenStations.mockClear();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Fire' }));
+
+    await waitFor(() => expect(toastMocks.warning).toHaveBeenCalledWith(expect.stringContaining('refreshed')));
+    await waitFor(() => expect(apiMocks.getKitchenStationTickets).toHaveBeenCalled());
+    await waitFor(() => expect(apiMocks.listKitchenStations).toHaveBeenCalled());
+  });
+
+  it('disables kitchen fast actions until the selected ticket row version is available', async () => {
+    apiMocks.getKitchenStationTickets.mockResolvedValue(createTicketsEnvelope(33, [
+      createKitchenTicket({
+        stationId: 33,
+        ticketId: 801,
+        orderId: 56,
+        rowVersion: null,
+      }),
+    ]));
+
+    renderWithProviders('/kitchen?station_id=33&ticket=801');
+
+    expect(await screen.findByRole('button', { name: 'Fire' })).toBeDisabled();
+    expect(apiMocks.fireKitchenTicket).not.toHaveBeenCalled();
   });
 
   it('refetches kitchen slices when the realtime feed reports a newer version', async () => {
@@ -298,11 +370,13 @@ function createKitchenTicket(overrides: Partial<{
   orderId: number;
   reservationId: number;
   status: string;
+  rowVersion: number | null;
 }> = {}) {
   const status = overrides.status ?? 'Queued';
 
   return {
     ticket_id: overrides.ticketId ?? 801,
+    row_version: overrides.rowVersion === undefined ? 17 : overrides.rowVersion,
     ticket_status: status,
     route_source: 'category',
     dispatch_count: 1,
@@ -345,6 +419,7 @@ function createKitchenTicket(overrides: Partial<{
       quantity: 1,
       item_name_snapshot: 'Kitchen Bowl',
       status: 'Ordered',
+      row_version: 19,
       notes: null,
     },
     lifecycle: {

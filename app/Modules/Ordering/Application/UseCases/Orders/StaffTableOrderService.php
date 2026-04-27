@@ -19,6 +19,7 @@ use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Support\AuditEvent;
+use App\Support\Auth\StaffActorGuard;
 use App\Support\DatabaseWriteConflictMapper;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
@@ -55,6 +56,7 @@ class StaffTableOrderService
         string $notes = '',
         ?int $expectedRowVersion = null,
     ): ReservationOrder {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $idempotencyKey = trim($idempotencyKey);
         $createReplayPayload = $this->buildCreateOnSpotReplayPayload($items, $notes);
 
@@ -224,6 +226,7 @@ class StaffTableOrderService
         string $idempotencyKey = '',
         ?int $expectedRowVersion = null,
     ): ReservationOrder {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $idempotencyKey = trim($idempotencyKey);
         $addItemsReplayPayload = $this->buildAddItemsReplayPayload($items);
         if ($idempotencyKey !== '') {
@@ -354,9 +357,7 @@ class StaffTableOrderService
 
     private function assertOperationalBranchAccessible(int $branchId, ?int $staffUserId): void
     {
-        if ($staffUserId === null || $staffUserId <= 0) {
-            return;
-        }
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
         $this->staffBranchContextService()->assertAccessibleBranch($staffUserId, $branchId);
     }

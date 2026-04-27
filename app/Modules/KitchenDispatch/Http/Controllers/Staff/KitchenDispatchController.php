@@ -101,10 +101,12 @@ class KitchenDispatchController extends Controller
 
     public function dispatchOrder(int $order_id, DispatchKitchenTicketRequest $request): JsonResponse
     {
+        $validated = $request->validated();
+
         try {
             $result = $this->kitchenRoutingService->dispatchOrder(
                 $order_id,
-                $request->filled('row_version') ? (int) $request->input('row_version') : null,
+                (int) $validated['row_version'],
                 $this->resolveStaffActorUserId($request),
             );
         } catch (ModelNotFoundException) {

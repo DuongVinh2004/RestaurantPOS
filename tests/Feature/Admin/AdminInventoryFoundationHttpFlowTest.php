@@ -284,6 +284,62 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
         );
     }
 
+    public function test_inventory_wastage_rejects_when_insufficient_stock(): void
+    {
+        [, $headers] = $this->adminHeaders('admin-inventory-wastage-negative-key');
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-WASTE-NEG',
+            'name' => 'Waste Guard Rice',
+            'unit_code' => 'kg',
+        ]);
+
+        $response = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-wastage-negative'))
+            ->postJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements', [
+                'movement_type' => 'Wastage',
+                'quantity' => '0.500',
+                'unit_code' => 'kg',
+                'notes' => 'Prep waste without stock',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['quantity']);
+
+        $this->assertSame(
+            0,
+            DB::table('ingredient_stock_movements')
+                ->where('ingredient_id', $ingredientId)
+                ->count()
+        );
+    }
+
+    public function test_inventory_adjustment_records_actor_on_stock_movement(): void
+    {
+        [$adminId, $headers] = $this->adminHeaders('admin-inventory-adjustment-actor-key');
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-ACTOR-ADJ',
+            'name' => 'Actor Adjustment Rice',
+            'unit_code' => 'kg',
+        ]);
+
+        $response = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-adjustment-actor'))
+            ->postJson('/api/v1/admin/inventory/ingredients/'.$ingredientId.'/movements', [
+                'movement_type' => 'AdjustmentIncrease',
+                'quantity' => '1.250',
+                'unit_code' => 'kg',
+                'reference_type' => 'manual_count',
+                'reference_id' => 'actor-adjustment-1',
+                'notes' => 'Count correction',
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.movement_type', 'AdjustmentIncrease')
+            ->assertJsonPath('data.created_by', $adminId);
+
+        $this->assertSame($adminId, (int) DB::table('ingredient_stock_movements')
+            ->where('movement_id', (int) $response->json('data.movement_id'))
+            ->value('created_by'));
+    }
+
     public function test_branch_filtered_stock_views_and_implicit_branch_movements_use_isolated_stock_on_hand(): void
     {
         [, $headers] = $this->adminHeaders('admin-inventory-branch-scope-key');

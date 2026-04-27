@@ -25,5 +25,10 @@ final class PaymentProviderWebhookRouteSurfaceTest extends TestCase
             $route->getActionName(),
             'Webhook route drifted to an unexpected controller action.',
         );
+        self::assertContains(
+            'redis.throttle:payment.webhooks,120,60,ip',
+            $route->gatherMiddleware(),
+            'Webhook route must be rate-limited because it is intentionally public before provider signature validation.',
+        );
     }
 }

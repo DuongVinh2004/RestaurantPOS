@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Button,
   Card,
@@ -25,7 +26,10 @@ import {
   listDailyOperationsReporting,
   listDailySalesReporting,
 } from '../../../../shared/api/staff-api';
+import { can } from '../../../../shared/auth/capabilities';
 import { formatDateTime, formatFreshnessLabel, formatMoney } from '../../../../shared/utils/format';
+import { staffRoutePaths } from '../../../../app/router/workspace-paths';
+import { useAuthStore } from '../../../../app/store/auth-store';
 import { PageHeader } from '../../../../shared/ui/layout/PageHeader';
 import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
 import {
@@ -41,6 +45,7 @@ import {
   buildInventoryQuery,
   buildOperationsQuery,
   buildSalesQuery,
+  reportingDateRangeError,
   snapshotHealthDescription,
   snapshotHealthLabel,
   snapshotHealthReferenceAgeSeconds,
@@ -57,6 +62,8 @@ import {
 const pageSize = 12;
 
 export function ReportingHubPage() {
+  const navigate = useNavigate();
+  const session = useAuthStore((state) => state.session);
   const branchId = useFlowStore((state) => state.branchId);
   const [activeTab, setActiveTab] = useState<ReportingTabKey>('sales');
   const [page, setPage] = useState(1);
@@ -78,6 +85,7 @@ export function ReportingHubPage() {
     || filters.dateTo !== defaultFilters.dateTo
     || filters.currency !== ''
     || filters.ingredientId !== '';
+  const dateRangeError = reportingDateRangeError(filters);
 
   function resetFilters() {
     setFilters(defaultFilters);
@@ -88,17 +96,17 @@ export function ReportingHubPage() {
   const salesQuery = useQuery({
     queryKey: ['reporting-sales', branchId, filters, page],
     queryFn: () => listDailySalesReporting(buildSalesQuery(filters, branchId, page, pageSize)),
-    enabled: activeTab === 'sales',
+    enabled: activeTab === 'sales' && !dateRangeError,
   });
   const operationsQuery = useQuery({
     queryKey: ['reporting-operations', branchId, filters, page],
     queryFn: () => listDailyOperationsReporting(buildOperationsQuery(filters, branchId, page, pageSize)),
-    enabled: activeTab === 'operations',
+    enabled: activeTab === 'operations' && !dateRangeError,
   });
   const inventoryQuery = useQuery({
     queryKey: ['reporting-inventory', branchId, filters, page],
     queryFn: () => listDailyInventoryReporting(buildInventoryQuery(filters, branchId, page, pageSize)),
-    enabled: activeTab === 'inventory',
+    enabled: activeTab === 'inventory' && !dateRangeError,
   });
 
   const activeQuery = activeTab === 'sales'
@@ -208,6 +216,16 @@ export function ReportingHubPage() {
         </Row>
       </Card>
 
+      {dateRangeError ? (
+        <InlineState
+          tone="warning"
+          eyebrow="Filter validation"
+          title="Invalid reporting date range"
+          description={dateRangeError}
+          className="staff-inline-note"
+        />
+      ) : null}
+
       <Tabs
         className="staff-workspace-tabs"
         activeKey={activeTab}
@@ -314,6 +332,33 @@ export function ReportingHubPage() {
 
   const side = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+      <Card title="Finance drilldown" className="staff-workspace-detail-card">
+        <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+          {can(session, 'settlement.manage') ? (
+            <Button block onClick={() => navigate(staffRoutePaths.ops.financeReview)}>
+              Finance review
+            </Button>
+          ) : null}
+          {can(session, 'cashier.shift.manage') ? (
+            <Button block onClick={() => navigate(staffRoutePaths.ops.cashierShift)}>
+              Cashier shifts
+            </Button>
+          ) : null}
+          {can(session, 'payment.refund') ? (
+            <Button block onClick={() => navigate(staffRoutePaths.ops.refunds)}>
+              Refund review
+            </Button>
+          ) : null}
+          {can(session, 'audit.view') ? (
+            <Button block onClick={() => navigate(staffRoutePaths.admin.auditTrail)}>
+              Audit trail
+            </Button>
+          ) : null}
+          {!can(session, 'settlement.manage') && !can(session, 'cashier.shift.manage') && !can(session, 'payment.refund') && !can(session, 'audit.view') ? (
+            <EmptyBlock title="No finance drilldowns available" description="The current staff session does not expose settlement, cashier, refund, or audit capabilities." />
+          ) : null}
+        </Space>
+      </Card>
       <Card title="Tình trạng snapshot" className="staff-workspace-detail-card">
         <Space orientation="vertical" size={12} style={{ width: '100%' }}>
           <StatusChip label={snapshotHealthLabel(activeMeta)} tone={snapshotHealthTone(activeMeta?.snapshot_health.status)} />

@@ -613,6 +613,42 @@ class StaffProductAuthHttpFlowTest extends TestCase
             ->assertJsonPath('state_reason', 'staff_role_name_fallback_blocked');
     }
 
+    public function test_staff_api_key_env_fallback_is_blocked_in_production_like_environment(): void
+    {
+        DB::table('users')->insert([
+            'user_id' => 34,
+            'username' => 'staff-env-fallback-blocked',
+            'password_hash' => Hash::make('secret-123'),
+            'full_name' => 'Staff Env Fallback Blocked',
+            'email' => 'staff.env.fallback@example.test',
+            'phone' => '0904000004',
+            'role_id' => 2,
+            'current_tier_id' => null,
+            'language_pref' => 'vn',
+            'is_deleted' => 0,
+            'row_version' => 1,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]);
+
+        config()->set('app.env', 'production');
+        config()->set('staff_auth.api_keys', ['prod-env-fallback-key' => 34]);
+        config()->set('staff_auth.allow_env_fallback', true);
+        config()->set('staff_auth.env_fallback_allowed_environments', ['production']);
+        config()->set('staff_auth.production_like_environments', ['production']);
+        config()->set('staff_auth.deny_env_fallback_in_production_like', true);
+
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'X-Staff-Key' => 'prod-env-fallback-key',
+        ])->getJson('/api/v1/auth/staff/me')
+            ->assertStatus(401)
+            ->assertJsonPath('error_code', 'unauthorized')
+            ->assertJsonPath('category_code', 'authentication_required');
+
+        $this->assertSame(0, DB::table('staff_api_keys')->count());
+    }
+
     public function test_staff_startup_contract_resolves_ops_only_actor(): void
     {
         $login = $this->loginWorkspaceActor(11, 'OpsOnly', [

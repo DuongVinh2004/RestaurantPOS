@@ -36,6 +36,15 @@ export const adminNavigation: StaffWorkspaceNavigationDefinition = {
           description: 'Branches, table config, kitchen routing, and settings-side control surfaces.',
         },
         {
+          key: 'admin-catalog',
+          label: 'Catalog',
+          path: staffRoutePaths.admin.catalog,
+          iconKey: 'menu',
+          workspace: 'admin',
+          capability: 'menu.manage',
+          description: 'Menu categories, item management, pricing, and catalog imports.',
+        },
+        {
           key: 'admin-inventory',
           label: 'Inventory',
           path: staffRoutePaths.admin.inventory,

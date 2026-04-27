@@ -9499,7 +9499,8 @@
                     "reqid",
                     "audit.request",
                     "App\\Http\\Middleware\\MetricsRequestMiddleware",
-                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware"
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "redis.throttle:payment.webhooks,120,60,ip"
                 ],
                 "requestBody": {
                     "required": true,
@@ -19786,7 +19787,7 @@
             "post": {
                 "operationId": "post_v1_staff_orders_order_id_kitchen_dispatch",
                 "summary": "Dispatch order items to kitchen",
-                "description": "Route the current order items into kitchen tickets using station category routing while preserving ticket state for redispatch-safe cases.",
+                "description": "Route the current order items into kitchen tickets using station category routing while preserving ticket state for redispatch-safe cases. Requires the current order row_version for stale-write protection.",
                 "tags": [
                     "Staff Kitchen"
                 ],
@@ -19867,7 +19868,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ConflictError"
+                                    "$ref": "#/components/schemas/StaleRowVersionError"
                                 }
                             }
                         }
@@ -19906,7 +19907,7 @@
                     "idempotency:staff.kitchen.dispatch"
                 ],
                 "requestBody": {
-                    "required": false,
+                    "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
@@ -36475,20 +36476,21 @@
                 "properties": {
                     "row_version": {
                         "type": "integer",
-                        "nullable": true,
                         "x-laravel-rules": [
-                            "nullable",
+                            "required",
                             "integer",
                             "min:1"
                         ],
                         "minimum": 1
                     }
                 },
-                "required": [],
+                "required": [
+                    "row_version"
+                ],
                 "additionalProperties": false,
                 "x-laravel-rules": {
                     "row_version": [
-                        "nullable",
+                        "required",
                         "integer",
                         "min:1"
                     ]

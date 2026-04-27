@@ -184,6 +184,7 @@ Frontend and QA consumers should rely on this error contract:
 - Use `conflict_type`, `replay_state`, `state_reason`, `warnings`, and `next_actions` when present to drive retry, reload, or operator guidance.
 - On capability-denied staff/admin routes, `category_code=forbidden_capability` plus `required_capability` and `staff_role_name` are the canonical machine-readable fields.
 - On owner-only customer routes, `category_code=owner_scope_denied` distinguishes an authenticated but wrong-scope actor from `category_code=authentication_required`.
+- On required runtime dependency outages, `category_code=dependency_unavailable` plus the route-specific `error_code` tells clients to treat the failure as retry-after-recovery rather than as a validation or authorization error.
 - If an idempotency error still includes top-level `error`, treat it as deprecated compatibility output and prefer `error_code`.
 
 If the route is not in that curated batch but already has a full-contract shape in the frozen OpenAPI artifact, generate your own client from `storage/app/booking_release/openapi-v1.json` instead of reading controllers/resources directly.

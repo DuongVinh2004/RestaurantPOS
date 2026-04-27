@@ -59,6 +59,24 @@ jobs:
           - id: booking-smoke
             name: booking-smoke
             command: bash scripts/ci/booking-smoke-gate.sh
+          - id: critical-security
+            name: critical-security
+            command: composer test:security
+          - id: critical-orders
+            name: critical-orders
+            command: composer test:orders
+          - id: critical-kitchen
+            name: critical-kitchen-kds
+            command: composer test:kitchen
+          - id: critical-money
+            name: critical-money-cashier
+            command: composer test:money
+          - id: critical-inventory
+            name: critical-inventory
+            command: composer test:inventory
+          - id: critical-release-contract
+            name: critical-release-contract
+            command: composer test:release-contract
           - id: full-gate
             name: full-gate
             command: bash scripts/ci/booking-full-gate.sh
@@ -139,3 +157,29 @@ jobs:
             build/booking-release/**
             storage/app/booking_release/**
             storage/logs/**
+
+  staff-web-critical:
+    name: critical-staff-web
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: staff-web/package-lock.json
+
+      - name: Install staff-web dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: staff-web
+
+      - name: Run staff-web integrity check
+        run: npm run integrity:check
+        working-directory: staff-web
+
+      - name: Build staff-web
+        run: npm run build
+        working-directory: staff-web

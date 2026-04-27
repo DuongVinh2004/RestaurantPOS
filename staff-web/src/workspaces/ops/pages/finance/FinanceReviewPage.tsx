@@ -48,6 +48,7 @@ import {
   buildFinanceReviewSearch,
   buildFinanceQuery,
   canIssueInvoiceForRow,
+  financeDateRangeError,
   financeFlagLabels,
   readFinanceReviewUrlState,
   summarizeFinance,
@@ -107,6 +108,7 @@ export function FinanceReviewPage() {
   const { page, selectedReservationId, ...filters } = urlState;
   const contextReservationId = journey.reservationId ?? null;
   const selectedReservationRowId = contextReservationId ?? selectedReservationId;
+  const dateRangeError = financeDateRangeError(filters);
 
   const updateUrlState = useCallback((
     patch: Partial<typeof urlState>,
@@ -123,7 +125,7 @@ export function FinanceReviewPage() {
   const financeListQuery = useQuery({
     queryKey: ['finance-reconciliation', query],
     queryFn: () => listFinancialReconciliation(query),
-    enabled: !!session,
+    enabled: !!session && !dateRangeError,
   });
 
   useEffect(() => {
@@ -441,6 +443,15 @@ export function FinanceReviewPage() {
           ) : null}
         </Row>
       </Card>
+
+      {dateRangeError ? (
+        <Alert
+          type="warning"
+          showIcon
+          title="Invalid activity date range"
+          description={dateRangeError}
+        />
+      ) : null}
 
       <Card title="Dòng đối soát" className="staff-workspace-table-card">
         {financeListQuery.isLoading ? <InlineLoading tip="Đang tải dữ liệu đối soát..." /> : null}

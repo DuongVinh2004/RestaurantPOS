@@ -9,6 +9,7 @@ import {
   buildInventoryQuery,
   buildOperationsQuery,
   buildSalesQuery,
+  reportingDateRangeError,
   snapshotHealthDescription,
   snapshotHealthLabel,
   snapshotHealthReferenceAgeSeconds,
@@ -70,6 +71,12 @@ describe('reporting hub helpers', () => {
       page: 3,
       sort: '-business_date',
     });
+  });
+
+  it('classifies invalid reporting date ranges before calling the backend', () => {
+    expect(reportingDateRangeError({ dateFrom: '2026-04-10', dateTo: '2026-04-01' })).toBe('End date must be on or after start date.');
+    expect(reportingDateRangeError({ dateFrom: '2026-04-01', dateTo: '2026-04-10' })).toBeNull();
+    expect(reportingDateRangeError({ dateFrom: '', dateTo: '2026-04-10' })).toBeNull();
   });
 
   it('summarizes sales, operations and inventory rows', () => {

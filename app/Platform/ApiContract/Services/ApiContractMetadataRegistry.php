@@ -1609,14 +1609,14 @@ class ApiContractMetadataRegistry
             ],
             'POST api/v1/staff/orders/{order_id}/kitchen/dispatch' => [
                 'summary' => 'Dispatch order items to kitchen',
-                'description' => 'Route the current order items into kitchen tickets using station category routing while preserving ticket state for redispatch-safe cases.',
+                'description' => 'Route the current order items into kitchen tickets using station category routing while preserving ticket state for redispatch-safe cases. Requires the current order row_version for stale-write protection.',
                 'tags' => ['Staff Kitchen'],
                 'responses' => [
                     200 => ['schema' => 'StaffKitchenDispatchEnvelope'],
                     401 => ['schema' => 'UnauthorizedError'],
                     403 => ['schema' => 'ForbiddenError'],
                     404 => ['schema' => 'NotFoundError'],
-                    409 => ['schema' => 'ConflictError'],
+                    409 => ['schema' => 'StaleRowVersionError'],
                     422 => ['schema' => 'ValidationError'],
                 ],
                 'request_example' => [

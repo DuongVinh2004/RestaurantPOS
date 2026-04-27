@@ -12,6 +12,7 @@ use App\Modules\Cashiering\Application\UseCases\Shifts\StaffCashierShiftService;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
+use App\Support\Auth\StaffActorGuard;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +33,8 @@ class StaffInvoiceService
      */
     public function issue(int $reservationId, ?int $issuedByUserId = null, ?int $branchId = null): array
     {
+        $issuedByUserId = StaffActorGuard::requireStaffUserId($issuedByUserId);
+
         return DB::transaction(function () use ($reservationId, $issuedByUserId, $branchId): array {
             $reservationQuery = Reservation::query()
                 ->lockForUpdate();
@@ -43,9 +46,7 @@ class StaffInvoiceService
             /** @var Reservation $reservation */
             $reservation = $reservationQuery->findOrFail($reservationId);
             $reservationBranchId = $this->resolveReservationBranchId($reservation, $branchId);
-            if ($issuedByUserId !== null && $issuedByUserId > 0) {
-                $this->staffBranchContextService->assertAccessibleBranch($issuedByUserId, $reservationBranchId);
-            }
+            $this->staffBranchContextService->assertAccessibleBranch($issuedByUserId, $reservationBranchId);
 
             /** @var BillingInvoice|null $existing */
             $existing = BillingInvoice::query()
@@ -68,7 +69,7 @@ class StaffInvoiceService
                 ]);
             }
 
-            $reconciliation = $this->financialReconciliationService->show($reservationId, $reservationBranchId);
+            $reconciliation = $this->financialReconciliationService->show($reservationId, $reservationBranchId, $issuedByUserId);
             $this->assertIssuableReservationFinancialTruth($reconciliation);
             $this->assertOpenCashierShiftForBranch($issuedByUserId, $reservationBranchId);
 
@@ -129,6 +130,7 @@ class StaffInvoiceService
      */
     public function show(int $reservationId, ?int $branchId = null, ?int $staffActorUserId = null): array
     {
+        $staffActorUserId = StaffActorGuard::requireStaffUserId($staffActorUserId);
         $branchScope = $this->resolveAccessibleBranchScope($staffActorUserId, $branchId);
         $invoice = $this->findInvoiceByReservationId($reservationId, $branchScope);
         $reconciliation = $this->financialReconciliationService->show($reservationId, $branchId, $staffActorUserId);
@@ -147,6 +149,7 @@ class StaffInvoiceService
      */
     public function exportRows(array $filters = [], ?int $staffActorUserId = null): array
     {
+        $staffActorUserId = StaffActorGuard::requireStaffUserId($staffActorUserId);
         $reconciliationRows = $this->financialReconciliationService->exportRows($filters, $staffActorUserId);
         $reservationIds = [];
         foreach ($reconciliationRows as $row) {
@@ -229,6 +232,8 @@ class StaffInvoiceService
      */
     private function resolveAccessibleBranchScope(?int $staffActorUserId = null, ?int $requestedBranchId = null): array
     {
+        $staffActorUserId = StaffActorGuard::requireStaffUserId($staffActorUserId);
+
         return $this->staffBranchContextService->branchScopeOrAccessible($staffActorUserId, $requestedBranchId);
     }
 
@@ -370,9 +375,7 @@ class StaffInvoiceService
 
     private function assertOpenCashierShiftForBranch(?int $staffUserId, int $branchId): void
     {
-        if ($staffUserId === null || $staffUserId <= 0) {
-            return;
-        }
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
         if ($this->cashierShiftService->currentOpenShift($staffUserId, $branchId) !== null) {
             return;

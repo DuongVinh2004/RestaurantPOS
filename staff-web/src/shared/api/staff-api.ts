@@ -10,6 +10,7 @@ import type {
   StaffCheckInReservationRequest as CheckInReservationRequest,
   StaffCheckoutOrderRequest as CheckoutOrderRequest,
   CloseCashierShiftRequest,
+  CreateRestaurantTableRequest,
   CustomerMenuItemsCollectionEnvelope,
   DispatchKitchenTicketRequest as DispatchKitchenTicketsRequest,
   GetV1AdminInventoryIngredientsQueryParams,
@@ -44,6 +45,7 @@ import type {
   StaffConversationMutationEnvelope,
   StaffKitchenDispatchEnvelope,
   StaffKitchenStationCollectionEnvelope,
+  StaffKitchenTicketActionRequest,
   StaffKitchenTicketEnvelope,
   StaffKitchenTicketCollectionEnvelope,
   StaffOperationalRealtimeEnvelope,
@@ -62,6 +64,9 @@ import type {
   StaffWaitingListEnvelope,
   StaffWaitingListSeatEnvelope,
   StaffTablesBoardQueryParams,
+  StoreMenuCategoryRequest,
+  StoreMenuItemPriceRequest,
+  StoreMenuItemRequest,
   CreateReservationRequest as StoreReservationRequest,
   TakeOverConversationRequest,
 } from './sdk';
@@ -170,6 +175,275 @@ export type FinancialReconciliationQuery = {
 
 export type BranchScopedQuery = {
   branch_id?: number;
+};
+
+export type AdminRestaurantTable = {
+  table_id: number;
+  branch_id: number | null;
+  branch?: {
+    branch_id: number;
+    branch_code: string;
+    branch_name: string;
+    is_default: boolean;
+  } | null;
+  table_code: string;
+  template_id: number | null;
+  capacity?: number | null;
+  seats?: number | null;
+  template?: {
+    template_id: number;
+    template_code: string;
+    seats: number;
+    description?: string | null;
+  } | null;
+  zone: string | null;
+  position?: {
+    x: number | null;
+    y: number | null;
+  };
+  pos_x?: number | null;
+  pos_y?: number | null;
+  status: string;
+  is_deleted: boolean;
+  is_active: boolean;
+  is_allocatable: boolean;
+  usage?: {
+    active_reservation_count: number;
+    active_hold_count: number;
+    active_order_count: number;
+    has_active_operational_links: boolean;
+  };
+  guards?: Record<string, boolean>;
+  description: string | null;
+  price: string | null;
+  row_version: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type AdminRestaurantTableCollectionEnvelope = {
+  data: Array<AdminRestaurantTable>;
+  meta?: Record<string, unknown>;
+};
+
+export type AdminTableTemplate = {
+  template_id: number;
+  template_code: string;
+  seats: number;
+  description?: string | null;
+};
+
+export type AdminTableTemplateCollectionEnvelope = {
+  data: Array<AdminTableTemplate>;
+  meta?: Record<string, unknown>;
+};
+
+export type AdminMenuCategory = {
+  category_id: number;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  is_deleted: boolean;
+};
+
+export type AdminMenuCategoryCollectionEnvelope = {
+  data: Array<AdminMenuCategory>;
+  meta?: Record<string, unknown>;
+};
+
+export type AdminMenuItemPrice = {
+  price_id: number;
+  item_id: number;
+  price: string;
+  currency: string;
+  effective_from: string | null;
+  effective_to: string | null;
+};
+
+export type AdminMenuItem = {
+  item_id: number;
+  category_id: number | null;
+  code: string | null;
+  name: string;
+  description: string | null;
+  img_url: string | null;
+  is_available: boolean;
+  is_preorder_enabled: boolean | null;
+  preorder_quota_per_day: number | null;
+  preorder_cutoff_minutes: number | null;
+  category?: AdminMenuCategory | null;
+  current_price?: AdminMenuItemPrice | null;
+  prices?: Array<AdminMenuItemPrice>;
+};
+
+export type AdminMenuItemCollectionEnvelope = {
+  data: Array<AdminMenuItem>;
+  meta?: Record<string, unknown>;
+};
+
+export type AdminMenuItemPriceCollectionEnvelope = {
+  data: Array<AdminMenuItemPrice>;
+  meta?: Record<string, unknown>;
+};
+
+export type AdminIngredientMovement = {
+  movement_id: number;
+  branch_id: number | null;
+  ingredient_id: number;
+  movement_type: string;
+  quantity_delta: string;
+  unit_code: string;
+  reference: {
+    type: string | null;
+    id: string | null;
+  };
+  notes: string | null;
+  created_by: number | null;
+  created_at: string | null;
+};
+
+export type AdminIngredientMovementCollectionEnvelope = {
+  data: Array<AdminIngredientMovement>;
+  meta?: Record<string, unknown>;
+};
+
+export type AdminIngredientMovementEnvelope = {
+  data: AdminIngredientMovement;
+  meta?: Record<string, unknown>;
+};
+
+export type AdminCreateIngredientMovementPayload = {
+  movement_type: 'StockIn' | 'StockOut' | 'AdjustmentIncrease' | 'AdjustmentDecrease' | 'Wastage';
+  branch_id?: number | null;
+  quantity: number;
+  unit_code?: string | null;
+  reference_type?: string | null;
+  reference_id?: string | null;
+  notes?: string | null;
+};
+
+export type AdminPurchaseOrderReceipt = {
+  receipt_id: number;
+  branch_id: number | null;
+  purchase_order_id: number;
+  receipt_code: string;
+  receipt_status: string;
+  received_at: string | null;
+  supplier_document_no: string | null;
+  notes: string | null;
+  summary: {
+    line_count: number;
+    received_total_quantity: string;
+  };
+  created_by: number | null;
+  created_at: string | null;
+};
+
+export type AdminPurchaseOrderReceiptCollectionEnvelope = {
+  data: Array<AdminPurchaseOrderReceipt>;
+  meta?: Record<string, unknown>;
+};
+
+export type AdminMasterDataImportDomain =
+  | 'branches'
+  | 'restaurant-tables'
+  | 'menu-categories'
+  | 'menu-items'
+  | 'menu-prices';
+
+export type AdminMasterDataImportRow = Record<string, unknown>;
+
+export type AdminMasterDataImportResult = {
+  domain: string;
+  label: string;
+  format: string;
+  mode: 'dry_run' | 'commit';
+  can_commit: boolean;
+  schema: {
+    columns: Array<string>;
+    required_columns: Array<string>;
+    errors: Array<{ field: string; message: string }>;
+  };
+  summary: Record<string, number>;
+  rows: Array<{
+    row_number: number;
+    status: string;
+    operation: string;
+    errors: Array<{ field: string; message: string }>;
+    before: Record<string, unknown> | null;
+    after: Record<string, unknown> | null;
+    [key: string]: unknown;
+  }>;
+  commit: {
+    batch_id: string;
+    committed_at: string;
+    created: number;
+    updated: number;
+    unchanged: number;
+  } | null;
+};
+
+export type AdminMasterDataImportEnvelope = {
+  data: AdminMasterDataImportResult;
+  meta?: Record<string, unknown>;
+};
+
+export type AdminMasterDataDryRunPayload = {
+  mode: 'dry_run';
+  format?: 'csv' | 'json' | null;
+  rows?: Array<AdminMasterDataImportRow>;
+  content?: string;
+};
+
+export type AdminMasterDataCommitPayload = {
+  mode: 'commit';
+  idempotencyKey: string;
+  format?: 'csv' | 'json' | null;
+  rows?: Array<AdminMasterDataImportRow>;
+  content?: string;
+};
+
+export type AdminMasterDataImportPayload = AdminMasterDataDryRunPayload | AdminMasterDataCommitPayload;
+
+export type AdminRestaurantTableQuery = BranchScopedQuery & {
+  zone?: string;
+  status?: string;
+  template_id?: number;
+  include_deleted?: boolean;
+  q?: string;
+};
+
+export type AdminMenuCategoryQuery = {
+  include_deleted?: boolean;
+  q?: string;
+  per_page?: number;
+  page?: number;
+  sort?: string;
+};
+
+export type AdminMenuItemQuery = {
+  category_id?: number;
+  is_available?: boolean;
+  q?: string;
+  as_of?: string;
+  per_page?: number;
+  page?: number;
+  sort?: string;
+};
+
+export type AdminMenuItemPriceQuery = {
+  as_of?: string;
+  currency?: string;
+  per_page?: number;
+  page?: number;
+  sort?: string;
+};
+
+export type AdminIngredientMovementQuery = BranchScopedQuery & {
+  movement_type?: string;
+  per_page?: number;
+  page?: number;
+  sort?: string;
 };
 
 export type AuditTrailEntry = StaffAuditTrailEnvelope['data'][number];
@@ -418,10 +692,137 @@ export async function listAdminPurchaseOrders(
   return staffClient.getV1AdminInventoryPurchaseOrders(query);
 }
 
+export async function listAdminIngredientMovements(
+  ingredientId: number,
+  query: AdminIngredientMovementQuery = { per_page: 8, sort: '-created_at' },
+): Promise<AdminIngredientMovementCollectionEnvelope> {
+  return apiRequest<AdminIngredientMovementCollectionEnvelope>(`/admin/inventory/ingredients/${ingredientId}/movements`, { query });
+}
+
+export async function createAdminIngredientMovement(
+  ingredientId: number,
+  payload: AdminCreateIngredientMovementPayload,
+): Promise<AdminIngredientMovementEnvelope> {
+  return apiRequest<AdminIngredientMovementEnvelope>(`/admin/inventory/ingredients/${ingredientId}/movements`, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`admin-inventory-movement-${ingredientId}`),
+  });
+}
+
+export async function listAdminPurchaseOrderReceipts(
+  purchaseOrderId: number,
+): Promise<AdminPurchaseOrderReceiptCollectionEnvelope> {
+  return apiRequest<AdminPurchaseOrderReceiptCollectionEnvelope>(`/admin/inventory/purchase-orders/${purchaseOrderId}/receipts`);
+}
+
 export async function listAdminBranches(
   query: GetV1AdminSettingsBranchesQueryParams = {},
 ): Promise<BranchCollectionEnvelope> {
   return staffClient.getV1AdminSettingsBranches(query);
+}
+
+export async function listAdminRestaurantTables(
+  query: AdminRestaurantTableQuery = {},
+): Promise<AdminRestaurantTableCollectionEnvelope> {
+  return apiRequest<AdminRestaurantTableCollectionEnvelope>('/admin/restaurant/tables', { query });
+}
+
+export async function listAdminRestaurantTableTemplates(): Promise<AdminTableTemplateCollectionEnvelope> {
+  return staffClient.getV1AdminRestaurantTableTemplates() as unknown as Promise<AdminTableTemplateCollectionEnvelope>;
+}
+
+export async function createAdminRestaurantTable(
+  payload: CreateRestaurantTableRequest,
+): Promise<GenericDataEnvelope> {
+  return staffClient.postV1AdminRestaurantTables(payload, {
+    idempotencyKey: createIdempotencyKey(`admin-restaurant-table-${payload.table_code}`),
+  });
+}
+
+export async function listAdminMenuCategories(
+  query: AdminMenuCategoryQuery = { per_page: 12, sort: 'sort_order' },
+): Promise<AdminMenuCategoryCollectionEnvelope> {
+  return apiRequest<AdminMenuCategoryCollectionEnvelope>('/admin/menu/categories', { query });
+}
+
+export async function listAdminMenuItems(
+  query: AdminMenuItemQuery = { per_page: 12, sort: 'name' },
+): Promise<AdminMenuItemCollectionEnvelope> {
+  return apiRequest<AdminMenuItemCollectionEnvelope>('/admin/menu/items', { query });
+}
+
+export async function listAdminMenuItemPrices(
+  itemId: number,
+  query: AdminMenuItemPriceQuery = { per_page: 8, sort: '-effective_from' },
+): Promise<AdminMenuItemPriceCollectionEnvelope> {
+  return apiRequest<AdminMenuItemPriceCollectionEnvelope>(`/admin/menu/items/${itemId}/prices`, { query });
+}
+
+export async function createAdminMenuCategory(
+  payload: StoreMenuCategoryRequest,
+): Promise<GenericDataEnvelope> {
+  return staffClient.postV1AdminMenuCategories(payload, {
+    idempotencyKey: createIdempotencyKey(`admin-menu-category-${payload.name}`),
+  });
+}
+
+export async function createAdminMenuItem(
+  payload: StoreMenuItemRequest,
+): Promise<GenericDataEnvelope> {
+  return staffClient.postV1AdminMenuItems(payload, {
+    idempotencyKey: createIdempotencyKey(`admin-menu-item-${payload.code ?? payload.name}`),
+  });
+}
+
+export async function createAdminMenuItemPrice(
+  itemId: number,
+  payload: StoreMenuItemPriceRequest,
+): Promise<GenericDataEnvelope> {
+  return staffClient.postV1AdminMenuItemsItemIdPrices(
+    { item_id: itemId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`admin-menu-price-${itemId}`) },
+  );
+}
+
+export async function importAdminMasterData(
+  domain: AdminMasterDataImportDomain,
+  payload: AdminMasterDataImportPayload,
+): Promise<AdminMasterDataImportEnvelope> {
+  if (payload.mode === 'commit' && payload.idempotencyKey.trim() === '') {
+    throw new Error('Admin import commit requires an Idempotency-Key.');
+  }
+
+  switch (domain) {
+    case 'branches':
+      return apiRequest<AdminMasterDataImportEnvelope>('/admin/settings/branches/import', {
+        method: 'POST',
+        ...adminMasterDataImportOptions(payload),
+      });
+    case 'restaurant-tables':
+      return apiRequest<AdminMasterDataImportEnvelope>('/admin/restaurant/tables/import', {
+        method: 'POST',
+        ...adminMasterDataImportOptions(payload),
+      });
+    case 'menu-categories':
+      return apiRequest<AdminMasterDataImportEnvelope>('/admin/menu/categories/import', {
+        method: 'POST',
+        ...adminMasterDataImportOptions(payload),
+      });
+    case 'menu-items':
+      return apiRequest<AdminMasterDataImportEnvelope>('/admin/menu/items/import', {
+        method: 'POST',
+        ...adminMasterDataImportOptions(payload),
+      });
+    case 'menu-prices':
+      return apiRequest<AdminMasterDataImportEnvelope>('/admin/menu/prices/import', {
+        method: 'POST',
+        ...adminMasterDataImportOptions(payload),
+      });
+    default:
+      throw new Error(`Unsupported admin import domain: ${String(domain)}`);
+  }
 }
 
 export async function getCurrentCashierShift(branchId?: number): Promise<CashierShiftEnvelope> {
@@ -763,7 +1164,7 @@ export async function getKitchenChanges(afterVersion?: number, branchId?: number
   });
 }
 
-export async function dispatchKitchenOrder(orderId: number, payload: DispatchKitchenTicketsRequest = {}): Promise<StaffKitchenDispatchEnvelope> {
+export async function dispatchKitchenOrder(orderId: number, payload: DispatchKitchenTicketsRequest): Promise<StaffKitchenDispatchEnvelope> {
   return staffClient.postV1StaffOrdersOrderIdKitchenDispatch(
     { order_id: orderId },
     payload,
@@ -771,23 +1172,26 @@ export async function dispatchKitchenOrder(orderId: number, payload: DispatchKit
   );
 }
 
-export async function fireKitchenTicket(ticketId: number): Promise<StaffKitchenTicketEnvelope> {
+export async function fireKitchenTicket(ticketId: number, rowVersion: StaffKitchenTicketActionRequest['row_version']): Promise<StaffKitchenTicketEnvelope> {
   return staffClient.postV1StaffKitchenTicketsTicketIdFire(
     { ticket_id: ticketId },
+    { row_version: rowVersion },
     { idempotencyKey: createIdempotencyKey(`kitchen-fire-${ticketId}`) },
   );
 }
 
-export async function bumpKitchenTicket(ticketId: number): Promise<StaffKitchenTicketEnvelope> {
+export async function bumpKitchenTicket(ticketId: number, rowVersion: StaffKitchenTicketActionRequest['row_version']): Promise<StaffKitchenTicketEnvelope> {
   return staffClient.postV1StaffKitchenTicketsTicketIdBump(
     { ticket_id: ticketId },
+    { row_version: rowVersion },
     { idempotencyKey: createIdempotencyKey(`kitchen-bump-${ticketId}`) },
   );
 }
 
-export async function recallKitchenTicket(ticketId: number): Promise<StaffKitchenTicketEnvelope> {
+export async function recallKitchenTicket(ticketId: number, rowVersion: StaffKitchenTicketActionRequest['row_version']): Promise<StaffKitchenTicketEnvelope> {
   return staffClient.postV1StaffKitchenTicketsTicketIdRecall(
     { ticket_id: ticketId },
+    { row_version: rowVersion },
     { idempotencyKey: createIdempotencyKey(`kitchen-recall-${ticketId}`) },
   );
 }
@@ -842,4 +1246,15 @@ export async function refundAndCancelReservation(
     payload,
     { idempotencyKey: createIdempotencyKey(`refund-cancel-${reservationId}`) },
   );
+}
+
+function adminMasterDataImportOptions(payload: AdminMasterDataImportPayload) {
+  const { idempotencyKey, ...body } = payload.mode === 'commit'
+    ? payload
+    : { ...payload, idempotencyKey: undefined };
+
+  return {
+    body,
+    idempotencyKey,
+  } as const;
 }

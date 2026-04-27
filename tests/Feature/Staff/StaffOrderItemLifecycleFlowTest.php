@@ -108,7 +108,101 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
         );
     }
 
-    public function test_serving_item_consumes_inventory_once_from_recipe_lines(): void
+    public function test_served_item_recipe_consumption_rejects_when_any_ingredient_insufficient(): void
+    {
+        [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario();
+
+        $itemId = (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('item_id');
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-CONSUME-INSUFFICIENT',
+            'name' => 'Insufficient Chili',
+            'unit_code' => 'g',
+        ]);
+        $this->createMenuItemRecipeLine([
+            'item_id' => $itemId,
+            'ingredient_id' => $ingredientId,
+            'quantity' => '12.500',
+            'unit_code' => 'g',
+            'sort_order' => 1,
+        ]);
+
+        $response = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-consume-insufficient'))
+            ->postJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}/status", [
+                'order_row_version' => 1,
+                'row_version' => 1,
+                'status' => 'Served',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['quantity']);
+
+        self::assertSame('Ordered', (string) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('status'));
+        self::assertSame(0, (int) $this->table('ingredient_stock_movements')
+            ->where('ingredient_id', $ingredientId)
+            ->where('reference_type', 'ReservationOrderItemConsumption')
+            ->count());
+    }
+
+    public function test_served_item_recipe_consumption_is_atomic_no_partial_movements(): void
+    {
+        [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario();
+
+        $itemId = (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('item_id');
+        $reservationId = (int) $this->table('reservation_orders')->where('order_id', $orderId)->value('reservation_id');
+        $branchId = (int) $this->table('reservations')->where('reservation_id', $reservationId)->value('branch_id');
+        $riceIngredientId = $this->createIngredient([
+            'code' => 'ING-CONSUME-ATOMIC-RICE',
+            'name' => 'Atomic Rice',
+            'unit_code' => 'g',
+        ]);
+        $brothIngredientId = $this->createIngredient([
+            'code' => 'ING-CONSUME-ATOMIC-BROTH',
+            'name' => 'Atomic Broth',
+            'unit_code' => 'ml',
+        ]);
+        $this->createMenuItemRecipeLine([
+            'item_id' => $itemId,
+            'ingredient_id' => $riceIngredientId,
+            'quantity' => '5.000',
+            'unit_code' => 'g',
+            'sort_order' => 1,
+        ]);
+        $this->createMenuItemRecipeLine([
+            'item_id' => $itemId,
+            'ingredient_id' => $brothIngredientId,
+            'quantity' => '10.000',
+            'unit_code' => 'ml',
+            'sort_order' => 2,
+        ]);
+        $this->createIngredientStockMovement([
+            'branch_id' => $branchId,
+            'ingredient_id' => $riceIngredientId,
+            'movement_type' => 'StockIn',
+            'quantity_delta' => '5.000',
+            'unit_code' => 'g',
+        ]);
+
+        $response = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-consume-atomic'))
+            ->postJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}/status", [
+                'order_row_version' => 1,
+                'row_version' => 1,
+                'status' => 'Served',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['quantity']);
+
+        self::assertSame('Ordered', (string) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('status'));
+        self::assertSame(0, (int) $this->table('ingredient_stock_movements')
+            ->whereIn('ingredient_id', [$riceIngredientId, $brothIngredientId])
+            ->where('reference_type', 'ReservationOrderItemConsumption')
+            ->count());
+        self::assertSame('5.000', number_format((float) $this->table('ingredient_stock_movements')
+            ->where('ingredient_id', $riceIngredientId)
+            ->sum('quantity_delta'), 3, '.', ''));
+    }
+
+    public function test_served_item_consumes_stock_once_on_retry_or_status_noop(): void
     {
         [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario();
 
@@ -126,6 +220,13 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             'quantity' => '12.500',
             'unit_code' => 'g',
             'sort_order' => 1,
+        ]);
+        $this->createIngredientStockMovement([
+            'branch_id' => $branchId,
+            'ingredient_id' => $ingredientId,
+            'movement_type' => 'StockIn',
+            'quantity_delta' => '25.000',
+            'unit_code' => 'g',
         ]);
 
         $response = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-consume-served'))
@@ -235,6 +336,56 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             ->assertJsonPath('data.items.0.status', 'Cancelled');
 
         self::assertSame('Cancelled', (string) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('status'));
+    }
+
+    public function test_cancelled_order_item_does_not_consume_recipe_stock(): void
+    {
+        [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario();
+
+        $itemId = (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('item_id');
+        $reservationId = (int) $this->table('reservation_orders')->where('order_id', $orderId)->value('reservation_id');
+        $branchId = (int) $this->table('reservations')->where('reservation_id', $reservationId)->value('branch_id');
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-CANCEL-NO-CONSUME',
+            'name' => 'Cancelled No Consume Rice',
+            'unit_code' => 'g',
+        ]);
+        $this->createMenuItemRecipeLine([
+            'item_id' => $itemId,
+            'ingredient_id' => $ingredientId,
+            'quantity' => '25.000',
+            'unit_code' => 'g',
+            'sort_order' => 1,
+        ]);
+        $this->createIngredientStockMovement([
+            'branch_id' => $branchId,
+            'ingredient_id' => $ingredientId,
+            'movement_type' => 'StockIn',
+            'quantity_delta' => '50.000',
+            'unit_code' => 'g',
+            'reference_type' => 'manual_count',
+            'reference_id' => 'cancel-no-consume-seed',
+        ]);
+
+        $response = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-cancel-no-consume'))
+            ->postJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}/status", [
+                'order_row_version' => 1,
+                'row_version' => 1,
+                'status' => 'Cancelled',
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('meta.status', 'Cancelled');
+
+        self::assertSame(0, (int) $this->table('ingredient_stock_movements')
+            ->where('ingredient_id', $ingredientId)
+            ->where('reference_type', 'ReservationOrderItemConsumption')
+            ->where('reference_id', 'like', $orderItemId.':%')
+            ->count());
+        self::assertSame('50.000', number_format((float) $this->table('ingredient_stock_movements')
+            ->where('branch_id', $branchId)
+            ->where('ingredient_id', $ingredientId)
+            ->sum('quantity_delta'), 3, '.', ''));
     }
 
     public function test_stale_item_row_version_is_rejected(): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Payments\Application\UseCases\Refunds;
 
 use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
+use App\Support\Auth\StaffActorGuard;
 
 class ReservationRefundWorkflow
 {
@@ -23,6 +24,8 @@ class ReservationRefundWorkflow
         ?bool $cancelAfterPayment = null,
         ?int $staffUserId = null,
     ): array {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
+
         return $this->settlementWorkflow->previewRefund(
             reservationId: $reservationId,
             refundScope: $refundScope,
@@ -50,6 +53,8 @@ class ReservationRefundWorkflow
         ?int $staffUserId = null,
         string $idempotencyKey = '',
     ): array {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
+
         return $this->settlementWorkflow->refundReservation(
             reservationId: $reservationId,
             paymentMethod: $paymentMethod,
@@ -84,6 +89,8 @@ class ReservationRefundWorkflow
         ?int $staffUserId = null,
         string $idempotencyKey = '',
     ): array {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
+
         return $this->settlementWorkflow->refundAndCancelReservation(
             reservationId: $reservationId,
             paymentMethod: $paymentMethod,

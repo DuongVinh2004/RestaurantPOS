@@ -1,5 +1,6 @@
 export type StaffWorkspacePageId =
   | 'admin-landing'
+  | 'admin-catalog'
   | 'admin-settings'
   | 'admin-inventory'
   | 'dashboard'

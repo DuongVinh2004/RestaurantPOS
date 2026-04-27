@@ -23,5 +23,6 @@ Route::middleware([
     MetricsRequestMiddleware::class,
     ResolveCustomerAuthMiddleware::class,
 ])->group(function () {
-    Route::post('payments/providers/{provider_code}/webhooks', [PaymentProviderWebhookController::class, 'handle']);
+    Route::post('payments/providers/{provider_code}/webhooks', [PaymentProviderWebhookController::class, 'handle'])
+        ->middleware('redis.throttle:payment.webhooks,120,60,ip');
 });

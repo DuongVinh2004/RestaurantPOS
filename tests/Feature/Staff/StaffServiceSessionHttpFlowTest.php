@@ -484,6 +484,57 @@ class StaffServiceSessionHttpFlowTest extends TestCase
             ->count());
     }
 
+    public function test_walk_in_create_rejects_same_idempotency_key_with_different_payload_without_duplicate_reservation(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $customerId = $this->createUser([
+            'role_name' => 'Customer',
+            'email' => 'walkin.idempotent.conflict.customer@example.test',
+        ]);
+        $branchId = 1;
+        $firstTableId = $this->createRestaurantTableWithSeats(4, [
+            'branch_id' => $branchId,
+            'status' => 'Available',
+        ]);
+        $secondTableId = $this->createRestaurantTableWithSeats(4, [
+            'branch_id' => $branchId,
+            'status' => 'Available',
+        ]);
+        $headers = $this->withIdempotencyKey($this->staffAuthHeaders($staffId, 'staff-service-session-replay-conflict'), 'staff-service-session-replay-conflict-1');
+        $payload = [
+            'branch_id' => $branchId,
+            'user_id' => $customerId,
+            'table_ids' => [$firstTableId],
+            'guest_count' => 2,
+            'started_at' => $this->nowUtc()->copy()->addMinutes(35)->toIso8601String(),
+            'service_minutes' => 75,
+        ];
+
+        $first = $this->withHeaders($headers)->postJson('/api/v1/staff/service-sessions/walk-in', $payload);
+        $second = $this->withHeaders($headers)->postJson('/api/v1/staff/service-sessions/walk-in', array_merge($payload, [
+            'table_ids' => [$secondTableId],
+        ]));
+
+        $first->assertCreated()
+            ->assertHeader('Idempotency-Replayed', 'false');
+        $second->assertStatus(409)
+            ->assertJsonPath('error_code', 'idempotency_conflict')
+            ->assertJsonPath('conflict_type', 'idempotency_payload_mismatch');
+
+        $reservationId = (int) $first->json('data.reservation_id');
+        self::assertSame(1, (int) DB::table('reservations')
+            ->where('source', 'WalkIn')
+            ->where('user_id', $customerId)
+            ->count());
+        self::assertSame(1, (int) DB::table('reservation_tables')
+            ->where('reservation_id', $reservationId)
+            ->where('table_id', $firstTableId)
+            ->count());
+        self::assertSame(0, (int) DB::table('reservation_tables')
+            ->where('table_id', $secondTableId)
+            ->count());
+    }
+
     public function test_active_service_session_lookup_returns_not_found_for_historical_checked_out_reservation(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);

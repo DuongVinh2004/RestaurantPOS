@@ -21,6 +21,7 @@ const navIcons: Record<StaffNavIconKey, LucideIcon> = {
   dashboard: LayoutDashboard,
   settings: Settings2,
   inventory: Boxes,
+  menu: ClipboardList,
   tables: Armchair,
   reservations: CalendarClock,
   waiting: Clock3,

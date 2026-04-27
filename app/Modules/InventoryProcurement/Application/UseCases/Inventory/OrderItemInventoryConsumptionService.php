@@ -11,6 +11,7 @@ use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class OrderItemInventoryConsumptionService
 {
@@ -46,6 +47,7 @@ class OrderItemInventoryConsumptionService
             ->orderBy('recipe_line_id')
             ->get();
 
+        $movementPayloads = [];
         foreach ($recipeLines as $recipeLine) {
             $ingredientId = (int) ($recipeLine->ingredient_id ?? 0);
             $recipeQuantity = max(0.0, (float) ($recipeLine->quantity ?? 0));
@@ -56,7 +58,8 @@ class OrderItemInventoryConsumptionService
 
             $referenceId = sprintf('%d:%d:%d', (int) $item->order_item_id, (int) $recipeLine->recipe_line_id, $ingredientId);
 
-            $this->stockMovementService->recordMovement($ingredientId, [
+            $movementPayloads[] = [
+                'ingredient_id' => $ingredientId,
                 'branch_id' => (int) ($reservation->branch_id ?? 0),
                 'movement_type' => IngredientStockMovement::TYPE_STOCK_OUT,
                 'quantity' => round($quantityMultiplier * $recipeQuantity, 3),
@@ -69,7 +72,18 @@ class OrderItemInventoryConsumptionService
                     (int) $order->order_id
                 ),
                 'created_at' => $item->updated_at ?? Carbon::now('UTC'),
-            ], $actorUserId);
+            ];
         }
+
+        DB::transaction(function () use ($movementPayloads, $actorUserId): void {
+            $this->stockMovementService->assertSufficientStockForMovements($movementPayloads);
+
+            foreach ($movementPayloads as $payload) {
+                $ingredientId = (int) $payload['ingredient_id'];
+                unset($payload['ingredient_id']);
+
+                $this->stockMovementService->recordMovement($ingredientId, $payload, $actorUserId);
+            }
+        }, 3);
     }
 }

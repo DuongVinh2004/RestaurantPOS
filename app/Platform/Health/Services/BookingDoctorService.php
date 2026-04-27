@@ -104,7 +104,7 @@ class BookingDoctorService
                         ],
                     );
                 } else {
-                    $ageSeconds = Carbon::now('UTC')->diffInSeconds($lastRun);
+                    $ageSeconds = max(0, Carbon::now('UTC')->getTimestamp() - $lastRun->getTimestamp());
                     $staleThresholdSeconds = (int) config('booking.scheduler_heartbeat_stale_seconds', 180);
                     $runtime['scheduler'] = $ageSeconds <= $staleThresholdSeconds
                         ? $this->runtimePass(

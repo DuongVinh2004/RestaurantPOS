@@ -11,6 +11,7 @@ use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Payments\Domain\Models\Payment;
 use App\SharedKernel\Money\Money;
 use App\Support\AuditEvent;
+use App\Support\Auth\StaffActorGuard;
 use App\Support\Listing\SafeLike;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -37,11 +38,14 @@ class StaffCashierShiftService
         ?int $openedBy = null,
         mixed $branchId = null,
     ): CashierShift {
+        $cashierUserId = StaffActorGuard::requireStaffUserId($cashierUserId);
         $currency = $this->normalizeCurrency($currency);
         $terminalCode = $this->normalizeNullableString($terminalCode);
         $openingNote = $this->normalizeNullableString($openingNote) ?? '';
         $openingFloatAmount = Money::toFloat($openingFloatAmount, true);
-        $openedBy ??= $cashierUserId;
+        $openedBy = $openedBy !== null
+            ? StaffActorGuard::requireStaffUserId($openedBy, 'opened_by')
+            : $cashierUserId;
 
         return DB::transaction(function () use (
             $cashierUserId,
@@ -114,6 +118,10 @@ class StaffCashierShiftService
         ?int $closedBy = null,
         ?int $cashierUserId = null,
     ): CashierShift {
+        $cashierUserId = StaffActorGuard::requireStaffUserId($cashierUserId);
+        $closedBy = $closedBy !== null
+            ? StaffActorGuard::requireStaffUserId($closedBy, 'closed_by')
+            : $cashierUserId;
         $actualCashAmount = Money::toFloat($actualCashAmount, true);
         $closingNote = $this->normalizeNullableString($closingNote) ?? '';
 
@@ -121,11 +129,9 @@ class StaffCashierShiftService
             /** @var CashierShift $shift */
             $query = CashierShift::query()
                 ->whereKey($shiftId)
-                ->when($cashierUserId !== null && $cashierUserId > 0, static fn (Builder $builder) => $builder->where('cashier_user_id', $cashierUserId));
+                ->where('cashier_user_id', $cashierUserId);
 
-            if ($cashierUserId !== null && $cashierUserId > 0) {
-                $this->applyBranchScope($query, $this->staffBranchContextService->accessibleBranchIds($cashierUserId));
-            }
+            $this->applyBranchScope($query, $this->staffBranchContextService->accessibleBranchIds($cashierUserId));
 
             /** @var CashierShift $shift */
             $shift = $query->lockForUpdate()
@@ -172,6 +178,7 @@ class StaffCashierShiftService
 
     public function currentOpenShift(int $cashierUserId, ?int $branchId = null): ?CashierShift
     {
+        $cashierUserId = StaffActorGuard::requireStaffUserId($cashierUserId);
         $branchScope = $this->staffBranchContextService->branchScopeOrAccessible($cashierUserId, $branchId);
         if ($branchScope === []) {
             return null;
@@ -187,6 +194,7 @@ class StaffCashierShiftService
 
     public function requireOpenShiftForMutation(int $cashierUserId, int $branchId, ?string $currency = null): CashierShift
     {
+        $cashierUserId = StaffActorGuard::requireStaffUserId($cashierUserId);
         $shift = CashierShift::query()
             ->where('cashier_user_id', $cashierUserId)
             ->where('branch_id', $branchId)
@@ -216,6 +224,7 @@ class StaffCashierShiftService
 
     public function paginateShiftHistory(int $cashierUserId, array $filters = []): LengthAwarePaginator
     {
+        $cashierUserId = StaffActorGuard::requireStaffUserId($cashierUserId);
         $perPage = max(1, min((int) ($filters['per_page'] ?? 12), 100));
         $page = max(1, (int) ($filters['page'] ?? 1));
         $sortBy = $this->resolveShiftSortBy((string) ($filters['sort_by'] ?? 'opened_at'));
@@ -274,12 +283,11 @@ class StaffCashierShiftService
 
     public function findShiftOrFail(int $shiftId, ?int $cashierUserId = null): CashierShift
     {
+        $cashierUserId = StaffActorGuard::requireStaffUserId($cashierUserId);
         $query = CashierShift::query()
-            ->when($cashierUserId !== null && $cashierUserId > 0, static fn (Builder $builder) => $builder->where('cashier_user_id', $cashierUserId));
+            ->where('cashier_user_id', $cashierUserId);
 
-        if ($cashierUserId !== null && $cashierUserId > 0) {
-            $this->applyBranchScope($query, $this->staffBranchContextService->accessibleBranchIds($cashierUserId));
-        }
+        $this->applyBranchScope($query, $this->staffBranchContextService->accessibleBranchIds($cashierUserId));
 
         return $query->findOrFail($shiftId);
     }

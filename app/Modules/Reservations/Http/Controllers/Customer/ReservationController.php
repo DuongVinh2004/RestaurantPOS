@@ -5,6 +5,7 @@ namespace App\Modules\Reservations\Http\Controllers\Customer;
 use App\Http\Concerns\AuthorizesResolvedStaffCapability;
 use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
+use App\Modules\Conversations\Application\Services\StaffReservationInboxService;
 use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
 use App\Modules\Reservations\Application\Services\ReservationPreorderService;
 use App\Modules\Reservations\Application\Services\ReservationService;
@@ -15,6 +16,7 @@ use App\Modules\Reservations\Http\Requests\ReplaceReservationPreOrderRequest;
 use App\Modules\Reservations\Http\Resources\ReservationResource;
 use App\Support\ApiErrorResponse;
 use App\Support\Auth\RequestActorContext;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -27,6 +29,7 @@ class ReservationController extends Controller
         private readonly ReservationService $service,
         private readonly ReservationSessionAccessWorkflow $customerSessionAccessService,
         private readonly ReservationPreorderService $reservationPreorderService,
+        private readonly StaffReservationInboxService $staffReservationInboxService,
     ) {}
 
     public function store(CreateReservationRequest $request): JsonResponse
@@ -96,8 +99,12 @@ class ReservationController extends Controller
 
         if ($isStaff) {
             $this->authorizeResolvedStaffCapability($request, 'reservation.manage');
-            /** @var Reservation|null $reservation */
-            $reservation = Reservation::query()->find($id);
+
+            try {
+                $reservation = $this->staffReservationInboxService->findForStaffOrFail($id, (int) $actorUserId);
+            } catch (ModelNotFoundException) {
+                return $this->notFoundReservationResponse($request);
+            }
         } elseif ($actorUserId !== null) {
             $scope = ReservationAccessScope::OWNER;
             /** @var Reservation|null $reservation */
@@ -120,7 +127,10 @@ class ReservationController extends Controller
             return $this->notFoundReservationResponse($request);
         }
 
-        $reservation->load($this->relationsForScope($scope));
+        if (! $isStaff) {
+            $reservation->load($this->relationsForScope($scope));
+        }
+
         $request->attributes->set('reservation_access_scope', $scope);
 
         return response()->json([

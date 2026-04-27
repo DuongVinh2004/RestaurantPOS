@@ -9,7 +9,7 @@ import {
   fireKitchenTicket,
   recallKitchenTicket,
 } from '../../../../shared/api/staff-api';
-import { formatApiError } from '../../../../shared/api/errors';
+import { formatApiError, normalizeApiError } from '../../../../shared/api/errors';
 import { formatDateTime, formatRelativeAge } from '../../../../shared/utils/format';
 import { mergeJourneySearch } from '../../../../app/router/journey';
 import { staffRoutePaths } from '../../../../app/router/workspace-paths';
@@ -67,6 +67,8 @@ export function KitchenBoardPage() {
   const setStationContext = useFlowStore((state) => state.setStationContext);
   const isOnline = useOnlineStatus();
   const [showChangeFeed, setShowChangeFeed] = useState(true);
+  const [lockedTicketAction, setLockedTicketAction] = useState<KitchenTicketAction | null>(null);
+  const ticketActionLockRef = useRef(false);
   const lastAppliedKitchenChangeVersionRef = useRef<number | null>(null);
   const kitchenUrlState = useMemo(() => readKitchenBoardUrlState(searchParams), [searchParams]);
   const ticketStatus = kitchenUrlState.status;
@@ -213,6 +215,10 @@ export function KitchenBoardPage() {
       return;
     }
 
+    if (!ticketsQuery.isFetched || ticketsQuery.isFetching || ticketsQuery.error) {
+      return;
+    }
+
     if (tickets.length === 0) {
       if (selectedTicketId !== null) {
         updateKitchenSearch({ ticketId: null }, stationId, { replace: true });
@@ -236,7 +242,17 @@ export function KitchenBoardPage() {
     if (selectedTicketId !== null) {
       updateKitchenSearch({ ticketId: null }, stationId, { replace: true });
     }
-  }, [canLoadTickets, journey.orderId, selectedTicketId, stationId, tickets, updateKitchenSearch]);
+  }, [
+    canLoadTickets,
+    journey.orderId,
+    selectedTicketId,
+    stationId,
+    tickets,
+    ticketsQuery.error,
+    ticketsQuery.isFetched,
+    ticketsQuery.isFetching,
+    updateKitchenSearch,
+  ]);
 
   const dispatchMutation = useMutation({
     mutationFn: async () => {
@@ -244,8 +260,12 @@ export function KitchenBoardPage() {
         throw new Error('No order context is available for kitchen dispatch.');
       }
 
+      if (journey.orderRowVersion === undefined) {
+        throw new Error('Refresh the order before dispatching it to kitchen.');
+      }
+
       return dispatchKitchenOrder(journey.orderId, {
-        row_version: journey.orderRowVersion ?? undefined,
+        row_version: journey.orderRowVersion,
       });
     },
     onSuccess: async (dispatchEnvelope) => {
@@ -283,19 +303,19 @@ export function KitchenBoardPage() {
   });
 
   const ticketActionMutation = useMutation({
-    mutationFn: async (action: KitchenTicketAction) => {
-      if (!selectedTicket) {
-        throw new Error('Select a kitchen ticket first.');
+    mutationFn: async (input: {
+      action: KitchenTicketAction;
+      ticketId: number;
+      rowVersion: number;
+    }) => {
+      if (input.action === 'fire') {
+        return fireKitchenTicket(input.ticketId, input.rowVersion);
+      }
+      if (input.action === 'bump') {
+        return bumpKitchenTicket(input.ticketId, input.rowVersion);
       }
 
-      if (action === 'fire') {
-        return fireKitchenTicket(selectedTicket.ticket_id);
-      }
-      if (action === 'bump') {
-        return bumpKitchenTicket(selectedTicket.ticket_id);
-      }
-
-      return recallKitchenTicket(selectedTicket.ticket_id);
+      return recallKitchenTicket(input.ticketId, input.rowVersion);
     },
     onSuccess: async (ticketEnvelope) => {
       const orderId = ticketEnvelope.data.order.order_id;
@@ -309,24 +329,61 @@ export function KitchenBoardPage() {
       toast.success('Kitchen ticket was updated.');
     },
     onError: (error) => {
+      const normalized = normalizeApiError(error, 'Could not update the kitchen ticket.');
+      const staleWrite = normalized.code === 'stale_row_version'
+        || normalized.categoryCode === 'stale_write'
+        || normalized.conflictType === 'stale_write';
+
+      if (staleWrite) {
+        void Promise.all([
+          queryClient.invalidateQueries({ queryKey: kitchenQueryKeys.ticketsRoot(), refetchType: 'active' }),
+          queryClient.invalidateQueries({ queryKey: kitchenQueryKeys.stationsRoot(), refetchType: 'active' }),
+        ]);
+        toast.warning(`${normalized.message} The kitchen queue was refreshed before retry.`);
+        return;
+      }
+
       toast.error(formatApiError(error, 'Could not update the kitchen ticket.'));
     },
   });
 
   async function handleTicketAction(action: KitchenTicketAction) {
-    if (!selectedTicket || !ticketAllowedActions(selectedTicket).includes(action) || !isOnline) {
+    if (
+      !selectedTicket
+      || selectedTicket.row_version === null
+      || !ticketAllowedActions(selectedTicket).includes(action)
+      || ticketActionMutation.isPending
+      || ticketActionLockRef.current
+      || !isOnline
+    ) {
       return;
     }
 
-    const confirmed = await confirmAction({
-      title: `${labelForTicketAction(action)} ticket #${selectedTicket.ticket_id}`,
-      content: 'Only the next safe lifecycle transition will be sent for the selected kitchen ticket.',
-      okText: labelForTicketAction(action),
-      danger: action === 'recall',
-    });
+    ticketActionLockRef.current = true;
+    setLockedTicketAction(action);
+    const ticketId = selectedTicket.ticket_id;
+    const rowVersion = selectedTicket.row_version;
 
-    if (confirmed) {
-      await ticketActionMutation.mutateAsync(action);
+    try {
+      const confirmed = await confirmAction({
+        title: `${labelForTicketAction(action)} ticket #${ticketId}`,
+        content: 'Only the next safe lifecycle transition will be sent for the selected kitchen ticket.',
+        okText: labelForTicketAction(action),
+        danger: action === 'recall',
+      });
+
+      if (confirmed) {
+        await ticketActionMutation.mutateAsync({
+          action,
+          ticketId,
+          rowVersion,
+        });
+      }
+    } catch {
+      // Mutation onError already surfaces the operator-facing state.
+    } finally {
+      ticketActionLockRef.current = false;
+      setLockedTicketAction(null);
     }
   }
 
@@ -529,7 +586,7 @@ export function KitchenBoardPage() {
           <aside className="staff-kitchen-panel staff-kitchen-board-detail" aria-label="Selected ticket">
             <TicketDetailPanel
               isOnline={isOnline}
-              isPending={ticketActionMutation.isPending}
+              isPending={ticketActionMutation.isPending || lockedTicketAction !== null}
               selectedTicket={selectedTicket}
               stationId={stationId}
               onTicketAction={(action) => void handleTicketAction(action)}
@@ -547,7 +604,7 @@ export function KitchenBoardPage() {
                 <Button
                   type="primary"
                   onClick={() => dispatchMutation.mutate()}
-                  disabled={!journey.orderId || !isOnline}
+                  disabled={!journey.orderId || journey.orderRowVersion === undefined || !isOnline}
                   loading={dispatchMutation.isPending}
                 >
                   Dispatch order to kitchen
@@ -661,7 +718,7 @@ function TicketDetailPanel({
   }
 
   const allowedActions = ticketAllowedActions(selectedTicket);
-  const disableActions = !isOnline || isPending || stationId === null;
+  const disableActions = !isOnline || isPending || stationId === null || selectedTicket.row_version === null;
 
   return (
     <section className="staff-kitchen-subpanel" aria-label="Selected ticket details">
@@ -675,6 +732,7 @@ function TicketDetailPanel({
 
       <div className="staff-kitchen-ticket-facts">
         <span>Order #{selectedTicket.order.order_id}</span>
+        <span>Ticket v{selectedTicket.row_version ?? 'n/a'}</span>
         <span>Dispatch {selectedTicket.dispatch_count}</span>
         <span>Recall {selectedTicket.recall_count}</span>
         <span>{formatRelativeAge(selectedTicket.updated_at)}</span>

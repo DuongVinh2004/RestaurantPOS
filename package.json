@@ -7,6 +7,8 @@
         "encoding:fix": "node scripts/ui-text-encoding-guard.mjs --write",
         "verify:package": "node scripts/release/check-package-integrity.mjs",
         "verify:package:test": "node --test scripts/release/check-package-integrity.test.mjs",
+        "release:go-live-check": "node scripts/release/go-live-check.mjs",
+        "release:go-live-check:test": "node --test scripts/release/go-live-check.test.mjs",
         "mysql:local": "powershell -ExecutionPolicy Bypass -File scripts/ops/start-local-mysql.ps1",
         "mysql:local:restart": "powershell -ExecutionPolicy Bypass -File scripts/ops/start-local-mysql.ps1 -Restart",
         "mysql:local:stop": "powershell -ExecutionPolicy Bypass -File scripts/ops/start-local-mysql.ps1 -Stop",

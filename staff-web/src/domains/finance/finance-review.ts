@@ -51,6 +51,17 @@ export function buildFinanceQuery(
   };
 }
 
+export function financeDateRangeError(filters: Pick<FinanceFilterState, 'activityFrom' | 'activityTo'>): string | null {
+  const activityFrom = normalizeDate(filters.activityFrom);
+  const activityTo = normalizeDate(filters.activityTo);
+
+  if (!activityFrom || !activityTo) {
+    return null;
+  }
+
+  return activityFrom <= activityTo ? null : 'Activity end date must be on or after activity start date.';
+}
+
 export function readFinanceReviewUrlState(search: string | URLSearchParams): FinanceReviewUrlState {
   const params = toSearchParams(search);
 

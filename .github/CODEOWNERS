@@ -1,0 +1,22 @@
+# Default ownership
+* @DuongVinh2004
+
+# Backend and contracts
+/app/ @DuongVinh2004
+/routes/ @DuongVinh2004
+/config/ @DuongVinh2004
+/database/ @DuongVinh2004
+/tools/ @DuongVinh2004
+/tests/ @DuongVinh2004
+
+# Frontend clients and generated artifacts
+/staff-web/ @DuongVinh2004
+/customer-web/ @DuongVinh2004
+/build/api-consumer/ @DuongVinh2004
+
+# Docs and repository automation
+/docs/ @DuongVinh2004
+/.github/ @DuongVinh2004
+/README.md @DuongVinh2004
+/CONTRIBUTING.md @DuongVinh2004
+/SECURITY.md @DuongVinh2004

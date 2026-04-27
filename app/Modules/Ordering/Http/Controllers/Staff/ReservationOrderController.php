@@ -8,7 +8,6 @@ use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
 use App\Modules\Ordering\Application\Queries\StaffOrderReadService;
 use App\Modules\Ordering\Application\UseCases\Orders\StaffTableOrderService;
-use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Http\Requests\Staff\AddOrderItemsRequest;
 use App\Modules\Ordering\Http\Requests\Staff\CreateTableOrderRequest;
 use App\Modules\Ordering\Http\Resources\ReservationOrderResource;
@@ -50,17 +49,6 @@ class ReservationOrderController extends Controller
                 ],
                 'query_contract' => ListingMetaFactory::contract([], ['order_id'], 'order_id', false),
             ],
-        ]);
-    }
-
-    public function show(int $order_id): JsonResponse
-    {
-        $order = ReservationOrder::query()
-            ->with('items.item')
-            ->findOrFail($order_id);
-
-        return response()->json([
-            'data' => new ReservationOrderResource($order),
         ]);
     }
 

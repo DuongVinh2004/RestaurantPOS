@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   adminPurchaseOrderTone,
+  buildAdminIngredientMovementQuery,
   buildAdminIngredientQuery,
   buildAdminPurchaseOrderQuery,
   buildAdminSupplierQuery,
   formatInventoryQuantity,
+  inventoryMovementTone,
+  summarizeAdminIngredientMovements,
   summarizeAdminIngredients,
   summarizeAdminPurchaseOrders,
+  summarizeAdminPurchaseReceipts,
   summarizeAdminSuppliers,
   type AdminInventoryFilterState,
 } from './admin-inventory';
@@ -42,6 +46,11 @@ describe('admin inventory helpers', () => {
       per_page: 8,
       sort: '-created_at',
     });
+    expect(buildAdminIngredientMovementQuery(7)).toEqual({
+      branch_id: 7,
+      per_page: 8,
+      sort: '-created_at',
+    });
   });
 
   it('summarizes ingredient, supplier, and purchase-order reads', () => {
@@ -73,11 +82,29 @@ describe('admin inventory helpers', () => {
       receiptCount: 4,
       remainingQuantity: 4,
     });
+    expect(summarizeAdminIngredientMovements([
+      { movement_type: 'AdjustmentIncrease', quantity_delta: '3.5', created_by: 7 },
+      { movement_type: 'Wastage', quantity_delta: '-1', created_by: null },
+    ])).toEqual({
+      displayedCount: 2,
+      adjustmentCount: 1,
+      wastageCount: 1,
+      netQuantity: 2.5,
+      auditedCount: 1,
+    });
+    expect(summarizeAdminPurchaseReceipts([
+      { receipt_status: 'Received', summary: { received_total_quantity: '4' } },
+    ])).toEqual({
+      displayedCount: 1,
+      receivedCount: 1,
+      receivedQuantity: 4,
+    });
   });
 
   it('formats quantities and PO tone safely', () => {
     expect(formatInventoryQuantity('3.125')).toBe('3.125');
     expect(adminPurchaseOrderTone('Received')).toBe('success');
     expect(adminPurchaseOrderTone('Cancelled')).toBe('error');
+    expect(inventoryMovementTone('Wastage')).toBe('error');
   });
 });

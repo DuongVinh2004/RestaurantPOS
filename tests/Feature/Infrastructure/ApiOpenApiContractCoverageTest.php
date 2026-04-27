@@ -508,6 +508,23 @@ final class ApiOpenApiContractCoverageTest extends TestCase
             data_get($operations['POST api/v1/staff/orders/{order_id}/kitchen/dispatch'], 'requestBody.content.application/json.schema.$ref')
         );
         $this->assertSame(
+            '#/components/schemas/StaleRowVersionError',
+            data_get($operations['POST api/v1/staff/orders/{order_id}/kitchen/dispatch'], 'responses.409.content.application/json.schema.$ref')
+        );
+        $this->assertContains(
+            'row_version',
+            data_get($spec, 'components.schemas.DispatchKitchenTicketRequest.required', []),
+            'KDS dispatch must advertise the order row_version as required.'
+        );
+        $this->assertSame(
+            'integer',
+            data_get($spec, 'components.schemas.DispatchKitchenTicketRequest.properties.row_version.type')
+        );
+        $this->assertEquals(
+            1,
+            data_get($spec, 'components.schemas.DispatchKitchenTicketRequest.properties.row_version.minimum')
+        );
+        $this->assertSame(
             '#/components/schemas/KitchenStation',
             data_get($spec, 'components.schemas.StaffKitchenStationCollectionEnvelope.properties.data.items.$ref')
         );
