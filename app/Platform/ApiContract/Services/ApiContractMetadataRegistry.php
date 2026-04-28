@@ -4439,7 +4439,7 @@ class ApiContractMetadataRegistry
 
         $adminIngredientSchema = [
             'type' => 'object',
-            'required' => ['ingredient_id', 'code', 'name', 'unit_code', 'is_active', 'stock', 'recipe_usage_count', 'created_at', 'updated_at'],
+            'required' => ['ingredient_id', 'code', 'name', 'unit_code', 'is_active', 'row_version', 'stock', 'recipe_usage_count', 'created_at', 'updated_at'],
             'properties' => [
                 'ingredient_id' => ['type' => 'integer'],
                 'code' => ['type' => 'string', 'nullable' => true],
@@ -4447,6 +4447,7 @@ class ApiContractMetadataRegistry
                 'unit_code' => ['type' => 'string'],
                 'description' => ['type' => 'string', 'nullable' => true],
                 'is_active' => ['type' => 'boolean'],
+                'row_version' => ['type' => 'integer'],
                 'stock' => [
                     'type' => 'object',
                     'required' => ['on_hand', 'unit_code'],
@@ -4465,7 +4466,7 @@ class ApiContractMetadataRegistry
 
         $adminSupplierSchema = [
             'type' => 'object',
-            'required' => ['supplier_id', 'code', 'name', 'contact_name', 'phone', 'email', 'notes', 'is_active', 'created_at', 'updated_at'],
+            'required' => ['supplier_id', 'code', 'name', 'contact_name', 'phone', 'email', 'notes', 'is_active', 'row_version', 'created_at', 'updated_at'],
             'properties' => [
                 'supplier_id' => ['type' => 'integer'],
                 'code' => ['type' => 'string', 'nullable' => true],
@@ -4475,6 +4476,7 @@ class ApiContractMetadataRegistry
                 'email' => ['type' => 'string', 'nullable' => true],
                 'notes' => ['type' => 'string', 'nullable' => true],
                 'is_active' => ['type' => 'boolean'],
+                'row_version' => ['type' => 'integer'],
                 'created_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
                 'updated_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
             ],
@@ -4496,7 +4498,7 @@ class ApiContractMetadataRegistry
 
         $adminPurchaseOrderSchema = [
             'type' => 'object',
-            'required' => ['purchase_order_id', 'branch_id', 'order_code', 'purchase_order_status', 'supplier_id', 'summary', 'created_at', 'updated_at'],
+            'required' => ['purchase_order_id', 'branch_id', 'order_code', 'purchase_order_status', 'supplier_id', 'row_version', 'summary', 'created_at', 'updated_at'],
             'properties' => [
                 'purchase_order_id' => ['type' => 'integer'],
                 'branch_id' => ['type' => 'integer', 'nullable' => true],
@@ -4530,6 +4532,7 @@ class ApiContractMetadataRegistry
                 'received_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
                 'supplier_reference' => ['type' => 'string', 'nullable' => true],
                 'notes' => ['type' => 'string', 'nullable' => true],
+                'row_version' => ['type' => 'integer'],
                 'summary' => $adminPurchaseOrderSummarySchema,
                 'created_by' => ['type' => 'integer', 'nullable' => true],
                 'updated_by' => ['type' => 'integer', 'nullable' => true],

@@ -1609,6 +1609,7 @@
                                 "$ref": "#/components/schemas/UpdateIngredientRequest"
                             },
                             "example": {
+                                "row_version": 1,
                                 "code": "example",
                                 "name": "Demo Customer",
                                 "unit_code": "example",
@@ -2222,6 +2223,7 @@
                                 "$ref": "#/components/schemas/SyncMenuItemRecipeRequest"
                             },
                             "example": {
+                                "row_version": 1,
                                 "lines": []
                             }
                         }
@@ -2932,6 +2934,7 @@
                                 "$ref": "#/components/schemas/UpdatePurchaseOrderRequest"
                             },
                             "example": {
+                                "row_version": 1,
                                 "supplier_id": 101,
                                 "branch_id": 101,
                                 "order_code": "example",
@@ -3896,6 +3899,7 @@
                                 "$ref": "#/components/schemas/UpdateSupplierRequest"
                             },
                             "example": {
+                                "row_version": 1,
                                 "code": "example",
                                 "name": "Demo Customer",
                                 "contact_name": "Demo Customer",
@@ -28271,6 +28275,7 @@
                     "name",
                     "unit_code",
                     "is_active",
+                    "row_version",
                     "stock",
                     "recipe_usage_count",
                     "created_at",
@@ -28296,6 +28301,9 @@
                     },
                     "is_active": {
                         "type": "boolean"
+                    },
+                    "row_version": {
+                        "type": "integer"
                     },
                     "stock": {
                         "type": "object",
@@ -28491,6 +28499,7 @@
                     "order_code",
                     "purchase_order_status",
                     "supplier_id",
+                    "row_version",
                     "summary",
                     "created_at",
                     "updated_at"
@@ -28597,6 +28606,9 @@
                     "notes": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "row_version": {
+                        "type": "integer"
                     },
                     "summary": {
                         "type": "object",
@@ -28822,6 +28834,7 @@
                     "email",
                     "notes",
                     "is_active",
+                    "row_version",
                     "created_at",
                     "updated_at"
                 ],
@@ -28854,6 +28867,9 @@
                     },
                     "is_active": {
                         "type": "boolean"
+                    },
+                    "row_version": {
+                        "type": "integer"
                     },
                     "created_at": {
                         "type": "string",
@@ -53277,6 +53293,15 @@
             "SyncMenuItemRecipeRequest": {
                 "type": "object",
                 "properties": {
+                    "row_version": {
+                        "type": "integer",
+                        "x-laravel-rules": [
+                            "required",
+                            "integer",
+                            "min:1"
+                        ],
+                        "minimum": 1
+                    },
                     "lines": {
                         "type": "array",
                         "x-laravel-rules": [
@@ -53344,10 +53369,16 @@
                     }
                 },
                 "required": [
-                    "lines"
+                    "lines",
+                    "row_version"
                 ],
                 "additionalProperties": false,
                 "x-laravel-rules": {
+                    "row_version": [
+                        "required",
+                        "integer",
+                        "min:1"
+                    ],
                     "lines": [
                         "required",
                         "array"
@@ -53989,6 +54020,15 @@
             "UpdateIngredientRequest": {
                 "type": "object",
                 "properties": {
+                    "row_version": {
+                        "type": "integer",
+                        "x-laravel-rules": [
+                            "required",
+                            "integer",
+                            "min:1"
+                        ],
+                        "minimum": 1
+                    },
                     "code": {
                         "type": "string",
                         "nullable": true,
@@ -54041,10 +54081,16 @@
                 },
                 "required": [
                     "name",
+                    "row_version",
                     "unit_code"
                 ],
                 "additionalProperties": false,
                 "x-laravel-rules": {
+                    "row_version": [
+                        "required",
+                        "integer",
+                        "min:1"
+                    ],
                     "code": [
                         "nullable",
                         "string",
@@ -54753,6 +54799,15 @@
             "UpdatePurchaseOrderRequest": {
                 "type": "object",
                 "properties": {
+                    "row_version": {
+                        "type": "integer",
+                        "x-laravel-rules": [
+                            "required",
+                            "integer",
+                            "min:1"
+                        ],
+                        "minimum": 1
+                    },
                     "supplier_id": {
                         "type": "integer",
                         "x-laravel-rules": [
@@ -54915,10 +54970,16 @@
                     }
                 },
                 "required": [
+                    "row_version",
                     "supplier_id"
                 ],
                 "additionalProperties": false,
                 "x-laravel-rules": {
+                    "row_version": [
+                        "required",
+                        "integer",
+                        "min:1"
+                    ],
                     "supplier_id": [
                         "sometimes",
                         "required",
@@ -55294,6 +55355,15 @@
             "UpdateSupplierRequest": {
                 "type": "object",
                 "properties": {
+                    "row_version": {
+                        "type": "integer",
+                        "x-laravel-rules": [
+                            "required",
+                            "integer",
+                            "min:1"
+                        ],
+                        "minimum": 1
+                    },
                     "code": {
                         "type": "string",
                         "nullable": true,
@@ -55366,10 +55436,16 @@
                     }
                 },
                 "required": [
-                    "name"
+                    "name",
+                    "row_version"
                 ],
                 "additionalProperties": false,
                 "x-laravel-rules": {
+                    "row_version": [
+                        "required",
+                        "integer",
+                        "min:1"
+                    ],
                     "code": [
                         "nullable",
                         "string",

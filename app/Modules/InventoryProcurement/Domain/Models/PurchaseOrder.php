@@ -36,6 +36,7 @@ class PurchaseOrder extends Model
         'branch_id' => 'int',
         'supplier_id' => 'int',
         'purchase_order_status' => PurchaseOrderStatus::class,
+        'row_version' => 'int',
         'ordered_at' => 'datetime',
         'expected_at' => 'datetime',
         'received_at' => 'datetime',

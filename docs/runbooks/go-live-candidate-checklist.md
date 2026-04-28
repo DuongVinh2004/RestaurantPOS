@@ -58,6 +58,57 @@ Do not use `--run-sql-bootstrap` against production data. It invokes `tools/mysq
 
 Use `--allow-dirty=<release-ticket-note>` only when the release ticket explicitly lists the dirty artifacts and explains why they are intentionally present.
 
+## Staging Or Scratch Runtime Gate
+
+Use this procedure for a staging candidate or an isolated scratch runtime. It is intentionally non-destructive except for the SQL-first bootstrap step, which must point only at a scratch/staging database selected for candidate validation. Do not record a production GO decision from this procedure unless MySQL, Redis, and scheduler heartbeat were actually verified on the target runtime.
+
+Before running commands, record environment posture without pasting secret values into the ticket:
+
+- `APP_ENV` is `staging`, `production`, or another documented production-like target.
+- `APP_DEBUG=false`.
+- `APP_KEY` is present and non-placeholder.
+- Staff auth, customer auth, payment, notification, database, and Redis secrets are present in the secret manager or target environment. Record only present/missing, never raw secret values.
+- `.env` or process environment points to the intended scratch/staging MySQL and Redis hosts.
+
+Run from the repository root and archive stdout/stderr for each command:
+
+```bash
+git status --short
+composer install --no-interaction --prefer-dist
+composer bootstrap:booking
+php artisan booking:doctor --strict --json
+php artisan notifications:outbox-health --json
+php artisan booking:deploy-check --mode=preflight --strict --json
+php artisan booking:release-manifest --json --no-write
+php artisan booking:launch-readiness --target=staging --json
+php artisan schedule:list
+```
+
+Runtime proof requirements:
+
+- MySQL connectivity is proven only when `booking:doctor --strict --json` reports the database runtime check as passing and `booking:deploy-check --mode=preflight --strict --json` is not dependency-blocked by DB runtime.
+- Redis connectivity is proven only when `booking:doctor --strict --json` reports Redis and lock/cache probes as passing.
+- Scheduler installation is proven by `php artisan schedule:list` showing `scheduler-heartbeat` every minute and the target process manager or cron entry running the scheduler lane.
+- Scheduler heartbeat freshness is proven only when `booking:doctor --strict --json` reports `runtime.scheduler.ok=true` after the scheduler lane has had time to run. `booking:ops-heartbeat:touch scheduler --json` may prime a local smoke after cache clear, but it is not production scheduler proof.
+- Queue/outbox health is proven only when `notifications:outbox-health --json` passes or the release ticket documents that notification outbox is intentionally disabled for the target.
+
+`booking:release-manifest --json --no-write` is the read-only manifest inspection mode. It emits the manifest JSON to stdout, sets `meta.no_write_requested=true`, and does not create `storage/app/booking_release/release_manifest/reports/*` files or refresh the frozen `release_manifest_snapshot.json`. Omit `--no-write` only when you intentionally want report artifacts as release evidence.
+
+### Evidence Template
+
+| Command | Timestamp UTC | Environment | Pass/Fail/Not run | Artifact path or stdout log | Operator | Skipped reason | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `git status --short` |  |  |  |  |  |  |  |
+| `composer install --no-interaction --prefer-dist` |  |  |  |  |  |  |  |
+| `composer bootstrap:booking` |  |  |  |  |  |  | Scratch/staging DB only. |
+| `php artisan booking:doctor --strict --json` |  |  |  |  |  |  | Record DB, Redis, scheduler, outbox statuses. |
+| `php artisan notifications:outbox-health --json` |  |  |  |  |  |  | Mark skipped only if command is absent or outbox disabled with evidence. |
+| `php artisan booking:deploy-check --mode=preflight --strict --json` |  |  |  |  |  |  |  |
+| `php artisan booking:release-manifest --json --no-write` |  |  |  | stdout log |  |  | No report files should be created. |
+| `php artisan booking:launch-readiness --target=staging --json` |  |  |  |  |  |  |  |
+| `php artisan schedule:list` |  |  |  |  |  |  | Confirm `scheduler-heartbeat`. |
+| Scheduler heartbeat observation |  |  |  |  |  |  | Link `booking:doctor` output with `runtime.scheduler.ok=true`. |
+
 ## Required Checklist
 
 | Area | Required proof | Source |
@@ -74,7 +125,7 @@ Use `--allow-dirty=<release-ticket-note>` only when the release ticket explicitl
 | Outbox health | Outbox health has no failed/stale blocker | `php artisan notifications:outbox-health --json`; `booking:doctor` |
 | SQL bootstrap/verifier | Scratch bootstrap applies `database/schema/mysql-schema.sql`, all `database/patches/*.sql`, and `tools/mysql/verify_release_contract.sql` | `--run-sql-bootstrap` or `--sql-bootstrap-evidence` |
 | Route gate | Runtime API surface matches the locked route inventory | `php artisan booking:route-gate --json` |
-| Release manifest | Required artifacts, SQL patches, OpenAPI, and FK fragments are present | `php artisan booking:release-manifest --json` |
+| Release manifest | Required artifacts, SQL patches, OpenAPI, and FK fragments are present | `php artisan booking:release-manifest --json` for release evidence; `php artisan booking:release-manifest --json --no-write` for read-only staging/scratch inspection |
 | Deploy check | Preflight deploy guardrails pass in strict mode | `php artisan booking:deploy-check --mode=preflight --strict --json` |
 | Package verify | Package integrity and freshness checks pass | `npm run verify:package` |
 | Security ladder | Auth/RBAC/staff capability/branch isolation ladder passes | `composer test:security` |
@@ -123,7 +174,7 @@ Dependency-blocked checks remain no-go. For example, scheduler blocked by Redis 
 Use these commands to isolate the failing source before rerunning the full gate:
 
 ```bash
-php artisan booking:release-manifest --json
+php artisan booking:release-manifest --json --no-write
 php artisan booking:route-gate --json
 php artisan booking:deploy-check --mode=preflight --strict --json
 php artisan booking:doctor --strict --json

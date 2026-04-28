@@ -25,6 +25,7 @@ class Ingredient extends Model
     protected $casts = [
         'ingredient_id' => 'int',
         'is_active' => 'bool',
+        'row_version' => 'int',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

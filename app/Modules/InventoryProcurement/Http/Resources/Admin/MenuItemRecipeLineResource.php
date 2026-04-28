@@ -31,6 +31,7 @@ class MenuItemRecipeLineResource extends JsonResource
             'unit_code' => (string) $this->unit_code,
             'sort_order' => (int) ($this->sort_order ?? 0),
             'notes' => $this->notes !== null ? (string) $this->notes : null,
+            'row_version' => (int) ($this->row_version ?? 1),
         ];
     }
 }

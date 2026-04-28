@@ -20,6 +20,8 @@ use Illuminate\Validation\ValidationException;
 
 class InventoryManagementService
 {
+    private const STALE_ROW_VERSION_MESSAGE = 'The row_version is stale (row_version mismatch). Reload the resource and try again.';
+
     public function __construct(
         private readonly InventoryStockMovementService $stockMovementService,
         private readonly StaffBranchContextService $staffBranchContextService,
@@ -110,36 +112,41 @@ class InventoryManagementService
      */
     public function updateIngredient(int $ingredientId, array $payload): Ingredient
     {
-        /** @var Ingredient $ingredient */
-        $ingredient = Ingredient::query()->findOrFail($ingredientId);
+        return DB::transaction(function () use ($ingredientId, $payload): Ingredient {
+            /** @var Ingredient $ingredient */
+            $ingredient = Ingredient::query()->lockForUpdate()->findOrFail($ingredientId);
 
-        if (array_key_exists('code', $payload)) {
-            $ingredient->code = $this->normalizeNullableString($payload['code']);
-        }
+            $this->assertExpectedRowVersion((int) ($ingredient->row_version ?? 1), (int) $payload['row_version']);
 
-        if (array_key_exists('name', $payload)) {
-            $ingredient->name = trim((string) $payload['name']);
-        }
+            if (array_key_exists('code', $payload)) {
+                $ingredient->code = $this->normalizeNullableString($payload['code']);
+            }
 
-        if (array_key_exists('unit_code', $payload)) {
-            $ingredient->unit_code = trim((string) $payload['unit_code']);
-        }
+            if (array_key_exists('name', $payload)) {
+                $ingredient->name = trim((string) $payload['name']);
+            }
 
-        if (array_key_exists('description', $payload)) {
-            $ingredient->description = $this->normalizeNullableString($payload['description']);
-        }
+            if (array_key_exists('unit_code', $payload)) {
+                $ingredient->unit_code = trim((string) $payload['unit_code']);
+            }
 
-        if (array_key_exists('is_active', $payload)) {
-            $ingredient->is_active = (bool) $payload['is_active'];
-        }
+            if (array_key_exists('description', $payload)) {
+                $ingredient->description = $this->normalizeNullableString($payload['description']);
+            }
 
-        $ingredient->save();
+            if (array_key_exists('is_active', $payload)) {
+                $ingredient->is_active = (bool) $payload['is_active'];
+            }
 
-        return $this->findIngredient($ingredientId);
+            $this->bumpRowVersion($ingredient);
+            $ingredient->save();
+
+            return $this->findIngredient($ingredientId);
+        }, 3);
     }
 
     /**
-     * @return array{item: MenuItem, lines: Collection<int, MenuItemRecipe>}
+     * @return array{item: MenuItem, lines: Collection<int, MenuItemRecipe>, row_version:int}
      */
     public function getMenuItemRecipe(int $itemId): array
     {
@@ -157,18 +164,31 @@ class InventoryManagementService
         return [
             'item' => $item,
             'lines' => $lines,
+            'row_version' => $this->recipeAggregateRowVersion($lines),
         ];
     }
 
     /**
-     * @param  list<array<string, mixed>>  $lines
-     * @return array{item: MenuItem, lines: Collection<int, MenuItemRecipe>}
+     * @param  array{row_version:int,lines:list<array<string, mixed>>}  $payload
+     * @return array{item: MenuItem, lines: Collection<int, MenuItemRecipe>, row_version:int}
      */
-    public function syncMenuItemRecipe(int $itemId, array $lines): array
+    public function syncMenuItemRecipe(int $itemId, array $payload): array
     {
-        return DB::transaction(function () use ($itemId, $lines): array {
+        return DB::transaction(function () use ($itemId, $payload): array {
             /** @var MenuItem $item */
             $item = MenuItem::query()->lockForUpdate()->findOrFail($itemId);
+            /** @var list<array<string,mixed>> $lines */
+            $lines = array_values((array) ($payload['lines'] ?? []));
+
+            /** @var Collection<int, MenuItemRecipe> $existingLines */
+            $existingLines = MenuItemRecipe::query()
+                ->where('item_id', $itemId)
+                ->lockForUpdate()
+                ->get();
+            $currentRecipeRowVersion = $this->recipeAggregateRowVersion($existingLines);
+            $this->assertExpectedRowVersion($currentRecipeRowVersion, (int) $payload['row_version']);
+            $nextRecipeRowVersion = $currentRecipeRowVersion + 1;
+            $existingByIngredientId = $existingLines->keyBy('ingredient_id');
 
             $ingredientIds = collect($lines)
                 ->pluck('ingredient_id')
@@ -190,7 +210,6 @@ class InventoryManagementService
             MenuItemRecipe::query()
                 ->where('item_id', $itemId)
                 ->when($ingredientIds !== [], static fn ($query) => $query->whereNotIn('ingredient_id', $ingredientIds))
-                ->when($ingredientIds === [], static fn ($query) => $query)
                 ->delete();
 
             if ($ingredientIds === []) {
@@ -208,18 +227,20 @@ class InventoryManagementService
                     'lines.'.$index.'.unit_code'
                 );
 
-                MenuItemRecipe::query()->updateOrCreate(
-                    [
-                        'item_id' => $itemId,
-                        'ingredient_id' => (int) $ingredient->ingredient_id,
-                    ],
-                    [
-                        'quantity' => $line['quantity'],
-                        'unit_code' => $unitCode,
-                        'sort_order' => (int) ($line['sort_order'] ?? (($index + 1) * 10)),
-                        'notes' => $this->normalizeNullableString($line['notes'] ?? null),
-                    ]
-                );
+                /** @var MenuItemRecipe|null $recipeLine */
+                $recipeLine = $existingByIngredientId->get((int) $ingredient->ingredient_id);
+                if (! $recipeLine instanceof MenuItemRecipe) {
+                    $recipeLine = new MenuItemRecipe;
+                    $recipeLine->item_id = $itemId;
+                    $recipeLine->ingredient_id = (int) $ingredient->ingredient_id;
+                }
+
+                $recipeLine->quantity = $line['quantity'];
+                $recipeLine->unit_code = $unitCode;
+                $recipeLine->sort_order = (int) ($line['sort_order'] ?? (($index + 1) * 10));
+                $recipeLine->notes = $this->normalizeNullableString($line['notes'] ?? null);
+                $recipeLine->row_version = $nextRecipeRowVersion;
+                $recipeLine->save();
             }
 
             return $this->getMenuItemRecipe((int) $item->item_id);
@@ -393,6 +414,34 @@ class InventoryManagementService
     private function unitCodesMatch(string $expectedUnitCode, string $actualUnitCode): bool
     {
         return strtolower(trim($expectedUnitCode)) === strtolower(trim($actualUnitCode));
+    }
+
+    private function assertExpectedRowVersion(int $currentRowVersion, int $expectedRowVersion): void
+    {
+        if ($currentRowVersion === $expectedRowVersion) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'row_version' => [self::STALE_ROW_VERSION_MESSAGE],
+        ]);
+    }
+
+    private function bumpRowVersion(Ingredient $ingredient): void
+    {
+        $ingredient->row_version = max(1, (int) ($ingredient->row_version ?? 1)) + 1;
+    }
+
+    /**
+     * @param  Collection<int, MenuItemRecipe>  $lines
+     */
+    private function recipeAggregateRowVersion(Collection $lines): int
+    {
+        if ($lines->isEmpty()) {
+            return 1;
+        }
+
+        return max(1, (int) $lines->max('row_version'));
     }
 
     /**

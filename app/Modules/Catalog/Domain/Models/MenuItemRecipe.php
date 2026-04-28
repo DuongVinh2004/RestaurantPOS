@@ -29,6 +29,7 @@ class MenuItemRecipe extends Model
         'ingredient_id' => 'int',
         'quantity' => 'decimal:3',
         'sort_order' => 'int',
+        'row_version' => 'int',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

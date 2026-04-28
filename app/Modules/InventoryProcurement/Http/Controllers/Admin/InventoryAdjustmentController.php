@@ -130,6 +130,7 @@ class InventoryAdjustmentController extends Controller
                     'name' => (string) $result['item']->name,
                 ],
                 'count' => $result['lines']->count(),
+                'row_version' => (int) $result['row_version'],
             ],
         ]);
     }
@@ -138,7 +139,7 @@ class InventoryAdjustmentController extends Controller
     {
         $this->assertInventoryUpliftEnabled($request);
         try {
-            $result = $this->inventoryService->syncMenuItemRecipe($id, (array) $request->validated('lines', []));
+            $result = $this->inventoryService->syncMenuItemRecipe($id, $request->validated());
         } catch (ModelNotFoundException) {
             return $this->notFoundResponse($request, 'Menu item or ingredient not found.');
         }
@@ -152,6 +153,7 @@ class InventoryAdjustmentController extends Controller
                     'name' => (string) $result['item']->name,
                 ],
                 'count' => $result['lines']->count(),
+                'row_version' => (int) $result['row_version'],
             ],
         ]);
     }

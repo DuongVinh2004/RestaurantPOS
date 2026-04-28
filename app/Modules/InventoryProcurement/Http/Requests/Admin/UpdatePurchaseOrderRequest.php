@@ -20,6 +20,7 @@ class UpdatePurchaseOrderRequest extends FormRequest
         $purchaseOrderId = (int) $this->route('id');
 
         return [
+            'row_version' => ['required', 'integer', 'min:1'],
             'supplier_id' => ['sometimes', 'required', 'integer', 'min:1', 'exists:suppliers,supplier_id'],
             'branch_id' => ['nullable', 'integer', 'min:1', 'exists:branches,branch_id'],
             'order_code' => ['nullable', 'string', 'max:50', Rule::unique('purchase_orders', 'order_code')->ignore($purchaseOrderId, 'purchase_order_id')],

@@ -24,6 +24,7 @@ class SupplierResource extends JsonResource
             'email' => $this->email !== null ? (string) $this->email : null,
             'notes' => $this->notes !== null ? (string) $this->notes : null,
             'is_active' => (bool) $this->is_active,
+            'row_version' => (int) ($this->row_version ?? 1),
             'created_at' => $this->iso($this->created_at),
             'updated_at' => $this->iso($this->updated_at),
         ];

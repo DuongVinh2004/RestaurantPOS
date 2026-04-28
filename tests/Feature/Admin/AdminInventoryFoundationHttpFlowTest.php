@@ -52,6 +52,7 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('data.recipe_usage_count', 0);
 
         $ingredientId = (int) $createIngredient->json('data.ingredient_id');
+        $ingredientRowVersion = (int) $createIngredient->json('data.row_version');
         $brothIngredientId = $this->createIngredient([
             'code' => 'ING-BROTH-01',
             'name' => 'Broth Base',
@@ -60,16 +61,19 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
 
         $updateIngredient = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-ingredient-update'))
             ->patchJson('/api/v1/admin/inventory/ingredients/'.$ingredientId, [
+                'row_version' => $ingredientRowVersion,
                 'description' => 'Premium dry jasmine rice',
                 'is_active' => true,
             ]);
 
         $updateIngredient->assertOk()
             ->assertJsonPath('data.description', 'Premium dry jasmine rice')
-            ->assertJsonPath('data.is_active', true);
+            ->assertJsonPath('data.is_active', true)
+            ->assertJsonPath('data.row_version', $ingredientRowVersion + 1);
 
         $syncRecipe = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-recipe-sync'))
             ->putJson('/api/v1/admin/inventory/menu-items/'.$itemId.'/recipe', [
+                'row_version' => 1,
                 'lines' => [
                     [
                         'ingredient_id' => $ingredientId,
@@ -98,6 +102,7 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
 
         $showRecipe->assertOk()
             ->assertJsonPath('meta.count', 2)
+            ->assertJsonPath('meta.row_version', 2)
             ->assertJsonPath('data.0.quantity', '180.000');
 
         $stockIn = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-stockin'))
@@ -156,6 +161,180 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
 
         $response->assertForbidden()
             ->assertJsonPath('required_capability', 'inventory.manage');
+    }
+
+    public function test_update_ingredient_with_current_row_version_succeeds_and_increments_row_version(): void
+    {
+        [, $headers] = $this->adminHeaders('admin-inventory-row-version-current-key');
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-RV-CURRENT',
+            'name' => 'Current Version Rice',
+            'unit_code' => 'kg',
+            'row_version' => 4,
+        ]);
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-row-version-current'))
+            ->patchJson('/api/v1/admin/inventory/ingredients/'.$ingredientId, [
+                'row_version' => 4,
+                'name' => 'Current Version Premium Rice',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Current Version Premium Rice')
+            ->assertJsonPath('data.row_version', 5);
+
+        $this->assertSame(
+            5,
+            (int) DB::table('ingredients')->where('ingredient_id', $ingredientId)->value('row_version')
+        );
+    }
+
+    public function test_update_ingredient_with_stale_row_version_fails_without_changing_data(): void
+    {
+        [, $headers] = $this->adminHeaders('admin-inventory-row-version-stale-key');
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-RV-STALE',
+            'name' => 'Stale Version Rice',
+            'unit_code' => 'kg',
+            'description' => 'Concurrent value',
+            'row_version' => 2,
+        ]);
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-row-version-stale'))
+            ->patchJson('/api/v1/admin/inventory/ingredients/'.$ingredientId, [
+                'row_version' => 1,
+                'description' => 'Stale client overwrite',
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
+            ->assertJsonPath('details.errors.row_version.0', 'The row_version is stale (row_version mismatch). Reload the resource and try again.');
+
+        $ingredient = DB::table('ingredients')->where('ingredient_id', $ingredientId)->first();
+        $this->assertSame('Concurrent value', (string) $ingredient->description);
+        $this->assertSame(2, (int) $ingredient->row_version);
+    }
+
+    public function test_update_ingredient_validation_requires_row_version(): void
+    {
+        [, $headers] = $this->adminHeaders('admin-inventory-row-version-required-key');
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-RV-REQUIRED',
+            'name' => 'Required Version Rice',
+            'unit_code' => 'kg',
+        ]);
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-row-version-required'))
+            ->patchJson('/api/v1/admin/inventory/ingredients/'.$ingredientId, [
+                'description' => 'Missing row version',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['row_version']);
+    }
+
+    public function test_sync_recipe_with_stale_row_version_fails_without_changing_lines(): void
+    {
+        [, $headers] = $this->adminHeaders('admin-inventory-recipe-row-version-stale-key');
+        $categoryId = $this->ensureMenuCategory('Inventory Recipe Row Version');
+        $itemId = $this->createMenuItem([
+            'category_id' => $categoryId,
+            'code' => 'INV-RECIPE-RV',
+            'name' => 'Inventory Recipe Row Version',
+            'is_available' => 1,
+        ]);
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-RECIPE-RV',
+            'name' => 'Recipe Version Rice',
+            'unit_code' => 'kg',
+        ]);
+        $this->createMenuItemRecipeLine([
+            'item_id' => $itemId,
+            'ingredient_id' => $ingredientId,
+            'quantity' => '1.000',
+            'unit_code' => 'kg',
+            'row_version' => 2,
+        ]);
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-recipe-row-version-stale'))
+            ->putJson('/api/v1/admin/inventory/menu-items/'.$itemId.'/recipe', [
+                'row_version' => 1,
+                'lines' => [
+                    [
+                        'ingredient_id' => $ingredientId,
+                        'quantity' => '2.000',
+                        'unit_code' => 'kg',
+                    ],
+                ],
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version');
+
+        $line = DB::table('menu_item_recipes')
+            ->where('item_id', $itemId)
+            ->where('ingredient_id', $ingredientId)
+            ->first();
+        $this->assertSame('1.000', number_format((float) $line->quantity, 3, '.', ''));
+        $this->assertSame(2, (int) $line->row_version);
+    }
+
+    public function test_sync_recipe_row_version_remains_monotonic_when_highest_version_line_is_removed(): void
+    {
+        [, $headers] = $this->adminHeaders('admin-inventory-recipe-row-version-monotonic-key');
+        $categoryId = $this->ensureMenuCategory('Inventory Recipe Monotonic');
+        $itemId = $this->createMenuItem([
+            'category_id' => $categoryId,
+            'code' => 'INV-RECIPE-MONO',
+            'name' => 'Inventory Recipe Monotonic',
+            'is_available' => 1,
+        ]);
+        $riceIngredientId = $this->createIngredient([
+            'code' => 'ING-RECIPE-MONO-RICE',
+            'name' => 'Recipe Monotonic Rice',
+            'unit_code' => 'kg',
+        ]);
+        $oilIngredientId = $this->createIngredient([
+            'code' => 'ING-RECIPE-MONO-OIL',
+            'name' => 'Recipe Monotonic Oil',
+            'unit_code' => 'l',
+        ]);
+        $this->createMenuItemRecipeLine([
+            'item_id' => $itemId,
+            'ingredient_id' => $riceIngredientId,
+            'quantity' => '1.000',
+            'unit_code' => 'kg',
+            'row_version' => 5,
+        ]);
+        $this->createMenuItemRecipeLine([
+            'item_id' => $itemId,
+            'ingredient_id' => $oilIngredientId,
+            'quantity' => '0.500',
+            'unit_code' => 'l',
+            'row_version' => 1,
+        ]);
+
+        $response = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-recipe-row-version-monotonic'))
+            ->putJson('/api/v1/admin/inventory/menu-items/'.$itemId.'/recipe', [
+                'row_version' => 5,
+                'lines' => [
+                    [
+                        'ingredient_id' => $oilIngredientId,
+                        'quantity' => '0.750',
+                        'unit_code' => 'l',
+                    ],
+                ],
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('meta.count', 1)
+            ->assertJsonPath('meta.row_version', 6)
+            ->assertJsonPath('data.0.ingredient.ingredient_id', $oilIngredientId)
+            ->assertJsonPath('data.0.row_version', 6);
+
+        $this->assertSame(
+            0,
+            DB::table('menu_item_recipes')
+                ->where('item_id', $itemId)
+                ->where('ingredient_id', $riceIngredientId)
+                ->count()
+        );
     }
 
     public function test_inventory_uplift_feature_flag_can_disable_admin_inventory_surface(): void
@@ -245,6 +424,7 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
 
         $response = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-recipe-unit-mismatch'))
             ->putJson('/api/v1/admin/inventory/menu-items/'.$itemId.'/recipe', [
+                'row_version' => 1,
                 'lines' => [
                     [
                         'ingredient_id' => $ingredientId,

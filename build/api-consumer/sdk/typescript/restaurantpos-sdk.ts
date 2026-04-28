@@ -61,6 +61,7 @@ export type AdminIngredient = {
   unit_code: string;
   description?: (string) | null;
   is_active: boolean;
+  row_version: number;
   stock: {
   on_hand: string;
   unit_code: string;
@@ -129,6 +130,7 @@ export type AdminPurchaseOrder = {
   received_at?: (string) | null;
   supplier_reference?: (string) | null;
   notes?: (string) | null;
+  row_version: number;
   summary: {
   line_count: number;
   receipt_count: number;
@@ -189,6 +191,7 @@ export type AdminSupplier = {
   email: (string) | null;
   notes: (string) | null;
   is_active: boolean;
+  row_version: number;
   created_at: (string) | null;
   updated_at: (string) | null;
 };

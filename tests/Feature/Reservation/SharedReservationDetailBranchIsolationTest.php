@@ -86,6 +86,75 @@ class SharedReservationDetailBranchIsolationTest extends TestCase
             ->assertJsonMissingPath('data');
     }
 
+    public function test_branch_scoped_cashier_cannot_capture_payment_for_other_branch_order(): void
+    {
+        $allowedBranchId = $this->createBranch([
+            'branch_code' => 'RSV-PAY-A',
+            'branch_name' => 'Payment Allowed Branch',
+        ]);
+        $deniedBranchId = $this->createBranch([
+            'branch_code' => 'RSV-PAY-B',
+            'branch_name' => 'Payment Denied Branch',
+        ]);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $this->assignStaffBranch($staffId, $allowedBranchId);
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $allowedBranchId,
+            'status' => 'Open',
+            'currency' => 'VND',
+        ]);
+
+        $reservationId = $this->createReservation([
+            'branch_id' => $deniedBranchId,
+            'user_id' => $customerId,
+            'status' => 'Reserved',
+            'deposit_required_amount' => '0.00',
+            'deposit_paid_amount' => '0.00',
+            'deposit_status' => 'NotRequired',
+            'bill_currency' => 'VND',
+        ]);
+        $this->attachReservationTable(
+            $reservationId,
+            $this->createRestaurantTableWithSeats(4, [
+                'branch_id' => $deniedBranchId,
+                'status' => 'Occupied',
+            ]),
+        );
+        $orderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'order_type' => 'OnSpot',
+            'status' => 'Active',
+            'row_version' => 1,
+        ]);
+        $this->createOrderItem([
+            'order_id' => $orderId,
+            'quantity' => 1,
+            'unit_price' => '50000.00',
+            'currency' => 'VND',
+            'line_total' => '50000.00',
+        ]);
+
+        $response = $this->withHeaders($this->withIdempotencyKey(
+            $this->staffAuthHeaders($staffId, 'staff-branch-payment-deny'),
+            'idem-branch-payment-deny',
+        ))->postJson('/api/v1/staff/orders/'.$orderId.'/pay', [
+            'payment_method' => 'Cash',
+            'payment_provider' => 'Cash',
+            'paid_amount' => 50000,
+            'currency' => 'VND',
+            'transaction_code' => 'BRANCH-DENIED-PAYMENT-1',
+            'row_version' => 1,
+        ]);
+
+        $response->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found');
+
+        self::assertSame(0, (int) DB::table('payments')->where('reservation_id', $reservationId)->count());
+        self::assertSame('Active', (string) DB::table('reservation_orders')->where('order_id', $orderId)->value('status'));
+    }
+
     public function test_staff_without_reservation_manage_cannot_show_reservation(): void
     {
         $branchId = $this->createBranch([

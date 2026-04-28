@@ -57,6 +57,40 @@ EXECUTE verify_stmt;
 DEALLOCATE PREPARE verify_stmt;
 
 SET @stmt := IF(
+    (
+        SELECT COUNT(*)
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND column_name = 'row_version'
+          AND table_name IN ('ingredients', 'menu_item_recipes', 'suppliers', 'purchase_orders')
+    ) = 4,
+    'SELECT "inventory_master_data.row_version_columns:ok"',
+    'SELECT * FROM __missing_restore_contract_inventory_master_data_row_version_columns__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    (
+        SELECT COUNT(*)
+        FROM information_schema.triggers
+        WHERE trigger_schema = DATABASE()
+          AND (
+            (event_object_table = 'ingredients' AND trigger_name IN ('trg_ingredients__bi_row_version', 'trg_ingredients__bu_row_version'))
+            OR (event_object_table = 'menu_item_recipes' AND trigger_name IN ('trg_menu_item_recipes__bi_row_version', 'trg_menu_item_recipes__bu_row_version'))
+            OR (event_object_table = 'suppliers' AND trigger_name IN ('trg_suppliers__bi_row_version', 'trg_suppliers__bu_row_version'))
+            OR (event_object_table = 'purchase_orders' AND trigger_name IN ('trg_purchase_orders__bi_row_version', 'trg_purchase_orders__bu_row_version'))
+          )
+    ) = 8,
+    'SELECT "inventory_master_data.row_version_triggers:ok"',
+    'SELECT * FROM __missing_restore_contract_inventory_master_data_row_version_triggers__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
     EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'restaurant_tables'),
     'SELECT "restaurant_tables:ok"',
     'SELECT * FROM __missing_restore_contract_restaurant_tables__'

@@ -92,7 +92,7 @@
   - when inventory/purchasing is the blocker, `booking:ops-snapshot --json` now exposes `duplicate_purchase_receipt_reference_count`, `duplicate_purchase_receipt_movement_count`, and `duplicate_purchase_receipt_reference_examples[]` so duplicate receipt lineage can be cleaned up before the uniqueness patch is applied
   - `booking:doctor` writes JSON/Markdown artifacts under `storage/app/booking_release/doctor/reports/`
   - `booking:deploy-check` writes JSON/Markdown artifacts under `storage/app/booking_release/deploy_checks/reports/`
-  - `booking:release-manifest` writes JSON/Markdown report artifacts under `storage/app/booking_release/release_manifest/reports/` while keeping the frozen snapshot at `storage/app/booking_release/release_manifest_snapshot.json`
+  - `booking:release-manifest` writes JSON/Markdown report artifacts under `storage/app/booking_release/release_manifest/reports/` while keeping the frozen snapshot at `storage/app/booking_release/release_manifest_snapshot.json`; use `php artisan booking:release-manifest --json --no-write` for read-only staging/scratch inspection that emits JSON to stdout without creating report files or refreshing the frozen snapshot
   - `booking:launch-readiness`, `booking:performance-verify`, and `booking:dr-drill` all keep their timestamped and latest evidence under `storage/app/booking_release/*/reports/`
 
 ## Day-1 bootstrap operations

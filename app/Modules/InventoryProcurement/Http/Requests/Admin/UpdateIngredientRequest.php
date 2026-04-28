@@ -19,6 +19,7 @@ class UpdateIngredientRequest extends FormRequest
         $ingredientId = (int) $this->route('id');
 
         return [
+            'row_version' => ['required', 'integer', 'min:1'],
             'code' => ['nullable', 'string', 'max:50', Rule::unique('ingredients', 'code')->ignore($ingredientId, 'ingredient_id')],
             'name' => ['sometimes', 'required', 'string', 'max:200'],
             'unit_code' => ['sometimes', 'required', 'string', 'max:20'],

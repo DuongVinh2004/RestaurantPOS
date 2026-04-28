@@ -11,13 +11,17 @@ class RowVersionSourceOfTruthInventoryTest extends TestCase
 {
     private const EXPECTED_ROW_VERSION_TABLES = [
         'cashier_shifts',
+        'ingredients',
         'kitchen_order_item_tickets',
         'loyalty_tiers',
+        'menu_item_recipes',
         'payments',
+        'purchase_orders',
         'reservation_order_items',
         'reservation_orders',
         'reservations',
         'restaurant_tables',
+        'suppliers',
         'table_holds',
         'user_points',
         'user_vouchers',

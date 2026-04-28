@@ -31,6 +31,8 @@ use Illuminate\Validation\ValidationException;
 
 class ProcurementManagementService
 {
+    private const STALE_ROW_VERSION_MESSAGE = 'The row_version is stale (row_version mismatch). Reload the resource and try again.';
+
     public function __construct(
         private readonly InventoryStockMovementService $stockMovementService,
         private readonly BranchContextService $branchContextService,
@@ -116,38 +118,43 @@ class ProcurementManagementService
      */
     public function updateSupplier(int $supplierId, array $payload): Supplier
     {
-        /** @var Supplier $supplier */
-        $supplier = Supplier::query()->findOrFail($supplierId);
+        return DB::transaction(function () use ($supplierId, $payload): Supplier {
+            /** @var Supplier $supplier */
+            $supplier = Supplier::query()->lockForUpdate()->findOrFail($supplierId);
 
-        if (array_key_exists('code', $payload)) {
-            $supplier->code = $this->normalizeNullableString($payload['code']);
-        }
-        if (array_key_exists('name', $payload)) {
-            $supplier->name = trim((string) $payload['name']);
-        }
-        if (array_key_exists('contact_name', $payload)) {
-            $supplier->contact_name = $this->normalizeNullableString($payload['contact_name']);
-        }
-        if (array_key_exists('phone', $payload)) {
-            $supplier->phone = $this->normalizeNullableString($payload['phone']);
-        }
-        if (array_key_exists('email', $payload)) {
-            $supplier->email = $this->normalizeNullableString($payload['email']);
-        }
-        if (array_key_exists('notes', $payload)) {
-            $supplier->notes = $this->normalizeNullableString($payload['notes']);
-        }
-        if (array_key_exists('is_active', $payload)) {
-            $supplier->is_active = (bool) $payload['is_active'];
-        }
+            $this->assertExpectedRowVersion((int) ($supplier->row_version ?? 1), (int) $payload['row_version']);
 
-        $supplier->save();
+            if (array_key_exists('code', $payload)) {
+                $supplier->code = $this->normalizeNullableString($payload['code']);
+            }
+            if (array_key_exists('name', $payload)) {
+                $supplier->name = trim((string) $payload['name']);
+            }
+            if (array_key_exists('contact_name', $payload)) {
+                $supplier->contact_name = $this->normalizeNullableString($payload['contact_name']);
+            }
+            if (array_key_exists('phone', $payload)) {
+                $supplier->phone = $this->normalizeNullableString($payload['phone']);
+            }
+            if (array_key_exists('email', $payload)) {
+                $supplier->email = $this->normalizeNullableString($payload['email']);
+            }
+            if (array_key_exists('notes', $payload)) {
+                $supplier->notes = $this->normalizeNullableString($payload['notes']);
+            }
+            if (array_key_exists('is_active', $payload)) {
+                $supplier->is_active = (bool) $payload['is_active'];
+            }
 
-        AuditEvent::info('admin.supplier.updated', [
-            'supplier_id' => $supplierId,
-        ]);
+            $this->bumpSupplierRowVersion($supplier);
+            $supplier->save();
 
-        return $this->findSupplier($supplierId);
+            AuditEvent::info('admin.supplier.updated', [
+                'supplier_id' => $supplierId,
+            ]);
+
+            return $this->findSupplier($supplierId);
+        }, 3);
     }
 
     /**
@@ -292,6 +299,7 @@ class ProcurementManagementService
             $this->constrainPurchaseOrderQueryToBranchScope($orderQuery, null, $accessibleBranchIds);
             $order = $orderQuery->findOrFail($purchaseOrderId);
             $receiptCount = PurchaseReceipt::query()->where('purchase_order_id', $purchaseOrderId)->count();
+            $this->assertExpectedRowVersion((int) ($order->row_version ?? 1), (int) $payload['row_version']);
 
             if (array_key_exists('branch_id', $payload)) {
                 if ($receiptCount > 0) {
@@ -366,6 +374,7 @@ class ProcurementManagementService
             }
 
             $order->updated_by = $actorUserId;
+            $this->bumpPurchaseOrderRowVersion($order);
             $order->save();
 
             AuditEvent::info('admin.purchase_order.updated', [
@@ -556,6 +565,7 @@ class ProcurementManagementService
             $order->ordered_at = $order->ordered_at ?? Carbon::now('UTC');
             $order->received_at = $isFullyReceived ? $receivedAt : null;
             $order->updated_by = $actorUserId;
+            $this->bumpPurchaseOrderRowVersion($order);
             $order->save();
 
             $reconciliation = $this->purchaseOrderReconciliationService->report($purchaseOrderId);
@@ -988,6 +998,27 @@ class ProcurementManagementService
     private function unitCodesMatch(string $expectedUnitCode, string $actualUnitCode): bool
     {
         return strtolower(trim($expectedUnitCode)) === strtolower(trim($actualUnitCode));
+    }
+
+    private function assertExpectedRowVersion(int $currentRowVersion, int $expectedRowVersion): void
+    {
+        if ($currentRowVersion === $expectedRowVersion) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'row_version' => [self::STALE_ROW_VERSION_MESSAGE],
+        ]);
+    }
+
+    private function bumpSupplierRowVersion(Supplier $supplier): void
+    {
+        $supplier->row_version = max(1, (int) ($supplier->row_version ?? 1)) + 1;
+    }
+
+    private function bumpPurchaseOrderRowVersion(PurchaseOrder $order): void
+    {
+        $order->row_version = max(1, (int) ($order->row_version ?? 1)) + 1;
     }
 
     /**

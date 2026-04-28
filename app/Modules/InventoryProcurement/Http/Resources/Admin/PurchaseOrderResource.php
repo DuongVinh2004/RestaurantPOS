@@ -41,6 +41,7 @@ class PurchaseOrderResource extends JsonResource
             'received_at' => $this->iso($this->received_at),
             'supplier_reference' => $this->supplier_reference !== null ? (string) $this->supplier_reference : null,
             'notes' => $this->notes !== null ? (string) $this->notes : null,
+            'row_version' => (int) ($this->row_version ?? 1),
             'summary' => [
                 'line_count' => (int) ($this->line_count ?? ($this->lines?->count() ?? 0)),
                 'receipt_count' => (int) ($this->receipt_count ?? ($this->receipts?->count() ?? 0)),

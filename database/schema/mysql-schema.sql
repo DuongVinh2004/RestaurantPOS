@@ -448,6 +448,7 @@ CREATE TABLE `ingredients` (
   `unit_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'unit',
   `description` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `is_active` tinyint unsigned NOT NULL DEFAULT '1',
+  `row_version` bigint unsigned NOT NULL DEFAULT '1',
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`ingredient_id`),
@@ -464,6 +465,7 @@ CREATE TABLE `menu_item_recipes` (
   `unit_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `sort_order` int NOT NULL DEFAULT '0',
   `notes` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `row_version` bigint unsigned NOT NULL DEFAULT '1',
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`recipe_line_id`),
@@ -471,6 +473,30 @@ CREATE TABLE `menu_item_recipes` (
   KEY `idx_menu_item_recipes__ingredient_id__item_id` (`ingredient_id`,`item_id`),
   CONSTRAINT `chk_menu_item_recipes__quantity_positive` CHECK ((`quantity` > 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50003 TRIGGER `trg_ingredients__bi_row_version` BEFORE INSERT ON `ingredients` FOR EACH ROW BEGIN
+    IF NEW.`row_version` IS NULL OR NEW.`row_version` = 0 THEN
+        SET NEW.`row_version` = 1;
+    END IF;
+END */;;
+DELIMITER ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50003 TRIGGER `trg_ingredients__bu_row_version` BEFORE UPDATE ON `ingredients` FOR EACH ROW BEGIN
+    SET NEW.`row_version` = GREATEST(OLD.`row_version` + 1, COALESCE(NEW.`row_version`, 0));
+END */;;
+DELIMITER ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50003 TRIGGER `trg_menu_item_recipes__bi_row_version` BEFORE INSERT ON `menu_item_recipes` FOR EACH ROW BEGIN
+    IF NEW.`row_version` IS NULL OR NEW.`row_version` = 0 THEN
+        SET NEW.`row_version` = 1;
+    END IF;
+END */;;
+DELIMITER ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50003 TRIGGER `trg_menu_item_recipes__bu_row_version` BEFORE UPDATE ON `menu_item_recipes` FOR EACH ROW BEGIN
+    SET NEW.`row_version` = GREATEST(OLD.`row_version` + 1, COALESCE(NEW.`row_version`, 0));
+END */;;
+DELIMITER ;
 
 DROP TABLE IF EXISTS `branches`;
 CREATE TABLE `branches` (
@@ -524,6 +550,7 @@ CREATE TABLE `suppliers` (
   `email` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `notes` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `is_active` tinyint unsigned NOT NULL DEFAULT '1',
+  `row_version` bigint unsigned NOT NULL DEFAULT '1',
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`supplier_id`),
@@ -545,6 +572,7 @@ CREATE TABLE `purchase_orders` (
   `notes` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_by` int unsigned DEFAULT NULL,
   `updated_by` int unsigned DEFAULT NULL,
+  `row_version` bigint unsigned NOT NULL DEFAULT '1',
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`purchase_order_id`),
@@ -554,6 +582,30 @@ CREATE TABLE `purchase_orders` (
   KEY `idx_purchase_orders__created_by` (`created_by`),
   KEY `idx_purchase_orders__updated_by` (`updated_by`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50003 TRIGGER `trg_suppliers__bi_row_version` BEFORE INSERT ON `suppliers` FOR EACH ROW BEGIN
+    IF NEW.`row_version` IS NULL OR NEW.`row_version` = 0 THEN
+        SET NEW.`row_version` = 1;
+    END IF;
+END */;;
+DELIMITER ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50003 TRIGGER `trg_suppliers__bu_row_version` BEFORE UPDATE ON `suppliers` FOR EACH ROW BEGIN
+    SET NEW.`row_version` = GREATEST(OLD.`row_version` + 1, COALESCE(NEW.`row_version`, 0));
+END */;;
+DELIMITER ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50003 TRIGGER `trg_purchase_orders__bi_row_version` BEFORE INSERT ON `purchase_orders` FOR EACH ROW BEGIN
+    IF NEW.`row_version` IS NULL OR NEW.`row_version` = 0 THEN
+        SET NEW.`row_version` = 1;
+    END IF;
+END */;;
+DELIMITER ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50003 TRIGGER `trg_purchase_orders__bu_row_version` BEFORE UPDATE ON `purchase_orders` FOR EACH ROW BEGIN
+    SET NEW.`row_version` = GREATEST(OLD.`row_version` + 1, COALESCE(NEW.`row_version`, 0));
+END */;;
+DELIMITER ;
 
 DROP TABLE IF EXISTS `purchase_order_lines`;
 CREATE TABLE `purchase_order_lines` (

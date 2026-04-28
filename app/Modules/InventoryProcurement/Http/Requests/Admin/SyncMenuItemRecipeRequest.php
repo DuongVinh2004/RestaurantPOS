@@ -17,6 +17,7 @@ class SyncMenuItemRecipeRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'row_version' => ['required', 'integer', 'min:1'],
             'lines' => ['required', 'array'],
             'lines.*.ingredient_id' => ['required', 'integer', 'distinct', Rule::exists('ingredients', 'ingredient_id')],
             'lines.*.quantity' => ['required', 'numeric', 'gt:0'],

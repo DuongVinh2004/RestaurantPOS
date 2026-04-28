@@ -763,21 +763,49 @@ Artisan::command('booking:artifacts-normalize {--json : Output machine-readable 
     return $exitCode;
 })->purpose('Normalize release SQL artifacts by stripping definers and promoting final guard columns.');
 
-Artisan::command('booking:release-manifest {--json : Output machine-readable JSON} {--write : Persist the current snapshot to the frozen manifest path} {--verify-frozen : Compare the current snapshot against the frozen manifest snapshot}', function () use ($writeOpsGateArtifactReport) {
+Artisan::command('booking:release-manifest {--json : Output machine-readable JSON} {--write : Persist the current snapshot to the frozen manifest path} {--no-write : Emit the manifest without writing frozen snapshots or report artifacts} {--verify-frozen : Compare the current snapshot against the frozen manifest snapshot}', function () use ($writeOpsGateArtifactReport) {
     /** @var ConsoleCommand $command */
     // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
     $command = $this;
+
+    $writeRequested = (bool) $command->option('write');
+    $noWriteRequested = (bool) $command->option('no-write');
+    $verifyFrozenRequested = (bool) $command->option('verify-frozen');
+
+    if ($writeRequested && $noWriteRequested) {
+        $payload = [
+            'ok' => false,
+            'status' => 'fail',
+            'error' => 'conflicting_options',
+            'message' => 'Use either --write or --no-write, not both.',
+            'meta' => [
+                'write_requested' => true,
+                'no_write_requested' => true,
+                'verify_frozen_requested' => $verifyFrozenRequested,
+            ],
+        ];
+
+        if ($command->option('json')) {
+            $command->line(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+            return 1;
+        }
+
+        $command->error((string) $payload['message']);
+
+        return 1;
+    }
 
     /** @var ReleaseArtifactManifestService $service */
     $service = app(ReleaseArtifactManifestService::class);
     $snapshot = $service->snapshot();
     $frozenSnapshot = null;
 
-    if ((bool) $command->option('write')) {
+    if ($writeRequested) {
         $snapshot = $service->writeSnapshot($snapshot);
     }
 
-    if ((bool) $command->option('verify-frozen')) {
+    if ($verifyFrozenRequested) {
         $frozenSnapshot = $service->inspectFrozenSnapshot($snapshot);
     }
 
@@ -788,37 +816,62 @@ Artisan::command('booking:release-manifest {--json : Output machine-readable JSO
 
     $payload = $snapshot;
     $payload['meta'] = array_merge((array) ($payload['meta'] ?? []), [
-        'write_requested' => (bool) $command->option('write'),
-        'verify_frozen_requested' => (bool) $command->option('verify-frozen'),
+        'write_requested' => $writeRequested,
+        'no_write_requested' => $noWriteRequested,
+        'verify_frozen_requested' => $verifyFrozenRequested,
     ]);
     if ($frozenSnapshot !== null) {
         $payload['frozen_snapshot'] = $frozenSnapshot;
     }
 
     $scopeParts = ['snapshot'];
-    if ((bool) $command->option('verify-frozen')) {
+    if ($verifyFrozenRequested) {
         $scopeParts[] = 'verify-frozen';
     }
-    if ((bool) $command->option('write')) {
+    if ($writeRequested) {
         $scopeParts[] = 'write';
     }
+    if ($noWriteRequested) {
+        $scopeParts[] = 'no-write';
+    }
 
-    $payload = $writeOpsGateArtifactReport(
-        artifactRoot: trim((string) config('booking_ops_artifacts.release_manifest.artifact_root', 'storage/app/booking_release/release_manifest')),
-        reportPrefix: 'booking-release-manifest',
-        scopeKey: implode('-', $scopeParts),
-        payload: $payload,
-        title: 'Booking Release Manifest',
-        summaryRows: [
-            'status' => (string) ($payload['status'] ?? 'unknown'),
-            'write_requested' => (bool) $command->option('write') ? 'yes' : 'no',
-            'verify_frozen_requested' => (bool) $command->option('verify-frozen') ? 'yes' : 'no',
-            'issue_count' => count((array) ($payload['issues'] ?? [])),
-            'frozen_status' => (string) (($payload['frozen_snapshot'] ?? [])['status'] ?? 'not_requested'),
-            'ok' => $exitCode === 0 ? 'yes' : 'no',
-        ],
-        artifactKey: 'report_artifacts',
-    );
+    $releaseManifestArtifactRoot = trim((string) config('booking_ops_artifacts.release_manifest.artifact_root', 'storage/app/booking_release/release_manifest'));
+    $scopeKey = implode('-', $scopeParts);
+
+    if ($noWriteRequested) {
+        $normalizedArtifactRoot = trim($releaseManifestArtifactRoot, " \t\n\r\0\x0B/");
+        $scopeSlug = Str::slug($scopeKey, '-');
+        $payload['report_artifacts'] = array_merge((array) ($payload['report_artifacts'] ?? []), [
+            'root' => $normalizedArtifactRoot,
+            'reports_root' => trim($normalizedArtifactRoot.'/reports', '/'),
+            'report_prefix' => 'booking-release-manifest',
+            'scope_key' => $scopeKey,
+            'scope_slug' => $scopeSlug !== '' ? $scopeSlug : 'default',
+            'json_path' => null,
+            'markdown_path' => null,
+            'latest_json_path' => null,
+            'latest_markdown_path' => null,
+            'written' => false,
+            'write_suppressed' => true,
+        ]);
+    } else {
+        $payload = $writeOpsGateArtifactReport(
+            artifactRoot: $releaseManifestArtifactRoot,
+            reportPrefix: 'booking-release-manifest',
+            scopeKey: $scopeKey,
+            payload: $payload,
+            title: 'Booking Release Manifest',
+            summaryRows: [
+                'status' => (string) ($payload['status'] ?? 'unknown'),
+                'write_requested' => $writeRequested ? 'yes' : 'no',
+                'verify_frozen_requested' => $verifyFrozenRequested ? 'yes' : 'no',
+                'issue_count' => count((array) ($payload['issues'] ?? [])),
+                'frozen_status' => (string) (($payload['frozen_snapshot'] ?? [])['status'] ?? 'not_requested'),
+                'ok' => $exitCode === 0 ? 'yes' : 'no',
+            ],
+            artifactKey: 'report_artifacts',
+        );
+    }
 
     if ($command->option('json')) {
         $command->line(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
@@ -852,7 +905,7 @@ Artisan::command('booking:release-manifest {--json : Output machine-readable JSO
         $command->line(' - '.$issue);
     }
 
-    if ((bool) $command->option('write')) {
+    if ($writeRequested) {
         $command->line('Snapshot: '.(string) ($payload['snapshot_path'] ?? ''));
     }
 

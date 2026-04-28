@@ -13,11 +13,60 @@ use Tests\TestCase;
 
 final class StaffCapabilityRouteInventoryContractTest extends TestCase
 {
-    private const STAFF_AUTH_LIFECYCLE_ROUTES = [
-        'GET api/v1/auth/staff/me',
-        'POST api/v1/auth/staff/login',
-        'POST api/v1/auth/staff/logout',
-        'POST api/v1/auth/staff/refresh',
+    /**
+     * @var array<string,string>
+     */
+    private const STAFF_AUTH_LIFECYCLE_ROUTE_EXCEPTIONS = [
+        'GET api/v1/auth/staff/me' => 'Staff auth lifecycle route uses StaffApiKeyMiddleware but is not a business capability surface.',
+        'POST api/v1/auth/staff/login' => 'Staff auth lifecycle route issues staff sessions and cannot require a prior staff capability.',
+        'POST api/v1/auth/staff/logout' => 'Staff auth lifecycle route revokes the current staff session rather than mutating business state.',
+        'POST api/v1/auth/staff/refresh' => 'Staff auth lifecycle route rotates staff session credentials rather than mutating business state.',
+    ];
+
+    /**
+     * @var array<string,array{capability:string,idempotency:string}>
+     */
+    private const HIGH_RISK_MUTATION_ROUTES = [
+        'POST api/v1/staff/orders/{order_id}/pay' => [
+            'capability' => 'settlement.manage',
+            'idempotency' => 'idempotency:staff.order-pay',
+        ],
+        'POST api/v1/staff/orders/{order_id}/checkout' => [
+            'capability' => 'settlement.manage',
+            'idempotency' => 'idempotency:staff.checkout',
+        ],
+        'POST api/v1/staff/orders/{order_id}/settlement/finalize' => [
+            'capability' => 'settlement.manage',
+            'idempotency' => 'idempotency:staff.checkout',
+        ],
+        'POST api/v1/staff/reservations/{reservation_id}/refund' => [
+            'capability' => 'payment.refund',
+            'idempotency' => 'idempotency:staff.reservation-refund',
+        ],
+        'POST api/v1/staff/reservations/{reservation_id}/refund-cancel' => [
+            'capability' => 'payment.refund',
+            'idempotency' => 'idempotency:staff.reservation-refund-cancel',
+        ],
+        'POST api/v1/staff/cashier/shifts/open' => [
+            'capability' => 'cashier.shift.manage',
+            'idempotency' => 'idempotency:staff.cashier-shift.open',
+        ],
+        'POST api/v1/staff/cashier/shifts/{shift_id}/close' => [
+            'capability' => 'cashier.shift.manage',
+            'idempotency' => 'idempotency:staff.cashier-shift.close',
+        ],
+        'POST api/v1/admin/inventory/ingredients' => [
+            'capability' => 'inventory.manage',
+            'idempotency' => 'idempotency:admin.inventory-ingredients.store',
+        ],
+        'PATCH api/v1/admin/inventory/ingredients/{id}' => [
+            'capability' => 'inventory.manage',
+            'idempotency' => 'idempotency:admin.inventory-ingredients.update',
+        ],
+        'POST api/v1/admin/inventory/ingredients/{id}/movements' => [
+            'capability' => 'inventory.manage',
+            'idempotency' => 'idempotency:admin.inventory-movements.store',
+        ],
     ];
 
     public function test_staff_capability_middleware_alias_is_registered(): void
@@ -92,6 +141,29 @@ final class StaffCapabilityRouteInventoryContractTest extends TestCase
         $this->assertSame([], $missingCapability, 'Privileged staff/admin routes must declare a staff capability.');
         $this->assertSame([], $missingInventory, 'Privileged staff/admin routes must be listed in staff_capabilities.route_capabilities.');
         $this->assertSame([], $unknownCapability, 'Privileged staff/admin routes must use known capabilities.');
+    }
+
+    public function test_staff_auth_lifecycle_route_exceptions_are_documented(): void
+    {
+        foreach (self::STAFF_AUTH_LIFECYCLE_ROUTE_EXCEPTIONS as $signature => $reason) {
+            $this->assertNotSame('', trim($reason), 'Staff auth lifecycle exception must include a reason: '.$signature);
+        }
+    }
+
+    public function test_high_risk_staff_admin_mutations_have_auth_capability_and_idempotency_guards(): void
+    {
+        $routes = collect(Route::getRoutes()->getRoutes())
+            ->keyBy(fn (IlluminateRoute $route): string => $this->routeSignature($route));
+
+        foreach (self::HIGH_RISK_MUTATION_ROUTES as $signature => $expected) {
+            /** @var IlluminateRoute|null $route */
+            $route = $routes->get($signature);
+
+            $this->assertNotNull($route, 'High-risk mutation route is missing: '.$signature);
+            $this->assertTrue($this->hasStaffAuthMiddleware($route), 'High-risk mutation route must require staff auth: '.$signature);
+            $this->assertSame($expected['capability'], $this->staffCapabilityForRoute($route), 'Unexpected capability guard for '.$signature);
+            $this->assertContains($expected['idempotency'], $route->gatherMiddleware(), 'Missing idempotency guard for '.$signature);
+        }
     }
 
     public function test_route_alias_inventory_points_to_existing_routes_with_matching_capabilities(): void
@@ -196,7 +268,7 @@ final class StaffCapabilityRouteInventoryContractTest extends TestCase
 
     private function isStaffAuthLifecycleRoute(string $signature): bool
     {
-        return in_array($signature, self::STAFF_AUTH_LIFECYCLE_ROUTES, true);
+        return array_key_exists($signature, self::STAFF_AUTH_LIFECYCLE_ROUTE_EXCEPTIONS);
     }
 
     private function hasStaffAuthMiddleware(IlluminateRoute $route): bool

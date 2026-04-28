@@ -19,6 +19,7 @@ class UpdateSupplierRequest extends FormRequest
         $supplierId = (int) $this->route('id');
 
         return [
+            'row_version' => ['required', 'integer', 'min:1'],
             'code' => ['nullable', 'string', 'max:50', Rule::unique('suppliers', 'code')->ignore($supplierId, 'supplier_id')],
             'name' => ['sometimes', 'required', 'string', 'max:200'],
             'contact_name' => ['nullable', 'string', 'max:120'],

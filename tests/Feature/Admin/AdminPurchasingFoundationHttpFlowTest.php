@@ -59,16 +59,19 @@ class AdminPurchasingFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('data.is_active', true);
 
         $supplierId = (int) $createSupplier->json('data.supplier_id');
+        $supplierRowVersion = (int) $createSupplier->json('data.row_version');
 
         $updateSupplier = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-supplier-update'))
             ->patchJson('/api/v1/admin/inventory/suppliers/'.$supplierId, [
+                'row_version' => $supplierRowVersion,
                 'phone' => '0900000009',
                 'notes' => 'Primary purchasing contact for dry goods',
             ]);
 
         $updateSupplier->assertOk()
             ->assertJsonPath('data.phone', '0900000009')
-            ->assertJsonPath('data.notes', 'Primary purchasing contact for dry goods');
+            ->assertJsonPath('data.notes', 'Primary purchasing contact for dry goods')
+            ->assertJsonPath('data.row_version', $supplierRowVersion + 1);
 
         $createPurchaseOrder = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-po-create'))
             ->postJson('/api/v1/admin/inventory/purchase-orders', [
@@ -254,6 +257,79 @@ class AdminPurchasingFoundationHttpFlowTest extends TestCase
 
         $response->assertForbidden()
             ->assertJsonPath('required_capability', 'inventory.manage');
+    }
+
+    public function test_supplier_update_with_stale_row_version_fails_without_changing_data(): void
+    {
+        [, $headers] = $this->adminHeaders('admin-purchasing-supplier-stale-key');
+        $supplierId = $this->createSupplier([
+            'code' => 'SUP-RV-STALE',
+            'name' => 'Supplier Row Version',
+            'phone' => '0900000001',
+            'row_version' => 2,
+        ]);
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-supplier-row-version-stale'))
+            ->patchJson('/api/v1/admin/inventory/suppliers/'.$supplierId, [
+                'row_version' => 1,
+                'phone' => '0900000009',
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version');
+
+        $supplier = DB::table('suppliers')->where('supplier_id', $supplierId)->first();
+        $this->assertSame('0900000001', (string) $supplier->phone);
+        $this->assertSame(2, (int) $supplier->row_version);
+    }
+
+    public function test_purchase_order_update_with_stale_row_version_fails_without_changing_data(): void
+    {
+        [, $headers] = $this->adminHeaders('admin-purchasing-po-stale-key');
+        $supplierId = $this->createSupplier([
+            'code' => 'SUP-PO-RV-STALE',
+            'name' => 'Purchase Order Row Version Supplier',
+        ]);
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-PO-RV-STALE',
+            'name' => 'Purchase Order Row Version Rice',
+            'unit_code' => 'kg',
+        ]);
+
+        $purchaseOrder = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-po-row-version-create'))
+            ->postJson('/api/v1/admin/inventory/purchase-orders', [
+                'supplier_id' => $supplierId,
+                'order_code' => 'PO-RV-STALE',
+                'notes' => 'Concurrent value',
+                'lines' => [
+                    [
+                        'ingredient_id' => $ingredientId,
+                        'ordered_quantity' => '5.000',
+                        'unit_code' => 'kg',
+                    ],
+                ],
+            ]);
+
+        $purchaseOrder->assertCreated();
+        $purchaseOrderId = (int) $purchaseOrder->json('data.purchase_order_id');
+        DB::table('purchase_orders')
+            ->where('purchase_order_id', $purchaseOrderId)
+            ->update([
+                'row_version' => 2,
+                'notes' => 'Concurrent value',
+                'updated_at' => $this->nowUtc(),
+            ]);
+
+        $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-po-row-version-stale'))
+            ->patchJson('/api/v1/admin/inventory/purchase-orders/'.$purchaseOrderId, [
+                'row_version' => 1,
+                'notes' => 'Stale client overwrite',
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version');
+
+        $stored = DB::table('purchase_orders')->where('purchase_order_id', $purchaseOrderId)->first();
+        $this->assertSame('Concurrent value', (string) $stored->notes);
+        $this->assertSame(2, (int) $stored->row_version);
     }
 
     public function test_branch_flag_can_disable_purchase_order_rollout_for_a_single_branch(): void
@@ -540,6 +616,7 @@ class AdminPurchasingFoundationHttpFlowTest extends TestCase
 
         $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-po-status-update-after-receipt'))
             ->patchJson('/api/v1/admin/inventory/purchase-orders/'.$orderedPurchaseOrderId, [
+                'row_version' => (int) DB::table('purchase_orders')->where('purchase_order_id', $orderedPurchaseOrderId)->value('row_version'),
                 'purchase_order_status' => 'Draft',
             ])
             ->assertStatus(422)

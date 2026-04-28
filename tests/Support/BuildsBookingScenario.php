@@ -573,8 +573,13 @@ trait BuildsBookingScenario
                 $table->string('unit_code', 20)->default('unit');
                 $table->string('description')->nullable();
                 $table->boolean('is_active')->default(true);
+                $table->unsignedBigInteger('row_version')->default(1);
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
+            });
+        } elseif (! Schema::hasColumn('ingredients', 'row_version')) {
+            Schema::table('ingredients', function (Blueprint $table): void {
+                $table->unsignedBigInteger('row_version')->default(1);
             });
         }
 
@@ -587,9 +592,14 @@ trait BuildsBookingScenario
                 $table->string('unit_code', 20);
                 $table->integer('sort_order')->default(0);
                 $table->string('notes', 255)->nullable();
+                $table->unsignedBigInteger('row_version')->default(1);
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
                 $table->unique(['item_id', 'ingredient_id']);
+            });
+        } elseif (! Schema::hasColumn('menu_item_recipes', 'row_version')) {
+            Schema::table('menu_item_recipes', function (Blueprint $table): void {
+                $table->unsignedBigInteger('row_version')->default(1);
             });
         }
 
@@ -659,8 +669,13 @@ trait BuildsBookingScenario
                 $table->string('email', 150)->nullable();
                 $table->string('notes', 500)->nullable();
                 $table->boolean('is_active')->default(true);
+                $table->unsignedBigInteger('row_version')->default(1);
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
+            });
+        } elseif (! Schema::hasColumn('suppliers', 'row_version')) {
+            Schema::table('suppliers', function (Blueprint $table): void {
+                $table->unsignedBigInteger('row_version')->default(1);
             });
         }
 
@@ -678,8 +693,13 @@ trait BuildsBookingScenario
                 $table->string('notes', 500)->nullable();
                 $table->unsignedInteger('created_by')->nullable();
                 $table->unsignedInteger('updated_by')->nullable();
+                $table->unsignedBigInteger('row_version')->default(1);
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
+            });
+        } elseif (! Schema::hasColumn('purchase_orders', 'row_version')) {
+            Schema::table('purchase_orders', function (Blueprint $table): void {
+                $table->unsignedBigInteger('row_version')->default(1);
             });
         }
 
@@ -2110,6 +2130,7 @@ SQL);
             'unit_code' => 'g',
             'description' => 'Ingredient '.$suffix,
             'is_active' => 1,
+            'row_version' => 1,
             'created_at' => $now,
             'updated_at' => $now,
         ], $overrides);
@@ -2131,6 +2152,7 @@ SQL);
             'unit_code' => (string) (DB::table('ingredients')->where('ingredient_id', $ingredientId)->value('unit_code') ?? 'g'),
             'sort_order' => 10,
             'notes' => null,
+            'row_version' => 1,
             'created_at' => $now,
             'updated_at' => $now,
         ], $overrides);
@@ -2216,6 +2238,7 @@ SQL);
             'email' => strtolower('supplier-'.$suffix.'@example.test'),
             'notes' => 'Supplier '.$suffix,
             'is_active' => 1,
+            'row_version' => 1,
             'created_at' => $now,
             'updated_at' => $now,
         ], $overrides);

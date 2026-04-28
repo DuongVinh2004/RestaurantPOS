@@ -77,6 +77,71 @@ class BookingReleaseManifestCommandTest extends TestCase
         $this->assertFileExists(base_path((string) (($payload['report_artifacts'] ?? [])['markdown_path'] ?? '')));
     }
 
+    public function test_booking_release_manifest_no_write_json_emits_payload_without_report_files(): void
+    {
+        $root = $this->root;
+        $this->app->instance(ReleaseArtifactManifestService::class, new class($root) extends ReleaseArtifactManifestService
+        {
+            public function __construct(private readonly string $root) {}
+
+            public function snapshot(): array
+            {
+                return [
+                    'ok' => true,
+                    'status' => 'ok',
+                    'issues' => [],
+                    'artifacts' => [
+                        'schema_dump' => [
+                            'path' => 'database/schema/mysql-schema.sql',
+                            'exists' => true,
+                            'optional' => false,
+                            'sha256' => str_repeat('a', 64),
+                            'bytes' => 123,
+                            'line_count' => 4,
+                            'missing_fragments' => [],
+                            'required_fragment_count' => 2,
+                        ],
+                    ],
+                    'patches' => [
+                        'present' => ['2026_03_15_000022_staff_auth_and_integrity_hardening.sql'],
+                        'required' => ['2026_03_15_000022_staff_auth_and_integrity_hardening.sql'],
+                        'missing' => [],
+                        'count' => 1,
+                        'required_count' => 1,
+                    ],
+                    'meta' => [
+                        'generated_at_utc' => '2026-03-15T12:00:00Z',
+                    ],
+                    'definition_path' => 'config/booking_release.php',
+                    'definition_sha256' => str_repeat('b', 64),
+                    'snapshot_path' => $this->root.'/release_manifest_snapshot.json',
+                ];
+            }
+        });
+
+        $exitCode = Artisan::call('booking:release-manifest', [
+            '--json' => true,
+            '--no-write' => true,
+        ]);
+
+        $payload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertSame('ok', $payload['status'] ?? null);
+        $this->assertArrayHasKey('artifacts', $payload);
+        $this->assertArrayHasKey('patches', $payload);
+        $this->assertArrayHasKey('report_artifacts', $payload);
+        $this->assertSame($this->root.'/reports_bundle/reports', $payload['report_artifacts']['reports_root'] ?? null);
+        $this->assertNull($payload['report_artifacts']['json_path'] ?? null);
+        $this->assertNull($payload['report_artifacts']['markdown_path'] ?? null);
+        $this->assertFalse((bool) ($payload['report_artifacts']['written'] ?? true));
+        $this->assertTrue((bool) ($payload['report_artifacts']['write_suppressed'] ?? false));
+        $this->assertFalse((bool) ($payload['meta']['write_requested'] ?? true));
+        $this->assertTrue((bool) ($payload['meta']['no_write_requested'] ?? false));
+        $this->assertDirectoryDoesNotExist(base_path($this->root.'/reports_bundle/reports'));
+        $this->assertFileDoesNotExist(base_path($this->root.'/release_manifest_snapshot.json'));
+    }
+
     public function test_booking_release_manifest_supports_write_flag_and_persists_snapshot(): void
     {
         $root = $this->root;

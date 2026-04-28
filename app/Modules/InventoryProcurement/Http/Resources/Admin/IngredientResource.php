@@ -22,6 +22,7 @@ class IngredientResource extends JsonResource
             'unit_code' => (string) $this->unit_code,
             'description' => $this->description !== null ? (string) $this->description : null,
             'is_active' => (bool) $this->is_active,
+            'row_version' => (int) ($this->row_version ?? 1),
             'stock' => [
                 'on_hand' => $this->decimal($this->stock_on_hand_quantity ?? 0),
                 'unit_code' => (string) $this->unit_code,
