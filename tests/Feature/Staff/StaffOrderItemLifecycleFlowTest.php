@@ -35,7 +35,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_staff_can_update_order_item_quantity_and_note(): void
+    public function test_staff_can_update_order_item_quantity_and_line_total_recalculates(): void
     {
         [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario();
 
@@ -53,15 +53,229 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             ->assertJsonPath('data.order_id', $orderId)
             ->assertJsonPath('data.items.0.order_item_id', $orderItemId)
             ->assertJsonPath('data.items.0.quantity', 3)
+            ->assertJsonPath('data.items.0.line_total', '150000.00')
             ->assertJsonPath('data.items.0.notes', 'extra spicy');
 
         self::assertSame(3, (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('quantity'));
+        self::assertSame('150000.00', number_format((float) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('line_total'), 2, '.', ''));
         self::assertSame('extra spicy', (string) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('notes'));
         self::assertSame($staffId, (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('updated_by'));
         self::assertSame(
             (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('row_version'),
             (int) $response->json('data.items.0.row_version')
         );
+
+        $audit = $this->table('audit_logs')
+            ->where('action', 'order_item.updated')
+            ->where('entity_type', 'reservation_order_item')
+            ->where('entity_id', (string) $orderItemId)
+            ->orderByDesc('audit_id')
+            ->first();
+        self::assertNotNull($audit);
+
+        $summary = json_decode((string) $audit->summary_json, true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame($orderId, (int) $summary['order_id']);
+        self::assertSame($orderItemId, (int) $summary['order_item_id']);
+        self::assertSame(1, (int) $summary['old_quantity']);
+        self::assertSame(3, (int) $summary['new_quantity']);
+        self::assertSame('50000.00', (string) $summary['unit_price']);
+        self::assertSame('50000.00', (string) $summary['old_line_total']);
+        self::assertSame('150000.00', (string) $summary['new_line_total']);
+        self::assertSame('VND', (string) $summary['currency']);
+        self::assertSame($staffId, (int) $summary['actor_user_id']);
+        self::assertSame(1, (int) $summary['branch_id']);
+    }
+
+    public function test_updating_notes_only_does_not_change_line_total(): void
+    {
+        [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario([
+            'quantity' => 2,
+            'unit_price' => '50000.00',
+            'line_total' => '100000.00',
+        ]);
+
+        $response = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-note-only'))
+            ->patchJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}", [
+                'order_row_version' => 1,
+                'row_version' => 1,
+                'note' => 'hold onions',
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.items.0.quantity', 2)
+            ->assertJsonPath('data.items.0.line_total', '100000.00')
+            ->assertJsonPath('data.items.0.notes', 'hold onions');
+
+        self::assertSame('100000.00', number_format((float) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('line_total'), 2, '.', ''));
+    }
+
+    public function test_bill_snapshot_uses_updated_order_item_line_total(): void
+    {
+        [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario(staffRoleName: 'Manager');
+
+        $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-bill-qty-update'))
+            ->patchJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}", [
+                'order_row_version' => 1,
+                'row_version' => 1,
+                'qty' => 3,
+            ])
+            ->assertOk();
+
+        $orderRowVersion = (int) $this->table('reservation_orders')->where('order_id', $orderId)->value('row_version');
+
+        $response = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-bill-snapshot'))
+            ->postJson("/api/v1/staff/orders/{$orderId}/bill-snapshot", [
+                'row_version' => $orderRowVersion,
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.totals.subtotal', '150000.00')
+            ->assertJsonPath('data.totals.total_due', '150000.00');
+
+        $reservationId = (int) $this->table('reservation_orders')->where('order_id', $orderId)->value('reservation_id');
+        self::assertSame('150000.00', number_format((float) $this->table('reservations')->where('reservation_id', $reservationId)->value('final_bill_amount'), 2, '.', ''));
+    }
+
+    public function test_payment_amount_uses_updated_bill_total(): void
+    {
+        [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario(staffRoleName: 'Manager');
+        $reservationId = (int) $this->table('reservation_orders')->where('order_id', $orderId)->value('reservation_id');
+        $branchId = (int) $this->table('reservations')->where('reservation_id', $reservationId)->value('branch_id');
+        $this->createCashierShift([
+            'cashier_user_id' => $staffId,
+            'branch_id' => $branchId,
+            'status' => 'Open',
+        ]);
+
+        $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-pay-qty-update'))
+            ->patchJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}", [
+                'order_row_version' => 1,
+                'row_version' => 1,
+                'qty' => 3,
+            ])
+            ->assertOk();
+
+        $orderRowVersion = (int) $this->table('reservation_orders')->where('order_id', $orderId)->value('row_version');
+
+        $response = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-pay-updated-total'))
+            ->postJson("/api/v1/staff/orders/{$orderId}/pay", [
+                'payment_method' => 'Cash',
+                'payment_provider' => 'Cash',
+                'paid_amount' => 50000,
+                'currency' => 'VND',
+                'transaction_code' => 'ORDER-ITEM-UPDATED-TOTAL-PARTIAL',
+                'row_version' => $orderRowVersion,
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.totals.total_due', '150000.00')
+            ->assertJsonPath('data.totals.paid', '50000.00')
+            ->assertJsonPath('data.totals.outstanding', '100000.00')
+            ->assertJsonPath('data.payment_status', 'Partial');
+
+        self::assertSame('50000.00', number_format((float) $this->table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Final')->value('amount'), 2, '.', ''));
+        self::assertSame('Reserved', (string) $this->table('reservations')->where('reservation_id', $reservationId)->value('status'));
+    }
+
+    public function test_served_item_inventory_quantity_matches_billed_updated_quantity(): void
+    {
+        [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario(staffRoleName: 'Manager');
+        $itemId = (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('item_id');
+        $reservationId = (int) $this->table('reservation_orders')->where('order_id', $orderId)->value('reservation_id');
+        $branchId = (int) $this->table('reservations')->where('reservation_id', $reservationId)->value('branch_id');
+        $ingredientId = $this->createIngredient([
+            'code' => 'ING-UPDATED-QTY-BILL',
+            'name' => 'Updated Quantity Billing Ingredient',
+            'unit_code' => 'g',
+        ]);
+        $this->createMenuItemRecipeLine([
+            'item_id' => $itemId,
+            'ingredient_id' => $ingredientId,
+            'quantity' => '2.500',
+            'unit_code' => 'g',
+            'sort_order' => 1,
+        ]);
+        $this->createIngredientStockMovement([
+            'branch_id' => $branchId,
+            'ingredient_id' => $ingredientId,
+            'movement_type' => 'StockIn',
+            'quantity_delta' => '10.000',
+            'unit_code' => 'g',
+        ]);
+
+        $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-inventory-qty-update'))
+            ->patchJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}", [
+                'order_row_version' => 1,
+                'row_version' => 1,
+                'qty' => 3,
+            ])
+            ->assertOk();
+
+        $orderRowVersion = (int) $this->table('reservation_orders')->where('order_id', $orderId)->value('row_version');
+        $itemRowVersion = (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('row_version');
+
+        $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-inventory-served-updated-qty'))
+            ->postJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}/status", [
+                'order_row_version' => $orderRowVersion,
+                'row_version' => $itemRowVersion,
+                'status' => 'Served',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.items.0.status', 'Served')
+            ->assertJsonPath('data.items.0.line_total', '150000.00');
+
+        self::assertSame('-7.500', number_format((float) $this->table('ingredient_stock_movements')
+            ->where('ingredient_id', $ingredientId)
+            ->where('reference_type', 'ReservationOrderItemConsumption')
+            ->where('reference_id', 'like', $orderItemId.':%')
+            ->value('quantity_delta'), 3, '.', ''));
+
+        $orderRowVersion = (int) $this->table('reservation_orders')->where('order_id', $orderId)->value('row_version');
+        $bill = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-inventory-bill-updated-qty'))
+            ->postJson("/api/v1/staff/orders/{$orderId}/bill-snapshot", [
+                'row_version' => $orderRowVersion,
+            ]);
+
+        $bill
+            ->assertOk()
+            ->assertJsonPath('data.totals.subtotal', '150000.00')
+            ->assertJsonPath('data.totals.total_due', '150000.00');
+    }
+
+    public function test_cancelled_item_line_total_is_excluded_from_bill(): void
+    {
+        [$staffId, $orderId] = $this->seedOrderItemScenario(staffRoleName: 'Manager');
+        $cancelledOrderItemId = $this->createOrderItem([
+            'order_id' => $orderId,
+            'quantity' => 2,
+            'unit_price' => '20000.00',
+            'currency' => 'VND',
+            'line_total' => '40000.00',
+            'status' => 'Ordered',
+            'row_version' => 1,
+        ]);
+
+        $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-cancel-excluded'))
+            ->postJson("/api/v1/staff/orders/{$orderId}/items/{$cancelledOrderItemId}/status", [
+                'order_row_version' => 1,
+                'row_version' => 1,
+                'status' => 'Cancelled',
+            ])
+            ->assertOk();
+
+        $orderRowVersion = (int) $this->table('reservation_orders')->where('order_id', $orderId)->value('row_version');
+        $bill = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-cancel-excluded-bill'))
+            ->postJson("/api/v1/staff/orders/{$orderId}/bill-snapshot", [
+                'row_version' => $orderRowVersion,
+            ]);
+
+        $bill
+            ->assertOk()
+            ->assertJsonPath('data.totals.subtotal', '50000.00')
+            ->assertJsonPath('data.totals.total_due', '50000.00');
     }
 
     public function test_staff_can_move_item_from_ordered_to_in_progress_to_served(): void
@@ -388,7 +602,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             ->sum('quantity_delta'), 3, '.', ''));
     }
 
-    public function test_stale_item_row_version_is_rejected(): void
+    public function test_stale_row_version_still_fails_and_does_not_change_line_total(): void
     {
         [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario();
 
@@ -404,6 +618,8 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             ->assertJsonPath('error_code', 'stale_row_version')
             ->assertJsonPath('category_code', 'stale_write')
             ->assertJsonPath('details.errors.row_version.0', 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.');
+        self::assertSame(1, (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('quantity'));
+        self::assertSame('50000.00', number_format((float) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('line_total'), 2, '.', ''));
     }
 
     public function test_stale_order_row_version_is_rejected_before_order_item_mutation(): void
@@ -519,10 +735,10 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
      * @param  array<string,mixed>  $tableOverrides
      * @return array{0:int,1:int,2:int}
      */
-    private function seedOrderItemScenario(array $itemOverrides = [], array $reservationOverrides = [], array $tableOverrides = []): array
+    private function seedOrderItemScenario(array $itemOverrides = [], array $reservationOverrides = [], array $tableOverrides = [], string $staffRoleName = 'Staff'): array
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->createUser(['role_name' => $staffRoleName]);
         $tableId = $this->createRestaurantTable(array_merge(['status' => 'Occupied'], $tableOverrides));
         $reservationId = $this->createReservation(array_merge([
             'user_id' => $customerId,

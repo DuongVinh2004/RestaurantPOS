@@ -76,6 +76,8 @@ type EditItemValues = {
 };
 
 type OrderDetailData = Awaited<ReturnType<typeof getOrderDetail>>['data'];
+type OrderDetailEnvelope = Awaited<ReturnType<typeof getOrderDetail>>;
+type OrderMutationEnvelope = Awaited<ReturnType<typeof updateOrderItem>>;
 type OrderLineItem = OrderDetailData['items'][number];
 type MenuItemData = Awaited<ReturnType<typeof listMenuItems>>['data'][number];
 type MenuDraft = {
@@ -84,8 +86,51 @@ type MenuDraft = {
 };
 type AddItemMutationResult = {
   action: 'added' | 'merged';
+  orderEnvelope: OrderMutationEnvelope;
   orderItemId?: number;
 };
+
+function mergeOrderMutationEnvelopeIntoDetail(
+  current: OrderDetailEnvelope | undefined,
+  orderEnvelope: OrderMutationEnvelope,
+): OrderDetailEnvelope | undefined {
+  if (!current) {
+    return current;
+  }
+
+  const updatedOrder = orderEnvelope.data;
+  const updatedItems = updatedOrder.items ?? current.data.items;
+  const updatedTotals = updatedOrder.totals;
+
+  return {
+    ...current,
+    data: {
+      ...current.data,
+      order: {
+        ...current.data.order,
+        ...updatedOrder,
+        items: updatedOrder.items ?? current.data.order.items,
+        totals: updatedOrder.totals ?? current.data.order.totals,
+      },
+      items: updatedItems,
+      financial_summary: updatedTotals
+        ? {
+          ...current.data.financial_summary,
+          subtotal: updatedTotals.subtotal ?? current.data.financial_summary.subtotal,
+          discount: updatedTotals.discount ?? current.data.financial_summary.discount,
+          total_due: updatedTotals.total_due ?? current.data.financial_summary.total_due,
+          paid: updatedTotals.paid ?? current.data.financial_summary.paid,
+          deposit_applied: updatedTotals.deposit_applied ?? current.data.financial_summary.deposit_applied,
+          deposit_net: updatedTotals.deposit_net ?? current.data.financial_summary.deposit_net,
+          final_paid: updatedTotals.final_paid ?? current.data.financial_summary.final_paid,
+          outstanding: updatedTotals.outstanding ?? current.data.financial_summary.outstanding,
+          currency: updatedTotals.currency ?? current.data.financial_summary.currency,
+          payment_status: updatedOrder.payment_status ?? current.data.financial_summary.payment_status,
+        }
+        : current.data.financial_summary,
+    },
+  };
+}
 
 function normalizeOrderNote(note: string | null | undefined): string {
   return (note ?? '').trim();
@@ -410,6 +455,26 @@ export function OrderWorkspacePage() {
     });
   }
 
+  function syncOrderMutationEnvelope(orderEnvelope: OrderMutationEnvelope) {
+    const orderId = orderEnvelope.data.order_id;
+
+    queryClient.setQueryData<OrderDetailEnvelope | undefined>(
+      ['order-detail', orderId],
+      (current) => mergeOrderMutationEnvelopeIntoDetail(current, orderEnvelope),
+    );
+    queryClient.setQueryData<OrderDetailEnvelope | undefined>(
+      ['checkout-order-detail', orderId],
+      (current) => mergeOrderMutationEnvelopeIntoDetail(current, orderEnvelope),
+    );
+
+    setOrderContext({
+      orderId,
+      orderRowVersion: orderEnvelope.data.row_version ?? null,
+      label: buildOrderContextLabel(orderId),
+      source: journey.source ?? 'order',
+    });
+  }
+
   const createOrderMutation = useMutation({
     mutationFn: async (values: CreateOrderValues) => {
       const effectiveTableId = primaryTableId;
@@ -466,7 +531,7 @@ export function OrderWorkspacePage() {
 
       const mergeTarget = findMergeableOrderLine(orderItems, values.menu_item_id, values.note, currentPaymentStatus);
       if (mergeTarget) {
-        await updateOrderItem(orderId, mergeTarget.order_item_id, {
+        const orderEnvelope = await updateOrderItem(orderId, mergeTarget.order_item_id, {
           qty: mergeTarget.quantity + values.qty,
           note: mergeTarget.notes,
           order_row_version: rowVersion,
@@ -475,11 +540,12 @@ export function OrderWorkspacePage() {
 
         return {
           action: 'merged',
+          orderEnvelope,
           orderItemId: mergeTarget.order_item_id,
         };
       }
 
-      await addOrderItems(orderId, {
+      const orderEnvelope = await addOrderItems(orderId, {
         row_version: rowVersion,
         items: [
           {
@@ -489,13 +555,18 @@ export function OrderWorkspacePage() {
           },
         ],
       });
+      const newItems = orderEnvelope.data.items ?? [];
+      const lastItem = newItems[newItems.length - 1];
 
       return {
         action: 'added',
+        orderEnvelope,
+        orderItemId: lastItem?.order_item_id,
       };
     },
     onSuccess: async (result, values) => {
       clearMenuDraft(values.menu_item_id);
+      syncOrderMutationEnvelope(result.orderEnvelope);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['order-detail', resolvedOrderId] }),
         queryClient.invalidateQueries({ queryKey: ['checkout-order-detail', resolvedOrderId] }),
@@ -531,7 +602,8 @@ export function OrderWorkspacePage() {
         row_version: itemRowVersion,
       });
     },
-    onSuccess: async () => {
+    onSuccess: async (orderEnvelope) => {
+      syncOrderMutationEnvelope(orderEnvelope);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['order-detail', resolvedOrderId] }),
         queryClient.invalidateQueries({ queryKey: ['checkout-order-detail', resolvedOrderId] }),
@@ -559,7 +631,8 @@ export function OrderWorkspacePage() {
         row_version: itemRowVersion,
       });
     },
-    onSuccess: async (_, status) => {
+    onSuccess: async (orderEnvelope, status) => {
+      syncOrderMutationEnvelope(orderEnvelope);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['order-detail', resolvedOrderId] }),
         queryClient.invalidateQueries({ queryKey: ['checkout-order-detail', resolvedOrderId] }),

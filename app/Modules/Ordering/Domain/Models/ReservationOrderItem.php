@@ -52,8 +52,18 @@ class ReservationOrderItem extends Model
     protected static function booted(): void
     {
         static::saving(function (self $model): void {
+            if (
+                $model->exists
+                && ! $model->isDirty('quantity')
+                && ! $model->isDirty('unit_price')
+                && $model->getAttribute('line_total') !== null
+                && $model->getAttribute('line_total') !== ''
+            ) {
+                return;
+            }
+
             $quantity = max(0, (int) $model->quantity);
-            $unitPriceMinor = Money::minorUnits($model->unit_price, true);
+            $unitPriceMinor = Money::minorUnits($model->unit_price);
             $model->line_total = Money::formatMinor($quantity * $unitPriceMinor);
         });
     }

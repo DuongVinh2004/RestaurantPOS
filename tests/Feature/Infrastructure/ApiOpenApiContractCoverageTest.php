@@ -252,6 +252,8 @@ final class ApiOpenApiContractCoverageTest extends TestCase
             'POST api/v1/staff/reservations/{id}/check-in' => ['status' => '200', 'schema' => '#/components/schemas/ReservationEnvelope'],
             'POST api/v1/staff/tables/{table_id}/orders' => ['status' => '201', 'schema' => '#/components/schemas/StaffReservationOrderEnvelope'],
             'POST api/v1/staff/orders/{order_id}/items' => ['status' => '200', 'schema' => '#/components/schemas/StaffReservationOrderEnvelope'],
+            'PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}' => ['status' => '200', 'schema' => '#/components/schemas/StaffReservationOrderEnvelope'],
+            'POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status' => ['status' => '200', 'schema' => '#/components/schemas/StaffReservationOrderEnvelope'],
             'GET api/v1/staff/reservations/{reservation_id}/orders' => ['status' => '200', 'schema' => '#/components/schemas/StaffReservationOrderCollectionEnvelope'],
             'GET api/v1/staff/orders/{order_id}' => ['status' => '200', 'schema' => '#/components/schemas/StaffOrderReadEnvelope'],
             'GET api/v1/staff/waiting-list' => ['status' => '200', 'schema' => '#/components/schemas/StaffWaitingListCollectionEnvelope'],
@@ -294,6 +296,14 @@ final class ApiOpenApiContractCoverageTest extends TestCase
         $this->assertSame(
             '#/components/schemas/AddOrderItemsRequest',
             data_get($operations['POST api/v1/staff/orders/{order_id}/items'], 'requestBody.content.application/json.schema.$ref')
+        );
+        $this->assertSame(
+            '#/components/schemas/UpdateOrderItemRequest',
+            data_get($operations['PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}'], 'requestBody.content.application/json.schema.$ref')
+        );
+        $this->assertSame(
+            '#/components/schemas/UpdateOrderItemStatusRequest',
+            data_get($operations['POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status'], 'requestBody.content.application/json.schema.$ref')
         );
         $this->assertSame(
             '#/components/schemas/InviteWaitlistCustomerRequest',
@@ -454,6 +464,55 @@ final class ApiOpenApiContractCoverageTest extends TestCase
         $this->assertSame(
             '#/components/schemas/CashierShiftCollectionMeta',
             data_get($spec, 'components.schemas.CashierShiftCollectionEnvelope.properties.meta.$ref')
+        );
+    }
+
+    public function test_staff_order_item_write_routes_have_non_generic_contract_guards(): void
+    {
+        $spec = app(OpenApiSpecService::class)->build();
+        $operations = $this->specOperations($spec);
+
+        $expectations = [
+            'PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}' => '#/components/schemas/UpdateOrderItemRequest',
+            'POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status' => '#/components/schemas/UpdateOrderItemStatusRequest',
+        ];
+
+        foreach ($expectations as $signature => $requestSchemaRef) {
+            $this->assertArrayHasKey($signature, $operations);
+            $this->assertSame('full', $operations[$signature]['x-contract-grade'] ?? null, sprintf('Route [%s] must be full contract.', $signature));
+            $this->assertSame([['StaffApiKey' => []]], $operations[$signature]['security'] ?? null, sprintf('Route [%s] must require staff API key auth.', $signature));
+            $this->assertSame('#/components/schemas/StaffReservationOrderEnvelope', data_get($operations[$signature], 'responses.200.content.application/json.schema.$ref'));
+            $this->assertSame('#/components/schemas/UnauthorizedError', data_get($operations[$signature], 'responses.401.content.application/json.schema.$ref'));
+            $this->assertSame('#/components/schemas/ForbiddenError', data_get($operations[$signature], 'responses.403.content.application/json.schema.$ref'));
+            $this->assertSame('#/components/schemas/StaleRowVersionError', data_get($operations[$signature], 'responses.409.content.application/json.schema.$ref'));
+            $this->assertSame('#/components/schemas/ValidationError', data_get($operations[$signature], 'responses.422.content.application/json.schema.$ref'));
+            $this->assertSame($requestSchemaRef, data_get($operations[$signature], 'requestBody.content.application/json.schema.$ref'));
+
+            $parameters = collect((array) ($operations[$signature]['parameters'] ?? []))
+                ->keyBy(fn (array $parameter): string => (string) ($parameter['name'] ?? ''));
+
+            $this->assertSame('path', $parameters['order_id']['in'] ?? null, sprintf('Route [%s] must expose order_id as path param.', $signature));
+            $this->assertSame('path', $parameters['order_item_id']['in'] ?? null, sprintf('Route [%s] must expose order_item_id as path param.', $signature));
+            $this->assertTrue((bool) ($parameters['Idempotency-Key']['required'] ?? false), sprintf('Route [%s] must require Idempotency-Key.', $signature));
+            $this->assertSame('header', $parameters['Idempotency-Key']['in'] ?? null);
+        }
+
+        $updateRequest = data_get($spec, 'components.schemas.UpdateOrderItemRequest', []);
+        $this->assertSame(['order_row_version', 'row_version'], data_get($updateRequest, 'required'));
+        $this->assertSame('integer', data_get($updateRequest, 'properties.qty.type'));
+        $this->assertSame(1.0, data_get($updateRequest, 'properties.qty.minimum'));
+        $this->assertSame(100.0, data_get($updateRequest, 'properties.qty.maximum'));
+        $this->assertSame('string', data_get($updateRequest, 'properties.note.type'));
+        $this->assertTrue((bool) data_get($updateRequest, 'properties.note.nullable'));
+        $this->assertSame(200, data_get($updateRequest, 'properties.note.maxLength'));
+
+        $statusRequest = data_get($spec, 'components.schemas.UpdateOrderItemStatusRequest', []);
+        $this->assertSame(['order_row_version', 'row_version', 'status'], data_get($statusRequest, 'required'));
+        $this->assertSame(['InProgress', 'Served', 'Cancelled'], data_get($statusRequest, 'properties.status.enum'));
+
+        $this->assertSame(
+            'string',
+            data_get($spec, 'components.schemas.ReservationOrder.properties.items.items.properties.line_total.type')
         );
     }
 
@@ -715,6 +774,8 @@ final class ApiOpenApiContractCoverageTest extends TestCase
             'GET api/v1/staff/orders/{order_id}',
             'POST api/v1/staff/orders/{order_id}/bill-snapshot',
             'POST api/v1/staff/orders/{order_id}/items',
+            'PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}',
+            'POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status',
             'POST api/v1/staff/orders/{order_id}/kitchen/dispatch',
             'POST api/v1/staff/orders/{order_id}/settlement/finalize',
             'GET api/v1/staff/orders/{order_id}/settlement-preview',
@@ -747,8 +808,6 @@ final class ApiOpenApiContractCoverageTest extends TestCase
             'POST api/v1/staff/finance/invoices/{reservation_id}/issue' => 'Finance invoice issue belongs to the finance contract batch.',
             'GET api/v1/staff/finance/reconciliation' => 'Finance reconciliation read belongs to the finance contract batch.',
             'GET api/v1/staff/finance/reconciliation/{reservation_id}' => 'Finance reconciliation detail belongs to the finance contract batch.',
-            'PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}' => 'Order item edit remains generic until the order write contract batch.',
-            'POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status' => 'Order item status remains generic until the order write contract batch.',
             'GET api/v1/staff/reservations/{reservation_id}/active-order' => 'Active order lookup remains generic while order read routes are hardened.',
             'POST api/v1/staff/reservations/{id}/assign-best-fit' => 'Table assignment helper remains generic until floor operations mutation contracts.',
             'POST api/v1/staff/reservations/{id}/assign-table' => 'Table assignment helper remains generic until floor operations mutation contracts.',

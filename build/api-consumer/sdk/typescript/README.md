@@ -79,6 +79,8 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 - POST api/v1/staff/reservations/{id}/check-in
 - POST api/v1/staff/tables/{table_id}/orders
 - POST api/v1/staff/orders/{order_id}/items
+- PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}
+- POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status
 - GET api/v1/reservations/{reservation_id}/active-order
 - POST api/v1/staff/orders/{order_id}/bill-snapshot
 - GET api/v1/reservations/{reservation_id}/bill-preview

@@ -116,7 +116,7 @@ class StaffTableOrderService
 
                     $tableBranchId = $this->branchContextService->resolveBranchId($table->branch_id ?? null, false);
                     $this->assertOperationalBranchAccessible($tableBranchId, $staffUserId);
-                    $this->ensureReservationBranchAligned($reservation, $tableBranchId, $staffUserId);
+                    $branchId = $this->ensureReservationBranchAligned($reservation, $tableBranchId, $staffUserId);
 
                     if ($idempotencyKey !== '') {
                         $existing = $this->loadReplayedOrder(
@@ -187,9 +187,10 @@ class StaffTableOrderService
                     $order->updated_by = $staffUserId;
                     $order->save();
 
+                    $createdItems = [];
                     // Append items if provided
                     if ($hasItems) {
-                        $this->appendItems($order->order_id, $items, $staffUserId);
+                        $createdItems = $this->appendItems($order->order_id, $items, $staffUserId);
                     }
 
                     if ($idempotencyKey !== '') {
@@ -205,6 +206,16 @@ class StaffTableOrderService
                             orderId: (int) $order->order_id,
                         );
                     }
+
+                    $this->recordOrderCreatedAudit(
+                        $order,
+                        (int) $reservationId,
+                        [$tableId],
+                        $createdItems,
+                        $staffUserId,
+                        $branchId,
+                        $idempotencyKey
+                    );
 
                     return $order;
                 });
@@ -306,15 +317,13 @@ class StaffTableOrderService
                                 false
                             );
                             $this->assertOperationalBranchAccessible($tableBranchId, $staffUserId);
-                            $this->ensureReservationBranchAligned($reservation, $tableBranchId, $staffUserId);
+                            $branchId = $this->ensureReservationBranchAligned($reservation, $tableBranchId, $staffUserId);
                         } else {
-                            $this->assertOperationalBranchAccessible(
-                                $this->branchContextService->resolveBranchId($reservation->branch_id ?? null, false),
-                                $staffUserId,
-                            );
+                            $branchId = $this->branchContextService->resolveBranchId($reservation->branch_id ?? null, false);
+                            $this->assertOperationalBranchAccessible($branchId, $staffUserId);
                         }
 
-                        $this->appendItems($order->order_id, $items, $staffUserId);
+                        $createdItems = $this->appendItems($order->order_id, $items, $staffUserId);
 
                         $order->updated_by = $staffUserId;
                         $order->save();
@@ -331,6 +340,16 @@ class StaffTableOrderService
                                 orderId: (int) $order->order_id,
                             );
                         }
+
+                        $this->recordOrderItemsAddedAudit(
+                            $order,
+                            $reservationId,
+                            $tableIds,
+                            $createdItems,
+                            $staffUserId,
+                            $branchId,
+                            $idempotencyKey
+                        );
 
                         return $order;
                     });
@@ -625,7 +644,11 @@ class StaffTableOrderService
         return (int) $rid;
     }
 
-    private function appendItems(int $orderId, array $items, ?int $staffUserId = null): void
+    /**
+     * @param  array<int,array<string,mixed>>  $items
+     * @return list<array{order_item_id:int,menu_item_id:int,quantity:int,unit_price:string,line_total:string,currency:string}>
+     */
+    private function appendItems(int $orderId, array $items, ?int $staffUserId = null): array
     {
         $normalized = [];
         foreach ($items as $row) {
@@ -703,6 +726,7 @@ class StaffTableOrderService
             ]);
         }
 
+        $createdItems = [];
         foreach ($normalized as $row) {
             $itemId = (int) $row['item_id'];
             $qty = (int) $row['qty'];
@@ -733,7 +757,215 @@ class StaffTableOrderService
             $oi->status = ReservationOrderItemStatus::Ordered;
             $oi->updated_by = $staffUserId;
             $oi->save();
+
+            $createdItems[] = [
+                'order_item_id' => (int) $oi->order_item_id,
+                'menu_item_id' => $itemId,
+                'quantity' => $qty,
+                'unit_price' => (string) $oi->unit_price,
+                'line_total' => (string) $oi->line_total,
+                'currency' => $currency,
+            ];
         }
+
+        return $createdItems;
+    }
+
+    /**
+     * @param  list<int>  $tableIds
+     * @param  list<array{order_item_id:int,menu_item_id:int,quantity:int,unit_price:string,line_total:string,currency:string}>  $items
+     */
+    private function recordOrderCreatedAudit(
+        ReservationOrder $order,
+        int $reservationId,
+        array $tableIds,
+        array $items,
+        int $staffUserId,
+        int $branchId,
+        string $idempotencyKey
+    ): void {
+        $this->recordOrderMutationAudit(
+            eventName: 'staff.table_order.created',
+            action: 'order.created',
+            order: $order,
+            reservationId: $reservationId,
+            tableIds: $tableIds,
+            items: $items,
+            staffUserId: $staffUserId,
+            branchId: $branchId,
+            idempotencyKey: $idempotencyKey
+        );
+    }
+
+    /**
+     * @param  list<int>  $tableIds
+     * @param  list<array{order_item_id:int,menu_item_id:int,quantity:int,unit_price:string,line_total:string,currency:string}>  $items
+     */
+    private function recordOrderItemsAddedAudit(
+        ReservationOrder $order,
+        int $reservationId,
+        array $tableIds,
+        array $items,
+        int $staffUserId,
+        int $branchId,
+        string $idempotencyKey
+    ): void {
+        $this->recordOrderMutationAudit(
+            eventName: 'staff.order.items_added',
+            action: 'order.items_added',
+            order: $order,
+            reservationId: $reservationId,
+            tableIds: $tableIds,
+            items: $items,
+            staffUserId: $staffUserId,
+            branchId: $branchId,
+            idempotencyKey: $idempotencyKey
+        );
+    }
+
+    /**
+     * @param  list<int>  $tableIds
+     * @param  list<array{order_item_id:int,menu_item_id:int,quantity:int,unit_price:string,line_total:string,currency:string}>  $items
+     */
+    private function recordOrderMutationAudit(
+        string $eventName,
+        string $action,
+        ReservationOrder $order,
+        int $reservationId,
+        array $tableIds,
+        array $items,
+        int $staffUserId,
+        int $branchId,
+        string $idempotencyKey
+    ): void {
+        $orderId = (int) $order->order_id;
+        $orderRowVersion = (int) ($order->row_version ?? 1);
+        $orderItemIds = $this->uniqueIntList(array_column($items, 'order_item_id'));
+        $menuItemIds = $this->uniqueIntList(array_column($items, 'menu_item_id'));
+        $currency = $this->singleCurrency($items);
+        $requestKey = $this->requestKeyAuditContext($idempotencyKey);
+        $requestId = $this->currentRequestId();
+        $normalizedTableIds = $this->uniqueIntList($tableIds);
+
+        $payload = array_filter([
+            'actor_user_id' => $staffUserId,
+            'branch_id' => $branchId,
+            'reservation_id' => $reservationId,
+            'table_ids' => $normalizedTableIds,
+            'order_id' => $orderId,
+            'order_row_version' => $orderRowVersion,
+            'order_item_ids' => $orderItemIds,
+            'menu_item_ids' => $menuItemIds,
+            'items' => $items,
+            'currency' => $currency,
+            'request_key_present' => $requestKey['request_key_present'],
+            'request_key_fingerprint' => $requestKey['request_key_fingerprint'],
+            'request_id' => $requestId,
+        ], static fn (mixed $value): bool => $value !== null);
+
+        AuditEvent::info($eventName, [
+            'order_id' => $orderId,
+            'reservation_id' => $reservationId,
+            'branch_id' => $branchId,
+            'actor_user_id' => $staffUserId,
+            'request_key_present' => $requestKey['request_key_present'],
+            'request_key_fingerprint' => $requestKey['request_key_fingerprint'],
+            '_audit' => [
+                'action' => $action,
+                'entity_type' => 'reservation_order',
+                'entity_id' => (string) $orderId,
+                'subjects' => $this->orderMutationAuditSubjects($reservationId, $branchId, $normalizedTableIds, $orderItemIds, $menuItemIds),
+                'after' => $payload,
+                'summary' => $payload,
+                'meta' => [
+                    'request_key_present' => $requestKey['request_key_present'],
+                    'request_key_fingerprint' => $requestKey['request_key_fingerprint'],
+                    'request_id' => $requestId,
+                ],
+                'actor' => [
+                    'type' => 'staff_user',
+                    'key' => 'staff_user:'.$staffUserId,
+                    'user_id' => $staffUserId,
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * @param  list<int>  $tableIds
+     * @param  list<int>  $orderItemIds
+     * @param  list<int>  $menuItemIds
+     * @return list<array{type:string,id:string,role:string}>
+     */
+    private function orderMutationAuditSubjects(int $reservationId, int $branchId, array $tableIds, array $orderItemIds, array $menuItemIds): array
+    {
+        $subjects = [
+            ['type' => 'reservation', 'id' => (string) $reservationId, 'role' => 'reservation'],
+            ['type' => 'branch', 'id' => (string) $branchId, 'role' => 'branch'],
+        ];
+
+        foreach ($tableIds as $tableId) {
+            $subjects[] = ['type' => 'restaurant_table', 'id' => (string) $tableId, 'role' => 'table'];
+        }
+
+        foreach ($orderItemIds as $orderItemId) {
+            $subjects[] = ['type' => 'reservation_order_item', 'id' => (string) $orderItemId, 'role' => 'order_item'];
+        }
+
+        foreach ($menuItemIds as $menuItemId) {
+            $subjects[] = ['type' => 'menu_item', 'id' => (string) $menuItemId, 'role' => 'menu_item'];
+        }
+
+        return $subjects;
+    }
+
+    /**
+     * @param  list<array{currency:string}>  $items
+     */
+    private function singleCurrency(array $items): ?string
+    {
+        $currencies = array_values(array_unique(array_filter(array_map(
+            fn (array $item): string => $this->normalizeCurrency((string) ($item['currency'] ?? '')),
+            $items
+        ))));
+
+        return count($currencies) === 1 ? $currencies[0] : null;
+    }
+
+    /**
+     * @param  array<int,mixed>  $values
+     * @return list<int>
+     */
+    private function uniqueIntList(array $values): array
+    {
+        $normalized = array_values(array_unique(array_filter(array_map('intval', $values), static fn (int $value): bool => $value > 0)));
+        sort($normalized);
+
+        return $normalized;
+    }
+
+    /**
+     * @return array{request_key_present:bool,request_key_fingerprint:?string}
+     */
+    private function requestKeyAuditContext(string $idempotencyKey): array
+    {
+        $normalized = trim($idempotencyKey);
+
+        return [
+            'request_key_present' => $normalized !== '',
+            'request_key_fingerprint' => $normalized !== '' ? hash('sha256', $normalized) : null,
+        ];
+    }
+
+    private function currentRequestId(): ?string
+    {
+        if (! app()->bound('request')) {
+            return null;
+        }
+
+        $requestId = request()?->attributes?->get('request_id');
+
+        return is_string($requestId) && trim($requestId) !== '' ? trim($requestId) : null;
     }
 
     private function assertExpectedOrderRowVersion(ReservationOrder $order, ?int $expectedRowVersion): void

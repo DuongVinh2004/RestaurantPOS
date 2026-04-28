@@ -348,4 +348,38 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
         $this->assertStringContainsString('cashier shift finance user foreign keys', strtolower($databaseReadme));
         $this->assertStringContainsString('cashier shift finance user foreign keys', strtolower($toolsReadme));
     }
+
+    public function test_schema_dump_db_all_verifier_contain_chk_reservation_order_items_line_total_matches(): void
+    {
+        foreach ([
+            base_path('database/schema/mysql-schema.sql'),
+            base_path('db_all.sql'),
+        ] as $path) {
+            $sql = strtolower((string) File::get($path));
+
+            $this->assertStringContainsString(
+                'constraint `chk_reservation_order_items__line_total_matches`',
+                $sql,
+                sprintf('Release SQL artifact %s is missing the order item line total CHECK.', $path)
+            );
+            $this->assertStringContainsString(
+                '`line_total` = round((`unit_price` * `quantity`),2)',
+                $sql,
+                sprintf('Release SQL artifact %s must enforce line_total = ROUND(unit_price * quantity, 2).', $path)
+            );
+        }
+
+        $patchSql = (string) File::get(base_path('database/patches/2026_04_27_000060_order_item_line_total_invariant.sql'));
+        $verifySql = (string) File::get(base_path('tools/mysql/verify_release_contract.sql'));
+        $bookingReleaseConfig = (string) File::get(base_path('config/booking_release.php'));
+
+        $this->assertStringContainsString('chk_reservation_order_items__line_total_matches', $patchSql);
+        $this->assertStringContainsString('ROUND(`unit_price` * `quantity`, 2)', $patchSql);
+        $this->assertStringContainsString('drifted line totals exist', $patchSql);
+        $this->assertStringContainsString('reservation_order_items.line_total_matches:ok', $verifySql);
+        $this->assertStringContainsString('__missing_restore_contract_reservation_order_items_line_total_matches__', $verifySql);
+        $this->assertStringContainsString('__drifted_reservation_order_items_line_total__', $verifySql);
+        $this->assertStringContainsString('chk_reservation_order_items__line_total_matches', $bookingReleaseConfig);
+        $this->assertStringContainsString('2026_04_27_000060_order_item_line_total_invariant.sql', $bookingReleaseConfig);
+    }
 }

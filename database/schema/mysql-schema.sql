@@ -871,7 +871,8 @@ CREATE TABLE `reservation_order_items` (
   KEY `fk_reservation_order_items__order_id__reservation_orders` (`order_id`),
   KEY `fk_reservation_order_items__item_id__menu_items` (`item_id`),
   KEY `idx_reservation_order_items__updated_by` (`updated_by`),
-  CONSTRAINT `chk_reservation_order_items__qty_positive` CHECK ((`quantity` > 0))
+  CONSTRAINT `chk_reservation_order_items__qty_positive` CHECK ((`quantity` > 0)),
+  CONSTRAINT `chk_reservation_order_items__line_total_matches` CHECK ((`line_total` = round((`unit_price` * `quantity`),2)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;

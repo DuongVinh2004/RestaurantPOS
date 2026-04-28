@@ -18,6 +18,7 @@ use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 use App\Modules\Ordering\Domain\Policies\ReservationOrderItemStatusTransitionPolicy;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Domain\Models\Reservation;
+use App\SharedKernel\Money\Money;
 use App\Support\AuditEvent;
 use App\Support\Auth\StaffActorGuard;
 use App\Support\DatabaseWriteConflictMapper;
@@ -60,7 +61,7 @@ class StaffOrderItemLifecycleService
                 $this->buildLockKeys($reservationId, $tableIds),
                 function () use ($orderId, $orderItemId, $attributes, $staffUserId, $expectedOrderRowVersion, $expectedItemRowVersion) {
                     return DB::transaction(function () use ($orderId, $orderItemId, $attributes, $staffUserId, $expectedOrderRowVersion, $expectedItemRowVersion) {
-                        [$order, $item] = $this->loadWritableContext(
+                        [$order, $item, $branchId] = $this->loadWritableContext(
                             orderId: $orderId,
                             orderItemId: $orderItemId,
                             staffUserId: $staffUserId,
@@ -77,10 +78,14 @@ class StaffOrderItemLifecycleService
 
                         $qtyProvided = array_key_exists('qty', $attributes) || array_key_exists('quantity', $attributes);
                         $noteProvided = array_key_exists('note', $attributes) || array_key_exists('notes', $attributes);
+                        $oldQuantity = (int) $item->quantity;
+                        $unitPrice = Money::format($item->unit_price ?? 0);
+                        $oldLineTotal = Money::format($item->line_total ?? 0);
+                        $currency = $this->normalizeCurrency((string) ($item->currency ?? 'VND'));
 
                         $newQuantity = $qtyProvided
                             ? (int) ($attributes['qty'] ?? $attributes['quantity'])
-                            : (int) $item->quantity;
+                            : $oldQuantity;
                         $newNote = $noteProvided
                             ? $this->normalizeNote((string) ($attributes['note'] ?? $attributes['notes'] ?? ''))
                             : $this->normalizeNote((string) ($item->notes ?? ''));
@@ -96,6 +101,12 @@ class StaffOrderItemLifecycleService
                             return $this->freshOrder($orderId);
                         }
 
+                        $newLineTotal = $oldLineTotal;
+                        if ($newQuantity !== $oldQuantity) {
+                            $newLineTotal = $this->lineTotalForQuantity($unitPrice, $newQuantity);
+                            $item->line_total = $newLineTotal;
+                        }
+
                         $item->quantity = $newQuantity;
                         $item->notes = $newNote !== '' ? $newNote : null;
                         $item->updated_by = $staffUserId;
@@ -107,9 +118,62 @@ class StaffOrderItemLifecycleService
                         AuditEvent::info('staff.order_item.updated', [
                             'order_id' => $orderId,
                             'order_item_id' => $orderItemId,
+                            'old_quantity' => $oldQuantity,
+                            'new_quantity' => $newQuantity,
+                            'unit_price' => $unitPrice,
+                            'old_line_total' => $oldLineTotal,
+                            'new_line_total' => $newLineTotal,
+                            'currency' => $currency,
                             'actor_user_id' => $staffUserId,
-                            'quantity' => $newQuantity,
+                            'branch_id' => $branchId > 0 ? $branchId : null,
                             'status' => $currentStatus,
+                            '_audit' => [
+                                'action' => 'order_item.updated',
+                                'entity_type' => 'reservation_order_item',
+                                'entity_id' => (string) $orderItemId,
+                                'subjects' => array_values(array_filter([
+                                    [
+                                        'type' => 'reservation_order',
+                                        'id' => (string) $orderId,
+                                        'role' => 'order',
+                                    ],
+                                    $branchId > 0 ? [
+                                        'type' => 'branch',
+                                        'id' => (string) $branchId,
+                                        'role' => 'branch',
+                                    ] : null,
+                                ])),
+                                'before' => [
+                                    'quantity' => $oldQuantity,
+                                    'line_total' => $oldLineTotal,
+                                ],
+                                'after' => [
+                                    'quantity' => $newQuantity,
+                                    'line_total' => $newLineTotal,
+                                    'unit_price' => $unitPrice,
+                                    'currency' => $currency,
+                                ],
+                                'summary' => [
+                                    'order_id' => $orderId,
+                                    'order_item_id' => $orderItemId,
+                                    'old_quantity' => $oldQuantity,
+                                    'new_quantity' => $newQuantity,
+                                    'unit_price' => $unitPrice,
+                                    'old_line_total' => $oldLineTotal,
+                                    'new_line_total' => $newLineTotal,
+                                    'currency' => $currency,
+                                    'actor_user_id' => $staffUserId,
+                                    'branch_id' => $branchId > 0 ? $branchId : null,
+                                ],
+                                'meta' => [
+                                    'branch_id' => $branchId > 0 ? $branchId : null,
+                                ],
+                                'actor' => [
+                                    'type' => 'staff_user',
+                                    'user_id' => $staffUserId,
+                                    'key' => 'staff_user:'.$staffUserId,
+                                ],
+                            ],
                         ]);
 
                         return $this->freshOrder($orderId);
@@ -230,7 +294,7 @@ class StaffOrderItemLifecycleService
     }
 
     /**
-     * @return array{0:ReservationOrder,1:ReservationOrderItem}
+     * @return array{0:ReservationOrder,1:ReservationOrderItem,2:int}
      */
     private function loadWritableContext(
         int $orderId,
@@ -298,7 +362,7 @@ class StaffOrderItemLifecycleService
 
         $this->assertExpectedItemRowVersion($item, $expectedItemRowVersion);
 
-        return [$order, $item];
+        return [$order, $item, $branchId];
     }
 
     /**
@@ -365,6 +429,18 @@ class StaffOrderItemLifecycleService
     private function normalizeNote(string $note): string
     {
         return trim($note);
+    }
+
+    private function normalizeCurrency(string $currency): string
+    {
+        $normalized = strtoupper(trim($currency));
+
+        return $normalized !== '' ? $normalized : 'VND';
+    }
+
+    private function lineTotalForQuantity(string $unitPrice, int $quantity): string
+    {
+        return Money::formatMinor(Money::minorUnits($unitPrice) * max(0, $quantity));
     }
 
     private function freshOrder(int $orderId): ReservationOrder

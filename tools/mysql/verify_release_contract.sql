@@ -19,6 +19,44 @@ EXECUTE verify_stmt;
 DEALLOCATE PREPARE verify_stmt;
 
 SET @stmt := IF(
+    EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'reservation_order_items'),
+    'SELECT "reservation_order_items:ok"',
+    'SELECT * FROM __missing_restore_contract_reservation_order_items__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_schema = DATABASE()
+          AND table_name = 'reservation_order_items'
+          AND constraint_name = 'chk_reservation_order_items__line_total_matches'
+          AND constraint_type = 'CHECK'
+    ),
+    'SELECT "reservation_order_items.line_total_matches:ok"',
+    'SELECT * FROM __missing_restore_contract_reservation_order_items_line_total_matches__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    NOT EXISTS (
+        SELECT 1
+        FROM reservation_order_items
+        WHERE line_total <> ROUND(unit_price * quantity, 2)
+    ),
+    'SELECT "reservation_order_items.line_total_data:ok"',
+    'SELECT * FROM __drifted_reservation_order_items_line_total__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
     EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'restaurant_tables'),
     'SELECT "restaurant_tables:ok"',
     'SELECT * FROM __missing_restore_contract_restaurant_tables__'

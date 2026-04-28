@@ -164,6 +164,8 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertStringContainsString('getV1StaffReservationsReservationId', $sdk);
         self::assertStringContainsString('postV1StaffTablesTableIdOrders', $sdk);
         self::assertStringContainsString('postV1StaffOrdersOrderIdItems', $sdk);
+        self::assertStringContainsString('patchV1StaffOrdersOrderIdItemsOrderItemId', $sdk);
+        self::assertStringContainsString('postV1StaffOrdersOrderIdItemsOrderItemIdStatus', $sdk);
         self::assertStringContainsString('getV1StaffOrdersOrderId', $sdk);
         self::assertStringContainsString('getV1StaffAuditTrail', $sdk);
         self::assertStringContainsString('getV1StaffWaitingList', $sdk);
@@ -194,6 +196,9 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertStringContainsString('CustomerReservationLoyaltyActionEnvelope', $sdk);
         self::assertStringContainsString('ReservationEnvelope', $sdk);
         self::assertStringContainsString('StaffReservationOrderEnvelope', $sdk);
+        self::assertStringContainsString('UpdateOrderItemRequest', $sdk);
+        self::assertStringContainsString('UpdateOrderItemStatusRequest', $sdk);
+        self::assertStringContainsString('line_total: string;', $sdk);
         self::assertStringContainsString('StaffTableBoardEnvelope', $sdk);
         self::assertStringContainsString('StaffTableBoardAssignedReservation', $sdk);
         self::assertStringContainsString('StaffOrderReadEnvelope', $sdk);
@@ -295,6 +300,8 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertStringContainsString('- POST api/v1/staff/reservations/{id}/check-in', $sdkReadme);
         self::assertStringContainsString('- POST api/v1/staff/tables/{table_id}/orders', $sdkReadme);
         self::assertStringContainsString('- POST api/v1/staff/orders/{order_id}/items', $sdkReadme);
+        self::assertStringContainsString('- PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}', $sdkReadme);
+        self::assertStringContainsString('- POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status', $sdkReadme);
         self::assertStringContainsString('- GET api/v1/staff/orders/{order_id}', $sdkReadme);
         self::assertStringContainsString('- GET api/v1/staff/cashier/shifts/current', $sdkReadme);
         self::assertStringContainsString('- POST api/v1/staff/cashier/shifts/open', $sdkReadme);
@@ -332,6 +339,8 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertStringContainsString('`POST api/v1/staff/cashier/shifts/open`', $mutationContract);
         self::assertStringContainsString('`POST api/v1/staff/cashier/shifts/{shift_id}/close`', $mutationContract);
         self::assertStringContainsString('`POST api/v1/staff/orders/{order_id}/items`', $mutationContract);
+        self::assertStringContainsString('`PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}`', $mutationContract);
+        self::assertStringContainsString('`POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status`', $mutationContract);
         self::assertStringContainsString('`PATCH api/v1/admin/settings/branches/{id}`', $mutationContract);
         self::assertStringContainsString('body.session_id required with hold_id', $mutationContract);
         self::assertStringContainsString('X-Session-Id accepted', $mutationContract);
@@ -341,6 +350,8 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertStringContainsString('`POST api/v1/staff/reservations/{id}/check-in` | `SDK`', $mutationContract);
         self::assertStringContainsString('`POST api/v1/staff/tables/{table_id}/orders` | `SDK`', $mutationContract);
         self::assertStringContainsString('`POST api/v1/staff/orders/{order_id}/items` | `SDK`', $mutationContract);
+        self::assertStringContainsString('`PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}` | `SDK`', $mutationContract);
+        self::assertStringContainsString('`POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status` | `SDK`', $mutationContract);
 
         $sdkEnums = (string) File::get($sdkEnumsPath);
         self::assertStringContainsString('export const reservationStatusValues', $sdkEnums);

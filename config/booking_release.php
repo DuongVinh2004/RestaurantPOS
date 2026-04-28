@@ -54,6 +54,7 @@ $canonicalReleaseContractFragments = [
     'fk_cashier_shifts__closed_by__users',
     'trg_cashier_shifts__bi_row_version',
     'trg_cashier_shifts__bu_row_version',
+    'chk_reservation_order_items__line_total_matches',
     'CREATE TABLE `staff_branch_assignments` (',
     'uq_staff_branch_assignments__user_id__branch_id',
     'fk_staff_branch_assignments__user_id__users',
@@ -278,6 +279,7 @@ return [
         '2026_04_25_000057_kitchen_ticket_row_version.sql',
         '2026_04_26_000058_cashier_shift_user_fk_contract.sql',
         '2026_04_27_000059_cashier_shift_row_version.sql',
+        '2026_04_27_000060_order_item_line_total_invariant.sql',
     ],
     'release_manifest' => [
         'definition_path' => 'config/booking_release.php',

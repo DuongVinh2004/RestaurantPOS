@@ -65,7 +65,7 @@ This build binds directly to the staff backend and uses real APIs for the core f
 - Board: `/api/v1/staff/tables/board`, `/tables/board/changes`
 - Reservations: `/api/v1/staff/reservations`, `/reservations/{id}`, `/assign-table`, `/assign-best-fit`, `/check-in`
 - Walk-in: `/api/v1/staff/service-sessions/walk-in`
-- Orders: `/api/v1/staff/tables/{table_id}/orders`, `/orders/{order_id}`, `/orders/{order_id}/items`, `/tables/{table_id}/active-order`, `/reservations/{reservation_id}/active-order`
+- Orders: `/api/v1/staff/tables/{table_id}/orders`, `/orders/{order_id}`, `/orders/{order_id}/items`, `/orders/{order_id}/items/{order_item_id}`, `/orders/{order_id}/items/{order_item_id}/status`, `/tables/{table_id}/active-order`, `/reservations/{reservation_id}/active-order`
 - Staff menu: `/api/v1/staff/menu/items`
 - Kitchen: `/api/v1/staff/kitchen/stations`, `/stations/{station_id}/tickets`, `/orders/{order_id}/kitchen/dispatch`, `/kitchen/tickets/{ticket_id}/fire|bump|recall`
 - Checkout: `/api/v1/staff/orders/{order_id}/bill-snapshot`, `/settlement-preview`, `/settlement/finalize`, `/api/v1/staff/reservations/{reservation_id}/refund-preview`, `/refund`, `/refund-cancel`
@@ -83,7 +83,7 @@ This build binds directly to the staff backend and uses real APIs for the core f
 
 The FE does **not** fake completeness where backend contracts are still thin.
 
-- Order line item update/status routes stay disabled until `GET /api/v1/staff/orders/{order_id}` exposes both order and per-item `row_version`.
+- Order line item update/status routes are live through the generated SDK and require order `row_version`, item `row_version`, and `Idempotency-Key`.
 - Add-item, settlement, and reservation-linked refund still run live.
 - Kitchen routing and ticket surfaces can still be mounted; dispatch and ticket actions require granted capability, branch/station context, `row_version`, and `Idempotency-Key`.
 - Waiting list create/advance/cancel routes are wired live through the local `staff-api` adapter because the generated TypeScript SDK does not currently expose those endpoints.
@@ -154,7 +154,7 @@ MVP local/staging smoke steps are documented in `../docs/runbooks/staff-web-mvp-
 Once the day-1 chain is stable, the next highest-value follow-up is:
 
 1. cashier shift -> checkout handoff polish and reconciliation detail
-2. order line-item edit/status smoke against real row-version fixtures
+2. order line-item edit/status browser smoke against real row-version fixtures
 3. kitchen/KDS promotion after rollout evidence exists
 4. conversation inbox
 5. audit and reporting

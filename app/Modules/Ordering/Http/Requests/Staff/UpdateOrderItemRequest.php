@@ -15,10 +15,19 @@ class UpdateOrderItemRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->merge([
-            'qty' => $this->input('qty', $this->input('quantity')),
-            'note' => $this->exists('note') ? $this->input('note') : $this->input('notes'),
-        ]);
+        $normalized = [];
+
+        if ($this->exists('qty') || $this->exists('quantity')) {
+            $normalized['qty'] = $this->input('qty', $this->input('quantity'));
+        }
+
+        if ($this->exists('note') || $this->exists('notes')) {
+            $normalized['note'] = $this->exists('note') ? $this->input('note') : $this->input('notes');
+        }
+
+        if ($normalized !== []) {
+            $this->merge($normalized);
+        }
     }
 
     public function rules(): array

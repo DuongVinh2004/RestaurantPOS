@@ -69,6 +69,8 @@ import type {
   StoreMenuItemRequest,
   CreateReservationRequest as StoreReservationRequest,
   TakeOverConversationRequest,
+  UpdateOrderItemRequest,
+  UpdateOrderItemStatusRequest,
 } from './sdk';
 import { createIdempotencyKey } from '../utils/idempotency';
 import { staffClient } from './client';
@@ -112,18 +114,9 @@ export type AssignBestFitTablePayload = {
   zone?: string | null;
 };
 
-export type UpdateOrderItemPayload = {
-  qty?: number;
-  note?: string | null;
-  order_row_version: number;
-  row_version: number;
-};
+export type UpdateOrderItemPayload = UpdateOrderItemRequest;
 
-export type UpdateOrderItemStatusPayload = {
-  status: 'InProgress' | 'Served' | 'Cancelled';
-  order_row_version: number;
-  row_version: number;
-};
+export type UpdateOrderItemStatusPayload = UpdateOrderItemStatusRequest;
 
 export type MoveTablePayload = {
   from_table_id: number;
@@ -1130,19 +1123,19 @@ export async function addOrderItems(orderId: number, payload: AddOrderItemsReque
 }
 
 export async function updateOrderItem(orderId: number, orderItemId: number, payload: UpdateOrderItemPayload): Promise<StaffReservationOrderEnvelope> {
-  return apiRequest<StaffReservationOrderEnvelope>(`/staff/orders/${orderId}/items/${orderItemId}`, {
-    method: 'PATCH',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`order-item-update-${orderItemId}`),
-  });
+  return staffClient.patchV1StaffOrdersOrderIdItemsOrderItemId(
+    { order_id: orderId, order_item_id: orderItemId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`order-item-update-${orderItemId}`) },
+  );
 }
 
 export async function updateOrderItemStatus(orderId: number, orderItemId: number, payload: UpdateOrderItemStatusPayload): Promise<StaffReservationOrderEnvelope> {
-  return apiRequest<StaffReservationOrderEnvelope>(`/staff/orders/${orderId}/items/${orderItemId}/status`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`order-item-status-${orderItemId}`),
-  });
+  return staffClient.postV1StaffOrdersOrderIdItemsOrderItemIdStatus(
+    { order_id: orderId, order_item_id: orderItemId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`order-item-status-${orderItemId}`) },
+  );
 }
 
 export async function listKitchenStations(branchId?: number): Promise<StaffKitchenStationCollectionEnvelope> {

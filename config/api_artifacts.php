@@ -74,6 +74,8 @@ return [
                     'POST api/v1/staff/reservations/{id}/check-in',
                     'POST api/v1/staff/tables/{table_id}/orders',
                     'POST api/v1/staff/orders/{order_id}/items',
+                    'PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}',
+                    'POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status',
                     'GET api/v1/reservations/{reservation_id}/active-order',
                     'POST api/v1/staff/orders/{order_id}/bill-snapshot',
                     'GET api/v1/reservations/{reservation_id}/bill-preview',
@@ -348,6 +350,12 @@ return [
             ],
             'POST api/v1/staff/orders/{order_id}/items' => [
                 'path' => ['order_id' => 'orderId'],
+            ],
+            'PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}' => [
+                'path' => ['order_id' => 'orderId', 'order_item_id' => 'orderItemId'],
+            ],
+            'POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status' => [
+                'path' => ['order_id' => 'orderId', 'order_item_id' => 'orderItemId'],
             ],
             'POST api/v1/staff/orders/{order_id}/bill-snapshot' => [
                 'path' => ['order_id' => 'orderId'],
@@ -715,6 +723,17 @@ return [
                 'items.0.menu_item_id' => '{{menuItemIdSecondary}}',
                 'items.0.qty' => 1,
             ],
+            'PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}' => [
+                'order_row_version' => '{{orderRowVersion}}',
+                'row_version' => '{{orderItemRowVersion}}',
+                'qty' => 2,
+                'note' => 'Postman order item update',
+            ],
+            'POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status' => [
+                'order_row_version' => '{{orderRowVersion}}',
+                'row_version' => '{{orderItemRowVersion}}',
+                'status' => 'Served',
+            ],
             'POST api/v1/staff/cashier/shifts/open' => [
                 'opening_float_amount' => '{{openingFloatAmount}}',
                 'currency' => '{{currency}}',
@@ -903,6 +922,21 @@ return [
             'POST api/v1/staff/tables/{table_id}/orders' => [
                 'orderId' => 'data.order_id',
                 'orderRowVersion' => 'data.row_version',
+                'orderItemId' => 'data.items.0.order_item_id',
+                'orderItemRowVersion' => 'data.items.0.row_version',
+            ],
+            'POST api/v1/staff/orders/{order_id}/items' => [
+                'orderRowVersion' => 'data.row_version',
+                'orderItemId' => 'data.items.0.order_item_id',
+                'orderItemRowVersion' => 'data.items.0.row_version',
+            ],
+            'PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}' => [
+                'orderRowVersion' => 'data.row_version',
+                'orderItemRowVersion' => 'data.items.0.row_version',
+            ],
+            'POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status' => [
+                'orderRowVersion' => 'data.row_version',
+                'orderItemRowVersion' => 'data.items.0.row_version',
             ],
             'POST api/v1/staff/cashier/shifts/open' => [
                 'cashierShiftId' => 'data.cashier_shift_id',
@@ -1020,6 +1054,8 @@ return [
                     'POST api/v1/staff/reservations/{id}/check-in',
                     'POST api/v1/staff/tables/{table_id}/orders',
                     'POST api/v1/staff/orders/{order_id}/items',
+                    'PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}',
+                    'POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status',
                     'POST api/v1/staff/orders/{order_id}/bill-snapshot',
                     'POST api/v1/staff/orders/{order_id}/settlement/finalize',
                     'POST api/v1/staff/cashier/shifts/open',
@@ -1080,6 +1116,8 @@ return [
             'conversationId' => '',
             'orderId' => '',
             'orderRowVersion' => '',
+            'orderItemId' => '',
+            'orderItemRowVersion' => '',
             'cashierShiftId' => '',
             'cashierShiftRowVersion' => '',
             'depositPaymentSessionId' => '',
@@ -1171,6 +1209,8 @@ return [
             'conversationId' => '',
             'orderId' => '',
             'orderRowVersion' => '',
+            'orderItemId' => '',
+            'orderItemRowVersion' => '',
             'cashierShiftId' => '',
             'cashierShiftRowVersion' => '',
             'depositPaymentSessionId' => '',
