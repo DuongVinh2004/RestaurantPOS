@@ -91,7 +91,7 @@ describe("BackendStatusBanner", () => {
 
     renderBanner();
 
-    expect(screen.queryByText("Live API is not reachable")).not.toBeInTheDocument();
+    expect(screen.queryByText("Chưa kết nối được API")).not.toBeInTheDocument();
     expect(mocks.checkBackendHealth).not.toHaveBeenCalled();
   });
 
@@ -100,9 +100,9 @@ describe("BackendStatusBanner", () => {
 
     renderBanner();
 
-    expect(await screen.findByText("Local mock mode is on")).toBeInTheDocument();
-    expect(screen.getByText(/mock responses instead of the live API/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+    expect(await screen.findByText("Đang dùng dữ liệu mô phỏng")).toBeInTheDocument();
+    expect(screen.getByText(/dữ liệu mô phỏng thay vì API thật/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Thử lại" })).not.toBeInTheDocument();
   });
 
   it("shows an operator warning when the API base URL points at a local runtime from a non-local host", async () => {
@@ -116,8 +116,8 @@ describe("BackendStatusBanner", () => {
 
     renderBanner();
 
-    expect(await screen.findByText("API base URL looks wrong for this environment")).toBeInTheDocument();
-    expect(screen.getByText(/NEXT_PUBLIC_API_BASE_URL still points to http:\/\/127\.0\.0\.1:8000/i)).toBeInTheDocument();
+    expect(await screen.findByText("Địa chỉ API có thể chưa đúng")).toBeInTheDocument();
+    expect(screen.getByText(/địa chỉ API đang trỏ tới http:\/\/127\.0\.0\.1:8000/i)).toBeInTheDocument();
   });
 
   it("shows a retryable banner when the health probe reports a backend failure", async () => {
@@ -134,14 +134,14 @@ describe("BackendStatusBanner", () => {
 
     renderBanner();
 
-    expect(await screen.findByText("Live API is not reachable")).toBeInTheDocument();
-    expect(screen.getByText("Status 503")).toBeInTheDocument();
-    expect(screen.getByText("Request ID: req-health-1")).toBeInTheDocument();
+    expect(await screen.findByText("Chưa kết nối được API")).toBeInTheDocument();
+    expect(screen.getByText("Trạng thái 503")).toBeInTheDocument();
+    expect(screen.getByText("Mã hỗ trợ: req-health-1")).toBeInTheDocument();
     expect(screen.getByText("http://127.0.0.1:8000/api/v1/health")).toBeInTheDocument();
-    expect(screen.getByText(/browser only checked the health URL/i)).toBeInTheDocument();
+    expect(screen.getByText(/Trình duyệt chỉ kiểm tra đường dẫn sức khỏe/i)).toBeInTheDocument();
     expect(screen.queryByText(/fresh canonical UAT pack/i)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Retry" }));
+    await user.click(screen.getByRole("button", { name: "Thử lại" }));
 
     await waitFor(() => {
       expect(mocks.checkBackendHealth).toHaveBeenCalledTimes(2);

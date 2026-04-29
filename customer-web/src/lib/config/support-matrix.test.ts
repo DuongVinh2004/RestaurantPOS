@@ -76,7 +76,7 @@ describe("customer-web support matrix", () => {
     expect(waitingList?.frontendDecision).toMatch(/manual refresh/i);
     expect(accountBenefits?.requiredHeaders).toEqual(["X-Customer-Token", "Idempotency-Key"]);
     expect(accountBenefits?.frontendDecision).toMatch(/latest row_version/i);
-    expect(accountBenefits?.liveProofSummary).toMatch(/voucher apply\/remove/i);
+    expect(accountBenefits?.liveProofSummary).toMatch(/điểm thưởng và voucher/i);
   });
 
   it("keeps preorder outside live launch proof and dev mocks outside production rollout", () => {
@@ -96,6 +96,6 @@ describe("customer-web support matrix", () => {
 
     expect(unknown.enabled).toBe(false);
     expect(unknown.blocked).toBe(true);
-    expect(unknown.disabledDescription).toMatch(/fail closed/i);
+    expect(unknown.disabledDescription).toMatch(/đóng cho đến khi nhà hàng bật rõ ràng/i);
   });
 });

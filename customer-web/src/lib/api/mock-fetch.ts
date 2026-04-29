@@ -6,13 +6,13 @@ const menuItems = [
   {
     item_id: 101,
     category_id: 1,
-    category_name: "Lunch",
+    category_name: "Món chính",
     code: "BOWL-01",
-    name: "Herb Chicken Bowl",
-    description: "Grilled chicken, greens, rice, and lime dressing.",
+    name: "Cơm gà rau thơm",
+    description: "Cơm gà nướng dùng kèm rau xanh và sốt chanh.",
     img_url: null,
     is_available: true,
-    price: { price_id: 1, amount: "14.50", currency: "USD", effective_from: null, effective_to: null },
+    price: { price_id: 1, amount: "145000.00", currency: "VND", effective_from: null, effective_to: null },
     preorder: { enabled: true, cutoff_minutes: 45, quota_per_day: null, requires_preview_validation: true },
     created_at: null,
     updated_at: null,
@@ -20,13 +20,13 @@ const menuItems = [
   {
     item_id: 102,
     category_id: 1,
-    category_name: "Lunch",
+    category_name: "Món chính",
     code: "NOODLE-02",
-    name: "Sesame Noodle Plate",
-    description: "Noodles, herbs, vegetables, and toasted sesame.",
+    name: "Mì xào mè",
+    description: "Mì xào cùng rau thơm, rau củ và mè rang.",
     img_url: null,
     is_available: true,
-    price: { price_id: 2, amount: "12.00", currency: "USD", effective_from: null, effective_to: null },
+    price: { price_id: 2, amount: "120000.00", currency: "VND", effective_from: null, effective_to: null },
     preorder: { enabled: true, cutoff_minutes: 30, quota_per_day: null, requires_preview_validation: true },
     created_at: null,
     updated_at: null,
@@ -111,7 +111,7 @@ export function createMockFetch(): typeof fetch {
 
     if (path === "/api/v1/menu/categories") {
       return json({
-        data: [{ category_id: 1, name: "Lunch", description: "Daytime favorites", sort_order: 1, items: menuItems }],
+        data: [{ category_id: 1, name: "Món chính", description: "Các món phục vụ trong ngày", sort_order: 1, items: menuItems }],
         meta: { count: 1, service_time: null, preorder_only: false },
       });
     }
@@ -142,8 +142,8 @@ export function createMockFetch(): typeof fetch {
     if (path === "/api/v1/tables/available") {
       return json({
         data: [
-          { table_id: 7, branch_id: 1, table_no: "T7", capacity: 2, status: "Available", row_version: 1 },
-          { table_id: 8, branch_id: 1, table_no: "T8", capacity: 4, status: "Available", row_version: 1 },
+          { table_id: 7, branch_id: 1, table_no: "Bàn 7", capacity: 2, status: "Available", row_version: 1 },
+          { table_id: 8, branch_id: 1, table_no: "Bàn 8", capacity: 4, status: "Available", row_version: 1 },
         ],
         meta: { count: 2, timezone: "UTC", suggestions: [] },
       });
@@ -161,7 +161,7 @@ export function createMockFetch(): typeof fetch {
           confirmed_reservation_id: null,
           row_version: 1,
           expire_at: inOneHour,
-          tables: [{ table_id: 7, branch_id: 1, table_no: "T7", capacity: 2, status: "Available", row_version: 1 }],
+          tables: [{ table_id: 7, branch_id: 1, table_no: "Bàn 7", capacity: 2, status: "Available", row_version: 1 }],
         },
       });
     }

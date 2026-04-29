@@ -93,7 +93,7 @@ describe("benefits state helpers", () => {
     const state = getLoyaltyAccountState(createLoyaltySummary());
 
     expect(state.state).toBe("empty");
-    expect(state.title).toBe("No loyalty balance yet");
+    expect(state.title).toBe("Chưa có điểm thưởng");
   });
 
   it("classifies wallet vouchers as not eligible from applicability reasons", () => {
@@ -118,7 +118,7 @@ describe("benefits state helpers", () => {
     ]);
 
     expect(wallet.state).toBe("expired");
-    expect(wallet.title).toBe("Only expired vouchers remain");
+    expect(wallet.title).toBe("Chỉ còn voucher hết hạn");
   });
 
   it("marks reservation benefits as gated actions when preview data is visible but cannot apply", () => {
@@ -163,8 +163,8 @@ describe("benefits state helpers", () => {
     );
 
     expect(state.state).toBe("available");
-    expect(state.actionTitle).toBe("Row-versioned benefit actions");
-    expect(state.actionDescription).toMatch(/row-version/i);
+    expect(state.actionTitle).toBe("Thao tác ưu đãi");
+    expect(state.actionDescription).toMatch(/áp dụng hoặc gỡ ưu đãi/i);
     expect(state.voucherWallet.state).toBe("not_eligible");
   });
 });

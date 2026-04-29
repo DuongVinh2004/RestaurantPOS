@@ -90,9 +90,9 @@ describe("MenuPage", () => {
   it("links to menu item detail when the item detail contract is enabled", async () => {
     renderPage();
 
-    expect(await screen.findByRole("searchbox", { name: "Search menu items" })).toBeInTheDocument();
+    expect(await screen.findByRole("searchbox", { name: "Tìm món trong thực đơn" })).toBeInTheDocument();
 
-    const detailLink = await screen.findByRole("link", { name: "Details" });
+    const detailLink = await screen.findByRole("link", { name: "Chi tiết" });
 
     expect(detailLink).toHaveAttribute("href", "/menu/42");
   });
@@ -103,7 +103,7 @@ describe("MenuPage", () => {
     renderPage();
 
     expect(await screen.findByText("Pho Bo")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Details" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Details" })).toBeDisabled();
+    expect(screen.queryByRole("link", { name: "Chi tiết" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Chi tiết" })).toBeDisabled();
   });
 });

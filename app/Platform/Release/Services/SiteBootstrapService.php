@@ -88,7 +88,7 @@ class SiteBootstrapService
     private function ensureBranch(array $options): Branch
     {
         $branchCode = strtoupper(trim((string) ($options['branch_code'] ?? config('booking.multi_branch.default_branch_code', 'MAIN'))));
-        $branchName = trim((string) ($options['branch_name'] ?? config('booking.multi_branch.default_branch_name', 'Chi nhanh chinh')));
+        $branchName = trim((string) ($options['branch_name'] ?? config('booking.multi_branch.default_branch_name', 'Chi nhánh chính')));
         $timezone = trim((string) ($options['timezone'] ?? config('booking.multi_branch.default_branch_timezone', config('app.timezone', 'UTC'))));
         $currency = strtoupper(trim((string) ($options['currency'] ?? config('booking.multi_branch.default_branch_currency', 'VND'))));
 
@@ -97,7 +97,7 @@ class SiteBootstrapService
             $branch = Branch::query()->create([
                 'branch_code' => $branchCode,
                 'branch_name' => $branchName,
-                'description' => 'Chi nhanh khoi tao he thong.',
+                'description' => 'Chi nhánh khởi tạo hệ thống.',
                 'timezone' => $timezone,
                 'currency' => $currency,
                 'is_active' => true,
@@ -114,7 +114,7 @@ class SiteBootstrapService
             ['branch_code' => $branchCode],
             [
                 'branch_name' => $branchName,
-                'description' => 'Chi nhanh khoi tao he thong.',
+                'description' => 'Chi nhánh khởi tạo hệ thống.',
                 'timezone' => $timezone,
                 'currency' => $currency,
                 'is_active' => true,
@@ -153,9 +153,9 @@ class SiteBootstrapService
     private function ensureTableTemplates(): array
     {
         $definitions = [
-            ['template_code' => 'BOOT-2P', 'seats' => 2, 'description' => 'Ban 2 cho khoi tao'],
-            ['template_code' => 'BOOT-4P', 'seats' => 4, 'description' => 'Ban 4 cho khoi tao'],
-            ['template_code' => 'BOOT-6P', 'seats' => 6, 'description' => 'Ban 6 cho khoi tao'],
+            ['template_code' => 'BOOT-2P', 'seats' => 2, 'description' => 'Bàn 2 chỗ khởi tạo'],
+            ['template_code' => 'BOOT-4P', 'seats' => 4, 'description' => 'Bàn 4 chỗ khởi tạo'],
+            ['template_code' => 'BOOT-6P', 'seats' => 6, 'description' => 'Bàn 6 chỗ khởi tạo'],
         ];
 
         $templates = [];
@@ -178,7 +178,7 @@ class SiteBootstrapService
      */
     private function ensureTables(Branch $branch, array $templates, array $options): array
     {
-        $zones = $this->normalizeZones($options['zones'] ?? 'Tang tret,San vuon');
+        $zones = $this->normalizeZones($options['zones'] ?? 'Khu A,Khu B');
         $tablesPerZone = max(1, (int) ($options['tables_per_zone'] ?? 4));
         $seatPattern = [2, 4, 4, 6];
         $created = [];
@@ -201,7 +201,7 @@ class SiteBootstrapService
                         'pos_x' => $position,
                         'pos_y' => $zoneIndex + 1,
                         'status' => RestaurantTableStatus::Available->value,
-                        'description' => sprintf('Ban %d cho tai %s.', $seats, $zone),
+                        'description' => sprintf('Bàn %d chỗ tại %s.', $seats, $zone),
                         'is_deleted' => false,
                         'price' => null,
                     ]
@@ -227,16 +227,16 @@ class SiteBootstrapService
     {
         $definitions = [
             [
-                'category' => ['name' => 'Do uong', 'description' => 'Do uong khoi tao', 'sort_order' => 10],
+                'category' => ['name' => 'Đồ uống', 'description' => 'Đồ uống khởi tạo', 'sort_order' => 10, 'aliases' => ['Do uong']],
                 'items' => [
-                    ['code' => 'BOOT-WATER', 'name' => 'Tra da', 'price' => 10000],
+                    ['code' => 'BOOT-WATER', 'name' => 'Trà đá', 'description' => 'Trà đá mát lạnh dùng kèm bữa ăn.', 'price' => 10000],
                 ],
             ],
             [
-                'category' => ['name' => 'Mon chinh', 'description' => 'Mon chinh khoi tao', 'sort_order' => 20],
+                'category' => ['name' => 'Món chính', 'description' => 'Các món chính khởi tạo', 'sort_order' => 20, 'aliases' => ['Mon chinh']],
                 'items' => [
-                    ['code' => 'BOOT-FRIED-RICE', 'name' => 'Com chien', 'price' => 89000],
-                    ['code' => 'BOOT-NOODLE-BOWL', 'name' => 'Bun xao', 'price' => 79000],
+                    ['code' => 'BOOT-FRIED-RICE', 'name' => 'Cơm chiên hải sản', 'description' => 'Cơm chiên cùng tôm, mực, trứng và rau củ.', 'price' => 89000],
+                    ['code' => 'BOOT-NOODLE-BOWL', 'name' => 'Bún xào bò', 'description' => 'Bún xào bò mềm với rau cải và nước sốt đậm vị.', 'price' => 79000],
                 ],
             ],
         ];
@@ -248,24 +248,39 @@ class SiteBootstrapService
 
         foreach ($definitions as $definition) {
             /** @var MenuCategory $category */
-            $category = MenuCategory::query()->firstOrCreate(
-                ['name' => $definition['category']['name']],
-                [
-                    'description' => $definition['category']['description'],
-                    'sort_order' => $definition['category']['sort_order'],
-                    'is_deleted' => false,
-                ]
-            );
+            $categoryDefinition = $definition['category'];
+            $category = MenuCategory::query()
+                ->where(function ($query) use ($categoryDefinition): void {
+                    $query->where('name', $categoryDefinition['name']);
+
+                    if (($categoryDefinition['aliases'] ?? []) !== []) {
+                        $query->orWhereIn('name', $categoryDefinition['aliases']);
+                    }
+                })
+                ->orderByRaw('CASE WHEN name = ? THEN 0 ELSE 1 END', [$categoryDefinition['name']])
+                ->first();
+
+            if (! $category instanceof MenuCategory) {
+                $category = new MenuCategory();
+            }
+
+            $category->fill([
+                'name' => $categoryDefinition['name'],
+                'description' => $categoryDefinition['description'],
+                'sort_order' => $categoryDefinition['sort_order'],
+                'is_deleted' => false,
+            ]);
+            $category->save();
             $categoryCount++;
 
             foreach ($definition['items'] as $itemDefinition) {
                 /** @var MenuItem $item */
-                $item = MenuItem::query()->firstOrCreate(
+                $item = MenuItem::query()->updateOrCreate(
                     ['code' => $itemDefinition['code']],
                     [
                         'category_id' => (int) $category->category_id,
                         'name' => $itemDefinition['name'],
-                        'description' => 'Mon khoi tao',
+                        'description' => $itemDefinition['description'],
                         'img_url' => null,
                         'is_available' => true,
                         'is_preorder_enabled' => false,
@@ -313,12 +328,12 @@ class SiteBootstrapService
     {
         $admin = $this->ensureBootstrapUser(
             username: trim((string) ($options['admin_username'] ?? 'bootstrap-admin')),
-            fullName: trim((string) ($options['admin_name'] ?? 'Quan tri khoi tao')),
+            fullName: trim((string) ($options['admin_name'] ?? 'Quản trị khởi tạo')),
             roleId: 1,
         );
         $staff = $this->ensureBootstrapUser(
             username: trim((string) ($options['staff_username'] ?? 'bootstrap-staff')),
-            fullName: trim((string) ($options['staff_name'] ?? 'Nhan vien khoi tao')),
+            fullName: trim((string) ($options['staff_name'] ?? 'Nhân viên khởi tạo')),
             roleId: 2,
         );
 
@@ -376,7 +391,7 @@ class SiteBootstrapService
             ->first();
 
         $expiresAt = now('UTC')->addDays(max(1, (int) ($options['staff_key_ttl_days'] ?? 90)));
-        $label = trim((string) ($options['staff_key_label'] ?? 'Khoa API nhan vien khoi tao'));
+        $label = trim((string) ($options['staff_key_label'] ?? 'Khóa API nhân viên khởi tạo'));
 
         if ($active instanceof StaffApiKey && ! (bool) ($options['rotate_staff_key'] ?? false)) {
             return [
@@ -466,7 +481,7 @@ class SiteBootstrapService
             is_array($value) ? $value : explode(',', (string) $value)
         ), static fn (string $item): bool => $item !== ''));
 
-        return $zones !== [] ? $zones : ['Tang tret'];
+        return $zones !== [] ? $zones : ['Khu A'];
     }
 
     /**

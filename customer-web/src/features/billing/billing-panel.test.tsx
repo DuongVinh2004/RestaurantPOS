@@ -117,26 +117,26 @@ describe("BillingPanel", () => {
 
     renderPanel();
 
-    await user.click(await screen.findByRole("button", { name: "Continue to bill payment" }));
+    await user.click(await screen.findByRole("button", { name: "Thanh toán hóa đơn" }));
 
     await waitFor(() => {
       expect(mocks.createBillPaymentSession).toHaveBeenCalledWith(7, 4);
     });
     expect(await screen.findByText("bill-1")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Refresh status" }));
+    await user.click(screen.getByRole("button", { name: "Cập nhật trạng thái" }));
 
     await waitFor(() => {
       expect(mocks.refreshBillPaymentSession).toHaveBeenCalledWith(7, 401, 21);
     });
 
-    await user.click(await screen.findByRole("button", { name: "Confirm payment" }));
+    await user.click(await screen.findByRole("button", { name: "Xác nhận thanh toán" }));
 
     await waitFor(() => {
       expect(mocks.confirmBillPaymentSession).toHaveBeenCalledWith(7, 401, 22);
     });
-    expect(await screen.findByText("Payment applied")).toBeInTheDocument();
-    expect(screen.getByText("Provider runtime confirmed")).toBeInTheDocument();
+    expect(await screen.findByText("Đã ghi nhận thanh toán")).toBeInTheDocument();
+    expect(screen.getByText("Thanh toán đã kết nối")).toBeInTheDocument();
   });
 
   it("renders a blocked state when bill self-service is forbidden for the current actor", async () => {
@@ -152,8 +152,8 @@ describe("BillingPanel", () => {
 
     renderPanel();
 
-    expect(await screen.findByText("Bill access is blocked")).toBeInTheDocument();
-    expect(screen.getByText("Bill self-service is not available for the current actor on this reservation.")).toBeInTheDocument();
+    expect(await screen.findByText("Không thể mở hóa đơn")).toBeInTheDocument();
+    expect(screen.getByText("Tài khoản hoặc phiên hiện tại không thể tự xử lý hóa đơn cho lịch đặt này.")).toBeInTheDocument();
   });
 
   it("surfaces an active order state when the final bill is not ready yet", async () => {
@@ -172,8 +172,8 @@ describe("BillingPanel", () => {
 
     renderPanel();
 
-    expect(await screen.findByText("Active order in progress")).toBeInTheDocument();
-    expect(screen.getByText("An active order is still open. The final bill will appear after staff closes it.")).toBeInTheDocument();
+    expect(await screen.findByText("Đơn tại bàn đang mở")).toBeInTheDocument();
+    expect(screen.getByText("Đơn tại bàn vẫn đang mở. Hóa đơn cuối sẽ xuất hiện sau khi nhân viên chốt đơn.")).toBeInTheDocument();
   });
 
   it("shows seeded-data support messaging when bill self-pay is enabled but no payable bill path is exposed", async () => {
@@ -184,9 +184,9 @@ describe("BillingPanel", () => {
 
     renderPanel();
 
-    expect(await screen.findByText("Waiting for live bill data")).toBeInTheDocument();
+    expect(await screen.findByText("Đang chờ hóa đơn")).toBeInTheDocument();
     expect(
-      screen.getByText("Bill self-pay stays enabled for this surface, but the current live or seeded UAT data does not expose a payable bill session yet."),
+      screen.getByText("Nhà hàng chưa gửi hóa đơn có thể thanh toán trực tuyến cho lượt ghé này."),
     ).toBeInTheDocument();
   });
 });

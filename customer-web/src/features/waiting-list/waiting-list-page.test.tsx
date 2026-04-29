@@ -166,8 +166,8 @@ describe("WaitingListPage", () => {
 
     expect(screen.getByText("Waiting list is not in this rollout")).toBeInTheDocument();
     expect(screen.getByText(/dedicated waiting-list rollout flag/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Find a table" })).toHaveAttribute("href", "/booking");
-    expect(screen.getByRole("link", { name: "View reservations" })).toHaveAttribute("href", "/reservations");
+    expect(screen.getByRole("link", { name: "Tìm bàn" })).toHaveAttribute("href", "/booking");
+    expect(screen.getByRole("link", { name: "Xem lịch đặt" })).toHaveAttribute("href", "/reservations");
     expect(mocks.listWaitingList).not.toHaveBeenCalled();
     expect(mocks.getWaitingListEntry).not.toHaveBeenCalled();
   });
@@ -186,11 +186,11 @@ describe("WaitingListPage", () => {
       expect(mocks.getWaitingListEntry).toHaveBeenCalledWith(91);
     });
 
-    expect(await screen.findByText("Cancel is available")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancel entry" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Accept invite" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Confirm arrival" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Decline invite" })).not.toBeInTheDocument();
+    expect(await screen.findByText("Có thể hủy đăng ký chờ")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Hủy đăng ký chờ" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Nhận lời mời" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Xác nhận đã đến" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Từ chối lời mời" })).not.toBeInTheDocument();
   });
 
   it("shows the backend owner response set for an active invite window and keeps refresh manual", async () => {
@@ -202,14 +202,14 @@ describe("WaitingListPage", () => {
 
     renderPage();
 
-    expect((await screen.findAllByText("Invite response available")).length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Accept invite" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Confirm arrival" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Decline invite" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancel entry" })).toBeInTheDocument();
-    expect(screen.getAllByText("Refresh manually")[0]).toBeInTheDocument();
-    expect(screen.getByText("Seat result not exposed yet")).toBeInTheDocument();
-    expect(screen.queryByText("Waiting for staff seat result")).not.toBeInTheDocument();
+    expect((await screen.findAllByText("Có lời mời cần phản hồi")).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Nhận lời mời" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Xác nhận đã đến" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Từ chối lời mời" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Hủy đăng ký chờ" })).toBeInTheDocument();
+    expect(screen.getAllByText("Cập nhật thủ công")[0]).toBeInTheDocument();
+    expect(screen.getByText("Chưa có kết quả xếp bàn")).toBeInTheDocument();
+    expect(screen.queryByText("Đang chờ kết quả xếp bàn")).not.toBeInTheDocument();
   });
 
   it("uses response_state to distinguish accepted from arrival-confirmed entries", async () => {
@@ -235,16 +235,16 @@ describe("WaitingListPage", () => {
 
     renderPage();
 
-    expect((await screen.findAllByText("Invite accepted")).length).toBeGreaterThan(0);
-    expect(screen.queryByRole("button", { name: "Accept invite" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Confirm arrival" })).toBeInTheDocument();
+    expect((await screen.findAllByText("Đã nhận lời mời")).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Nhận lời mời" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Xác nhận đã đến" })).toBeInTheDocument();
 
-    await userEvent.click(screen.getByText("Entry #92"));
+    await userEvent.click(screen.getByText("Mã chờ #92"));
 
-    expect((await screen.findAllByText("Arrival confirmed")).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Waiting for staff seating").length).toBeGreaterThan(0);
-    expect(screen.getByText("Waiting for staff seat result")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Confirm arrival" })).not.toBeInTheDocument();
+    expect((await screen.findAllByText("Đã xác nhận đến nơi")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Đang chờ nhân viên xếp bàn").length).toBeGreaterThan(0);
+    expect(screen.getByText("Đang chờ kết quả xếp bàn")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Xác nhận đã đến" })).not.toBeInTheDocument();
   });
 
   it("refetches the list and detail when an owner action hits a stale row version", async () => {
@@ -272,7 +272,7 @@ describe("WaitingListPage", () => {
       expect(mocks.getWaitingListEntry).toHaveBeenCalledWith(91);
     });
 
-    await user.click(await screen.findByRole("button", { name: "Accept invite" }));
+    await user.click(await screen.findByRole("button", { name: "Nhận lời mời" }));
 
     await waitFor(() => {
       expect(mocks.acceptWaitingListEntry).toHaveBeenCalledWith(91, { row_version: 7 });
@@ -283,7 +283,7 @@ describe("WaitingListPage", () => {
       expect(mocks.getWaitingListEntry.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
 
-    expect(await screen.findByText("Waiting-list details changed")).toBeInTheDocument();
-    expect(screen.getByText("This changed while you were working.")).toBeInTheDocument();
+    expect(await screen.findByText("Thông tin danh sách chờ đã thay đổi")).toBeInTheDocument();
+    expect(screen.getByText("Thông tin đã thay đổi trong lúc bạn thao tác.")).toBeInTheDocument();
   });
 });

@@ -157,12 +157,12 @@ describe("reservation state helpers", () => {
     expect(policy.canCancel).toBe(false);
     expect(policy.canReschedule).toBe(false);
     expect(policy.manageState).toBe("no_longer_manageable");
-    expect(policy.manageTitle).toBe("Online changes are no longer available");
+    expect(policy.manageTitle).toBe("Không còn thao tác trực tuyến");
   });
 
   it("maps reservation status semantics for the workspace header", () => {
-    expect(getReservationWorkspaceStatus(createReservation({ status: "Reserved" })).title).toBe("Reservation in service");
-    expect(getReservationWorkspaceStatus(createReservation({ status: "NoShow" })).description).toContain("no longer available");
+    expect(getReservationWorkspaceStatus(createReservation({ status: "Reserved" })).title).toBe("Lượt ghé đang diễn ra");
+    expect(getReservationWorkspaceStatus(createReservation({ status: "NoShow" })).description).toContain("không còn thao tác");
   });
 
   it("honors explicit deposit self-service denial instead of falling back to optimistic actions", () => {
@@ -237,7 +237,7 @@ describe("reservation state helpers", () => {
     });
 
     expect(support.state).toBe("not_enabled");
-    expect(support.title).toBe("Online payment not enabled");
+    expect(support.title).toBe("Chưa bật thanh toán trực tuyến");
   });
 
   it("suppresses bill payment actions when the live bill contract says self-payment is unavailable", () => {
@@ -261,7 +261,7 @@ describe("reservation state helpers", () => {
     });
 
     expect(policy.canCreatePaymentSession).toBe(false);
-    expect(policy.noActionMessage).toContain("staff to finalize");
+    expect(policy.noActionMessage).toContain("nhân viên chốt hóa đơn");
     expect(policy.billSummary.state).toBe("available");
   });
 
@@ -274,7 +274,7 @@ describe("reservation state helpers", () => {
     });
 
     expect(support.state).toBe("seeded_uat_required");
-    expect(support.title).toBe("Waiting for live bill data");
+    expect(support.title).toBe("Đang chờ hóa đơn");
   });
 
   it("uses one shared session state machine for refresh policy and runtime proof", () => {
@@ -344,11 +344,11 @@ describe("reservation state helpers", () => {
     const billState = getReservationBillSummaryState(reservation);
 
     expect(holdState.state).toBe("expired");
-    expect(holdState.title).toBe("Hold expired");
+    expect(holdState.title).toBe("Bàn giữ đã hết hạn");
     expect(depositState.state).toBe("not_required");
-    expect(depositState.title).toBe("Deposit not required");
+    expect(depositState.title).toBe("Không cần đặt cọc");
     expect(billState.state).toBe("unavailable");
-    expect(billState.title).toBe("Bill unavailable");
+    expect(billState.title).toBe("Chưa có hóa đơn");
   });
 
   it("maps refunded deposits and settled bills into non-actionable workspace summaries", () => {
@@ -369,7 +369,7 @@ describe("reservation state helpers", () => {
     const policy = getPreorderPolicy(createPreorderPayload());
 
     expect(policy.state).toBe("read_only");
-    expect(policy.message).toContain("reference only");
+    expect(policy.message).toContain("chỉ dùng để xem lại");
     expect(policy.managementMessage).toContain("kitchen prep");
   });
 
@@ -377,7 +377,7 @@ describe("reservation state helpers", () => {
     const policy = getBenefitsPolicy(createBenefitsPreview());
 
     expect(policy.state).toBe("read_only");
-    expect(policy.title).toBe("Benefits preview");
-    expect(policy.readOnlyMessage).toContain("latest row_version");
+    expect(policy.title).toBe("Xem trước ưu đãi");
+    expect(policy.readOnlyMessage).toContain("chỉ dùng để xem lại");
   });
 });

@@ -121,27 +121,27 @@ describe("DepositPanel", () => {
 
     renderPanel();
 
-    await user.click(await screen.findByRole("button", { name: "Continue to deposit payment" }));
+    await user.click(await screen.findByRole("button", { name: "Thanh toán đặt cọc" }));
 
     await waitFor(() => {
       expect(mocks.createDepositPaymentSession).toHaveBeenCalledWith(7, 4);
     });
     expect(await screen.findByText("dep-1")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Refresh status" }));
+    await user.click(screen.getByRole("button", { name: "Cập nhật trạng thái" }));
 
     await waitFor(() => {
       expect(mocks.refreshDepositPaymentSession).toHaveBeenCalledWith(7, 301, 11);
     });
 
-    await user.click(await screen.findByRole("button", { name: "Confirm payment" }));
+    await user.click(await screen.findByRole("button", { name: "Xác nhận thanh toán" }));
 
     await waitFor(() => {
       expect(mocks.confirmDepositPaymentSession).toHaveBeenCalledWith(7, 301, 12);
     });
-    expect(await screen.findByText("Payment applied")).toBeInTheDocument();
-    expect(screen.getByText("Final status applied")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Confirm payment" })).not.toBeInTheDocument();
+    expect(await screen.findByText("Đã ghi nhận thanh toán")).toBeInTheDocument();
+    expect(screen.getByText("Đã ghi nhận")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Xác nhận thanh toán" })).not.toBeInTheDocument();
   });
 
   it("shows refresh guidance when a deposit mutation hits a stale row version", async () => {
@@ -161,11 +161,11 @@ describe("DepositPanel", () => {
 
     renderPanel();
 
-    await user.click(await screen.findByRole("button", { name: "Continue to deposit payment" }));
+    await user.click(await screen.findByRole("button", { name: "Thanh toán đặt cọc" }));
 
-    expect(await screen.findByText("Deposit details changed")).toBeInTheDocument();
-    expect(screen.getByText("This changed while you were working.")).toBeInTheDocument();
-    expect(screen.getByText("Refresh the page to load the latest reservation or linked session, then retry.")).toBeInTheDocument();
+    expect(await screen.findByText("Thông tin đặt cọc đã thay đổi")).toBeInTheDocument();
+    expect(screen.getByText("Thông tin đã thay đổi trong lúc bạn thao tác.")).toBeInTheDocument();
+    expect(screen.getByText("Tải lại trang để lấy thông tin mới nhất rồi thử lại.")).toBeInTheDocument();
   });
 
   it("renders a settled deposit state when no further customer action is open", async () => {
@@ -189,7 +189,7 @@ describe("DepositPanel", () => {
 
     renderPanel();
 
-    expect(await screen.findAllByText("Deposit settled")).toHaveLength(2);
-    expect(screen.getByText("The deposit is already settled.")).toBeInTheDocument();
+    expect(await screen.findAllByText("Đặt cọc đã xử lý")).toHaveLength(2);
+    expect(screen.getByText("Khoản đặt cọc đã được xử lý cho lịch đặt này.")).toBeInTheDocument();
   });
 });

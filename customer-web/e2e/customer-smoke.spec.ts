@@ -50,8 +50,8 @@ async function mockCustomerApi(page: Page) {
         data: [
           {
             category_id: 1,
-            name: "Lunch",
-            description: "Daytime favorites",
+            name: "Món chính",
+            description: "Các món phục vụ trong ngày",
             sort_order: 1,
             items: [],
           },
@@ -70,14 +70,14 @@ async function mockCustomerApi(page: Page) {
           {
             item_id: 101,
             category_id: 1,
-            category_name: "Lunch",
-            name: "Herb Chicken Bowl",
-            description: "Grilled chicken, greens, rice, and lime dressing.",
+            category_name: "Món chính",
+            name: "Cơm gà rau thơm",
+            description: "Cơm gà nướng dùng kèm rau xanh và sốt chanh.",
             img_url: null,
             is_available: true,
             price: {
-              amount: "14.50",
-              currency: "USD",
+              amount: "145000.00",
+              currency: "VND",
             },
             preorder: {
               enabled: true,
@@ -100,7 +100,7 @@ async function mockCustomerApi(page: Page) {
           {
             table_id: 7,
             branch_id: 1,
-            table_code: "Table 7",
+            table_code: "Bàn 7",
             seats: 4,
             status: "Available",
             row_version: 1,
@@ -130,7 +130,7 @@ async function mockCustomerApi(page: Page) {
             {
               table_id: 7,
               branch_id: 1,
-              table_code: "Table 7",
+              table_code: "Bàn 7",
               seats: 4,
               status: "Available",
               row_version: 1,
@@ -224,25 +224,25 @@ test.beforeEach(async ({ page }) => {
 test("menu home loads with mock-backed customer content", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Browse the menu before your visit." })).toBeVisible();
-  await expect(page.getByRole("searchbox", { name: "Search menu items" })).toBeVisible();
-  await expect(page.getByRole("main").getByRole("link", { name: "Find a table" })).toBeVisible();
-  await expect(page.getByText("Herb Chicken Bowl")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Chọn món và đặt bàn trong vài thao tác." })).toBeVisible();
+  await expect(page.getByRole("searchbox", { name: "Tìm món trong thực đơn" })).toBeVisible();
+  await expect(page.getByRole("main").getByRole("link", { name: "Tìm bàn" })).toBeVisible();
+  await expect(page.getByText("Cơm gà rau thơm")).toBeVisible();
 });
 
 test("booking can create a hold and continue to reservation", async ({ page }) => {
   await page.goto("/booking");
 
-  await page.getByRole("button", { name: "Search tables" }).click();
-  const tableOption = page.getByRole("button", { name: "Table 7 table option" });
+  await page.getByRole("button", { name: "Tìm bàn" }).click();
+  const tableOption = page.getByRole("button", { name: "Chọn Bàn 7" });
   await expect(tableOption).toBeVisible();
   await expect(tableOption).toHaveAttribute("aria-pressed", "false");
 
   await tableOption.click();
   await expect(tableOption).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Create hold" }).click();
+  await page.getByRole("button", { name: "Giữ bàn" }).click();
 
-  const continueLink = page.getByRole("link", { name: "Continue to reservation" });
+  const continueLink = page.getByRole("link", { name: "Tiếp tục đặt chỗ" });
   await expect(continueLink).toBeVisible();
   await expect(continueLink).toHaveAttribute("href", /hold_id=hold-dev-1/);
 });
@@ -250,11 +250,11 @@ test("booking can create a hold and continue to reservation", async ({ page }) =
 test("login redirects to reservations with the mocked customer session", async ({ page }) => {
   await page.goto("/login");
 
-  await page.getByLabel("Email, phone, or customer id").fill("demo@example.test");
-  await page.getByLabel("Password").fill("password123");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByLabel("Email, số điện thoại hoặc mã khách hàng").fill("demo@example.test");
+  await page.getByLabel("Mật khẩu").fill("password123");
+  await page.getByRole("button", { name: "Đăng nhập" }).click();
 
   await expect(page).toHaveURL(/\/reservations$/);
-  await expect(page.getByRole("heading", { name: "Reservations" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Lịch đặt" })).toBeVisible();
   await expect(page.getByText("RSV-DEMO-501")).toBeVisible();
 });

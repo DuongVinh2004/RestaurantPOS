@@ -14,7 +14,7 @@ type StaffSessionOverrides = Omit<Partial<StaffSession>, 'startup'> & {
 const defaultStaffBranch = {
   branch_id: 1,
   branch_code: 'MAIN',
-  branch_name: 'Chi nhanh chinh',
+  branch_name: 'Chi nhánh chính',
   timezone: 'Asia/Ho_Chi_Minh',
   currency: 'VND',
   is_default: true,
@@ -27,7 +27,7 @@ const defaultStaffStartupShift = {
   branch: {
     branch_id: 1,
     branch_code: 'MAIN',
-    branch_name: 'Chi nhanh chinh',
+    branch_name: 'Chi nhánh chính',
     timezone: 'Asia/Ho_Chi_Minh',
     currency: 'VND',
     is_default: true,

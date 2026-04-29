@@ -150,11 +150,11 @@ describe("BenefitsPanel", () => {
 
     renderPanel();
 
-    expect(await screen.findByText("Benefits rollout proof enabled")).toBeInTheDocument();
-    expect(await screen.findByText("Benefits visible in contract")).toBeInTheDocument();
-    expect(screen.getByText(/row-versioned and idempotent/i)).toBeInTheDocument();
-    expect(screen.getAllByText("Vouchers not eligible right now").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Not eligible")).toBeInTheDocument();
+    expect(await screen.findByText("Ưu đãi đã sẵn sàng")).toBeInTheDocument();
+    expect(await screen.findByText("Ưu đãi đang hiển thị")).toBeInTheDocument();
+    expect(screen.getByText(/áp dụng hoặc gỡ ưu đãi/i)).toBeInTheDocument();
+    expect(screen.getAllByText("Voucher chưa đủ điều kiện").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Chưa đủ điều kiện").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Spend more before this voucher can apply.")).toBeInTheDocument();
   });
 
@@ -181,12 +181,12 @@ describe("BenefitsPanel", () => {
 
     renderPanel();
 
-    await user.click(await screen.findByRole("button", { name: "Apply voucher" }));
+    await user.click(await screen.findByRole("button", { name: "Áp dụng voucher" }));
 
     await waitFor(() => {
       expect(mocks.applyVoucher).toHaveBeenCalledWith(7, 4, "FIX10");
     });
-    expect(mocks.toastSuccess).toHaveBeenCalledWith("Voucher applied.");
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Đã áp dụng voucher.");
   });
 
   it("redeems and releases loyalty points with row-versioned mutations", async () => {
@@ -240,15 +240,15 @@ describe("BenefitsPanel", () => {
 
     renderPanel();
 
-    await user.clear(await screen.findByLabelText("Points to redeem"));
-    await user.type(screen.getByLabelText("Points to redeem"), "25");
-    await user.click(screen.getByRole("button", { name: "Redeem points" }));
+    await user.clear(await screen.findByLabelText("Số điểm muốn dùng"));
+    await user.type(screen.getByLabelText("Số điểm muốn dùng"), "25");
+    await user.click(screen.getByRole("button", { name: "Dùng điểm" }));
 
     await waitFor(() => {
       expect(mocks.redeemLoyaltyPoints).toHaveBeenCalledWith(7, 4, 25);
     });
 
-    await user.click(await screen.findByRole("button", { name: "Release points" }));
+    await user.click(await screen.findByRole("button", { name: "Gỡ điểm" }));
 
     await waitFor(() => {
       expect(mocks.releaseLoyaltyPoints).toHaveBeenCalledWith(7, 5);
@@ -277,11 +277,11 @@ describe("BenefitsPanel", () => {
 
     renderPanel();
 
-    await user.click(await screen.findByRole("button", { name: "Apply voucher" }));
+    await user.click(await screen.findByRole("button", { name: "Áp dụng voucher" }));
 
     await waitFor(() => {
       expect(mocks.getBenefitsPreview.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
-    expect(await screen.findByText("Benefits details changed")).toBeInTheDocument();
+    expect(await screen.findByText("Thông tin ưu đãi đã thay đổi")).toBeInTheDocument();
   });
 });

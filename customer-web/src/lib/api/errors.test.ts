@@ -13,11 +13,11 @@ describe("API error display helpers", () => {
     );
 
     expect(display).toMatchObject({
-      message: "This changed while you were working.",
-      retryHint: "Refresh the page to load the latest reservation or linked session, then retry.",
-      statusLabel: "Status 409",
-      requestIdLabel: "Request ID: req-conflict-1",
-      errorCodeLabel: "Code row_version_conflict",
+      message: "Thông tin đã thay đổi trong lúc bạn thao tác.",
+      retryHint: "Tải lại trang để lấy thông tin mới nhất rồi thử lại.",
+      statusLabel: "Trạng thái 409",
+      requestIdLabel: "Mã hỗ trợ: req-conflict-1",
+      errorCodeLabel: "Mã lỗi row_version_conflict",
     });
   });
 
@@ -25,11 +25,11 @@ describe("API error display helpers", () => {
     const display = getApiErrorDisplay(new TypeError("fetch failed"));
 
     expect(display).toMatchObject({
-      message: "We cannot reach the restaurant service right now.",
-      retryHint: "Check that the backend is running, then try again.",
+      message: "Hiện chưa kết nối được với hệ thống nhà hàng.",
+      retryHint: "Kiểm tra hệ thống nhà hàng rồi thử lại.",
       statusLabel: null,
       requestIdLabel: null,
-      errorCodeLabel: "Code backend_unavailable",
+      errorCodeLabel: "Mã lỗi backend_unavailable",
     });
   });
 
@@ -48,9 +48,9 @@ describe("API error display helpers", () => {
     expect(display).toMatchObject({
       message: "Invalid credentials.",
       retryHint: null,
-      statusLabel: "Status 422",
-      requestIdLabel: "Request ID: req-validation-1",
-      errorCodeLabel: "Code validation_error",
+      statusLabel: "Trạng thái 422",
+      requestIdLabel: "Mã hỗ trợ: req-validation-1",
+      errorCodeLabel: "Mã lỗi validation_error",
     });
   });
 });

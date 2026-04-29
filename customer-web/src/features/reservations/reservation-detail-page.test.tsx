@@ -101,9 +101,9 @@ describe("ReservationDetailPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Reservation workspace")).toBeInTheDocument();
-    expect(screen.getAllByText("Table hold")[0]).toBeInTheDocument();
-    expect(screen.getAllByText("Hold expired")[0]).toBeInTheDocument();
+    expect(await screen.findByText("Chi tiết lượt ghé")).toBeInTheDocument();
+    expect(screen.getAllByText("Bàn giữ")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("Bàn giữ đã hết hạn")[0]).toBeInTheDocument();
   });
 
   it("shows a no-longer-manageable state when the reservation is inactive", async () => {
@@ -115,9 +115,9 @@ describe("ReservationDetailPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Online changes are no longer available")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Request new time" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Cancel reservation" })).not.toBeInTheDocument();
+    expect(await screen.findByText("Không còn thao tác trực tuyến")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Yêu cầu đổi giờ" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Hủy lịch đặt" })).not.toBeInTheDocument();
   });
 
   it("shows when reservation access is coming from a linked session", async () => {
@@ -129,8 +129,8 @@ describe("ReservationDetailPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Linked visit session")).toBeInTheDocument();
-    expect(screen.getByText("You are viewing this reservation through the linked visit session for this browser.")).toBeInTheDocument();
+    expect(await screen.findByText("Phiên ghé nhà hàng đã liên kết")).toBeInTheDocument();
+    expect(screen.getByText("Bạn đang xem lịch đặt qua phiên ghé nhà hàng trên trình duyệt này.")).toBeInTheDocument();
   });
 
   it("refetches reservation detail after a stale conflict and keeps the refresh guidance visible", async () => {
@@ -149,8 +149,8 @@ describe("ReservationDetailPage", () => {
 
     renderPage();
 
-    await screen.findByRole("button", { name: "Cancel reservation" });
-    await user.click(screen.getByRole("button", { name: "Cancel reservation" }));
+    await screen.findByRole("button", { name: "Hủy lịch đặt" });
+    await user.click(screen.getByRole("button", { name: "Hủy lịch đặt" }));
 
     await waitFor(() => {
       expect(mocks.cancelReservation).toHaveBeenCalledWith(7, 4, "");
@@ -159,8 +159,8 @@ describe("ReservationDetailPage", () => {
       expect(mocks.getReservation).toHaveBeenCalledTimes(2);
     });
 
-    expect(await screen.findByText("Reservation details changed")).toBeInTheDocument();
-    expect(screen.getByText("This changed while you were working.")).toBeInTheDocument();
+    expect(await screen.findByText("Thông tin lịch đặt đã thay đổi")).toBeInTheDocument();
+    expect(screen.getByText(/Thông tin đã thay đổi trong lúc bạn thao tác/i)).toBeInTheDocument();
   });
 
   it("labels reservation access errors as unavailable to the signed-in account", async () => {
@@ -176,7 +176,7 @@ describe("ReservationDetailPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("This reservation is unavailable")).toBeInTheDocument();
-    expect(screen.getByText("The reservation could not be found or is no longer available from customer self-service.")).toBeInTheDocument();
+    expect(await screen.findByText("Lịch đặt không khả dụng")).toBeInTheDocument();
+    expect(screen.getByText("Không tìm thấy lịch đặt hoặc lịch đặt không còn mở cho khách tự thao tác.")).toBeInTheDocument();
   });
 });

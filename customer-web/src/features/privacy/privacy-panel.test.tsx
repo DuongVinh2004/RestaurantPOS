@@ -65,7 +65,7 @@ describe("PrivacyPanel", () => {
   it("renders a disabled rollout state when privacy tools are off", () => {
     renderPanel();
 
-    expect(screen.getByText("Privacy and data export")).toBeInTheDocument();
+    expect(screen.getByText("Dữ liệu cá nhân")).toBeInTheDocument();
     expect(screen.getByText("Privacy tools are not in this rollout")).toBeInTheDocument();
     expect(screen.getByText(/dedicated QA, UAT, or Wave 2 rollout/i)).toBeInTheDocument();
     expect(mocks.listPrivacyRequests).not.toHaveBeenCalled();
@@ -83,9 +83,9 @@ describe("PrivacyPanel", () => {
     });
 
     expect(await screen.findByText("Data export is not in this rollout")).toBeInTheDocument();
-    expect(screen.getByText("Anonymization request lifecycle")).toBeInTheDocument();
-    expect(screen.getByText(/may be irreversible/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Submit anonymization request" })).toBeInTheDocument();
+    expect(screen.getByText("Yêu cầu ẩn danh dữ liệu")).toBeInTheDocument();
+    expect(screen.getByText(/chứng từ tài chính, kiểm toán hoặc pháp lý/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Gửi yêu cầu ẩn danh dữ liệu" })).toBeInTheDocument();
     expect(mocks.getDataExport).not.toHaveBeenCalled();
   });
 
@@ -106,7 +106,7 @@ describe("PrivacyPanel", () => {
       expect(mocks.getDataExport).toHaveBeenCalledTimes(1);
     });
 
-    expect(await screen.findByText("Your latest export data is available for this rollout.")).toBeInTheDocument();
+    expect(await screen.findByText("Dữ liệu xuất mới nhất đang hiển thị tại đây.")).toBeInTheDocument();
   });
 
   it("submits anonymization requests and refreshes the request lifecycle", async () => {
@@ -126,8 +126,8 @@ describe("PrivacyPanel", () => {
 
     renderPanel();
 
-    await user.type(await screen.findByRole("textbox", { name: "Optional note" }), "Please anonymize my account.");
-    await user.click(screen.getByRole("button", { name: "Submit anonymization request" }));
+    await user.type(await screen.findByRole("textbox", { name: "Ghi chú tùy chọn" }), "Please anonymize my account.");
+    await user.click(screen.getByRole("button", { name: "Gửi yêu cầu ẩn danh dữ liệu" }));
 
     await waitFor(() => {
       expect(mocks.createPrivacyRequest).toHaveBeenCalledWith("Please anonymize my account.");

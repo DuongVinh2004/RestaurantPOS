@@ -68,6 +68,79 @@ const TableBoardCandidateReservationsTable = lazy(
   () => import('./TableBoardAssignmentTables').then((module) => ({ default: module.TableBoardCandidateReservationsTable })),
 );
 
+function normalizeDisplayToken(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim()
+    .toUpperCase();
+}
+
+function formatBoardZone(zone: string | null | undefined): string {
+  const raw = zone?.trim();
+  if (!raw) {
+    return 'Chưa có khu';
+  }
+
+  const normalized = normalizeDisplayToken(raw);
+  if (normalized === 'A' || normalized === 'KHU A' || normalized === 'MAIN' || normalized === 'TANG TRET') {
+    return 'Khu A';
+  }
+
+  if (normalized === 'B' || normalized === 'KHU B' || normalized === 'PATIO' || normalized === 'SAN VUON') {
+    return 'Khu B';
+  }
+
+  if (normalized === 'VIP') {
+    return 'VIP';
+  }
+
+  if (normalized.startsWith('VIP ')) {
+    return raw.replace(/^vip/i, 'VIP');
+  }
+
+  if (/^[A-Z]$/.test(normalized)) {
+    return `Khu ${normalized}`;
+  }
+
+  return raw;
+}
+
+function trailingTableNumber(tableCode: string): number | null {
+  const match = tableCode.trim().match(/(\d+)\s*$/);
+  if (!match) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(match[1], 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function formatBoardTableName(tableCode: string | null | undefined, zone: string | null | undefined, tableId?: number | null): string {
+  const raw = tableCode?.trim();
+  const zoneLabel = formatBoardZone(zone);
+
+  if (raw && /^(bàn|ban)\s+/i.test(raw)) {
+    return raw.replace(/^(bàn|ban)\s+/i, 'Bàn ');
+  }
+
+  if (raw && /^vip\s+/i.test(raw)) {
+    return raw.replace(/^vip\s+/i, 'VIP ');
+  }
+
+  const number = raw ? trailingTableNumber(raw) : null;
+  if (number !== null) {
+    return zoneLabel.toUpperCase().startsWith('VIP') ? `VIP ${number}` : `Bàn ${number}`;
+  }
+
+  if (typeof tableId === 'number' && tableId > 0) {
+    return zoneLabel.toUpperCase().startsWith('VIP') ? `VIP ${tableId}` : `Bàn ${tableId}`;
+  }
+
+  return raw || 'Bàn chưa đặt tên';
+}
+
 function tableCardActionCopy(row: StaffTableBoardRow): string {
   const boardState = (row.board_state ?? '').toLowerCase();
 
@@ -134,7 +207,7 @@ function buildTableCardContext(row: StaffTableBoardRow): {
 
   if ((row.board_state ?? '').toLowerCase() === 'available') {
     return {
-      label: 'Trạng thái',
+      label: 'Sẵn sàng',
       value: 'Trống & sẵn nhận khách',
       meta: 'Không có đặt bàn hoặc đơn đang giữ bàn',
     };
@@ -275,6 +348,9 @@ export function TableBoardPage() {
     () => (selectedTable ? buildTableCardContext(selectedTable) : null),
     [selectedTable],
   );
+  const selectedTableDisplayName = selectedTable
+    ? formatBoardTableName(selectedTable.table_code, selectedTable.zone, selectedTable.table_id)
+    : null;
 
   useEffect(() => {
     if (!selectedTable) {
@@ -283,7 +359,7 @@ export function TableBoardPage() {
 
     setTableContext({
       tableId: selectedTable.table_id,
-      label: buildTableContextLabel(selectedTable.table_code, selectedTable.table_id),
+      label: buildTableContextLabel(selectedTableDisplayName, selectedTable.table_id),
       source: 'board',
     });
     setReservationContext({
@@ -301,7 +377,7 @@ export function TableBoardPage() {
       label: buildOrderContextLabel(selectedTable.active_order?.order_id ?? null),
       source: 'board',
     });
-  }, [selectedTable, setOrderContext, setReservationContext, setTableContext]);
+  }, [selectedTable, selectedTableDisplayName, setOrderContext, setReservationContext, setTableContext]);
 
   const selectedTableHasWalkInDraft = selectedTable ? Boolean(walkInDrafts[selectedTable.table_id]) : false;
   const moveTableTargetOptions = useMemo(
@@ -310,7 +386,7 @@ export function TableBoardPage() {
         .filter((row) => row.table_id !== selectedTable?.table_id && row.availability.accepts_new_assignment)
         .map((row) => ({
           value: row.table_id,
-          label: `${row.table_code} • ${row.zone ?? 'Chưa có khu'} • ${row.capacity.seats ?? 'Không rõ'} chỗ`,
+          label: `${formatBoardTableName(row.table_code, row.zone, row.table_id)} • ${formatBoardZone(row.zone)} • ${row.capacity.seats ?? 'Không rõ'} chỗ`,
         })),
     [boardData?.data, selectedTable?.table_id],
   );
@@ -458,7 +534,7 @@ export function TableBoardPage() {
     onMutate: () => {
       mutationFeedback.setSubmitting(
         'Xếp khách vào bàn',
-        `Đang tạo phiên khách mới cho ${selectedTable?.table_code ?? 'bàn đang chọn'} và khóa thao tác gửi lặp.`,
+        `Đang tạo phiên khách mới cho ${selectedTableDisplayName ?? 'bàn đang chọn'} và khóa thao tác gửi lặp.`,
       );
     },
     mutationFn: async (values: WalkInFormValues) => {
@@ -499,12 +575,12 @@ export function TableBoardPage() {
       });
       setTableContext({
         tableId: selectedTable?.table_id ?? null,
-        label: buildTableContextLabel(selectedTable?.table_code ?? null, selectedTable?.table_id ?? null),
+        label: buildTableContextLabel(selectedTableDisplayName, selectedTable?.table_id ?? null),
         source: 'board',
       });
       mutationFeedback.setSuccess(
         'Xếp khách vào bàn',
-        `Đã tạo ${reservation.reservation_code} và mở tiếp luồng order cho bàn ${selectedTable?.table_code ?? 'đang chọn'}.`,
+        `Đã tạo ${reservation.reservation_code} và mở tiếp luồng order cho ${selectedTableDisplayName ?? 'bàn đang chọn'}.`,
       );
       navigate(`${staffRoutePaths.ops.orders}?${buildJourneySearch({
         source: 'board',
@@ -525,7 +601,7 @@ export function TableBoardPage() {
     onMutate: () => {
       mutationFeedback.setSubmitting(
         'Tạo đặt bàn hộ',
-        `Đang lưu guest snapshot và tạo đặt bàn mới cho ${selectedTable?.table_code ?? 'bàn đang chọn'}.`,
+        `Đang lưu guest snapshot và tạo đặt bàn mới cho ${selectedTableDisplayName ?? 'bàn đang chọn'}.`,
       );
     },
     mutationFn: async (values: ReservationCreateFormValues) => {
@@ -553,7 +629,7 @@ export function TableBoardPage() {
       });
       setTableContext({
         tableId: selectedTable?.table_id ?? null,
-        label: buildTableContextLabel(selectedTable?.table_code ?? null, selectedTable?.table_id ?? null),
+        label: buildTableContextLabel(selectedTableDisplayName, selectedTable?.table_id ?? null),
         source: 'board',
       });
       mutationFeedback.setSuccess(
@@ -610,7 +686,7 @@ export function TableBoardPage() {
       });
       setTableContext({
         tableId: table.table_id,
-        label: buildTableContextLabel(table.table_code, table.table_id),
+        label: buildTableContextLabel(formatBoardTableName(table.table_code, table.zone, table.table_id), table.table_id),
         source: 'board',
       });
       mutationFeedback.setSuccess(
@@ -636,7 +712,7 @@ export function TableBoardPage() {
     onMutate: () => {
       mutationFeedback.setSubmitting(
         'Gán vào bàn đang chọn',
-        `Đang gán reservation vào ${selectedTable?.table_code ?? 'bàn hiện tại'} theo ngữ cảnh board.`,
+        `Đang gán reservation vào ${selectedTableDisplayName ?? 'bàn hiện tại'} theo ngữ cảnh board.`,
       );
     },
     mutationFn: async (reservation: { reservationId: number; rowVersion: number }) => {
@@ -666,7 +742,7 @@ export function TableBoardPage() {
       });
       mutationFeedback.setSuccess(
         'Gán vào bàn đang chọn',
-        `Đã gán ${reservation.reservation_code} vào ${selectedTable?.table_code ?? 'bàn hiện tại'}.`,
+        `Đã gán ${reservation.reservation_code} vào ${selectedTableDisplayName ?? 'bàn hiện tại'}.`,
       );
     },
     onError: (error) => {
@@ -743,6 +819,9 @@ export function TableBoardPage() {
       const nextOrderId = selectedTable.active_order?.order_id;
       const nextOrderRowVersion = selectedTable.active_order?.row_version ?? null;
       const nextTable = boardData?.data.find((row) => row.table_id === values.to_table_id) ?? null;
+      const nextTableDisplayName = nextTable
+        ? formatBoardTableName(nextTable.table_code, nextTable.zone, nextTable.table_id)
+        : `bàn #${values.to_table_id}`;
 
       setMoveTableOpen(false);
 
@@ -759,7 +838,7 @@ export function TableBoardPage() {
       });
       setTableContext({
         tableId: values.to_table_id,
-        label: buildTableContextLabel(nextTable?.table_code ?? null, values.to_table_id),
+        label: buildTableContextLabel(nextTableDisplayName, values.to_table_id),
         source: 'board',
       });
       if (nextOrderId) {
@@ -773,7 +852,7 @@ export function TableBoardPage() {
 
       mutationFeedback.setSuccess(
         'Chuyển bàn',
-        `Đã chuyển ${selectedTable.reservation.reservation_code} sang ${nextTable?.table_code ?? `bàn #${values.to_table_id}`}.`,
+        `Đã chuyển ${selectedTable.reservation.reservation_code} sang ${nextTableDisplayName}.`,
       );
                     navigate(`${staffRoutePaths.ops.orders}?${buildJourneySearch({
         source: 'board',
@@ -797,7 +876,7 @@ export function TableBoardPage() {
     onMutate: (table) => {
       mutationFeedback.setSubmitting(
         'Trả bàn',
-        `Đang trả ${table.table_code} về trạng thái sẵn sàng nhận khách.`,
+        `Đang trả ${formatBoardTableName(table.table_code, table.zone, table.table_id)} về trạng thái sẵn sàng nhận khách.`,
       );
     },
     mutationFn: async (table: StaffTableBoardRow) => releaseStaffTable(table.table_id),
@@ -818,7 +897,7 @@ export function TableBoardPage() {
       });
       setTableContext({
         tableId: table.table_id,
-        label: buildTableContextLabel(table.table_code, table.table_id),
+        label: buildTableContextLabel(formatBoardTableName(table.table_code, table.zone, table.table_id), table.table_id),
         source: 'board',
       });
       updateBoardSearch(
@@ -832,7 +911,7 @@ export function TableBoardPage() {
 
       mutationFeedback.setSuccess(
         'Trả bàn',
-        `Đã trả ${String(response.data?.table_code ?? table.table_code)} về trạng thái sẵn sàng nhận khách.`,
+        `Đã trả ${formatBoardTableName(String(response.data?.table_code ?? table.table_code), table.zone, table.table_id)} về trạng thái sẵn sàng nhận khách.`,
       );
     },
     onError: (error) => {
@@ -854,7 +933,7 @@ export function TableBoardPage() {
           <div className="staff-mini-list">
             <div className="staff-mini-list-item">
               <Typography.Text strong>Bàn hiện tại</Typography.Text>
-              <Typography.Text type="secondary">{table.table_code}</Typography.Text>
+              <Typography.Text type="secondary">{formatBoardTableName(table.table_code, table.zone, table.table_id)}</Typography.Text>
             </div>
             <div className="staff-mini-list-item">
               <Typography.Text strong>Số khách</Typography.Text>
@@ -880,7 +959,7 @@ export function TableBoardPage() {
 
   async function handleReleaseTable(table: StaffTableBoardRow) {
     const confirmed = await confirmAction({
-      title: `Trả bàn ${table.table_code}`,
+      title: `Trả bàn ${formatBoardTableName(table.table_code, table.zone, table.table_id)}`,
       danger: true,
       content: (
         <Space direction="vertical" size={10}>
@@ -923,7 +1002,7 @@ export function TableBoardPage() {
           context={(
             <>
               <StatusChip label={branchId ? 'Đúng chi nhánh đang chọn' : 'Theo branch mặc định'} tone="default" variant="freshness" />
-              <StatusChip label={selectedTable ? `${selectedTable.table_code} • ${translateUiCode(selectedTable.board_state)}` : 'Chưa chọn bàn'} tone={selectedTable ? tableTone(selectedTable.board_state) : 'warning'} variant="entity" />
+              <StatusChip label={selectedTable ? `${selectedTableDisplayName} • ${translateUiCode(selectedTable.board_state)}` : 'Chưa chọn bàn'} tone={selectedTable ? tableTone(selectedTable.board_state) : 'warning'} variant="entity" />
               <StatusChip label={`Realtime v${boardRealtimeVersion ?? 0}`} tone="processing" variant="freshness" />
             </>
           )}
@@ -943,7 +1022,7 @@ export function TableBoardPage() {
                   <option value="">Lọc theo khu</option>
                   {(boardData?.zones ?? []).map((zoneSummary) => (
                     <option key={zoneSummary.zone} value={zoneSummary.zone}>
-                      {`${zoneSummary.zone} (${zoneSummary.summary.table_count})`}
+                      {`${formatBoardZone(zoneSummary.zone)} (${zoneSummary.summary.table_count})`}
                     </option>
                   ))}
                 </select>
@@ -966,7 +1045,7 @@ export function TableBoardPage() {
           </div>
           <div className="staff-table-board-summary-item">
             <span>Khu</span>
-            <strong>{zone ?? 'Tất cả'}</strong>
+            <strong>{zone ? formatBoardZone(zone) : 'Tất cả'}</strong>
           </div>
           <div className="staff-table-board-summary-item">
             <span>Realtime</span>
@@ -1002,6 +1081,8 @@ export function TableBoardPage() {
         {(boardData?.data ?? []).map((row) => {
           const isSelected = row.table_id === selectedTableId;
           const cardContext = buildTableCardContext(row);
+          const tableDisplayName = formatBoardTableName(row.table_code, row.zone, row.table_id);
+          const zoneDisplayName = formatBoardZone(row.zone);
 
           return (
             <Card
@@ -1009,7 +1090,7 @@ export function TableBoardPage() {
               role="button"
               tabIndex={0}
               aria-pressed={isSelected}
-              aria-label={`${row.table_code} - ${translateUiCode(row.board_state)}. ${cardContext.value}. ${tableCardActionCopy(row)}.`}
+              aria-label={`${tableDisplayName} - ${translateUiCode(row.board_state)}. ${cardContext.value}. ${tableCardActionCopy(row)}.`}
               className={`staff-table-board-card staff-table-board-card-${tableTone(row.board_state)} ${isSelected ? 'staff-card-selected' : ''}`}
               onClick={() => selectBoardRow(row)}
               onKeyDown={(event) => {
@@ -1021,12 +1102,12 @@ export function TableBoardPage() {
             >
               <div className="staff-table-board-card-shell">
                 <div className="staff-table-board-card-top">
-                  <span className="staff-table-board-zone">{row.zone ?? 'Chưa có khu'}</span>
+                  <span className="staff-table-board-zone">{zoneDisplayName}</span>
                   <StatusChip label={row.board_state} tone={tableTone(row.board_state)} />
                 </div>
 
                 <div className="staff-table-board-card-identity">
-                  <Typography.Title level={4}>{row.table_code}</Typography.Title>
+                  <Typography.Title level={4}>{tableDisplayName}</Typography.Title>
                   <span>{row.capacity.seats ?? 'Không có'} chỗ</span>
                 </div>
 
@@ -1037,10 +1118,7 @@ export function TableBoardPage() {
                 </div>
 
                 <div className="staff-table-board-card-footer">
-                  <div className="staff-table-board-next-action">
-                    <span>Tiếp theo</span>
-                    <strong>{tableCardActionCopy(row)}</strong>
-                  </div>
+                  <strong className="staff-table-board-next-action">{tableCardActionCopy(row)}</strong>
                 </div>
               </div>
             </Card>
@@ -1105,12 +1183,12 @@ export function TableBoardPage() {
               <div className="staff-table-board-inspector-hero-head">
                 <div>
                   <span className="staff-table-board-inspector-label">Bàn đang xử lý</span>
-                  <Typography.Title level={3}>{selectedTable.table_code}</Typography.Title>
+                  <Typography.Title level={3}>{selectedTableDisplayName}</Typography.Title>
                 </div>
                 <StatusChip label={selectedTable.realtime_status} tone={tableTone(selectedTable.realtime_status)} />
               </div>
               <div className="staff-table-board-inspector-meta">
-                <span>{selectedTable.zone ?? 'Chưa có khu'}</span>
+                <span>{formatBoardZone(selectedTable.zone)}</span>
                 <span>{selectedTable.capacity.seats ?? 'Không có'} chỗ</span>
                 <span>{selectedTableCardContext?.value ?? translateUiCode(selectedTable.board_state)}</span>
               </div>
@@ -1252,7 +1330,7 @@ export function TableBoardPage() {
                     loading={releaseTableMutation.isPending}
                     disabled={selectedTable.reservation !== null || selectedTable.active_order !== null}
                   >
-                    Trả bàn về Available
+                    Trả bàn về sẵn bàn
                   </Button>
                 ) : null}
                 {selectedTableHasWalkInDraft ? (
@@ -1328,9 +1406,9 @@ export function TableBoardPage() {
             phoneReservationSubmitting={createPhoneReservationMutation.isPending}
             moveTableOpen={moveTableOpen}
             moveTableSubmitting={moveTableMutation.isPending}
-            selectedTableCode={selectedTable?.table_code ?? null}
+            selectedTableCode={selectedTableDisplayName}
             moveTableReservationCode={selectedTable?.reservation?.reservation_code ?? null}
-            moveTableSourceCode={selectedTable?.table_code ?? null}
+            moveTableSourceCode={selectedTableDisplayName}
             moveTableTargetOptions={moveTableTargetOptions}
             onWalkInCancel={closeWalkInForm}
             onWalkInSubmit={(values) => walkInMutation.mutate(values)}

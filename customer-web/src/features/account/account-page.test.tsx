@@ -86,7 +86,7 @@ describe("AccountPage", () => {
   it("keeps benefits gated and avoids live loyalty or voucher queries when the rollout is off", () => {
     renderAccountPage();
 
-    expect(screen.getByText("Account rollout shell")).toBeInTheDocument();
+    expect(screen.getByText("Công cụ tài khoản")).toBeInTheDocument();
     expect(screen.getAllByText("Benefits are not in this rollout").length).toBeGreaterThanOrEqual(3);
     expect(screen.getAllByText(/enable the account-benefits rollout flag/i).length).toBeGreaterThanOrEqual(1);
     expect(mocks.getLoyalty).not.toHaveBeenCalled();
@@ -158,12 +158,12 @@ describe("AccountPage", () => {
       expect(mocks.listVouchers).toHaveBeenCalledWith({ bucket: "all", per_page: 24 });
     });
 
-    expect(await screen.findByText("Benefits rollout proof enabled")).toBeInTheDocument();
-    expect(screen.getByText(/wave 2 benefits stay behind an explicit rollout flag/i)).toBeInTheDocument();
-    expect(screen.getByText("Bronze tier visible")).toBeInTheDocument();
-    expect(screen.getAllByText("Vouchers not eligible right now").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("Not eligible").length).toBeGreaterThanOrEqual(1);
+    expect(await screen.findByText("Ưu đãi đã sẵn sàng")).toBeInTheDocument();
+    expect(screen.getByText(/Bạn có thể xem điểm thưởng, voucher/i)).toBeInTheDocument();
+    expect(screen.getByText("Hạng Bronze đang hiển thị")).toBeInTheDocument();
+    expect(screen.getAllByText("Voucher chưa đủ điều kiện").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Chưa đủ điều kiện").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Spend more before this voucher can apply.")).toBeInTheDocument();
-    expect(screen.getByText(/reservation benefits panel with the latest reservation row version/i)).toBeInTheDocument();
+    expect(screen.getByText(/Thao tác áp dụng hoặc gỡ voucher nằm trong chi tiết lịch đặt/i)).toBeInTheDocument();
   });
 });

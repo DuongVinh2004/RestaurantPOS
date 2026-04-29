@@ -66,7 +66,7 @@ describe("waiting-list state helpers", () => {
     const policy = getWaitingListOwnerActionPolicy(createWaitingListEntry());
 
     expect(policy.availableActions).toEqual(["cancel"]);
-    expect(policy.title).toBe("Cancel is available");
+    expect(policy.title).toBe("Có thể hủy đăng ký chờ");
   });
 
   it("derives active invite actions from backend available_actions", () => {
@@ -104,7 +104,7 @@ describe("waiting-list state helpers", () => {
     );
 
     expect(policy.availableActions).toEqual(["accept", "arrival", "decline", "cancel"]);
-    expect(policy.title).toBe("Invite response available");
+    expect(policy.title).toBe("Có lời mời cần phản hồi");
   });
 
   it("uses response_state to reduce actions after acceptance without localized text inference", () => {
@@ -140,7 +140,7 @@ describe("waiting-list state helpers", () => {
 
     expect(journey.state).toBe("accepted");
     expect(policy.availableActions).toEqual(["arrival", "decline", "cancel"]);
-    expect(policy.title).toBe("Arrival confirmation available");
+    expect(policy.title).toBe("Có thể xác nhận đã đến");
   });
 
   it("uses response_state to keep arrival-confirmed entries read-only until staff seating", () => {
@@ -176,7 +176,7 @@ describe("waiting-list state helpers", () => {
     const journey = getWaitingListJourneyState(entry);
 
     expect(policy.availableActions).toEqual([]);
-    expect(policy.title).toBe("Waiting for staff seating");
+    expect(policy.title).toBe("Đang chờ nhân viên xếp bàn");
     expect(journey.state).toBe("arrival_confirmed");
     expect(seatResult.state).toBe("waiting_for_staff");
     expect(seatResult.reservationId).toBeNull();

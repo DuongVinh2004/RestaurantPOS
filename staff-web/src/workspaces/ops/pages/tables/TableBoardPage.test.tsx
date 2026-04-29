@@ -176,13 +176,14 @@ describe('TableBoardPage', () => {
 
     renderWithProviders('/ops/tables');
 
-    const card = await screen.findByRole('button', { name: /MAIN-S-01/i });
+    const card = await screen.findByRole('button', { name: /Bàn 1/i });
 
     expect(within(card).getAllByText('Sẵn bàn')).toHaveLength(1);
     expect(within(card).queryByText('Gợi ý')).not.toBeInTheDocument();
-    expect(within(card).getByText('Trạng thái')).toBeInTheDocument();
+    expect(within(card).getByText('Khu B')).toBeInTheDocument();
+    expect(within(card).getByText('Sẵn sàng')).toBeInTheDocument();
     expect(within(card).getByText('Trống & sẵn nhận khách')).toBeInTheDocument();
-    expect(within(card).getByText('Tiếp theo')).toBeInTheDocument();
+    expect(within(card).queryByText('Tiếp theo')).not.toBeInTheDocument();
     expect(within(card).getByText('Xếp khách vào bàn')).toBeInTheDocument();
   });
 
@@ -252,11 +253,13 @@ describe('TableBoardPage', () => {
 
     renderWithProviders('/ops/tables?source=board&table_id=21');
 
-    const selectedCard = await screen.findByRole('button', { name: /MAIN-S-01/i });
-    const reservedCard = await screen.findByRole('button', { name: /MAIN-S-02/i });
+    const selectedCard = await screen.findByRole('button', { name: /Bàn 1/i });
+    const reservedCard = await screen.findByRole('button', { name: /Bàn 2/i });
 
     expect(within(selectedCard).getByText('Xếp khách vào bàn')).toBeInTheDocument();
     expect(within(selectedCard).queryByText('Đang mở chi tiết')).not.toBeInTheDocument();
+    expect(within(reservedCard).getByText('Đã đặt')).toBeInTheDocument();
+    expect(within(reservedCard).queryByText('reserved_in_range')).not.toBeInTheDocument();
     expect(within(reservedCard).getByText('Nhận khách vào bàn')).toBeInTheDocument();
   });
 
@@ -355,7 +358,7 @@ describe('TableBoardPage', () => {
 
     renderWithProviders('/ops/tables?source=board&table_id=33');
 
-    fireEvent.click(await screen.findByRole('button', { name: /Available/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Trả bàn về sẵn bàn/i }));
 
     await waitFor(() => expect(confirmActionMock).toHaveBeenCalled());
     await waitFor(() => expect(apiMocks.releaseStaffTable).toHaveBeenCalledWith(33));
@@ -381,7 +384,7 @@ describe('TableBoardPage', () => {
 
     renderWithProviders('/ops/tables?source=board&table_id=33&reservation_id=44&reservation_row_version=4&order_id=501&order_row_version=13');
 
-    fireEvent.click(await screen.findByRole('button', { name: /Available/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Trả bàn về sẵn bàn/i }));
 
     await waitFor(() => expect(apiMocks.releaseStaffTable).toHaveBeenCalledWith(33));
     await waitFor(() => {

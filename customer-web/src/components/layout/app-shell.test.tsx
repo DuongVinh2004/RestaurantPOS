@@ -66,9 +66,9 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    expect(screen.queryByRole("link", { name: "Wait list" })).not.toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: "Sign in" }).length).toBeGreaterThan(0);
-    expect(screen.queryByLabelText("Quick navigation")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Danh sách chờ" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Đăng nhập" }).length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText("Điều hướng nhanh")).not.toBeInTheDocument();
   });
 
   it("shows quick mobile navigation for authenticated customers", () => {
@@ -87,8 +87,8 @@ describe("AppShell", () => {
 
     expect(screen.getAllByText("Casey")).toHaveLength(2);
 
-    const quickNav = screen.getByLabelText("Quick navigation");
-    expect(within(quickNav).getByRole("link", { name: "Reservations" })).toBeInTheDocument();
-    expect(within(quickNav).getByRole("link", { name: "Account" })).toBeInTheDocument();
+    const quickNav = screen.getByLabelText("Điều hướng nhanh");
+    expect(within(quickNav).getByRole("link", { name: "Lịch đặt" })).toBeInTheDocument();
+    expect(within(quickNav).getByRole("link", { name: "Tài khoản" })).toBeInTheDocument();
   });
 });

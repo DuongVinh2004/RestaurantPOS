@@ -20,7 +20,7 @@ class SiteBootstrapCommandTest extends TestCase
         config()->set('database.default', 'sqlite');
         config()->set('database.connections.sqlite.database', ':memory:');
         config()->set('booking.multi_branch.default_branch_code', 'MAIN');
-        config()->set('booking.multi_branch.default_branch_name', 'Chi nhanh chinh');
+        config()->set('booking.multi_branch.default_branch_name', 'Chi nhánh chính');
         config()->set('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh');
         config()->set('booking.multi_branch.default_branch_currency', 'VND');
         config()->set('booking.finance_tax_invoice_profile', [
@@ -61,14 +61,22 @@ class SiteBootstrapCommandTest extends TestCase
 
         $this->assertSame(8, (int) DB::table('roles')->count());
         $this->assertSame(1, (int) DB::table('branches')->count());
+        $this->assertSame('Chi nhánh chính', (string) DB::table('branches')->value('branch_name'));
         $this->assertSame(3, (int) DB::table('table_templates')->count());
         $this->assertSame(8, (int) DB::table('restaurant_tables')->count());
+        $this->assertSame(['Khu A', 'Khu B'], DB::table('restaurant_tables')->distinct()->orderBy('zone')->pluck('zone')->all());
         $this->assertSame(2, (int) DB::table('menu_categories')->count());
         $this->assertSame(3, (int) DB::table('menu_items')->count());
         $this->assertSame(3, (int) DB::table('menu_item_prices')->count());
         $this->assertSame(1, (int) DB::table('settings')->count());
         $this->assertSame(2, (int) DB::table('users')->count());
         $this->assertSame(1, (int) DB::table('staff_api_keys')->count());
+        $this->assertSame('Món chính', (string) DB::table('menu_categories')->where('sort_order', 20)->value('name'));
+        $this->assertSame('Cơm chiên hải sản', (string) DB::table('menu_items')->where('code', 'BOOT-FRIED-RICE')->value('name'));
+        $this->assertSame(
+            'Bún xào bò mềm với rau cải và nước sốt đậm vị.',
+            (string) DB::table('menu_items')->where('code', 'BOOT-NOODLE-BOWL')->value('description'),
+        );
 
         $secondExitCode = Artisan::call('booking:bootstrap-site', ['--json' => true]);
         $this->assertSame(0, $secondExitCode);
@@ -100,6 +108,23 @@ class SiteBootstrapCommandTest extends TestCase
         $this->assertSame('SITE01', $payload['data']['branch']['branch_code']);
         $this->assertSame(1, (int) DB::table('branches')->count());
         $this->assertSame('SITE01', (string) DB::table('branches')->value('branch_code'));
+    }
+
+    #[Group('booking-ops')]
+    public function test_bootstrap_site_command_renames_legacy_seed_menu_categories(): void
+    {
+        DB::table('menu_categories')->insert([
+            ['name' => 'Do uong', 'description' => 'Do uong khoi tao', 'sort_order' => 10, 'is_deleted' => false],
+            ['name' => 'Mon chinh', 'description' => 'Mon chinh khoi tao', 'sort_order' => 20, 'is_deleted' => false],
+        ]);
+
+        $exitCode = Artisan::call('booking:bootstrap-site', ['--json' => true]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertSame(2, (int) DB::table('menu_categories')->count());
+        $this->assertSame(0, (int) DB::table('menu_categories')->whereIn('name', ['Do uong', 'Mon chinh'])->count());
+        $this->assertSame('Đồ uống', (string) DB::table('menu_categories')->where('sort_order', 10)->value('name'));
+        $this->assertSame('Món chính', (string) DB::table('menu_categories')->where('sort_order', 20)->value('name'));
     }
 
     #[Group('booking-ops')]

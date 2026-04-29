@@ -83,9 +83,9 @@ describe("LoginPage", () => {
 
     renderPage();
 
-    await user.type(screen.getByLabelText("Email, phone, or customer id"), "demo@example.test");
-    await user.type(screen.getByLabelText("Password"), "password123");
-    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await user.type(screen.getByLabelText("Email, số điện thoại hoặc mã khách hàng"), "demo@example.test");
+    await user.type(screen.getByLabelText("Mật khẩu"), "password123");
+    await user.click(screen.getByRole("button", { name: "Đăng nhập" }));
 
     await waitFor(() => {
       expect(mocks.loginCustomer).toHaveBeenCalledWith({
@@ -94,7 +94,7 @@ describe("LoginPage", () => {
       }, expect.any(Object));
     });
     expect(mocks.markAuthenticated).toHaveBeenCalledWith(session);
-    expect(mocks.toastSuccess).toHaveBeenCalledWith("Signed in.");
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Đã đăng nhập.");
     expect(mocks.push).toHaveBeenCalledWith("/reservations");
   });
 
@@ -111,9 +111,9 @@ describe("LoginPage", () => {
 
     renderPage();
 
-    await user.type(screen.getByLabelText("Email, phone, or customer id"), "demo@example.test");
-    await user.type(screen.getByLabelText("Password"), "password123");
-    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await user.type(screen.getByLabelText("Email, số điện thoại hoặc mã khách hàng"), "demo@example.test");
+    await user.type(screen.getByLabelText("Mật khẩu"), "password123");
+    await user.click(screen.getByRole("button", { name: "Đăng nhập" }));
 
     await waitFor(() => {
       expect(mocks.push).toHaveBeenCalledWith("/reservations");
@@ -137,9 +137,9 @@ describe("LoginPage", () => {
 
     renderPage();
 
-    await user.type(screen.getByLabelText("Email, phone, or customer id"), "demo@example.test");
-    await user.type(screen.getByLabelText("Password"), "wrong-password");
-    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await user.type(screen.getByLabelText("Email, số điện thoại hoặc mã khách hàng"), "demo@example.test");
+    await user.type(screen.getByLabelText("Mật khẩu"), "wrong-password");
+    await user.click(screen.getByRole("button", { name: "Đăng nhập" }));
 
     expect(await screen.findByText("Invalid credentials.")).toBeInTheDocument();
     expect(mocks.markAuthenticated).not.toHaveBeenCalled();
@@ -162,10 +162,10 @@ describe("LoginPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Sign-in is blocked by runtime configuration")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign in" })).toBeDisabled();
+    expect(await screen.findByText("Chưa thể đăng nhập")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Đăng nhập" })).toBeDisabled();
 
-    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await user.click(screen.getByRole("button", { name: "Đăng nhập" }));
 
     expect(mocks.loginCustomer).not.toHaveBeenCalled();
   });

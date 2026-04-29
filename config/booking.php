@@ -424,7 +424,7 @@ return [
     // Multi-branch defaults for single-site compatibility and bootstrap.
     'multi_branch' => [
         'default_branch_code' => (string) env('BOOKING_DEFAULT_BRANCH_CODE', 'MAIN'),
-        'default_branch_name' => (string) env('BOOKING_DEFAULT_BRANCH_NAME', 'Chi nhanh chinh'),
+        'default_branch_name' => (string) env('BOOKING_DEFAULT_BRANCH_NAME', 'Chi nhánh chính'),
         'default_branch_timezone' => (string) env('BOOKING_DEFAULT_BRANCH_TIMEZONE', 'Asia/Ho_Chi_Minh'),
         'default_branch_currency' => (string) env('BOOKING_DEFAULT_BRANCH_CURRENCY', 'VND'),
     ],

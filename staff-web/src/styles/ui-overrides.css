@@ -1391,11 +1391,11 @@
 }
 
 .staff-table-board-card {
-  border-radius: var(--staff-radius-lg);
+  border-radius: 8px;
 }
 
 .staff-table-board-card-shell {
-  gap: 12px;
+  gap: 8px;
 }
 
 .staff-table-board-card-top {
@@ -1411,22 +1411,18 @@
 }
 
 .staff-table-board-card-context {
-  background: rgba(250, 246, 240, 0.92);
-  border: 1px solid rgba(221, 207, 188, 0.72);
-  border-radius: 16px;
   display: grid;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
-  padding: 10px 12px;
+  padding: 0;
 }
 
 .staff-table-board-context-label {
   color: var(--staff-text-tertiary);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.25;
 }
 
 .staff-table-board-context-value {
@@ -1457,18 +1453,13 @@
 }
 
 .staff-table-board-next-action {
-  background: rgba(244, 234, 222, 0.78);
-  border: 1px solid rgba(214, 186, 159, 0.48);
-  border-radius: 14px;
-  padding: 10px 12px;
+  background: transparent;
+  border: 0;
+  padding: 0;
   width: 100%;
 }
 
-.staff-table-board-next-action span {
-  color: var(--staff-text-tertiary);
-}
-
-.staff-table-board-next-action strong {
+.staff-table-board-next-action {
   color: #8f582d;
   display: block;
   font-size: 13px;

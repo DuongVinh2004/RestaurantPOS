@@ -82,13 +82,13 @@ describe("ProtectedRoute", () => {
 
     render(<ProtectedRoute><div>secret content</div></ProtectedRoute>);
 
-    expect(screen.getByText("We could not reach the restaurant service")).toBeInTheDocument();
-    expect(screen.queryByText("Sign in to continue")).not.toBeInTheDocument();
+    expect(screen.getByText("Chưa kết nối được với nhà hàng")).toBeInTheDocument();
+    expect(screen.queryByText("Đăng nhập để tiếp tục")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Retry session check" }));
+    await user.click(screen.getByRole("button", { name: "Kiểm tra lại phiên" }));
     expect(mocks.retryBootstrap).toHaveBeenCalledTimes(1);
 
-    await user.click(screen.getByRole("button", { name: "Reset session" }));
+    await user.click(screen.getByRole("button", { name: "Đặt lại phiên" }));
     expect(mocks.logout).toHaveBeenCalledTimes(1);
   });
 
@@ -108,13 +108,13 @@ describe("ProtectedRoute", () => {
 
     render(<ProtectedRoute><div>secret content</div></ProtectedRoute>);
 
-    expect(screen.getByText("Your session expired")).toBeInTheDocument();
-    expect(screen.queryByText("Sign in to continue")).not.toBeInTheDocument();
+    expect(screen.getByText("Phiên đăng nhập đã hết hạn")).toBeInTheDocument();
+    expect(screen.queryByText("Đăng nhập để tiếp tục")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Go to sign in" }));
+    await user.click(screen.getByRole("button", { name: "Đến trang đăng nhập" }));
     expect(mocks.logout).toHaveBeenCalledWith({ nextPath: "/reservations" });
 
-    await user.click(screen.getByRole("button", { name: "Reset session" }));
+    await user.click(screen.getByRole("button", { name: "Đặt lại phiên" }));
     expect(mocks.logout).toHaveBeenLastCalledWith();
   });
 
@@ -126,7 +126,7 @@ describe("ProtectedRoute", () => {
 
     render(<ProtectedRoute><div>secret content</div></ProtectedRoute>);
 
-    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Đăng nhập" })).toHaveAttribute(
       "href",
       "/login?next=%2Faccount%3Fview%3Dprofile",
     );
@@ -142,7 +142,7 @@ describe("ProtectedRoute", () => {
     render(<ProtectedRoute><div>reservation form</div></ProtectedRoute>);
 
     expect(screen.getByText("reservation form")).toBeInTheDocument();
-    expect(screen.queryByText("Sign in to continue")).not.toBeInTheDocument();
+    expect(screen.queryByText("Đăng nhập để tiếp tục")).not.toBeInTheDocument();
   });
 
   it("keeps account-only routes behind sign-in even when a customer session id exists", () => {
@@ -154,8 +154,8 @@ describe("ProtectedRoute", () => {
     render(<ProtectedRoute><div>account content</div></ProtectedRoute>);
 
     expect(screen.queryByText("account content")).not.toBeInTheDocument();
-    expect(screen.getByText("Sign in to continue")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login?next=%2Faccount");
+    expect(screen.getByText("Đăng nhập để tiếp tục")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Đăng nhập" })).toHaveAttribute("href", "/login?next=%2Faccount");
   });
 
   it("does not create a guest reservation session just to pass the route guard", () => {
@@ -167,9 +167,9 @@ describe("ProtectedRoute", () => {
     render(<ProtectedRoute><div>reservation form</div></ProtectedRoute>);
 
     expect(screen.queryByText("reservation form")).not.toBeInTheDocument();
-    expect(screen.getByText("Booking session needed")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Find a table" })).toHaveAttribute("href", "/booking");
-    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
+    expect(screen.getByText("Cần phiên đặt bàn")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Tìm bàn" })).toHaveAttribute("href", "/booking");
+    expect(screen.getByRole("link", { name: "Đăng nhập" })).toHaveAttribute(
       "href",
       "/login?next=%2Freservations%2Fnew%3Fhold_id%3Dhold-123",
     );
@@ -193,9 +193,9 @@ describe("ProtectedRoute", () => {
 
     render(<ProtectedRoute><div>secret content</div></ProtectedRoute>);
 
-    expect(await screen.findByText("Sign-in is blocked by runtime configuration")).toBeInTheDocument();
+    expect(await screen.findByText("Chưa thể đăng nhập")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Go to sign in" }));
+    await user.click(screen.getByRole("button", { name: "Đến trang đăng nhập" }));
 
     expect(mocks.logout).toHaveBeenCalledWith({ nextPath: "/reservations?view=active" });
   });

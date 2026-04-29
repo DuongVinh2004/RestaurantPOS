@@ -101,11 +101,11 @@ describe("ReservationCreatePage", () => {
 
     renderPage();
 
-    expect(await screen.findByText(/Using table hold hold-123/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Đang dùng bàn giữ hold-123/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue(holdStartTime)).toBeDisabled();
     expect(screen.getByDisplayValue("90")).toBeDisabled();
     expect(screen.getByDisplayValue("4")).toBeDisabled();
-    expect(screen.getByText(/Search again if you need to change visit details/i)).toBeInTheDocument();
+    expect(screen.getByText(/tìm lại nếu bạn cần đổi thông tin/i)).toBeInTheDocument();
   });
 
   it("refreshes and releases the linked hold from the reservation form", async () => {
@@ -134,12 +134,12 @@ describe("ReservationCreatePage", () => {
 
     renderPage();
 
-    await screen.findByText(/Using table hold hold-123/i);
-    await user.click(screen.getByRole("button", { name: "Refresh hold" }));
+    await screen.findByText(/Đang dùng bàn giữ hold-123/i);
+    await user.click(screen.getByRole("button", { name: "Gia hạn giữ bàn" }));
 
     expect(mocks.refreshTableHold).toHaveBeenCalledWith("hold-123", 2);
 
-    await user.click(await screen.findByRole("button", { name: "Release hold" }));
+    await user.click(await screen.findByRole("button", { name: "Nhả bàn" }));
 
     expect(mocks.cancelTableHold).toHaveBeenCalledWith("hold-123", 3);
   });
@@ -162,9 +162,9 @@ describe("ReservationCreatePage", () => {
 
     renderPage();
 
-    expect(await screen.findByText(/is no longer active/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create reservation" })).toBeDisabled();
-    expect(screen.getByRole("link", { name: "Search availability again" })).toHaveAttribute("href", "/booking");
+    expect(await screen.findByText(/không còn hiệu lực/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tạo lịch đặt" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "Tìm bàn trống lại" })).toHaveAttribute("href", "/booking");
   });
 
   it("blocks reservation create when the linked hold cannot be verified live", async () => {
@@ -180,8 +180,39 @@ describe("ReservationCreatePage", () => {
 
     renderPage();
 
-    expect(await screen.findByText(/could not be verified/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create reservation" })).toBeDisabled();
-    expect(screen.getByRole("link", { name: "Search availability again" })).toHaveAttribute("href", "/booking");
+    expect(await screen.findByText(/Chưa xác minh được bàn giữ hold-123/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tạo lịch đặt" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "Tìm bàn trống lại" })).toHaveAttribute("href", "/booking");
+  });
+
+  it("creates a reservation with the verified hold context and redirects to detail", async () => {
+    const user = userEvent.setup();
+
+    mocks.createReservation.mockResolvedValue({
+      reservation_id: 501,
+      reservation_code: "RSV-501",
+      status: "Confirmed",
+      row_version: 1,
+      guest_count: 4,
+    });
+
+    renderPage();
+
+    await screen.findByText(/Đang dùng bàn giữ hold-123/i);
+    await user.type(screen.getByLabelText("Tên khách"), "Demo Customer");
+    await user.type(screen.getByLabelText("Số điện thoại"), "5550100");
+    await user.type(screen.getByLabelText("Ghi chú"), "Window seat");
+    await user.click(screen.getByRole("button", { name: "Tạo lịch đặt" }));
+
+    expect(mocks.createReservation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        guest_name: "Demo Customer",
+        guest_phone: "5550100",
+        notes: "Window seat",
+        hold_id: "hold-123",
+        table_ids: [7, 8],
+      }),
+    );
+    expect(mocks.push).toHaveBeenCalledWith("/reservations/501");
   });
 });

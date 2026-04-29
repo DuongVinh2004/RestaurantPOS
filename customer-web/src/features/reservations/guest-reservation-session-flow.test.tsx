@@ -140,14 +140,14 @@ describe("guest hold to reservation session flow", () => {
 
     renderFlow();
 
-    expect(await screen.findByText(/Using table hold hold-guest-123/i)).toBeInTheDocument();
-    expect(screen.queryByText("Sign in to continue")).not.toBeInTheDocument();
+    expect(await screen.findByText(/Đang dùng bàn giữ hold-guest-123/i)).toBeInTheDocument();
+    expect(screen.queryByText("Đăng nhập để tiếp tục")).not.toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("Guest name"), "Guest Booker");
-    await user.type(screen.getByLabelText("Phone"), "5550100");
+    await user.type(screen.getByLabelText("Tên khách"), "Guest Booker");
+    await user.type(screen.getByLabelText("Số điện thoại"), "5550100");
     await user.type(screen.getByLabelText("Email"), "guest@example.test");
-    await user.type(screen.getByLabelText("Notes"), "Window seat");
-    await user.click(screen.getByRole("button", { name: "Create reservation" }));
+    await user.type(screen.getByLabelText("Ghi chú"), "Window seat");
+    await user.click(screen.getByRole("button", { name: "Tạo lịch đặt" }));
 
     await waitFor(() => {
       expect(mocks.createReservation).toHaveBeenCalledWith(

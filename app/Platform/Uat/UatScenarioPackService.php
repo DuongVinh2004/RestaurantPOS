@@ -125,10 +125,10 @@ class UatScenarioPackService
 
             $bootstrap = $this->siteBootstrapService->bootstrap([
                 'branch_code' => self::BRANCH_CODE,
-                'branch_name' => 'UAT Demo Branch',
+                'branch_name' => 'Chi nhánh UAT',
                 'timezone' => 'Asia/Ho_Chi_Minh',
                 'currency' => 'VND',
-                'zones' => 'Main,Patio,VIP',
+                'zones' => 'Khu A,Khu B,VIP',
                 'tables_per_zone' => 4,
                 'admin_username' => (string) self::USERS['admin']['username'],
                 'admin_name' => (string) self::USERS['admin']['full_name'],
@@ -626,26 +626,26 @@ class UatScenarioPackService
     private function ensureCanonicalMenu(): array
     {
         $categoryIds = [
-            'signatures' => $this->upsertMenuCategory('UAT Signatures', 'Canonical UAT mains and signatures.', 10),
-            'drinks' => $this->upsertMenuCategory('UAT Drinks', 'Canonical UAT beverage catalog.', 20),
+            'signatures' => $this->upsertMenuCategory('Món chính UAT', 'Các món chính dùng cho kiểm thử UAT.', 10, ['UAT Signatures']),
+            'drinks' => $this->upsertMenuCategory('Đồ uống UAT', 'Đồ uống dùng cho kiểm thử UAT.', 20, ['UAT Drinks']),
         ];
 
         return [
             'categories' => [
                 'signatures' => [
                     'category_id' => $categoryIds['signatures'],
-                    'name' => 'UAT Signatures',
+                    'name' => 'Món chính UAT',
                 ],
                 'drinks' => [
                     'category_id' => $categoryIds['drinks'],
-                    'name' => 'UAT Drinks',
+                    'name' => 'Đồ uống UAT',
                 ],
             ],
             'items' => [
-                'steak' => $this->upsertMenuItem(self::MENU_CODES['steak'], $categoryIds['signatures'], 'UAT Pepper Steak', 'Signature steak for checkout and benefits demos.', '180000.00'),
-                'pho' => $this->upsertMenuItem(self::MENU_CODES['pho'], $categoryIds['signatures'], 'UAT Beef Pho', 'Fallback hot main for table-order flows.', '95000.00'),
-                'dessert' => $this->upsertMenuItem(self::MENU_CODES['dessert'], $categoryIds['signatures'], 'UAT Caramel Flan', 'Dessert for add-item checks.', '45000.00'),
-                'tea' => $this->upsertMenuItem(self::MENU_CODES['tea'], $categoryIds['drinks'], 'UAT Peach Tea', 'Drink for menu and order-item demos.', '35000.00'),
+                'steak' => $this->upsertMenuItem(self::MENU_CODES['steak'], $categoryIds['signatures'], 'Bò lúc lắc', 'Bò xào sốt tiêu đen, ăn kèm khoai tây và rau xà lách.', '180000.00'),
+                'pho' => $this->upsertMenuItem(self::MENU_CODES['pho'], $categoryIds['signatures'], 'Phở bò', 'Phở bò nước dùng đậm vị, dùng cho luồng gọi món tại bàn.', '95000.00'),
+                'dessert' => $this->upsertMenuItem(self::MENU_CODES['dessert'], $categoryIds['signatures'], 'Bánh flan caramel', 'Món tráng miệng dùng cho kiểm thử thêm món.', '45000.00'),
+                'tea' => $this->upsertMenuItem(self::MENU_CODES['tea'], $categoryIds['drinks'], 'Trà đào', 'Trà đào mát lạnh dùng cho luồng thực đơn và gọi món.', '35000.00'),
             ],
         ];
     }
@@ -1395,14 +1395,14 @@ class UatScenarioPackService
             ->get();
 
         return [
-            'main_2p' => $this->resolveTableManifestEntry($tableRows, self::BRANCH_CODE.'-MAIN-01', 'Main', 2),
-            'main_4p' => $this->resolveTableManifestEntry($tableRows, self::BRANCH_CODE.'-MAIN-02', 'Main', 4),
-            'patio_4p' => $this->resolveTableManifestEntry($tableRows, self::BRANCH_CODE.'-PATIO-02', 'Patio', 4),
+            'main_2p' => $this->resolveTableManifestEntry($tableRows, self::BRANCH_CODE.'-KHU-A-01', 'Khu A', 2),
+            'main_4p' => $this->resolveTableManifestEntry($tableRows, self::BRANCH_CODE.'-KHU-A-02', 'Khu A', 4),
+            'patio_4p' => $this->resolveTableManifestEntry($tableRows, self::BRANCH_CODE.'-KHU-B-02', 'Khu B', 4),
             'vip_4p' => $this->resolveTableManifestEntry($tableRows, self::BRANCH_CODE.'-VIP-02', 'VIP', 4),
             'templates' => [
-                '2p' => $this->resolveTemplateManifestEntry($tableRows, self::BRANCH_CODE.'-MAIN-01', 'Main', 2),
-                '4p' => $this->resolveTemplateManifestEntry($tableRows, self::BRANCH_CODE.'-MAIN-02', 'Main', 4),
-                '6p' => $this->resolveTemplateManifestEntry($tableRows, self::BRANCH_CODE.'-MAIN-04', 'Main', 6),
+                '2p' => $this->resolveTemplateManifestEntry($tableRows, self::BRANCH_CODE.'-KHU-A-01', 'Khu A', 2),
+                '4p' => $this->resolveTemplateManifestEntry($tableRows, self::BRANCH_CODE.'-KHU-A-02', 'Khu A', 4),
+                '6p' => $this->resolveTemplateManifestEntry($tableRows, self::BRANCH_CODE.'-KHU-A-04', 'Khu A', 6),
             ],
         ];
     }
@@ -1474,16 +1474,41 @@ class UatScenarioPackService
         ];
     }
 
-    private function upsertMenuCategory(string $name, string $description, int $sortOrder): int
+    /**
+     * @param  list<string>  $aliases
+     */
+    private function upsertMenuCategory(string $name, string $description, int $sortOrder, array $aliases = []): int
     {
-        DB::table('menu_categories')->updateOrInsert(
-            ['name' => $name],
-            [
-                'description' => $description,
-                'sort_order' => $sortOrder,
-                'is_deleted' => 0,
-            ]
-        );
+        $categoryId = DB::table('menu_categories')
+            ->where(function ($query) use ($name, $aliases): void {
+                $query->where('name', $name);
+
+                if ($aliases !== []) {
+                    $query->orWhereIn('name', $aliases);
+                }
+            })
+            ->orderByRaw('CASE WHEN name = ? THEN 0 ELSE 1 END', [$name])
+            ->value('category_id');
+
+        if ($categoryId !== null) {
+            DB::table('menu_categories')
+                ->where('category_id', $categoryId)
+                ->update([
+                    'name' => $name,
+                    'description' => $description,
+                    'sort_order' => $sortOrder,
+                    'is_deleted' => 0,
+                ]);
+
+            return (int) $categoryId;
+        }
+
+        DB::table('menu_categories')->insert([
+            'name' => $name,
+            'description' => $description,
+            'sort_order' => $sortOrder,
+            'is_deleted' => 0,
+        ]);
 
         return (int) DB::table('menu_categories')
             ->where('name', $name)

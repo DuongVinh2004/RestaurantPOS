@@ -90,7 +90,12 @@ class UatScenarioPackConsoleCommandTest extends TestCase
         /** @var array<string,mixed> $manifest */
         $manifest = json_decode((string) File::get($this->manifestPath), true, 512, JSON_THROW_ON_ERROR);
         self::assertSame('UATDEMO', (string) data_get($manifest, 'branch.branch_code'));
+        self::assertSame('Chi nhánh UAT', (string) data_get($manifest, 'branch.branch_name'));
         self::assertSame('Asia/Ho_Chi_Minh', (string) data_get($manifest, 'branch.timezone'));
+        self::assertSame('Khu A', (string) data_get($manifest, 'tables.main_2p.zone'));
+        self::assertSame('Khu B', (string) data_get($manifest, 'tables.patio_4p.zone'));
+        self::assertSame('Món chính UAT', (string) data_get($manifest, 'menu.categories.signatures.name'));
+        self::assertSame('Bò lúc lắc', (string) data_get($manifest, 'menu.items.steak.name'));
         self::assertSame('UAT-VOUCHER-50', (string) data_get($manifest, 'benefits.voucher.voucher_code'));
         self::assertSame('Open', (string) data_get($manifest, 'conversation.status'));
         self::assertSame('customer.bill_self_payment', (string) data_get($manifest, 'feature_flags.0.feature_key'));

@@ -6,12 +6,18 @@ export type StatusChipAppearance = 'soft' | 'filled' | 'outline';
 export function tableTone(status: string | null | undefined): StatusTone {
   switch ((status ?? '').toLowerCase()) {
     case 'occupied':
+    case 'occupied_now':
     case 'open':
       return 'warning';
     case 'reserved':
+    case 'reserved_in_range':
+    case 'held_in_range':
       return 'processing';
     case 'available':
       return 'success';
+    case 'blocked':
+    case 'maintenance':
+      return 'error';
     default:
       return 'default';
   }
@@ -136,4 +142,3 @@ export function cashierShiftTone(status: string | null | undefined): StatusTone 
       return 'default';
   }
 }
-
