@@ -17,6 +17,8 @@ $phpBinary = PHP_BINARY !== '' ? PHP_BINARY : 'php';
 $steps = [];
 
 try {
+    ensureLaravelRuntimeDirectories($rootDir);
+
     if (! isset($options['skip-db-bootstrap'])) {
         $dbBootstrapArguments = ['tools/mysql/bootstrap_release.php', '--env-file='.$envFile, '--json'];
         if (isset($options['skip-create-db'])) {
@@ -213,4 +215,21 @@ function fail(string $message, bool $json): void
     }
 
     exit(1);
+}
+
+function ensureLaravelRuntimeDirectories(string $rootDir): void
+{
+    foreach ([
+        'bootstrap/cache',
+        'storage/logs',
+        'storage/framework/cache/data',
+        'storage/framework/sessions',
+        'storage/framework/views',
+    ] as $relativePath) {
+        $path = $rootDir.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+
+        if (! is_dir($path) && ! mkdir($path, 0777, true) && ! is_dir($path)) {
+            throw new RuntimeException(sprintf('Unable to create runtime directory [%s].', $relativePath));
+        }
+    }
 }

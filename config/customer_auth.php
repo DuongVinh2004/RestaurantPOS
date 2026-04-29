@@ -22,6 +22,7 @@ return [
     'enabled' => (bool) env('CUSTOMER_AUTH_ENABLED', true),
     'header' => (string) env('CUSTOMER_AUTH_HEADER', 'X-Customer-Token'),
     'allow_bearer' => (bool) env('CUSTOMER_AUTH_ALLOW_BEARER', false),
+    'jwt_secret' => (string) env('CUSTOMER_AUTH_JWT_SECRET', ''),
 
     // Dedicated access/session model for customer-authenticated self-service flows.
     'access_session_table' => (string) env('CUSTOMER_AUTH_ACCESS_SESSION_TABLE', 'customer_access_sessions'),

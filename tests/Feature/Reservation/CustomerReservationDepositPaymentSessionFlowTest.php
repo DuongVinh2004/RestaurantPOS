@@ -38,6 +38,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         config()->set('booking.realtime.cache_store', 'array');
         config()->set('booking.realtime.recent_event_limit', 50);
         config()->set('booking.realtime.poll_hint_ms', 1500);
+        config()->set('booking.payment_providers.customer_self_pay.enabled', true);
+        config()->set('booking.payment_providers.providers.simulated.enabled', true);
         app('cache')->forgetDriver('redis');
         Cache::store('redis')->getStore()->flush();
         Cache::store('array')->flush();

@@ -386,6 +386,58 @@ EXECUTE verify_stmt;
 DEALLOCATE PREPARE verify_stmt;
 
 SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = 'payments'
+          AND column_name = 'cashier_shift_id'
+          AND column_type = 'bigint unsigned'
+          AND is_nullable = 'YES'
+    ),
+    'SELECT "payments.cashier_shift_id:ok"',
+    'SELECT * FROM __missing_restore_contract_payments_cashier_shift_id__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.statistics
+        WHERE table_schema = DATABASE()
+          AND table_name = 'payments'
+          AND index_name = 'idx_payments__cashier_shift_id'
+          AND column_name = 'cashier_shift_id'
+          AND seq_in_index = 1
+    ),
+    'SELECT "payments.cashier_shift_id_index:ok"',
+    'SELECT * FROM __missing_restore_contract_payments_cashier_shift_index__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.key_column_usage
+        WHERE constraint_schema = DATABASE()
+          AND table_name = 'payments'
+          AND constraint_name = 'fk_payments__cashier_shift_id__cashier_shifts'
+          AND column_name = 'cashier_shift_id'
+          AND referenced_table_name = 'cashier_shifts'
+          AND referenced_column_name = 'cashier_shift_id'
+    ),
+    'SELECT "payments.cashier_shift_id_fk:ok"',
+    'SELECT * FROM __missing_restore_contract_payments_cashier_shift_fk__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
     EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'customer_privacy_requests'),
     'SELECT "customer_privacy_requests:ok"',
     'SELECT * FROM __missing_restore_contract_customer_privacy_requests__'

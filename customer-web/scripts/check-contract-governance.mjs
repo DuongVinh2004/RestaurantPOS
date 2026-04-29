@@ -64,6 +64,77 @@ const rolloutChecks = [
   },
 ];
 
+const sourceContractChecks = [
+  {
+    label: "customer API client auth/session/idempotency boundary",
+    path: "customer-web/src/lib/api/sdk-client.ts",
+    required: [
+      "customerToken: () => getCustomerToken()",
+      "customerSessionId: () => getCustomerSessionId() ?? ensureCustomerSessionId()",
+      "idempotencyKey: options.idempotencyKey ?? createIdempotencyKey(scope)",
+      '"X-Session-Id": sessionId',
+    ],
+    forbidden: [
+      '"X-Idempotency-Key"',
+      "'X-Idempotency-Key'",
+      "idempotency_key",
+    ],
+  },
+  {
+    label: "customer deposit payment mutations",
+    path: "customer-web/src/features/deposit/api.ts",
+    required: [
+      "postV1ReservationsIdDepositAcknowledge",
+      "postV1ReservationsIdDepositIntent",
+      "postV1ReservationsReservationIdDepositPaymentSessions",
+      "idempotentSessionOptions(",
+      "row_version: rowVersion",
+      "session_id: ensureCustomerSessionId()",
+    ],
+    forbidden: [
+      '"X-Idempotency-Key"',
+      "'X-Idempotency-Key'",
+      "idempotency_key",
+    ],
+  },
+  {
+    label: "customer bill payment mutations",
+    path: "customer-web/src/features/billing/api.ts",
+    required: [
+      "postV1ReservationsReservationIdBillPaymentSessions",
+      "postV1ReservationsReservationIdBillPaymentSessionsSessionIdRefresh",
+      "postV1ReservationsReservationIdBillPaymentSessionsSessionIdConfirm",
+      "idempotentSessionOptions(",
+      "row_version: rowVersion",
+      "session_id: ensureCustomerSessionId()",
+    ],
+    forbidden: [
+      '"X-Idempotency-Key"',
+      "'X-Idempotency-Key'",
+      "idempotency_key",
+    ],
+  },
+  {
+    label: "customer preorder canonical route usage",
+    path: "customer-web/src/features/preorder/api.ts",
+    required: [
+      "getV1ReservationsIdPreorder",
+      "postV1ReservationsIdPreorderPreview",
+      "putV1ReservationsIdPreorder",
+      "deleteV1ReservationsIdPreorder",
+      "idempotentSessionOptions(",
+      "row_version: rowVersion",
+    ],
+    forbidden: [
+      "pre-order",
+      "PreOrder",
+      '"X-Idempotency-Key"',
+      "'X-Idempotency-Key'",
+      "idempotency_key",
+    ],
+  },
+];
+
 function sha256(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
@@ -90,6 +161,28 @@ function checkSupportMatrix({ repoRoot, issues }) {
       if (!entry.includes(required)) {
         issues.push(`support-matrix ${check.id} must keep ${required}.`);
       }
+    }
+  }
+}
+
+function checkSourceContracts({ repoRoot, issues }) {
+  for (const check of sourceContractChecks) {
+    const absolutePath = resolve(repoRoot, check.path);
+    if (!existsSync(absolutePath)) {
+      issues.push(`Missing source contract check file for ${check.label}: ${check.path}`);
+      continue;
+    }
+
+    const source = readFileSync(absolutePath, "utf8");
+    const missing = check.required.filter((fragment) => !source.includes(fragment));
+    const forbidden = check.forbidden.filter((fragment) => source.includes(fragment));
+
+    if (missing.length > 0) {
+      issues.push(`${check.label} missing required fragments: ${missing.join(", ")}`);
+    }
+
+    if (forbidden.length > 0) {
+      issues.push(`${check.label} contains deprecated compatibility fragments: ${forbidden.join(", ")}`);
     }
   }
 }
@@ -199,6 +292,8 @@ export function checkContractGovernance({
   if (existsSync(resolve(repoRoot, "customer-web/src/lib/config/support-matrix.ts"))) {
     checkSupportMatrix({ repoRoot, issues });
   }
+
+  checkSourceContracts({ repoRoot, issues });
 
   const generatedStatus = gitStatusRunner(repoRoot, trackedGeneratedFiles);
 

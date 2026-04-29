@@ -9,31 +9,46 @@
    - the `day1_feature_flag_posture` check must pass; day-1 keeps customer self-pay, advanced waiting-list automation, kitchen dispatch, inventory uplift, conversation inbox, and conversation AI assist disabled by the wildcard production-like default unless the release ticket records an audited override
 2. Drill into failing sources only when the aggregated gate is not clean
    - `php artisan booking:doctor --strict`
-   - `php artisan booking:deploy-check --mode=preflight --strict`
+   - `php artisan booking:deploy-check --mode=preflight --strict --json`
    - `php artisan booking:release-manifest --verify-frozen --json`
    - `php artisan booking:package-release --verify-frozen --json`
    - if `booking:doctor` reports `runtime.scheduler` as blocked by `runtime.redis`, treat Redis as the root blocker and restore heartbeat storage before debugging scheduler freshness
    - if `booking:doctor` reports `runtime.outbox` as blocked by `runtime.db`, treat MySQL as the root blocker and restore DB reachability before interpreting outbox backlog health
-   - if `booking:deploy-check --mode=preflight --strict` reports `data.purchase_receipt_lineage_uniqueness`, stop the rollout and deduplicate the listed `ingredient_stock_movements.reference_id` values before applying `database/patches/2026_04_13_000051_inventory_stock_movement_reference_uniqueness.sql`
+   - if `booking:deploy-check --mode=preflight --strict --json` reports `data.purchase_receipt_lineage_uniqueness`, stop the rollout and deduplicate the listed `ingredient_stock_movements.reference_id` values before applying `database/patches/2026_04_13_000051_inventory_stock_movement_reference_uniqueness.sql`
+   - for the cashier-shift reconciliation release, verify `database/patches/2026_04_29_000062_payment_cashier_shift_link.sql` is applied and `tools/mysql/verify_release_contract.sql` reports `payments.cashier_shift_id:ok`, `payments.cashier_shift_id_index:ok`, and `payments.cashier_shift_id_fk:ok`
+   - do not backfill legacy `payments.cashier_shift_id` values unless the release ticket contains an audited source-to-shift mapping; the application intentionally uses FK-first reconciliation for new rows and a time-window fallback only for legacy rows where `cashier_shift_id` is `NULL`
 3. Run smoke suite
    - `bash scripts/ci/booking-smoke-gate.sh`
    - `bash scripts/ci/booking-reliability-smoke.sh`
    - `bash scripts/ci/booking-ops-smoke.sh`
 4. Confirm Redis and DB credentials point to the intended environment.
-5. Confirm scheduler is enabled on only the intended node set.
-6. If this is a first-site rollout, prepare the initial bootstrap inputs:
+5. Confirm production-like environment posture before caches are warmed:
+   - `APP_ENV` is explicitly classified as `staging`, `production`, `limited-production`, or another configured launch target.
+   - `APP_DEBUG=false`.
+   - `APP_KEY` and `CUSTOMER_AUTH_JWT_SECRET` are present, non-placeholder values; record only present/missing evidence.
+   - `CORS_ALLOWED_ORIGINS` contains exact origins only, with no wildcard, path suffix, query/fragment, or trailing slash.
+   - staff env API-key fallback, staff role-name fallback, and operational branch fallback are disabled.
+   - queue, cache, and session drivers are durable/intentional for the target; local-only `sync`, `file`, `array`, and cookie session drivers are not production-like.
+   - Redis is required for booking API runtime gates.
+   - notification channels enabled in production-like targets use real providers, not stub/log drivers.
+6. Confirm scheduler is enabled on only the intended node set.
+7. If this is a first-site rollout, prepare the initial bootstrap inputs:
    - branch code/name/timezone/currency
    - bootstrap admin/staff usernames
    - whether the first staff API key should be rotated or freshly issued
-7. Decide payment day-1 mode explicitly:
+8. Decide payment day-1 mode explicitly:
    - `PAYMENT_CUSTOMER_SELF_PAY_ENABLED=false` keeps the rollout in staff-settlement-only mode.
    - Enabling customer self-pay requires `generic_http_hmac` to be configured with base URL, request signing secret, and webhook secret.
+   - If `generic_http_hmac.webhook.max_age_seconds > 0`, the provider must send the configured timestamp header on every webhook. Missing timestamp is rejected even when the HMAC signature itself is valid.
 
 ## Deploy
 
 1. Put the immutable package artifact in place.
 2. Extract into a clean target directory.
-3. Run migrations.
+3. Run the approved SQL-first database release step for the target environment; do not replace the canonical bootstrap with `php artisan migrate`.
+   - Fresh local/staging provisioning: `composer bootstrap:booking`
+   - Platform pre-created database: `composer bootstrap:booking -- --skip-create-db`
+   - Existing data-bearing rollout: apply the reviewed release SQL patch plan from `database/schema/mysql-schema.sql`, `database/patches/*.sql`, and `tools/mysql/verify_release_contract.sql`; keep the resulting evidence with the release ticket.
 4. Clear stale caches before warming fresh ones:
    - `php artisan config:clear`
    - `php artisan cache:clear`
@@ -88,7 +103,7 @@
 - Logging and audit:
   - keep the `audit` log channel writable
   - retain `booking:doctor`, `booking:deploy-check`, `booking:release-manifest`, `booking:launch-readiness`, `booking:ops-snapshot`, and `notifications:outbox-health` output as release evidence for staging/UAT
-  - `booking:ops-snapshot` is the fastest place to confirm non-core readiness for kitchen/KDS, inventory/purchasing, and conversation inbox before drilling into domain runbooks
+  - `booking:ops-snapshot` is the fastest place to confirm MySQL, Redis, scheduler heartbeat, notification outbox, kitchen/KDS, inventory/purchasing, realtime, and conversation inbox readiness before drilling into domain runbooks
   - when inventory/purchasing is the blocker, `booking:ops-snapshot --json` now exposes `duplicate_purchase_receipt_reference_count`, `duplicate_purchase_receipt_movement_count`, and `duplicate_purchase_receipt_reference_examples[]` so duplicate receipt lineage can be cleaned up before the uniqueness patch is applied
   - `booking:doctor` writes JSON/Markdown artifacts under `storage/app/booking_release/doctor/reports/`
   - `booking:deploy-check` writes JSON/Markdown artifacts under `storage/app/booking_release/deploy_checks/reports/`

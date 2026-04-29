@@ -77,6 +77,31 @@ class RouteInventoryGateServiceTest extends TestCase
         $this->assertTrue($report['checks']['route_action_methods']['ok']);
         $this->assertTrue($report['checks']['expected_routes']['ok']);
         $this->assertTrue($report['checks']['public_controllers']['ok']);
+        $this->assertTrue($report['checks']['api_alias_deprecation_plan']['ok']);
+    }
+
+    public function test_inspect_exposes_alias_deprecation_plan_for_release_evidence(): void
+    {
+        $report = app(RouteInventoryGateService::class)->inspect();
+        $plan = $report['meta']['alias_deprecation_plan'] ?? [];
+
+        $this->assertSame(1, $plan['observation_release_cycles'] ?? null);
+        $this->assertSame('api_deprecated_alias_used', $plan['audit_log_event'] ?? null);
+        $this->assertSame('idempotency_compatibility_key_used', $plan['idempotency_compatibility_event'] ?? null);
+        $this->assertCount(5, $plan['routes'] ?? []);
+        $this->assertCount(2, $plan['idempotency_inputs'] ?? []);
+
+        $routes = collect($plan['routes'] ?? [])->keyBy('key');
+
+        $this->assertSame(
+            'POST /api/v1/staff/orders/{order_id}/settlement/finalize',
+            $routes['staff.orders.checkout']['canonical_route'] ?? null,
+        );
+        $this->assertSame(
+            'GET /api/v1/staff/table-board',
+            $routes['staff.tables.table-board']['deprecated_alias'] ?? null,
+        );
+        $this->assertNotEmpty($routes['staff.orders.close']['minimum_evidence'] ?? []);
     }
 
     public function test_public_controller_inventory_has_no_runtime_unlocked_controllers(): void

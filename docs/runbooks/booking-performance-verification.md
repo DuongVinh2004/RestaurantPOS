@@ -27,6 +27,23 @@ php artisan booking:performance-verify --profile=staging --run --base-url=https:
   - Serious staging verification profile.
   - Used for limited rollout evidence and baseline capture.
 
+## Launch Evidence Classification
+
+Local smoke timing is useful for regression feedback, but it is not limited-production evidence. Limited production requires a staging `release_candidate` report plus operator/reviewer evidence for every launch-critical surface below:
+
+| Launch surface | Required evidence |
+| --- | --- |
+| `table_board_load` | Staff table board/timeline read stays within the staging budget. |
+| `open_walk_in_service_session` | Operator-assisted walk-in service session open probe is captured. |
+| `add_order_item` | Operator-assisted add-order-item probe is captured. |
+| `kds_board_dispatch` | KDS board/dispatch probe is captured. |
+| `checkout_payment_capture` | Staff payment capture probe is captured. |
+| `refund_preview_execute` | Refund preview plus execute probe is captured. |
+| `inventory_stock_read_adjustment` | Inventory stock read and adjustment probe is captured. |
+| `reporting_snapshot_read` | Launch-critical reporting snapshot read probe is captured. |
+
+Experimental scenarios may still run for operational confidence, but they are not certified accounting evidence. The current experimental scenario is `webhook_duplicate_storm` / `payment_webhook_duplicate_replay`; use it to assess provider retry risk, not to certify settlement accounting by itself.
+
 ## Prerequisites
 
 - Bootstrap or refresh the canonical UAT pack first:
@@ -46,6 +63,25 @@ Local sanity:
 ```powershell
 php artisan booking:performance-verify --profile=local --run --base-url=http://127.0.0.1:8000 --manifest-path=storage/app/uat/scenario-pack.json --json
 ```
+
+Runtime concurrency smoke before performance runs:
+
+```powershell
+npm run runtime:up
+composer bootstrap:booking
+bash scripts/ci/booking-runtime-smoke.sh
+```
+
+This smoke lane is not a load test. It proves that real MySQL transactions plus Redis cache locks are available for high-value replay and contention paths before running larger performance traffic. It fails closed when MySQL, Redis, or the SQL-first schema bootstrap is unavailable.
+
+Before treating a performance run as rollout evidence, also capture the strict deploy preflight and ops snapshot:
+
+```powershell
+php artisan booking:deploy-check --mode=preflight --strict --json
+php artisan booking:ops-snapshot --json
+```
+
+Those read-only guards cover inventory negative-stock reconciliation, KDS realtime/cache safety, KDS branch/station scope drift, and launch-critical reporting snapshot drift. Performance reports should not be promoted while these guards are failing, because latency evidence does not certify corrupted operational read models.
 
 Serious staging run:
 
@@ -78,6 +114,13 @@ php artisan booking:performance-verify --profile=staging --run --base-url=https:
 | `payment_webhook_burst` | `burst` | automated | yes | no | `POST /api/v1/payments/providers/{provider_code}/webhooks` |
 | `mixed_service_day_soak` | `soak` | automated | yes | no | mixed availability, reservation, waiting-list, board, timeline, checkout, webhook traffic |
 | `webhook_duplicate_storm` | `fault` | automated | yes | no | duplicate webhook delivery storm on the canonical webhook endpoint |
+| `walk_in_service_session_open_probe` | `workflow` | operator-assisted | yes | yes | launch-critical `open_walk_in_service_session` probe |
+| `order_item_add_probe` | `workflow` | operator-assisted | yes | yes | launch-critical `add_order_item` probe |
+| `kds_board_dispatch_probe` | `workflow` | operator-assisted | yes | yes | launch-critical `kds_board_dispatch` probe |
+| `checkout_payment_capture_probe` | `workflow` | operator-assisted | yes | yes | launch-critical `checkout_payment_capture` probe |
+| `refund_preview_execute_probe` | `workflow` | operator-assisted | yes | yes | launch-critical `refund_preview_execute` probe |
+| `inventory_stock_read_adjustment_probe` | `workflow` | operator-assisted | yes | yes | launch-critical `inventory_stock_read_adjustment` probe |
+| `reporting_snapshot_read_probe` | `workflow` | operator-assisted | yes | yes | launch-critical `reporting_snapshot_read` probe |
 | `waiting_list_advance_operator_drill` | `workflow` | operator-assisted | warn | yes | `POST /api/v1/staff/waiting-list/{id}/advance` after real decline/expiry |
 | `redis_degradation_fault_probe` | `fault` | operator-assisted | warn | yes | run read probes during Redis delay/outage window |
 | `mysql_lock_contention_fault_probe` | `fault` | operator-assisted | warn | yes | run reservation race / checkout probes during DB contention |
@@ -119,7 +162,7 @@ Raw live-run artifacts:
 
 - `raw/<profile>-<timestamp>/*.json`
 
-For limited-production readiness, archive the candidate-specific report and record it under `performance_verification_report` in the launch-readiness manual evidence JSON. The launch-readiness gate does not treat local query-budget tests as a substitute for this candidate-level artifact.
+For limited-production readiness, archive the candidate-specific report and record it under `performance_verification_report` in the launch-readiness manual evidence JSON. The launch-readiness evidence must include `profile=staging`, `evidence_level=release_candidate`, `local_smoke_only=false`, `verification_result=pass`, and a passing `scenario_matrix` entry for every launch-critical surface. The launch-readiness gate does not treat local query-budget tests as a substitute for this candidate-level artifact.
 
 ## Exit Codes
 
@@ -193,6 +236,13 @@ Waiting-list advance operator drill:
 
 ## Current Manual Gaps
 
+- `walk_in_service_session_open_probe`
+- `order_item_add_probe`
+- `kds_board_dispatch_probe`
+- `checkout_payment_capture_probe`
+- `refund_preview_execute_probe`
+- `inventory_stock_read_adjustment_probe`
+- `reporting_snapshot_read_probe`
 - `waiting_list_advance_operator_drill`
 - `redis_degradation_fault_probe`
 - `mysql_lock_contention_fault_probe`

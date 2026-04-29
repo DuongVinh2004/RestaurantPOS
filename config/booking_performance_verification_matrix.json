@@ -161,6 +161,8 @@
       "severity": "blocking",
       "runner_key": "staff_board_timeline_load",
       "staging_only": false,
+      "launch_certification": "launch_critical",
+      "launch_surface": "table_board_load",
       "source_of_truth": [
         "docs/performance-hot-paths.md",
         "tests/Feature/Performance/HotPathPerformanceBudgetTest.php",
@@ -206,6 +208,8 @@
       "severity": "blocking",
       "runner_key": "checkout_preview_load",
       "staging_only": false,
+      "launch_certification": "launch_critical",
+      "launch_surface": "refund_preview_execute",
       "source_of_truth": [
         "docs/performance-hot-paths.md#deferred-work",
         "routes/api.php#staff/orders/{order_id}/settlement-preview",
@@ -396,6 +400,9 @@
       "severity": "blocking",
       "runner_key": "webhook_duplicate_storm",
       "staging_only": false,
+      "launch_certification": "experimental",
+      "launch_surface": "payment_webhook_duplicate_replay",
+      "runbook_warning": "Webhook duplicate storm evidence supports provider hardening, but it is not certified accounting evidence by itself.",
       "source_of_truth": [
         "routes/api.php#payments/providers/{provider_code}/webhooks",
         "tests/Feature/Payments/PaymentProviderWebhookFlowTest.php#duplicate_delivery_is_idempotent"
@@ -425,6 +432,235 @@
             "unexpected_error_rate_max": 0.0,
             "accepted_response_rate_min": 1.0,
             "duplicate_rate_min": 0.9
+          }
+        }
+      }
+    },
+    {
+      "key": "walk_in_service_session_open_probe",
+      "group": "booking_core_flows",
+      "label": "Open walk-in service session probe",
+      "type": "workflow",
+      "automation": "operator_assisted",
+      "severity": "major",
+      "staging_only": true,
+      "required_profiles": [
+        "staging"
+      ],
+      "launch_certification": "launch_critical",
+      "launch_surface": "open_walk_in_service_session",
+      "source_of_truth": [
+        "routes/api.php#staff/walk-ins",
+        "scripts/uat/Invoke-UatScenario.ps1#dine-in-checkout"
+      ],
+      "endpoints": [
+        "POST /api/v1/staff/walk-ins",
+        "POST /api/v1/staff/tables/{table_id}/orders"
+      ],
+      "pass_criteria": "A staging walk-in service session opens within the accepted timing envelope without duplicate active sessions.",
+      "failure_meaning": "The walk-in opening path is not proven under staging timing for day-1 floor operations.",
+      "remediation_hint": "Replay the walk-in/table service-session UAT flow on staging and archive the timing result.",
+      "profile_settings": {
+        "staging": {
+          "thresholds": {
+            "latency_p95_ms_max": 900,
+            "unexpected_error_rate_max": 0.0
+          }
+        }
+      }
+    },
+    {
+      "key": "order_item_add_probe",
+      "group": "booking_core_flows",
+      "label": "Add order item probe",
+      "type": "workflow",
+      "automation": "operator_assisted",
+      "severity": "major",
+      "staging_only": true,
+      "required_profiles": [
+        "staging"
+      ],
+      "launch_certification": "launch_critical",
+      "launch_surface": "add_order_item",
+      "source_of_truth": [
+        "routes/api.php#staff/orders/{order_id}/items",
+        "scripts/uat/Invoke-UatScenario.ps1#dine-in-checkout"
+      ],
+      "endpoints": [
+        "POST /api/v1/staff/orders/{order_id}/items"
+      ],
+      "pass_criteria": "Adding a menu item to an active order completes within the staging timing envelope and preserves row_version safety.",
+      "failure_meaning": "The order mutation path is not timing-certified for day-1 service.",
+      "remediation_hint": "Replay the order item lifecycle on staging and archive the timing result.",
+      "profile_settings": {
+        "staging": {
+          "thresholds": {
+            "latency_p95_ms_max": 900,
+            "unexpected_error_rate_max": 0.0
+          }
+        }
+      }
+    },
+    {
+      "key": "kds_board_dispatch_probe",
+      "group": "booking_core_flows",
+      "label": "KDS board and dispatch probe",
+      "type": "workflow",
+      "automation": "operator_assisted",
+      "severity": "major",
+      "staging_only": true,
+      "required_profiles": [
+        "staging"
+      ],
+      "launch_certification": "launch_critical",
+      "launch_surface": "kds_board_dispatch",
+      "source_of_truth": [
+        "routes/api.php#staff/kitchen",
+        "tests/Feature/Staff/StaffKitchenDispatchFoundationFlowTest.php"
+      ],
+      "endpoints": [
+        "GET /api/v1/staff/kitchen/stations/{station_id}/tickets",
+        "POST /api/v1/staff/kitchen/orders/{order_id}/dispatch"
+      ],
+      "pass_criteria": "KDS board reads and dispatch behavior meet staging timing while preserving branch and station scope.",
+      "failure_meaning": "Kitchen handoff has not been timing-certified for day-1 operations.",
+      "remediation_hint": "Replay the KDS dispatch/update flow on staging and archive the timing result.",
+      "profile_settings": {
+        "staging": {
+          "thresholds": {
+            "latency_p95_ms_max": 900,
+            "unexpected_error_rate_max": 0.0
+          }
+        }
+      }
+    },
+    {
+      "key": "checkout_payment_capture_probe",
+      "group": "checkout_financial_flows",
+      "label": "Checkout payment capture probe",
+      "type": "workflow",
+      "automation": "operator_assisted",
+      "severity": "major",
+      "staging_only": true,
+      "required_profiles": [
+        "staging"
+      ],
+      "launch_certification": "launch_critical",
+      "launch_surface": "checkout_payment_capture",
+      "source_of_truth": [
+        "routes/api.php#staff/orders/{order_id}/settle",
+        "tests/Feature/Staff/StaffCheckoutHttpFlowTest.php"
+      ],
+      "endpoints": [
+        "POST /api/v1/staff/orders/{order_id}/settle"
+      ],
+      "pass_criteria": "Staff payment capture completes within staging timing and keeps staff settlement as the safe day-1 path.",
+      "failure_meaning": "Checkout capture has not been timing-certified for limited production.",
+      "remediation_hint": "Replay checkout capture on staging and archive the timing result.",
+      "profile_settings": {
+        "staging": {
+          "thresholds": {
+            "latency_p95_ms_max": 1200,
+            "unexpected_error_rate_max": 0.0
+          }
+        }
+      }
+    },
+    {
+      "key": "refund_preview_execute_probe",
+      "group": "checkout_financial_flows",
+      "label": "Refund preview and execute probe",
+      "type": "workflow",
+      "automation": "operator_assisted",
+      "severity": "major",
+      "staging_only": true,
+      "required_profiles": [
+        "staging"
+      ],
+      "launch_certification": "launch_critical",
+      "launch_surface": "refund_preview_execute",
+      "source_of_truth": [
+        "routes/api.php#staff/reservations/{reservation_id}/refund-preview",
+        "routes/api.php#staff/reservations/{reservation_id}/refund",
+        "tests/Feature/Staff/StaffCheckoutHttpFlowTest.php"
+      ],
+      "endpoints": [
+        "GET /api/v1/staff/reservations/{reservation_id}/refund-preview",
+        "POST /api/v1/staff/reservations/{reservation_id}/refund"
+      ],
+      "pass_criteria": "Refund preview and execute complete within staging timing while preserving refund source lineage.",
+      "failure_meaning": "Refund execution has not been timing-certified for limited production.",
+      "remediation_hint": "Replay refund preview and execute on staging and archive the timing result.",
+      "profile_settings": {
+        "staging": {
+          "thresholds": {
+            "latency_p95_ms_max": 1200,
+            "unexpected_error_rate_max": 0.0
+          }
+        }
+      }
+    },
+    {
+      "key": "inventory_stock_read_adjustment_probe",
+      "group": "booking_core_flows",
+      "label": "Inventory stock read and adjustment probe",
+      "type": "workflow",
+      "automation": "operator_assisted",
+      "severity": "major",
+      "staging_only": true,
+      "required_profiles": [
+        "staging"
+      ],
+      "launch_certification": "launch_critical",
+      "launch_surface": "inventory_stock_read_adjustment",
+      "source_of_truth": [
+        "app/Modules/InventoryProcurement",
+        "tests/Feature/Admin/AdminInventoryFoundationHttpFlowTest.php"
+      ],
+      "endpoints": [
+        "GET /api/v1/admin/inventory/stock",
+        "POST /api/v1/admin/inventory/adjustments"
+      ],
+      "pass_criteria": "Inventory stock reads and safe adjustments complete within staging timing and reconcile to stock movement evidence.",
+      "failure_meaning": "Inventory launch operations have not been timing-certified.",
+      "remediation_hint": "Replay stock read and adjustment on staging and archive the timing result.",
+      "profile_settings": {
+        "staging": {
+          "thresholds": {
+            "latency_p95_ms_max": 1000,
+            "unexpected_error_rate_max": 0.0
+          }
+        }
+      }
+    },
+    {
+      "key": "reporting_snapshot_read_probe",
+      "group": "booking_core_flows",
+      "label": "Reporting snapshot read probe",
+      "type": "workflow",
+      "automation": "operator_assisted",
+      "severity": "major",
+      "staging_only": true,
+      "required_profiles": [
+        "staging"
+      ],
+      "launch_certification": "launch_critical",
+      "launch_surface": "reporting_snapshot_read",
+      "source_of_truth": [
+        "routes/api.php#staff/reporting",
+        "tests/Feature/Staff/StaffReportingReadModelsHttpFlowTest.php"
+      ],
+      "endpoints": [
+        "GET /api/v1/staff/reporting/daily-sales"
+      ],
+      "pass_criteria": "Launch-critical reporting snapshot reads complete within staging timing and use certified read models only.",
+      "failure_meaning": "Day-1 reporting reads have not been timing-certified.",
+      "remediation_hint": "Replay reporting snapshot reads on staging and archive the timing result.",
+      "profile_settings": {
+        "staging": {
+          "thresholds": {
+            "latency_p95_ms_max": 900,
+            "unexpected_error_rate_max": 0.0
           }
         }
       }

@@ -9,7 +9,7 @@ if [[ -x vendor/bin/phpunit ]]; then
 fi
 
 if [[ -f artisan ]]; then
-  exec php artisan test --without-tty "$@"
+  exec php artisan test "$@"
 fi
 
 echo "[booking-test-runner] neither vendor/bin/phpunit nor artisan is available." >&2

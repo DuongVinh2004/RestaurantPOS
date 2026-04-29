@@ -169,7 +169,30 @@ function seedCanonicalFixture(
   createFile(rootDir, 'staff-web/tsconfig.json', '{}');
   createFile(rootDir, 'staff-web/vitest.config.ts', 'export default {};');
   createFile(rootDir, 'staff-web/scripts/live-smoke.mjs', 'export default true;');
+  createFile(
+    rootDir,
+    'staff-web/src/shared/api/client.ts',
+    [
+      "const token = headers.get('X-Staff-Key');",
+      'staffClient.staffTablesBoard({});',
+      'staffClient.postV1StaffOrdersOrderIdBillSnapshot({}, {}, {});',
+      'staffClient.postV1StaffOrdersOrderIdSettlementFinalize({}, {}, {});',
+    ].join('\n'),
+  );
   createFile(rootDir, 'staff-web/src/shared/api/sdk.ts', 'export * from "../../../../build/api-consumer/sdk/typescript/restaurantpos-sdk.ts";');
+  createFile(
+    rootDir,
+    'staff-web/src/shared/api/staff-api.ts',
+    [
+      'staffClient.staffTablesBoard({});',
+      "staffClient.postV1StaffOrdersOrderIdBillSnapshot({}, {}, { idempotencyKey: createIdempotencyKey('bill') });",
+      "staffClient.postV1StaffOrdersOrderIdSettlementFinalize({}, {}, { idempotencyKey: createIdempotencyKey('settlement') });",
+      "staffClient.postV1StaffOrdersOrderIdKitchenDispatch({}, {}, { idempotencyKey: createIdempotencyKey('dispatch') });",
+      "staffClient.postV1StaffKitchenTicketsTicketIdFire({}, {}, { idempotencyKey: createIdempotencyKey('fire') });",
+      "staffClient.postV1StaffReservationsReservationIdRefund({}, {}, { idempotencyKey: createIdempotencyKey('refund') });",
+      "staffClient.postV1StaffCashierShiftsOpen({}, { idempotencyKey: createIdempotencyKey('cashier') });",
+    ].join('\n'),
+  );
   createDirectory(rootDir, 'build/api-consumer');
 
   createFile(rootDir, 'storage/app/booking_release/openapi-v1.json', '{}');

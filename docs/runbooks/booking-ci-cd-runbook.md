@@ -57,19 +57,106 @@ The selector does not replace `scripts/ci/booking-full-gate.sh` or `scripts/ci/b
 
 ## CI job flow
 
-`booking-backend-ci` performs:
+`booking-backend-ci` performs the shared bootstrap once per matrix lane:
 
 1. checkout
 2. PHP toolchain setup
 3. MySQL client install
-4. repository prerequisite verification
-5. composer install + release DB bootstrap via `scripts/ci/booking-ci-bootstrap.sh`
-6. `scripts/ci/booking-full-gate.sh`
-7. artifact upload from:
+4. MySQL and Redis readiness waits
+5. repository prerequisite verification
+6. composer install + SQL-first release DB bootstrap via `scripts/ci/booking-ci-bootstrap.sh`
+7. one matrix lane command through `scripts/ci/booking-ci-run-lane.sh`
+8. artifact upload from:
    - `build/booking-ci/`
    - `build/booking-release/`
    - `storage/app/booking_release/`
    - `storage/logs/`
+
+Every lane is wrapped by `scripts/ci/booking-ci-lib.sh`, which writes a named log, a `.meta` sidecar with the command and exit code, and a GitHub annotation with the tail of the failing log. Timeout exits are reported as the failing command, not as an opaque job cancellation.
+
+Current backend lanes:
+
+- `fast-config-contracts`: config cache, route/config contracts, and critical release config tests
+- `booking-smoke`: doctor, outbox health, strict deploy preflight, runtime smoke, ops smoke, and reliability smoke
+- `runtime-smoke`: real MySQL plus Redis smoke tests only
+- `phpstan`: `php -v`, phpstan version, and `vendor/bin/phpstan analyse --memory-limit=1G --no-progress`
+- `critical-security`
+- `critical-orders`
+- `critical-kitchen-kds`
+- `critical-money-cashier`
+- `critical-inventory`
+- `critical-release-contract`
+- `full-gate`: smoke gate, full PHPUnit, phpstan, Pint, route gate, core ops gate, and round-five gate
+
+`scripts/ci/booking-full-gate.sh` writes the first failing command to `build/booking-ci/full-gate-first-failure.txt`. Use that file before reading the larger logs.
+
+## Local equivalent commands
+
+Use the runtime lane only after MySQL and Redis are reachable and the SQL-first bootstrap has been applied.
+
+Windows PowerShell:
+
+```powershell
+npm run runtime:up
+composer bootstrap:booking
+php artisan booking:doctor --json
+php artisan notifications:outbox-health --json
+php artisan booking:deploy-check --mode=preflight --strict --json
+bash scripts/ci/booking-runtime-smoke.sh
+bash scripts/ci/booking-phpstan.sh
+bash scripts/ci/booking-full-gate.sh
+npm run runtime:down
+```
+
+If `bash` resolves to the Windows WSL shim and WSL is not installed, use Git Bash explicitly:
+
+```powershell
+& 'C:\Program Files\Git\bin\bash.exe' scripts/ci/booking-runtime-smoke.sh
+& 'C:\Program Files\Git\bin\bash.exe' scripts/ci/booking-phpstan.sh
+& 'C:\Program Files\Git\bin\bash.exe' scripts/ci/booking-full-gate.sh
+```
+
+Windows `cmd.exe`:
+
+```bat
+npm run runtime:up
+composer bootstrap:booking
+php artisan booking:doctor --json
+php artisan notifications:outbox-health --json
+php artisan booking:deploy-check --mode=preflight --strict --json
+bash scripts/ci/booking-runtime-smoke.sh
+bash scripts/ci/booking-phpstan.sh
+bash scripts/ci/booking-full-gate.sh
+npm run runtime:down
+```
+
+If `bash` points to WSL instead of Git Bash in `cmd.exe`, run:
+
+```bat
+"C:\Program Files\Git\bin\bash.exe" scripts/ci/booking-runtime-smoke.sh
+"C:\Program Files\Git\bin\bash.exe" scripts/ci/booking-phpstan.sh
+"C:\Program Files\Git\bin\bash.exe" scripts/ci/booking-full-gate.sh
+```
+
+Linux/macOS or CI-like shells:
+
+```bash
+npm run runtime:up
+composer bootstrap:booking
+bash scripts/ci/booking-runtime-smoke.sh
+bash scripts/ci/booking-phpstan.sh
+bash scripts/ci/booking-full-gate.sh
+npm run runtime:down
+```
+
+Fast developer lanes remain separate:
+
+```bash
+composer test:critical
+php artisan test
+```
+
+`php artisan test` intentionally excludes `tests/Feature/Runtime`; run the runtime lane with `bash scripts/ci/booking-runtime-smoke.sh` or `php artisan test tests/Feature/Runtime` after exporting MySQL and Redis environment values. Runtime smoke failures for missing MySQL, missing Redis, or a missing SQL-first bootstrap are environment blockers until the services and `composer bootstrap:booking` are fixed.
 
 ## Release gate flow
 
@@ -105,6 +192,7 @@ Important defaults baked into the workflow env:
 
 - `DB_CONNECTION=mysql`
 - `CACHE_STORE=redis`
+- `REQUIRE_REDIS_FOR_BOOKING_API=true`
 - `QUEUE_CONNECTION=database`
 - `SESSION_DRIVER=database`
 - `MAIL_MAILER=log`

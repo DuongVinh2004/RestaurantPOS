@@ -77,6 +77,15 @@ class StaffReservationDepositFlowTest extends TestCase
             ->assertJsonPath('data.deposit.payment_summary.deposit_captured', '40000.00');
 
         $this->assertSame(1, (int) $this->table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Deposit')->count());
+        $cashierShiftId = (int) $this->table('cashier_shifts')
+            ->where('cashier_user_id', $staffId)
+            ->where('status', 'Open')
+            ->value('cashier_shift_id');
+        $paymentShiftId = (int) $this->table('payments')
+            ->where('reservation_id', $reservationId)
+            ->where('payment_type', 'Deposit')
+            ->value('cashier_shift_id');
+        $this->assertSame($cashierShiftId, $paymentShiftId);
         $this->assertSame(
             '40000.00',
             number_format((float) $this->table('reservations')->where('reservation_id', $reservationId)->value('deposit_paid_amount'), 2, '.', '')

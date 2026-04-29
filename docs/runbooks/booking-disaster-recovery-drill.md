@@ -135,6 +135,29 @@ It includes:
 - raw source payloads
 - measured timings
 - RTO/RPO fields
+- `launch_evidence` fields that can be copied into `booking:launch-readiness --manual-evidence`
+
+The `launch_evidence` section is intentionally safe to archive with release evidence. It includes the restored dump identifier, restore target, verification command/result, timestamp, optional operator/reviewer markers, and flags indicating that secrets are not included.
+
+Example manual-evidence mapping:
+
+```json
+{
+  "checks": {
+    "disaster_recovery_restore_evidence": {
+      "status": "pass",
+      "performed_by": "ops.release",
+      "performed_at_utc": "2026-04-28T09:00:00Z",
+      "restored_dump_identifier": "backup-20260428T083000Z",
+      "restore_target": "restaurant_pos_restore_drill",
+      "verification_command": "php artisan booking:dr-drill --mode=full-isolated-restore --target-db=restaurant_pos_restore_drill --json",
+      "verification_result": "pass",
+      "operator": "ops.release",
+      "reviewer": "release.lead"
+    }
+  }
+}
+```
 
 ## Reading the result
 

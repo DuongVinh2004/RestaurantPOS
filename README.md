@@ -93,6 +93,7 @@ If you change schema-sensitive behavior, keep these files aligned:
 - Redis and the PHP Redis extension when `REQUIRE_REDIS_FOR_BOOKING_API=true`
 - Composer 2
 - Node.js and npm
+- Docker Compose is supported as a local-only fallback for the repo runtime lane when MySQL/Redis binaries are not installed locally.
 
 ## Quick Start
 
@@ -123,14 +124,21 @@ For a runtime-like local lane:
 - `npm run runtime:preflight`
 - `npm run runtime:down`
 
-`npm run runtime:up` brings up repo-local MySQL, Redis, backend HTTP, and scheduler work. Run `composer bootstrap:booking` after services are reachable on a fresh machine or after schema drift; that is the SQL-first bootstrap and it must not be replaced by `php artisan migrate`. `npm run runtime:preflight` then validates backend HTTP, MySQL TCP, Redis TCP, `booking:doctor`, scheduler heartbeat, and notification outbox health.
+`npm run runtime:up` brings up MySQL, Redis, backend HTTP, and scheduler work. On Windows it first tries the repo PowerShell helpers; on Windows, macOS, and Linux it can fall back to `docker-compose.testing.yml` for local-only MySQL/Redis when no local service is reachable. Run `composer bootstrap:booking` after services are reachable on a fresh machine or after schema drift; that is the SQL-first bootstrap and it must not be replaced by `php artisan migrate`. `npm run runtime:preflight` then validates backend HTTP, MySQL TCP, Redis TCP, `booking:doctor`, scheduler heartbeat, notification outbox health, and strict deploy preflight.
+
+PowerShell can run the same lane through npm, or call the Windows wrapper directly when debugging process startup:
+
+- `npm run runtime:up`
+- `powershell -ExecutionPolicy Bypass -File scripts\ops\local-runtime.ps1 -Action up`
+
+CI-like Linux/macOS lanes should use the same npm commands. If no MySQL/Redis service is provided by CI, start Docker first so the local-only Compose fallback can expose `DB_PORT` and `REDIS_PORT`.
 
 Runtime gate recovery checklist:
 
-- MySQL refused: run `npm run mysql:local:restart`, confirm `.env` `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, and set `MYSQL_BIN` if the `mysql` CLI is not on `PATH`.
-- Redis refused: run `powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-redis.ps1 -Restart` or start an external Redis service on `.env` `REDIS_HOST:REDIS_PORT`.
+- MySQL refused: run `npm run runtime:restart` or `npm run mysql:local:restart`, confirm `.env` `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, and set `MYSQL_BIN` if the `mysql` CLI is not on `PATH`. If Docker is the local fallback, make sure Docker is running and `docker-compose.testing.yml` can bind the configured `DB_PORT`.
+- Redis refused: run `npm run runtime:restart`, `powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-redis.ps1 -Restart`, or start an external Redis service on `.env` `REDIS_HOST:REDIS_PORT`.
 - Scheduler heartbeat missing: keep `php artisan schedule:work` running, or restart the unified lane with `npm run runtime:restart`.
-- SQL bootstrap not applied: run `composer bootstrap:booking`, then `php artisan booking:doctor --json` and `php artisan booking:deploy-check --mode=preflight`.
+- SQL bootstrap not applied: run `composer bootstrap:booking`, then `php artisan booking:doctor --json` and `php artisan booking:deploy-check --mode=preflight --strict --json`.
 
 For faster UI-focused iteration:
 
@@ -160,7 +168,7 @@ Typical verification layers:
 - runtime and release gates:
   - `php artisan booking:doctor --json`
   - `php artisan notifications:outbox-health --json`
-  - `php artisan booking:deploy-check --mode=preflight`
+  - `php artisan booking:deploy-check --mode=preflight --strict --json`
   - `php artisan booking:release-manifest --json`
   - `php artisan booking:launch-readiness --target=staging --json`
 

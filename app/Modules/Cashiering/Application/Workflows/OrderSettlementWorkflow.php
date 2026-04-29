@@ -15,8 +15,10 @@ use App\Modules\Billing\Application\UseCases\Synchronization\ReservationFinancia
 use App\Modules\Billing\Domain\ValueObjects\PaymentSummary;
 use App\Modules\BranchScheduling\Application\Services\BranchContextService;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
+use App\Modules\Cashiering\Application\UseCases\Realtime\SettlementRealtimeEventService;
 use App\Modules\Cashiering\Application\UseCases\Reconciliation\SettlementFinalizerService;
 use App\Modules\Cashiering\Application\UseCases\Shifts\StaffCashierShiftService;
+use App\Modules\Cashiering\Domain\Models\CashierShift;
 use App\Modules\Cashiering\Infrastructure\Persistence\CashieringReplayRecorder;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
@@ -31,7 +33,6 @@ use App\Modules\Promotions\Domain\Policies\ReservationVoucherLifecycleSupport;
 use App\Modules\Promotions\Domain\Policies\VoucherRedemptionSupport;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Domain\Models\Reservation;
-use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\SharedKernel\Money\Money;
 use App\Support\Auth\StaffActorGuard;
 use App\Support\DatabaseWriteConflictMapper;
@@ -82,6 +83,8 @@ class OrderSettlementWorkflow
 
     private CashieringReplayRecorder $cashieringReplayRecorder;
 
+    private SettlementRealtimeEventService $settlementRealtimeEventService;
+
     public function __construct(
         ReservationLockService $locks,
         NotificationOutboxService $notificationOutboxService,
@@ -98,6 +101,7 @@ class OrderSettlementWorkflow
         ?StaffCashierShiftService $cashierShiftService = null,
         ?StaffBranchContextService $staffBranchContextService = null,
         ?CashieringReplayRecorder $cashieringReplayRecorder = null,
+        ?SettlementRealtimeEventService $settlementRealtimeEventService = null,
     ) {
         $this->locks = $locks;
         $this->notificationOutboxService = $notificationOutboxService;
@@ -114,6 +118,7 @@ class OrderSettlementWorkflow
         $this->staffBranchContextService = $staffBranchContextService ?? app(StaffBranchContextService::class);
         $this->cashierShiftService = $cashierShiftService ?? app(StaffCashierShiftService::class);
         $this->cashieringReplayRecorder = $cashieringReplayRecorder ?? app(CashieringReplayRecorder::class);
+        $this->settlementRealtimeEventService = $settlementRealtimeEventService ?? app(SettlementRealtimeEventService::class);
     }
 
     /**
@@ -199,7 +204,7 @@ class OrderSettlementWorkflow
                     ->lockForUpdate()
                     ->firstOrFail();
                 $branchId = $this->ensureReservationBranchScopeLocked($lockedReservation, $staffUserId);
-                $this->assertOpenCashierShiftForBranch(
+                $cashierShift = $this->assertOpenCashierShiftForBranch(
                     $staffUserId,
                     $branchId,
                     Money::minorUnits($paidAmount, true) > 0 ? $currency : null,
@@ -233,7 +238,7 @@ class OrderSettlementWorkflow
                     throwIfDuplicatePaymentConstraint: fn (QueryException $e) => $this->throwIfDuplicatePaymentConstraint($e),
                     completeReservationSettlement: function (Reservation $reservation, ?int $actorUserId) use ($orderId, &$settlementCompletedRealtimePayload): void {
                         $this->completeReservationSettlement($reservation, $actorUserId);
-                        $settlementCompletedRealtimePayload ??= $this->buildSettlementCompletedRealtimePayload(
+                        $settlementCompletedRealtimePayload ??= $this->settlementRealtimeEventService->buildSettlementCompletedPayload(
                             $reservation,
                             $orderId,
                         );
@@ -248,6 +253,7 @@ class OrderSettlementWorkflow
                     staffUserId: $staffUserId,
                     idempotencyKey: $idempotencyKey,
                     requestFingerprint: $requestFingerprint,
+                    cashierShiftId: (int) $cashierShift->cashier_shift_id,
                 );
 
                 $this->recordCheckoutCashieringReplay(
@@ -261,7 +267,7 @@ class OrderSettlementWorkflow
             });
         });
 
-        $this->publishSettlementCompletedRealtimeEvent($settlementCompletedRealtimePayload);
+        $this->settlementRealtimeEventService->publishSettlementCompleted($settlementCompletedRealtimePayload);
 
         return $result;
     }
@@ -469,7 +475,7 @@ class OrderSettlementWorkflow
             );
         });
 
-        $this->publishSettlementCompletedRealtimeEvent($settlementCompletedRealtimePayload);
+        $this->settlementRealtimeEventService->publishSettlementCompleted($settlementCompletedRealtimePayload);
 
         return $result;
     }
@@ -648,7 +654,7 @@ class OrderSettlementWorkflow
             /** @var Reservation $reservation */
             $reservation = Reservation::query()->where('reservation_id', $order->reservation_id)->lockForUpdate()->firstOrFail();
             $branchId = $this->ensureReservationBranchScopeLocked($reservation, $staffUserId);
-            $this->assertOpenCashierShiftForBranch(
+            $cashierShift = $this->assertOpenCashierShiftForBranch(
                 $staffUserId,
                 $branchId,
                 Money::minorUnits($paidAmount, true) > 0 ? $currency : null,
@@ -664,7 +670,7 @@ class OrderSettlementWorkflow
                 throwIfDuplicatePaymentConstraint: fn (QueryException $e) => $this->throwIfDuplicatePaymentConstraint($e),
                 completeReservationSettlement: function (Reservation $lockedReservation, ?int $actorUserId) use ($orderId, &$settlementCompletedRealtimePayload): void {
                     $this->completeReservationSettlement($lockedReservation, $actorUserId);
-                    $settlementCompletedRealtimePayload ??= $this->buildSettlementCompletedRealtimePayload(
+                    $settlementCompletedRealtimePayload ??= $this->settlementRealtimeEventService->buildSettlementCompletedPayload(
                         $lockedReservation,
                         $orderId,
                     );
@@ -679,6 +685,7 @@ class OrderSettlementWorkflow
                 staffUserId: $staffUserId,
                 idempotencyKey: $idempotencyKey,
                 requestFingerprint: $requestFingerprint,
+                cashierShiftId: (int) $cashierShift->cashier_shift_id,
             );
 
             $this->recordCheckoutCashieringReplay(
@@ -828,7 +835,7 @@ class OrderSettlementWorkflow
                 }
 
                 $branchId = $this->ensureReservationBranchScopeLocked($reservation, $staffUserId, $tableIds);
-                $this->assertOpenCashierShiftForBranch($staffUserId, $branchId, $effectivePaymentCurrency);
+                $cashierShift = $this->assertOpenCashierShiftForBranch($staffUserId, $branchId, $effectivePaymentCurrency);
 
                 $result = $this->refundExecutionService->executeLocked(
                     reservation: $reservation,
@@ -848,6 +855,7 @@ class OrderSettlementWorkflow
                     staffUserId: $staffUserId,
                     idempotencyKey: $idempotencyKey,
                     requestFingerprint: $requestFingerprint,
+                    cashierShiftId: (int) $cashierShift->cashier_shift_id,
                     syncDepositSnapshot: function (Reservation $lockedReservation, array $paymentSummary, bool $cancelled): void {
                         $this->reservationFinancialSyncService->syncDepositSnapshot($lockedReservation, $paymentSummary, $cancelled);
                     },
@@ -860,7 +868,7 @@ class OrderSettlementWorkflow
                 );
 
                 if ($cancelAfterPayment) {
-                    $refundCancelledRealtimePayload ??= $this->buildRefundCancelledRealtimePayload(
+                    $refundCancelledRealtimePayload ??= $this->settlementRealtimeEventService->buildRefundCancelledPayload(
                         $reservation,
                         $tableIds,
                         (array) ($result['refund_payment_ids'] ?? []),
@@ -911,7 +919,7 @@ class OrderSettlementWorkflow
         );
 
         if ($cancelAfterPayment) {
-            $this->publishRefundCancelledRealtimeEvent($refundCancelledRealtimePayload);
+            $this->settlementRealtimeEventService->publishRefundCancelled($refundCancelledRealtimePayload);
         }
 
         return $response;
@@ -1062,11 +1070,11 @@ class OrderSettlementWorkflow
         throw (new ModelNotFoundException)->setModel(Reservation::class, [(int) ($order->reservation_id ?? 0)]);
     }
 
-    private function assertOpenCashierShiftForBranch(?int $staffUserId, int $branchId, ?string $currency = null): void
+    private function assertOpenCashierShiftForBranch(?int $staffUserId, int $branchId, ?string $currency = null): CashierShift
     {
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
-        $this->cashierShiftService->requireOpenShiftForMutation($staffUserId, $branchId, $currency);
+        return $this->cashierShiftService->requireOpenShiftForMutation($staffUserId, $branchId, $currency);
     }
 
     private function computeReservationBillSnapshot(int $reservationId, float $discountAmount): array
@@ -1115,89 +1123,6 @@ class OrderSettlementWorkflow
             reservation: $reservation,
             staffUserId: $staffUserId,
             consumeAppliedVoucherLocked: fn (Reservation $lockedReservation, Collection $orders, ?int $actorUserId) => $this->consumeAppliedVoucherLocked($lockedReservation, $orders, $actorUserId),
-        );
-    }
-
-    /**
-     * @return array<string,mixed>
-     */
-    private function buildSettlementCompletedRealtimePayload(Reservation $reservation, int $orderId): array
-    {
-        $reservationId = (int) $reservation->reservation_id;
-        $checkedOutAt = $reservation->checked_out_at instanceof Carbon
-            ? $reservation->checked_out_at->copy()->setTimezone('UTC')->toIso8601String()
-            : null;
-
-        return [
-            'reservation_id' => $reservationId,
-            'order_id' => $orderId,
-            'table_ids' => DB::table('reservation_tables')
-                ->where('reservation_id', $reservationId)
-                ->orderBy('table_id')
-                ->pluck('table_id')
-                ->map(static fn ($id): int => (int) $id)
-                ->all(),
-            'reservation_status' => (string) ($reservation->status?->value ?? $reservation->status),
-            'checked_out_at' => $checkedOutAt,
-        ];
-    }
-
-    /**
-     * @param  array<string,mixed>|null  $payload
-     */
-    private function publishSettlementCompletedRealtimeEvent(?array $payload): void
-    {
-        if ($payload === null || $payload === []) {
-            return;
-        }
-
-        app(OperationalRealtimeService::class)->publishBoardEvent(
-            'reservation.settlement_completed',
-            $payload,
-            ['board', 'timeline']
-        );
-    }
-
-    /**
-     * @param  array<int,int>  $tableIds
-     * @param  array<int,int>  $refundPaymentIds
-     * @return array<string,mixed>
-     */
-    private function buildRefundCancelledRealtimePayload(
-        Reservation $reservation,
-        array $tableIds,
-        array $refundPaymentIds,
-        ?string $cancelReason
-    ): array {
-        $cancelledAt = $reservation->cancelled_at instanceof Carbon
-            ? $reservation->cancelled_at->copy()->setTimezone('UTC')->toIso8601String()
-            : null;
-
-        return [
-            'reservation_id' => (int) $reservation->reservation_id,
-            'table_ids' => array_values(array_map('intval', $tableIds)),
-            'refund_payment_ids' => array_values(array_map('intval', $refundPaymentIds)),
-            'reservation_status' => (string) ($reservation->status?->value ?? $reservation->status),
-            'cancelled_at' => $cancelledAt,
-            'cancel_reason' => $cancelReason !== null && trim($cancelReason) !== ''
-                ? trim($cancelReason)
-                : (string) ($reservation->cancel_reason ?? ''),
-        ];
-    }
-
-    /**
-     * @param  array<string,mixed>|null  $payload
-     */
-    private function publishRefundCancelledRealtimeEvent(?array $payload): void
-    {
-        if ($payload === null || $payload === []) {
-            return;
-        }
-
-        app(OperationalRealtimeService::class)->publishBoardEvent(
-            'reservation.refund_cancelled',
-            $payload,
-            ['board', 'timeline']
         );
     }
 

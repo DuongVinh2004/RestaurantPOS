@@ -84,6 +84,7 @@ class RefundExecutionService
         callable $isDuplicatePaymentIdempotencyConstraint,
         callable $throwIfDuplicatePaymentConstraint,
         ?string $requestFingerprint = null,
+        ?int $cashierShiftId = null,
     ): array {
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
@@ -155,6 +156,7 @@ class RefundExecutionService
                 $suffix = sprintf('%s.%d', $scopeKey, $index + 1);
                 $refundPayment = new Payment;
                 $refundPayment->branch_id = $reservationBranchId;
+                $refundPayment->cashier_shift_id = $cashierShiftId !== null && $cashierShiftId > 0 ? $cashierShiftId : null;
                 $refundPayment->reservation_id = $reservationId;
                 $refundPayment->refund_of_payment_id = (int) $sourcePayment->payment_id;
                 $refundPayment->amount = Money::formatMinor($allocationMinor);
@@ -182,6 +184,7 @@ class RefundExecutionService
                     'payment_method' => $paymentMethod,
                     'payment_provider' => trim($paymentProvider) !== '' ? trim($paymentProvider) : 'Other',
                     'notes' => $notes !== '' ? $notes : null,
+                    'cashier_shift_id' => $cashierShiftId !== null && $cashierShiftId > 0 ? $cashierShiftId : null,
                     'source_payment_id' => (int) $sourcePayment->payment_id,
                     'source_transaction_code' => $sourcePayment->transaction_code,
                 ];
@@ -236,6 +239,7 @@ class RefundExecutionService
             'reservation_status' => (string) ($reservation->status?->value ?? $reservation->status),
             'cancel_reason' => $cancelReason,
             'refund_reason' => $reason,
+            'cashier_shift_id' => $cashierShiftId !== null && $cashierShiftId > 0 ? $cashierShiftId : null,
             'actor_user_id' => $staffUserId,
         ]);
 

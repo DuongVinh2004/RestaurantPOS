@@ -13,6 +13,7 @@ $json = isset($options['json']);
 $envFile = normalizeEnvFile((string) ($options['env-file'] ?? '.env'), $rootDir);
 $envFromFile = loadEnvFile($envFile);
 $mysqlBinary = resolveEnvValue('MYSQL_BIN', 'MYSQL_BIN', 'mysql', $envFromFile);
+$appEnvironment = resolveEnvValue('APP_ENV', 'APP_ENV', 'local', $envFromFile);
 
 $dbHost = resolveEnvValue('DB_HOST', 'MYSQL_HOST', '127.0.0.1', $envFromFile);
 $dbPort = (int) resolveEnvValue('DB_PORT', 'MYSQL_PORT', '3306', $envFromFile);
@@ -36,6 +37,7 @@ if (! is_file($verifyContractSql)) {
     fail(sprintf('Release contract verification script not found at [%s].', relativePath($verifyContractSql, $rootDir)), $json);
 }
 
+$mysqlClient = resolveMysqlClient($mysqlBinary, $rootDir, $appEnvironment);
 $patchFiles = glob($patchDir.DIRECTORY_SEPARATOR.'*.sql') ?: [];
 sort($patchFiles, SORT_NATURAL | SORT_FLAG_CASE);
 
@@ -46,7 +48,7 @@ try {
                 'CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;',
                 str_replace('`', '``', $dbDatabase)
             ),
-            $mysqlBinary,
+            $mysqlClient,
             $dbHost,
             $dbPort,
             $dbUser,
@@ -55,13 +57,13 @@ try {
         );
     }
 
-    importSqlFile($schemaSql, $mysqlBinary, $dbHost, $dbPort, $dbUser, $dbPassword, $dbDatabase);
+    importSqlFile($schemaSql, $mysqlClient, $dbHost, $dbPort, $dbUser, $dbPassword, $dbDatabase);
 
     foreach ($patchFiles as $patchFile) {
-        importSqlFile($patchFile, $mysqlBinary, $dbHost, $dbPort, $dbUser, $dbPassword, $dbDatabase);
+        importSqlFile($patchFile, $mysqlClient, $dbHost, $dbPort, $dbUser, $dbPassword, $dbDatabase);
     }
 
-    importSqlFile($verifyContractSql, $mysqlBinary, $dbHost, $dbPort, $dbUser, $dbPassword, $dbDatabase);
+    importSqlFile($verifyContractSql, $mysqlClient, $dbHost, $dbPort, $dbUser, $dbPassword, $dbDatabase);
 } catch (Throwable $exception) {
     fail($exception->getMessage(), $json);
 }
@@ -79,6 +81,7 @@ $payload = [
     'meta' => [
         'db_host' => $dbHost,
         'db_port' => $dbPort,
+        'mysql_client' => $mysqlClient['mode'],
         'patch_count' => count($patchFiles),
         'env_file' => relativePath($envFile, $rootDir),
         'contract_verified' => true,
@@ -205,24 +208,185 @@ function normalizeEnvFile(string $envFile, string $rootDir): string
     return $rootDir.DIRECTORY_SEPARATOR.str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $envFile);
 }
 
+/**
+ * @return array{mode:string,prefix:list<string>,host:?string,port:?int}
+ */
+function resolveMysqlClient(string $mysqlBinary, string $rootDir, string $appEnvironment): array
+{
+    $configuredBinary = trim($mysqlBinary);
+    $isDefaultBinary = $configuredBinary === '' || $configuredBinary === 'mysql';
+
+    if (! $isDefaultBinary || commandExists($configuredBinary !== '' ? $configuredBinary : 'mysql')) {
+        return [
+            'mode' => 'mysql_cli',
+            'prefix' => [$configuredBinary !== '' ? $configuredBinary : 'mysql'],
+            'host' => null,
+            'port' => null,
+        ];
+    }
+
+    $dockerContainer = resolveDockerMysqlContainer();
+    if (canUseDockerComposeMysqlClient($rootDir, $appEnvironment) && $dockerContainer !== null) {
+        return [
+            'mode' => 'docker_container_mysql_cli',
+            'prefix' => [
+                resolveDockerCommand(),
+                'exec',
+                '-i',
+                $dockerContainer,
+                'mysql',
+            ],
+            'host' => '127.0.0.1',
+            'port' => 3306,
+        ];
+    }
+
+    if (canUseDockerComposeMysqlClient($rootDir, $appEnvironment)) {
+        return [
+            'mode' => 'docker_compose_mysql_cli',
+            'prefix' => [
+                resolveDockerCommand(),
+                'compose',
+                '-f',
+                $rootDir.DIRECTORY_SEPARATOR.'docker-compose.testing.yml',
+                'exec',
+                '-T',
+                'mysql',
+                'mysql',
+            ],
+            'host' => '127.0.0.1',
+            'port' => 3306,
+        ];
+    }
+
+    return [
+        'mode' => 'mysql_cli',
+        'prefix' => ['mysql'],
+        'host' => null,
+        'port' => null,
+    ];
+}
+
+function resolveDockerMysqlContainer(): ?string
+{
+    $configured = getenv('MYSQL_DOCKER_CONTAINER');
+    $candidates = array_values(array_filter([
+        is_string($configured) ? trim($configured) : '',
+        'restaurantpos-laravel-mysql-1',
+        'restaurantpos-mysql8-local',
+    ]));
+
+    foreach ($candidates as $candidate) {
+        if (dockerContainerIsRunning($candidate)) {
+            return $candidate;
+        }
+    }
+
+    return null;
+}
+
+function dockerContainerIsRunning(string $container): bool
+{
+    $descriptorSpec = [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ];
+    $command = [
+        resolveDockerCommand(),
+        'inspect',
+        '-f',
+        '{{.State.Running}}',
+        $container,
+    ];
+
+    $process = @proc_open($command, $descriptorSpec, $pipes);
+    if (! is_resource($process)) {
+        return false;
+    }
+
+    fclose($pipes[0]);
+    $stdout = trim((string) stream_get_contents($pipes[1]));
+    stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+
+    return proc_close($process) === 0 && $stdout === 'true';
+}
+
+function commandExists(string $command): bool
+{
+    if ($command === '') {
+        return false;
+    }
+
+    if (str_contains($command, '/') || str_contains($command, '\\') || preg_match('/^[A-Za-z]:[\\\\\\/]/', $command) === 1) {
+        return is_file($command);
+    }
+
+    $probe = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN'
+        ? ['where', $command]
+        : ['sh', '-c', 'command -v '.escapeshellarg($command)];
+
+    $descriptorSpec = [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ];
+
+    $process = @proc_open($probe, $descriptorSpec, $pipes);
+    if (! is_resource($process)) {
+        return false;
+    }
+
+    fclose($pipes[0]);
+    stream_get_contents($pipes[1]);
+    stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+
+    return proc_close($process) === 0;
+}
+
+function canUseDockerComposeMysqlClient(string $rootDir, string $appEnvironment): bool
+{
+    $environment = strtolower(trim($appEnvironment));
+    $isLocalOrCi = in_array($environment, ['local', 'testing'], true) || getenv('CI') === 'true';
+
+    return $isLocalOrCi
+        && is_file($rootDir.DIRECTORY_SEPARATOR.'docker-compose.testing.yml')
+        && commandExists(resolveDockerCommand());
+}
+
+function resolveDockerCommand(): string
+{
+    return strtoupper(substr(PHP_OS, 0, 3)) === 'WIN' ? 'docker.exe' : 'docker';
+}
+
+/**
+ * @param  array{mode:string,prefix:list<string>,host:?string,port:?int}  $mysqlClient
+ */
 function runMysqlStatement(
     string $statement,
-    string $mysqlBinary,
+    array $mysqlClient,
     string $host,
     int $port,
     string $user,
     string $password,
     ?string $database,
 ): void {
-    $command = buildMysqlCommand($mysqlBinary, $host, $port, $user, $password, $database);
+    $command = buildMysqlCommand($mysqlClient, $host, $port, $user, $password, $database);
     $command[] = '--execute='.$statement;
 
     runProcess($command, '');
 }
 
+/**
+ * @param  array{mode:string,prefix:list<string>,host:?string,port:?int}  $mysqlClient
+ */
 function importSqlFile(
     string $path,
-    string $mysqlBinary,
+    array $mysqlClient,
     string $host,
     int $port,
     string $user,
@@ -234,22 +398,24 @@ function importSqlFile(
         throw new RuntimeException(sprintf('Unable to read SQL file [%s].', $path));
     }
 
-    $command = buildMysqlCommand($mysqlBinary, $host, $port, $user, $password, $database);
+    $command = buildMysqlCommand($mysqlClient, $host, $port, $user, $password, $database);
     runProcess($command, $contents);
 }
 
 /**
+ * @param  array{mode:string,prefix:list<string>,host:?string,port:?int}  $mysqlClient
  * @return list<string>
  */
-function buildMysqlCommand(string $mysqlBinary, string $host, int $port, string $user, string $password, ?string $database): array
+function buildMysqlCommand(array $mysqlClient, string $host, int $port, string $user, string $password, ?string $database): array
 {
-    $command = [
-        $mysqlBinary,
-        sprintf('--host=%s', $host),
-        sprintf('--port=%d', $port),
+    $clientHost = $mysqlClient['host'] ?? $host;
+    $clientPort = $mysqlClient['port'] ?? $port;
+    $command = array_merge($mysqlClient['prefix'], [
+        sprintf('--host=%s', $clientHost),
+        sprintf('--port=%d', $clientPort),
         sprintf('--user=%s', $user),
         '--default-character-set=utf8mb4',
-    ];
+    ]);
 
     if ($password !== '') {
         $command[] = sprintf('--password=%s', $password);

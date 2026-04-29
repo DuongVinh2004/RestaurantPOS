@@ -49,6 +49,38 @@ class OperationalAlertServiceTest extends TestCase
         $this->assertSame('warning', $alerts[1]['severity']);
         $this->assertArrayHasKey('fingerprint', $alerts[0]);
         $this->assertSame(1, $alerts[0]['context']['over_refunded_source_count']);
+        $this->assertNotEmpty($alerts[0]['first_commands']);
+    }
+
+    public function test_it_builds_actionable_redacted_alerts_for_runtime_failures(): void
+    {
+        config()->set('ops_alerts.max_alerts_per_run', 25);
+
+        $alerts = app(OperationalAlertService::class)->buildAlerts([
+            'redis_runtime' => [
+                'status' => 'fail',
+                'reasons' => ['redis_probe_failed'],
+                'webhook_url' => 'https://ops.example.test/hook',
+                'nested' => [
+                    'auth_token' => 'super-secret-token',
+                    'api_key_count' => 2,
+                    'url' => 'https://ops.example.test/internal',
+                ],
+            ],
+        ], Carbon::parse('2026-04-28T00:00:00Z'));
+
+        $this->assertCount(1, $alerts);
+        $alert = $alerts[0];
+
+        $this->assertSame('redis_runtime', $alert['section']);
+        $this->assertSame('critical', $alert['severity']);
+        $this->assertNotEmpty($alert['meaning']);
+        $this->assertNotEmpty($alert['first_commands']);
+        $this->assertSame('docs/runbooks/booking-alerting-runbook.md', $alert['runbook']);
+        $this->assertSame('[redacted]', data_get($alert, 'context.webhook_url'));
+        $this->assertSame('[redacted]', data_get($alert, 'context.nested.auth_token'));
+        $this->assertSame('[redacted]', data_get($alert, 'context.nested.url'));
+        $this->assertSame(2, data_get($alert, 'context.nested.api_key_count'));
     }
 
     public function test_dispatch_alerts_sends_once_then_suppresses_duplicate_alert_during_cooldown(): void

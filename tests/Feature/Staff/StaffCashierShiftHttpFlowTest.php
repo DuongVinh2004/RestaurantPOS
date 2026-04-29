@@ -113,6 +113,146 @@ class StaffCashierShiftHttpFlowTest extends TestCase
             ->assertStatus(404);
     }
 
+    public function test_payment_records_cashier_shift_id_for_open_shift(): void
+    {
+        [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario();
+        $headers = $this->withIdempotencyKey('idem-cashier-shift-fk-open', $this->staffAuthHeaders($staffId, 'staff-cashier-shift-fk'));
+
+        $open = $this->postJson('/api/v1/staff/cashier/shifts/open', [
+            'opening_float_amount' => 0,
+            'currency' => 'VND',
+            'terminal_code' => 'POS-FK',
+        ], $headers)->assertCreated();
+
+        $shiftId = (int) $open->json('data.cashier_shift_id');
+
+        $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', [
+            'payment_method' => 'Cash',
+            'payment_provider' => 'Cash',
+            'paid_amount' => 40000,
+            'currency' => 'VND',
+            'transaction_code' => 'SHIFT-FK-PAY-1',
+            'row_version' => 1,
+        ], $this->withIdempotencyKey('idem-cashier-shift-fk-pay', $headers))->assertOk();
+
+        $payment = DB::table('payments')
+            ->where('reservation_id', $reservationId)
+            ->where('transaction_code', 'SHIFT-FK-PAY-1')
+            ->first();
+
+        self::assertNotNull($payment);
+        self::assertSame($shiftId, (int) $payment->cashier_shift_id);
+    }
+
+    public function test_shift_close_summary_uses_shift_fk_not_time_window(): void
+    {
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
+        $headers = $this->withIdempotencyKey('idem-cashier-shift-fk-window-open', $this->staffAuthHeaders($staffId, 'staff-cashier-shift-fk-window'));
+
+        $open = $this->postJson('/api/v1/staff/cashier/shifts/open', [
+            'opening_float_amount' => 0,
+            'currency' => 'VND',
+            'terminal_code' => 'POS-FK-WINDOW',
+        ], $headers)->assertCreated();
+
+        $shiftId = (int) $open->json('data.cashier_shift_id');
+        $rowVersion = (int) $open->json('data.row_version');
+        $outsideWindow = now('UTC')->subDay()->toDateTimeString();
+        $reservationId = $this->createReservation([
+            'branch_id' => 1,
+            'user_id' => $customerId,
+            'status' => 'Completed',
+            'bill_currency' => 'VND',
+        ]);
+
+        $this->createPayment([
+            'reservation_id' => $reservationId,
+            'branch_id' => 1,
+            'cashier_shift_id' => $shiftId,
+            'payment_type' => 'Final',
+            'status' => 'Success',
+            'amount' => '40000.00',
+            'currency' => 'VND',
+            'payment_method' => 'Cash',
+            'payment_provider' => 'Cash',
+            'created_by' => $staffId,
+            'paid_at' => $outsideWindow,
+            'created_at' => $outsideWindow,
+            'transaction_code' => 'SHIFT-FK-OUTSIDE-WINDOW',
+        ]);
+
+        $this->getJson('/api/v1/staff/cashier/shifts/'.$shiftId, $headers)
+            ->assertOk()
+            ->assertJsonPath('data.summary.payments.captured_total', '40000.00')
+            ->assertJsonPath('data.summary.cash.expected_cash_amount', '40000.00');
+
+        $this->postJson('/api/v1/staff/cashier/shifts/'.$shiftId.'/close', [
+            'actual_cash_amount' => 40000,
+            'row_version' => $rowVersion,
+        ], $this->withIdempotencyKey('idem-cashier-shift-fk-window-close', $headers))
+            ->assertOk()
+            ->assertJsonPath('data.expected_cash_amount', '40000.00')
+            ->assertJsonPath('data.summary.payments.captured_total', '40000.00');
+    }
+
+    public function test_payment_after_shift_boundary_not_misattributed(): void
+    {
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $staffId = $this->createUser(['role_name' => 'Cashier']);
+        $headers = $this->withIdempotencyKey('idem-cashier-shift-boundary-open-a', $this->staffAuthHeaders($staffId, 'staff-cashier-shift-boundary'));
+
+        $firstOpen = $this->postJson('/api/v1/staff/cashier/shifts/open', [
+            'opening_float_amount' => 0,
+            'currency' => 'VND',
+            'terminal_code' => 'POS-BOUNDARY-A',
+        ], $headers)->assertCreated();
+        $firstShiftId = (int) $firstOpen->json('data.cashier_shift_id');
+
+        $this->postJson('/api/v1/staff/cashier/shifts/'.$firstShiftId.'/close', [
+            'actual_cash_amount' => 0,
+            'row_version' => (int) $firstOpen->json('data.row_version'),
+        ], $this->withIdempotencyKey('idem-cashier-shift-boundary-close-a', $headers))->assertOk();
+
+        $secondOpen = $this->postJson('/api/v1/staff/cashier/shifts/open', [
+            'opening_float_amount' => 0,
+            'currency' => 'VND',
+            'terminal_code' => 'POS-BOUNDARY-B',
+        ], $this->withIdempotencyKey('idem-cashier-shift-boundary-open-b', $headers))->assertCreated();
+        $secondShiftId = (int) $secondOpen->json('data.cashier_shift_id');
+        $paymentTime = now('UTC')->toDateTimeString();
+        $reservationId = $this->createReservation([
+            'branch_id' => 1,
+            'user_id' => $customerId,
+            'status' => 'Completed',
+            'bill_currency' => 'VND',
+        ]);
+
+        $this->createPayment([
+            'reservation_id' => $reservationId,
+            'branch_id' => 1,
+            'cashier_shift_id' => $firstShiftId,
+            'payment_type' => 'Final',
+            'status' => 'Success',
+            'amount' => '60000.00',
+            'currency' => 'VND',
+            'payment_method' => 'Cash',
+            'payment_provider' => 'Cash',
+            'created_by' => $staffId,
+            'paid_at' => $paymentTime,
+            'created_at' => $paymentTime,
+            'transaction_code' => 'SHIFT-FK-AFTER-BOUNDARY',
+        ]);
+
+        $this->getJson('/api/v1/staff/cashier/shifts/'.$firstShiftId, $headers)
+            ->assertOk()
+            ->assertJsonPath('data.summary.payments.captured_total', '60000.00');
+
+        $this->getJson('/api/v1/staff/cashier/shifts/'.$secondShiftId, $headers)
+            ->assertOk()
+            ->assertJsonPath('data.summary.payments.captured_total', '0.00');
+    }
+
     public function test_staff_can_list_authenticated_cashier_shift_history_with_filters(): void
     {
         [$staffId] = $this->seedActiveOrderScenario();

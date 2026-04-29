@@ -78,6 +78,12 @@ Then re-run the package integrity check and frozen manifest verification before 
 
 Do not treat controllers, resources, or ad-hoc route inspection as contract sources for FE integration.
 
+Critical frontend mutation drift is guarded in the split-web checks:
+
+- `staff-web npm run integrity:check` scans staff API wrappers for canonical table board, bill snapshot, settlement finalize, KDS, refund, and cashier-shift SDK calls, and blocks deprecated `close`, `checkout`, `voucher/release`, `loyalty/release`, and `table-board` alias fragments.
+- `customer-web npm run verify:contracts` checks generated SDK copy freshness and scans customer deposit, bill, and preorder wrappers for `X-Session-Id`, `Idempotency-Key` option usage, and required `row_version` body fields.
+- `customer-web npm run build` runs `verify:contracts` before `next build`, so split frontend deployment cannot bypass the contract governance check.
+
 ## Source-of-truth model
 
 - Route and schema source: `storage/app/booking_release/openapi-v1.json`
@@ -372,6 +378,7 @@ After every backend artifact refresh, keep the customer-web generated contract c
 composer api:artifacts
 cd customer-web
 npm run sync:contracts
+npm run verify:contracts
 ```
 
 Do not hand-edit files under `build/api-consumer`, `storage/app/booking_release`, or `customer-web/src/lib/contracts/generated`.

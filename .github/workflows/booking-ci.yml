@@ -59,27 +59,43 @@ jobs:
           - id: booking-smoke
             name: booking-smoke
             command: bash scripts/ci/booking-smoke-gate.sh
+            timeout_seconds: 2400
+          - id: runtime-smoke
+            name: runtime-smoke
+            command: bash scripts/ci/booking-runtime-smoke.sh
+            timeout_seconds: 1800
+          - id: phpstan
+            name: phpstan
+            command: bash scripts/ci/booking-phpstan.sh
+            timeout_seconds: 1500
           - id: critical-security
             name: critical-security
             command: composer test:security
+            timeout_seconds: 1800
           - id: critical-orders
             name: critical-orders
             command: composer test:orders
+            timeout_seconds: 1800
           - id: critical-kitchen
             name: critical-kitchen-kds
             command: composer test:kitchen
+            timeout_seconds: 1800
           - id: critical-money
             name: critical-money-cashier
             command: composer test:money
+            timeout_seconds: 2400
           - id: critical-inventory
             name: critical-inventory
             command: composer test:inventory
+            timeout_seconds: 1800
           - id: critical-release-contract
             name: critical-release-contract
             command: composer test:release-contract
+            timeout_seconds: 2400
           - id: full-gate
             name: full-gate
             command: bash scripts/ci/booking-full-gate.sh
+            timeout_seconds: 7200
     services:
       mysql:
         image: mysql:8.0
@@ -114,6 +130,7 @@ jobs:
         with:
           php-version: '8.2'
           extensions: mbstring, dom, pdo_mysql, redis, phar
+          ini-values: memory_limit=1G
           tools: composer:v2
           coverage: none
 
@@ -169,6 +186,7 @@ jobs:
           BOOKING_CI_LANE_COMMAND: ${{ matrix.lane.command }}
           BOOKING_CI_LANE_ID: ${{ matrix.lane.id }}
           BOOKING_CI_LANE_NAME: ${{ matrix.lane.name }}
+          BOOKING_CI_LANE_TIMEOUT_SECONDS: ${{ matrix.lane.timeout_seconds || 1800 }}
         run: bash scripts/ci/booking-ci-run-lane.sh
 
       - name: Upload CI evidence

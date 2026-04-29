@@ -229,28 +229,20 @@ Customer-facing auth, menu, availability, table holds, reservations, canonical `
 
 These are the only locked route alias groups remaining in `tests/fixtures/route_inventory_gate.json` for rollout safety.
 
-- Bill snapshot
-  - Canonical: `POST /api/v1/staff/orders/{order_id}/bill-snapshot`
-  - Legacy alias: `POST /api/v1/staff/orders/{order_id}/close`
+| Surface | Canonical route | Deprecated alias | Removal criteria | Minimum evidence before removal |
+|---|---|---|---|---|
+| Bill snapshot | `POST /api/v1/staff/orders/{order_id}/bill-snapshot` | `POST /api/v1/staff/orders/{order_id}/close` | Zero alias hits for one release cycle and no frontend/integration references | `booking:route-gate` includes `staff.orders.close`; audit logs have zero `api_deprecated_alias_used` hits for `alias_key=staff.orders.close`; source scan has no alias path |
+| Finalize settlement | `POST /api/v1/staff/orders/{order_id}/settlement/finalize` | `POST /api/v1/staff/orders/{order_id}/checkout` | Zero alias hits for one release cycle and no frontend/integration references | `booking:route-gate` includes `staff.orders.checkout`; audit logs have zero `api_deprecated_alias_used` hits for `alias_key=staff.orders.checkout`; source scan has no alias path |
+| Voucher release | `POST /api/v1/staff/reservations/{reservation_id}/voucher/remove` | `POST /api/v1/staff/reservations/{reservation_id}/voucher/release` | Zero alias hits for one release cycle and no frontend/integration references | `booking:route-gate` includes `staff.reservations.voucher.release`; audit logs have zero `api_deprecated_alias_used` hits for that alias key; source scan has no alias path |
+| Loyalty redemption release | `POST /api/v1/staff/reservations/{reservation_id}/loyalty/redeem/release` | `POST /api/v1/staff/reservations/{reservation_id}/loyalty/release` | Zero alias hits for one release cycle and no frontend/integration references | `booking:route-gate` includes `staff.reservations.loyalty.release`; audit logs have zero `api_deprecated_alias_used` hits for that alias key; source scan has no alias path |
+| Staff table board | `GET /api/v1/staff/tables/board` | `GET /api/v1/staff/table-board` | Zero alias hits for one release cycle and no frontend/integration references | `booking:route-gate` includes `staff.tables.table-board`; audit logs have zero `api_deprecated_alias_used` hits for that alias key; source scan has no alias path |
 
-- Finalize settlement
-  - Canonical: `POST /api/v1/staff/orders/{order_id}/settlement/finalize`
-  - Legacy alias: `POST /api/v1/staff/orders/{order_id}/checkout`
+`booking:route-gate --json` exposes the same plan under `meta.alias_deprecation_plan` and validates that every locked alias group has removal criteria and minimum evidence in `config/booking.php`. Runtime alias hits are logged to the audit channel as `api_deprecated_alias_used`; the event records the alias key, deprecated alias, canonical route, and the configured evidence expectation without request bodies or secrets.
 
-- Voucher release
-  - Canonical mutation remains the remove route
-  - Compatibility alias: `POST /api/v1/staff/reservations/{reservation_id}/voucher/release`
-
-- Loyalty redemption release
-  - Canonical mutation remains the redeem-release route
-  - Compatibility alias: `POST /api/v1/staff/reservations/{reservation_id}/loyalty/release`
-
-- Staff table board
-  - Canonical: `GET /api/v1/staff/tables/board`
-  - Legacy alias: `GET /api/v1/staff/table-board`
-
-Compatibility input aliases still accepted by the current implementation:
+Compatibility idempotency input aliases still accepted by the current implementation:
 
 - Canonical idempotency header: `Idempotency-Key`
 - Compatibility header alias: `X-Idempotency-Key`
 - Compatibility body field alias: `idempotency_key`
+
+The compatibility idempotency inputs are logged as `idempotency_compatibility_key_used` with `source=X-Idempotency-Key` or `source=body.idempotency_key`. Remove either input only after a full release cycle with zero compatibility hits and after `staff-web` and `customer-web` integrity checks confirm canonical `Idempotency-Key` usage.

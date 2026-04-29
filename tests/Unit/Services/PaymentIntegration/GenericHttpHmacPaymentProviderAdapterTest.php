@@ -200,4 +200,22 @@ final class GenericHttpHmacPaymentProviderAdapterTest extends TestCase
 
         self::assertFalse($verified);
     }
+
+    public function test_generic_hmac_webhook_rejects_missing_timestamp_when_replay_window_enabled(): void
+    {
+        config()->set('booking.payment_providers.providers.generic_http_hmac.webhook.secret', 'secret');
+        config()->set('booking.payment_providers.providers.generic_http_hmac.webhook.max_age_seconds', 300);
+
+        $rawBody = json_encode([
+            'provider_session_code' => 'gen-session-missing-ts',
+            'payment_scope' => 'deposit',
+            'event_type' => 'payment.session.updated',
+        ], JSON_THROW_ON_ERROR);
+
+        $verified = app(GenericHttpHmacPaymentProviderAdapter::class)->verifyWebhookSignature($rawBody, [
+            'x-payment-signature' => hash_hmac('sha256', $rawBody, 'secret'),
+        ]);
+
+        self::assertFalse($verified);
+    }
 }

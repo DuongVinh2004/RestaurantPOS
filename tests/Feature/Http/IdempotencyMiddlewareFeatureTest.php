@@ -113,6 +113,42 @@ class IdempotencyMiddlewareFeatureTest extends TestCase
     }
 
     #[Group('booking-smoke')]
+    public function test_x_idempotency_key_compatibility_header_still_replays_cached_response(): void
+    {
+        $headers = ['X-Idempotency-Key' => 'idem-feature-x-header-replay-1'];
+        $payload = [
+            'amount' => 175000,
+            'session_id' => 'sess-x',
+        ];
+
+        $first = $this->withHeaders($headers)->postJson('/__testing__/idem/23', $payload);
+        $second = $this->withHeaders($headers)->postJson('/__testing__/idem/23', $payload);
+
+        $first->assertCreated()->assertHeader('Idempotency-Replayed', 'false');
+        $second->assertCreated()->assertHeader('Idempotency-Replayed', 'true');
+
+        $this->assertSame($first->json('nonce'), $second->json('nonce'));
+    }
+
+    #[Group('booking-smoke')]
+    public function test_body_idempotency_key_compatibility_still_replays_cached_response(): void
+    {
+        $payload = [
+            'amount' => 185000,
+            'session_id' => 'sess-body',
+            'idempotency_key' => 'idem-feature-body-replay-1',
+        ];
+
+        $first = $this->postJson('/__testing__/idem/24', $payload);
+        $second = $this->postJson('/__testing__/idem/24', $payload);
+
+        $first->assertCreated()->assertHeader('Idempotency-Replayed', 'false');
+        $second->assertCreated()->assertHeader('Idempotency-Replayed', 'true');
+
+        $this->assertSame($first->json('nonce'), $second->json('nonce'));
+    }
+
+    #[Group('booking-smoke')]
     public function test_same_key_with_different_payload_returns_conflict(): void
     {
         $headers = ['Idempotency-Key' => 'idem-feature-conflict-1'];

@@ -45,7 +45,7 @@ return [
     'allow_env_fallback' => (bool) env('STAFF_AUTH_ALLOW_ENV_FALLBACK', false),
     'allow_env_fallback_when_database_store_unavailable' => (bool) env('STAFF_AUTH_ALLOW_ENV_FALLBACK_WHEN_DATABASE_STORE_UNAVAILABLE', false),
     'env_fallback_allowed_environments' => array_values(array_filter(array_map('trim', explode(',', (string) env('STAFF_AUTH_ENV_FALLBACK_ALLOWED_ENVIRONMENTS', 'local,testing'))))),
-    'production_like_environments' => array_values(array_filter(array_map('trim', explode(',', (string) env('STAFF_AUTH_PRODUCTION_LIKE_ENVIRONMENTS', 'production'))))),
+    'production_like_environments' => array_values(array_filter(array_map('trim', explode(',', (string) env('STAFF_AUTH_PRODUCTION_LIKE_ENVIRONMENTS', 'production,staging,limited-production'))))),
     'deny_env_fallback_in_production_like' => (bool) env('STAFF_AUTH_DENY_ENV_FALLBACK_IN_PRODUCTION_LIKE', true),
     'deny_role_name_fallback_in_production_like' => (bool) env('STAFF_AUTH_DENY_ROLE_NAME_FALLBACK_IN_PRODUCTION_LIKE', true),
     // Default role ids assume the canonical Admin/Staff/ops reference roles on a clean bootstrap.

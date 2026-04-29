@@ -13,7 +13,7 @@ $defaultPaymentProvider = (string) env(
     'PAYMENT_PROVIDER_DEFAULT',
     $isLocalLikeEnvironment ? 'simulated' : 'generic_http_hmac'
 );
-$defaultCustomerSelfPayEnabled = $isLocalLikeEnvironment;
+$defaultCustomerSelfPayEnabled = false;
 $serviceBufferMinutes = (int) env('SERVICE_BUFFER_MINUTES', 0);
 $customerReservationCancellationCutoffMinutes = (int) env('BOOKING_CUSTOMER_RESERVATION_CANCELLATION_CUTOFF_MINUTES', 30);
 $customerReservationRescheduleCutoffMinutes = (int) env('BOOKING_CUSTOMER_RESERVATION_RESCHEDULE_CUTOFF_MINUTES', 120);
@@ -165,6 +165,90 @@ return [
         'v1/staff/reservations/{reservation_id}/voucher/release' => 'v1/staff/reservations/{reservation_id}/voucher/remove',
         'v1/staff/reservations/{reservation_id}/loyalty/release' => 'v1/staff/reservations/{reservation_id}/loyalty/redeem/release',
     ],
+    'api_alias_deprecations' => [
+        'observation_release_cycles' => 1,
+        'audit_log_event' => 'api_deprecated_alias_used',
+        'idempotency_compatibility_event' => 'idempotency_compatibility_key_used',
+        'routes' => [
+            [
+                'key' => 'staff.orders.close',
+                'canonical_route' => 'POST /api/v1/staff/orders/{order_id}/bill-snapshot',
+                'deprecated_alias' => 'POST /api/v1/staff/orders/{order_id}/close',
+                'removal_criteria' => 'Zero alias hits in production/staging audit logs for one release cycle and no frontend or integration source references.',
+                'minimum_evidence' => [
+                    'booking:route-gate alias_deprecation_plan includes this row',
+                    'audit log query for api_deprecated_alias_used where alias_key=staff.orders.close returns zero hits for the release cycle',
+                    'source scan confirms no client uses /api/v1/staff/orders/{order_id}/close',
+                ],
+            ],
+            [
+                'key' => 'staff.orders.checkout',
+                'canonical_route' => 'POST /api/v1/staff/orders/{order_id}/settlement/finalize',
+                'deprecated_alias' => 'POST /api/v1/staff/orders/{order_id}/checkout',
+                'removal_criteria' => 'Zero alias hits in production/staging audit logs for one release cycle and no frontend or integration source references.',
+                'minimum_evidence' => [
+                    'booking:route-gate alias_deprecation_plan includes this row',
+                    'audit log query for api_deprecated_alias_used where alias_key=staff.orders.checkout returns zero hits for the release cycle',
+                    'source scan confirms no client uses /api/v1/staff/orders/{order_id}/checkout',
+                ],
+            ],
+            [
+                'key' => 'staff.reservations.voucher.release',
+                'canonical_route' => 'POST /api/v1/staff/reservations/{reservation_id}/voucher/remove',
+                'deprecated_alias' => 'POST /api/v1/staff/reservations/{reservation_id}/voucher/release',
+                'removal_criteria' => 'Zero alias hits in production/staging audit logs for one release cycle and no frontend or integration source references.',
+                'minimum_evidence' => [
+                    'booking:route-gate alias_deprecation_plan includes this row',
+                    'audit log query for api_deprecated_alias_used where alias_key=staff.reservations.voucher.release returns zero hits for the release cycle',
+                    'source scan confirms no client uses /api/v1/staff/reservations/{reservation_id}/voucher/release',
+                ],
+            ],
+            [
+                'key' => 'staff.reservations.loyalty.release',
+                'canonical_route' => 'POST /api/v1/staff/reservations/{reservation_id}/loyalty/redeem/release',
+                'deprecated_alias' => 'POST /api/v1/staff/reservations/{reservation_id}/loyalty/release',
+                'removal_criteria' => 'Zero alias hits in production/staging audit logs for one release cycle and no frontend or integration source references.',
+                'minimum_evidence' => [
+                    'booking:route-gate alias_deprecation_plan includes this row',
+                    'audit log query for api_deprecated_alias_used where alias_key=staff.reservations.loyalty.release returns zero hits for the release cycle',
+                    'source scan confirms no client uses /api/v1/staff/reservations/{reservation_id}/loyalty/release',
+                ],
+            ],
+            [
+                'key' => 'staff.tables.table-board',
+                'canonical_route' => 'GET /api/v1/staff/tables/board',
+                'deprecated_alias' => 'GET /api/v1/staff/table-board',
+                'removal_criteria' => 'Zero alias hits in production/staging audit logs for one release cycle and no frontend or integration source references.',
+                'minimum_evidence' => [
+                    'booking:route-gate alias_deprecation_plan includes this row',
+                    'audit log query for api_deprecated_alias_used where alias_key=staff.tables.table-board returns zero hits for the release cycle',
+                    'source scan confirms no client uses /api/v1/staff/table-board',
+                ],
+            ],
+        ],
+        'idempotency_inputs' => [
+            [
+                'key' => 'idempotency.x_header',
+                'canonical_input' => 'Idempotency-Key header',
+                'deprecated_alias' => 'X-Idempotency-Key header',
+                'removal_criteria' => 'Zero compatibility-key hits for one release cycle and all generated clients send Idempotency-Key.',
+                'minimum_evidence' => [
+                    'audit log query for idempotency_compatibility_key_used where source=X-Idempotency-Key returns zero hits for the release cycle',
+                    'staff-web and customer-web contract checks confirm canonical idempotency options',
+                ],
+            ],
+            [
+                'key' => 'idempotency.body_key',
+                'canonical_input' => 'Idempotency-Key header',
+                'deprecated_alias' => 'body idempotency_key',
+                'removal_criteria' => 'Zero compatibility-key hits for one release cycle and all generated clients send Idempotency-Key.',
+                'minimum_evidence' => [
+                    'audit log query for idempotency_compatibility_key_used where source=body.idempotency_key returns zero hits for the release cycle',
+                    'staff-web and customer-web contract checks confirm canonical idempotency options',
+                ],
+            ],
+        ],
+    ],
 
     // Reservation locks and runtime coordination.
     'require_redis_for_booking_api' => (bool) env('REQUIRE_REDIS_FOR_BOOKING_API', true),
@@ -205,7 +289,7 @@ return [
         'default_provider' => $defaultPaymentProvider,
         'customer_self_pay' => [
             'enabled' => (bool) env('PAYMENT_CUSTOMER_SELF_PAY_ENABLED', $defaultCustomerSelfPayEnabled),
-            'production_like_environments' => $csvList((string) env('PAYMENT_PROVIDER_PRODUCTION_LIKE_ENVIRONMENTS', 'production,staging')),
+            'production_like_environments' => $csvList((string) env('PAYMENT_PROVIDER_PRODUCTION_LIKE_ENVIRONMENTS', 'production,staging,limited-production')),
             'allow_simulated_in_production_like' => (bool) env('PAYMENT_PROVIDER_ALLOW_SIMULATED_IN_PRODUCTION_LIKE', false),
         ],
         'scopes' => [
@@ -320,7 +404,7 @@ return [
     'realtime' => [
         'enabled' => (bool) env('BOOKING_REALTIME_ENABLED', true),
         'cache_store' => (string) env('BOOKING_REALTIME_CACHE_STORE', $defaultRealtimeCacheStore),
-        'production_like_environments' => $csvList((string) env('BOOKING_REALTIME_PRODUCTION_LIKE_ENVIRONMENTS', 'production,staging')),
+        'production_like_environments' => $csvList((string) env('BOOKING_REALTIME_PRODUCTION_LIKE_ENVIRONMENTS', 'production,staging,limited-production')),
         'local_like_environments' => $csvList((string) env('BOOKING_REALTIME_LOCAL_LIKE_ENVIRONMENTS', 'local,development,testing')),
         'distributed_store_drivers' => $csvList((string) env('BOOKING_REALTIME_DISTRIBUTED_STORE_DRIVERS', 'redis,memcached,database,dynamodb')),
         'local_fallback_store_drivers' => $csvList((string) env('BOOKING_REALTIME_LOCAL_FALLBACK_STORE_DRIVERS', 'file,array')),

@@ -1109,6 +1109,7 @@ trait BuildsBookingScenario
             Schema::create('payments', function (Blueprint $table): void {
                 $table->increments('payment_id');
                 $table->unsignedInteger('reservation_id')->nullable();
+                $table->unsignedBigInteger('cashier_shift_id')->nullable();
                 $table->unsignedInteger('refund_of_payment_id')->nullable();
                 $table->decimal('amount', 12, 2)->default(0);
                 $table->string('currency', 10)->default('VND');
@@ -1771,6 +1772,7 @@ trait BuildsBookingScenario
         $this->ensureIndexIfMissing('payments', 'uq_payments__payment_provider__transaction_code', ['payment_provider', 'transaction_code'], true);
         $this->ensureIndexIfMissing('payments', 'idx_payments__reservation_id__payment_type__status', ['reservation_id', 'payment_type', 'status']);
         $this->ensureIndexIfMissing('payments', 'idx_payments__branch_id__reservation_id__payment_type__status', ['branch_id', 'reservation_id', 'payment_type', 'status']);
+        $this->ensureIndexIfMissing('payments', 'idx_payments__cashier_shift_id', ['cashier_shift_id']);
         $this->ensureIndexIfMissing('payments', 'idx_payments__refund_of_payment_id', ['refund_of_payment_id']);
         $this->ensureIndexIfMissing('finance_replay_records', 'uq_finance_replay_records__scope_aggregate_key', ['scope', 'aggregate_type', 'aggregate_id', 'idempotency_key'], true);
         $this->ensureIndexIfMissing('finance_replay_records', 'idx_finance_replay_records__idempotency_key', ['idempotency_key']);
@@ -2574,6 +2576,7 @@ SQL);
         $payload = array_merge([
             'reservation_id' => $this->createReservation(),
             'branch_id' => 1,
+            'cashier_shift_id' => null,
             'refund_of_payment_id' => null,
             'amount' => '100000.00',
             'currency' => 'VND',

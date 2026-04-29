@@ -31,6 +31,25 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
 
         $this->assertStringContainsString("'--skip-create-db'", $script);
         $this->assertStringContainsString('tools/mysql/bootstrap_release.php', $script);
+        $this->assertStringContainsString('ensureLaravelRuntimeDirectories', $script);
+        $this->assertStringContainsString('storage/framework/views', $script);
+    }
+
+    public function test_release_bootstrap_keeps_mysql_cli_primary_with_local_docker_fallback(): void
+    {
+        $bootstrapPath = base_path('tools/mysql/bootstrap_release.php');
+
+        $this->assertTrue(File::exists($bootstrapPath), sprintf('Bootstrap wrapper is missing: %s', $bootstrapPath));
+
+        $script = (string) File::get($bootstrapPath);
+
+        $this->assertStringContainsString('resolveMysqlClient', $script);
+        $this->assertStringContainsString('mysql_cli', $script);
+        $this->assertStringContainsString('docker_container_mysql_cli', $script);
+        $this->assertStringContainsString('docker_compose_mysql_cli', $script);
+        $this->assertStringContainsString('docker-compose.testing.yml', $script);
+        $this->assertStringContainsString('MYSQL_DOCKER_CONTAINER', $script);
+        $this->assertStringContainsString("in_array(\$environment, ['local', 'testing'], true) || getenv('CI') === 'true'", $script);
     }
 
     public function test_ci_bootstrap_uses_canonical_composer_wrapper_without_creating_database(): void
@@ -85,6 +104,19 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
             $this->assertTrue(File::exists($path), sprintf('Deploy script is missing: %s', $path));
             $this->assertStringContainsString('php artisan notifications:outbox-health --json', (string) File::get($path));
         }
+    }
+
+    public function test_deploy_preflight_script_emits_strict_json_evidence(): void
+    {
+        $preflightPath = base_path('scripts/ci/booking-deploy-preflight.sh');
+
+        $this->assertTrue(File::exists($preflightPath), sprintf('Deploy preflight script is missing: %s', $preflightPath));
+
+        $script = (string) File::get($preflightPath);
+
+        $this->assertStringContainsString('php artisan booking:doctor --strict --json | tee build/booking-ci/booking-doctor-preflight-strict.json', $script);
+        $this->assertStringContainsString('php artisan notifications:outbox-health --json | tee build/booking-ci/booking-outbox-health-preflight.json', $script);
+        $this->assertStringContainsString('php artisan booking:deploy-check --mode=preflight --strict --json | tee build/booking-ci/booking-deploy-check-preflight-strict.json', $script);
     }
 
     public function test_ci_workflows_enable_mysql_routine_creation_before_bootstrap(): void
@@ -347,6 +379,40 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
         $this->assertStringContainsString('2026_04_26_000058_cashier_shift_user_fk_contract.sql', $bookingReleaseConfig);
         $this->assertStringContainsString('cashier shift finance user foreign keys', strtolower($databaseReadme));
         $this->assertStringContainsString('cashier shift finance user foreign keys', strtolower($toolsReadme));
+    }
+
+    public function test_release_artifacts_link_payments_to_cashier_shifts_for_reconciliation(): void
+    {
+        foreach ([
+            base_path('database/schema/mysql-schema.sql'),
+            base_path('db_all.sql'),
+        ] as $path) {
+            $sql = (string) File::get($path);
+
+            $this->assertStringContainsString('`cashier_shift_id` bigint unsigned DEFAULT NULL', $sql);
+            $this->assertStringContainsString('KEY `idx_payments__cashier_shift_id` (`cashier_shift_id`)', $sql);
+            $this->assertStringContainsString(
+                'CONSTRAINT `fk_payments__cashier_shift_id__cashier_shifts` FOREIGN KEY (`cashier_shift_id`) REFERENCES `cashier_shifts` (`cashier_shift_id`) ON DELETE SET NULL ON UPDATE RESTRICT',
+                $sql,
+                sprintf('Release SQL artifact %s is missing payments.cashier_shift_id FK.', $path)
+            );
+        }
+
+        $patchSql = (string) File::get(base_path('database/patches/2026_04_29_000062_payment_cashier_shift_link.sql'));
+        $verifySql = (string) File::get(base_path('tools/mysql/verify_release_contract.sql'));
+        $bookingReleaseConfig = (string) File::get(base_path('config/booking_release.php'));
+        $releaseManifest = (string) File::get(base_path('storage/app/booking_release/release_manifest_snapshot.json'));
+
+        $this->assertStringContainsString('ADD COLUMN `cashier_shift_id` bigint unsigned DEFAULT NULL AFTER `branch_id`', $patchSql);
+        $this->assertStringContainsString('idx_payments__cashier_shift_id', $patchSql);
+        $this->assertStringContainsString('fk_payments__cashier_shift_id__cashier_shifts', $patchSql);
+        $this->assertStringContainsString('orphan cashier shift rows exist', $patchSql);
+        $this->assertStringContainsString('payments.cashier_shift_id:ok', $verifySql);
+        $this->assertStringContainsString('payments.cashier_shift_id_index:ok', $verifySql);
+        $this->assertStringContainsString('payments.cashier_shift_id_fk:ok', $verifySql);
+        $this->assertStringContainsString('__missing_restore_contract_payments_cashier_shift_fk__', $verifySql);
+        $this->assertStringContainsString('2026_04_29_000062_payment_cashier_shift_link.sql', $bookingReleaseConfig);
+        $this->assertStringContainsString('2026_04_29_000062_payment_cashier_shift_link.sql', $releaseManifest);
     }
 
     public function test_schema_dump_db_all_verifier_contain_chk_reservation_order_items_line_total_matches(): void

@@ -115,6 +115,14 @@
             "@php artisan config:clear --ansi",
             "@php artisan test tests/Unit/Config tests/Unit/Infrastructure tests/Unit/Services/BookingEnvironmentValidatorTest.php tests/Unit/Services/BookingReleaseConfigContractTest.php tests/Unit/Services/CoreOpsGateServiceTest.php tests/Unit/Services/DatabaseContractInspectorTest.php tests/Unit/Services/ReleaseArtifactContractTest.php tests/Unit/Services/ReleaseArtifactManifestServiceTest.php tests/Unit/Services/ReleaseArtifactNormalizerServiceTest.php tests/Unit/Services/ReleaseBuildServiceTest.php tests/Unit/Services/ReleaseLoopServiceTest.php tests/Unit/Services/ReleasePackageDefinitionContractTest.php tests/Unit/Services/ReleasePackageServiceTest.php tests/Unit/Services/RoundFiveGateServiceTest.php tests/Unit/Services/RouteInventoryGateServiceTest.php tests/Feature/Console/BookingCoreOpsGateCommandTest.php tests/Feature/Console/BookingDeployCheckCommandTest.php tests/Feature/Console/BookingDoctorCommandTest.php tests/Feature/Console/BookingReleaseBuildCommandTest.php tests/Feature/Console/BookingReleaseManifestCommandTest.php tests/Feature/Console/BookingRouteGateCommandTest.php tests/Feature/Console/BookingRoundFiveGateCommandTest.php tests/Feature/Infrastructure/ApiRouteSurfaceIntegrityTest.php tests/Feature/Infrastructure/ApiOpenApiContractCoverageTest.php"
         ],
+        "test:runtime-smoke": [
+            "Composer\\Config::disableProcessTimeout",
+            "bash scripts/ci/booking-runtime-smoke.sh"
+        ],
+        "test:phpstan": [
+            "Composer\\Config::disableProcessTimeout",
+            "bash scripts/ci/booking-phpstan.sh"
+        ],
         "test:critical": [
             "Composer\\Config::disableProcessTimeout",
             "@test:security",

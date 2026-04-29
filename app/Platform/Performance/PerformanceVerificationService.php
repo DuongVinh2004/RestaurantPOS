@@ -123,6 +123,8 @@ class PerformanceVerificationService
             $evaluations,
             static fn (array $scenario): bool => (string) ($scenario['automation'] ?? '') === 'operator_assisted'
         ));
+        $launchCriticalMatrix = $this->scenarioCertificationMatrix('launch_critical', $evaluations);
+        $experimentalMatrix = $this->scenarioCertificationMatrix('experimental', $evaluations);
 
         $decision = 'pass';
         $exitCode = 0;
@@ -162,6 +164,17 @@ class PerformanceVerificationService
                 $manualScenarios,
                 static fn (array $scenario): bool => in_array((string) ($scenario['status'] ?? 'pass'), ['warn', 'missing'], true)
             )),
+            'launch_critical_matrix' => $launchCriticalMatrix,
+            'experimental_matrix' => $experimentalMatrix,
+            'evidence_scope' => [
+                'local_smoke_only' => (string) ($profileConfig['evidence_level'] ?? '') === 'sanity_only',
+                'staging_performance_evidence' => (string) ($profileConfig['evidence_level'] ?? '') === 'release_candidate',
+                'launch_critical_surface_count' => count($launchCriticalMatrix),
+                'experimental_surface_count' => count($experimentalMatrix),
+                'note' => (string) ($profileConfig['evidence_level'] ?? '') === 'sanity_only'
+                    ? 'Local smoke timing is regression signal only and is not limited-production evidence.'
+                    : 'Staging profile evidence can be referenced by launch-readiness when all launch-critical surfaces are covered.',
+            ],
             'metrics_collected' => [
                 'operation latency p50/p95/p99/mean/max',
                 'operation throughput per second',
@@ -681,6 +694,42 @@ class PerformanceVerificationService
 
     /**
      * @param  array<int, array<string, mixed>>  $evaluations
+     * @return list<array<string, mixed>>
+     */
+    private function scenarioCertificationMatrix(string $certification, array $evaluations): array
+    {
+        $evaluatedByKey = [];
+        foreach ($evaluations as $evaluation) {
+            $evaluatedByKey[(string) ($evaluation['key'] ?? '')] = $evaluation;
+        }
+
+        $rows = [];
+        foreach ((array) config('booking_performance_verification.scenarios', []) as $scenario) {
+            if ((string) ($scenario['launch_certification'] ?? '') !== $certification) {
+                continue;
+            }
+
+            $key = (string) ($scenario['key'] ?? '');
+            $evaluation = $evaluatedByKey[$key] ?? null;
+
+            $rows[] = [
+                'key' => $key,
+                'label' => (string) ($scenario['label'] ?? $key),
+                'surface' => (string) ($scenario['launch_surface'] ?? $key),
+                'group' => (string) ($scenario['group'] ?? ''),
+                'type' => (string) ($scenario['type'] ?? ''),
+                'automation' => (string) ($scenario['automation'] ?? 'automated'),
+                'status' => is_array($evaluation) ? (string) ($evaluation['status'] ?? 'unknown') : 'not_selected',
+                'selected' => is_array($evaluation),
+                'runbook_warning' => (string) ($scenario['runbook_warning'] ?? ''),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $evaluations
      * @return list<string>
      */
     private function coveredEndpoints(array $evaluations): array
@@ -933,6 +982,42 @@ class PerformanceVerificationService
                     '- [%s] %s',
                     strtoupper((string) ($scenario['status'] ?? 'unknown')),
                     (string) ($scenario['label'] ?? $scenario['key'] ?? '')
+                );
+            }
+        }
+
+        $lines[] = '';
+        $lines[] = '## Launch-Critical Matrix';
+        $lines[] = '';
+        if ((array) ($report['launch_critical_matrix'] ?? []) === []) {
+            $lines[] = '- None configured.';
+        } else {
+            $lines[] = '| Surface | Scenario | Automation | Status |';
+            $lines[] = '| --- | --- | --- | --- |';
+            foreach ((array) ($report['launch_critical_matrix'] ?? []) as $row) {
+                $lines[] = sprintf(
+                    '| %s | %s | %s | %s |',
+                    str_replace('|', '\|', (string) ($row['surface'] ?? '')),
+                    str_replace('|', '\|', (string) ($row['label'] ?? $row['key'] ?? '')),
+                    (string) ($row['automation'] ?? ''),
+                    strtoupper((string) ($row['status'] ?? 'unknown')),
+                );
+            }
+        }
+
+        $lines[] = '';
+        $lines[] = '## Experimental Matrix';
+        $lines[] = '';
+        if ((array) ($report['experimental_matrix'] ?? []) === []) {
+            $lines[] = '- None configured.';
+        } else {
+            foreach ((array) ($report['experimental_matrix'] ?? []) as $row) {
+                $warning = trim((string) ($row['runbook_warning'] ?? ''));
+                $lines[] = sprintf(
+                    '- [%s] %s%s',
+                    strtoupper((string) ($row['status'] ?? 'unknown')),
+                    (string) ($row['label'] ?? $row['key'] ?? ''),
+                    $warning !== '' ? ' - '.$warning : ''
                 );
             }
         }

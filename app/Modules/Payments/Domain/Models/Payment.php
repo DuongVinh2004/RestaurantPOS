@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Payments\Domain\Models;
 
 use App\Enums\PaymentStatus;
+use App\Modules\Cashiering\Domain\Models\CashierShift;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Support\Persistence\HasRowVersion;
@@ -24,6 +25,7 @@ class Payment extends Model
 
     protected $fillable = [
         'branch_id',
+        'cashier_shift_id',
         'reservation_id',
         'refund_of_payment_id',
         'amount',
@@ -44,6 +46,7 @@ class Payment extends Model
     protected $casts = [
         'payment_id' => 'int',
         'branch_id' => 'int',
+        'cashier_shift_id' => 'int',
         'reservation_id' => 'int',
         'refund_of_payment_id' => 'int',
         'amount' => 'decimal:2',
@@ -67,6 +70,11 @@ class Payment extends Model
     public function reservation(): BelongsTo
     {
         return $this->belongsTo(Reservation::class, 'reservation_id', 'reservation_id');
+    }
+
+    public function cashierShift(): BelongsTo
+    {
+        return $this->belongsTo(CashierShift::class, 'cashier_shift_id', 'cashier_shift_id');
     }
 
     public function refundOfPayment(): BelongsTo

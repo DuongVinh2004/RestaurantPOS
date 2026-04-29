@@ -395,14 +395,24 @@ class StaffCashierShiftService
         $start = $openedAt->toDateTimeString();
         $end = $effectiveEnd->copy()->utc()->toDateTimeString();
         $shiftCurrency = $this->normalizeCurrency((string) ($shift->currency ?? 'VND'));
+        $shiftId = (int) $shift->cashier_shift_id;
+        $cashierUserId = (int) $shift->cashier_user_id;
+        $branchId = (int) $shift->branch_id;
 
         /** @var Collection<int,Payment> $payments */
         $payments = Payment::query()
             ->with('refundOfPayment')
-            ->where('created_by', (int) $shift->cashier_user_id)
-            ->where('branch_id', (int) $shift->branch_id)
-            ->whereRaw('COALESCE(paid_at, created_at) >= ? AND COALESCE(paid_at, created_at) <= ?', [$start, $end])
-            ->whereRaw('UPPER(TRIM(COALESCE(currency, ?))) = ?', [$shiftCurrency, $shiftCurrency])
+            ->where(function (Builder $query) use ($branchId, $cashierUserId, $end, $shiftCurrency, $shiftId, $start): void {
+                $query->where('cashier_shift_id', $shiftId)
+                    ->orWhere(function (Builder $legacyQuery) use ($branchId, $cashierUserId, $end, $shiftCurrency, $start): void {
+                        $legacyQuery
+                            ->whereNull('cashier_shift_id')
+                            ->where('created_by', $cashierUserId)
+                            ->where('branch_id', $branchId)
+                            ->whereRaw('COALESCE(paid_at, created_at) >= ? AND COALESCE(paid_at, created_at) <= ?', [$start, $end])
+                            ->whereRaw('UPPER(TRIM(COALESCE(currency, ?))) = ?', [$shiftCurrency, $shiftCurrency]);
+                    });
+            })
             ->orderBy('payment_id')
             ->get();
 

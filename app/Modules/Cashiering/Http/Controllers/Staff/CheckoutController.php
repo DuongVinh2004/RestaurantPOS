@@ -59,7 +59,12 @@ class CheckoutController extends Controller
 
     public function close(int $order_id, CloseOrderRequest $request): JsonResponse
     {
-        return $this->lockBill($order_id, $request, true);
+        return $this->deprecatedAliasResponse(
+            $this->lockBill($order_id, $request, true),
+            $request,
+            '/api/v1/staff/orders/{order_id}/close',
+            '/api/v1/staff/orders/{order_id}/bill-snapshot',
+        );
     }
 
     public function billSnapshot(int $order_id, CloseOrderRequest $request): JsonResponse

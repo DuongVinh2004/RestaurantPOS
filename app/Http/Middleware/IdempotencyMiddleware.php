@@ -36,6 +36,7 @@ class IdempotencyMiddleware
         }
 
         $idemKey = $this->getIdempotencyKey($request);
+        $this->recordIdempotencyCompatibilityUsage($request, $scope);
         if ($required && ($idemKey === null || $idemKey === '')) {
             Log::channel('audit')->warning('idempotency_missing_key', [
                 'scope' => $scope,
@@ -292,6 +293,48 @@ class IdempotencyMiddleware
         return $request->header('Idempotency-Key')
             ?? $request->header('X-Idempotency-Key')
             ?? $request->input('idempotency_key');
+    }
+
+    private function recordIdempotencyCompatibilityUsage(Request $request, string $scope): void
+    {
+        $source = $this->idempotencyCompatibilitySource($request);
+        if ($source === null) {
+            return;
+        }
+
+        Log::channel('audit')->info(
+            (string) config('booking.api_alias_deprecations.idempotency_compatibility_event', 'idempotency_compatibility_key_used'),
+            [
+                'scope' => $scope,
+                'source' => $source,
+                'method' => strtoupper((string) $request->method()),
+                'path' => $request->path(),
+                'ip' => $request->ip(),
+                'user_id' => $request->user()?->user_id,
+                'removal_evidence' => 'zero_hits_for_configured_observation_release_cycle',
+            ],
+        );
+    }
+
+    private function idempotencyCompatibilitySource(Request $request): ?string
+    {
+        if ($request->headers->has('Idempotency-Key')) {
+            return null;
+        }
+
+        if ($request->headers->has('X-Idempotency-Key')) {
+            return 'X-Idempotency-Key';
+        }
+
+        if ($request->request->has('idempotency_key')) {
+            return 'body.idempotency_key';
+        }
+
+        if ($request->query->has('idempotency_key')) {
+            return 'query.idempotency_key';
+        }
+
+        return null;
     }
 
     private function normalizeKey(string $key): string

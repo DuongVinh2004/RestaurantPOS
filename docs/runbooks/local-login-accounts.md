@@ -2,6 +2,8 @@
 
 Tam thoi ghi nhanh de dang dang nhap local.
 
+Local/UAT only: do not paste these passwords, staff keys, customer tokens, or regenerated equivalents into production launch-readiness evidence, release tickets, public artifacts, or provider readiness records.
+
 Nguon du lieu hien tai:
 
 - Manifest: `storage/app/uat/scenario-pack.json`

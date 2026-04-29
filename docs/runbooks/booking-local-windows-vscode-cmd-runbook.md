@@ -199,11 +199,31 @@ Lenh nay se:
 - start `php artisan schedule:work`
 - touch 1 lan scheduler heartbeat de `booking:doctor` khong fail ngay luc vua len runtime
 
+Lenh npm nay chay duoc tu `cmd.exe` va PowerShell. Tren Windows, runtime se uu tien helper PowerShell cua repo cho MySQL/Redis. Neu may khong co MySQL Server 8 hoac Redis binary nhung Docker Desktop dang chay, lane co the fallback sang `docker-compose.testing.yml` de start MySQL/Redis local-only theo `.env` `DB_PORT` va `REDIS_PORT`.
+
 Khi can ha runtime:
 
 ```cmd
 npm run runtime:down
 ```
+
+PowerShell debug truc tiep van co san neu can xem loi process Windows rieng:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\ops\local-runtime.ps1 -Action up
+powershell -ExecutionPolicy Bypass -File scripts\ops\local-runtime.ps1 -Action down
+```
+
+Linux/macOS hoac CI-like shell dung cung contract npm:
+
+```bash
+npm run runtime:up
+composer bootstrap:booking
+npm run runtime:preflight
+npm run runtime:down
+```
+
+Neu CI khong cap san MySQL/Redis service, bat Docker truoc de Compose fallback local-only co the expose MySQL/Redis qua `.env` `DB_PORT` va `REDIS_PORT`.
 
 Neu can debug tung process rieng le, dung fallback thu cong ben duoi.
 
@@ -281,7 +301,7 @@ npm run runtime:preflight
 php artisan booking:doctor --json
 php artisan notifications:outbox-health --json
 php artisan booking:release-manifest --json
-php artisan booking:deploy-check --mode=preflight --strict
+php artisan booking:deploy-check --mode=preflight --strict --json
 ```
 
 Trang thai local dung la:
@@ -312,7 +332,7 @@ npm run runtime:preflight
 php artisan booking:doctor --json
 php artisan notifications:outbox-health --json
 php artisan booking:release-manifest --json
-php artisan booking:deploy-check --mode=preflight --strict
+php artisan booking:deploy-check --mode=preflight --strict --json
 ```
 
 Neu lop nay chua xanh, khong nen nhay sang UAT flow.
@@ -530,7 +550,7 @@ Neu ban muon test giong gate cua repo:
 
 ```cmd
 php artisan booking:doctor --strict
-php artisan booking:deploy-check --mode=preflight --strict
+php artisan booking:deploy-check --mode=preflight --strict --json
 php artisan booking:release-manifest --verify-frozen --json
 php artisan test
 ```
@@ -739,7 +759,7 @@ php artisan notifications:outbox-health --json
 
 ```cmd
 php artisan booking:release-manifest --json
-php artisan booking:deploy-check --mode=preflight --strict
+php artisan booking:deploy-check --mode=preflight --strict --json
 php artisan booking:doctor --strict
 ```
 
@@ -823,11 +843,11 @@ Neu dung Docker Compose testing fallback:
 docker compose -f docker-compose.testing.yml up -d mysql redis
 ```
 
-Sau do sua `.env` de MySQL tro vao port compose expose:
+Compose fallback doc `.env` va expose dung port theo `DB_PORT` / `REDIS_PORT`. Neu ban co chu y override port, sua `.env` truoc khi start:
 
 ```env
 DB_HOST=127.0.0.1
-DB_PORT=3307
+DB_PORT=3306
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 ```
@@ -908,7 +928,7 @@ Cach xu ly dung contract cua repo:
 composer bootstrap:booking
 php artisan booking:release-manifest --json
 php artisan booking:doctor --json
-php artisan booking:deploy-check --mode=preflight
+php artisan booking:deploy-check --mode=preflight --strict --json
 ```
 
 Khong dung `php artisan migrate` lam duong setup chinh cho local/staging/release. Bootstrap phai import `database/schema/mysql-schema.sql`, apply `database/patches/*.sql`, va chay `tools/mysql/verify_release_contract.sql`.

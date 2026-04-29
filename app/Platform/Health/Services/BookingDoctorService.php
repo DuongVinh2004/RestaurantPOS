@@ -98,9 +98,10 @@ class BookingDoctorService
                 $lastRun = $this->opsHeartbeatService->getLastRun('scheduler');
                 if (! $lastRun) {
                     $runtime['scheduler'] = $this->runtimeFail(
-                        'No scheduler heartbeat found. Ensure schedule:work is running and the heartbeat has been touched recently.',
+                        'Scheduler heartbeat is missing. Start the scheduler worker, confirm routes/console/schedule.php touches ops:heartbeat:scheduler, then rerun booking:doctor.',
                         [
                             'probe' => 'ops_heartbeat_scheduler',
+                            'state_reason' => 'scheduler_heartbeat_missing',
                         ],
                     );
                 } else {
@@ -116,13 +117,14 @@ class BookingDoctorService
                         )
                         : $this->runtimeFail(
                             sprintf(
-                                'Last heartbeat %d second(s) ago; stale threshold is %d second(s).',
+                                'Scheduler heartbeat is stale: last heartbeat %d second(s) ago; stale threshold is %d second(s). Restart the scheduler worker and check schedule/queue logs.',
                                 $ageSeconds,
                                 $staleThresholdSeconds
                             ),
                             [
                                 'age_seconds' => $ageSeconds,
                                 'stale_threshold_seconds' => $staleThresholdSeconds,
+                                'state_reason' => 'scheduler_heartbeat_stale',
                             ],
                         );
                 }
@@ -244,7 +246,7 @@ class BookingDoctorService
         }
 
         $message = sprintf(
-            'Outbox pending=%d processing=%d failed=%d stale=%d due_now=%d',
+            'Notification outbox health: pending=%d processing=%d failed=%d stuck_processing=%d due_now=%d',
             (int) ($snapshot['pending_count'] ?? 0),
             (int) ($snapshot['processing_count'] ?? 0),
             (int) ($snapshot['failed_count'] ?? 0),

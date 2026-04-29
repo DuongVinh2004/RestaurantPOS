@@ -267,6 +267,7 @@ final class OperationalHealthEvaluator
 
         $reasons = [];
         $status = 'ok';
+        $launchCriticalDriftCount = (int) ($snapshot['launch_critical_reconciliation_drift_count'] ?? 0);
         $familyCount = (int) ($snapshot['family_count'] ?? 0);
         $populatedFamilyCount = (int) ($snapshot['populated_family_count'] ?? 0);
         $staleHours = max(1, (int) ($thresholds['stale_hours'] ?? 48));
@@ -317,6 +318,11 @@ final class OperationalHealthEvaluator
                 $reasons[] = 'reporting_snapshot_stale';
                 break;
             }
+        }
+
+        if ($launchCriticalDriftCount > 0) {
+            $status = 'fail';
+            $reasons[] = 'reporting_launch_critical_drift_detected';
         }
 
         return [
@@ -403,6 +409,11 @@ final class OperationalHealthEvaluator
 
         $statusDriftCount = (int) ($snapshot['status_drift_count'] ?? 0);
         $routingDriftCount = (int) ($snapshot['routing_drift_count'] ?? 0);
+        $duplicateTicketGroupCount = (int) ($snapshot['duplicate_order_item_ticket_group_count'] ?? 0);
+        $branchScopeMismatchCount = (int) ($snapshot['branch_scope_mismatch_count'] ?? 0);
+        $stationScopeMismatchCount = (int) ($snapshot['station_scope_mismatch_count'] ?? 0);
+        $realtimeStrictRequired = (bool) ($snapshot['realtime_strict_required'] ?? false);
+        $realtimeTrusted = (bool) ($snapshot['realtime_cache_trusted'] ?? true);
         $stuckTicketCount = (int) ($snapshot['stuck_ticket_count'] ?? 0);
         $oldestFiredAgeSeconds = (int) ($snapshot['oldest_fired_age_seconds'] ?? 0);
         $oldestReadyAgeSeconds = (int) ($snapshot['oldest_ready_age_seconds'] ?? 0);
@@ -415,6 +426,29 @@ final class OperationalHealthEvaluator
         if ($routingDriftCount > 0) {
             $status = 'fail';
             $reasons[] = 'kitchen_ticket_routing_drift_detected';
+        }
+
+        if ($duplicateTicketGroupCount > 0) {
+            $status = 'fail';
+            $reasons[] = 'kitchen_ticket_duplicate_dispatch_detected';
+        }
+
+        if ($branchScopeMismatchCount > 0) {
+            $status = 'fail';
+            $reasons[] = 'kitchen_ticket_branch_scope_drift_detected';
+        }
+
+        if ($stationScopeMismatchCount > 0) {
+            $status = 'fail';
+            $reasons[] = 'kitchen_ticket_station_scope_drift_detected';
+        }
+
+        if ($realtimeStrictRequired && ! $realtimeTrusted) {
+            $status = 'fail';
+            $reasons[] = 'kitchen_realtime_cache_unsafe';
+        } elseif (! $realtimeTrusted) {
+            $status = $status === 'fail' ? 'fail' : 'degraded';
+            $reasons[] = 'kitchen_realtime_cache_degraded';
         }
 
         if ($stuckTicketCount > 0) {
@@ -453,12 +487,24 @@ final class OperationalHealthEvaluator
         $issueOrderCount = (int) ($snapshot['issue_order_count'] ?? 0);
         $movementIssueCount = (int) ($snapshot['movement_issue_count'] ?? 0);
         $duplicatePurchaseReceiptReferenceCount = (int) ($snapshot['duplicate_purchase_receipt_reference_count'] ?? 0);
+        $negativeStockGroupCount = (int) ($snapshot['negative_stock_group_count'] ?? 0);
+        $impossibleStockMovementCount = (int) ($snapshot['impossible_stock_movement_count'] ?? 0);
         $overdueOpenOrderCount = (int) ($snapshot['overdue_open_order_count'] ?? 0);
         $oldestOverdueOpenAgeSeconds = (int) ($snapshot['oldest_overdue_open_age_seconds'] ?? 0);
 
         if ($duplicatePurchaseReceiptReferenceCount > 0) {
             $status = 'fail';
             $reasons[] = 'inventory_purchase_receipt_lineage_duplicate_detected';
+        }
+
+        if ($negativeStockGroupCount > 0) {
+            $status = 'fail';
+            $reasons[] = 'inventory_negative_stock_detected';
+        }
+
+        if ($impossibleStockMovementCount > 0) {
+            $status = 'fail';
+            $reasons[] = 'inventory_impossible_stock_movement_detected';
         }
 
         if ($movementIssueCount > 0) {

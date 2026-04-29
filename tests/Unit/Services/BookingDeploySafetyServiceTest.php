@@ -118,6 +118,10 @@ class BookingDeploySafetyServiceTest extends TestCase
         $this->assertTrue($report['checks']['data.deposit_status']['ok']);
         $this->assertTrue($report['checks']['data.payment_refund_lineage']['ok']);
         $this->assertTrue($report['checks']['data.purchase_receipt_lineage_uniqueness']['ok']);
+        $this->assertTrue(
+            $report['checks']['data.inventory_stock_on_hand_reconciliation']['ok'],
+            json_encode($report['checks']['data.inventory_stock_on_hand_reconciliation'], JSON_THROW_ON_ERROR)
+        );
         $this->assertTrue($report['checks']['data.bank_account_defaults']['ok']);
         $this->assertTrue($report['checks']['data.active_agent_assignments']['ok']);
         $this->assertTrue($report['checks']['data.session_hold_linkage']['ok']);
@@ -130,6 +134,107 @@ class BookingDeploySafetyServiceTest extends TestCase
         $this->assertTrue($report['checks']['ops.kitchen_kds']['ok']);
         $this->assertTrue($report['checks']['ops.inventory_purchasing']['ok']);
         $this->assertTrue($report['checks']['ops.conversation_inbox']['ok']);
+    }
+
+    #[Group('booking-ops')]
+    public function test_preflight_fails_when_direct_stock_movements_create_negative_aggregate(): void
+    {
+        $this->insertDeploySafetyStockMovement([
+            'movement_id' => 101,
+            'branch_id' => 1,
+            'ingredient_id' => 501,
+            'movement_type' => 'StockOut',
+            'quantity_delta' => '-3.000',
+            'unit_code' => 'kg',
+            'reference_type' => 'direct_fixture',
+            'reference_id' => 'NEG-001',
+        ]);
+
+        $report = app(BookingDeploySafetyService::class)->inspect('preflight');
+
+        $this->assertFalse($report['ok']);
+        $this->assertArrayHasKey('data.inventory_stock_on_hand_reconciliation', $report['checks']);
+        $check = $report['checks']['data.inventory_stock_on_hand_reconciliation'];
+        $this->assertFalse($check['ok']);
+        $this->assertSame('error', $check['severity']);
+        $this->assertSame(1, $check['meta']['negative_group_count'] ?? null);
+        $this->assertSame(0, $check['meta']['impossible_movement_count'] ?? null);
+        $this->assertSame(1, $check['meta']['negative_examples'][0]['branch_id'] ?? null);
+        $this->assertSame(501, $check['meta']['negative_examples'][0]['ingredient_id'] ?? null);
+        $this->assertSame('-3.000', $check['meta']['negative_examples'][0]['computed_quantity'] ?? null);
+        $this->assertSame([101], $check['meta']['negative_examples'][0]['movement_sample_ids'] ?? null);
+    }
+
+    #[Group('booking-ops')]
+    public function test_preflight_fails_when_direct_stock_movements_have_impossible_signs(): void
+    {
+        $this->insertDeploySafetyStockMovement([
+            'movement_id' => 111,
+            'branch_id' => 1,
+            'ingredient_id' => 502,
+            'movement_type' => 'StockIn',
+            'quantity_delta' => '-1.000',
+            'unit_code' => 'kg',
+            'reference_type' => 'direct_fixture',
+            'reference_id' => 'BAD-SIGN-001',
+        ]);
+
+        $report = app(BookingDeploySafetyService::class)->inspect('preflight');
+
+        $this->assertFalse($report['ok']);
+        $check = $report['checks']['data.inventory_stock_on_hand_reconciliation'];
+        $this->assertFalse($check['ok']);
+        $this->assertSame(1, $check['meta']['negative_group_count'] ?? null);
+        $this->assertSame(1, $check['meta']['impossible_movement_count'] ?? null);
+        $this->assertSame(111, $check['meta']['impossible_examples'][0]['movement_id'] ?? null);
+        $this->assertSame('StockIn', $check['meta']['impossible_examples'][0]['movement_type'] ?? null);
+    }
+
+    #[Group('booking-ops')]
+    public function test_preflight_passes_valid_stock_receipt_adjustment_and_consumption_paths(): void
+    {
+        $this->insertDeploySafetyStockMovement([
+            'movement_id' => 121,
+            'branch_id' => 1,
+            'ingredient_id' => 503,
+            'movement_type' => 'StockIn',
+            'quantity_delta' => '10.000',
+            'unit_code' => 'kg',
+            'reference_type' => 'PurchaseReceipt',
+            'reference_id' => 'GRN-VALID-001:1',
+        ]);
+        $this->insertDeploySafetyStockMovement([
+            'movement_id' => 122,
+            'branch_id' => 1,
+            'ingredient_id' => 503,
+            'movement_type' => 'AdjustmentIncrease',
+            'quantity_delta' => '2.000',
+            'unit_code' => 'kg',
+        ]);
+        $this->insertDeploySafetyStockMovement([
+            'movement_id' => 123,
+            'branch_id' => 1,
+            'ingredient_id' => 503,
+            'movement_type' => 'StockOut',
+            'quantity_delta' => '-3.000',
+            'unit_code' => 'kg',
+            'reference_type' => 'ReservationOrderItemConsumption',
+            'reference_id' => '9001:77:503',
+        ]);
+        $this->insertDeploySafetyStockMovement([
+            'movement_id' => 124,
+            'branch_id' => 1,
+            'ingredient_id' => 503,
+            'movement_type' => 'Wastage',
+            'quantity_delta' => '-1.000',
+            'unit_code' => 'kg',
+        ]);
+
+        $report = app(BookingDeploySafetyService::class)->inspect('preflight');
+
+        $this->assertTrue($report['checks']['data.inventory_stock_on_hand_reconciliation']['ok']);
+        $this->assertSame(0, $report['checks']['data.inventory_stock_on_hand_reconciliation']['meta']['negative_group_count'] ?? null);
+        $this->assertSame(0, $report['checks']['data.inventory_stock_on_hand_reconciliation']['meta']['impossible_movement_count'] ?? null);
     }
 
     #[Group('booking-smoke')]
@@ -446,15 +551,22 @@ class BookingDeploySafetyServiceTest extends TestCase
 
         $this->assertFalse($report['checks']['data.payment_refund_lineage']['ok']);
         $this->assertSame(1, $report['checks']['data.payment_refund_lineage']['meta']['over_refund_source_count'] ?? null);
+        $guards = collect($report['checks']['data.payment_refund_lineage']['meta']['guards'] ?? [])->keyBy('guard_label');
+        $this->assertSame(1, $guards->get('refund_over_source_amount')['failing_count'] ?? null);
+        $this->assertContains(100, $guards->get('refund_over_source_amount')['sample_ids'] ?? []);
     }
 
     #[Group('booking-ops')]
     public function test_preflight_fails_when_refund_lineage_crosses_reservation_or_currency_scope(): void
     {
+        $this->insertDeploySafetyOrder(1001, 10);
+        $this->insertDeploySafetyOrder(1101, 11);
+
         $this->insertDeploySafetyPayments([
             [
                 'payment_id' => 200,
                 'reservation_id' => 10,
+                'branch_id' => 1,
                 'payment_type' => 'Final',
                 'status' => 'Success',
                 'refund_of_payment_id' => null,
@@ -464,6 +576,7 @@ class BookingDeploySafetyServiceTest extends TestCase
             [
                 'payment_id' => 201,
                 'reservation_id' => 11,
+                'branch_id' => 2,
                 'payment_type' => 'Refund',
                 'status' => 'Refunded',
                 'refund_of_payment_id' => 200,
@@ -477,6 +590,129 @@ class BookingDeploySafetyServiceTest extends TestCase
         $this->assertFalse($report['checks']['data.payment_refund_lineage']['ok']);
         $this->assertSame(1, $report['checks']['data.payment_refund_lineage']['meta']['cross_reservation_count'] ?? null);
         $this->assertSame(1, $report['checks']['data.payment_refund_lineage']['meta']['currency_mismatch_count'] ?? null);
+        $guards = collect($report['checks']['data.payment_refund_lineage']['meta']['guards'] ?? [])->keyBy('guard_label');
+        $this->assertSame(1, $guards->get('refund_lineage_mismatch')['failing_count'] ?? null);
+        $this->assertSame(1, $guards->get('refund_currency_mismatch')['failing_count'] ?? null);
+        $this->assertContains(1001, $guards->get('refund_lineage_mismatch')['samples'][0]['order_ids'] ?? []);
+        $this->assertContains(1101, $guards->get('refund_lineage_mismatch')['samples'][0]['order_ids'] ?? []);
+    }
+
+    #[Group('booking-ops')]
+    public function test_preflight_fails_when_refund_source_is_missing_or_not_refundable(): void
+    {
+        $this->insertDeploySafetyPayments([
+            [
+                'payment_id' => 300,
+                'reservation_id' => 30,
+                'payment_type' => 'Deposit',
+                'status' => 'Failed',
+                'refund_of_payment_id' => null,
+                'amount' => 100,
+                'currency' => 'VND',
+            ],
+            [
+                'payment_id' => 301,
+                'reservation_id' => 30,
+                'payment_type' => 'Refund',
+                'status' => 'Refunded',
+                'refund_of_payment_id' => 300,
+                'amount' => 10,
+                'currency' => 'VND',
+            ],
+            [
+                'payment_id' => 302,
+                'reservation_id' => 30,
+                'payment_type' => 'Refund',
+                'status' => 'Refunded',
+                'refund_of_payment_id' => 999,
+                'amount' => 10,
+                'currency' => 'VND',
+            ],
+        ]);
+
+        $report = app(BookingDeploySafetyService::class)->inspect('preflight');
+
+        $this->assertFalse($report['checks']['data.payment_refund_lineage']['ok']);
+        $guards = collect($report['checks']['data.payment_refund_lineage']['meta']['guards'] ?? [])->keyBy('guard_label');
+        $this->assertSame(1, $guards->get('refund_missing_source')['failing_count'] ?? null);
+        $this->assertContains(302, $guards->get('refund_missing_source')['sample_ids'] ?? []);
+        $this->assertSame(1, $guards->get('refund_invalid_source_state')['failing_count'] ?? null);
+        $this->assertContains(301, $guards->get('refund_invalid_source_state')['sample_ids'] ?? []);
+    }
+
+    #[Group('booking-ops')]
+    public function test_preflight_fails_when_refund_rows_have_impossible_state_or_duplicate_references(): void
+    {
+        $this->insertDeploySafetyPayments([
+            [
+                'payment_id' => 400,
+                'reservation_id' => 40,
+                'payment_type' => 'Final',
+                'status' => 'Success',
+                'refund_of_payment_id' => null,
+                'amount' => 100,
+                'currency' => 'VND',
+            ],
+            [
+                'payment_id' => 401,
+                'reservation_id' => 40,
+                'payment_type' => 'Refund',
+                'status' => 'Pending',
+                'refund_of_payment_id' => 400,
+                'amount' => 5,
+                'currency' => 'VND',
+                'idempotency_key' => 'refund-pending-401',
+                'transaction_code' => 'RF-PENDING-401',
+            ],
+            [
+                'payment_id' => 402,
+                'reservation_id' => 40,
+                'payment_type' => 'Final',
+                'status' => 'Success',
+                'refund_of_payment_id' => 400,
+                'amount' => 5,
+                'currency' => 'VND',
+            ],
+            [
+                'payment_id' => 403,
+                'reservation_id' => 40,
+                'payment_type' => 'Refund',
+                'status' => 'Refunded',
+                'refund_of_payment_id' => 400,
+                'amount' => 5,
+                'currency' => 'VND',
+                'payment_provider' => 'Cash',
+                'idempotency_key' => 'refund-dupe-key',
+                'transaction_code' => 'RF-DUPE-1',
+            ],
+            [
+                'payment_id' => 404,
+                'reservation_id' => 40,
+                'payment_type' => 'Refund',
+                'status' => 'Refunded',
+                'refund_of_payment_id' => 400,
+                'amount' => 6,
+                'currency' => 'VND',
+                'payment_provider' => 'Cash',
+                'idempotency_key' => 'refund-dupe-key',
+                'transaction_code' => 'RF-DUPE-1',
+            ],
+        ]);
+
+        $report = app(BookingDeploySafetyService::class)->inspect('preflight');
+
+        $this->assertFalse($report['checks']['data.payment_refund_lineage']['ok']);
+        $guards = collect($report['checks']['data.payment_refund_lineage']['meta']['guards'] ?? [])->keyBy('guard_label');
+        $this->assertSame(2, $guards->get('refund_impossible_status_type')['failing_count'] ?? null);
+        $this->assertContains(401, $guards->get('refund_impossible_status_type')['sample_ids'] ?? []);
+        $this->assertContains(402, $guards->get('refund_impossible_status_type')['sample_ids'] ?? []);
+        $this->assertSame(2, $guards->get('refund_duplicate_references')['failing_count'] ?? null);
+        $this->assertContains(403, $guards->get('refund_duplicate_references')['sample_ids'] ?? []);
+        $this->assertContains(404, $guards->get('refund_duplicate_references')['sample_ids'] ?? []);
+
+        $duplicateGuardJson = json_encode($guards->get('refund_duplicate_references'), JSON_THROW_ON_ERROR);
+        $this->assertStringNotContainsString('refund-dupe-key', $duplicateGuardJson);
+        $this->assertStringNotContainsString('RF-DUPE-1', $duplicateGuardJson);
     }
 
     #[Group('booking-smoke')]
@@ -550,6 +786,26 @@ class BookingDeploySafetyServiceTest extends TestCase
             fn (array $row): array => $this->deploySafetyPaymentPayload($row),
             $rows,
         ));
+    }
+
+    /**
+     * @param  array<string,mixed>  $overrides
+     */
+    private function insertDeploySafetyStockMovement(array $overrides = []): void
+    {
+        $movementId = (int) ($overrides['movement_id'] ?? 1);
+
+        DB::table('ingredient_stock_movements')->insert($this->payloadForExistingColumns('ingredient_stock_movements', array_merge([
+            'movement_id' => $movementId,
+            'branch_id' => 1,
+            'ingredient_id' => 1,
+            'movement_type' => 'StockIn',
+            'quantity_delta' => '1.000',
+            'unit_code' => 'unit',
+            'reference_type' => null,
+            'reference_id' => null,
+            'created_at' => now('UTC'),
+        ], $overrides)));
     }
 
     /**
@@ -707,6 +963,39 @@ class BookingDeploySafetyServiceTest extends TestCase
             });
         }
 
+        if (! Schema::hasColumn('payments', 'branch_id')) {
+            Schema::table('payments', function (Blueprint $table): void {
+                $table->unsignedBigInteger('branch_id')->nullable();
+            });
+        }
+
+        if (! Schema::hasColumn('payments', 'payment_provider')) {
+            Schema::table('payments', function (Blueprint $table): void {
+                $table->string('payment_provider', 50)->nullable();
+            });
+        }
+
+        if (! Schema::hasColumn('payments', 'transaction_code')) {
+            Schema::table('payments', function (Blueprint $table): void {
+                $table->string('transaction_code')->nullable();
+            });
+        }
+
+        if (! Schema::hasColumn('payments', 'idempotency_key')) {
+            Schema::table('payments', function (Blueprint $table): void {
+                $table->string('idempotency_key')->nullable();
+            });
+        }
+
+        if (! Schema::hasTable('reservation_orders')) {
+            Schema::create('reservation_orders', function (Blueprint $table): void {
+                $table->unsignedBigInteger('order_id')->primary();
+                $table->unsignedBigInteger('reservation_id');
+                $table->string('status', 30)->nullable();
+                $table->timestamps();
+            });
+        }
+
         if (! Schema::hasTable('user_vouchers')) {
             Schema::create('user_vouchers', function (Blueprint $table): void {
                 $table->unsignedBigInteger('user_voucher_id')->primary();
@@ -780,15 +1069,37 @@ class BookingDeploySafetyServiceTest extends TestCase
         if (! Schema::hasTable('ingredient_stock_movements')) {
             Schema::create('ingredient_stock_movements', function (Blueprint $table): void {
                 $table->unsignedBigInteger('movement_id')->primary();
+                $table->unsignedBigInteger('branch_id')->default(1);
+                $table->unsignedBigInteger('ingredient_id')->nullable();
+                $table->string('movement_type', 50)->nullable();
+                $table->decimal('quantity_delta', 14, 3)->default(0);
+                $table->string('unit_code', 20)->nullable();
                 $table->string('reference_type', 50)->nullable();
                 $table->string('reference_id', 120)->nullable();
+                $table->timestamp('created_at')->nullable();
             });
+        }
+
+        foreach ([
+            'branch_id' => static fn (Blueprint $table): mixed => $table->unsignedBigInteger('branch_id')->default(1),
+            'ingredient_id' => static fn (Blueprint $table): mixed => $table->unsignedBigInteger('ingredient_id')->nullable(),
+            'movement_type' => static fn (Blueprint $table): mixed => $table->string('movement_type', 50)->nullable(),
+            'quantity_delta' => static fn (Blueprint $table): mixed => $table->decimal('quantity_delta', 14, 3)->default(0),
+            'unit_code' => static fn (Blueprint $table): mixed => $table->string('unit_code', 20)->nullable(),
+            'created_at' => static fn (Blueprint $table): mixed => $table->timestamp('created_at')->nullable(),
+        ] as $column => $definition) {
+            if (! Schema::hasColumn('ingredient_stock_movements', $column)) {
+                Schema::table('ingredient_stock_movements', function (Blueprint $table) use ($definition): void {
+                    $definition($table);
+                });
+            }
         }
     }
 
     private function truncateDeploySafetyTables(): void
     {
         DB::table('reservations')->delete();
+        DB::table('reservation_orders')->delete();
         DB::table('reservation_order_items')->delete();
         DB::table('payments')->delete();
         DB::table('user_vouchers')->delete();
@@ -798,5 +1109,20 @@ class BookingDeploySafetyServiceTest extends TestCase
         DB::table('staff_api_keys')->delete();
         DB::table('audit_logs')->delete();
         DB::table('ingredient_stock_movements')->delete();
+    }
+
+    private function insertDeploySafetyOrder(int $orderId, int $reservationId): void
+    {
+        if (! DB::table('reservations')->where('reservation_id', $reservationId)->exists()) {
+            $this->insertDeploySafetyReservation(['reservation_id' => $reservationId]);
+        }
+
+        DB::table('reservation_orders')->insert($this->payloadForExistingColumns('reservation_orders', [
+            'order_id' => $orderId,
+            'reservation_id' => $reservationId,
+            'status' => 'Active',
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]));
     }
 }

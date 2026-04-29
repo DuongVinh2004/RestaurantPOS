@@ -9,16 +9,19 @@ use App\Enums\PurchaseOrderStatus;
 use App\Enums\StaffConversationWorkflowState;
 use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
 use App\Modules\Conversations\Application\Services\StaffConversationInboxService;
+use App\Modules\InventoryProcurement\Application\Workflows\InventoryStockReconciliationService;
 use App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconciliationService;
 use App\Modules\KitchenDispatch\Application\Workflows\KitchenTicketReconciliationService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxHealthService;
 use App\Platform\ApiContract\Services\DatabaseContractInspector;
+use App\Platform\Health\Services\OpsHeartbeatService;
 use App\Platform\Health\Support\OperationalHealthEvaluator;
 use App\Platform\QualityAssurance\Verification\Application\Verifiers\StaffMutationRowVersionContract;
 use App\Platform\Realtime\Services\OperationalRealtimeService;
 use App\SharedKernel\Money\Money;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
@@ -39,8 +42,36 @@ class OperationalInsightsService
     public function snapshot(?Carbon $now = null, int $paymentSampleLimit = 10): array
     {
         $now ??= Carbon::now('UTC');
+        $mysqlRuntime = $this->safeSectionSnapshot('mysql_runtime', fn () => $this->mysqlRuntimeSnapshot());
+        $redisRuntime = $this->safeSectionSnapshot('redis_runtime', fn () => $this->redisRuntimeSnapshot($now));
+        $schedulerHeartbeat = $this->safeSectionSnapshot('scheduler_heartbeat', fn () => $this->schedulerHeartbeatSnapshot($now));
+
+        if (($mysqlRuntime['status'] ?? 'fail') !== 'ok') {
+            return [
+                'mysql_runtime' => $mysqlRuntime,
+                'redis_runtime' => $redisRuntime,
+                'scheduler_heartbeat' => $schedulerHeartbeat,
+                'notification_outbox' => $this->dependencyBlockedSection('notification_outbox', 'mysql_runtime', $mysqlRuntime),
+                'payment_integrity' => $this->dependencyBlockedSection('payment_integrity', 'mysql_runtime', $mysqlRuntime),
+                'voucher_locks' => $this->dependencyBlockedSection('voucher_locks', 'mysql_runtime', $mysqlRuntime),
+                'session_linkage' => $this->dependencyBlockedSection('session_linkage', 'mysql_runtime', $mysqlRuntime),
+                'staff_api_keys' => $this->dependencyBlockedSection('staff_api_keys', 'mysql_runtime', $mysqlRuntime),
+                'table_state_audit' => $this->dependencyBlockedSection('table_state_audit', 'mysql_runtime', $mysqlRuntime),
+                'row_version_contract' => $this->safeSectionSnapshot('row_version_contract', fn () => $this->rowVersionContractSnapshot()),
+                'reporting_snapshots' => $this->dependencyBlockedSection('reporting_snapshots', 'mysql_runtime', $mysqlRuntime),
+                'kitchen_kds' => $this->dependencyBlockedSection('kitchen_kds', 'mysql_runtime', $mysqlRuntime),
+                'inventory_purchasing' => $this->dependencyBlockedSection('inventory_purchasing', 'mysql_runtime', $mysqlRuntime),
+                'conversation_inbox' => $this->dependencyBlockedSection('conversation_inbox', 'mysql_runtime', $mysqlRuntime),
+                'staff_operational_realtime' => $this->safeSectionSnapshot('staff_operational_realtime', fn () => $this->staffOperationalRealtimeSnapshot()),
+                'branch_defaults' => $this->dependencyBlockedSection('branch_defaults', 'mysql_runtime', $mysqlRuntime),
+                'database_contract' => $this->dependencyBlockedSection('database_contract', 'mysql_runtime', $mysqlRuntime),
+            ];
+        }
 
         return [
+            'mysql_runtime' => $mysqlRuntime,
+            'redis_runtime' => $redisRuntime,
+            'scheduler_heartbeat' => $schedulerHeartbeat,
             'notification_outbox' => $this->safeSectionSnapshot('notification_outbox', fn () => $this->notificationOutboxSnapshot($now)),
             'payment_integrity' => $this->safeSectionSnapshot('payment_integrity', fn () => $this->paymentIntegritySnapshot($paymentSampleLimit)),
             'voucher_locks' => $this->safeSectionSnapshot('voucher_locks', fn () => $this->voucherLockSnapshot($now)),
@@ -55,6 +86,22 @@ class OperationalInsightsService
             'staff_operational_realtime' => $this->safeSectionSnapshot('staff_operational_realtime', fn () => $this->staffOperationalRealtimeSnapshot()),
             'branch_defaults' => $this->safeSectionSnapshot('branch_defaults', fn () => $this->branchDefaultsSnapshot()),
             'database_contract' => $this->safeSectionSnapshot('database_contract', fn () => $this->databaseContractInspector->snapshot()),
+        ];
+    }
+
+    /**
+     * @param  array<string,mixed>  $upstream
+     * @return array<string,mixed>
+     */
+    private function dependencyBlockedSection(string $section, string $dependency, array $upstream): array
+    {
+        return [
+            'status' => 'fail',
+            'reasons' => ['dependency_blocked'],
+            'dependency' => $dependency,
+            'message' => sprintf('%s inspection skipped because %s is unavailable.', $section, $dependency),
+            'upstream_reasons' => array_values(array_map('strval', (array) ($upstream['reasons'] ?? []))),
+            'upstream_error' => $upstream['error'] ?? null,
         ];
     }
 
@@ -74,6 +121,85 @@ class OperationalInsightsService
                 'exception_class' => $exception::class,
             ];
         }
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function mysqlRuntimeSnapshot(): array
+    {
+        DB::selectOne('SELECT 1');
+
+        return [
+            'status' => 'ok',
+            'reasons' => [],
+            'connection' => (string) config('database.default'),
+            'driver' => (string) DB::connection()->getDriverName(),
+            'probe' => 'select_1',
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function redisRuntimeSnapshot(?Carbon $now = null): array
+    {
+        $now ??= Carbon::now('UTC');
+        $key = 'ops:insights:redis:'.$now->format('YmdHis').':'.random_int(1000, 9999);
+        $redis = Cache::store('redis');
+        $redis->put($key, 'pong', 10);
+        $valueOk = $redis->get($key) === 'pong';
+        $lock = $redis->lock('ops:insights:redis-lock:'.$key, 3);
+        $lockOk = (bool) $lock->get();
+
+        if ($lockOk) {
+            $lock->release();
+        }
+
+        $ok = $valueOk && $lockOk;
+
+        return [
+            'status' => $ok ? 'ok' : 'fail',
+            'reasons' => $ok ? [] : ['redis_probe_failed'],
+            'probe' => 'cache_store_redis_set_get_lock',
+            'set_get_ok' => $valueOk,
+            'lock_ok' => $lockOk,
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function schedulerHeartbeatSnapshot(?Carbon $now = null): array
+    {
+        $now ??= Carbon::now('UTC');
+        $lastRun = app(OpsHeartbeatService::class)->getLastRun('scheduler');
+        $staleThresholdSeconds = (int) config('booking.scheduler_heartbeat_stale_seconds', 180);
+
+        if (! $lastRun) {
+            return [
+                'status' => 'fail',
+                'reasons' => ['scheduler_heartbeat_missing'],
+                'last_heartbeat_at_utc' => null,
+                'age_seconds' => null,
+                'stale_threshold_seconds' => $staleThresholdSeconds,
+                'remediation' => 'Start the scheduler worker and confirm schedule:work touches ops:heartbeat:scheduler.',
+            ];
+        }
+
+        $ageSeconds = max(0, $now->getTimestamp() - $lastRun->getTimestamp());
+        $isStale = $ageSeconds > $staleThresholdSeconds;
+
+        return [
+            'status' => $isStale ? 'fail' : 'ok',
+            'reasons' => $isStale ? ['scheduler_heartbeat_stale'] : [],
+            'last_heartbeat_at_utc' => $lastRun->copy()->utc()->toIso8601String(),
+            'age_seconds' => $ageSeconds,
+            'stale_threshold_seconds' => $staleThresholdSeconds,
+            'remediation' => $isStale
+                ? 'Restart the scheduler worker and verify queue/schedule logs for stuck tasks.'
+                : null,
+        ];
     }
 
     /**
@@ -547,20 +673,7 @@ class OperationalInsightsService
     {
         $now ??= Carbon::now('UTC');
 
-        $families = [
-            'sales' => [
-                'table' => 'reporting_daily_sales_snapshots',
-                'scope_columns' => ['branch_id', 'currency'],
-            ],
-            'operations' => [
-                'table' => 'reporting_daily_operation_snapshots',
-                'scope_columns' => ['branch_id'],
-            ],
-            'inventory' => [
-                'table' => 'reporting_daily_inventory_movement_snapshots',
-                'scope_columns' => ['branch_id'],
-            ],
-        ];
+        $families = $this->reportingFamilies();
         $sourceActivityCounts = $this->reportingSnapshotSourceActivityCounts();
 
         $missingTables = [];
@@ -575,6 +688,8 @@ class OperationalInsightsService
         foreach ($families as $family => $definition) {
             $table = (string) $definition['table'];
             $scopeColumns = array_values((array) ($definition['scope_columns'] ?? ['branch_id']));
+            $tier = (string) ($definition['tier'] ?? 'experimental');
+            $warnings = array_values((array) ($definition['warnings'] ?? []));
             $sourceActivityCount = (int) ($sourceActivityCounts[$family] ?? 0);
 
             if (! Schema::hasTable($table)) {
@@ -582,6 +697,10 @@ class OperationalInsightsService
                 $familySnapshots[$family] = [
                     'table' => $table,
                     'table_present' => false,
+                    'tier' => $tier,
+                    'launch_critical' => $tier === 'launch_critical',
+                    'certified_accounting' => (bool) ($definition['certified_accounting'] ?? false),
+                    'warnings' => $warnings,
                     'scope_columns' => $scopeColumns,
                     'source_activity_count' => $sourceActivityCount,
                     'scope_count' => 0,
@@ -625,6 +744,10 @@ class OperationalInsightsService
             $familySnapshots[$family] = [
                 'table' => $table,
                 'table_present' => true,
+                'tier' => $tier,
+                'launch_critical' => $tier === 'launch_critical',
+                'certified_accounting' => (bool) ($definition['certified_accounting'] ?? false),
+                'warnings' => $warnings,
                 'scope_columns' => $scopeColumns,
                 'source_activity_count' => $sourceActivityCount,
                 'scope_count' => $scopeCount,
@@ -637,8 +760,24 @@ class OperationalInsightsService
             ];
         }
 
+        $launchCriticalReconciliation = $this->launchCriticalReportingReconciliation($now);
+        $launchCriticalFamilies = array_values(array_keys(array_filter(
+            $families,
+            static fn (array $definition): bool => (string) ($definition['tier'] ?? '') === 'launch_critical',
+        )));
+        $experimentalFamilies = array_values(array_keys(array_filter(
+            $families,
+            static fn (array $definition): bool => (string) ($definition['tier'] ?? '') === 'experimental',
+        )));
+
         $snapshot = [
             'family_count' => count($families),
+            'launch_critical_families' => $launchCriticalFamilies,
+            'experimental_families' => $experimentalFamilies,
+            'experimental_reporting_warnings' => array_values(array_unique(array_merge(...array_map(
+                static fn (string $family): array => array_values((array) ($families[$family]['warnings'] ?? [])),
+                $experimentalFamilies,
+            )))),
             'populated_family_count' => $populatedFamilyCount,
             'empty_family_count' => count($emptyFamilies),
             'empty_families' => array_values($emptyFamilies),
@@ -648,6 +787,10 @@ class OperationalInsightsService
             'total_row_count' => $totalRowCount,
             'source_activity_count_total' => array_sum($sourceActivityCounts),
             'missing_tables' => array_values($missingTables),
+            'launch_critical_reconciliation_drift_count' => (int) ($launchCriticalReconciliation['drift_count'] ?? 0),
+            'launch_critical_reconciliation_examples' => array_values((array) ($launchCriticalReconciliation['examples'] ?? [])),
+            'launch_critical_reconciliation_checked_families' => array_values((array) ($launchCriticalReconciliation['checked_families'] ?? [])),
+            'launch_critical_reconciliation_lookback_days' => (int) ($launchCriticalReconciliation['lookback_days'] ?? 0),
             'families' => $familySnapshots,
         ];
 
@@ -656,6 +799,346 @@ class OperationalInsightsService
         ]);
 
         return array_merge($snapshot, $evaluation);
+    }
+
+    /**
+     * @return array<string,array<string,mixed>>
+     */
+    private function reportingFamilies(): array
+    {
+        return [
+            'sales' => [
+                'table' => 'reporting_daily_sales_snapshots',
+                'scope_columns' => ['branch_id', 'currency'],
+                'tier' => 'launch_critical',
+                'certified_accounting' => false,
+                'warnings' => ['reporting_read_model_not_certified_accounting'],
+            ],
+            'operations' => [
+                'table' => 'reporting_daily_operation_snapshots',
+                'scope_columns' => ['branch_id'],
+                'tier' => 'launch_critical',
+                'certified_accounting' => false,
+                'warnings' => [],
+            ],
+            'inventory' => [
+                'table' => 'reporting_daily_inventory_movement_snapshots',
+                'scope_columns' => ['branch_id', 'ingredient_id', 'unit_code'],
+                'tier' => 'experimental',
+                'certified_accounting' => false,
+                'warnings' => ['experimental_reporting_not_certified_accounting'],
+            ],
+        ];
+    }
+
+    /**
+     * @return array{drift_count:int,examples:list<array<string,mixed>>,checked_families:list<string>,lookback_days:int}
+     */
+    private function launchCriticalReportingReconciliation(Carbon $now): array
+    {
+        $lookbackDays = max(1, (int) config('booking.ops.reporting_reconciliation_lookback_days', 14));
+        $startAt = $now->copy()->subDays($lookbackDays - 1)->startOfDay();
+        $endAt = $now->copy()->endOfDay();
+        $startDate = $startAt->toDateString();
+        $endDate = $endAt->toDateString();
+        $examples = [];
+        $driftCount = 0;
+        $checkedFamilies = [];
+        $sampleLimit = 5;
+
+        if (Schema::hasTable('reservations') && Schema::hasTable('reporting_daily_sales_snapshots')) {
+            $checkedFamilies[] = 'sales';
+            $this->reconcileSalesSnapshots($startAt, $endAt, $examples, $driftCount, $sampleLimit);
+        }
+
+        if (
+            Schema::hasTable('reservations')
+            && Schema::hasTable('waiting_list')
+            && Schema::hasTable('reporting_daily_operation_snapshots')
+        ) {
+            $checkedFamilies[] = 'operations';
+            $this->reconcileOperationSnapshots($startAt, $endAt, $startDate, $endDate, $examples, $driftCount, $sampleLimit);
+        }
+
+        return [
+            'drift_count' => $driftCount,
+            'examples' => array_slice($examples, 0, $sampleLimit),
+            'checked_families' => $checkedFamilies,
+            'lookback_days' => $lookbackDays,
+        ];
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $examples
+     */
+    private function reconcileSalesSnapshots(Carbon $startAt, Carbon $endAt, array &$examples, int &$driftCount, int $sampleLimit): void
+    {
+        DB::table('reservations')
+            ->select([
+                'branch_id',
+                DB::raw('DATE(billed_at) AS business_date'),
+                DB::raw("COALESCE(bill_currency, 'VND') AS currency"),
+            ])
+            ->selectRaw('COUNT(*) AS billed_reservation_count')
+            ->selectRaw('SUM(COALESCE(guest_count, 0)) AS billed_guest_count')
+            ->selectRaw('ROUND(SUM(COALESCE(final_bill_amount, 0) + COALESCE(discount_amount, 0)), 2) AS gross_bill_amount')
+            ->selectRaw('ROUND(SUM(COALESCE(discount_amount, 0)), 2) AS discount_amount')
+            ->selectRaw('ROUND(SUM(COALESCE(final_bill_amount, 0)), 2) AS billed_total_amount')
+            ->whereNotNull('billed_at')
+            ->whereBetween('billed_at', [$startAt, $endAt])
+            ->groupBy('branch_id', DB::raw('DATE(billed_at)'), DB::raw("COALESCE(bill_currency, 'VND')"))
+            ->orderBy('branch_id')
+            ->orderBy('business_date')
+            ->get()
+            ->each(function (object $source) use (&$examples, &$driftCount, $sampleLimit): void {
+                $context = [
+                    'branch_id' => (int) ($source->branch_id ?? 0),
+                    'business_date' => (string) ($source->business_date ?? ''),
+                    'currency' => strtoupper((string) ($source->currency ?? 'VND')),
+                ];
+                $snapshot = DB::table('reporting_daily_sales_snapshots')
+                    ->where('branch_id', $context['branch_id'])
+                    ->where('business_date', $context['business_date'])
+                    ->where('currency', $context['currency'])
+                    ->first();
+
+                foreach ([
+                    'billed_reservation_count',
+                    'billed_guest_count',
+                    'gross_bill_amount',
+                    'discount_amount',
+                    'billed_total_amount',
+                ] as $metric) {
+                    $this->recordReportingDriftIfNeeded(
+                        $examples,
+                        $driftCount,
+                        $sampleLimit,
+                        'sales',
+                        $context,
+                        $metric,
+                        $source->{$metric} ?? 0,
+                        $snapshot->{$metric} ?? null,
+                    );
+                }
+            });
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $examples
+     */
+    private function reconcileOperationSnapshots(Carbon $startAt, Carbon $endAt, string $startDate, string $endDate, array &$examples, int &$driftCount, int $sampleLimit): void
+    {
+        $sourceRows = [];
+
+        DB::table('reservations')
+            ->select([
+                'branch_id',
+                'start_time',
+                'checked_in_at',
+                'checked_out_at',
+                'cancelled_at',
+                'no_show_at',
+                'guest_count',
+                'status',
+            ])
+            ->where(function (Builder $query) use ($startAt, $endAt): void {
+                $query->whereBetween('start_time', [$startAt, $endAt])
+                    ->orWhereBetween('checked_in_at', [$startAt, $endAt])
+                    ->orWhereBetween('checked_out_at', [$startAt, $endAt])
+                    ->orWhereBetween('cancelled_at', [$startAt, $endAt])
+                    ->orWhereBetween('no_show_at', [$startAt, $endAt]);
+            })
+            ->orderBy('reservation_id')
+            ->get()
+            ->each(function (object $reservation) use (&$sourceRows, $startDate, $endDate): void {
+                $branchId = (int) ($reservation->branch_id ?? 1);
+                $guestCount = (int) ($reservation->guest_count ?? 0);
+
+                $scheduledDate = $this->dateStringInRange($reservation->start_time ?? null, $startDate, $endDate);
+                if ($scheduledDate !== null) {
+                    $row = $this->operationSourceRow($sourceRows, $branchId, $scheduledDate);
+                    $row['scheduled_reservation_count']++;
+                    $row['scheduled_guest_count'] += $guestCount;
+                    $sourceRows[$this->operationSourceKey($branchId, $scheduledDate)] = $row;
+                }
+
+                $checkedInDate = $this->dateStringInRange($reservation->checked_in_at ?? null, $startDate, $endDate);
+                if ($checkedInDate !== null) {
+                    $row = $this->operationSourceRow($sourceRows, $branchId, $checkedInDate);
+                    $row['checked_in_count']++;
+                    $sourceRows[$this->operationSourceKey($branchId, $checkedInDate)] = $row;
+                }
+
+                $completedDate = $this->dateStringInRange($reservation->checked_out_at ?? null, $startDate, $endDate);
+                if ($completedDate !== null || ((string) ($reservation->status ?? '') === 'Completed' && $this->dateStringInRange($reservation->start_time ?? null, $startDate, $endDate) !== null)) {
+                    $completedDate ??= $this->dateStringInRange($reservation->start_time ?? null, $startDate, $endDate);
+                    if ($completedDate !== null) {
+                        $row = $this->operationSourceRow($sourceRows, $branchId, $completedDate);
+                        $row['completed_count']++;
+                        $sourceRows[$this->operationSourceKey($branchId, $completedDate)] = $row;
+                    }
+                }
+
+                foreach ([
+                    'cancelled_at' => 'cancelled_count',
+                    'no_show_at' => 'no_show_count',
+                ] as $field => $metric) {
+                    $date = $this->dateStringInRange($reservation->{$field} ?? null, $startDate, $endDate);
+                    if ($date === null) {
+                        continue;
+                    }
+
+                    $row = $this->operationSourceRow($sourceRows, $branchId, $date);
+                    $row[$metric]++;
+                    $sourceRows[$this->operationSourceKey($branchId, $date)] = $row;
+                }
+            });
+
+        DB::table('waiting_list')
+            ->select([
+                'branch_id',
+                'requested_at',
+                'seated_at',
+                'cancelled_at',
+            ])
+            ->where(function (Builder $query) use ($startAt, $endAt): void {
+                $query->whereBetween('requested_at', [$startAt, $endAt])
+                    ->orWhereBetween('seated_at', [$startAt, $endAt])
+                    ->orWhereBetween('cancelled_at', [$startAt, $endAt]);
+            })
+            ->orderBy('waiting_id')
+            ->get()
+            ->each(function (object $entry) use (&$sourceRows, $startDate, $endDate): void {
+                $branchId = (int) ($entry->branch_id ?? 1);
+                foreach ([
+                    'requested_at' => 'waiting_list_created_count',
+                    'seated_at' => 'waiting_list_seated_count',
+                    'cancelled_at' => 'waiting_list_cancelled_count',
+                ] as $field => $metric) {
+                    $date = $this->dateStringInRange($entry->{$field} ?? null, $startDate, $endDate);
+                    if ($date === null) {
+                        continue;
+                    }
+
+                    $row = $this->operationSourceRow($sourceRows, $branchId, $date);
+                    $row[$metric]++;
+                    $sourceRows[$this->operationSourceKey($branchId, $date)] = $row;
+                }
+            });
+
+        ksort($sourceRows);
+
+        foreach ($sourceRows as $source) {
+            $context = [
+                'branch_id' => (int) $source['branch_id'],
+                'business_date' => (string) $source['business_date'],
+            ];
+            $snapshot = DB::table('reporting_daily_operation_snapshots')
+                ->where('branch_id', $context['branch_id'])
+                ->where('business_date', $context['business_date'])
+                ->first();
+
+            foreach ([
+                'scheduled_reservation_count',
+                'scheduled_guest_count',
+                'checked_in_count',
+                'completed_count',
+                'cancelled_count',
+                'no_show_count',
+                'waiting_list_created_count',
+                'waiting_list_seated_count',
+                'waiting_list_cancelled_count',
+            ] as $metric) {
+                $this->recordReportingDriftIfNeeded(
+                    $examples,
+                    $driftCount,
+                    $sampleLimit,
+                    'operations',
+                    $context,
+                    $metric,
+                    $source[$metric] ?? 0,
+                    $snapshot->{$metric} ?? null,
+                );
+            }
+        }
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $examples
+     * @param  array<string,mixed>  $context
+     */
+    private function recordReportingDriftIfNeeded(array &$examples, int &$driftCount, int $sampleLimit, string $family, array $context, string $metric, mixed $sourceValue, mixed $snapshotValue): void
+    {
+        if ($snapshotValue !== null && ! $this->reportingValuesDiffer($sourceValue, $snapshotValue)) {
+            return;
+        }
+
+        $driftCount++;
+        if (count($examples) >= $sampleLimit) {
+            return;
+        }
+
+        $examples[] = array_merge($context, [
+            'family' => $family,
+            'metric' => $metric,
+            'source_value' => $this->normalizeReportingValue($sourceValue),
+            'snapshot_value' => $snapshotValue === null ? null : $this->normalizeReportingValue($snapshotValue),
+        ]);
+    }
+
+    private function reportingValuesDiffer(mixed $sourceValue, mixed $snapshotValue): bool
+    {
+        return abs((float) $sourceValue - (float) $snapshotValue) > 0.01;
+    }
+
+    private function normalizeReportingValue(mixed $value): int|float
+    {
+        $number = (float) $value;
+
+        return abs($number - round($number)) <= 0.0001
+            ? (int) round($number)
+            : round($number, 2);
+    }
+
+    /**
+     * @param  array<string,array<string,mixed>>  $sourceRows
+     * @return array<string,mixed>
+     */
+    private function operationSourceRow(array $sourceRows, int $branchId, string $date): array
+    {
+        return $sourceRows[$this->operationSourceKey($branchId, $date)] ?? [
+            'branch_id' => $branchId,
+            'business_date' => $date,
+            'scheduled_reservation_count' => 0,
+            'scheduled_guest_count' => 0,
+            'checked_in_count' => 0,
+            'completed_count' => 0,
+            'cancelled_count' => 0,
+            'no_show_count' => 0,
+            'waiting_list_created_count' => 0,
+            'waiting_list_seated_count' => 0,
+            'waiting_list_cancelled_count' => 0,
+        ];
+    }
+
+    private function operationSourceKey(int $branchId, string $date): string
+    {
+        return $branchId.'|'.$date;
+    }
+
+    private function dateStringInRange(mixed $value, string $startDate, string $endDate): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        try {
+            $date = Carbon::parse((string) $value)->utc()->toDateString();
+        } catch (Throwable) {
+            return null;
+        }
+
+        return $date >= $startDate && $date <= $endDate ? $date : null;
     }
 
     /**
@@ -668,6 +1151,7 @@ class OperationalInsightsService
         $requiredTables = [
             'kitchen_order_item_tickets',
             'reservation_order_items',
+            'reservations',
             'kitchen_station_category_routes',
             'kitchen_stations',
         ];
@@ -699,6 +1183,18 @@ class OperationalInsightsService
                 'drift_count' => 0,
                 'status_drift_count' => 0,
                 'routing_drift_count' => 0,
+                'duplicate_order_item_ticket_group_count' => 0,
+                'duplicate_order_item_ticket_examples' => [],
+                'branch_scope_mismatch_count' => 0,
+                'branch_scope_mismatch_examples' => [],
+                'station_scope_mismatch_count' => 0,
+                'station_scope_mismatch_examples' => [],
+                'realtime_cache_status' => null,
+                'realtime_cache_store' => null,
+                'realtime_cache_driver' => null,
+                'realtime_cache_trusted' => false,
+                'realtime_strict_required' => $this->kitchenRealtimeStrictRequired(),
+                'realtime_cache_reasons' => [],
                 'oldest_fired_age_seconds' => null,
                 'oldest_ready_age_seconds' => null,
                 'drift_examples' => [],
@@ -718,6 +1214,10 @@ class OperationalInsightsService
         $reconciliation = $this->kitchenTicketReconciliationService->scan([
             'include_terminal' => false,
         ]);
+        $duplicateTicketSummary = $this->kitchenDuplicateTicketSummary();
+        $scopeSummary = $this->kitchenScopeIntegritySummary();
+        $realtimeSnapshot = $this->staffOperationalRealtimeSnapshot();
+        $realtimeStrictRequired = $this->kitchenRealtimeStrictRequired();
         $stuckThresholds = [
             KitchenTicketStatus::Queued->value => max(60, (int) config('booking.ops.kitchen_queued_backlog_warn_seconds', 900)),
             KitchenTicketStatus::Fired->value => max(60, (int) config('booking.ops.kitchen_fired_backlog_warn_seconds', 900)),
@@ -827,6 +1327,18 @@ class OperationalInsightsService
             'drift_count' => (int) ($reconciliation['drift_count'] ?? 0),
             'status_drift_count' => (int) ($reconciliation['status_drift_count'] ?? 0),
             'routing_drift_count' => (int) ($reconciliation['routing_drift_count'] ?? 0),
+            'duplicate_order_item_ticket_group_count' => (int) ($duplicateTicketSummary['duplicate_group_count'] ?? 0),
+            'duplicate_order_item_ticket_examples' => array_values((array) ($duplicateTicketSummary['examples'] ?? [])),
+            'branch_scope_mismatch_count' => (int) ($scopeSummary['branch_scope_mismatch_count'] ?? 0),
+            'branch_scope_mismatch_examples' => array_values((array) ($scopeSummary['branch_scope_mismatch_examples'] ?? [])),
+            'station_scope_mismatch_count' => (int) ($scopeSummary['station_scope_mismatch_count'] ?? 0),
+            'station_scope_mismatch_examples' => array_values((array) ($scopeSummary['station_scope_mismatch_examples'] ?? [])),
+            'realtime_cache_status' => (string) ($realtimeSnapshot['status'] ?? 'degraded'),
+            'realtime_cache_store' => $realtimeSnapshot['store'] ?? null,
+            'realtime_cache_driver' => $realtimeSnapshot['driver'] ?? null,
+            'realtime_cache_trusted' => (bool) ($realtimeSnapshot['trusted'] ?? false),
+            'realtime_strict_required' => $realtimeStrictRequired,
+            'realtime_cache_reasons' => array_values((array) ($realtimeSnapshot['reasons'] ?? [])),
             'oldest_fired_age_seconds' => $this->ageSeconds(
                 DB::table('kitchen_order_item_tickets')
                     ->where('ticket_status', KitchenTicketStatus::Fired->value)
@@ -851,6 +1363,169 @@ class OperationalInsightsService
         ]);
 
         return array_merge($snapshot, $evaluation);
+    }
+
+    /**
+     * @return array{duplicate_group_count:int,examples:list<array<string,mixed>>}
+     */
+    private function kitchenDuplicateTicketSummary(): array
+    {
+        $duplicates = DB::table('kitchen_order_item_tickets')
+            ->select('order_item_id')
+            ->selectRaw('COUNT(*) AS duplicate_count')
+            ->selectRaw('MIN(ticket_id) AS first_ticket_id')
+            ->selectRaw('MAX(ticket_id) AS latest_ticket_id')
+            ->whereNotNull('order_item_id')
+            ->groupBy('order_item_id')
+            ->havingRaw('COUNT(*) > 1')
+            ->orderByDesc('duplicate_count')
+            ->orderBy('order_item_id')
+            ->limit(3)
+            ->get();
+
+        $examples = $duplicates
+            ->map(function (object $row): array {
+                $ticketIds = DB::table('kitchen_order_item_tickets')
+                    ->where('order_item_id', $row->order_item_id)
+                    ->orderBy('ticket_id')
+                    ->limit(5)
+                    ->pluck('ticket_id')
+                    ->map(static fn (mixed $ticketId): int => (int) $ticketId)
+                    ->values()
+                    ->all();
+
+                return [
+                    'order_item_id' => (int) ($row->order_item_id ?? 0),
+                    'duplicate_count' => (int) ($row->duplicate_count ?? 0),
+                    'ticket_sample_ids' => $ticketIds,
+                    'first_ticket_id' => (int) ($row->first_ticket_id ?? 0),
+                    'latest_ticket_id' => (int) ($row->latest_ticket_id ?? 0),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return [
+            'duplicate_group_count' => (int) DB::query()
+                ->fromSub(
+                    DB::table('kitchen_order_item_tickets')
+                        ->select('order_item_id')
+                        ->whereNotNull('order_item_id')
+                        ->groupBy('order_item_id')
+                        ->havingRaw('COUNT(*) > 1'),
+                    'duplicate_ticket_groups',
+                )
+                ->count(),
+            'examples' => $examples,
+        ];
+    }
+
+    /**
+     * @return array{branch_scope_mismatch_count:int,branch_scope_mismatch_examples:list<array<string,mixed>>,station_scope_mismatch_count:int,station_scope_mismatch_examples:list<array<string,mixed>>}
+     */
+    private function kitchenScopeIntegritySummary(): array
+    {
+        $branchMismatchQuery = $this->kitchenScopeBaseQuery()
+            ->where(function (Builder $query): void {
+                $query->whereColumn('reservations.branch_id', '<>', 'kitchen_stations.branch_id')
+                    ->orWhere(function (Builder $inner): void {
+                        $inner->whereNotNull('tickets.route_id')
+                            ->whereColumn('routes.branch_id', '<>', 'reservations.branch_id');
+                    })
+                    ->orWhere(function (Builder $inner): void {
+                        $inner->whereNotNull('tickets.route_id')
+                            ->whereColumn('routes.branch_id', '<>', 'kitchen_stations.branch_id');
+                    });
+            });
+
+        $stationMismatchQuery = $this->kitchenScopeBaseQuery()
+            ->where(function (Builder $query): void {
+                $query->where('kitchen_stations.is_active', '<>', 1)
+                    ->orWhere(function (Builder $inner): void {
+                        $inner->whereNotNull('tickets.route_id')
+                            ->whereNull('routes.route_id');
+                    })
+                    ->orWhere(function (Builder $inner): void {
+                        $inner->whereNotNull('tickets.route_id')
+                            ->whereColumn('routes.station_id', '<>', 'tickets.station_id');
+                    })
+                    ->orWhere(function (Builder $inner): void {
+                        $inner->whereNotNull('routes.route_id')
+                            ->where('routes.is_active', '<>', 1);
+                    });
+            });
+
+        return [
+            'branch_scope_mismatch_count' => (int) (clone $branchMismatchQuery)->count(),
+            'branch_scope_mismatch_examples' => $this->kitchenScopeExamples($branchMismatchQuery),
+            'station_scope_mismatch_count' => (int) (clone $stationMismatchQuery)->count(),
+            'station_scope_mismatch_examples' => $this->kitchenScopeExamples($stationMismatchQuery),
+        ];
+    }
+
+    private function kitchenScopeBaseQuery(): Builder
+    {
+        return DB::table('kitchen_order_item_tickets as tickets')
+            ->join('reservations', 'reservations.reservation_id', '=', 'tickets.reservation_id')
+            ->join('kitchen_stations', 'kitchen_stations.station_id', '=', 'tickets.station_id')
+            ->leftJoin('kitchen_station_category_routes as routes', 'routes.route_id', '=', 'tickets.route_id')
+            ->select([
+                'tickets.ticket_id',
+                'tickets.order_id',
+                'tickets.order_item_id',
+                'tickets.reservation_id',
+                'tickets.station_id',
+                'tickets.route_id',
+                'tickets.ticket_status',
+                'reservations.branch_id as reservation_branch_id',
+                'kitchen_stations.branch_id as station_branch_id',
+                'kitchen_stations.is_active as station_is_active',
+                'routes.branch_id as route_branch_id',
+                'routes.station_id as route_station_id',
+                'routes.is_active as route_is_active',
+            ]);
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private function kitchenScopeExamples(Builder $query): array
+    {
+        return (clone $query)
+            ->orderBy('tickets.ticket_id')
+            ->limit(3)
+            ->get()
+            ->map(static fn (object $row): array => [
+                'ticket_id' => (int) ($row->ticket_id ?? 0),
+                'order_id' => (int) ($row->order_id ?? 0),
+                'order_item_id' => (int) ($row->order_item_id ?? 0),
+                'reservation_id' => (int) ($row->reservation_id ?? 0),
+                'ticket_status' => (string) ($row->ticket_status ?? ''),
+                'reservation_branch_id' => isset($row->reservation_branch_id) ? (int) $row->reservation_branch_id : null,
+                'station_id' => isset($row->station_id) ? (int) $row->station_id : null,
+                'station_branch_id' => isset($row->station_branch_id) ? (int) $row->station_branch_id : null,
+                'station_is_active' => isset($row->station_is_active) ? (bool) $row->station_is_active : null,
+                'route_id' => isset($row->route_id) ? (int) $row->route_id : null,
+                'route_branch_id' => isset($row->route_branch_id) ? (int) $row->route_branch_id : null,
+                'route_station_id' => isset($row->route_station_id) ? (int) $row->route_station_id : null,
+                'route_is_active' => isset($row->route_is_active) ? (bool) $row->route_is_active : null,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function kitchenRealtimeStrictRequired(): bool
+    {
+        $environment = trim((string) config('app.env', app()->environment()));
+        if ($environment === '') {
+            return false;
+        }
+
+        return (bool) config('booking.realtime.enabled', true)
+            && in_array($environment, array_values(array_filter(array_map(
+                'strval',
+                (array) config('booking.realtime.production_like_environments', ['production', 'staging']),
+            ))), true);
     }
 
     /**
@@ -883,6 +1558,10 @@ class OperationalInsightsService
                 'movement_issue_count' => 0,
                 'duplicate_purchase_receipt_reference_count' => 0,
                 'duplicate_purchase_receipt_movement_count' => 0,
+                'stock_reconciliation_dimensions' => [],
+                'stock_on_hand_group_count' => 0,
+                'negative_stock_group_count' => 0,
+                'impossible_stock_movement_count' => 0,
                 'open_purchase_order_count' => 0,
                 'overdue_open_order_count' => 0,
                 'oldest_overdue_open_age_seconds' => null,
@@ -890,6 +1569,8 @@ class OperationalInsightsService
                 'issue_examples' => [],
                 'overdue_examples' => [],
                 'duplicate_purchase_receipt_reference_examples' => [],
+                'negative_stock_examples' => [],
+                'impossible_stock_movement_examples' => [],
                 'status' => 'fail',
                 'reasons' => ['inventory_purchasing_tables_missing'],
             ];
@@ -899,6 +1580,7 @@ class OperationalInsightsService
             'limit' => (int) config('booking.ops.inventory_purchase_scan_limit', 50),
         ]);
         $duplicateReferenceSummary = $this->purchaseOrderReconciliationService->duplicatePurchaseReceiptReferenceSummary();
+        $stockReconciliation = app(InventoryStockReconciliationService::class)->summary();
 
         $openStatuses = [
             PurchaseOrderStatus::Ordered->value,
@@ -955,6 +1637,10 @@ class OperationalInsightsService
             'movement_issue_count' => (int) ($scan['movement_issue_count'] ?? 0),
             'duplicate_purchase_receipt_reference_count' => (int) ($duplicateReferenceSummary['duplicate_reference_count'] ?? 0),
             'duplicate_purchase_receipt_movement_count' => (int) ($duplicateReferenceSummary['duplicate_movement_count'] ?? 0),
+            'stock_reconciliation_dimensions' => array_values((array) ($stockReconciliation['dimensions'] ?? [])),
+            'stock_on_hand_group_count' => (int) ($stockReconciliation['stock_on_hand_group_count'] ?? 0),
+            'negative_stock_group_count' => (int) ($stockReconciliation['negative_group_count'] ?? 0),
+            'impossible_stock_movement_count' => (int) ($stockReconciliation['impossible_movement_count'] ?? 0),
             'open_purchase_order_count' => (int) (clone $openOrdersQuery)->count(),
             'overdue_open_order_count' => (int) (clone $overdueOpenOrdersQuery)->count(),
             'oldest_overdue_open_age_seconds' => $this->ageSeconds(
@@ -965,6 +1651,8 @@ class OperationalInsightsService
             'issue_examples' => $issueExamples,
             'overdue_examples' => $overdueExamples,
             'duplicate_purchase_receipt_reference_examples' => array_values((array) ($duplicateReferenceSummary['examples'] ?? [])),
+            'negative_stock_examples' => array_values((array) ($stockReconciliation['negative_examples'] ?? [])),
+            'impossible_stock_movement_examples' => array_values((array) ($stockReconciliation['impossible_examples'] ?? [])),
         ];
 
         $evaluation = OperationalHealthEvaluator::forInventoryPurchasing($snapshot, [

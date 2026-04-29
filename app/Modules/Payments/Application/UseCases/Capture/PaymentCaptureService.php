@@ -74,6 +74,7 @@ class PaymentCaptureService
         ?int $staffUserId,
         string $idempotencyKey,
         ?string $requestFingerprint = null,
+        ?int $cashierShiftId = null,
     ): ReservationOrder {
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
@@ -132,6 +133,7 @@ class PaymentCaptureService
 
         $payment = new Payment;
         $payment->branch_id = $reservationBranchId;
+        $payment->cashier_shift_id = $cashierShiftId !== null && $cashierShiftId > 0 ? $cashierShiftId : null;
         $payment->reservation_id = $reservation->reservation_id;
         $payment->amount = Money::formatMinor($paidAmountMinor);
         $payment->currency = $paymentCurrency;
@@ -152,6 +154,7 @@ class PaymentCaptureService
             'reservation_id' => (int) $reservation->reservation_id,
             'payment_provider' => trim($paymentProvider) !== '' ? trim($paymentProvider) : 'Other',
             'payment_method' => trim($paymentMethod),
+            'cashier_shift_id' => $cashierShiftId !== null && $cashierShiftId > 0 ? $cashierShiftId : null,
         ];
 
         try {
@@ -215,6 +218,7 @@ class PaymentCaptureService
             'remaining_due_before' => $remainingDue,
             'remaining_due_after' => (float) ($settlementAfter['remaining_due'] ?? 0.0),
             'currency' => (string) $payment->currency,
+            'cashier_shift_id' => $payment->cashier_shift_id !== null ? (int) $payment->cashier_shift_id : null,
             'actor_user_id' => $staffUserId,
         ]);
 

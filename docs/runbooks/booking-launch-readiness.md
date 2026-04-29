@@ -38,6 +38,13 @@ Integrated automated sources:
 
 Manual source used by the matrix:
 
+- Disaster recovery restore evidence
+  - source of truth for recent backup/restore proof or reviewed manual DR evidence
+- Performance verification report
+  - source of truth for staging release-candidate performance evidence, separate from local smoke timing
+- Payment provider / customer self-pay readiness evidence
+  - source of truth for either explicit staff-settlement-only posture or provider E2E readiness when customer self-pay is enabled
+
 - UAT/demo scenario pack
   - source of truth cho manual operator evidence khi cần limited-production attestation
 
@@ -47,6 +54,9 @@ Related runbooks already in repo:
 - `docs/runbooks/booking-release-packaging-runbook.md`
 - `docs/runbooks/booking-alerting-runbook.md`
 - `docs/runbooks/uat-demo-scenario-pack.md`
+- `docs/runbooks/booking-backup-restore-runbook.md`
+- `docs/runbooks/booking-disaster-recovery-drill.md`
+- `docs/runbooks/booking-performance-verification.md`
 
 ## Overlap and gaps
 
@@ -57,6 +67,12 @@ Current overlap intentionally preserved:
 - `booking:release-manifest` và `booking:package-release` đều chạm release artifact integrity, nhưng manifest kiểm tính đầy đủ còn package kiểm tính buildable/immutable.
 
 Current gaps not fully automated:
+
+Updated limited-production interpretation:
+
+- UAT replay, disaster recovery restore evidence, staging performance evidence, payment readiness evidence, notification rehearsal, and concurrency rehearsal are schema-validated manual evidence gates.
+- Customer self-pay can only pass without provider proof when it is explicitly disabled and staff settlement is confirmed as the day-1 payment path.
+- A local smoke timing report is not a substitute for staging release-candidate performance evidence.
 
 - canonical UAT/demo scenario pack vẫn là manual evidence
 - candidate-specific `booking:performance-verify` report vẫn là manual evidence
@@ -82,6 +98,8 @@ When `booking:doctor` already reports missing runtime dependencies, `booking:lau
 | Release artifact integrity | Frozen manifest freshness | `booking:release-manifest --verify-frozen` | yes | Live manifest matches the frozen snapshot |
 | Release artifact integrity | Immutable release package build | `booking:package-release --verify-frozen` | yes | Immutable package and sidecars build successfully |
 
+Deploy preflight is intentionally read-only for reconciliation work. It now blocks on negative aggregate inventory stock from `ingredient_stock_movements`, KDS ticket branch/station drift, unsafe KDS realtime cache posture in production-like strict mode, and launch-critical reporting snapshot drift. The guard output includes bounded sample ids and source/snapshot values so operators can repair data without exposing payment secrets or running full-table reconciliation in request paths.
+
 Manual checks tracked by the artifact:
 
 - `uat_scenario_pack_replay`
@@ -90,8 +108,14 @@ Manual checks tracked by the artifact:
 - `performance_verification_report`
   - staging: major warning if missing
   - limited-production: blocking if missing
-- `payment_provider_external_e2e`
+- `disaster_recovery_restore_evidence`
+  - staging: major warning if missing
   - limited-production: blocking if missing
+- `payment_provider_external_e2e`
+  - staging: major warning if missing
+  - limited-production: blocking if missing
+  - disabled posture must explicitly confirm customer self-pay is off and staff settlement is the day-1 path
+  - enabled posture must cover deposit scope, bill scope, provider mode, webhook/callback, signature validation, idempotency replay, failure/cancel path, and settlement reconciliation
 - `notification_provider_external_e2e`
   - staging: major warning if missing
   - limited-production: blocking if missing
@@ -162,10 +186,19 @@ Contract-visible but not launch-promised:
 - kitchen landing or board read surfaces
 - audit, reporting, admin settings, and admin inventory routes that may remain mounted for operator context
 
+Reporting day-1 classification:
+
+- launch-critical: daily sales and daily operations read models. These are operational launch reports and are reconciled against source-of-truth tables by deploy/ops guards.
+- experimental: daily inventory movement reporting. It can support operator context, but it is not production-certified accounting and must keep the `experimental_reporting_not_certified_accounting` warning visible in report metadata and runbooks.
+
 Payment stance:
 
 - production-proven day-1 path: staff settlement, refund, and cashier-shift flow
+- customer self-pay stays disabled unless explicitly configured for the target environment
+- when customer self-pay is disabled, launch-readiness still requires explicit evidence that staff settlement remains the safe day-1 path
+- when customer self-pay is enabled, limited production requires provider readiness evidence for deposit scope, bill scope, provider mode, callback/webhook handling, signature validation, idempotency replay, failure/cancel handling, and settlement reconciliation
 - contract-ready only: customer deposit and bill payment-session routes, including any simulated-provider or local UAT proof
+- manual evidence must not contain provider secrets, API keys, webhook signing secrets, bearer tokens, demo passwords, or live credentials; secret-looking keys are redacted and treated as evidence issues
 
 ## Split-web release evidence
 
@@ -239,13 +272,17 @@ Limited production rollout with manual evidence:
 ```bash
 php artisan booking:launch-readiness \
   --target=limited-production \
-  --manual-evidence=storage/app/booking_release/manual_evidence/limited-production-20260405.json \
+  --manual-evidence=storage/app/booking_release/manual_evidence/limited-production-20260428.json \
   --json
 ```
 
 Use an operator-owned candidate evidence file under `storage/app/booking_release/manual_evidence/` or the release artifact store. Do not point limited-production sign-off at `tests/fixtures/*`; those fixtures exist for automated tests, not rollout attestation.
 
-That manual evidence file is only complete for limited production when all five target-specific checks are recorded as `pass`: `uat_scenario_pack_replay`, `performance_verification_report`, `payment_provider_external_e2e`, `notification_provider_external_e2e`, and `concurrency_rehearsal`.
+Example limited-production evidence path for an operator-owned release ticket: `storage/app/booking_release/manual_evidence/limited-production-20260405.json`.
+
+That manual evidence file is only complete for limited production when all six target-specific checks are recorded as `pass`: `uat_scenario_pack_replay`, `disaster_recovery_restore_evidence`, `performance_verification_report`, `payment_provider_external_e2e`, `notification_provider_external_e2e`, and `concurrency_rehearsal`.
+
+The command schema-validates the target-specific evidence fields. A simple `"status": "pass"` is not enough for payment, disaster recovery, performance, or UAT replay evidence.
 
 Scaffold an operator-owned template before the rehearsal:
 
@@ -279,7 +316,7 @@ Use that section as the operator checklist for the next pass:
 
 - scaffold the operator-owned manual evidence template when `--manual-evidence` was not supplied
 - jump directly to the owning runbook for each missing manual check
-- copy the exact command examples for UAT replay, performance verification, notification rehearsal, and concurrency probes
+- copy the exact command examples for UAT replay, DR restore evidence, performance verification, payment readiness, notification rehearsal, and concurrency probes
 - rerun `booking:launch-readiness` with the recorded manual evidence path after the operator proof is captured
 
 `booking:release-loop` now carries those same launch-readiness follow-up actions forward and adds separate actions for missing preview proof and missing Sentry release/runtime context.
@@ -303,31 +340,84 @@ The same JSON/Markdown artifacts now also emit a `release_handoff` section. Use 
     "uat_scenario_pack_replay": {
       "status": "pass",
       "performed_by": "qa.release",
-      "performed_at_utc": "2026-04-05T08:30:00Z",
-      "notes": "Ran canonical scenario pack against the candidate build."
+      "performed_at_utc": "2026-04-28T08:30:00Z",
+      "scenario_pack_version": "uat-day1-golden-v1",
+      "replayed_at_utc": "2026-04-28T08:30:00Z",
+      "verification_result": "pass",
+      "production_artifact_contains_demo_credentials": false,
+      "scenario_results": {
+        "customer_reservation_hold_access_session": "pass",
+        "staff_auth_branch_scope": "pass",
+        "walk_in_table_service_session": "pass",
+        "order_item_lifecycle": "pass",
+        "kds_dispatch_update": "pass",
+        "checkout_cashier_shift": "pass",
+        "refund_cancel_after_payment": "pass",
+        "inventory_consumption_adjustment": "pass",
+        "notification_outbox_visibility": "pass"
+      },
+      "notes": "Ran canonical day-1 scenario pack against the candidate build. No demo passwords or tokens are included."
+    },
+    "disaster_recovery_restore_evidence": {
+      "status": "pass",
+      "performed_by": "ops.release",
+      "performed_at_utc": "2026-04-28T09:00:00Z",
+      "restored_dump_identifier": "backup-20260428T083000Z",
+      "restore_target": "restaurant_pos_restore_drill",
+      "verification_command": "php artisan booking:dr-drill --mode=full-isolated-restore --target-db=restaurant_pos_restore_drill --json",
+      "verification_result": "pass",
+      "operator": "ops.release",
+      "reviewer": "release.lead",
+      "notes": "Restored into an isolated scratch target and archived the DR drill JSON."
     },
     "performance_verification_report": {
       "status": "pass",
       "performed_by": "qa.release",
-      "performed_at_utc": "2026-04-05T09:18:00Z",
-      "notes": "Archived the candidate-specific booking:performance-verify staging report with the automated scenarios and operator-assisted probe notes."
+      "performed_at_utc": "2026-04-28T09:18:00Z",
+      "report_path": "storage/app/booking_release/performance_verification/reports/performance-verification-staging-20260428T091800Z.json",
+      "profile": "staging",
+      "evidence_level": "release_candidate",
+      "local_smoke_only": false,
+      "evaluated_at_utc": "2026-04-28T09:18:00Z",
+      "verification_result": "pass",
+      "scenario_matrix": {
+        "table_board_load": "pass",
+        "open_walk_in_service_session": "pass",
+        "add_order_item": "pass",
+        "kds_board_dispatch": "pass",
+        "checkout_payment_capture": "pass",
+        "refund_preview_execute": "pass",
+        "inventory_stock_read_adjustment": "pass",
+        "reporting_snapshot_read": "pass"
+      },
+      "notes": "Archived the candidate-specific staging report. Local smoke timing is not being used as limited-production evidence."
     },
     "payment_provider_external_e2e": {
       "status": "pass",
       "performed_by": "qa.release",
-      "performed_at_utc": "2026-04-05T09:10:00Z",
-      "notes": "Validated one payment-provider callback rehearsal in staging against the target credentials."
+      "performed_at_utc": "2026-04-28T09:10:00Z",
+      "customer_self_pay_enabled": false,
+      "provider_mode": "disabled",
+      "staff_settlement_day1_path_confirmed": true,
+      "deposit_scope": "disabled",
+      "bill_scope": "disabled",
+      "callback_webhook_tested": false,
+      "signature_validation_tested": false,
+      "idempotency_replay_tested": false,
+      "failure_cancel_path_tested": false,
+      "settlement_reconciliation_tested": false,
+      "notes": "Customer self-pay is disabled for this candidate. Staff settlement, refund, and cashier shift remain the day-1 payment path."
     },
     "notification_provider_external_e2e": {
       "status": "pass",
       "performed_by": "qa.release",
-      "performed_at_utc": "2026-04-05T09:25:00Z",
+      "performed_at_utc": "2026-04-28T09:25:00Z",
       "notes": "Validated one real email delivery rehearsal in staging and captured outbox attempt evidence plus recipient confirmation."
     },
     "concurrency_rehearsal": {
       "status": "pass",
       "performed_by": "qa.release",
-      "performed_at_utc": "2026-04-05T09:45:00Z",
+      "performed_at_utc": "2026-04-28T09:45:00Z",
       "notes": "Completed the Redis/MySQL multi-process contention rehearsal for table-hold and checkout flows."
     }
   }

@@ -18,18 +18,19 @@ final class LocalRuntimeScriptContractTest extends TestCase
         $scripts = $decoded['scripts'] ?? [];
 
         self::assertSame(
-            'powershell -ExecutionPolicy Bypass -File scripts/ops/local-runtime.ps1 -Action up',
+            'node scripts/ops/local-runtime.mjs up',
             $scripts['runtime:up'] ?? null,
         );
         self::assertSame(
-            'powershell -ExecutionPolicy Bypass -File scripts/ops/local-runtime.ps1 -Action down',
+            'node scripts/ops/local-runtime.mjs down',
             $scripts['runtime:down'] ?? null,
         );
         self::assertSame(
-            'powershell -ExecutionPolicy Bypass -File scripts/ops/local-runtime.ps1 -Action restart',
+            'node scripts/ops/local-runtime.mjs restart',
             $scripts['runtime:restart'] ?? null,
         );
 
+        self::assertFileExists(base_path('scripts/ops/local-runtime.mjs'));
         self::assertFileExists(base_path('scripts/ops/local-runtime.ps1'));
         self::assertFileExists(base_path('scripts/ops/start-local-mysql.ps1'));
         self::assertFileExists(base_path('scripts/ops/start-local-redis.ps1'));
@@ -48,6 +49,24 @@ final class LocalRuntimeScriptContractTest extends TestCase
         self::assertStringContainsString('npm run runtime:up', $runbook);
         self::assertStringContainsString('npm run runtime:down', $runbook);
         self::assertStringContainsString('npm run runtime:preflight', $runbook);
+    }
+
+    public function test_cross_platform_runtime_wrapper_keeps_docker_compose_as_local_only_fallback(): void
+    {
+        $script = file_get_contents(base_path('scripts/ops/local-runtime.mjs'));
+        $compose = file_get_contents(base_path('docker-compose.testing.yml'));
+        self::assertNotFalse($script);
+        self::assertNotFalse($compose);
+
+        self::assertStringContainsString('docker-compose.testing.yml', $script);
+        self::assertStringContainsString('start-local-mysql.ps1', $script);
+        self::assertStringContainsString('start-local-redis.ps1', $script);
+        self::assertStringContainsString('booking:ops-heartbeat:touch', $script);
+        self::assertStringContainsString('composer bootstrap:booking', $script);
+
+        self::assertStringContainsString('${DB_PORT:-3306}:3306', $compose);
+        self::assertStringContainsString('${REDIS_PORT:-6379}:6379', $compose);
+        self::assertStringContainsString('healthcheck:', $compose);
     }
 
     public function test_runtime_script_keeps_repo_local_backend_on_127001_unless_app_url_explicitly_pins_an_endpoint(): void
@@ -122,5 +141,8 @@ final class LocalRuntimeScriptContractTest extends TestCase
         self::assertStringContainsString('C:\\\\xampp\\\\php\\\\php.exe', $script);
         self::assertStringContainsString('.config', $script);
         self::assertStringContainsString('doctorCommand: [resolvePhpBinary(processEnv),', $script);
+        self::assertStringContainsString('outboxCommand: [resolvePhpBinary(processEnv),', $script);
+        self::assertStringContainsString('deployCheckCommand: [resolvePhpBinary(processEnv),', $script);
+        self::assertStringContainsString("'--mode=preflight', '--strict', '--json'", $script);
     }
 }

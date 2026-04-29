@@ -19,18 +19,23 @@ class BookingEnvironmentValidator
     {
         $checks = [];
 
+        $this->addCheck($checks, 'app.environment', $this->validateEnvironmentClassification());
+        $this->addCheck($checks, 'app.debug', $this->validateDebugConfig());
         $this->addCheck($checks, 'app.key', $this->validateAppKey());
+        $this->addCheck($checks, 'cors.allowed_origins', $this->validateCorsConfig());
         $this->addCheck($checks, 'booking.idempotency', $this->validateIdempotencyConfig());
         $this->addCheck($checks, 'booking.scheduler_heartbeat', $this->validateSchedulerHeartbeatConfig());
         $this->addCheck($checks, 'booking.reservation_lock', $this->validateReservationLockConfig());
         $this->addCheck($checks, 'database.connection', $this->validateDatabaseConfig());
         $this->addCheck($checks, 'queue.storage', $this->validateQueueConfig());
+        $this->addCheck($checks, 'runtime.drivers', $this->validateRuntimeDriverConfig());
         $this->addCheck($checks, 'cache.redis', $this->validateRedisConfig());
         $this->addCheck($checks, 'notifications.outbox', $this->validateNotificationsConfig());
         $this->addCheck($checks, 'loyalty', $this->validateLoyaltyConfig());
         $this->addCheck($checks, 'staff_auth', $this->validateStaffAuthConfig());
         $this->addCheck($checks, 'staff_branch_assignment_policy', $this->validateStaffBranchAssignmentPolicy());
         $this->addCheck($checks, 'customer_auth', $this->validateCustomerAuthConfig());
+        $this->addCheck($checks, 'credentials.production_readiness', $this->validateCredentialProductionReadiness());
         $this->addCheck($checks, 'payment_providers', $this->validatePaymentProviderConfig());
 
         $errors = [];
@@ -90,24 +95,116 @@ class BookingEnvironmentValidator
         return $result;
     }
 
+    private function validateEnvironmentClassification(): array
+    {
+        $environment = $this->currentEnvironment();
+        $productionLikeEnvironments = $this->productionLikeEnvironments();
+        $knownNonProduction = $this->knownNonProductionEnvironments();
+        $isProductionLike = in_array($environment, $productionLikeEnvironments, true);
+        $isKnownNonProduction = in_array($environment, $knownNonProduction, true);
+        $meta = [
+            'environment' => $environment,
+            'classification' => $isProductionLike ? 'production_like' : ($isKnownNonProduction ? 'non_production' : 'unclassified'),
+            'is_production_like' => $isProductionLike,
+            'production_like_environments' => $productionLikeEnvironments,
+            'known_non_production_environments' => $knownNonProduction,
+        ];
+
+        if ($environment === '') {
+            return $this->error('APP_ENV must be set and explicitly classified.', $meta);
+        }
+
+        if (! $isProductionLike && ! $isKnownNonProduction) {
+            return $this->error('APP_ENV is not explicitly classified. Add it to a production-like target list or use a known non-production environment name.', $meta);
+        }
+
+        return $this->ok($isProductionLike
+            ? 'APP_ENV is explicitly classified as production-like.'
+            : 'APP_ENV is explicitly classified as non-production.',
+            $meta
+        );
+    }
+
+    private function validateDebugConfig(): array
+    {
+        $debug = (bool) config('app.debug', false);
+        $isProductionLike = $this->isProductionLikeEnvironment();
+        $meta = [
+            'environment' => $this->currentEnvironment(),
+            'is_production_like' => $isProductionLike,
+            'app_debug' => $debug,
+        ];
+
+        if ($isProductionLike && $debug) {
+            return $this->error('APP_DEBUG must be false in production-like environments.', $meta);
+        }
+
+        return $this->ok('APP_DEBUG posture is valid for the current environment.', $meta);
+    }
+
     private function validateAppKey(): array
     {
         $appKey = (string) config('app.key', '');
+        $meta = [
+            'configured' => $appKey !== '',
+            'is_production_like' => $this->isProductionLikeEnvironment(),
+        ];
         if ($appKey === '') {
-            return $this->error('APP_KEY is empty.');
+            return $this->error('APP_KEY is empty.', $meta);
+        }
+
+        if ($this->secretLooksPlaceholder($appKey)) {
+            return $this->error('APP_KEY appears to be a placeholder or test value.', $meta);
         }
 
         if (str_starts_with($appKey, 'base64:')) {
-            return $this->ok('APP_KEY is configured (base64).');
+            return $this->ok('APP_KEY is configured (base64).', $meta);
         }
 
         if (strlen($appKey) < 16) {
-            return $this->warning('APP_KEY is configured but looks unusually short.', [
+            return $this->warning('APP_KEY is configured but looks unusually short.', $meta + [
                 'length' => strlen($appKey),
             ]);
         }
 
-        return $this->ok('APP_KEY is configured.');
+        return $this->ok('APP_KEY is configured.', $meta);
+    }
+
+    private function validateCorsConfig(): array
+    {
+        $origins = array_values(array_filter(array_map(
+            static fn (mixed $origin): string => trim((string) $origin),
+            (array) config('cors.allowed_origins', []),
+        ), static fn (string $origin): bool => $origin !== ''));
+        $invalid = [];
+
+        foreach ($origins as $index => $origin) {
+            foreach ($this->corsOriginProblems($origin) as $problem) {
+                $invalid[] = [
+                    'index' => $index,
+                    'reason' => $problem,
+                ];
+            }
+        }
+
+        $isProductionLike = $this->isProductionLikeEnvironment();
+        $meta = [
+            'environment' => $this->currentEnvironment(),
+            'is_production_like' => $isProductionLike,
+            'allowed_origin_count' => count($origins),
+            'invalid_origin_count' => count($invalid),
+            'invalid_origins' => $invalid,
+        ];
+
+        if ($invalid !== []) {
+            return $this->error('CORS_ALLOWED_ORIGINS must contain exact http(s) origins only: no wildcard, path, query, fragment, credentials, or trailing slash.', $meta);
+        }
+
+        if ($isProductionLike && $origins === []) {
+            return $this->error('CORS_ALLOWED_ORIGINS must list exact allowed frontend origins in production-like environments.', $meta);
+        }
+
+        return $this->ok('CORS allowed origins are exact origins.', $meta);
     }
 
     private function validateIdempotencyConfig(): array
@@ -281,14 +378,62 @@ class BookingEnvironmentValidator
         ]);
     }
 
+    private function validateRuntimeDriverConfig(): array
+    {
+        $environment = $this->currentEnvironment();
+        $isProductionLike = $this->isProductionLikeEnvironment();
+        $queueDefault = $this->normalizedDriver(config('queue.default', ''));
+        $cacheDefault = $this->normalizedDriver(config('cache.default', config('cache.store', '')));
+        $sessionDriver = $this->normalizedDriver(config('session.driver', ''));
+        $localOnlyQueueDrivers = ['sync', 'null', ''];
+        $localOnlyCacheDrivers = ['array', 'file', 'null', ''];
+        $localOnlySessionDrivers = ['array', 'file', 'cookie', 'null', ''];
+        $violations = [];
+
+        if ($isProductionLike && in_array($queueDefault, $localOnlyQueueDrivers, true)) {
+            $violations[] = 'queue.default';
+        }
+
+        if ($isProductionLike && in_array($cacheDefault, $localOnlyCacheDrivers, true)) {
+            $violations[] = 'cache.default';
+        }
+
+        if ($isProductionLike && in_array($sessionDriver, $localOnlySessionDrivers, true)) {
+            $violations[] = 'session.driver';
+        }
+
+        $meta = [
+            'environment' => $environment,
+            'is_production_like' => $isProductionLike,
+            'queue.default' => $queueDefault,
+            'cache.default' => $cacheDefault,
+            'session.driver' => $sessionDriver,
+            'local_only_driver_violations' => $violations,
+        ];
+
+        if ($violations !== []) {
+            return $this->error('Production-like queue/cache/session drivers must be durable and intentional; local-only drivers are not accepted.', $meta);
+        }
+
+        return $this->ok('Queue/cache/session drivers are valid for the current environment.', $meta);
+    }
+
     private function validateRedisConfig(): array
     {
         $requireRedis = (bool) config('booking.require_redis_for_booking_api', true);
         $redisStore = config('cache.stores.redis');
         $redisDefault = config('database.redis.default');
+        $isProductionLike = $this->isProductionLikeEnvironment();
 
         if (! $requireRedis) {
-            return $this->warning('Booking API is allowed to run without mandatory Redis; this weakens distributed locks and idempotency durability.');
+            $meta = [
+                'is_production_like' => $isProductionLike,
+                'require_redis_for_booking_api' => $requireRedis,
+            ];
+
+            return $isProductionLike
+                ? $this->error('Redis is required for booking API distributed locks and idempotency in production-like environments.', $meta)
+                : $this->warning('Booking API is allowed to run without mandatory Redis; this weakens distributed locks and idempotency durability.', $meta);
         }
 
         if (! is_array($redisStore)) {
@@ -314,8 +459,16 @@ class BookingEnvironmentValidator
     private function validateNotificationsConfig(): array
     {
         $enabled = (bool) config('notifications.outbox.enabled', true);
+        $isProductionLike = $this->isProductionLikeEnvironment();
         if (! $enabled) {
-            return $this->warning('Notification outbox is disabled. Reservation reminders and email notifications will not be processed.');
+            $meta = [
+                'enabled' => false,
+                'is_production_like' => $isProductionLike,
+            ];
+
+            return $isProductionLike
+                ? $this->error('Notification outbox must be enabled in production-like environments.', $meta)
+                : $this->warning('Notification outbox is disabled. Reservation reminders and email notifications will not be processed.', $meta);
         }
 
         $mailer = trim((string) config('notifications.outbox.mailer', ''));
@@ -346,17 +499,25 @@ class BookingEnvironmentValidator
             return $this->warning('notifications.outbox.retry_backoff_minutes is empty; failed messages may retry too aggressively.');
         }
 
-        if ((string) config('app.env') === 'production' && $mailer === 'log') {
-            return $this->warning('Notification outbox mailer is set to log in production; emails will not be sent to real recipients.');
+        if ($isProductionLike && in_array($mailer, ['log', 'array'], true)) {
+            return $this->error('Notification outbox mailer must not use a local-only driver in production-like environments.', [
+                'mailer' => $mailer,
+                'is_production_like' => $isProductionLike,
+            ]);
         }
 
         if (($smsEnabled && $smsDriver === 'stub') || ($zaloEnabled && $zaloDriver === 'stub')) {
-            return $this->warning('One or more non-email notification channels are enabled with stub drivers. These channels are provider-ready only and will not deliver externally.', [
+            $meta = [
                 'sms_enabled' => $smsEnabled,
                 'sms_driver' => $smsDriver,
                 'zalo_enabled' => $zaloEnabled,
                 'zalo_driver' => $zaloDriver,
-            ]);
+                'is_production_like' => $isProductionLike,
+            ];
+
+            return $isProductionLike
+                ? $this->error('Provider-stub notification channels must not be enabled in production-like environments.', $meta)
+                : $this->warning('One or more non-email notification channels are enabled with stub drivers. These channels are provider-ready only and will not deliver externally.', $meta);
         }
 
         return $this->ok('Notification outbox configuration looks valid.', [
@@ -410,13 +571,10 @@ class BookingEnvironmentValidator
         $fallbackAllowedEnvironments = array_values(array_map('strval', (array) config('staff_auth.env_fallback_allowed_environments', [])));
         $allowedRoleIds = config('staff_auth.allowed_role_ids', []);
         $environment = (string) config('app.env', 'production');
-        $productionLikeEnvironments = array_values(array_map(
-            'strval',
-            (array) config('staff_auth.production_like_environments', ['production', 'staging'])
-        ));
+        $productionLikeEnvironments = $this->productionLikeEnvironments();
         $denyEnvFallbackInProductionLike = (bool) config('staff_auth.deny_env_fallback_in_production_like', true);
         $denyRoleNameFallbackInProductionLike = (bool) config('staff_auth.deny_role_name_fallback_in_production_like', true);
-        $isProductionLike = in_array($environment, $productionLikeEnvironments, true);
+        $isProductionLike = in_array(mb_strtolower(trim($environment)), $productionLikeEnvironments, true);
         $hasEnvBackedFallback = $allowEnvFallback
             || $allowUnavailableFallback
             || $legacyKey !== ''
@@ -462,10 +620,7 @@ class BookingEnvironmentValidator
     private function validateStaffBranchAssignmentPolicy(): array
     {
         $environment = (string) config('app.env', 'production');
-        $productionLikeEnvironments = $this->normalizedStringList(config(
-            'staff_capabilities.production_like_environments',
-            config('staff_auth.production_like_environments', ['production']),
-        ));
+        $productionLikeEnvironments = $this->productionLikeEnvironments();
         $isProductionLike = in_array(mb_strtolower(trim($environment)), $productionLikeEnvironments, true);
         $denyOperationalFallback = (bool) config(
             'staff_capabilities.deny_operational_role_branch_fallback_in_production_like',
@@ -528,21 +683,29 @@ class BookingEnvironmentValidator
     {
         $enabled = (bool) config('customer_auth.enabled', false);
         $header = trim((string) config('customer_auth.header', ''));
+        $jwtSecret = trim((string) config('customer_auth.jwt_secret', ''));
         $purposes = config('customer_auth.allowed_purposes', []);
         $allowedRoleIds = config('customer_auth.allowed_role_ids', []);
         $legacyEnabled = (bool) config('customer_auth.allow_legacy_user_auth_tokens', false);
         $legacyAllowedEnvironments = config('customer_auth.legacy_user_auth_tokens_allowed_environments', []);
         $accessSessionTtlMinutes = (int) config('customer_auth.access_session_ttl_minutes', 0);
-        $environment = (string) config('app.env', 'production');
+        $environment = $this->currentEnvironment();
+        $isProductionLike = $this->isProductionLikeEnvironment();
+        $jwtSecretMissingOrWeak = $jwtSecret === ''
+            || strlen($jwtSecret) < 32
+            || $this->secretLooksPlaceholder($jwtSecret);
         $meta = [
             'enabled' => $enabled,
             'header' => $header,
+            'jwt_secret_configured' => $jwtSecret !== '',
+            'jwt_secret_minimum_length_met' => strlen($jwtSecret) >= 32,
             'purpose_count' => is_array($purposes) ? count($purposes) : 0,
             'allowed_role_ids' => array_values(array_map('intval', is_array($allowedRoleIds) ? $allowedRoleIds : [])),
             'allow_legacy_user_auth_tokens' => $legacyEnabled,
             'legacy_allowed_environments' => array_values(array_map('strval', is_array($legacyAllowedEnvironments) ? $legacyAllowedEnvironments : [])),
             'access_session_ttl_minutes' => $accessSessionTtlMinutes,
             'environment' => $environment,
+            'is_production_like' => $isProductionLike,
         ];
 
         if (! $enabled) {
@@ -557,8 +720,16 @@ class BookingEnvironmentValidator
             return $this->error('customer_auth.access_session_ttl_minutes must be greater than 0.', $meta);
         }
 
+        if ($jwtSecretMissingOrWeak) {
+            $message = 'CUSTOMER_AUTH_JWT_SECRET must be non-empty, non-placeholder, and at least 32 characters when customer auth is enabled.';
+
+            return $isProductionLike
+                ? $this->error($message, $meta)
+                : $this->warning($message, $meta);
+        }
+
         if ($legacyEnabled) {
-            $severity = $environment === 'production' ? 'error' : 'warning';
+            $severity = $isProductionLike ? 'error' : 'warning';
             $message = 'Legacy customer auth via user_auth_tokens is enabled. This path is blocked outside explicitly allowed environments and should be replaced with a dedicated access-token/session model.';
 
             return $severity === 'error'
@@ -567,6 +738,48 @@ class BookingEnvironmentValidator
         }
 
         return $this->ok('Customer auth is enabled with legacy user_auth_tokens auth disabled.', $meta);
+    }
+
+    private function validateCredentialProductionReadiness(): array
+    {
+        $isProductionLike = $this->isProductionLikeEnvironment();
+        $apiKeys = config('staff_auth.api_keys', []);
+        $placeholderStaffApiKeyCount = 0;
+
+        if (is_array($apiKeys)) {
+            foreach (array_keys($apiKeys) as $key) {
+                if ($this->secretLooksPlaceholder((string) $key)) {
+                    $placeholderStaffApiKeyCount++;
+                }
+            }
+        }
+
+        $findings = [
+            'placeholder_staff_api_key_count' => $placeholderStaffApiKeyCount,
+            'legacy_staff_api_key_placeholder' => $this->secretLooksPlaceholder((string) config('staff_auth.legacy_key', '')),
+            'customer_jwt_secret_placeholder' => $this->secretLooksPlaceholder((string) config('customer_auth.jwt_secret', '')),
+            'app_key_placeholder' => $this->secretLooksPlaceholder((string) config('app.key', '')),
+        ];
+
+        $failingCount = $placeholderStaffApiKeyCount
+            + ($findings['legacy_staff_api_key_placeholder'] ? 1 : 0)
+            + ($findings['customer_jwt_secret_placeholder'] ? 1 : 0)
+            + ($findings['app_key_placeholder'] ? 1 : 0);
+        $meta = [
+            'is_production_like' => $isProductionLike,
+            'finding_count' => $failingCount,
+            'findings' => $findings,
+        ];
+
+        if ($isProductionLike && $failingCount > 0) {
+            return $this->error('Demo, seed, or placeholder credentials are not production-ready.', $meta);
+        }
+
+        if ($failingCount > 0) {
+            return $this->warning('Demo, seed, or placeholder credentials are present; keep them local/testing only.', $meta);
+        }
+
+        return $this->ok('No demo, seed, or placeholder credentials detected in configured secret surfaces.', $meta);
     }
 
     private function validatePaymentProviderConfig(): array
@@ -592,5 +805,154 @@ class BookingEnvironmentValidator
         }
 
         return $this->ok('Payment provider rollout configuration looks valid for customer self-pay.', $meta);
+    }
+
+    private function currentEnvironment(): string
+    {
+        return mb_strtolower(trim((string) config('app.env', '')));
+    }
+
+    private function isProductionLikeEnvironment(): bool
+    {
+        return in_array($this->currentEnvironment(), $this->productionLikeEnvironments(), true);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function productionLikeEnvironments(): array
+    {
+        $values = [
+            'production',
+            'staging',
+            'limited-production',
+        ];
+
+        $sources = [
+            config('staff_auth.production_like_environments', []),
+            config('staff_capabilities.production_like_environments', []),
+            config('booking.payment_providers.customer_self_pay.production_like_environments', []),
+            config('booking.realtime.production_like_environments', []),
+            array_keys((array) config('booking_launch_readiness.targets', [])),
+        ];
+
+        foreach ($sources as $source) {
+            foreach ($this->normalizedStringList($source) as $environment) {
+                $values[] = $environment;
+            }
+        }
+
+        return array_values(array_unique($this->normalizedStringList($values)));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function knownNonProductionEnvironments(): array
+    {
+        return [
+            'local',
+            'testing',
+            'test',
+            'development',
+            'dev',
+            'ci',
+            'sandbox',
+            'demo',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function corsOriginProblems(string $origin): array
+    {
+        $problems = [];
+
+        if ($origin === '*') {
+            return ['wildcard'];
+        }
+
+        if (str_ends_with($origin, '/')) {
+            $problems[] = 'trailing_slash';
+        }
+
+        $parts = parse_url($origin);
+        if (! is_array($parts)) {
+            return array_values(array_unique(array_merge($problems, ['invalid_origin'])));
+        }
+
+        $scheme = mb_strtolower((string) ($parts['scheme'] ?? ''));
+        if (! in_array($scheme, ['http', 'https'], true) || trim((string) ($parts['host'] ?? '')) === '') {
+            $problems[] = 'invalid_origin';
+        }
+
+        if (array_key_exists('path', $parts) && trim((string) $parts['path'], '/') !== '') {
+            $problems[] = 'path_suffix';
+        }
+
+        foreach (['query', 'fragment', 'user', 'pass'] as $component) {
+            if (array_key_exists($component, $parts)) {
+                $problems[] = 'invalid_origin';
+            }
+        }
+
+        return array_values(array_unique($problems));
+    }
+
+    private function normalizedDriver(mixed $value): string
+    {
+        return mb_strtolower(trim((string) $value));
+    }
+
+    private function secretLooksPlaceholder(string $value): bool
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return false;
+        }
+
+        $normalized = mb_strtolower($value);
+        $body = str_starts_with($normalized, 'base64:')
+            ? substr($normalized, 7)
+            : $normalized;
+        $compact = (string) preg_replace('/[^a-z0-9]/', '', $body);
+
+        if ($compact === '') {
+            return true;
+        }
+
+        $exactPlaceholders = [
+            'changeme',
+            'changeit',
+            'replaceme',
+            'replacewithrealkey',
+            'example',
+            'secret',
+            'password',
+            'test',
+            'demo',
+            'local',
+            'development',
+            'jwtsecret',
+            'customerauthjwtsecret',
+            'yourkey',
+            'yoursecret',
+            'somekey',
+            'somerandomstring',
+            'staffkey',
+        ];
+
+        if (in_array($compact, $exactPlaceholders, true)) {
+            return true;
+        }
+
+        foreach (['changeme', 'replaceme', 'example', 'placeholder', 'testtest', 'demodemo'] as $token) {
+            if (str_contains($compact, $token)) {
+                return true;
+            }
+        }
+
+        return (bool) preg_match('/^([a-z0-9])\1{15,}$/', $compact);
     }
 }

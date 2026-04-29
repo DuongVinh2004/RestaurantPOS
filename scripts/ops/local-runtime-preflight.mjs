@@ -9,6 +9,7 @@ const DEFAULT_HEALTH_URL = 'http://127.0.0.1:8000/api/v1/health';
 const DEFAULT_TCP_TIMEOUT_MS = 1500;
 const DEFAULT_HTTP_TIMEOUT_MS = 4000;
 const DEFAULT_DOCTOR_TIMEOUT_MS = 25000;
+const DEFAULT_ARTISAN_GATE_TIMEOUT_MS = 30000;
 
 export function parseEnvFile(contents = '') {
   return String(contents)
@@ -128,7 +129,13 @@ export function buildPreflightConfig({
       processEnv.RUNTIME_PREFLIGHT_DOCTOR_TIMEOUT_MS,
       envFileValues.RUNTIME_PREFLIGHT_DOCTOR_TIMEOUT_MS,
     ]), DEFAULT_DOCTOR_TIMEOUT_MS),
+    artisanGateTimeoutMs: readPositiveInteger(firstNonEmpty([
+      processEnv.RUNTIME_PREFLIGHT_GATE_TIMEOUT_MS,
+      envFileValues.RUNTIME_PREFLIGHT_GATE_TIMEOUT_MS,
+    ]), DEFAULT_ARTISAN_GATE_TIMEOUT_MS),
     doctorCommand: [resolvePhpBinary(processEnv), 'artisan', 'booking:doctor', '--json'],
+    outboxCommand: [resolvePhpBinary(processEnv), 'artisan', 'notifications:outbox-health', '--json'],
+    deployCheckCommand: [resolvePhpBinary(processEnv), 'artisan', 'booking:deploy-check', '--mode=preflight', '--strict', '--json'],
   };
 }
 
@@ -162,6 +169,14 @@ export function derivePreflightRecommendations(report) {
     recommendations.push('Verify notification runtime health with `php artisan notifications:outbox-health --json` after MySQL, Redis, and scheduler are healthy.');
   }
 
+  if (report.outbox && report.outbox.ok === false) {
+    recommendations.push('Run `php artisan notifications:outbox-health --json` directly after MySQL is reachable to inspect the notification backlog blocker.');
+  }
+
+  if (report.deployCheck && report.deployCheck.ok === false) {
+    recommendations.push('Run `php artisan booking:deploy-check --mode=preflight --strict --json` directly; remaining failures after runtime startup are data/config release blockers.');
+  }
+
   if (doctorError.includes('enoent') || doctorError.includes('not found')) {
     recommendations.push('Ensure the PHP CLI is installed and available in `PATH`, then rerun `php artisan booking:doctor --json`.');
   } else if (report.doctor?.hasParsedReport === false) {
@@ -176,6 +191,8 @@ export async function collectRuntimePreflightReport({
   probeHealth = probeHealthEndpoint,
   probeTcp = probeTcpPort,
   runDoctor = runBookingDoctor,
+  runOutboxHealth = runNotificationOutboxHealth,
+  runDeployCheck = runBookingDeployCheck,
 } = {}) {
   if (!config) {
     throw new Error('collectRuntimePreflightReport requires a config object.');
@@ -187,6 +204,8 @@ export async function collectRuntimePreflightReport({
     probeTcp({ label: 'redis', host: config.redisHost, port: config.redisPort, timeoutMs: config.tcpTimeoutMs }),
   ]);
   const doctor = runDoctor(config);
+  const outbox = runOutboxHealth(config);
+  const deployCheck = runDeployCheck(config);
   const runtimeChecks = normalizeDoctorRuntimeChecks(doctor.parsed?.runtime);
   const blockingFailures = [
     !http.ok,
@@ -198,6 +217,8 @@ export async function collectRuntimePreflightReport({
     runtimeChecks.redis.ok !== true,
     runtimeChecks.scheduler.ok !== true,
     runtimeChecks.outbox.ok !== true,
+    outbox.parsed?.ok !== true,
+    deployCheck.parsed?.ok !== true,
   ];
 
   const report = {
@@ -216,6 +237,8 @@ export async function collectRuntimePreflightReport({
       redisPort: config.redisPort,
       requireRedisForBookingApi: config.requireRedisForBookingApi,
       doctorCommand: config.doctorCommand.join(' '),
+      outboxCommand: config.outboxCommand.join(' '),
+      deployCheckCommand: config.deployCheckCommand.join(' '),
     },
     http,
     tcp: {
@@ -233,6 +256,8 @@ export async function collectRuntimePreflightReport({
       artifacts: doctor.parsed?.artifacts ?? null,
       stderr: doctor.stderr || null,
     },
+    outbox: summarizeArtisanJsonGate(outbox),
+    deployCheck: summarizeArtisanJsonGate(deployCheck),
   };
 
   report.recommendations = derivePreflightRecommendations(report);
@@ -390,11 +415,23 @@ async function probeTcpPort({ label, host, port, timeoutMs }) {
 }
 
 function runBookingDoctor(config) {
+  return runArtisanJsonCommand(config, config.doctorCommand, config.doctorTimeoutMs);
+}
+
+function runNotificationOutboxHealth(config) {
+  return runArtisanJsonCommand(config, config.outboxCommand, config.artisanGateTimeoutMs);
+}
+
+function runBookingDeployCheck(config) {
+  return runArtisanJsonCommand(config, config.deployCheckCommand, config.artisanGateTimeoutMs);
+}
+
+function runArtisanJsonCommand(config, command, timeoutMs) {
   const startedAt = Date.now();
-  const result = spawnSync(config.doctorCommand[0], config.doctorCommand.slice(1), {
+  const result = spawnSync(command[0], command.slice(1), {
     cwd: config.repoRoot,
     encoding: 'utf8',
-    timeout: config.doctorTimeoutMs,
+    timeout: timeoutMs,
   });
 
   return {
@@ -405,6 +442,33 @@ function runBookingDoctor(config) {
     stdout: typeof result.stdout === 'string' ? result.stdout.trim() : '',
     stderr: typeof result.stderr === 'string' ? result.stderr.trim() : '',
     parsed: tryParseJsonDocument(result.stdout),
+  };
+}
+
+function summarizeArtisanJsonGate(result) {
+  const parsed = result.parsed && typeof result.parsed === 'object' ? result.parsed : null;
+  const report = parsed?.report && typeof parsed.report === 'object' ? parsed.report : null;
+  const errors = Array.isArray(report?.errors)
+    ? report.errors
+    : Array.isArray(parsed?.errors)
+      ? parsed.errors
+      : [];
+  const warnings = Array.isArray(report?.warnings)
+    ? report.warnings
+    : Array.isArray(parsed?.warnings)
+      ? parsed.warnings
+      : [];
+
+  return {
+    ok: parsed?.ok === true,
+    hasParsedReport: Boolean(parsed),
+    exitCode: result.exitCode,
+    signal: result.signal,
+    error: result.error,
+    errorCount: errors.length,
+    warningCount: warnings.length,
+    message: errors[0] ?? warnings[0] ?? (result.stderr || result.error || null),
+    stderr: result.stderr || null,
   };
 }
 
@@ -518,6 +582,8 @@ function renderHumanReport(report) {
     `MySQL TCP: ${report.tcp.db.ok ? 'PASS' : 'FAIL'} ${report.tcp.db.host}:${report.tcp.db.port} ${report.tcp.db.message}`,
     `Redis TCP: ${report.tcp.redis.ok ? 'PASS' : 'FAIL'} ${report.tcp.redis.host}:${report.tcp.redis.port} ${report.tcp.redis.message}`,
     `booking:doctor: ${report.doctor.ok ? 'PASS' : 'FAIL'} exit=${report.doctor.exitCode ?? 'n/a'} db=${renderDoctorCheck(report.doctor.runtime.db)} redis=${renderDoctorCheck(report.doctor.runtime.redis)} scheduler=${renderDoctorCheck(report.doctor.runtime.scheduler)} outbox=${renderDoctorCheck(report.doctor.runtime.outbox)}`,
+    `notifications:outbox-health: ${report.outbox.ok ? 'PASS' : 'FAIL'} exit=${report.outbox.exitCode ?? 'n/a'} ${report.outbox.message ?? ''}`.trimEnd(),
+    `booking:deploy-check preflight strict: ${report.deployCheck.ok ? 'PASS' : 'FAIL'} exit=${report.deployCheck.exitCode ?? 'n/a'} ${report.deployCheck.message ?? ''}`.trimEnd(),
   ];
 
   if (report.doctor.error) {

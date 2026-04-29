@@ -28,6 +28,8 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
             'driver' => 'array',
             'serialize' => false,
         ]);
+        config()->set('booking.payment_providers.customer_self_pay.enabled', true);
+        config()->set('booking.payment_providers.providers.simulated.enabled', true);
         app('cache')->forgetDriver('redis');
         Cache::store('redis')->flush();
     }

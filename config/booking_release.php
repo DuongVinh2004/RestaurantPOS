@@ -289,6 +289,7 @@ return [
         '2026_04_27_000059_cashier_shift_row_version.sql',
         '2026_04_27_000060_order_item_line_total_invariant.sql',
         '2026_04_28_000061_inventory_master_data_row_version.sql',
+        '2026_04_29_000062_payment_cashier_shift_link.sql',
     ],
     'release_manifest' => [
         'definition_path' => 'config/booking_release.php',

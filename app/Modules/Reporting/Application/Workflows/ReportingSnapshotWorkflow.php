@@ -256,9 +256,14 @@ class ReportingSnapshotWorkflow
         if ($staleScopeCount > 0 && $staleScopeCount < $scopeCount) {
             $reasons[] = 'reporting_snapshot_scope_partial';
         }
+        $certification = $this->reportCertification($family);
 
         return [
             'family' => $family,
+            'classification' => $certification['classification'],
+            'launch_critical' => $certification['launch_critical'],
+            'certified_accounting' => $certification['certified_accounting'],
+            'certification_warnings' => $certification['warnings'],
             'row_count' => $rowCount,
             'date_range' => [
                 'start_date' => $startDate,
@@ -279,6 +284,39 @@ class ReportingSnapshotWorkflow
             'status' => $reasons === [] ? 'ok' : 'degraded',
             'reasons' => $reasons,
         ];
+    }
+
+    /**
+     * @return array{classification:string,launch_critical:bool,certified_accounting:bool,warnings:list<string>}
+     */
+    private function reportCertification(string $family): array
+    {
+        return match ($family) {
+            'sales' => [
+                'classification' => 'launch_critical',
+                'launch_critical' => true,
+                'certified_accounting' => false,
+                'warnings' => ['reporting_read_model_not_certified_accounting'],
+            ],
+            'operations' => [
+                'classification' => 'launch_critical',
+                'launch_critical' => true,
+                'certified_accounting' => false,
+                'warnings' => [],
+            ],
+            'inventory' => [
+                'classification' => 'experimental',
+                'launch_critical' => false,
+                'certified_accounting' => false,
+                'warnings' => ['experimental_reporting_not_certified_accounting'],
+            ],
+            default => [
+                'classification' => 'experimental',
+                'launch_critical' => false,
+                'certified_accounting' => false,
+                'warnings' => ['experimental_reporting_not_certified_accounting'],
+            ],
+        };
     }
 
     /**

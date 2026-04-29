@@ -35,6 +35,24 @@ Bootstrap sẽ tạo manifest tại `storage/app/uat/scenario-pack.json` trừ k
 - Timestamped smoke files that are not cited by the release ticket are historical only. Keep them for audit context, but do not treat old failures or old passes as current release evidence.
 - If a historical smoke file is reused for investigation, re-bootstrap the scenario pack and re-run smoke before using the result for release decisions.
 
+## Launch-Critical Replay Evidence
+
+Limited-production readiness requires UAT replay evidence for the day-1 golden flows below. Record pass/fail by scenario key in `uat_scenario_pack_replay.scenario_results`:
+
+| Evidence key | Golden flow |
+| --- | --- |
+| `customer_reservation_hold_access_session` | Customer reservation, table hold, and access session. |
+| `staff_auth_branch_scope` | Staff authentication and branch-scope enforcement. |
+| `walk_in_table_service_session` | Walk-in/table service session. |
+| `order_item_lifecycle` | Order item create/update/cancel lifecycle. |
+| `kds_dispatch_update` | KDS dispatch/update visibility. |
+| `checkout_cashier_shift` | Checkout and cashier shift path. |
+| `refund_cancel_after_payment` | Refund and cancel-after-payment path. |
+| `inventory_consumption_adjustment` | Inventory consumption plus adjustment visibility. |
+| `notification_outbox_visibility` | Notification/outbox visibility. |
+
+The launch-readiness evidence file must set `production_artifact_contains_demo_credentials=false`. Do not paste UAT passwords, API keys, customer tokens, staff keys, bearer tokens, or provider credentials into release evidence.
+
 ## Canonical Data
 
 Branch canonical:
@@ -62,6 +80,8 @@ Manifest chứa:
 - staff/admin API key plaintext cho staff routes
 - branch/tables/menu/voucher/loyalty ids
 - seeded reservation ids và scenario parameter ids
+
+Because the manifest contains demo auth material, keep it in the UAT artifact store and do not attach it directly as production launch evidence.
 
 ## Scripts
 

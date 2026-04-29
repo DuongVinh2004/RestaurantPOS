@@ -201,6 +201,7 @@ class RouteInventoryGateService
             'route_action_methods' => $this->checkApiControllerRoutesReferenceExistingMethods(),
             'expected_routes' => $this->checkExpectedRoutes($definition['expected_routes']),
             'public_controllers' => $this->checkPublicControllersNotOrphaned($publicControllers, $definition['expected_routes']),
+            'api_alias_deprecation_plan' => $this->checkApiAliasDeprecationPlan($definition['expected_routes'], $definition['alias_groups']),
         ];
 
         $errors = 0;
@@ -226,6 +227,7 @@ class RouteInventoryGateService
                 'route_count' => count(Route::getRoutes()->getRoutes()),
                 'expected_route_count' => count($definition['expected_routes']),
                 'public_controller_count' => count($publicControllers),
+                'api_alias_deprecation_count' => count((array) config('booking.api_alias_deprecations.routes', [])),
                 'error_count' => $errors,
                 'warning_count' => $warnings,
             ],
@@ -233,6 +235,7 @@ class RouteInventoryGateService
                 'generated_at_utc' => now('UTC')->toIso8601String(),
                 'public_controllers' => $publicControllers,
                 'smoke_request_count' => count($definition['smoke_requests']),
+                'alias_deprecation_plan' => $this->aliasDeprecationPlan(),
             ],
         ];
     }
@@ -578,6 +581,114 @@ class RouteInventoryGateService
         );
     }
 
+    /**
+     * @param  list<array{key: string, method: string, uri: string, action: string, middleware_contains?: list<string>, middleware_excludes?: list<string>}>  $expectedRoutes
+     * @param  list<array{canonical: string, canonical_action?: string, aliases: list<array{uri: string, action?: string}>}>  $aliasGroups
+     * @return array{ok: bool, severity: string, message: string, meta?: array<string, mixed>}
+     */
+    private function checkApiAliasDeprecationPlan(array $expectedRoutes, array $aliasGroups): array
+    {
+        $configuredRoutes = array_values(array_filter(
+            (array) config('booking.api_alias_deprecations.routes', []),
+            static fn ($definition): bool => is_array($definition)
+        ));
+
+        $routeMethods = [];
+        foreach ($expectedRoutes as $expected) {
+            $routeMethods[$this->canonicalFixtureUri($expected['uri'])] = strtoupper((string) $expected['method']);
+        }
+
+        $lockedAliases = [];
+        foreach ($aliasGroups as $group) {
+            $canonical = $this->canonicalFixtureUri((string) ($group['canonical'] ?? ''));
+            $canonicalMethod = (string) ($routeMethods[$canonical] ?? '');
+
+            foreach ((array) ($group['aliases'] ?? []) as $alias) {
+                if (! is_array($alias)) {
+                    continue;
+                }
+
+                $aliasUri = $this->canonicalFixtureUri((string) ($alias['uri'] ?? ''));
+                $aliasMethod = (string) ($routeMethods[$aliasUri] ?? $canonicalMethod);
+                if ($aliasUri === '' || $aliasMethod === '') {
+                    continue;
+                }
+
+                $lockedAliases[$this->routeSignature($aliasMethod, $aliasUri)] = [
+                    'method' => $aliasMethod,
+                    'uri' => $aliasUri,
+                    'canonical' => $this->routeSignature($canonicalMethod !== '' ? $canonicalMethod : $aliasMethod, $canonical),
+                ];
+            }
+        }
+
+        $configuredAliases = [];
+        $invalidDefinitions = [];
+        foreach ($configuredRoutes as $definition) {
+            $aliasSignature = $this->normalizeRouteSignature((string) ($definition['deprecated_alias'] ?? ''));
+            $canonicalSignature = $this->normalizeRouteSignature((string) ($definition['canonical_route'] ?? ''));
+            $key = trim((string) ($definition['key'] ?? ''));
+
+            if ($key === '' || $aliasSignature === '' || $canonicalSignature === '') {
+                $invalidDefinitions[] = $definition;
+
+                continue;
+            }
+
+            $configuredAliases[$aliasSignature] = [
+                'key' => $key,
+                'deprecated_alias' => $aliasSignature,
+                'canonical_route' => $canonicalSignature,
+                'minimum_evidence' => array_values((array) ($definition['minimum_evidence'] ?? [])),
+                'removal_criteria' => (string) ($definition['removal_criteria'] ?? ''),
+            ];
+        }
+
+        $missingPlans = array_values(array_diff(array_keys($lockedAliases), array_keys($configuredAliases)));
+        $orphanedPlans = array_values(array_diff(array_keys($configuredAliases), array_keys($lockedAliases)));
+        $missingEvidence = array_values(array_filter(
+            $configuredAliases,
+            static fn (array $definition): bool => $definition['minimum_evidence'] === [] || trim((string) $definition['removal_criteria']) === ''
+        ));
+
+        if ($missingPlans !== [] || $orphanedPlans !== [] || $invalidDefinitions !== [] || $missingEvidence !== []) {
+            return $this->error(
+                'API alias deprecation plan is incomplete for the locked alias inventory.',
+                [
+                    'missing_plans' => $missingPlans,
+                    'orphaned_plans' => $orphanedPlans,
+                    'invalid_definitions' => $invalidDefinitions,
+                    'missing_evidence_or_criteria' => $missingEvidence,
+                ]
+            );
+        }
+
+        return $this->ok(
+            'API alias deprecation plan covers every locked alias and records removal evidence requirements.',
+            [
+                'route_alias_count' => count($configuredAliases),
+                'idempotency_compatibility_input_count' => count((array) config('booking.api_alias_deprecations.idempotency_inputs', [])),
+                'observation_release_cycles' => (int) config('booking.api_alias_deprecations.observation_release_cycles', 1),
+                'audit_log_event' => (string) config('booking.api_alias_deprecations.audit_log_event', 'api_deprecated_alias_used'),
+                'idempotency_compatibility_event' => (string) config('booking.api_alias_deprecations.idempotency_compatibility_event', 'idempotency_compatibility_key_used'),
+            ]
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function aliasDeprecationPlan(): array
+    {
+        return [
+            'observation_release_cycles' => (int) config('booking.api_alias_deprecations.observation_release_cycles', 1),
+            'audit_log_event' => (string) config('booking.api_alias_deprecations.audit_log_event', 'api_deprecated_alias_used'),
+            'idempotency_compatibility_event' => (string) config('booking.api_alias_deprecations.idempotency_compatibility_event', 'idempotency_compatibility_key_used'),
+            'routes' => array_values((array) config('booking.api_alias_deprecations.routes', [])),
+            'idempotency_inputs' => array_values((array) config('booking.api_alias_deprecations.idempotency_inputs', [])),
+        ];
+    }
+
     private function findRoute(string $method, string $uri): ?IlluminateRoute
     {
         $normalizedCandidates = $this->uriCandidates($uri);
@@ -600,6 +711,26 @@ class RouteInventoryGateService
         }
 
         return $normalized;
+    }
+
+    private function routeSignature(string $method, string $uri): string
+    {
+        return strtoupper(trim($method)).' /'.$this->canonicalFixtureUri($uri);
+    }
+
+    private function normalizeRouteSignature(string $signature): string
+    {
+        $signature = trim($signature);
+        if ($signature === '') {
+            return '';
+        }
+
+        $parts = preg_split('/\s+/', $signature, 2);
+        if (! is_array($parts) || count($parts) !== 2) {
+            return '';
+        }
+
+        return $this->routeSignature((string) $parts[0], (string) $parts[1]);
     }
 
     /**

@@ -80,6 +80,50 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
         $this->assertSame('VND', (string) ($refundRow->currency ?? ''));
     }
 
+    public function test_refund_records_cashier_shift_id(): void
+    {
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
+        $shiftId = $this->createCashierShift(['cashier_user_id' => $staffId]);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Completed',
+            'deposit_required_amount' => '100000.00',
+            'deposit_paid_amount' => '100000.00',
+            'deposit_status' => 'Paid',
+            'bill_currency' => 'VND',
+        ]);
+
+        $this->createPayment([
+            'reservation_id' => $reservationId,
+            'payment_type' => 'Deposit',
+            'status' => 'Success',
+            'amount' => '100000.00',
+            'currency' => 'VND',
+            'transaction_code' => 'DEP-SHIFT-FK-1',
+        ]);
+
+        $result = $this->makeCheckoutService()->refundReservation(
+            reservationId: $reservationId,
+            paymentMethod: 'Cash',
+            refundScope: 'deposit',
+            refundAmount: 25000.00,
+            currency: 'VND',
+            transactionCode: 'RF-SHIFT-FK-1',
+            paymentProvider: 'Cash',
+            notes: 'refund shift linkage',
+            reason: 'customer_request',
+            expectedRowVersion: 1,
+            staffUserId: $staffId,
+            idempotencyKey: 'idem-rf-shift-fk-1'
+        );
+
+        $refundPaymentId = (int) (($result['refund']['refund_payment_ids'] ?? [])[0] ?? 0);
+        $refundShiftId = DB::table('payments')->where('payment_id', $refundPaymentId)->value('cashier_shift_id');
+
+        $this->assertSame($shiftId, (int) $refundShiftId);
+    }
+
     public function test_refund_rejects_currency_mismatch_against_captured_payment_currency(): void
     {
         $customerId = $this->createUser(['role_name' => 'Customer']);

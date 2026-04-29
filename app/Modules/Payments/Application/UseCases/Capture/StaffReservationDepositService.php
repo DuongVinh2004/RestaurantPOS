@@ -169,7 +169,7 @@ class StaffReservationDepositService
                             'currency' => ['Payment currency must match reservation bill currency.'],
                         ]);
                     }
-                    $this->cashierShiftService()->requireOpenShiftForMutation($staffUserId, $reservationBranchId, $paymentCurrency);
+                    $cashierShift = $this->cashierShiftService()->requireOpenShiftForMutation($staffUserId, $reservationBranchId, $paymentCurrency);
 
                     $requiredAmountMinor = Money::minorUnits($reservation->deposit_required_amount ?? 0, true);
                     $requiredAmount = Money::minorToFloat($requiredAmountMinor);
@@ -202,6 +202,7 @@ class StaffReservationDepositService
 
                     $payment = new Payment;
                     $payment->branch_id = $reservationBranchId;
+                    $payment->cashier_shift_id = (int) $cashierShift->cashier_shift_id;
                     $payment->reservation_id = $reservationId;
                     $payment->amount = Money::formatMinor($normalizedAmountMinor);
                     $payment->currency = $paymentCurrency;
@@ -224,6 +225,7 @@ class StaffReservationDepositService
                         'reservation_id' => $reservationId,
                         'payment_provider' => trim($paymentProvider) !== '' ? trim($paymentProvider) : 'Other',
                         'payment_method' => $paymentMethod,
+                        'cashier_shift_id' => (int) $cashierShift->cashier_shift_id,
                     ];
 
                     try {

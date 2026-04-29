@@ -16,6 +16,7 @@ final class BookingPaymentProviderConfigContractTest extends TestCase
         self::assertSame(30, config('booking.customer_bill_payment_simulated_session_ttl_minutes'));
         self::assertSame('simulated', config('booking.payment_providers.default_provider'));
         self::assertIsBool(config('booking.payment_providers.customer_self_pay.enabled'));
+        self::assertFalse((bool) config('booking.payment_providers.customer_self_pay.enabled'));
         self::assertFalse((bool) config('booking.payment_providers.customer_self_pay.allow_simulated_in_production_like'));
         self::assertSame('simulated', config('booking.payment_providers.scopes.deposit.default_provider'));
         self::assertSame('simulated', config('booking.payment_providers.scopes.bill.default_provider'));

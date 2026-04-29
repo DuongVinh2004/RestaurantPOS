@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Platform\Release\Services;
 
+use App\Enums\PaymentSessionScope;
+use App\Modules\Payments\Infrastructure\Integrations\PaymentProviders\PaymentProviderRolloutConfig;
 use App\Platform\ApiContract\Services\OpsGateArtifactService;
 use App\Platform\ApiContract\Services\RouteInventoryGateService;
 use App\Platform\Health\Services\BookingDoctorService;
@@ -23,6 +25,7 @@ class LaunchReadinessService
         private readonly ReleaseArtifactManifestService $releaseArtifactManifestService,
         private readonly ReleasePackageService $releasePackageService,
         private readonly OpsGateArtifactService $opsGateArtifactService,
+        private readonly PaymentProviderRolloutConfig $paymentProviderRolloutConfig,
     ) {}
 
     /**
@@ -39,7 +42,7 @@ class LaunchReadinessService
         $targetConfig = $this->resolveTarget($target);
         $manualEvidence = $this->loadManualEvidence($manualEvidencePath);
 
-        $doctor = $this->bookingDoctorService->inspect();
+        $doctor = $this->bookingDoctorService->inspect(strict: true);
         $deploy = $this->bookingDeploySafetyService->inspect('preflight');
         $runtimeBaselineBlocked = $this->runtimeBaselineBlocked($doctor);
         $routeGate = $this->routeInventoryGateService->inspect();
@@ -1246,13 +1249,14 @@ class LaunchReadinessService
                 continue;
             }
 
-            $evidence = (array) (($manualEvidence['checks'] ?? [])[(string) ($definition['key'] ?? '')] ?? []);
+            $checkKey = (string) ($definition['key'] ?? '');
+            $evidence = (array) (($manualEvidence['checks'] ?? [])[$checkKey] ?? []);
             $evidenceStatus = strtolower(trim((string) ($evidence['status'] ?? 'missing')));
             $required = in_array($target, $requiredFor, true);
 
             $status = 'pass';
             $findings = [];
-            $summary = 'Manual evidence recorded.';
+            $summary = 'Manual evidence recorded and schema-valid.';
 
             if ($evidenceStatus !== 'pass') {
                 $status = $required ? 'fail' : 'warn';
@@ -1267,6 +1271,22 @@ class LaunchReadinessService
                         ? sprintf('Manual check [%s] was recorded as failed.', (string) ($definition['label'] ?? $definition['key'] ?? 'manual_check'))
                         : sprintf('Manual check [%s] has no passing evidence yet.', (string) ($definition['label'] ?? $definition['key'] ?? 'manual_check')),
                 ];
+            } else {
+                $schemaFindings = $this->validateManualEvidenceSchema($checkKey, $definition, $evidence);
+
+                if ($schemaFindings !== []) {
+                    $status = $required ? 'fail' : 'warn';
+                    $summary = 'Manual evidence failed schema validation.';
+                    $findings = array_map(
+                        static fn (string $message): array => [
+                            'severity' => $required ? 'blocking' : 'major',
+                            'message' => $message,
+                        ],
+                        $schemaFindings,
+                    );
+                } else {
+                    $summary = $this->manualEvidencePassSummary($checkKey, $evidence);
+                }
             }
 
             $checks[] = array_merge($definition, [
@@ -1280,6 +1300,420 @@ class LaunchReadinessService
         }
 
         return $checks;
+    }
+
+    /**
+     * @param  array<string, mixed>  $definition
+     * @param  array<string, mixed>  $evidence
+     * @return list<string>
+     */
+    private function validateManualEvidenceSchema(string $checkKey, array $definition, array $evidence): array
+    {
+        $findings = [];
+
+        foreach ((array) ($evidence['_validation_issues'] ?? []) as $issue) {
+            $message = trim((string) $issue);
+            if ($message !== '') {
+                $findings[] = $message;
+            }
+        }
+
+        $status = strtolower(trim((string) ($evidence['status'] ?? '')));
+        if (! in_array($status, ['pass', 'fail', 'missing'], true)) {
+            $findings[] = sprintf('Manual check [%s] has unsupported status [%s].', $checkKey, $status);
+        }
+
+        if ($status === 'pass') {
+            $this->requireNonEmptyEvidenceString($evidence, 'performed_by', $findings, $checkKey);
+            $this->requireValidEvidenceTimestamp($evidence, 'performed_at_utc', $findings, $checkKey);
+        }
+
+        return array_values(array_unique(array_merge(
+            $findings,
+            match ($checkKey) {
+                'payment_provider_external_e2e' => $this->validatePaymentProviderReadinessEvidence($evidence),
+                'disaster_recovery_restore_evidence' => $this->validateDisasterRecoveryRestoreEvidence($evidence),
+                'performance_verification_report' => $this->validatePerformanceVerificationEvidence($evidence),
+                'uat_scenario_pack_replay' => $this->validateUatScenarioReplayEvidence($evidence),
+                default => $this->validateConfiguredManualEvidenceSchema($checkKey, (array) ($definition['evidence_schema'] ?? []), $evidence),
+            },
+        )));
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     * @return list<string>
+     */
+    private function validatePaymentProviderReadinessEvidence(array $evidence): array
+    {
+        $findings = [];
+        $configuredSelfPayEnabled = (bool) config('booking.payment_providers.customer_self_pay.enabled', false);
+        $evidenceSelfPayEnabled = $this->evidenceBoolean($evidence, 'customer_self_pay_enabled');
+
+        if ($evidenceSelfPayEnabled === null) {
+            $findings[] = 'Payment evidence must declare customer_self_pay_enabled as a boolean.';
+        } elseif ($evidenceSelfPayEnabled !== $configuredSelfPayEnabled) {
+            $findings[] = sprintf(
+                'Payment evidence customer_self_pay_enabled [%s] does not match configured customer self-pay state [%s].',
+                $evidenceSelfPayEnabled ? 'true' : 'false',
+                $configuredSelfPayEnabled ? 'true' : 'false',
+            );
+        }
+
+        $providerMode = strtolower(trim((string) ($evidence['provider_mode'] ?? '')));
+        if ($providerMode === '') {
+            $findings[] = 'Payment evidence must include provider_mode.';
+        }
+
+        if (! $configuredSelfPayEnabled) {
+            if (! in_array($providerMode, ['disabled', 'staff_settlement_only'], true)) {
+                $findings[] = 'When customer self-pay is disabled, provider_mode must be disabled or staff_settlement_only.';
+            }
+
+            if ($this->evidenceBoolean($evidence, 'staff_settlement_day1_path_confirmed') !== true) {
+                $findings[] = 'Payment evidence must confirm staff_settlement_day1_path_confirmed when customer self-pay is disabled.';
+            }
+
+            return $findings;
+        }
+
+        $this->requireNonEmptyEvidenceString($evidence, 'provider_code', $findings, 'payment_provider_external_e2e');
+
+        if (! in_array($providerMode, ['sandbox', 'live'], true)) {
+            $findings[] = 'When customer self-pay is enabled, provider_mode must be sandbox or live.';
+        }
+
+        foreach (PaymentSessionScope::cases() as $scope) {
+            $scopeStatus = $this->paymentProviderRolloutConfig->customerSelfPayStatus($scope);
+            if (! ($scopeStatus['ok'] ?? false)) {
+                $findings[] = sprintf(
+                    'Configured customer self-pay scope [%s] is not operational: %s.',
+                    $scope->value,
+                    (string) ($scopeStatus['reason_code'] ?? $scopeStatus['message'] ?? 'not_ready'),
+                );
+            }
+        }
+
+        foreach (['deposit', 'bill'] as $scope) {
+            if (! $this->evidenceCoversKey($evidence['scopes'] ?? $evidence['scope_evidence'] ?? [], $scope)) {
+                $findings[] = sprintf('Payment evidence must include passing %s scope coverage.', $scope);
+            }
+        }
+
+        foreach ([
+            'callback_webhook_tested',
+            'signature_validation_tested',
+            'idempotency_replay_tested',
+            'failure_cancel_path_tested',
+            'settlement_reconciliation_tested',
+        ] as $field) {
+            if ($this->evidenceBoolean($evidence, $field) !== true) {
+                $findings[] = sprintf('Payment evidence must set %s=true.', $field);
+            }
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     * @return list<string>
+     */
+    private function validateDisasterRecoveryRestoreEvidence(array $evidence): array
+    {
+        $findings = [];
+
+        foreach ([
+            'restored_dump_identifier',
+            'restore_target',
+            'verification_command',
+            'verification_result',
+        ] as $field) {
+            $this->requireNonEmptyEvidenceString($evidence, $field, $findings, 'disaster_recovery_restore_evidence');
+        }
+
+        $result = strtolower(trim((string) ($evidence['verification_result'] ?? '')));
+        if ($result !== '' && ! in_array($result, ['pass', 'passed', 'ok', 'success'], true)) {
+            $findings[] = 'Disaster recovery evidence verification_result must be pass, passed, ok, or success.';
+        }
+
+        $this->requireRecentEvidenceTimestamp(
+            $evidence,
+            'performed_at_utc',
+            max(1, (int) config('booking_launch_readiness.manual_evidence_max_age_days.disaster_recovery_restore_evidence', 14)),
+            $findings,
+            'disaster_recovery_restore_evidence',
+        );
+
+        return $findings;
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     * @return list<string>
+     */
+    private function validatePerformanceVerificationEvidence(array $evidence): array
+    {
+        $findings = [];
+
+        foreach ([
+            'report_path',
+            'profile',
+            'evidence_level',
+            'verification_result',
+            'evaluated_at_utc',
+        ] as $field) {
+            $this->requireNonEmptyEvidenceString($evidence, $field, $findings, 'performance_verification_report');
+        }
+
+        if (strtolower(trim((string) ($evidence['profile'] ?? ''))) !== 'staging') {
+            $findings[] = 'Performance evidence for limited production must use the staging profile, not local smoke timing.';
+        }
+
+        if (strtolower(trim((string) ($evidence['evidence_level'] ?? ''))) !== 'release_candidate') {
+            $findings[] = 'Performance evidence_level must be release_candidate.';
+        }
+
+        if ($this->evidenceBoolean($evidence, 'local_smoke_only') !== false) {
+            $findings[] = 'Performance evidence must declare local_smoke_only=false.';
+        }
+
+        $result = strtolower(trim((string) ($evidence['verification_result'] ?? '')));
+        if ($result !== '' && ! in_array($result, ['pass', 'passed', 'ok', 'success'], true)) {
+            $findings[] = 'Performance evidence verification_result must be pass, passed, ok, or success.';
+        }
+
+        $requiredSurfaces = array_values(array_map(
+            static fn (mixed $value): string => trim((string) $value),
+            (array) config('booking_launch_readiness.performance_required_surfaces', [])
+        ));
+        foreach ($requiredSurfaces as $surface) {
+            if ($surface !== '' && ! $this->evidenceCoversKey($evidence['scenario_matrix'] ?? [], $surface)) {
+                $findings[] = sprintf('Performance evidence must include passing launch-critical surface [%s].', $surface);
+            }
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     * @return list<string>
+     */
+    private function validateUatScenarioReplayEvidence(array $evidence): array
+    {
+        $findings = [];
+
+        foreach ([
+            'scenario_pack_version',
+            'replayed_at_utc',
+            'verification_result',
+        ] as $field) {
+            $this->requireNonEmptyEvidenceString($evidence, $field, $findings, 'uat_scenario_pack_replay');
+        }
+
+        $this->requireValidEvidenceTimestamp($evidence, 'replayed_at_utc', $findings, 'uat_scenario_pack_replay');
+
+        $result = strtolower(trim((string) ($evidence['verification_result'] ?? '')));
+        if ($result !== '' && ! in_array($result, ['pass', 'passed', 'ok', 'success'], true)) {
+            $findings[] = 'UAT evidence verification_result must be pass, passed, ok, or success.';
+        }
+
+        $requiredScenarios = array_values(array_map(
+            static fn (mixed $value): string => trim((string) $value),
+            (array) config('booking_launch_readiness.uat_required_scenarios', [])
+        ));
+        foreach ($requiredScenarios as $scenario) {
+            if ($scenario !== '' && ! $this->evidenceCoversKey($evidence['scenario_results'] ?? [], $scenario)) {
+                $findings[] = sprintf('UAT evidence must include passing scenario [%s].', $scenario);
+            }
+        }
+
+        if ($this->evidenceBoolean($evidence, 'production_artifact_contains_demo_credentials') !== false) {
+            $findings[] = 'UAT evidence must declare production_artifact_contains_demo_credentials=false.';
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @param  array<string, mixed>  $schema
+     * @param  array<string, mixed>  $evidence
+     * @return list<string>
+     */
+    private function validateConfiguredManualEvidenceSchema(string $checkKey, array $schema, array $evidence): array
+    {
+        $findings = [];
+
+        foreach ((array) ($schema['required_string_fields'] ?? []) as $field) {
+            $this->requireNonEmptyEvidenceString($evidence, (string) $field, $findings, $checkKey);
+        }
+
+        foreach ((array) ($schema['required_boolean_fields'] ?? []) as $field) {
+            if ($this->evidenceBoolean($evidence, (string) $field) === null) {
+                $findings[] = sprintf('Manual check [%s] must include boolean field [%s].', $checkKey, (string) $field);
+            }
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     * @param  list<string>  $findings
+     */
+    private function requireNonEmptyEvidenceString(array $evidence, string $field, array &$findings, string $checkKey): void
+    {
+        $value = data_get($evidence, $field);
+        if (! is_string($value) || trim($value) === '') {
+            $findings[] = sprintf('Manual check [%s] must include non-empty string field [%s].', $checkKey, $field);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     * @param  list<string>  $findings
+     */
+    private function requireValidEvidenceTimestamp(array $evidence, string $field, array &$findings, string $checkKey): void
+    {
+        $value = trim((string) data_get($evidence, $field, ''));
+        if ($value === '') {
+            $findings[] = sprintf('Manual check [%s] must include timestamp field [%s].', $checkKey, $field);
+
+            return;
+        }
+
+        try {
+            Carbon::parse($value);
+        } catch (\Throwable) {
+            $findings[] = sprintf('Manual check [%s] field [%s] must be a valid timestamp.', $checkKey, $field);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     * @param  list<string>  $findings
+     */
+    private function requireRecentEvidenceTimestamp(array $evidence, string $field, int $maxAgeDays, array &$findings, string $checkKey): void
+    {
+        $this->requireValidEvidenceTimestamp($evidence, $field, $findings, $checkKey);
+
+        try {
+            $timestamp = Carbon::parse((string) data_get($evidence, $field))->utc();
+        } catch (\Throwable) {
+            return;
+        }
+
+        if ($timestamp->lt(now('UTC')->subDays($maxAgeDays))) {
+            $findings[] = sprintf(
+                'Manual check [%s] field [%s] is older than %d day(s).',
+                $checkKey,
+                $field,
+                $maxAgeDays,
+            );
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     */
+    private function evidenceBoolean(array $evidence, string $field): ?bool
+    {
+        $value = data_get($evidence, $field);
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+            if (in_array($normalized, ['true', 'yes', '1'], true)) {
+                return true;
+            }
+
+            if (in_array($normalized, ['false', 'no', '0'], true)) {
+                return false;
+            }
+        }
+
+        return null;
+    }
+
+    private function evidenceCoversKey(mixed $value, string $requiredKey): bool
+    {
+        if (is_string($value)) {
+            return trim($value) === $requiredKey;
+        }
+
+        if (! is_array($value)) {
+            return false;
+        }
+
+        if (array_is_list($value)) {
+            foreach ($value as $row) {
+                if (is_string($row) && trim($row) === $requiredKey) {
+                    return true;
+                }
+
+                if (is_array($row)) {
+                    $key = trim((string) ($row['key'] ?? $row['scenario_key'] ?? $row['surface_key'] ?? $row['scope'] ?? ''));
+                    if ($key === $requiredKey && $this->rowIndicatesPass($row)) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        if (array_key_exists($requiredKey, $value)) {
+            $row = $value[$requiredKey];
+
+            if (is_bool($row)) {
+                return $row;
+            }
+
+            if (is_string($row)) {
+                return in_array(strtolower(trim($row)), ['pass', 'passed', 'ok', 'success', 'covered'], true);
+            }
+
+            if (is_array($row)) {
+                return $this->rowIndicatesPass($row);
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function rowIndicatesPass(array $row): bool
+    {
+        foreach (['status', 'result', 'verification_result'] as $field) {
+            $value = strtolower(trim((string) ($row[$field] ?? '')));
+            if ($value !== '') {
+                return in_array($value, ['pass', 'passed', 'ok', 'success', 'covered'], true);
+            }
+        }
+
+        return ($row['passed'] ?? $row['covered'] ?? null) === true;
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     */
+    private function manualEvidencePassSummary(string $checkKey, array $evidence): string
+    {
+        return match ($checkKey) {
+            'payment_provider_external_e2e' => (bool) ($evidence['customer_self_pay_enabled'] ?? false)
+                ? 'Customer self-pay provider evidence is schema-valid for deposit and bill scopes.'
+                : 'Customer self-pay is disabled and staff settlement evidence is schema-valid.',
+            'disaster_recovery_restore_evidence' => 'Disaster recovery restore evidence is schema-valid and recent enough for limited production.',
+            'performance_verification_report' => 'Staging performance evidence covers the launch-critical matrix.',
+            'uat_scenario_pack_replay' => 'UAT replay evidence covers the day-1 golden scenario pack.',
+            default => 'Manual evidence recorded and schema-valid.',
+        };
     }
 
     /**
@@ -1604,12 +2038,23 @@ class LaunchReadinessService
                 continue;
             }
 
-            $checks[(string) $key] = [
+            $sanitizedRow = $this->sanitizeManualEvidenceValue($row);
+            $sanitizedRow = is_array($sanitizedRow) ? $sanitizedRow : [];
+            $validationIssues = $this->sensitiveManualEvidenceKeyIssues($row, sprintf('checks.%s', (string) $key));
+
+            $checks[(string) $key] = array_merge($sanitizedRow, [
                 'status' => strtolower(trim((string) ($row['status'] ?? 'missing'))),
                 'performed_by' => trim((string) ($row['performed_by'] ?? '')),
                 'performed_at_utc' => trim((string) ($row['performed_at_utc'] ?? '')),
                 'notes' => trim((string) ($row['notes'] ?? '')),
-            ];
+            ]);
+
+            if ($validationIssues !== []) {
+                $checks[(string) $key]['_validation_issues'] = array_values(array_merge(
+                    (array) ($checks[(string) $key]['_validation_issues'] ?? []),
+                    $validationIssues,
+                ));
+            }
         }
 
         return [
@@ -1618,6 +2063,64 @@ class LaunchReadinessService
             'checks' => $checks,
             'issues' => [],
         ];
+    }
+
+    private function sanitizeManualEvidenceValue(mixed $value, string $key = ''): mixed
+    {
+        if ($key !== '' && $this->isSensitiveManualEvidenceKey($key)) {
+            return '[redacted]';
+        }
+
+        if (is_array($value)) {
+            $sanitized = [];
+            foreach ($value as $childKey => $childValue) {
+                $sanitized[$childKey] = $this->sanitizeManualEvidenceValue($childValue, (string) $childKey);
+            }
+
+            return $sanitized;
+        }
+
+        if (is_string($value)) {
+            return mb_substr($value, 0, 2000);
+        }
+
+        if (is_bool($value) || is_int($value) || is_float($value) || $value === null) {
+            return $value;
+        }
+
+        return (string) $value;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return list<string>
+     */
+    private function sensitiveManualEvidenceKeyIssues(array $row, string $path): array
+    {
+        $issues = [];
+
+        foreach ($row as $key => $value) {
+            $key = (string) $key;
+            $currentPath = $path.'.'.$key;
+
+            if ($this->isSensitiveManualEvidenceKey($key)) {
+                $issues[] = sprintf(
+                    'Manual evidence contains sensitive-looking field [%s]. Store only non-secret proof references, not provider credentials or secrets.',
+                    $currentPath,
+                );
+            }
+
+            if (is_array($value)) {
+                $issues = array_merge($issues, $this->sensitiveManualEvidenceKeyIssues($value, $currentPath));
+            }
+        }
+
+        return $issues;
+    }
+
+    private function isSensitiveManualEvidenceKey(string $key): bool
+    {
+        return preg_match('/(^|[_\\-.])(secret|password|credential|api[_-]?key|access[_-]?token|refresh[_-]?token|bearer|authorization)($|[_\\-.])/i', $key) === 1;
     }
 
     private function resolvePath(string $path): string

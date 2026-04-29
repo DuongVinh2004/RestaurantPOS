@@ -61,6 +61,7 @@ export type AdminIngredient = {
   unit_code: string;
   description?: (string) | null;
   is_active: boolean;
+  row_version: number;
   stock: {
   on_hand: string;
   unit_code: string;
@@ -129,6 +130,7 @@ export type AdminPurchaseOrder = {
   received_at?: (string) | null;
   supplier_reference?: (string) | null;
   notes?: (string) | null;
+  row_version: number;
   summary: {
   line_count: number;
   receipt_count: number;
@@ -189,6 +191,7 @@ export type AdminSupplier = {
   email: (string) | null;
   notes: (string) | null;
   is_active: boolean;
+  row_version: number;
   created_at: (string) | null;
   updated_at: (string) | null;
 };
@@ -1229,7 +1232,7 @@ export type DeleteV1TableHoldsHoldIdQueryParams = {
 };
 
 export type DispatchKitchenTicketRequest = {
-  row_version?: (number) | null;
+  row_version: number;
 };
 
 export type GenericDataEnvelope = {
@@ -1776,6 +1779,11 @@ export type OpenCashierShiftRequest = {
   staff_user_id?: (number) | null;
 };
 
+export type PatchV1StaffOrdersOrderIdItemsOrderItemIdPathParams = {
+  order_id: number;
+  order_item_id: number;
+};
+
 export type PatchV1TableHoldsHoldIdRefreshPathParams = {
   hold_id: string;
 };
@@ -1901,6 +1909,11 @@ export type PostV1StaffKitchenTicketsTicketIdRecallPathParams = {
 
 export type PostV1StaffOrdersOrderIdBillSnapshotPathParams = {
   order_id: number;
+};
+
+export type PostV1StaffOrdersOrderIdItemsOrderItemIdStatusPathParams = {
+  order_id: number;
+  order_item_id: number;
 };
 
 export type PostV1StaffOrdersOrderIdItemsPathParams = {
@@ -3783,6 +3796,21 @@ export type UnassignConversationRequest = {
   notes?: (string) | null;
 };
 
+export type UpdateOrderItemRequest = {
+  qty?: number;
+  note?: (string) | null;
+  order_row_version: number;
+  row_version: number;
+  staff_user_id?: (number) | null;
+};
+
+export type UpdateOrderItemStatusRequest = {
+  status: "InProgress" | "Served" | "Cancelled";
+  order_row_version: number;
+  row_version: number;
+  staff_user_id?: (number) | null;
+};
+
 export type WebhookReceiptEnvelope = {
   data: {
   duplicate: boolean;
@@ -4341,6 +4369,32 @@ export class RestaurantPosClient {
     return this.request<StaffReservationOrderEnvelope>(
       'POST',
       this.interpolatePath('/api/v1/staff/orders/{order_id}/items', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async patchV1StaffOrdersOrderIdItemsOrderItemId(pathParams: PatchV1StaffOrdersOrderIdItemsOrderItemIdPathParams, body: UpdateOrderItemRequest, options: RequestOptions = {}): Promise<StaffReservationOrderEnvelope> {
+    return this.request<StaffReservationOrderEnvelope>(
+      'PATCH',
+      this.interpolatePath('/api/v1/staff/orders/{order_id}/items/{order_item_id}', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async postV1StaffOrdersOrderIdItemsOrderItemIdStatus(pathParams: PostV1StaffOrdersOrderIdItemsOrderItemIdStatusPathParams, body: UpdateOrderItemStatusRequest, options: RequestOptions = {}): Promise<StaffReservationOrderEnvelope> {
+    return this.request<StaffReservationOrderEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/orders/{order_id}/items/{order_item_id}/status', pathParams as Record<string, string | number>),
       'staff',
       false,
       true,

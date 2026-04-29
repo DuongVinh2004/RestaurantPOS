@@ -157,6 +157,14 @@ class DisasterRecoveryDrillService
         }
 
         $recoveryObjectives = $this->buildRecoveryObjectives($mode, $manifestReport, (array) ($context['timings'] ?? []));
+        $launchEvidence = $this->buildLaunchEvidence(
+            mode: $mode,
+            evaluatedAt: $evaluatedAt,
+            manifestReport: $manifestReport,
+            targetGuard: $targetGuard,
+            restorePayload: (array) $restorePayload,
+            decision: $decision,
+        );
 
         $report = [
             'ok' => $exitCode === 0,
@@ -183,6 +191,7 @@ class DisasterRecoveryDrillService
             'major_warnings' => $majorWarnings,
             'informational_findings' => $informationalFindings,
             'recovery_objectives' => $recoveryObjectives,
+            'launch_evidence' => $launchEvidence,
             'automation' => [
                 'fully_automated' => [
                     'backup manifest validation',
@@ -1320,6 +1329,54 @@ class DisasterRecoveryDrillService
     }
 
     /**
+     * @param  array<string, mixed>  $manifestReport
+     * @param  array<string, mixed>  $targetGuard
+     * @param  array<string, mixed>  $restorePayload
+     * @return array<string, mixed>
+     */
+    private function buildLaunchEvidence(
+        string $mode,
+        Carbon $evaluatedAt,
+        array $manifestReport,
+        array $targetGuard,
+        array $restorePayload,
+        string $decision,
+    ): array {
+        $selectedArtifact = (array) ($restorePayload['selected_artifact'] ?? []);
+        $artifactName = trim((string) ($selectedArtifact['name'] ?? ''));
+        $artifactPath = trim((string) ($selectedArtifact['path'] ?? ''));
+        $manifestPath = trim((string) ($manifestReport['path'] ?? ''));
+        $targetDatabase = trim((string) data_get($targetGuard, 'connection.database', ''));
+        $verificationCommand = sprintf('php artisan booking:dr-drill --mode=%s --json', $mode);
+
+        if ($manifestPath !== '') {
+            $verificationCommand = sprintf(
+                'php artisan booking:dr-drill --mode=%s --manifest=%s --json',
+                $mode,
+                $manifestPath,
+            );
+        }
+
+        if ($targetDatabase !== '') {
+            $verificationCommand .= ' --target-db='.$targetDatabase;
+        }
+
+        return [
+            'restored_dump_identifier' => $artifactName !== '' || $artifactPath !== ''
+                ? trim($artifactName.' '.$artifactPath)
+                : $manifestPath,
+            'restore_target' => $targetDatabase,
+            'verification_command' => $verificationCommand,
+            'verification_result' => $decision,
+            'timestamp_utc' => $evaluatedAt->toIso8601String(),
+            'operator' => trim((string) (getenv('BOOKING_DR_OPERATOR') ?: '')),
+            'reviewer' => trim((string) (getenv('BOOKING_DR_REVIEWER') ?: '')),
+            'safe_to_commit' => true,
+            'secret_fields_included' => false,
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function matrixDefinition(string $key): array
@@ -1558,6 +1615,16 @@ class DisasterRecoveryDrillService
         $lines[] = sprintf('- Backup age: `%s` second(s) [%s]', $objectives['backup_age_seconds'] ?? 'n/a', strtoupper((string) ($objectives['rpo_status'] ?? 'unknown')));
         $lines[] = sprintf('- RTO target: `%d` minute(s)', (int) ($objectives['rto_target_minutes'] ?? 0));
         $lines[] = sprintf('- Restore + verify: `%s` second(s) [%s]', $objectives['rto_actual_seconds'] ?? 'n/a', strtoupper((string) ($objectives['rto_status'] ?? 'unknown')));
+
+        $launchEvidence = (array) ($report['launch_evidence'] ?? []);
+        $lines[] = '';
+        $lines[] = '## Launch Evidence Fields';
+        $lines[] = '';
+        $lines[] = sprintf('- Restored dump identifier: `%s`', (string) ($launchEvidence['restored_dump_identifier'] ?? ''));
+        $lines[] = sprintf('- Restore target: `%s`', (string) ($launchEvidence['restore_target'] ?? ''));
+        $lines[] = sprintf('- Verification command: `%s`', (string) ($launchEvidence['verification_command'] ?? ''));
+        $lines[] = sprintf('- Verification result: `%s`', (string) ($launchEvidence['verification_result'] ?? ''));
+        $lines[] = sprintf('- Timestamp: `%s`', (string) ($launchEvidence['timestamp_utc'] ?? ''));
 
         return implode(PHP_EOL, $lines).PHP_EOL;
     }

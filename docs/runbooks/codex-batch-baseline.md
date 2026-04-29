@@ -4,6 +4,90 @@
 
 Create a safe baseline before production-readiness fixes. This note records the dirty worktree state observed before this batch added any file, the commands run, and the paths later batches must preserve.
 
+## 2026-04-28 Main Baseline Refresh
+
+### Intent
+
+Confirm the local repository is aligned with the latest `origin/main` baseline and record environment evidence before any production-hardening code changes.
+
+### Timestamp
+
+- Local: `2026-04-28T19:19:11.7061678+07:00`
+- UTC: `2026-04-28T12:19:17.7621117Z`
+
+### Git Baseline
+
+- Branch: `main`
+- Upstream: `origin/main`
+- Remote: `https://github.com/DuongVinh2004/RestaurantPOS.git`
+- HEAD: `fc99d8f5b25d4ea928276ea0e8b480c1d8d74a2f`
+- Short HEAD: `fc99d8f5`
+- Refreshed remote with `git fetch origin main`.
+- `origin/main`: `fc99d8f5b25d4ea928276ea0e8b480c1d8d74a2f`
+- `git rev-list --left-right --count HEAD...origin/main`: `0 0`
+- Result: local `main` is aligned with refreshed `origin/main` at `fc99d8f5`.
+
+### Initial Worktree State
+
+The worktree was not clean before this batch changed any tracked file.
+
+- `git status --short`: `M storage/phpstan/resultCache.php`
+- `git diff --cached --name-status`: empty
+- `git ls-files --others --exclude-standard`: empty
+- Interpretation: `storage/phpstan/resultCache.php` was a pre-existing unstaged tracked modification. This batch did not inspect, normalize, revert, or claim that cache artifact.
+
+### Local Tool Versions
+
+- PHP: `PHP 8.4.0 (cli)`
+- Composer: `Composer version 2.9.7 2026-04-14 13:31:52`
+- Composer PHP runtime: `PHP version 8.4.0 (C:\Users\Duong Vinh\.config\herd-lite\bin\php.exe)`
+- Node: `v24.15.0`
+- npm: `11.12.1`
+- Laravel: `Laravel Framework 12.56.0`
+- `composer validate --strict`: passed with `./composer.json is valid`
+
+### Runtime Reachability
+
+- MySQL configured connection: `mysql` on `127.0.0.1:3306`, database `restaurantdb`
+- MySQL reachability: failed with `SQLSTATE[HY000] [2002] No connection could be made because the target machine actively refused it`
+- Redis configured client: `phpredis` on `127.0.0.1:6379`, database `0`
+- Redis reachability: failed with `RedisException: No connection could be made because the target machine actively refused it`
+- Interpretation: MySQL and Redis are blocked by local environment/service availability, not by an application logic change in this batch.
+
+### Bootstrap And Gate Results
+
+- `composer bootstrap:booking`
+  - Exit code: `1`
+  - Result: failed before bootstrap because the `mysql` CLI was unavailable on `PATH`
+  - Exact blocker: `Unable to start mysql process. Ensure the mysql CLI is installed and MYSQL_BIN points to it if it is not on PATH. Tried binary [mysql].`
+- `php artisan booking:doctor --json`
+  - Exit code: `1`
+  - `validation.ok`: `true`
+  - Runtime DB: failed because MySQL at `127.0.0.1:3306` refused the connection
+  - Runtime Redis: failed because Redis at `127.0.0.1:6379` refused the connection
+  - Scheduler: blocked by Redis failure
+  - Outbox: blocked by DB failure
+  - Report paths emitted under `storage/app/booking_release/doctor/reports/`
+- `php artisan booking:deploy-check --mode=preflight --json`
+  - Exit code: `1`
+  - `environment`: passed
+  - `runtime.database`: failed because MySQL refused the connection
+  - Database-backed migration, data, and ops guards were skipped because database runtime was unavailable
+  - Schema dump, full dump, patch inventory, release manifest, and temporary artifact checks passed
+  - Report paths emitted under `storage/app/booking_release/deploy_checks/reports/`
+
+### Generated Artifact Status
+
+After running the bootstrap and gate commands, `git status --short` still showed only the pre-existing `storage/phpstan/resultCache.php` modification before this note was edited. No tracked app/runtime behavior files were changed by the probes.
+
+### Verification Selector
+
+- `python .agents/skills/restaurantpos-git-aware-verify/scripts/recommend_from_git.py`
+  - Exit code: `0`
+  - Changed file detected: `storage/phpstan/resultCache.php`
+  - Recommended command: `vendor/bin/pint --test`
+  - Note: recommendation was based only on the pre-existing unstaged cache artifact.
+
 ## Current HEAD
 
 - `git rev-parse --short HEAD`: `8b0dee5c`

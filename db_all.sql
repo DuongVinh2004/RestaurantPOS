@@ -776,6 +776,7 @@ CREATE TABLE `payments` (
   `payment_id` int unsigned NOT NULL AUTO_INCREMENT,
   `reservation_id` int unsigned NOT NULL,
   `branch_id` int unsigned NOT NULL DEFAULT '1',
+  `cashier_shift_id` bigint unsigned DEFAULT NULL,
   `refund_of_payment_id` int unsigned DEFAULT NULL,
   `amount` decimal(14,2) NOT NULL,
   `currency` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'VND',
@@ -800,6 +801,7 @@ CREATE TABLE `payments` (
   KEY `fk_payments__created_by__users` (`created_by`),
   KEY `idx_payments__reservation_id__payment_type__status` (`reservation_id`,`payment_type`,`status`),
   KEY `idx_payments__branch_id__reservation_id__payment_type__status` (`branch_id`,`reservation_id`,`payment_type`,`status`),
+  KEY `idx_payments__cashier_shift_id` (`cashier_shift_id`),
   KEY `idx_payments__refund_of_payment_id` (`refund_of_payment_id`),
   KEY `idx_payments__updated_by` (`updated_by`),
   CONSTRAINT `chk_payments__amount_nonneg` CHECK ((`amount` >= 0))
@@ -2484,6 +2486,7 @@ ALTER TABLE `cashier_shifts` ADD CONSTRAINT `fk_cashier_shifts__cashier_user_id_
 ALTER TABLE `cashier_shifts` ADD CONSTRAINT `fk_cashier_shifts__opened_by__users` FOREIGN KEY (`opened_by`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `cashier_shifts` ADD CONSTRAINT `fk_cashier_shifts__closed_by__users` FOREIGN KEY (`closed_by`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `payments` ADD CONSTRAINT `fk_payments__branch_id__branches` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+ALTER TABLE `payments` ADD CONSTRAINT `fk_payments__cashier_shift_id__cashier_shifts` FOREIGN KEY (`cashier_shift_id`) REFERENCES `cashier_shifts` (`cashier_shift_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `payments` ADD CONSTRAINT `fk_payments__created_by__users` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `payments` ADD CONSTRAINT `fk_payments__refund_of_payment_id__payments` FOREIGN KEY (`refund_of_payment_id`) REFERENCES `payments` (`payment_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `payments` ADD CONSTRAINT `fk_payments__reservation_id__reservations` FOREIGN KEY (`reservation_id`) REFERENCES `reservations` (`reservation_id`) ON DELETE CASCADE ON UPDATE RESTRICT;

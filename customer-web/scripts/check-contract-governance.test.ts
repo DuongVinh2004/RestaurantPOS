@@ -23,6 +23,10 @@ function createRepoFixture({
   writeFile(root, "customer-web/src/lib/contracts/generated/restaurantpos-sdk.ts", generatedSdk);
   writeFile(root, "customer-web/src/lib/contracts/generated/restaurantpos-enums.ts", generatedEnums);
   writeFile(root, "customer-web/src/lib/config/support-matrix.ts", supportMatrix);
+  writeFile(root, "customer-web/src/lib/api/sdk-client.ts", sdkClientFixture());
+  writeFile(root, "customer-web/src/features/deposit/api.ts", depositApiFixture());
+  writeFile(root, "customer-web/src/features/billing/api.ts", billingApiFixture());
+  writeFile(root, "customer-web/src/features/preorder/api.ts", preorderApiFixture());
 
   return {
     root,
@@ -85,6 +89,28 @@ describe("checkContractGovernance", () => {
     expect(result.issues).toContain('support-matrix waiting-list must keep exposure: "env-flag".');
   });
 
+  it("fails when customer mutation wrappers drift from canonical idempotent session contracts", () => {
+    const fixture = createRepoFixture();
+    writeFile(
+      fixture.root,
+      "customer-web/src/features/billing/api.ts",
+      'client.postV1ReservationsReservationIdBillPaymentSessions({}, { row_version: rowVersion }, { headers: { "X-Idempotency-Key": "legacy" } });\n',
+    );
+
+    const result = checkContractGovernance({
+      repoRoot: fixture.root,
+      gitStatusRunner: fixture.gitStatusRunner,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("customer bill payment mutations missing required fragments"),
+        expect.stringContaining("customer bill payment mutations contains deprecated compatibility fragments"),
+      ]),
+    );
+  });
+
   it("warns on generated artifact Git changes by default and fails in strict mode", () => {
     const fixture = createRepoFixture({
       gitStatusOutput: [
@@ -136,5 +162,60 @@ export const customerWebSupportMatrix = [
     gateFlag: "enableAccountBenefits",
   },
 ];
+`;
+}
+
+function sdkClientFixture() {
+  return `
+export function createApiClient() {
+  return new RestaurantPosClient({
+    customerToken: () => getCustomerToken(),
+    customerSessionId: () => getCustomerSessionId() ?? ensureCustomerSessionId(),
+  });
+}
+
+export function idempotentOptions(scope, options = {}) {
+  return {
+    ...options,
+    idempotencyKey: options.idempotencyKey ?? createIdempotencyKey(scope),
+  };
+}
+
+export function sessionOptions(options = {}) {
+  const sessionId = ensureCustomerSessionId();
+
+  return {
+    ...options,
+    headers: {
+      ...options.headers,
+      "X-Session-Id": sessionId,
+    },
+  };
+}
+`;
+}
+
+function depositApiFixture() {
+  return `
+client.postV1ReservationsIdDepositAcknowledge({}, { row_version: rowVersion, session_id: ensureCustomerSessionId() }, idempotentSessionOptions("deposit"));
+client.postV1ReservationsIdDepositIntent({}, { row_version: rowVersion, session_id: ensureCustomerSessionId() }, idempotentSessionOptions("deposit"));
+client.postV1ReservationsReservationIdDepositPaymentSessions({}, { row_version: rowVersion, session_id: ensureCustomerSessionId() }, idempotentSessionOptions("deposit"));
+`;
+}
+
+function billingApiFixture() {
+  return `
+client.postV1ReservationsReservationIdBillPaymentSessions({}, { row_version: rowVersion, session_id: ensureCustomerSessionId() }, idempotentSessionOptions("bill"));
+client.postV1ReservationsReservationIdBillPaymentSessionsSessionIdRefresh({}, { row_version: rowVersion, session_id: ensureCustomerSessionId() }, idempotentSessionOptions("bill"));
+client.postV1ReservationsReservationIdBillPaymentSessionsSessionIdConfirm({}, { row_version: rowVersion, session_id: ensureCustomerSessionId() }, idempotentSessionOptions("bill"));
+`;
+}
+
+function preorderApiFixture() {
+  return `
+client.getV1ReservationsIdPreorder({});
+client.postV1ReservationsIdPreorderPreview({}, {}, idempotentSessionOptions("preorder"));
+client.putV1ReservationsIdPreorder({}, {}, idempotentSessionOptions("preorder"));
+client.deleteV1ReservationsIdPreorder({}, { row_version: rowVersion }, idempotentSessionOptions("preorder"));
 `;
 }

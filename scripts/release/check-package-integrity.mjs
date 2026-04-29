@@ -155,6 +155,55 @@ const FRESHNESS_RULES = [
 
 const FRESHNESS_REMEDIATION = 'rerun php artisan booking:api-contract --write && php artisan booking:api-artifacts:generate && php artisan booking:release-manifest --write';
 
+const STAFF_WEB_CONTRACT_CONTENT_RULES = [
+  {
+    scope: 'staff-web',
+    group: 'required_for_build_test_smoke',
+    path: 'staff-web/src/shared/api/staff-api.ts',
+    label: 'staff-web critical mutation contract usage',
+    required: [
+      'staffClient.staffTablesBoard',
+      'staffClient.postV1StaffOrdersOrderIdBillSnapshot',
+      'staffClient.postV1StaffOrdersOrderIdSettlementFinalize',
+      'staffClient.postV1StaffOrdersOrderIdKitchenDispatch',
+      'staffClient.postV1StaffKitchenTicketsTicketIdFire',
+      'staffClient.postV1StaffReservationsReservationIdRefund',
+      'staffClient.postV1StaffCashierShiftsOpen',
+      'idempotencyKey: createIdempotencyKey(',
+    ],
+    forbidden: [
+      'postV1StaffOrdersOrderIdClose',
+      'postV1StaffOrdersOrderIdCheckout',
+      '"/staff/table-board"',
+      "'/staff/table-board'",
+      '`/staff/table-board`',
+      'voucher/release',
+      'loyalty/release',
+    ],
+  },
+  {
+    scope: 'staff-web',
+    group: 'required_for_build_test_smoke',
+    path: 'staff-web/src/shared/api/client.ts',
+    label: 'staff-web canonical SDK wrapper usage',
+    required: [
+      'staffClient.staffTablesBoard',
+      'staffClient.postV1StaffOrdersOrderIdBillSnapshot',
+      'staffClient.postV1StaffOrdersOrderIdSettlementFinalize',
+      "headers.get('X-Staff-Key')",
+    ],
+    forbidden: [
+      'postV1StaffOrdersOrderIdClose',
+      'postV1StaffOrdersOrderIdCheckout',
+      '"/staff/table-board"',
+      "'/staff/table-board'",
+      '`/staff/table-board`',
+      'voucher/release',
+      'loyalty/release',
+    ],
+  },
+];
+
 export function collectPackageIntegrityReport({ rootDir = process.cwd(), staffWebOnly = false } = {}) {
   const resolvedRootDir = path.resolve(rootDir);
   const requirements = staffWebOnly
@@ -172,10 +221,16 @@ export function collectPackageIntegrityReport({ rootDir = process.cwd(), staffWe
   const stale = freshnessChecks.filter((check) => !check.ok);
   const blockingStale = stale.filter((check) => check.blocking);
   const advisoryStale = stale.filter((check) => !check.blocking);
+  const contractChecks = STAFF_WEB_CONTRACT_CONTENT_RULES.map((rule) => evaluateContentRule(resolvedRootDir, rule));
+  const contractFailures = contractChecks.filter((check) => !check.ok);
+  const blockingContractFailures = contractFailures.filter((check) => check.blocking);
+  const advisoryContractFailures = contractFailures.filter((check) => !check.blocking);
+  const hasBlockingFailure = blockingMissing.length > 0 || blockingStale.length > 0 || blockingContractFailures.length > 0;
+  const hasAdvisoryFailure = advisoryMissing.length > 0 || advisoryStale.length > 0 || advisoryContractFailures.length > 0;
 
   return {
-    ok: blockingMissing.length === 0 && blockingStale.length === 0,
-    decision: blockingMissing.length > 0 || blockingStale.length > 0 ? 'block' : advisoryMissing.length > 0 || advisoryStale.length > 0 ? 'warn' : 'pass',
+    ok: !hasBlockingFailure,
+    decision: hasBlockingFailure ? 'block' : hasAdvisoryFailure ? 'warn' : 'pass',
     mode: staffWebOnly ? 'staff-web-only' : 'full',
     checked_at_utc: new Date().toISOString(),
     root_dir: resolvedRootDir,
@@ -188,6 +243,10 @@ export function collectPackageIntegrityReport({ rootDir = process.cwd(), staffWe
       stale_count: stale.length,
       blocking_stale_count: blockingStale.length,
       advisory_stale_count: advisoryStale.length,
+      contract_check_count: contractChecks.length,
+      contract_failure_count: contractFailures.length,
+      blocking_contract_failure_count: blockingContractFailures.length,
+      advisory_contract_failure_count: advisoryContractFailures.length,
     },
     groups: summarizeGroups(checks),
     missing,
@@ -196,8 +255,12 @@ export function collectPackageIntegrityReport({ rootDir = process.cwd(), staffWe
     stale,
     blocking_stale: blockingStale,
     advisory_stale: advisoryStale,
+    contract_failures: contractFailures,
+    blocking_contract_failures: blockingContractFailures,
+    advisory_contract_failures: advisoryContractFailures,
     checks,
     freshness_checks: freshnessChecks,
+    contract_checks: contractChecks,
   };
 }
 
@@ -271,6 +334,52 @@ function evaluateFreshnessRule(rootDir, rule, releaseManifestSnapshot, hashCache
     dependency_resolved_path: resolvedDependencyPath,
     ok: failure === null,
     skipped: false,
+    failure,
+  };
+}
+
+function evaluateContentRule(rootDir, rule) {
+  const resolvedPath = path.resolve(rootDir, rule.path);
+  const group = REQUIREMENT_GROUPS[rule.group];
+  const exists = existsSync(resolvedPath);
+
+  if (!exists || resolveEntryType(resolvedPath) !== 'file') {
+    return {
+      scope: rule.scope,
+      group: rule.group,
+      group_label: group.label,
+      blocking: group.blocking,
+      label: rule.label,
+      path: rule.path,
+      resolved_path: resolvedPath,
+      ok: false,
+      missing_required_fragments: rule.required,
+      forbidden_fragments_present: [],
+      failure: 'missing',
+    };
+  }
+
+  const source = readFileSync(resolvedPath, 'utf8');
+  const missingRequiredFragments = rule.required.filter((fragment) => !source.includes(fragment));
+  const forbiddenFragmentsPresent = rule.forbidden.filter((fragment) => source.includes(fragment));
+  const failure = missingRequiredFragments.length === 0 && forbiddenFragmentsPresent.length === 0
+    ? null
+    : [
+        missingRequiredFragments.length > 0 ? `missing required fragments: ${missingRequiredFragments.join(', ')}` : '',
+        forbiddenFragmentsPresent.length > 0 ? `forbidden deprecated alias fragments present: ${forbiddenFragmentsPresent.join(', ')}` : '',
+      ].filter(Boolean).join('; ');
+
+  return {
+    scope: rule.scope,
+    group: rule.group,
+    group_label: group.label,
+    blocking: group.blocking,
+    label: rule.label,
+    path: rule.path,
+    resolved_path: resolvedPath,
+    ok: failure === null,
+    missing_required_fragments: missingRequiredFragments,
+    forbidden_fragments_present: forbiddenFragmentsPresent,
     failure,
   };
 }
@@ -441,8 +550,19 @@ function renderHumanReport(report) {
     lines.push('');
   }
 
+  if (report.contract_checks.length > 0) {
+    lines.push('frontend contract checks (blocking)');
+
+    for (const check of report.contract_checks) {
+      const status = check.ok ? 'OK' : 'FAIL';
+      lines.push(`${status} [${check.scope}] ${check.path} - ${check.label}${check.failure ? ` (${check.failure})` : ''}`);
+    }
+
+    lines.push('');
+  }
+
   lines.push(
-    `decision=${report.decision} checked=${report.summary.checked_count} missing=${report.summary.missing_count} blocking_missing=${report.summary.blocking_missing_count} advisory_missing=${report.summary.advisory_missing_count} stale=${report.summary.stale_count} blocking_stale=${report.summary.blocking_stale_count} advisory_stale=${report.summary.advisory_stale_count}`
+    `decision=${report.decision} checked=${report.summary.checked_count} missing=${report.summary.missing_count} blocking_missing=${report.summary.blocking_missing_count} advisory_missing=${report.summary.advisory_missing_count} stale=${report.summary.stale_count} blocking_stale=${report.summary.blocking_stale_count} advisory_stale=${report.summary.advisory_stale_count} contract_failures=${report.summary.contract_failure_count} blocking_contract_failures=${report.summary.blocking_contract_failure_count}`
   );
 
   return `${lines.join('\n')}\n`;

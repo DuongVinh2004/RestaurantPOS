@@ -18,9 +18,11 @@ class StaffLegacyRouteAliasContractTest extends TestCase
 
     public function test_legacy_staff_alias_routes_bind_to_wrapper_actions_and_canonical_replay_map(): void
     {
+        self::assertSame('close', $this->findRouteByUriSuffix('v1/staff/orders/{order_id}/close')?->getActionMethod());
         self::assertSame('checkout', $this->findRouteByUriSuffix('v1/staff/orders/{order_id}/checkout')?->getActionMethod());
         self::assertSame('release', $this->findRouteByUriSuffix('v1/staff/reservations/{reservation_id}/voucher/release')?->getActionMethod());
         self::assertSame('legacyReleaseReservation', $this->findRouteByUriSuffix('v1/staff/reservations/{reservation_id}/loyalty/release')?->getActionMethod());
+        self::assertSame('legacyIndex', $this->findRouteByUriSuffix('v1/staff/table-board')?->getActionMethod());
 
         self::assertSame([
             'v1/staff/orders/{order_id}/close' => 'v1/staff/orders/{order_id}/bill-snapshot',
@@ -28,6 +30,31 @@ class StaffLegacyRouteAliasContractTest extends TestCase
             'v1/staff/reservations/{reservation_id}/voucher/release' => 'v1/staff/reservations/{reservation_id}/voucher/remove',
             'v1/staff/reservations/{reservation_id}/loyalty/release' => 'v1/staff/reservations/{reservation_id}/loyalty/redeem/release',
         ], config('booking.idempotency_route_aliases'));
+    }
+
+    public function test_staff_alias_deprecation_plan_requires_usage_evidence_before_removal(): void
+    {
+        $routes = collect(config('booking.api_alias_deprecations.routes'))->keyBy('key');
+
+        self::assertSame([
+            'staff.orders.close',
+            'staff.orders.checkout',
+            'staff.reservations.voucher.release',
+            'staff.reservations.loyalty.release',
+            'staff.tables.table-board',
+        ], $routes->keys()->values()->all());
+
+        foreach ($routes as $route) {
+            self::assertNotEmpty($route['canonical_route'] ?? null);
+            self::assertNotEmpty($route['deprecated_alias'] ?? null);
+            self::assertStringContainsString('Zero alias hits', (string) ($route['removal_criteria'] ?? ''));
+            self::assertNotEmpty($route['minimum_evidence'] ?? []);
+        }
+
+        $inputs = collect(config('booking.api_alias_deprecations.idempotency_inputs'))->keyBy('key');
+
+        self::assertSame('X-Idempotency-Key header', $inputs['idempotency.x_header']['deprecated_alias'] ?? null);
+        self::assertSame('body idempotency_key', $inputs['idempotency.body_key']['deprecated_alias'] ?? null);
     }
 
     private function findRouteByUriSuffix(string $suffix): ?IlluminateRoute

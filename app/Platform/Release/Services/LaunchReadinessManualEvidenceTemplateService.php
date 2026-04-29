@@ -101,6 +101,14 @@ class LaunchReadinessManualEvidenceTemplateService
                 'performed_at_utc' => '',
                 'notes' => '',
             ];
+            foreach ((array) ($manualCheck['evidence_template'] ?? []) as $field => $value) {
+                $field = (string) $field;
+                if ($field === '' || array_key_exists($field, $payload['checks'][$key])) {
+                    continue;
+                }
+
+                $payload['checks'][$key][$field] = $value;
+            }
             $payload['guidance'][$key] = [
                 'label' => (string) $manualCheck['label'],
                 'source' => (string) $manualCheck['source'],
@@ -111,6 +119,7 @@ class LaunchReadinessManualEvidenceTemplateService
                 'runbook_path' => (string) ($manualCheck['runbook_path'] ?? ''),
                 'operator_commands' => array_values((array) ($manualCheck['operator_commands'] ?? [])),
                 'operator_notes' => array_values((array) ($manualCheck['operator_notes'] ?? [])),
+                'evidence_schema' => (array) ($manualCheck['evidence_schema'] ?? []),
             ];
         }
 
@@ -211,6 +220,8 @@ class LaunchReadinessManualEvidenceTemplateService
                 'runbook_path' => (string) ($definition['runbook_path'] ?? ''),
                 'operator_commands' => array_values((array) ($definition['operator_commands'] ?? [])),
                 'operator_notes' => array_values((array) ($definition['operator_notes'] ?? [])),
+                'evidence_template' => (array) ($definition['evidence_template'] ?? []),
+                'evidence_schema' => (array) ($definition['evidence_schema'] ?? []),
             ];
         }
 

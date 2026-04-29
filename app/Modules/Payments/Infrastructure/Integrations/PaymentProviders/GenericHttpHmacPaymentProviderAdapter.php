@@ -130,7 +130,11 @@ class GenericHttpHmacPaymentProviderAdapter implements PaymentProviderAdapter
             return false;
         }
 
-        if ($maxAgeSeconds > 0 && $timestamp !== '') {
+        if ($maxAgeSeconds > 0) {
+            if ($timestamp === '') {
+                return false;
+            }
+
             try {
                 $timestampAt = Carbon::parse($timestamp, 'UTC')->utc();
             } catch (\Throwable) {

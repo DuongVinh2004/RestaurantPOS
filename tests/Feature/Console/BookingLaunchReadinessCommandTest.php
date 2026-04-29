@@ -70,6 +70,8 @@ class BookingLaunchReadinessCommandTest extends TestCase
             ->all();
         $this->assertSame($this->artifactRoot.'/reports', $payload['artifacts']['reports_root'] ?? null);
         $this->assertSame('pass', $manualStatuses['uat_scenario_pack_replay'] ?? null);
+        $this->assertSame('pass', $manualStatuses['disaster_recovery_restore_evidence'] ?? null);
+        $this->assertSame('pass', $manualStatuses['payment_provider_external_e2e'] ?? null);
         $this->assertSame('pass', $manualStatuses['performance_verification_report'] ?? null);
         $this->assertSame('pass', $manualStatuses['notification_provider_external_e2e'] ?? null);
         $this->assertFileExists(base_path((string) (($payload['artifacts'] ?? [])['json_path'] ?? '')));
@@ -97,8 +99,9 @@ class BookingLaunchReadinessCommandTest extends TestCase
         $this->assertSame(0, $exitCode);
         $this->assertSame('ready', $payload['decision'] ?? null);
         $this->assertSame('Manual evidence: Canonical UAT scenario pack replay', $integratedSources['UAT/demo scenario pack'] ?? null);
+        $this->assertSame('Manual evidence: Backup restore / disaster recovery evidence', $integratedSources['booking:dr-drill or operator DR restore record'] ?? null);
         $this->assertSame('Manual evidence: Performance verification report', $integratedSources['booking:performance-verify'] ?? null);
-        $this->assertSame('Manual evidence: Real payment-provider callback rehearsal', $integratedSources['Payment provider / webhook manual rehearsal'] ?? null);
+        $this->assertSame('Manual evidence: Payment provider / customer self-pay readiness', $integratedSources['Payment provider readiness evidence'] ?? null);
         $this->assertSame('Manual evidence: Real notification delivery rehearsal', $integratedSources['Notification outbox / provider manual rehearsal'] ?? null);
         $this->assertSame('Manual evidence: Multi-process concurrency rehearsal', $integratedSources['Staging concurrency drill'] ?? null);
         $this->assertStringContainsString('## Integrated Sources', $markdown);
@@ -108,11 +111,15 @@ class BookingLaunchReadinessCommandTest extends TestCase
             $markdown
         );
         $this->assertStringContainsString(
-            '- [PASS] Real payment-provider callback rehearsal - by qa.release; at 2026-04-05T09:10:00Z; Validated one payment-provider callback rehearsal in staging.',
+            '- [PASS] Payment provider / customer self-pay readiness - by qa.release; at 2026-04-27T09:10:00Z; Confirmed customer self-pay is disabled and staff settlement remains the day-1 path.',
             $markdown
         );
         $this->assertStringContainsString(
-            '- [PASS] Multi-process concurrency rehearsal - by qa.release; at 2026-04-05T09:45:00Z; Completed Redis/MySQL multi-process contention rehearsal.',
+            '- [PASS] Backup restore / disaster recovery evidence - by qa.release; at 2026-04-27T09:00:00Z; Validated scratch-target DR restore evidence without touching the application database.',
+            $markdown
+        );
+        $this->assertStringContainsString(
+            '- [PASS] Multi-process concurrency rehearsal - by qa.release; at 2026-04-27T09:45:00Z; Completed Redis/MySQL multi-process contention rehearsal.',
             $markdown
         );
     }
@@ -170,6 +177,8 @@ class BookingLaunchReadinessCommandTest extends TestCase
         $this->assertSame(2, $exitCode);
         $this->assertSame('ready_with_warnings', $payload['decision'] ?? null);
         $this->assertSame('warn', $manualStatuses['uat_scenario_pack_replay'] ?? null);
+        $this->assertSame('warn', $manualStatuses['disaster_recovery_restore_evidence'] ?? null);
+        $this->assertSame('warn', $manualStatuses['payment_provider_external_e2e'] ?? null);
         $this->assertSame('warn', $manualStatuses['performance_verification_report'] ?? null);
         $this->assertSame('warn', $manualStatuses['notification_provider_external_e2e'] ?? null);
         $this->assertSame('warnings', data_get($payload, 'baseline.manual_blockers.status'));
@@ -184,9 +193,9 @@ class BookingLaunchReadinessCommandTest extends TestCase
             'booking:manual-evidence:init --target=staging',
             (string) data_get($payload, 'follow_up_actions.0.commands.0')
         );
-        $this->assertSame(
-            'docs/runbooks/booking-performance-verification.md',
-            data_get($payload, 'follow_up_actions.2.runbook_path')
+        $this->assertTrue(
+            collect((array) ($payload['follow_up_actions'] ?? []))
+                ->contains(static fn (array $action): bool => (string) ($action['runbook_path'] ?? '') === 'docs/runbooks/booking-performance-verification.md')
         );
         $this->assertSame(
             'restaurantpos-backend-release-generated',
@@ -202,7 +211,9 @@ class BookingLaunchReadinessCommandTest extends TestCase
         );
         $this->assertContains(
             'php artisan booking:performance-verify --profile=staging --run --base-url=<base-url> --manifest-path=storage/app/uat/scenario-pack.json --promote-baseline',
-            (array) data_get($payload, 'follow_up_actions.2.commands', [])
+            collect((array) ($payload['follow_up_actions'] ?? []))
+                ->flatMap(static fn (array $action): array => (array) ($action['commands'] ?? []))
+                ->all()
         );
         $markdownPath = base_path((string) (($payload['artifacts'] ?? [])['markdown_path'] ?? ''));
         $markdown = (string) file_get_contents($markdownPath);
@@ -540,6 +551,10 @@ class BookingLaunchReadinessCommandTest extends TestCase
 
     private function bindHealthyDependencies(): void
     {
+        config()->set('booking.payment_providers.customer_self_pay.enabled', false);
+        config()->set('booking.payment_providers.scopes.deposit.default_provider', 'generic_http_hmac');
+        config()->set('booking.payment_providers.scopes.bill.default_provider', 'generic_http_hmac');
+
         $this->app->instance(BookingDoctorService::class, new class extends BookingDoctorService
         {
             public function __construct() {}

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\Inventory;
 
 use App\Modules\InventoryProcurement\Application\UseCases\Inventory\InventoryStockMovementService;
+use App\Modules\InventoryProcurement\Application\Workflows\InventoryStockReconciliationService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -105,6 +106,10 @@ class InventoryStockMovementServiceTest extends TestCase
         self::assertSame('StockOut', (string) $stockOut->movement_type);
         self::assertSame('-3.000', number_format((float) $stockOut->quantity_delta, 3, '.', ''));
         self::assertSame('2.000', $this->makeService()->currentStockOnHand($ingredientId, $branchId));
+
+        $reconciliation = app(InventoryStockReconciliationService::class)->summary();
+        self::assertSame(0, $reconciliation['negative_group_count']);
+        self::assertSame(0, $reconciliation['impossible_movement_count']);
     }
 
     public function test_purchase_receipt_reference_replay_returns_existing_stock_movement(): void

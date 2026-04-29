@@ -272,13 +272,94 @@ class OperationalInsightsServiceTest extends TestCase
 
         $snapshot = app(OperationalInsightsService::class)->reportingSnapshotsSnapshot($now);
 
-        $this->assertSame('degraded', $snapshot['status']);
+        $this->assertSame('fail', $snapshot['status']);
         $this->assertContains('reporting_snapshot_incomplete', $snapshot['reasons']);
+        $this->assertContains('reporting_launch_critical_drift_detected', $snapshot['reasons']);
         $this->assertSame(1, $snapshot['populated_family_count']);
         $this->assertSame(2, $snapshot['empty_family_count']);
         $this->assertSame(['operations', 'inventory'], $snapshot['empty_families']);
         $this->assertGreaterThan(0, $snapshot['families']['operations']['source_activity_count']);
         $this->assertGreaterThan(0, $snapshot['families']['inventory']['source_activity_count']);
+    }
+
+    #[Group('booking-ops')]
+    public function test_reporting_snapshot_health_fails_when_launch_critical_sales_snapshot_drifts_from_sources(): void
+    {
+        $now = Carbon::parse('2026-04-02T09:00:00Z')->utc();
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+
+        $this->createReservation([
+            'branch_id' => 1,
+            'user_id' => $customerId,
+            'status' => 'Completed',
+            'guest_count' => 2,
+            'start_time' => $now->copy()->subDay()->setTime(12, 0),
+            'end_time' => $now->copy()->subDay()->setTime(13, 0),
+            'checked_out_at' => $now->copy()->subDay()->setTime(13, 0),
+            'billed_at' => $now->copy()->subDay()->setTime(13, 5),
+            'bill_currency' => 'VND',
+            'final_bill_amount' => '90000.00',
+            'discount_amount' => '10000.00',
+        ]);
+
+        DB::table('reporting_daily_sales_snapshots')->insert([
+            'branch_id' => 1,
+            'business_date' => '2026-04-01',
+            'currency' => 'VND',
+            'billed_reservation_count' => 0,
+            'billed_guest_count' => 0,
+            'gross_bill_amount' => '0.00',
+            'discount_amount' => '0.00',
+            'billed_total_amount' => '0.00',
+            'refreshed_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $snapshot = app(OperationalInsightsService::class)->reportingSnapshotsSnapshot($now);
+
+        $this->assertSame('fail', $snapshot['status']);
+        $this->assertContains('reporting_launch_critical_drift_detected', $snapshot['reasons']);
+        $this->assertGreaterThan(0, $snapshot['launch_critical_reconciliation_drift_count']);
+        $this->assertSame('sales', $snapshot['launch_critical_reconciliation_examples'][0]['family'] ?? null);
+        $this->assertSame('billed_reservation_count', $snapshot['launch_critical_reconciliation_examples'][0]['metric'] ?? null);
+        $this->assertSame(['sales', 'operations'], $snapshot['launch_critical_families']);
+        $this->assertSame(['inventory'], $snapshot['experimental_families']);
+        $this->assertSame('experimental', $snapshot['families']['inventory']['tier']);
+        $this->assertContains('experimental_reporting_not_certified_accounting', $snapshot['families']['inventory']['warnings']);
+    }
+
+    #[Group('booking-ops')]
+    public function test_reporting_snapshot_health_fails_when_launch_critical_operations_snapshot_drifts_from_sources(): void
+    {
+        $now = Carbon::parse('2026-04-02T09:00:00Z')->utc();
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+
+        $this->createReservation([
+            'branch_id' => 1,
+            'user_id' => $customerId,
+            'status' => 'Confirmed',
+            'guest_count' => 3,
+            'start_time' => $now->copy()->subDay()->setTime(18, 0),
+            'end_time' => $now->copy()->subDay()->setTime(19, 0),
+        ]);
+
+        DB::table('reporting_daily_operation_snapshots')->insert([
+            'branch_id' => 1,
+            'business_date' => '2026-04-01',
+            'scheduled_reservation_count' => 0,
+            'scheduled_guest_count' => 0,
+            'refreshed_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $snapshot = app(OperationalInsightsService::class)->reportingSnapshotsSnapshot($now);
+
+        $this->assertSame('fail', $snapshot['status']);
+        $this->assertContains('reporting_launch_critical_drift_detected', $snapshot['reasons']);
+        $this->assertSame('operations', $snapshot['launch_critical_reconciliation_examples'][0]['family'] ?? null);
+        $this->assertSame('scheduled_reservation_count', $snapshot['launch_critical_reconciliation_examples'][0]['metric'] ?? null);
     }
 
     #[Group('booking-ops')]
@@ -562,6 +643,8 @@ class OperationalInsightsServiceTest extends TestCase
         $this->assertSame(1, $snapshot['inventory_purchasing']['checked_order_count']);
         $this->assertSame(0, $snapshot['inventory_purchasing']['issue_order_count']);
         $this->assertSame(0, $snapshot['inventory_purchasing']['duplicate_purchase_receipt_reference_count']);
+        $this->assertSame(0, $snapshot['inventory_purchasing']['negative_stock_group_count']);
+        $this->assertSame(0, $snapshot['inventory_purchasing']['impossible_stock_movement_count']);
         $this->assertSame([], $snapshot['inventory_purchasing']['duplicate_purchase_receipt_reference_examples']);
         $this->assertSame([], $snapshot['inventory_purchasing']['issue_examples']);
         $this->assertSame('ok', $snapshot['conversation_inbox']['status']);
@@ -735,6 +818,115 @@ class OperationalInsightsServiceTest extends TestCase
         $this->assertCount(3, $snapshot['stuck_examples']);
         $this->assertSame('Fired', $snapshot['stuck_examples'][0]['ticket_status']);
         $this->assertGreaterThanOrEqual(360, (int) $snapshot['stuck_examples'][0]['stuck_age_seconds']);
+    }
+
+    #[Group('booking-ops')]
+    public function test_kitchen_snapshot_fails_when_ticket_branch_scope_does_not_match_station_scope(): void
+    {
+        $now = Carbon::parse('2026-04-02T09:00:00Z')->utc();
+        $this->resetNonCoreOpsTables();
+
+        $branchId = $this->createBranch([
+            'branch_code' => 'KDS-BRANCH-DRIFT',
+            'branch_name' => 'KDS Branch Drift',
+        ]);
+        $categoryId = $this->ensureMenuCategory('Ops Branch Drift Kitchen');
+        $itemId = $this->createMenuItem([
+            'category_id' => $categoryId,
+            'code' => 'OPS-KDS-BRANCH-DRIFT',
+        ]);
+        $stationId = $this->createKitchenStation([
+            'branch_id' => 1,
+            'code' => 'OPS-KDS-BRANCH-DRIFT',
+            'name' => 'Ops Branch Drift KDS',
+        ]);
+        $routeId = $this->createKitchenStationRoute([
+            'station_id' => $stationId,
+            'branch_id' => 1,
+            'category_id' => $categoryId,
+        ]);
+        $reservationId = $this->createReservation([
+            'branch_id' => $branchId,
+        ]);
+        $orderId = $this->createOrder([
+            'reservation_id' => $reservationId,
+            'status' => 'Active',
+        ]);
+        $orderItemId = $this->createOrderItem([
+            'order_id' => $orderId,
+            'item_id' => $itemId,
+            'status' => 'Ordered',
+        ]);
+        $this->createKitchenOrderTicket([
+            'station_id' => $stationId,
+            'route_id' => $routeId,
+            'reservation_id' => $reservationId,
+            'order_id' => $orderId,
+            'order_item_id' => $orderItemId,
+            'item_id' => $itemId,
+            'category_id' => $categoryId,
+            'ticket_status' => 'Queued',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $snapshot = app(OperationalInsightsService::class)->kitchenKdsSnapshot($now);
+
+        $this->assertSame('fail', $snapshot['status']);
+        $this->assertContains('kitchen_ticket_branch_scope_drift_detected', $snapshot['reasons']);
+        $this->assertSame(1, $snapshot['branch_scope_mismatch_count']);
+        $this->assertSame($branchId, $snapshot['branch_scope_mismatch_examples'][0]['reservation_branch_id'] ?? null);
+        $this->assertSame(1, $snapshot['branch_scope_mismatch_examples'][0]['station_branch_id'] ?? null);
+    }
+
+    #[Group('booking-ops')]
+    public function test_kitchen_snapshot_fails_realtime_cache_when_strict_environment_uses_local_store(): void
+    {
+        config()->set('app.env', 'production');
+        config()->set('booking.realtime.enabled', true);
+        config()->set('booking.realtime.cache_store', 'array');
+        config()->set('booking.realtime.production_like_environments', ['production']);
+        config()->set('cache.stores.array.driver', 'array');
+
+        $snapshot = app(OperationalInsightsService::class)
+            ->kitchenKdsSnapshot(Carbon::parse('2026-04-02T09:00:00Z')->utc());
+
+        $this->assertSame('fail', $snapshot['status']);
+        $this->assertTrue($snapshot['realtime_strict_required']);
+        $this->assertFalse($snapshot['realtime_cache_trusted']);
+        $this->assertSame('array', $snapshot['realtime_cache_driver']);
+        $this->assertContains('kitchen_realtime_cache_unsafe', $snapshot['reasons']);
+    }
+
+    #[Group('booking-ops')]
+    public function test_inventory_snapshot_fails_when_stock_reconciliation_finds_negative_on_hand(): void
+    {
+        $now = Carbon::parse('2026-04-02T09:00:00Z')->utc();
+        $this->resetNonCoreOpsTables();
+        $ingredientId = $this->createIngredient([
+            'code' => 'OPS-NEG-STOCK',
+            'name' => 'Ops Negative Stock',
+            'unit_code' => 'kg',
+        ]);
+
+        $movementId = $this->createIngredientStockMovement([
+            'branch_id' => 1,
+            'ingredient_id' => $ingredientId,
+            'movement_type' => 'StockOut',
+            'quantity_delta' => '-2.000',
+            'unit_code' => 'kg',
+            'reference_type' => 'direct_fixture',
+            'reference_id' => 'OPS-NEG-STOCK',
+            'created_at' => $now,
+        ]);
+
+        $snapshot = app(OperationalInsightsService::class)->inventoryPurchasingSnapshot($now);
+
+        $this->assertSame('fail', $snapshot['status']);
+        $this->assertContains('inventory_negative_stock_detected', $snapshot['reasons']);
+        $this->assertSame(1, $snapshot['negative_stock_group_count']);
+        $this->assertSame($ingredientId, $snapshot['negative_stock_examples'][0]['ingredient_id'] ?? null);
+        $this->assertContains($movementId, $snapshot['negative_stock_examples'][0]['movement_sample_ids'] ?? []);
     }
 
     #[Group('booking-ops')]

@@ -40,6 +40,20 @@ Expected verification steps:
 - `booking:doctor --strict`
 - `booking:deploy-check --mode=postflight --strict`
 
+## Launch-readiness evidence
+
+Limited production requires recent restore evidence, not just a backup file. Use the JSON from `booking:dr-drill` or a reviewed manual evidence record with these safe-to-share fields:
+
+- `restored_dump_identifier`
+- `restore_target`
+- `verification_command`
+- `verification_result`
+- `performed_at_utc`
+- `operator`
+- `reviewer`
+
+Do not include database passwords, provider credentials, connection strings, tokens, or dump contents in the launch-readiness manual evidence file. Automated tests should use dry-run/sample fixtures and must not execute destructive restore commands.
+
 ## CI/manual rehearsal
 
 For a repeatable shell entrypoint, use:
@@ -64,3 +78,4 @@ This script remains a minimal restore rehearsal entrypoint. The canonical eviden
 
 - `db_all.sql` in source control is **not** a substitute for environment backup.
 - Every release candidate should have a fresh backup plus at least one recent restore rehearsal record.
+- Full restore rehearsal commands must target an isolated scratch database whose name makes the restore scope obvious.
