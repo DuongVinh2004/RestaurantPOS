@@ -241,4 +241,237 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
 
         $this->assertSame(1, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Refund')->count());
     }
+
+    public function test_refund_overpaid_denied(): void
+    {
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Completed',
+            'deposit_required_amount' => '100000.00',
+            'deposit_paid_amount' => '100000.00',
+            'deposit_status' => 'Paid',
+            'bill_currency' => 'VND',
+        ]);
+
+        $this->createPayment([
+            'reservation_id' => $reservationId,
+            'payment_type' => 'Deposit',
+            'status' => 'Success',
+            'amount' => '100000.00',
+            'currency' => 'VND',
+            'transaction_code' => 'DEP-OVERPAID-DENIED-1',
+        ]);
+
+        try {
+            $this->makeCheckoutService()->refundReservation(
+                reservationId: $reservationId,
+                paymentMethod: 'Cash',
+                refundScope: 'deposit',
+                refundAmount: 120000.00,
+                currency: 'VND',
+                transactionCode: 'RF-OVERPAID-DENIED-1',
+                paymentProvider: 'Cash',
+                notes: 'overpaid refund denied',
+                reason: 'customer_request',
+                expectedRowVersion: 1,
+                staffUserId: $staffId,
+                idempotencyKey: 'idem-rf-overpaid-denied-1'
+            );
+
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $errors = $e->errors();
+            $this->assertArrayHasKey('refund_amount', $errors);
+            $this->assertStringContainsString('exceeds refundable balance', $errors['refund_amount'][0]);
+        }
+
+        $this->assertSame(0, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Refund')->count());
+    }
+
+    public function test_refund_replay_same_result(): void
+    {
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Completed',
+            'deposit_required_amount' => '100000.00',
+            'deposit_paid_amount' => '100000.00',
+            'deposit_status' => 'Paid',
+            'bill_currency' => 'VND',
+        ]);
+
+        $this->createPayment([
+            'reservation_id' => $reservationId,
+            'payment_type' => 'Deposit',
+            'status' => 'Success',
+            'amount' => '100000.00',
+            'currency' => 'VND',
+            'transaction_code' => 'DEP-REFUND-REPLAY-1',
+        ]);
+
+        $service = $this->makeCheckoutService();
+        $first = $service->refundReservation(
+            reservationId: $reservationId,
+            paymentMethod: 'Cash',
+            refundScope: 'deposit',
+            refundAmount: 25000.00,
+            currency: 'VND',
+            transactionCode: 'RF-REFUND-REPLAY-1',
+            paymentProvider: 'Cash',
+            notes: 'refund replay',
+            reason: 'customer_request',
+            expectedRowVersion: 1,
+            staffUserId: $staffId,
+            idempotencyKey: 'idem-rf-replay-same-result-1'
+        );
+        $second = $service->refundReservation(
+            reservationId: $reservationId,
+            paymentMethod: 'Cash',
+            refundScope: 'deposit',
+            refundAmount: 25000.00,
+            currency: 'VND',
+            transactionCode: 'RF-REFUND-REPLAY-1',
+            paymentProvider: 'Cash',
+            notes: 'refund replay',
+            reason: 'customer_request',
+            expectedRowVersion: 1,
+            staffUserId: $staffId,
+            idempotencyKey: 'idem-rf-replay-same-result-1'
+        );
+
+        $this->assertSame($first['refund']['refund_payment_ids'], $second['refund']['refund_payment_ids']);
+        $this->assertSame($first['refund']['refund_amount'], $second['refund']['refund_amount']);
+        $this->assertSame(1, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Refund')->count());
+    }
+
+    public function test_refund_mismatch_conflict(): void
+    {
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Completed',
+            'deposit_required_amount' => '100000.00',
+            'deposit_paid_amount' => '100000.00',
+            'deposit_status' => 'Paid',
+            'bill_currency' => 'VND',
+        ]);
+
+        $this->createPayment([
+            'reservation_id' => $reservationId,
+            'payment_type' => 'Deposit',
+            'status' => 'Success',
+            'amount' => '100000.00',
+            'currency' => 'VND',
+            'transaction_code' => 'DEP-REFUND-MISMATCH-1',
+        ]);
+
+        $service = $this->makeCheckoutService();
+        $service->refundReservation(
+            reservationId: $reservationId,
+            paymentMethod: 'Cash',
+            refundScope: 'deposit',
+            refundAmount: 25000.00,
+            currency: 'VND',
+            transactionCode: 'RF-REFUND-MISMATCH-1',
+            paymentProvider: 'Cash',
+            notes: 'refund mismatch',
+            reason: 'customer_request',
+            expectedRowVersion: 1,
+            staffUserId: $staffId,
+            idempotencyKey: 'idem-rf-mismatch-conflict-1'
+        );
+
+        try {
+            $service->refundReservation(
+                reservationId: $reservationId,
+                paymentMethod: 'Cash',
+                refundScope: 'deposit',
+                refundAmount: 30000.00,
+                currency: 'VND',
+                transactionCode: 'RF-REFUND-MISMATCH-2',
+                paymentProvider: 'Cash',
+                notes: 'refund mismatch',
+                reason: 'customer_request',
+                expectedRowVersion: null,
+                staffUserId: $staffId,
+                idempotencyKey: 'idem-rf-mismatch-conflict-1'
+            );
+
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $errors = $e->errors();
+            $this->assertArrayHasKey('idempotency_key', $errors);
+        }
+
+        $this->assertSame(1, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Refund')->count());
+    }
+
+    public function test_refund_cancel_requires_remaining_final_payments_to_be_refunded(): void
+    {
+        $customerId = $this->createUser(['role_name' => 'Customer']);
+        $staffId = $this->createUser(['role_name' => 'Manager']);
+        $this->createCashierShift(['cashier_user_id' => $staffId]);
+        $reservationId = $this->createReservation([
+            'user_id' => $customerId,
+            'status' => 'Completed',
+            'deposit_required_amount' => '50000.00',
+            'deposit_paid_amount' => '50000.00',
+            'deposit_status' => 'Paid',
+            'final_bill_amount' => '150000.00',
+            'bill_currency' => 'VND',
+            'billed_at' => $this->nowUtc(),
+            'checked_out_at' => $this->nowUtc(),
+        ]);
+
+        $this->createPayment([
+            'reservation_id' => $reservationId,
+            'payment_type' => 'Deposit',
+            'status' => 'Success',
+            'amount' => '50000.00',
+            'currency' => 'VND',
+            'transaction_code' => 'DEP-REFUND-CANCEL-FINAL-1',
+        ]);
+        $this->createPayment([
+            'reservation_id' => $reservationId,
+            'payment_type' => 'Final',
+            'status' => 'Success',
+            'amount' => '100000.00',
+            'currency' => 'VND',
+            'transaction_code' => 'FINAL-REFUND-CANCEL-FINAL-1',
+        ]);
+
+        try {
+            $this->makeCheckoutService()->refundAndCancelReservation(
+                reservationId: $reservationId,
+                paymentMethod: 'Cash',
+                refundScope: 'deposit',
+                refundAmount: 50000.00,
+                currency: 'VND',
+                transactionCode: 'RF-CANCEL-MISSING-FINAL-1',
+                paymentProvider: 'Cash',
+                notes: 'cancel must refund final',
+                reason: 'customer_request',
+                cancelReason: 'customer_request',
+                expectedRowVersion: 1,
+                staffUserId: $staffId,
+                idempotencyKey: 'idem-rf-cancel-missing-final-1'
+            );
+
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $errors = $e->errors();
+            $this->assertArrayHasKey('refund_amount', $errors);
+            $this->assertSame('cancel-after-payment requires all remaining final payments to be refunded first.', $errors['refund_amount'][0]);
+        }
+
+        $this->assertSame('Completed', (string) DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
+        $this->assertSame(0, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Refund')->count());
+    }
 }

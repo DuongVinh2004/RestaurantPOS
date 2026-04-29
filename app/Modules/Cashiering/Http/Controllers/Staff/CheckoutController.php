@@ -121,7 +121,7 @@ class CheckoutController extends Controller
     {
         $staffUserId = $this->resolveStaffActorUserId($request);
 
-        $order = $this->checkoutService->payOrder(
+        $result = $this->checkoutService->payOrderResponse(
             orderId: $order_id,
             paymentMethod: (string) $request->input('payment_method'),
             paidAmount: (float) $request->input('paid_amount'),
@@ -135,7 +135,7 @@ class CheckoutController extends Controller
         );
 
         return response()->json([
-            'data' => new ReservationOrderResource($order->load('items.item')),
+            'data' => $result,
         ]);
     }
 

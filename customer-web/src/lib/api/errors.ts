@@ -123,7 +123,7 @@ export function normalizeApiError(error: unknown): NormalizedApiError {
     const message =
       payloadMessage && (!isGenericApiMessage(payloadMessage) || !validationMessage)
         ? payloadMessage
-        : validationMessage ?? payloadMessage ?? "The request could not be completed.";
+        : validationMessage ?? payloadMessage ?? "Yêu cầu chưa được xử lý.";
 
     return {
       kind: kindForStatus(error.status),
@@ -141,7 +141,7 @@ export function normalizeApiError(error: unknown): NormalizedApiError {
     return {
       kind: "backend_unavailable",
       status: null,
-      message: "The restaurant service is not reachable right now.",
+      message: "Hiện chưa kết nối được với hệ thống nhà hàng.",
       errorCode: "backend_unavailable",
       categoryCode: "backend_unavailable",
       requestId: null,
@@ -157,7 +157,7 @@ export function normalizeApiError(error: unknown): NormalizedApiError {
   return {
     kind: "unknown",
     status: null,
-    message: "Something went wrong.",
+    message: "Đã có lỗi xảy ra.",
     errorCode: null,
     categoryCode: null,
     requestId: null,
@@ -172,14 +172,14 @@ export function userFacingApiMessage(error: unknown): string {
 
 export function getApiErrorDisplay(error: unknown): ApiErrorDisplay {
   const normalized = normalizeApiError(error);
-  const statusLabel = normalized.status === null ? null : `Status ${normalized.status}`;
-  const requestIdLabel = normalized.requestId ? `Request ID: ${normalized.requestId}` : null;
-  const errorCodeLabel = normalized.errorCode ? `Code ${normalized.errorCode}` : null;
+  const statusLabel = normalized.status === null ? null : `Trạng thái ${normalized.status}`;
+  const requestIdLabel = normalized.requestId ? `Mã hỗ trợ: ${normalized.requestId}` : null;
+  const errorCodeLabel = normalized.errorCode ? `Mã lỗi ${normalized.errorCode}` : null;
 
   if (normalized.errorCode === "api_base_url_misconfigured") {
     return {
       message: normalized.message,
-      retryHint: "Deploy the correct NEXT_PUBLIC_API_BASE_URL for this environment, then reload the page.",
+      retryHint: "Cấu hình lại địa chỉ API phù hợp cho môi trường này, rồi tải lại trang.",
       statusLabel,
       requestIdLabel,
       errorCodeLabel,
@@ -188,8 +188,8 @@ export function getApiErrorDisplay(error: unknown): ApiErrorDisplay {
 
   if (normalized.kind === "backend_unavailable") {
     return {
-      message: "We cannot reach the restaurant service right now.",
-      retryHint: "Check that the backend is running, then try again.",
+      message: "Hiện chưa kết nối được với hệ thống nhà hàng.",
+      retryHint: "Kiểm tra hệ thống nhà hàng rồi thử lại.",
       statusLabel,
       requestIdLabel,
       errorCodeLabel,
@@ -198,8 +198,8 @@ export function getApiErrorDisplay(error: unknown): ApiErrorDisplay {
 
   if (normalized.kind === "unauthorized") {
     return {
-      message: "Please sign in again to continue.",
-      retryHint: "Sign in again, then retry the action.",
+      message: "Vui lòng đăng nhập lại để tiếp tục.",
+      retryHint: "Đăng nhập lại, sau đó thử lại thao tác.",
       statusLabel,
       requestIdLabel,
       errorCodeLabel,
@@ -209,7 +209,7 @@ export function getApiErrorDisplay(error: unknown): ApiErrorDisplay {
   if (normalized.kind === "forbidden") {
     if (normalized.categoryCode === "owner_scope_denied") {
       return {
-        message: "This item is not available for this account.",
+        message: "Mục này không khả dụng với tài khoản hiện tại.",
         retryHint: null,
         statusLabel,
         requestIdLabel,
@@ -219,7 +219,7 @@ export function getApiErrorDisplay(error: unknown): ApiErrorDisplay {
 
     if (normalized.categoryCode === "policy_denied") {
       return {
-        message: "This page is not available from customer self-service.",
+        message: "Trang này chưa khả dụng cho khách hàng tự thao tác.",
         retryHint: null,
         statusLabel,
         requestIdLabel,
@@ -228,7 +228,7 @@ export function getApiErrorDisplay(error: unknown): ApiErrorDisplay {
     }
 
     return {
-      message: "This item is not available for this customer session.",
+      message: "Mục này không khả dụng với phiên khách hàng hiện tại.",
       retryHint: null,
       statusLabel,
       requestIdLabel,
@@ -238,8 +238,8 @@ export function getApiErrorDisplay(error: unknown): ApiErrorDisplay {
 
   if (isRecoverableMutationApiError(normalized)) {
     return {
-      message: "This changed while you were working.",
-      retryHint: "Refresh the page to load the latest reservation or linked session, then retry.",
+      message: "Thông tin đã thay đổi trong lúc bạn thao tác.",
+      retryHint: "Tải lại trang để lấy thông tin mới nhất rồi thử lại.",
       statusLabel,
       requestIdLabel,
       errorCodeLabel,
@@ -249,7 +249,7 @@ export function getApiErrorDisplay(error: unknown): ApiErrorDisplay {
   if (normalized.kind === "server" || normalized.kind === "unknown") {
     return {
       message: normalized.message,
-      retryHint: "Try again. If it keeps failing, contact support with the request ID.",
+      retryHint: "Thử lại. Nếu vẫn lỗi, gửi mã hỗ trợ cho nhà hàng.",
       statusLabel,
       requestIdLabel,
       errorCodeLabel,
@@ -328,15 +328,15 @@ export function getSessionRestoreDisplay(error: unknown): SessionRestoreDisplay 
       ? (error as SessionRestoreError)
       : classifySessionRestoreError(error);
 
-  const statusLabel = normalized.status === null ? null : `Status ${normalized.status}`;
-  const requestIdLabel = normalized.requestId ? `Request ID: ${normalized.requestId}` : null;
-  const errorCodeLabel = normalized.errorCode ? `Code ${normalized.errorCode}` : null;
+  const statusLabel = normalized.status === null ? null : `Trạng thái ${normalized.status}`;
+  const requestIdLabel = normalized.requestId ? `Mã hỗ trợ: ${normalized.requestId}` : null;
+  const errorCodeLabel = normalized.errorCode ? `Mã lỗi ${normalized.errorCode}` : null;
 
   if (normalized.errorCode === "api_base_url_misconfigured") {
     return {
-      title: "Sign-in is blocked by runtime configuration",
+      title: "Chưa thể đăng nhập",
       message: normalized.message,
-      retryHint: "Deploy the correct NEXT_PUBLIC_API_BASE_URL for this environment, then reload the page.",
+      retryHint: "Cấu hình lại địa chỉ API phù hợp cho môi trường này, rồi tải lại trang.",
       statusLabel,
       requestIdLabel,
       errorCodeLabel,
@@ -346,8 +346,8 @@ export function getSessionRestoreDisplay(error: unknown): SessionRestoreDisplay 
 
   if (normalized.restoreKind === "token_expired") {
     return {
-      title: "Your session expired",
-      message: "Your saved sign-in has expired. Sign in again to continue.",
+      title: "Phiên đăng nhập đã hết hạn",
+      message: "Vui lòng đăng nhập lại để tiếp tục.",
       retryHint: null,
       statusLabel,
       requestIdLabel,
@@ -358,8 +358,8 @@ export function getSessionRestoreDisplay(error: unknown): SessionRestoreDisplay 
 
   if (normalized.restoreKind === "invalid_session") {
     return {
-      title: "Your session is no longer valid",
-      message: "This saved browser session is no longer valid. Sign in again to continue.",
+      title: "Phiên đăng nhập không còn hợp lệ",
+      message: "Phiên trên trình duyệt này không còn hợp lệ. Vui lòng đăng nhập lại.",
       retryHint: null,
       statusLabel,
       requestIdLabel,
@@ -370,8 +370,8 @@ export function getSessionRestoreDisplay(error: unknown): SessionRestoreDisplay 
 
   if (normalized.restoreKind === "unauthorized_owner_access") {
     return {
-      title: "This page is not available for this account",
-      message: "This saved sign-in does not match the customer account or linked visit session for this page.",
+      title: "Trang này không thuộc tài khoản hiện tại",
+      message: "Tài khoản đang đăng nhập không khớp với lượt đặt hoặc phiên ghé nhà hàng của trang này.",
       retryHint: null,
       statusLabel,
       requestIdLabel,
@@ -382,9 +382,9 @@ export function getSessionRestoreDisplay(error: unknown): SessionRestoreDisplay 
 
   if (normalized.restoreKind === "backend_unavailable") {
     return {
-      title: "We could not reach the restaurant service",
-      message: "We cannot reach the restaurant service right now.",
-      retryHint: "Check that the backend is running, then try again.",
+      title: "Chưa kết nối được với nhà hàng",
+      message: "Hiện chưa kết nối được với hệ thống nhà hàng.",
+      retryHint: "Kiểm tra hệ thống nhà hàng rồi thử lại.",
       statusLabel,
       requestIdLabel,
       errorCodeLabel,
@@ -393,7 +393,7 @@ export function getSessionRestoreDisplay(error: unknown): SessionRestoreDisplay 
   }
 
   return {
-    title: "We could not restore your session",
+    title: "Chưa khôi phục được phiên đăng nhập",
     ...getApiErrorDisplay(normalized),
     primaryAction: normalized.kind === "backend_unavailable" ? "retry" : "sign_in",
   };

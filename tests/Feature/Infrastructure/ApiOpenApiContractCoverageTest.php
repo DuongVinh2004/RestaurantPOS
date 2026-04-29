@@ -265,6 +265,7 @@ final class ApiOpenApiContractCoverageTest extends TestCase
             'GET api/v1/staff/cashier/shifts/{shift_id}' => ['status' => '200', 'schema' => '#/components/schemas/CashierShiftEnvelope'],
             'POST api/v1/staff/cashier/shifts/{shift_id}/close' => ['status' => '200', 'schema' => '#/components/schemas/CashierShiftEnvelope'],
             'GET api/v1/staff/orders/{order_id}/settlement-preview' => ['status' => '200', 'schema' => '#/components/schemas/StaffCheckoutSettlementEnvelope'],
+            'POST api/v1/staff/orders/{order_id}/pay' => ['status' => '200', 'schema' => '#/components/schemas/StaffCheckoutSettlementEnvelope'],
             'POST api/v1/staff/orders/{order_id}/settlement/finalize' => ['status' => '200', 'schema' => '#/components/schemas/StaffCheckoutSettlementEnvelope'],
             'GET api/v1/staff/reservations/{reservation_id}/refund-preview' => ['status' => '200', 'schema' => '#/components/schemas/StaffRefundPreviewEnvelope'],
             'POST api/v1/staff/reservations/{reservation_id}/refund' => ['status' => '200', 'schema' => '#/components/schemas/StaffRefundEnvelope'],
@@ -312,6 +313,10 @@ final class ApiOpenApiContractCoverageTest extends TestCase
         $this->assertSame(
             '#/components/schemas/SeatWaitlistRequest',
             data_get($operations['POST api/v1/staff/waiting-list/{id}/seat'], 'requestBody.content.application/json.schema.$ref')
+        );
+        $this->assertSame(
+            '#/components/schemas/PayOrderRequest',
+            data_get($operations['POST api/v1/staff/orders/{order_id}/pay'], 'requestBody.content.application/json.schema.$ref')
         );
 
         $this->assertSame(
@@ -777,6 +782,7 @@ final class ApiOpenApiContractCoverageTest extends TestCase
             'PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}',
             'POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status',
             'POST api/v1/staff/orders/{order_id}/kitchen/dispatch',
+            'POST api/v1/staff/orders/{order_id}/pay',
             'POST api/v1/staff/orders/{order_id}/settlement/finalize',
             'GET api/v1/staff/orders/{order_id}/settlement-preview',
             'GET api/v1/staff/reporting/daily-inventory',

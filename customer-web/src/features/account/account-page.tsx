@@ -35,47 +35,47 @@ export function AccountPage() {
   const voucherWallet = vouchersQuery.data ? getVoucherWalletState(vouchersQuery.data) : null;
   const shellCards = [
     {
-      title: "Loyalty",
-      badge: accountBenefitsRollout.enabled ? "Contract-visible" : "Gated",
+      title: "Điểm thưởng",
+      badge: accountBenefitsRollout.enabled ? "Đã bật" : "Chưa bật",
       summary: loyaltyState?.title ?? benefitsVisibility.title,
       description: loyaltyState?.description ?? benefitsVisibility.description,
     },
     {
-      title: "Vouchers",
-      badge: accountBenefitsRollout.enabled ? "Contract-visible" : "Gated",
+      title: "Voucher",
+      badge: accountBenefitsRollout.enabled ? "Đã bật" : "Chưa bật",
       summary: voucherWallet?.title ?? benefitsVisibility.title,
       description: voucherWallet?.description ?? benefitsVisibility.description,
     },
     {
-      title: "Privacy requests",
-      badge: privacyEnabled ? "Enabled" : "Gated",
-      summary: privacyEnabled ? "Visible for this rollout" : privacyRollout.disabledTitle,
-      description: privacyEnabled ? privacyRollout.description : privacyRollout.disabledDescription,
+      title: "Yêu cầu dữ liệu cá nhân",
+      badge: privacyEnabled ? "Đã bật" : "Chưa bật",
+      summary: privacyEnabled ? "Có thể gửi yêu cầu" : privacyRollout.disabledTitle,
+      description: privacyEnabled ? "Bạn có thể gửi yêu cầu về dữ liệu cá nhân khi nhà hàng bật tính năng này." : privacyRollout.disabledDescription,
     },
     {
-      title: "Data export",
-      badge: dataExportEnabled ? "Enabled" : "Gated",
-      summary: dataExportEnabled ? "Visible for this rollout" : dataExportRollout.disabledTitle,
+      title: "Xuất dữ liệu",
+      badge: dataExportEnabled ? "Đã bật" : "Chưa bật",
+      summary: dataExportEnabled ? "Có thể xem dữ liệu xuất" : dataExportRollout.disabledTitle,
       description: dataExportEnabled
-        ? dataExportRollout.description
+        ? "Bản xuất dữ liệu tài khoản sẽ hiển thị tại đây."
         : privacyEnabled
           ? dataExportRollout.disabledDescription
-          : "Data export stays behind the broader privacy rollout and does not open before privacy tools are enabled.",
+          : "Xuất dữ liệu chỉ mở sau khi công cụ dữ liệu cá nhân được bật.",
     },
   ];
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6">
       <section className="mb-5 space-y-2">
-        <h1 className="text-4xl font-semibold tracking-normal">Account</h1>
+        <h1 className="text-4xl font-semibold tracking-normal">Tài khoản</h1>
         <p className="text-muted-foreground">
-          {profile?.name ?? "Customer"} can review contract-visible account tools here. Wave 2 benefits stay behind an explicit rollout flag and use reservation-level row-version checks for voucher and loyalty actions.
+          {profile?.name ?? "Khách hàng"} có thể xem điểm thưởng, voucher và các công cụ dữ liệu cá nhân khi nhà hàng bật cho tài khoản.
         </p>
       </section>
 
       <Card className="mb-5 rounded-lg">
         <CardHeader>
-          <CardTitle>Account rollout shell</CardTitle>
+          <CardTitle>Công cụ tài khoản</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="rounded-lg border border-dashed bg-secondary/20 p-4 text-sm">
@@ -109,27 +109,27 @@ export function AccountPage() {
       <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
         <Card className="rounded-lg">
           <CardHeader>
-            <CardTitle>Loyalty</CardTitle>
+            <CardTitle>Điểm thưởng</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {!accountBenefitsRollout.enabled ? <EmptyState title={benefitsVisibility.title} description={benefitsVisibility.description} /> : null}
-            {loyaltyQuery.isLoading ? <LoadingBlock label="Loading loyalty" /> : null}
-            {loyaltyQuery.error ? <ErrorState error={loyaltyQuery.error} title="Loyalty is unavailable" onRetry={() => loyaltyQuery.refetch()} /> : null}
+            {loyaltyQuery.isLoading ? <LoadingBlock label="Đang tải điểm thưởng" /> : null}
+            {loyaltyQuery.error ? <ErrorState error={loyaltyQuery.error} title="Chưa tải được điểm thưởng" onRetry={() => loyaltyQuery.refetch()} /> : null}
             {loyaltyState ? (
               <>
                 <div className="rounded-lg bg-secondary p-4">
-                  <p className="text-sm text-muted-foreground">Points</p>
+                  <p className="text-sm text-muted-foreground">Điểm</p>
                   <p className="text-3xl font-semibold">{loyaltyState.totalPoints}</p>
                   <p className="mt-2 text-sm text-muted-foreground">{loyaltyState.description}</p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-lg border p-4">
-                    <p className="text-sm text-muted-foreground">Current tier</p>
-                    <p className="mt-1 font-medium">{loyaltyState.tierLabel ?? "No tier yet"}</p>
+                    <p className="text-sm text-muted-foreground">Hạng hiện tại</p>
+                    <p className="mt-1 font-medium">{loyaltyState.tierLabel ?? "Chưa có hạng"}</p>
                   </div>
                   <div className="rounded-lg border p-4">
-                    <p className="text-sm text-muted-foreground">Next threshold</p>
-                    <p className="mt-1 font-medium">{loyaltyState.nextTierLabel ?? "No tier upgrade exposed right now"}</p>
+                    <p className="text-sm text-muted-foreground">Mốc tiếp theo</p>
+                    <p className="mt-1 font-medium">{loyaltyState.nextTierLabel ?? "Chưa có mốc nâng hạng"}</p>
                   </div>
                 </div>
                 {loyaltyState.state === "empty" ? (
@@ -144,7 +144,7 @@ export function AccountPage() {
                       {loyaltyQuery.data?.transactions.slice(0, 5).map((transaction) => (
                         <div key={`${transaction.txn_id}-${transaction.created_at}`} className="rounded-lg border p-3">
                           <div className="flex justify-between gap-3">
-                            <span>{transaction.txn_type ?? "Transaction"}</span>
+                            <span>{transaction.txn_type ?? "Giao dịch"}</span>
                             <span className="font-medium">{transaction.points} pts</span>
                           </div>
                           <p className="mt-1 text-muted-foreground">{formatDateTime(transaction.created_at)}</p>
@@ -160,16 +160,16 @@ export function AccountPage() {
 
         <Card className="rounded-lg">
           <CardHeader>
-            <CardTitle>Vouchers</CardTitle>
+            <CardTitle>Voucher</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {!accountBenefitsRollout.enabled ? <EmptyState title={benefitsVisibility.title} description={benefitsVisibility.description} /> : null}
-            {vouchersQuery.isLoading ? <LoadingBlock label="Loading vouchers" /> : null}
-            {vouchersQuery.error ? <ErrorState error={vouchersQuery.error} title="Voucher wallet is unavailable" onRetry={() => vouchersQuery.refetch()} /> : null}
+            {vouchersQuery.isLoading ? <LoadingBlock label="Đang tải voucher" /> : null}
+            {vouchersQuery.error ? <ErrorState error={vouchersQuery.error} title="Chưa tải được ví voucher" onRetry={() => vouchersQuery.refetch()} /> : null}
             {voucherWallet ? (
               <>
                 <div className="rounded-lg bg-secondary p-4">
-                  <p className="text-sm text-muted-foreground">Wallet state</p>
+                  <p className="text-sm text-muted-foreground">Trạng thái ví</p>
                   <p className="text-lg font-semibold">{voucherWallet.title}</p>
                   <p className="mt-2 text-sm text-muted-foreground">{voucherWallet.description}</p>
                 </div>
@@ -178,15 +178,15 @@ export function AccountPage() {
                 ) : (
                   <>
                     <div className="grid gap-3 sm:grid-cols-4">
-                      <AccountMetricCard label="Available" value={voucherWallet.counts.available} />
-                      <AccountMetricCard label="Not eligible" value={voucherWallet.counts.notEligible} />
-                      <AccountMetricCard label="Expired" value={voucherWallet.counts.expired} />
-                      <AccountMetricCard label="Unavailable" value={voucherWallet.counts.unavailable} />
+                      <AccountMetricCard label="Có thể dùng" value={voucherWallet.counts.available} />
+                      <AccountMetricCard label="Chưa đủ điều kiện" value={voucherWallet.counts.notEligible} />
+                      <AccountMetricCard label="Hết hạn" value={voucherWallet.counts.expired} />
+                      <AccountMetricCard label="Không khả dụng" value={voucherWallet.counts.unavailable} />
                     </div>
                     <div className="rounded-lg border border-dashed bg-secondary/20 p-4 text-sm text-muted-foreground">
-                      <p className="font-medium text-foreground">Read-only wallet</p>
+                      <p className="font-medium text-foreground">Ví chỉ để xem</p>
                       <p className="mt-1">
-                        Voucher wallet rows are visible here because the contract exists. Apply and remove actions happen from the reservation benefits panel with the latest reservation row version.
+                        Voucher sẽ hiển thị tại đây. Thao tác áp dụng hoặc gỡ voucher nằm trong chi tiết lịch đặt khi nhà hàng bật tính năng.
                       </p>
                       <p className="mt-2">{voucherWallet.summary}</p>
                     </div>

@@ -17,14 +17,14 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
     queryFn: () => getReservationPreorder(reservationId),
     enabled: preorderRollout.enabled,
   });
-  const loadBoundary = preorderQuery.error ? getSelfServiceBlockedState("preorder", preorderQuery.error, "Preorder is unavailable") : null;
+  const loadBoundary = preorderQuery.error ? getSelfServiceBlockedState("preorder", preorderQuery.error, "Chưa tải được món đặt trước") : null;
   const preorderPolicy = preorderQuery.data ? getPreorderPolicy(preorderQuery.data) : null;
 
   if (!preorderRollout.enabled) {
     return (
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle>Preorder</CardTitle>
+          <CardTitle>Món đặt trước</CardTitle>
         </CardHeader>
         <CardContent>
           <EmptyState title={preorderRollout.disabledTitle} description={preorderRollout.disabledDescription} />
@@ -36,10 +36,10 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
   return (
     <Card className="rounded-lg">
       <CardHeader>
-        <CardTitle>Preorder</CardTitle>
+        <CardTitle>Món đặt trước</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {preorderQuery.isLoading ? <LoadingBlock label="Loading preorder" /> : null}
+        {preorderQuery.isLoading ? <LoadingBlock label="Đang tải món đặt trước" /> : null}
         {loadBoundary ? (
           loadBoundary.kind === "error" ? (
             <ErrorState error={loadBoundary.error} title={loadBoundary.title} onRetry={() => preorderQuery.refetch()} />
@@ -56,9 +56,9 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
             {preorderPolicy.hasPreorder ? (
               <>
                 <div className="rounded-lg border p-4 text-sm">
-                  <p className="font-medium">{preorderQuery.data.pre_order.totals.quantity} items reserved</p>
+                  <p className="font-medium">{preorderQuery.data.pre_order.totals.quantity} món đã ghi nhận</p>
                   <p className="mt-1 text-muted-foreground">
-                    {formatMoney(preorderQuery.data.pre_order.totals.subtotal, preorderQuery.data.pre_order.currency)} scheduled for{" "}
+                    {formatMoney(preorderQuery.data.pre_order.totals.subtotal, preorderQuery.data.pre_order.currency)} cho khung giờ{" "}
                     {formatDateTime(preorderQuery.data.pre_order.service_time)}
                   </p>
                 </div>

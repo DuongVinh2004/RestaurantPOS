@@ -21,7 +21,7 @@ import {
 } from '../../../../shared/api/staff-api';
 import { formatApiError } from '../../../../shared/api/errors';
 import { formatDateTime } from '../../../../shared/utils/format';
-import { AdminMasterDataImportPanel } from '../../components/AdminMasterDataImportPanel';
+import { AdminMasterDataImportPanel } from '../components/AdminMasterDataImportPanel';
 import { PageHeader } from '../../../../shared/ui/layout/PageHeader';
 import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
 import { ApiStateBlock, EmptyBlock, InlineLoading } from '../../../../shared/ui/states/StateBlocks';

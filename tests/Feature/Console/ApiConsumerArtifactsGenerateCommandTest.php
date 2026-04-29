@@ -177,6 +177,7 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertStringContainsString('postV1StaffCashierShiftsShiftIdClose', $sdk);
         self::assertStringContainsString('postV1StaffConversationsConversationIdUnassign', $sdk);
         self::assertStringContainsString('getV1StaffOrdersOrderIdSettlementPreview', $sdk);
+        self::assertStringContainsString('postV1StaffOrdersOrderIdPay', $sdk);
         self::assertStringContainsString('postV1StaffOrdersOrderIdSettlementFinalize', $sdk);
         self::assertStringContainsString('getV1StaffReservationsReservationIdRefundPreview', $sdk);
         self::assertStringContainsString('postV1StaffReservationsReservationIdRefund', $sdk);
@@ -308,6 +309,7 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertStringContainsString('- GET api/v1/staff/cashier/shifts/{shift_id}', $sdkReadme);
         self::assertStringContainsString('- POST api/v1/staff/cashier/shifts/{shift_id}/close', $sdkReadme);
         self::assertStringContainsString('- GET api/v1/staff/orders/{order_id}/settlement-preview', $sdkReadme);
+        self::assertStringContainsString('- POST api/v1/staff/orders/{order_id}/pay', $sdkReadme);
         self::assertStringContainsString('- POST api/v1/staff/orders/{order_id}/settlement/finalize', $sdkReadme);
         self::assertStringContainsString('- GET api/v1/staff/reservations/{reservation_id}/refund-preview', $sdkReadme);
         self::assertStringContainsString('- POST api/v1/staff/reservations/{reservation_id}/refund', $sdkReadme);
@@ -338,6 +340,7 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertStringContainsString('`POST api/v1/me/privacy-requests`', $mutationContract);
         self::assertStringContainsString('`POST api/v1/staff/cashier/shifts/open`', $mutationContract);
         self::assertStringContainsString('`POST api/v1/staff/cashier/shifts/{shift_id}/close`', $mutationContract);
+        self::assertStringContainsString('`POST api/v1/staff/orders/{order_id}/pay`', $mutationContract);
         self::assertStringContainsString('`POST api/v1/staff/orders/{order_id}/items`', $mutationContract);
         self::assertStringContainsString('`PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}`', $mutationContract);
         self::assertStringContainsString('`POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status`', $mutationContract);

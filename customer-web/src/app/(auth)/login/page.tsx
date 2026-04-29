@@ -4,13 +4,13 @@ import { LoadingBlock } from "@/components/states/state-blocks";
 import { LoginPage } from "@/features/auth/login-page";
 
 export const metadata: Metadata = {
-  title: "Sign in",
-  description: "Sign in to review your reservations and other session-protected account access.",
+  title: "Đăng nhập",
+  description: "Đăng nhập để xem lịch đặt và các thông tin tài khoản dành riêng cho bạn.",
 };
 
 export default function Page() {
   return (
-    <Suspense fallback={<main className="mx-auto w-full max-w-md px-4 py-8"><LoadingBlock label="Loading login" /></main>}>
+    <Suspense fallback={<main className="mx-auto w-full max-w-md px-4 py-8"><LoadingBlock label="Đang mở trang đăng nhập" /></main>}>
       <LoginPage />
     </Suspense>
   );

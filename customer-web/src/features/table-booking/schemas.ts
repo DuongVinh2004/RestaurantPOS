@@ -4,8 +4,8 @@ import { localDateTimeRangeToUtc, parseLocalDateTimeInput } from "@/lib/contract
 export const availabilitySearchSchema = z.object({
   start_time: z
     .string()
-    .min(1, "Choose a visit time.")
-    .refine((value) => parseLocalDateTimeInput(value) !== null, "Choose a valid local date and time."),
+    .min(1, "Chọn ngày giờ đến nhà hàng.")
+    .refine((value) => parseLocalDateTimeInput(value) !== null, "Chọn ngày giờ hợp lệ."),
   duration_minutes: z.number().min(30).max(240),
   guest_count: z.number().min(1).max(20),
   branch_id: z.number().optional(),

@@ -95,6 +95,7 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 - GET api/v1/staff/cashier/shifts/{shift_id}
 - POST api/v1/staff/cashier/shifts/{shift_id}/close
 - GET api/v1/staff/orders/{order_id}/settlement-preview
+- POST api/v1/staff/orders/{order_id}/pay
 - POST api/v1/staff/orders/{order_id}/settlement/finalize
 
 ### Kitchen / KDS

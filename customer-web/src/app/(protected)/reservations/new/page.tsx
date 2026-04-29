@@ -4,7 +4,7 @@ import { ReservationCreatePage } from "@/features/reservations/reservation-creat
 
 export default function Page() {
   return (
-    <Suspense fallback={<main className="mx-auto w-full max-w-3xl px-4 py-6"><LoadingBlock label="Loading reservation form" /></main>}>
+    <Suspense fallback={<main className="mx-auto w-full max-w-3xl px-4 py-6"><LoadingBlock label="Đang tải mẫu đặt chỗ" /></main>}>
       <ReservationCreatePage />
     </Suspense>
   );

@@ -19,22 +19,22 @@ type NavItem = {
 };
 
 const coreNavItems: NavItem[] = [
-  { href: "/", label: "Menu", icon: ReceiptText },
-  { href: "/booking", label: "Book", icon: CalendarDays },
-  { href: "/reservations", label: "Reservations", icon: CalendarDays },
-  { href: "/account", label: "Account", icon: UserRound },
+  { href: "/", label: "Thực đơn", icon: ReceiptText },
+  { href: "/booking", label: "Đặt bàn", icon: CalendarDays },
+  { href: "/reservations", label: "Lịch đặt", icon: CalendarDays },
+  { href: "/account", label: "Tài khoản", icon: UserRound },
 ];
 
 const quickNavItems: NavItem[] = [
-  { href: "/", label: "Menu", icon: ReceiptText },
-  { href: "/booking", label: "Book", icon: CalendarDays },
-  { href: "/reservations", label: "Reservations", icon: CalendarDays },
-  { href: "/account", label: "Account", icon: UserRound },
+  { href: "/", label: "Thực đơn", icon: ReceiptText },
+  { href: "/booking", label: "Đặt bàn", icon: CalendarDays },
+  { href: "/reservations", label: "Lịch đặt", icon: CalendarDays },
+  { href: "/account", label: "Tài khoản", icon: UserRound },
 ];
 
 function getNavItems(): NavItem[] {
   return customerWebRollout.waitingList.enabled
-    ? [...coreNavItems.slice(0, 3), { href: "/waiting-list", label: "Wait list", icon: ListChecks }, coreNavItems[3]]
+    ? [...coreNavItems.slice(0, 3), { href: "/waiting-list", label: "Danh sách chờ", icon: ListChecks }, coreNavItems[3]]
     : coreNavItems;
 }
 
@@ -100,11 +100,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-30 border-b bg-background/92 backdrop-blur">
         <div className="mx-auto flex min-h-[4.5rem] w-full max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <Link href="/" className="flex flex-col leading-tight">
-            <span className="flex items-center gap-2 text-base font-semibold tracking-normal">
-              <span className="h-2.5 w-2.5 rounded-full bg-primary" />
-              RestaurantPOS
-            </span>
-            <span className="text-xs text-muted-foreground">Customer dining</span>
+              <span className="flex items-center gap-2 text-base font-semibold tracking-normal">
+                <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+                RestaurantPOS
+              </span>
+            <span className="text-xs text-muted-foreground">Dành cho khách nhà hàng</span>
           </Link>
 
           <div className="hidden md:block">
@@ -115,23 +115,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {isAuthenticated ? (
               <>
                 <div className="flex flex-col text-right">
-                  <span className="max-w-40 truncate text-sm font-medium">{profile?.name ?? "Customer"}</span>
-                  <span className="text-xs text-muted-foreground">Signed in</span>
+                  <span className="max-w-40 truncate text-sm font-medium">{profile?.name ?? "Khách hàng"}</span>
+                  <span className="text-xs text-muted-foreground">Đã đăng nhập</span>
                 </div>
                 <Button type="button" variant="outline" className="rounded-lg" disabled={isLoggingOut} onClick={() => void handleLogout()}>
-                  {isLoggingOut ? "Signing out" : "Sign out"}
+                  {isLoggingOut ? "Đang đăng xuất" : "Đăng xuất"}
                 </Button>
               </>
             ) : (
               <Button asChild className="rounded-lg">
-                <Link href="/login">Sign in</Link>
+                <Link href="/login">Đăng nhập</Link>
               </Button>
             )}
           </div>
 
           <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
             <SheetTrigger asChild>
-              <Button type="button" variant="outline" size="icon" className="rounded-lg md:hidden" aria-label="Open menu">
+              <Button type="button" variant="outline" size="icon" className="rounded-lg md:hidden" aria-label="Mở menu">
                 <MenuIcon className="h-5 w-5" />
               </Button>
             </SheetTrigger>
@@ -142,22 +142,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Separator />
               <div className="space-y-5 p-4">
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">{isAuthenticated ? profile?.name ?? "Customer" : "Customer access"}</p>
+                  <p className="text-sm font-medium">{isAuthenticated ? profile?.name ?? "Khách hàng" : "Truy cập khách hàng"}</p>
                   <p className="text-sm text-muted-foreground">
                     {isAuthenticated
-                      ? "Open reservations, bills, and account tools from one place."
-                      : "Browse the menu, find a table, and sign in when you need your reservation details."}
+                      ? "Xem lịch đặt, hóa đơn và tài khoản từ một nơi."
+                      : "Xem thực đơn, tìm bàn và đăng nhập khi cần xem chi tiết lịch đặt."}
                   </p>
                 </div>
                 <NavLinks items={navItems} onNavigate={() => setSheetOpen(false)} />
                 <Separator />
                 {isAuthenticated ? (
                   <Button type="button" variant="outline" className="w-full rounded-lg" disabled={isLoggingOut} onClick={() => void handleLogout()}>
-                    {isLoggingOut ? "Signing out" : "Sign out"}
+                    {isLoggingOut ? "Đang đăng xuất" : "Đăng xuất"}
                   </Button>
                 ) : (
                   <Button asChild className="w-full rounded-lg" onClick={() => setSheetOpen(false)}>
-                    <Link href="/login">Sign in</Link>
+                    <Link href="/login">Đăng nhập</Link>
                   </Button>
                 )}
               </div>
@@ -170,24 +170,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <footer className="border-t bg-background/80">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 md:flex-row md:items-center md:justify-between">
             <div className="space-y-1">
-              <p className="font-medium">Menu, bookings, and payments without the back-and-forth.</p>
+              <p className="font-medium">Chọn món, đặt bàn và thanh toán rõ ràng hơn.</p>
               <p className="max-w-2xl text-sm text-muted-foreground">
-                Check availability, review your reservation, and handle deposit or bill updates from the same customer flow.
+                Kiểm tra bàn trống, xem lại lịch đặt và theo dõi đặt cọc hoặc hóa đơn trong cùng một luồng khách hàng.
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button asChild variant="outline" className="rounded-lg">
-                <Link href="/booking">Find a table</Link>
+                <Link href="/booking">Tìm bàn</Link>
               </Button>
               <Button asChild className="rounded-lg">
-                <Link href={isAuthenticated ? "/reservations" : "/login"}>{isAuthenticated ? "Open reservations" : "Sign in"}</Link>
+                <Link href={isAuthenticated ? "/reservations" : "/login"}>{isAuthenticated ? "Mở lịch đặt" : "Đăng nhập"}</Link>
               </Button>
             </div>
           </div>
         </footer>
       ) : null}
       {isAuthenticated ? (
-        <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 px-2 py-2 backdrop-blur md:hidden">
+        <nav aria-label="Điều hướng nhanh" className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 px-2 py-2 backdrop-blur md:hidden">
           <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
             {quickNavItems.map((item) => {
               const Icon = item.icon;

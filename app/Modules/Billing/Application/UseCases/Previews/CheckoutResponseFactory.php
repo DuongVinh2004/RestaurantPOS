@@ -92,6 +92,7 @@ class CheckoutResponseFactory
             'payment_status' => $paidMinor >= $totalDueMinor
                 ? PaymentStatus::Success->value
                 : ($paidMinor > 0 ? PaymentStatus::Partial->value : PaymentStatus::Failed->value),
+            'status' => $order->status?->value ?? (string) $order->status,
             'order_status' => $order->status?->value ?? (string) $order->status,
             'reservation_status' => $this->resolveReservationStatus($order),
         ];

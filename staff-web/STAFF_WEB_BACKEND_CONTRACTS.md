@@ -149,6 +149,7 @@
 - `GET /api/v1/staff/reservations`
 - `GET /api/v1/staff/reservations/{reservation_id}/orders`
 - `GET /api/v1/staff/orders/{order_id}/settlement-preview`
+- `POST /api/v1/staff/orders/{order_id}/pay`
 - `POST /api/v1/staff/orders/{order_id}/settlement/finalize`
 
 ### Capability gate
@@ -157,8 +158,9 @@
 
 ### Concurrency notes
 
-- Finalize requires `row_version`
-- Finalize requires `Idempotency-Key`
+- Pay/finalize require `row_version`
+- Pay/finalize require `Idempotency-Key`
+- Pay supports partial capture; full capture returns the same settlement envelope as finalize and requires an immutable bill snapshot on completion.
 - Preview is read-only and does not require idempotency
 - `409` duoc de danh cho idempotency/state conflict; stale `row_version` can surface qua `422`
 - staff-web nen uu tien reservation lookup + reservation-order lookup de lay current/historical order truoc khi yeu cau manual `order_id`

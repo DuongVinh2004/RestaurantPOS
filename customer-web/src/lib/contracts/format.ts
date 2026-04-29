@@ -1,6 +1,8 @@
+const CUSTOMER_LOCALE = "vi-VN";
+
 export function formatMoney(amount: string | number | null | undefined, currency = "USD"): string {
   if (amount === null || amount === undefined || amount === "") {
-    return "Not set";
+    return "Chưa có";
   }
 
   const numeric = Number(amount);
@@ -9,7 +11,7 @@ export function formatMoney(amount: string | number | null | undefined, currency
     return `${amount} ${currency}`;
   }
 
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat(CUSTOMER_LOCALE, {
     style: "currency",
     currency,
   }).format(numeric);
@@ -17,7 +19,7 @@ export function formatMoney(amount: string | number | null | undefined, currency
 
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) {
-    return "Not scheduled";
+    return "Chưa lên lịch";
   }
 
   const date = new Date(value);
@@ -26,7 +28,7 @@ export function formatDateTime(value: string | null | undefined): string {
     return value;
   }
 
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(CUSTOMER_LOCALE, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);

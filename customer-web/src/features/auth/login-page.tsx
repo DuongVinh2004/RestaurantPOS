@@ -45,7 +45,7 @@ export function LoginPage() {
     mutationFn: loginCustomer,
     onSuccess(session) {
       markAuthenticated(session);
-      toast.success("Signed in.");
+      toast.success("Đã đăng nhập.");
       router.push(sanitizeCustomerAuthRedirect(searchParams.get("next")));
     },
   });
@@ -53,16 +53,16 @@ export function LoginPage() {
   return (
     <main className="mx-auto grid min-h-[calc(100svh-4rem)] w-full max-w-5xl items-center gap-8 px-4 py-8 md:grid-cols-[1fr_420px]">
       <section className="space-y-4">
-        <p className="text-sm font-medium text-primary">Customer access</p>
-        <h1 className="max-w-lg text-4xl font-semibold leading-tight tracking-normal">Manage your visit without waiting at the counter.</h1>
+        <p className="text-sm font-medium text-primary">Tài khoản khách hàng</p>
+        <h1 className="max-w-lg text-4xl font-semibold leading-tight tracking-normal">Quản lý lượt ghé nhà hàng dễ hơn.</h1>
         <p className="max-w-md text-base text-muted-foreground">
-          Sign in to review reservations and other session-protected account details enabled for your rollout.
+          Đăng nhập để xem lịch đặt, đặt cọc, hóa đơn và các thông tin chỉ dành cho tài khoản của bạn.
         </p>
       </section>
 
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle>Sign in</CardTitle>
+          <CardTitle>Đăng nhập</CardTitle>
         </CardHeader>
         <CardContent>
           <form
@@ -71,7 +71,7 @@ export function LoginPage() {
             noValidate
           >
             <div className="space-y-2">
-              <Label htmlFor="identifier">Email, phone, or customer id</Label>
+              <Label htmlFor="identifier">Email, số điện thoại hoặc mã khách hàng</Label>
               <Input id="identifier" autoComplete="username" className="min-h-11 rounded-lg" {...form.register("identifier")} />
               {form.formState.errors.identifier ? (
                 <p className="text-sm text-destructive">{form.formState.errors.identifier.message}</p>
@@ -79,7 +79,7 @@ export function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Mật khẩu</Label>
               <Input id="password" type="password" autoComplete="current-password" className="min-h-11 rounded-lg" {...form.register("password")} />
               {form.formState.errors.password ? (
                 <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
@@ -101,7 +101,7 @@ export function LoginPage() {
             ) : null}
 
             <Button type="submit" className="min-h-11 w-full rounded-lg" disabled={loginMutation.isPending || Boolean(runtimeDisplay)}>
-              {loginMutation.isPending ? "Signing in" : "Sign in"}
+              {loginMutation.isPending ? "Đang đăng nhập" : "Đăng nhập"}
             </Button>
           </form>
         </CardContent>

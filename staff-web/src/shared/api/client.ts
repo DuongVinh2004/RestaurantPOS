@@ -34,6 +34,7 @@ import {
   type StaffLoginRequest as LoginStaffAuthRequest,
   type InviteWaitlistCustomerRequest as NotifyWaitingListRequest,
   type OpenCashierShiftRequest,
+  type PayOrderRequest,
   type RefundAndCancelReservationRequest,
   type RefundReservationRequest,
   type SeatWaitlistRequest as SeatWaitingListRequest,
@@ -353,6 +354,14 @@ export async function finalizeSettlement(
     { order_id: orderId },
     payload,
     { idempotencyKey: createIdempotencyKey(`settlement-finalize-${orderId}`) },
+  );
+}
+
+export async function payOrder(orderId: number, payload: PayOrderRequest): Promise<StaffCheckoutSettlementEnvelope> {
+  return staffClient.postV1StaffOrdersOrderIdPay(
+    { order_id: orderId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`order-pay-${orderId}`) },
   );
 }
 

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { MenuPage } from "@/features/menu/menu-page";
 
 export const metadata: Metadata = {
-  title: "Menu",
-  description: "Browse the live menu, search dishes, and preview preorder-eligible items before your visit.",
+  title: "Thực đơn",
+  description: "Xem thực đơn nhà hàng, tìm món và kiểm tra món có thể đặt trước khi đến.",
 };
 
 export default function Home() {

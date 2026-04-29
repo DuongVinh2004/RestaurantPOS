@@ -87,7 +87,7 @@ export function BillingPanel({
       const session = paymentSession?.payment_session;
 
       if (!session) {
-        throw new Error("No payment session is available to refresh.");
+        throw new Error("Chưa có phiên thanh toán để cập nhật.");
       }
 
       return refreshBillPaymentSession(reservationId, session.bill_payment_session_id, session.row_version);
@@ -100,7 +100,7 @@ export function BillingPanel({
       const session = paymentSession?.payment_session;
 
       if (!session) {
-        throw new Error("No payment session is available to confirm.");
+        throw new Error("Chưa có phiên thanh toán để xác nhận.");
       }
 
       return confirmBillPaymentSession(reservationId, session.bill_payment_session_id, session.row_version);
@@ -131,16 +131,16 @@ export function BillingPanel({
   const sessionActionError = createSessionMutation.error ?? refreshSessionMutation.error ?? confirmSessionMutation.error;
   const actionError = sessionActionError;
   const loadError = activeOrderQuery.error ?? billPreviewQuery.error ?? (canRequestBillDetail ? billQuery.error : null);
-  const loadBoundary = loadError ? getSelfServiceBlockedState("bill", loadError, "Bill is unavailable") : null;
+  const loadBoundary = loadError ? getSelfServiceBlockedState("bill", loadError, "Chưa tải được hóa đơn") : null;
   const actionBoundary = actionError
-    ? getSelfServiceBlockedState("bill", actionError, isConflictLikeApiError(actionError) ? "Bill details changed" : "Payment session failed")
+    ? getSelfServiceBlockedState("bill", actionError, isConflictLikeApiError(actionError) ? "Hóa đơn đã thay đổi" : "Chưa mở được thanh toán")
     : null;
   const noActionTitle =
     billSummary.state === "settled"
-      ? "Bill settled"
+      ? "Hóa đơn đã thanh toán"
       : billingPolicy.activeOrderSummary.state === "present"
-        ? "Active order in progress"
-        : "Bill unavailable";
+        ? "Đơn tại bàn đang mở"
+        : "Chưa có hóa đơn";
 
   useEffect(() => {
     if (!session || !sessionPolicy || sessionPolicy.refreshMode !== "auto" || !sessionPolicy.autoRefreshMs) {
@@ -171,10 +171,10 @@ export function BillingPanel({
   return (
     <Card className="rounded-lg">
       <CardHeader>
-        <CardTitle>Bill and active order</CardTitle>
+        <CardTitle>Hóa đơn và món đang dùng</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {activeOrderQuery.isLoading || billPreviewQuery.isLoading || (canRequestBillDetail && billQuery.isLoading) ? <LoadingBlock label="Loading bill" /> : null}
+        {activeOrderQuery.isLoading || billPreviewQuery.isLoading || (canRequestBillDetail && billQuery.isLoading) ? <LoadingBlock label="Đang tải hóa đơn" /> : null}
         {loadBoundary ? (
           loadBoundary.kind === "error" ? (
             <ErrorState
@@ -196,35 +196,35 @@ export function BillingPanel({
           <>
             <section className="space-y-3">
               <div>
-                <h3 className="text-lg font-semibold">Bill preview</h3>
-                <p className="text-sm text-muted-foreground">Review the current bill and dine-in state before opening or refreshing a payment session.</p>
+                <h3 className="text-lg font-semibold">Tóm tắt hóa đơn</h3>
+                <p className="text-sm text-muted-foreground">Xem số tiền hiện tại và trạng thái đơn tại bàn trước khi thanh toán.</p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-lg bg-secondary p-4">
-                  <p className="text-sm text-muted-foreground">Bill status</p>
+                  <p className="text-sm text-muted-foreground">Trạng thái hóa đơn</p>
                   <p className="text-lg font-semibold">{billSummary.title}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{billSummary.description}</p>
                   <p className="mt-4 text-2xl font-semibold">{formatMoney(billingPolicy.amount, billingPolicy.currency)}</p>
                 </div>
                 <div className="rounded-lg bg-secondary p-4">
-                  <p className="text-sm text-muted-foreground">Active order</p>
+                  <p className="text-sm text-muted-foreground">Đơn tại bàn</p>
                   <p className="font-medium">{billingPolicy.activeOrderSummary.label}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{billingPolicy.activeOrderSummary.description}</p>
                 </div>
               </div>
               {!billingPolicy.canCreatePaymentSession ? (
-                <EmptyState title={noActionTitle} description={billingPolicy.noActionMessage ?? "The bill is not ready for payment yet."} />
+                <EmptyState title={noActionTitle} description={billingPolicy.noActionMessage ?? "Hóa đơn chưa sẵn sàng để thanh toán."} />
               ) : null}
             </section>
 
             <section className="space-y-3">
               <div>
-                <h3 className="text-lg font-semibold">Payment session lifecycle</h3>
-                <p className="text-sm text-muted-foreground">Open a payment session only when the backend exposes a supported runtime path for this bill.</p>
+                <h3 className="text-lg font-semibold">Thanh toán hóa đơn</h3>
+                <p className="text-sm text-muted-foreground">Chỉ mở thanh toán khi nhà hàng đã chốt hóa đơn sẵn sàng cho khách.</p>
               </div>
               {session && sessionPolicy ? (
                 <PaymentSessionCard
-                  surfaceLabel="Bill"
+                  surfaceLabel="Hóa đơn"
                   session={session}
                   policy={sessionPolicy}
                   refreshPending={refreshSessionMutation.isPending}
@@ -239,7 +239,7 @@ export function BillingPanel({
                   action={
                     billingPolicy.canCreatePaymentSession ? (
                       <Button type="button" className="rounded-lg" disabled={createSessionMutation.isPending} onClick={() => createSessionMutation.mutate()}>
-                        {createSessionMutation.isPending ? "Opening payment" : "Continue to bill payment"}
+                        {createSessionMutation.isPending ? "Đang mở thanh toán" : "Thanh toán hóa đơn"}
                       </Button>
                     ) : undefined
                   }

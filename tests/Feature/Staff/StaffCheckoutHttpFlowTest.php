@@ -166,7 +166,10 @@ class StaffCheckoutHttpFlowTest extends TestCase
         $payResponse
             ->assertOk()
             ->assertJsonPath('data.order_id', $orderId)
+            ->assertJsonPath('data.total_amount', 100000)
             ->assertJsonPath('data.status', 'Completed')
+            ->assertJsonPath('data.order_status', 'Completed')
+            ->assertJsonPath('data.reservation_status', 'Completed')
             ->assertJsonPath('data.payment_status', 'Success');
 
         $this->assertSame('Completed', (string) $this->table('reservations')->where('reservation_id', $reservationId)->value('status'));

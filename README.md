@@ -146,6 +146,8 @@ For faster UI-focused iteration:
 - `npm run dev:all`
 - `npm run dev:smoke`
 
+`npm run dev:be` and `npm run dev:all` ensure MySQL and Redis before bootstrapping the demo runtime. On Windows they first try the native repo helpers; if MySQL Server 8 or Redis is not installed locally and Docker Desktop is running, they fall back to the `mysql` and `redis` services in `docker-compose.testing.yml`.
+
 The simple dev lane is convenient for browser iteration, but it does not replace the runtime lane when scheduler heartbeat freshness, outbox health, Redis, or release evidence matters.
 
 The dev bootstrap refreshes demo credentials into `storage/app/uat/scenario-pack.json`. See [local login accounts](./docs/runbooks/local-login-accounts.md) and [UAT scenario pack](./docs/runbooks/uat-demo-scenario-pack.md) for the expected accounts and seeded flows.

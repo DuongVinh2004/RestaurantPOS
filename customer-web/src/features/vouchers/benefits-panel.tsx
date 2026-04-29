@@ -46,7 +46,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
     mutationFn: ({ rowVersion, voucherCode }: { rowVersion: number; voucherCode: string }) =>
       applyVoucher(reservationId, rowVersion, voucherCode),
     onSuccess(result) {
-      toast.success("Voucher applied.");
+      toast.success("Đã áp dụng voucher.");
       syncBenefitsPreview({
         reservation: result.reservation,
         available_vouchers: result.available_vouchers,
@@ -57,7 +57,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
   const voucherRemoveMutation = useMutation({
     mutationFn: ({ rowVersion }: { rowVersion: number }) => removeVoucher(reservationId, rowVersion),
     onSuccess(result) {
-      toast.success("Voucher removed.");
+      toast.success("Đã gỡ voucher.");
       syncBenefitsPreview({
         reservation: result.reservation,
         available_vouchers: result.available_vouchers,
@@ -69,7 +69,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
     mutationFn: ({ rowVersion, points }: { rowVersion: number; points: number }) =>
       redeemLoyaltyPoints(reservationId, rowVersion, points),
     onSuccess(result) {
-      toast.success("Loyalty points redeemed.");
+      toast.success("Đã dùng điểm thưởng.");
       setRedeemPointsInput("");
       syncBenefitsPreview({
         reservation: result.reservation,
@@ -80,7 +80,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
   const loyaltyReleaseMutation = useMutation({
     mutationFn: ({ rowVersion }: { rowVersion: number }) => releaseLoyaltyPoints(reservationId, rowVersion),
     onSuccess(result) {
-      toast.success("Loyalty redemption released.");
+      toast.success("Đã gỡ điểm thưởng.");
       syncBenefitsPreview({
         reservation: result.reservation,
       });
@@ -92,7 +92,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
     return (
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle>Benefits</CardTitle>
+          <CardTitle>Ưu đãi</CardTitle>
         </CardHeader>
         <CardContent>
           <EmptyState title={benefitsVisibility.title} description={benefitsVisibility.description} />
@@ -101,7 +101,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
     );
   }
 
-  const loadBoundary = benefitsQuery.error ? getSelfServiceBlockedState("benefits", benefitsQuery.error, "Benefits are unavailable") : null;
+  const loadBoundary = benefitsQuery.error ? getSelfServiceBlockedState("benefits", benefitsQuery.error, "Chưa tải được ưu đãi") : null;
   const actionError =
     voucherApplyMutation.error ?? voucherRemoveMutation.error ?? loyaltyRedeemMutation.error ?? loyaltyReleaseMutation.error;
   const actionPending =
@@ -126,7 +126,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
   return (
     <Card className="rounded-lg">
       <CardHeader>
-        <CardTitle>Benefits</CardTitle>
+        <CardTitle>Ưu đãi</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-lg border border-dashed bg-secondary/20 p-4 text-sm">
@@ -140,7 +140,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
             </Badge>
           </div>
         </div>
-        {benefitsQuery.isLoading ? <LoadingBlock label="Loading benefits" /> : null}
+        {benefitsQuery.isLoading ? <LoadingBlock label="Đang tải ưu đãi" /> : null}
         {loadBoundary ? (
           loadBoundary.kind === "error" ? (
             <ErrorState error={loadBoundary.error} title={loadBoundary.title} onRetry={() => benefitsQuery.refetch()} />
@@ -160,7 +160,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
                     <p className="mt-1 text-sm text-muted-foreground">{benefitsState.description}</p>
                   </div>
                   <Badge variant="outline" className="rounded-md">
-                    {benefitsState.state.replace(/_/g, " ")}
+                    {benefitsState.state === "available" ? "Có thể dùng" : benefitsState.state === "expired" ? "Hết hạn" : benefitsState.state === "not_eligible" ? "Chưa đủ điều kiện" : "Chưa có"}
                   </Badge>
                 </div>
                 <p className="mt-3 text-sm font-medium">{benefitsState.actionTitle}</p>
@@ -169,15 +169,15 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
 
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-lg bg-secondary p-4">
-                  <p className="text-sm text-muted-foreground">Available points</p>
+                  <p className="text-sm text-muted-foreground">Điểm hiện có</p>
                   <p className="text-2xl font-semibold">{benefitsQuery.data.reservation.loyalty.available_points}</p>
                 </div>
                 <div className="rounded-lg bg-secondary p-4">
-                  <p className="text-sm text-muted-foreground">Redeemable now</p>
+                  <p className="text-sm text-muted-foreground">Có thể dùng</p>
                   <p className="text-2xl font-semibold">{benefitsQuery.data.reservation.loyalty.max_redeemable_points}</p>
                 </div>
                 <div className="rounded-lg bg-secondary p-4">
-                  <p className="text-sm text-muted-foreground">Preview savings</p>
+                  <p className="text-sm text-muted-foreground">Giảm dự kiến</p>
                   <p className="text-2xl font-semibold">
                     {formatMoney(benefitsQuery.data.reservation.bill.discount_amount, benefitsQuery.data.reservation.bill.currency)}
                   </p>
@@ -190,7 +190,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
                   <p className="mt-1 text-sm text-muted-foreground">{benefitsState.loyaltyDescription}</p>
                   {loyalty?.can_redeem ? (
                     <div className="mt-4 space-y-2">
-                      <Label htmlFor="loyalty-redeem-points">Points to redeem</Label>
+                      <Label htmlFor="loyalty-redeem-points">Số điểm muốn dùng</Label>
                       <Input
                         id="loyalty-redeem-points"
                         type="number"
@@ -217,7 +217,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
                           });
                         }}
                       >
-                        {loyaltyRedeemMutation.isPending ? "Redeeming points" : "Redeem points"}
+                        {loyaltyRedeemMutation.isPending ? "Đang dùng điểm" : "Dùng điểm"}
                       </Button>
                     </div>
                   ) : null}
@@ -235,7 +235,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
                         loyaltyReleaseMutation.mutate({ rowVersion: currentRowVersion });
                       }}
                     >
-                      {loyaltyReleaseMutation.isPending ? "Releasing points" : "Release points"}
+                      {loyaltyReleaseMutation.isPending ? "Đang gỡ điểm" : "Gỡ điểm"}
                     </Button>
                   ) : null}
                 </div>
@@ -278,7 +278,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
                               voucherRemoveMutation.mutate({ rowVersion: currentRowVersion });
                             }}
                           >
-                            {voucherRemoveMutation.isPending ? "Removing voucher" : "Remove voucher"}
+                            {voucherRemoveMutation.isPending ? "Đang gỡ voucher" : "Gỡ voucher"}
                           </Button>
                         ) : item.voucher.can_apply || item.voucher.is_usable_now ? (
                           <Button
@@ -297,7 +297,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
                               });
                             }}
                           >
-                            {voucherApplyMutation.isPending ? "Applying voucher" : "Apply voucher"}
+                            {voucherApplyMutation.isPending ? "Đang áp dụng" : "Áp dụng voucher"}
                           </Button>
                         ) : null}
                       </div>
@@ -308,7 +308,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
               {actionError ? (
                 <ErrorState
                   error={actionError}
-                  title={isConflictLikeApiError(actionError) ? "Benefits details changed" : "Benefits action failed"}
+                  title={isConflictLikeApiError(actionError) ? "Thông tin ưu đãi đã thay đổi" : "Chưa xử lý được ưu đãi"}
                   onRetry={() => benefitsQuery.refetch()}
                 />
               ) : null}

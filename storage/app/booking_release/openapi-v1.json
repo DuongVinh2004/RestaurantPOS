@@ -20187,10 +20187,10 @@
         "/api/v1/staff/orders/{order_id}/pay": {
             "post": {
                 "operationId": "post_v1_staff_orders_order_id_pay",
-                "summary": "POST Order Id Pay",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Capture order payment",
+                "description": "Capture a guarded staff order payment. Partial captures advance financial row_version without completing the reservation; a full final capture persists the immutable bill snapshot before completing settlement.",
                 "tags": [
-                    "Legacy"
+                    "Staff Checkout"
                 ],
                 "parameters": [
                     {
@@ -20217,7 +20217,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/StaffCheckoutSettlementEnvelope"
                                 }
                             }
                         },
@@ -20233,6 +20233,56 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConflictError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -20244,7 +20294,7 @@
                 "x-route-key": "post_v1_staff_orders_order_id_pay",
                 "x-action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CheckoutController@pay",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -20265,14 +20315,13 @@
                                 "$ref": "#/components/schemas/PayOrderRequest"
                             },
                             "example": {
-                                "payment_method": "Online",
-                                "payment_provider": "MoMo",
-                                "paid_amount": 100000,
+                                "payment_method": "Cash",
+                                "payment_provider": "Cash",
+                                "paid_amount": 275000,
                                 "currency": "VND",
-                                "transaction_code": "example",
-                                "notes": "Contract example payload",
-                                "row_version": 1,
-                                "staff_user_id": 101
+                                "transaction_code": "PAY-20260405-0001",
+                                "notes": "Paid at cashier",
+                                "row_version": 2
                             }
                         }
                     }
@@ -46655,6 +46704,7 @@
                     "final_paid_amount",
                     "outstanding_amount",
                     "payment_status",
+                    "status",
                     "order_status",
                     "reservation_status"
                 ],
@@ -46689,6 +46739,9 @@
                     "payment_status": {
                         "type": "string"
                     },
+                    "status": {
+                        "type": "string"
+                    },
                     "order_status": {
                         "type": "string"
                     },
@@ -46718,6 +46771,7 @@
                             "final_paid_amount",
                             "outstanding_amount",
                             "payment_status",
+                            "status",
                             "order_status",
                             "reservation_status"
                         ],
@@ -46750,6 +46804,9 @@
                                 "type": "number"
                             },
                             "payment_status": {
+                                "type": "string"
+                            },
+                            "status": {
                                 "type": "string"
                             },
                             "order_status": {

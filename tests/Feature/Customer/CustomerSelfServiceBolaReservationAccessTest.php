@@ -118,4 +118,126 @@ final class CustomerSelfServiceBolaReservationAccessTest extends TestCase
             ->assertJsonPath('error_code', 'not_found')
             ->assertJsonMissingPath('data');
     }
+
+    public function test_other_customer_cannot_show_cancel_reschedule_pay_deposit_or_preorder_reservation(): void
+    {
+        $ownerId = $this->createUser(['role_name' => 'Customer']);
+        $otherId = $this->createUser(['role_name' => 'Customer']);
+        $other = User::query()->findOrFail($otherId);
+        $tableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available']);
+        $reservationId = $this->createReservation([
+            'user_id' => $ownerId,
+            'status' => 'Confirmed',
+            'start_time' => $this->nowUtc()->copy()->addHours(4),
+            'end_time' => $this->nowUtc()->copy()->addHours(6),
+            'guest_count' => 2,
+            'deposit_required_amount' => '100000.00',
+            'deposit_paid_amount' => '0.00',
+            'deposit_status' => 'Pending',
+            'final_bill_amount' => '150000.00',
+            'bill_currency' => 'VND',
+            'billed_at' => $this->nowUtc(),
+            'row_version' => 1,
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+        $preorderItemId = $this->createMenuItem([
+            'is_preorder_enabled' => 1,
+            'preorder_cutoff_minutes' => 0,
+        ]);
+        $this->createMenuItemPrice([
+            'item_id' => $preorderItemId,
+            'price' => '50000.00',
+            'currency' => 'VND',
+            'effective_from' => $this->nowUtc()->copy()->subHour(),
+            'effective_to' => null,
+        ]);
+
+        $this->actingAs($other)
+            ->getJson('/api/v1/reservations/'.$reservationId)
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonMissingPath('data');
+
+        $this->actingAs($other)
+            ->withHeaders(['Idempotency-Key' => 'bola-other-cancel-reservation'])
+            ->postJson('/api/v1/reservations/'.$reservationId.'/cancel', [
+                'row_version' => 1,
+            ])
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonMissingPath('data');
+
+        $this->actingAs($other)
+            ->withHeaders(['Idempotency-Key' => 'bola-other-reschedule-reservation'])
+            ->postJson('/api/v1/reservations/'.$reservationId.'/reschedule', [
+                'row_version' => 1,
+                'guest_count' => 3,
+            ])
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonMissingPath('data');
+
+        $this->actingAs($other)
+            ->getJson('/api/v1/reservations/'.$reservationId.'/deposit-preview')
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonMissingPath('data');
+
+        $this->actingAs($other)
+            ->withHeaders(['Idempotency-Key' => 'bola-other-deposit-ack'])
+            ->postJson('/api/v1/reservations/'.$reservationId.'/deposit/acknowledge', [
+                'row_version' => 1,
+            ])
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonMissingPath('data');
+
+        $this->actingAs($other)
+            ->withHeaders(['Idempotency-Key' => 'bola-other-deposit-payment-session'])
+            ->postJson('/api/v1/reservations/'.$reservationId.'/deposit/payment-sessions', [
+                'row_version' => 1,
+                'provider_code' => 'simulated',
+                'currency' => 'VND',
+            ])
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonMissingPath('data');
+
+        $this->actingAs($other)
+            ->withHeaders(['Idempotency-Key' => 'bola-other-bill-payment-session'])
+            ->postJson('/api/v1/reservations/'.$reservationId.'/bill/payment-sessions', [
+                'row_version' => 1,
+                'provider_code' => 'simulated',
+                'currency' => 'VND',
+            ])
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonMissingPath('data');
+
+        $this->actingAs($other)
+            ->getJson('/api/v1/reservations/'.$reservationId.'/preorder')
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonMissingPath('data');
+
+        $this->actingAs($other)
+            ->withHeaders(['Idempotency-Key' => 'bola-other-preorder-replace'])
+            ->putJson('/api/v1/reservations/'.$reservationId.'/preorder', [
+                'row_version' => 1,
+                'pre_order_items' => [
+                    ['item_id' => $preorderItemId, 'quantity' => 1],
+                ],
+            ])
+            ->assertNotFound()
+            ->assertJsonPath('error_code', 'not_found')
+            ->assertJsonMissingPath('data');
+
+        $reservation = DB::table('reservations')->where('reservation_id', $reservationId)->first();
+        self::assertSame('Confirmed', (string) $reservation->status);
+        self::assertSame(2, (int) $reservation->guest_count);
+        self::assertNull($reservation->cancelled_at);
+        self::assertSame(0, (int) DB::table('reservation_deposit_payment_sessions')->where('reservation_id', $reservationId)->count());
+        self::assertSame(0, (int) DB::table('reservation_bill_payment_sessions')->where('reservation_id', $reservationId)->count());
+        self::assertSame(0, (int) DB::table('reservation_orders')->where('reservation_id', $reservationId)->count());
+    }
 }

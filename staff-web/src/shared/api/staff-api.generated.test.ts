@@ -12,6 +12,7 @@ import {
   getWaitingListChanges,
   importAdminMasterData,
   listAdminRestaurantTableTemplates,
+  payOrder,
   updateOrderItem,
   updateOrderItemStatus,
 } from './staff-api';
@@ -129,6 +130,34 @@ describe('staff api generated client delegates', () => {
         status: 'Served',
         order_row_version: 5,
         row_version: 3,
+      },
+      expect.objectContaining({ idempotencyKey: expect.stringMatching(/^sw:/) }),
+    );
+  });
+
+  it('uses generated SDK method for guarded staff order pay writes', async () => {
+    const paySpy = vi.spyOn(staffClient, 'postV1StaffOrdersOrderIdPay').mockResolvedValue({ data: {} } as never);
+
+    await payOrder(303, {
+      payment_method: 'Cash',
+      payment_provider: 'Cash',
+      paid_amount: 125000,
+      currency: 'VND',
+      transaction_code: 'SW-PAY-303',
+      notes: 'Counter payment',
+      row_version: 6,
+    });
+
+    expect(paySpy).toHaveBeenCalledWith(
+      { order_id: 303 },
+      {
+        payment_method: 'Cash',
+        payment_provider: 'Cash',
+        paid_amount: 125000,
+        currency: 'VND',
+        transaction_code: 'SW-PAY-303',
+        notes: 'Counter payment',
+        row_version: 6,
       },
       expect.objectContaining({ idempotencyKey: expect.stringMatching(/^sw:/) }),
     );

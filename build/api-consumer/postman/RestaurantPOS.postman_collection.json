@@ -2469,6 +2469,46 @@
                     "response": []
                 },
                 {
+                    "name": "Capture order payment",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/orders/{{orderId}}/pay",
+                        "description": "Capture a guarded staff order payment. Partial captures advance financial row_version without completing the reservation; a full final capture persists the immutable bill snapshot before completing settlement.\n\nSignature: `POST api/v1/staff/orders/{order_id}/pay`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"payment_method\": \"Cash\",\n    \"payment_provider\": \"Cash\",\n    \"paid_amount\": \"{{paymentAmount}}\",\n    \"currency\": \"{{currency}}\",\n    \"transaction_code\": \"PAY-{{$timestamp}}-{{$randomInt}}\",\n    \"notes\": \"Postman order payment\",\n    \"row_version\": \"{{orderRowVersion}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
                     "name": "Finalize settlement",
                     "request": {
                         "method": "POST",

@@ -58,13 +58,33 @@ function Add-PathDirectory {
     }
 }
 
+function Set-PathDirectoryFirst {
+    param(
+        [string] $Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path $Path)) {
+        return
+    }
+
+    $normalizedTargetPath = ([System.IO.Path]::GetFullPath($Path)).TrimEnd('\').ToLowerInvariant()
+    $filteredPaths = @(
+        $env:PATH -split ';' |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Where-Object {
+                try {
+                    ([System.IO.Path]::GetFullPath($_)).TrimEnd('\').ToLowerInvariant() -ne $normalizedTargetPath
+                } catch {
+                    $true
+                }
+            }
+    )
+
+    $env:PATH = (@($Path) + $filteredPaths) -join ';'
+}
+
 function Add-KnownWindowsDevToolPaths {
-    Add-PathDirectory -Path 'C:\xampp\php'
     Add-PathDirectory -Path 'C:\xampp\mysql\bin'
-
-    $herdLiteBin = Join-Path $env:USERPROFILE '.config\herd-lite\bin'
-    Add-PathDirectory -Path $herdLiteBin
-
     Add-PathDirectory -Path 'C:\Program Files\MySQL\MySQL Server 8.0\bin'
 }
 
@@ -159,6 +179,26 @@ function Get-ProcessInfo {
 }
 
 function Get-PhpExecutable {
+    $configuredPhp = [Environment]::GetEnvironmentVariable('PHP_BIN')
+    if (-not [string]::IsNullOrWhiteSpace($configuredPhp)) {
+        if (-not (Test-Path $configuredPhp)) {
+            throw "Configured PHP_BIN was not found: $configuredPhp"
+        }
+
+        return (Resolve-Path $configuredPhp).Path
+    }
+
+    $candidatePaths = @(
+        (Join-Path $env:USERPROFILE '.config\herd-lite\bin\php.exe'),
+        'C:\xampp\php\php.exe'
+    )
+
+    foreach ($candidatePath in $candidatePaths) {
+        if (-not [string]::IsNullOrWhiteSpace($candidatePath) -and (Test-Path $candidatePath)) {
+            return (Resolve-Path $candidatePath).Path
+        }
+    }
+
     $command = Get-Command php.exe -ErrorAction SilentlyContinue
     if ($command) {
         return $command.Source
@@ -170,6 +210,15 @@ function Get-PhpExecutable {
     }
 
     throw 'php.exe was not found. Install the PHP CLI and add it to PATH before using the local runtime script.'
+}
+
+function Use-PhpExecutable {
+    param(
+        [string] $PhpExecutable
+    )
+
+    $phpDirectory = Split-Path -Path $PhpExecutable -Parent
+    Set-PathDirectoryFirst -Path $phpDirectory
 }
 
 function Test-AppUrlPinsServeEndpoint {
@@ -647,6 +696,7 @@ function Stop-LocalRuntime {
 New-Item -ItemType Directory -Force -Path $logsDir | Out-Null
 Add-KnownWindowsDevToolPaths
 $phpExecutable = Get-PhpExecutable
+Use-PhpExecutable -PhpExecutable $phpExecutable
 $envValues = Read-DotEnvFile -Path $envFilePath
 $serveConfig = Resolve-BackendServeConfig -Values $envValues
 

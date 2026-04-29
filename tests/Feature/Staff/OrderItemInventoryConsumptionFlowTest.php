@@ -126,6 +126,53 @@ class OrderItemInventoryConsumptionFlowTest extends TestCase
             ->sum('quantity_delta'), 3, '.', ''));
     }
 
+    public function test_cancel_after_served_is_denied_without_restocking_consumed_inventory(): void
+    {
+        [$staffId, $orderId, $orderItemId, $branchId, $ingredientId] = $this->seedConsumableOrderItemScenario(
+            ingredientCode: 'ING-SERVED-CANCEL-NO-RESTOCK',
+            stockQuantity: '25.000',
+            recipeQuantity: '12.500',
+        );
+
+        $serve = $this->withHeaders($this->withIdempotencyKey(
+            $this->staffAuthHeaders($staffId),
+            'idem-order-item-served-before-cancel'
+        ))->postJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}/status", [
+            'order_row_version' => 1,
+            'row_version' => 1,
+            'status' => 'Served',
+        ]);
+
+        $serve->assertOk()
+            ->assertJsonPath('meta.status', 'Served');
+
+        $orderRowVersion = (int) $this->table('reservation_orders')->where('order_id', $orderId)->value('row_version');
+        $itemRowVersion = (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('row_version');
+
+        $cancel = $this->withHeaders($this->withIdempotencyKey(
+            $this->staffAuthHeaders($staffId),
+            'idem-order-item-cancel-after-served-no-restock'
+        ))->postJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}/status", [
+            'order_row_version' => $orderRowVersion,
+            'row_version' => $itemRowVersion,
+            'status' => 'Cancelled',
+        ]);
+
+        $cancel->assertStatus(422)
+            ->assertJsonPath('details.errors.status.0', 'Cannot transition order item from Served to Cancelled.');
+
+        self::assertSame('Served', (string) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('status'));
+        self::assertSame(1, (int) $this->table('ingredient_stock_movements')
+            ->where('ingredient_id', $ingredientId)
+            ->where('reference_type', 'ReservationOrderItemConsumption')
+            ->where('reference_id', 'like', $orderItemId.':%')
+            ->count());
+        self::assertSame('12.500', number_format((float) $this->table('ingredient_stock_movements')
+            ->where('branch_id', $branchId)
+            ->where('ingredient_id', $ingredientId)
+            ->sum('quantity_delta'), 3, '.', ''));
+    }
+
     /**
      * @return array{0:int,1:int,2:int,3:int,4:int}
      */

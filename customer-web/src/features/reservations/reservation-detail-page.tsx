@@ -92,7 +92,7 @@ export function ReservationDetailPage({ id }: { id: number }) {
   const cancelMutation = useMutation({
     mutationFn: (values: ReservationActionValues) => cancelReservation(id, values.row_version, values.reason),
     onSuccess(result) {
-      toast.success("Reservation cancelled.");
+      toast.success("Đã hủy lịch đặt.");
       syncReservation(result);
     },
     onError(error) {
@@ -104,7 +104,7 @@ export function ReservationDetailPage({ id }: { id: number }) {
   const rescheduleMutation = useMutation({
     mutationFn: (values: ReservationActionValues) => {
       if (!values.start_time) {
-        throw new Error("Choose a new start time.");
+        throw new Error("Chọn giờ mới.");
       }
 
       const durationMinutes = getReservationDurationMinutes(
@@ -126,7 +126,7 @@ export function ReservationDetailPage({ id }: { id: number }) {
       });
     },
     onSuccess(result) {
-      toast.success("Reservation rescheduled.");
+      toast.success("Đã gửi giờ mới.");
       syncReservation(result);
     },
     onError(error) {
@@ -139,7 +139,7 @@ export function ReservationDetailPage({ id }: { id: number }) {
   if (reservationQuery.isLoading) {
     return (
       <main className="mx-auto w-full max-w-5xl px-4 py-6">
-        <LoadingBlock label="Loading reservation" />
+        <LoadingBlock label="Đang tải lịch đặt" />
       </main>
     );
   }
@@ -147,11 +147,11 @@ export function ReservationDetailPage({ id }: { id: number }) {
   if (reservationQuery.error || !reservationQuery.data) {
     const boundary =
       reservationQuery.error !== null
-        ? getSelfServiceBlockedState("reservation", reservationQuery.error, "Reservation is unavailable")
+        ? getSelfServiceBlockedState("reservation", reservationQuery.error, "Chưa tải được lịch đặt")
         : {
             kind: "unavailable" as const,
-            title: "Reservation is unavailable",
-            description: "The reservation response is unavailable right now.",
+            title: "Chưa tải được lịch đặt",
+            description: "Hiện chưa có thông tin lịch đặt này.",
           };
 
     return (
@@ -174,12 +174,12 @@ export function ReservationDetailPage({ id }: { id: number }) {
   const holdSummary = getReservationHoldSummaryState(reservation);
   const actionError = cancelMutation.error ?? rescheduleMutation.error;
   const actionBoundary = actionError
-    ? getSelfServiceBlockedState("reservation", actionError, isConflictLikeApiError(actionError) ? "Reservation details changed" : "Reservation action failed")
+    ? getSelfServiceBlockedState("reservation", actionError, isConflictLikeApiError(actionError) ? "Thông tin lịch đặt đã thay đổi" : "Chưa xử lý được lịch đặt")
     : null;
   const holdFooter = holdSummary.expiresAt
-    ? `Until ${formatDateTime(holdSummary.expiresAt)}${holdSummary.tableCount > 0 ? ` | ${holdSummary.tableCount} table${holdSummary.tableCount > 1 ? "s" : ""}` : ""}`
+    ? `Đến ${formatDateTime(holdSummary.expiresAt)}${holdSummary.tableCount > 0 ? ` | ${holdSummary.tableCount} bàn` : ""}`
     : holdSummary.tableCount > 0
-      ? `${holdSummary.tableCount} table${holdSummary.tableCount > 1 ? "s" : ""}`
+      ? `${holdSummary.tableCount} bàn`
       : null;
   const depositFooter = depositSummary.amount ? formatMoney(depositSummary.amount, depositSummary.currency) : null;
   const billFooter = billSummary.available ? formatMoney(billSummary.amount, billSummary.currency) : billSummary.label;
@@ -189,7 +189,7 @@ export function ReservationDetailPage({ id }: { id: number }) {
       <Button asChild variant="ghost" className="mb-4 rounded-lg">
         <Link href="/reservations">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to reservations
+          Quay lại lịch đặt
         </Link>
       </Button>
 
@@ -198,12 +198,12 @@ export function ReservationDetailPage({ id }: { id: number }) {
           <div>
             <p className="text-sm text-muted-foreground">{reservation.reservation_code}</p>
             <h1 className="mt-1 text-3xl font-semibold tracking-normal">{formatDateTime(reservation.start_time ?? reservation.booking_time ?? null)}</h1>
-            <p className="mt-2 text-muted-foreground">{reservation.guest_count ?? "Not set"} guests</p>
+            <p className="mt-2 text-muted-foreground">{reservation.guest_count ?? "Chưa có"} khách</p>
           </div>
           <StatusBadge status={reservation.status} />
         </div>
         <div className="mt-5 rounded-lg bg-secondary/60 p-4">
-          <p className="text-sm text-muted-foreground">Reservation status</p>
+          <p className="text-sm text-muted-foreground">Trạng thái lịch đặt</p>
           <p className="mt-1 text-lg font-semibold">{workspaceStatus.title}</p>
           <p className="mt-1 text-sm text-muted-foreground">{workspaceStatus.description}</p>
         </div>
@@ -214,23 +214,23 @@ export function ReservationDetailPage({ id }: { id: number }) {
           </div>
         ) : null}
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <WorkspaceSummaryTile eyebrow="Hold" title={holdSummary.title} description={holdSummary.description} footer={holdFooter} />
-          <WorkspaceSummaryTile eyebrow="Deposit" title={depositSummary.title} description={depositSummary.description} footer={depositFooter} />
-          <WorkspaceSummaryTile eyebrow="Bill" title={billSummary.title} description={billSummary.description} footer={billFooter} />
+          <WorkspaceSummaryTile eyebrow="Bàn giữ" title={holdSummary.title} description={holdSummary.description} footer={holdFooter} />
+          <WorkspaceSummaryTile eyebrow="Đặt cọc" title={depositSummary.title} description={depositSummary.description} footer={depositFooter} />
+          <WorkspaceSummaryTile eyebrow="Hóa đơn" title={billSummary.title} description={billSummary.description} footer={billFooter} />
         </div>
       </section>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="space-y-5">
           <div className="space-y-1">
-            <h2 className="text-xl font-semibold">Reservation workspace</h2>
-            <p className="text-sm text-muted-foreground">Review hold, payments, order state, preorder, and benefits from one place.</p>
+            <h2 className="text-xl font-semibold">Chi tiết lượt ghé</h2>
+            <p className="text-sm text-muted-foreground">Theo dõi bàn giữ, đặt cọc, hóa đơn, món đặt trước và ưu đãi từ một nơi.</p>
           </div>
           <Card className="rounded-lg">
             <CardContent className="space-y-4 p-4">
               <div>
-                <h3 className="text-lg font-semibold">Table hold</h3>
-                <p className="text-sm text-muted-foreground">Track whether a temporary hold is still protecting table availability for this reservation.</p>
+                <h3 className="text-lg font-semibold">Bàn giữ</h3>
+                <p className="text-sm text-muted-foreground">Xem bàn giữ tạm thời còn hiệu lực cho lịch đặt này hay không.</p>
               </div>
               {holdSummary.state === "unavailable" ? (
                 <EmptyState title={holdSummary.title} description={holdSummary.description} />
@@ -238,7 +238,7 @@ export function ReservationDetailPage({ id }: { id: number }) {
                 <div className="rounded-lg bg-secondary p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm text-muted-foreground">Hold state</p>
+                      <p className="text-sm text-muted-foreground">Trạng thái bàn giữ</p>
                       <p className="text-lg font-semibold">{holdSummary.title}</p>
                       <p className="mt-1 text-sm text-muted-foreground">{holdSummary.description}</p>
                     </div>
@@ -258,7 +258,7 @@ export function ReservationDetailPage({ id }: { id: number }) {
         <Card className="h-fit rounded-lg">
           <CardContent className="space-y-4 p-4">
             <div>
-              <h2 className="text-lg font-semibold">Online actions</h2>
+              <h2 className="text-lg font-semibold">Thao tác trực tuyến</h2>
               <p className="mt-1 text-sm text-muted-foreground">{actionPolicy.manageDescription}</p>
             </div>
             {actionPolicy.canCancel || actionPolicy.canReschedule ? (
@@ -268,7 +268,7 @@ export function ReservationDetailPage({ id }: { id: number }) {
                     className="space-y-3"
                     onSubmit={actionForm.handleSubmit((values) => {
                       if (!values.start_time) {
-                        actionForm.setError("start_time", { message: "Choose a new start time." });
+                        actionForm.setError("start_time", { message: "Chọn giờ mới." });
                         return;
                       }
 
@@ -277,14 +277,14 @@ export function ReservationDetailPage({ id }: { id: number }) {
                   >
                     <input type="hidden" {...actionForm.register("row_version", { valueAsNumber: true })} />
                     <div className="space-y-2">
-                      <Label htmlFor="start_time">New start time</Label>
+                      <Label htmlFor="start_time">Giờ mới</Label>
                       <Input id="start_time" type="datetime-local" className="min-h-11 rounded-lg" {...actionForm.register("start_time")} />
                       {actionForm.formState.errors.start_time ? (
                         <p className="text-sm text-destructive">{actionForm.formState.errors.start_time.message}</p>
                       ) : null}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="guest_count">Guests</Label>
+                      <Label htmlFor="guest_count">Số khách</Label>
                       <Input
                         id="guest_count"
                         type="number"
@@ -297,11 +297,11 @@ export function ReservationDetailPage({ id }: { id: number }) {
                       ) : null}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="reason">Reason or note</Label>
+                      <Label htmlFor="reason">Lý do hoặc ghi chú</Label>
                       <Textarea id="reason" className="min-h-20 rounded-lg" {...actionForm.register("reason")} />
                     </div>
                     <Button type="submit" variant="outline" className="w-full rounded-lg" disabled={rescheduleMutation.isPending}>
-                      {rescheduleMutation.isPending ? "Saving new time" : "Request new time"}
+                      {rescheduleMutation.isPending ? "Đang gửi giờ mới" : "Yêu cầu đổi giờ"}
                     </Button>
                   </form>
                 ) : (
@@ -315,7 +315,7 @@ export function ReservationDetailPage({ id }: { id: number }) {
                     disabled={cancelMutation.isPending}
                     onClick={actionForm.handleSubmit((values) => cancelMutation.mutate(values))}
                   >
-                    {cancelMutation.isPending ? "Cancelling" : "Cancel reservation"}
+                    {cancelMutation.isPending ? "Đang hủy" : "Hủy lịch đặt"}
                   </Button>
                 ) : (
                   <p className="text-sm text-muted-foreground">{actionPolicy.cancelReason}</p>

@@ -483,6 +483,37 @@ class OrderSettlementWorkflow
     /**
      * @return array<string,mixed>
      */
+    public function payOrderResponse(
+        int $orderId,
+        string $paymentMethod,
+        float $paidAmount,
+        string $currency = 'VND',
+        string $transactionCode = '',
+        string $paymentProvider = '',
+        string $notes = '',
+        ?int $expectedRowVersion = null,
+        ?int $staffUserId = null,
+        string $idempotencyKey = ''
+    ): array {
+        $order = $this->payOrder(
+            orderId: $orderId,
+            paymentMethod: $paymentMethod,
+            paidAmount: $paidAmount,
+            currency: $currency,
+            transactionCode: $transactionCode,
+            paymentProvider: $paymentProvider,
+            notes: $notes,
+            expectedRowVersion: $expectedRowVersion,
+            staffUserId: $staffUserId,
+            idempotencyKey: $idempotencyKey,
+        );
+
+        return $this->buildCheckoutResponse($order, $currency);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
     public function refundReservation(
         int $reservationId,
         string $paymentMethod,
@@ -650,15 +681,31 @@ class OrderSettlementWorkflow
         $runner = function () use ($orderId, $paymentMethod, $paidAmount, $currency, $transactionCode, $paymentProvider, $notes, $staffUserId, $idempotencyKey, $requestFingerprint, $cashieringReplayScope, $expectedRowVersion, &$settlementCompletedRealtimePayload) {
             /** @var ReservationOrder $order */
             $order = ReservationOrder::query()->where('order_id', $orderId)->lockForUpdate()->firstOrFail();
-            $this->assertExpectedOrderRowVersion($order, $expectedRowVersion);
             /** @var Reservation $reservation */
             $reservation = Reservation::query()->where('reservation_id', $order->reservation_id)->lockForUpdate()->firstOrFail();
+
+            if ($idempotencyKey !== '') {
+                $this->assertCheckoutReplayMatchesRequest($orderId, $idempotencyKey, $requestFingerprint ?? '', $cashieringReplayScope);
+
+                $replayed = $this->findExistingOrderPaymentReplay($orderId, $idempotencyKey, $staffUserId);
+                if ($replayed !== null) {
+                    return $replayed;
+                }
+
+                $financeReplayed = $this->findExistingOrderCashieringReplay($orderId, $idempotencyKey, $cashieringReplayScope, $staffUserId);
+                if ($financeReplayed instanceof ReservationOrder) {
+                    return $financeReplayed;
+                }
+            }
+
+            $this->assertExpectedOrderRowVersion($order, $expectedRowVersion);
             $branchId = $this->ensureReservationBranchScopeLocked($reservation, $staffUserId);
             $cashierShift = $this->assertOpenCashierShiftForBranch(
                 $staffUserId,
                 $branchId,
                 Money::minorUnits($paidAmount, true) > 0 ? $currency : null,
             );
+            $this->ensureBillSnapshotPreparedForPaymentLocked($reservation, $staffUserId);
 
             $settlementOrder = $this->paymentCaptureService->executeLocked(
                 order: $order,
@@ -699,6 +746,25 @@ class OrderSettlementWorkflow
         };
 
         return $useTransaction ? DB::transaction($runner) : $runner();
+    }
+
+    private function ensureBillSnapshotPreparedForPaymentLocked(Reservation $reservation, ?int $staffUserId = null): void
+    {
+        if ($this->hasCompleteBillSnapshot($reservation)) {
+            return;
+        }
+
+        $this->prepareCheckoutBillStateLocked($reservation, null, $staffUserId);
+        $reservation->updated_at = Carbon::now('UTC');
+        $reservation->saveQuietly();
+        $reservation->syncOriginal();
+    }
+
+    private function hasCompleteBillSnapshot(Reservation $reservation): bool
+    {
+        return $reservation->final_bill_amount !== null
+            && trim((string) ($reservation->bill_currency ?? '')) !== ''
+            && $reservation->billed_at !== null;
     }
 
     /**

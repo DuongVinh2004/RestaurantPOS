@@ -15,6 +15,7 @@ import { featureFlags } from "@/lib/config/feature-flags";
 import { createRoundedFutureLocalDateTimeInput, toUtcIsoFromLocalDateTimeInput } from "@/lib/contracts/datetime";
 import { formatMoney } from "@/lib/contracts/format";
 import { listMenuCategories, listMenuItems, previewMenuPreorder } from "./api";
+import { MenuItemImage } from "./menu-item-image";
 
 export function MenuPage() {
   const [q, setQ] = useState("");
@@ -35,12 +36,12 @@ export function MenuPage() {
       previewMenuPreorder({
         start_time: toUtcIsoFromLocalDateTimeInput(createRoundedFutureLocalDateTimeInput()),
         pre_order_items: [{ item_id: itemId, quantity: 1 }],
-      }),
+    }),
     onSuccess() {
-      toast.success("Preorder preview refreshed.");
+      toast.success("Đã kiểm tra món đặt trước.");
     },
     onError(error) {
-      toast.error(error instanceof Error ? error.message : "Preorder preview failed.");
+      toast.error(error instanceof Error ? error.message : "Chưa kiểm tra được món đặt trước.");
     },
   });
 
@@ -48,18 +49,18 @@ export function MenuPage() {
     <main className="mx-auto w-full max-w-6xl px-4 py-6">
       <section className="grid gap-5 md:grid-cols-[1fr_320px] md:items-end">
         <div className="space-y-3">
-          <Badge variant="outline" className="rounded-md">Live menu</Badge>
-          <h1 className="max-w-2xl text-4xl font-semibold leading-tight tracking-normal">Browse the menu before your visit.</h1>
+          <Badge variant="outline" className="rounded-md">Thực đơn nhà hàng</Badge>
+          <h1 className="max-w-2xl text-4xl font-semibold leading-tight tracking-normal">Chọn món và đặt bàn trong vài thao tác.</h1>
           <p className="max-w-xl text-muted-foreground">
-            Search live menu items, review availability, and start a table booking when you are ready.
+            Tìm món, xem món còn phục vụ và kiểm tra món có thể đặt trước trước khi bạn đến nhà hàng.
           </p>
         </div>
         <div className="flex gap-2">
           <Button asChild className="min-h-11 flex-1 rounded-lg">
-            <Link href="/booking">Find a table</Link>
+            <Link href="/booking">Tìm bàn</Link>
           </Button>
           <Button asChild variant="outline" className="min-h-11 flex-1 rounded-lg">
-            <Link href="/reservations">My visits</Link>
+            <Link href="/reservations">Lịch đặt của tôi</Link>
           </Button>
         </div>
       </section>
@@ -69,10 +70,10 @@ export function MenuPage() {
           <Search className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
           <Input
             type="search"
-            aria-label="Search menu items"
+            aria-label="Tìm món trong thực đơn"
             value={q}
             onChange={(event) => setQ(event.target.value)}
-            placeholder="Search dishes"
+            placeholder="Tìm phở, cơm, đồ uống..."
             className="min-h-12 rounded-lg pl-10"
           />
         </div>
@@ -85,7 +86,7 @@ export function MenuPage() {
               className="min-h-10 shrink-0 rounded-lg"
               onClick={() => setCategoryId(null)}
             >
-              All
+              Tất cả
             </Button>
             {categoriesQuery.data.map((category) => (
               <Button
@@ -101,24 +102,26 @@ export function MenuPage() {
           </div>
         ) : null}
 
-        {itemsQuery.isLoading ? <LoadingBlock label="Loading menu" /> : null}
-        {itemsQuery.error ? <ErrorState error={itemsQuery.error} title="Menu is unavailable" onRetry={() => itemsQuery.refetch()} /> : null}
+        {itemsQuery.isLoading ? <LoadingBlock label="Đang tải thực đơn" /> : null}
+        {itemsQuery.error ? <ErrorState error={itemsQuery.error} title="Chưa tải được thực đơn" onRetry={() => itemsQuery.refetch()} /> : null}
         {itemsQuery.data && itemsQuery.data.length === 0 ? (
-          <EmptyState title="No menu items found" description="Try a different search or clear the selected category." />
+          <EmptyState title="Chưa có món phù hợp" description="Thử từ khóa khác hoặc bỏ lọc danh mục đang chọn." />
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {itemsQuery.data?.map((item) => (
-            <Card key={item.item_id} className="overflow-hidden rounded-lg">
-              {item.img_url ? (
-                // Backend image URLs are restaurant-managed and may be outside the Next image allow-list.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.img_url} alt={item.name} className="h-44 w-full object-cover" />
-              ) : (
-                <div className="flex h-44 items-center justify-center bg-secondary text-sm font-medium text-muted-foreground">
-                  {item.category_name ?? "Menu item"}
+            <Card key={item.item_id} className="group overflow-hidden rounded-lg border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+              <div className="relative">
+                <MenuItemImage item={item} />
+                <div className="absolute bottom-3 left-3 flex flex-wrap gap-2">
+                  <Badge variant={item.is_available ? "outline" : "secondary"} className="rounded-md bg-background/90">
+                    {item.is_available ? "Còn phục vụ" : "Tạm hết"}
+                  </Badge>
+                  <Badge variant="outline" className="rounded-md bg-background/90">
+                    {item.category_name ?? "Món ăn"}
+                  </Badge>
                 </div>
-              )}
+              </div>
               <CardContent className="space-y-4 p-4">
                 <div className="space-y-1">
                   <div className="flex items-start justify-between gap-3">
@@ -128,35 +131,33 @@ export function MenuPage() {
                     </span>
                   </div>
                   <p className="line-clamp-2 min-h-11 text-sm text-muted-foreground">
-                    {item.description ?? "Details are available from the restaurant."}
+                    {item.description ?? "Nhà hàng sẽ cung cấp thêm thông tin khi bạn gọi món."}
                   </p>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <Badge variant={item.is_available ? "outline" : "secondary"} className="rounded-md">
-                    {item.is_available ? "Available" : "Unavailable"}
-                  </Badge>
                   <Badge variant="outline" className="rounded-md">
-                    {item.preorder.enabled ? "Preorder" : "Dine-in only"}
+                    {item.preorder.enabled ? "Có thể đặt trước" : "Dùng tại bàn"}
                   </Badge>
+                  {!item.is_available ? <span className="text-sm font-medium text-muted-foreground">Hỏi nhân viên để được gợi ý món khác.</span> : null}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {featureFlags.menuItemDetail ? (
-                    <Button asChild variant="outline" className="rounded-lg">
-                      <Link href={`/menu/${item.item_id}`}>Details</Link>
+                    <Button asChild variant="outline" className="min-h-11 rounded-lg">
+                      <Link href={`/menu/${item.item_id}`}>Chi tiết</Link>
                     </Button>
                   ) : (
-                    <Button type="button" variant="outline" className="rounded-lg" disabled>
-                      Details
+                    <Button type="button" variant="outline" className="min-h-11 rounded-lg" disabled>
+                      Chi tiết
                     </Button>
                   )}
                   <Button
                     type="button"
-                    className="rounded-lg"
+                    className="min-h-11 rounded-lg"
                     disabled={!item.preorder.enabled || previewMutation.isPending}
                     onClick={() => previewMutation.mutate(item.item_id)}
                   >
                     <ShoppingBag className="mr-2 h-4 w-4" />
-                    Preview
+                    Kiểm tra
                   </Button>
                 </div>
               </CardContent>

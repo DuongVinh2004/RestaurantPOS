@@ -52,8 +52,8 @@ export function BackendStatusBanner() {
   const normalizedError = healthQuery.error ? normalizeApiError(healthQuery.error) : null;
   const errorDisplay = healthQuery.error ? getApiErrorDisplay(healthQuery.error) : null;
   const healthStatus = healthQuery.data?.status ?? normalizedError?.status ?? null;
-  const statusLabel = healthStatus === null ? null : `Status ${healthStatus}`;
-  const requestIdLabel = healthQuery.data?.requestId ? `Request ID: ${healthQuery.data.requestId}` : errorDisplay?.requestIdLabel ?? null;
+  const statusLabel = healthStatus === null ? null : `Trạng thái ${healthStatus}`;
+  const requestIdLabel = healthQuery.data?.requestId ? `Mã hỗ trợ: ${healthQuery.data.requestId}` : errorDisplay?.requestIdLabel ?? null;
   const checkedUrl = healthQuery.data?.checkedUrl ?? `${diagnostics.baseUrl.replace(/\/+$/, "")}/api/v1/health`;
   const alertClassName =
     bannerState.tone === "danger"
@@ -74,7 +74,7 @@ export function BackendStatusBanner() {
             ))}
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs font-medium">
-            <span>{diagnostics.usingDevMocks ? "Mode: Mock responses" : "Mode: API requests"}</span>
+            <span>{diagnostics.usingDevMocks ? "Chế độ: dữ liệu mô phỏng" : "Chế độ: gọi API"}</span>
             <span className="font-mono">{checkedUrl}</span>
             {statusLabel ? <span>{statusLabel}</span> : null}
             {requestIdLabel ? <span>{requestIdLabel}</span> : null}
@@ -82,7 +82,7 @@ export function BackendStatusBanner() {
         </div>
         {bannerState.showRetry ? (
           <Button type="button" variant="outline" size="sm" className="w-fit rounded-lg" onClick={() => healthQuery.refetch()}>
-            Retry
+            Thử lại
           </Button>
         ) : null}
       </AlertDescription>
@@ -111,11 +111,11 @@ export function resolveBackendStatusBannerState({
   if (usingDevMocks) {
     return {
       tone: "warning",
-      title: "Local mock mode is on",
+      title: "Đang dùng dữ liệu mô phỏng",
       message:
-        "This browser is serving mock responses instead of the live API. Use it only for local or controlled UAT UI checks, not for rollout or release proof.",
+        "Trình duyệt đang dùng dữ liệu mô phỏng thay vì API thật. Chỉ dùng chế độ này để kiểm thử giao diện.",
       guidance: [
-        "Turn off NEXT_PUBLIC_ENABLE_DEV_MOCKS before QA, UAT, or release proof.",
+        "Tắt dữ liệu mô phỏng trước khi kiểm thử với API thật.",
         customerWebRollout.devMockAdapter.liveProofSummary,
       ],
       showRetry: false,
@@ -125,11 +125,11 @@ export function resolveBackendStatusBannerState({
   if (baseUrlDiagnostics.likelyWrongForCurrentHost) {
     return {
       tone: "warning",
-      title: "API base URL looks wrong for this environment",
-      message: `This app is running on ${baseUrlDiagnostics.appHost}, but NEXT_PUBLIC_API_BASE_URL still points to ${baseUrl}. A local API base URL only works when the browser and Laravel runtime are on the same machine.`,
+      title: "Địa chỉ API có thể chưa đúng",
+      message: `Ứng dụng đang chạy trên ${baseUrlDiagnostics.appHost}, nhưng địa chỉ API đang trỏ tới ${baseUrl}. API cục bộ chỉ hoạt động khi trình duyệt và Laravel chạy trên cùng máy.`,
       guidance: [
-        "Set NEXT_PUBLIC_API_BASE_URL to the correct QA or UAT API host, then reload the app.",
-        "This banner cannot verify UAT manifest freshness or payment fixtures. Run the live runtime preflight for that proof.",
+        "Cập nhật địa chỉ API đúng cho môi trường này rồi tải lại ứng dụng.",
+        "Cảnh báo này chỉ kiểm tra kết nối cơ bản.",
       ],
       showRetry: Boolean(healthError || (healthResult && !healthResult.ok)),
     };
@@ -138,14 +138,14 @@ export function resolveBackendStatusBannerState({
   if (healthResult && !healthResult.ok) {
     return {
       tone: "danger",
-      title: "Live API is not reachable",
+      title: "Chưa kết nối được API",
       message:
-        `${errorDisplay?.message ?? "The backend health check failed."} ${
-          errorDisplay?.retryHint ?? "Confirm the API is running and reachable from this environment."
+        `${errorDisplay?.message ?? "Kiểm tra hệ thống nhà hàng thất bại."} ${
+          errorDisplay?.retryHint ?? "Kiểm tra API đang chạy và có thể truy cập từ môi trường này."
         }`.trim(),
       guidance: [
-        "Check NEXT_PUBLIC_API_BASE_URL first, then confirm the backend runtime is healthy for this environment.",
-        "This browser only checked the health URL, response status, and request id. Use the live runtime preflight for UAT pack and payment prerequisite proof.",
+        "Kiểm tra địa chỉ API trước, sau đó xác nhận hệ thống nhà hàng đang hoạt động.",
+        "Trình duyệt chỉ kiểm tra đường dẫn sức khỏe, trạng thái phản hồi và mã hỗ trợ.",
       ],
       showRetry: true,
     };
@@ -154,14 +154,14 @@ export function resolveBackendStatusBannerState({
   if (normalizedError) {
     return {
       tone: "danger",
-      title: "Live API health check failed",
+      title: "Kiểm tra API thất bại",
       message:
         `${errorDisplay?.message ?? normalizedError.message} ${
-          errorDisplay?.retryHint ?? "Confirm the backend is reachable from this environment."
+          errorDisplay?.retryHint ?? "Kiểm tra hệ thống nhà hàng có thể truy cập từ môi trường này."
         }`.trim(),
       guidance: [
-        "Check NEXT_PUBLIC_API_BASE_URL first, then confirm the backend runtime is healthy for this environment.",
-        "This browser cannot prove UAT pack freshness or payment fixture readiness. Use the live runtime preflight before calling payment flows live proof.",
+        "Kiểm tra địa chỉ API trước, sau đó xác nhận hệ thống nhà hàng đang hoạt động.",
+        "Cảnh báo này không thay thế kiểm thử vận hành đầy đủ.",
       ],
       showRetry: true,
     };
@@ -170,11 +170,11 @@ export function resolveBackendStatusBannerState({
   if (aliasWarnings.length > 0) {
     return {
       tone: "warning",
-      title: "Compatibility rollout env names are still in use",
-      message: `This build still reads ${aliasWarnings.join(", ")}. QA and UAT can continue, but new work should use the NEXT_PUBLIC_FEATURE_* names so rollout behavior stays predictable and fail-safe.`,
+      title: "Đang dùng tên cấu hình cũ",
+      message: `Bản dựng vẫn đọc ${aliasWarnings.join(", ")}. Kiểm thử vẫn có thể tiếp tục, nhưng cấu hình mới nên dùng tên NEXT_PUBLIC_FEATURE_* để dễ kiểm soát.`,
       guidance: [
-        "Compatibility aliases do not widen support beyond the support matrix, but they should be retired from active configs.",
-        "Alias cleanup is a config hygiene warning only; it is not evidence for payment, waiting-list, or benefits runtime readiness.",
+        "Tên cấu hình cũ không mở rộng phạm vi hỗ trợ.",
+        "Đây là cảnh báo cấu hình, không phải lỗi thao tác của khách hàng.",
       ],
       showRetry: false,
     };

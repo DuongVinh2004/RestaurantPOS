@@ -1788,6 +1788,17 @@ export type PatchV1TableHoldsHoldIdRefreshPathParams = {
   hold_id: string;
 };
 
+export type PayOrderRequest = {
+  payment_method: string;
+  payment_provider?: ("MoMo" | "VNPay" | "Cash" | "Card" | "BankTransfer" | "Other") | null;
+  paid_amount: number;
+  currency?: (string) | null;
+  transaction_code?: (string) | null;
+  notes?: (string) | null;
+  row_version: number;
+  staff_user_id?: (number) | null;
+};
+
 export type PostV1AdminMenuItemsItemIdPricesPathParams = {
   item_id: number;
 };
@@ -1921,6 +1932,10 @@ export type PostV1StaffOrdersOrderIdItemsPathParams = {
 };
 
 export type PostV1StaffOrdersOrderIdKitchenDispatchPathParams = {
+  order_id: number;
+};
+
+export type PostV1StaffOrdersOrderIdPayPathParams = {
   order_id: number;
 };
 
@@ -2528,6 +2543,7 @@ export type StaffCheckoutSettlementEnvelope = {
   final_paid_amount: number;
   outstanding_amount: number;
   payment_status: string;
+  status: string;
   order_status: string;
   reservation_status: (string) | null;
 };
@@ -4582,6 +4598,19 @@ export class RestaurantPosClient {
       false,
       query,
       undefined,
+      options,
+    );
+  }
+
+  async postV1StaffOrdersOrderIdPay(pathParams: PostV1StaffOrdersOrderIdPayPathParams, body: PayOrderRequest, options: RequestOptions = {}): Promise<StaffCheckoutSettlementEnvelope> {
+    return this.request<StaffCheckoutSettlementEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/orders/{order_id}/pay', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
       options,
     );
   }

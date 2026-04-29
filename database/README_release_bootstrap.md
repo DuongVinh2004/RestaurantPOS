@@ -66,6 +66,7 @@ The current SQL-first release contract also assumes the April 5 foundations are 
 - cashier shift finance user foreign keys (`cashier_shifts.cashier_user_id`, `cashier_shifts.opened_by`, `cashier_shifts.closed_by`)
 - cashier shift optimistic-write triggers (`trg_cashier_shifts__bi_row_version`, `trg_cashier_shifts__bu_row_version`) from `database/patches/2026_04_27_000059_cashier_shift_row_version.sql`
 - per-staff branch assignment foundation (`staff_branch_assignments`)
+- completed paid on-spot service reservations carry `final_bill_amount`, `bill_currency`, and `billed_at`
 - data lifecycle / privacy (`customer_privacy_requests`, `users.privacy_anonymized_at`)
 - feature flags (`feature_flags`)
 

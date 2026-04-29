@@ -52,10 +52,10 @@ export function WaitingListPage() {
           action={
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
               <Button asChild className="rounded-lg">
-                <Link href="/booking">Find a table</Link>
+                <Link href="/booking">Tìm bàn</Link>
               </Button>
               <Button asChild variant="outline" className="rounded-lg">
-                <Link href="/reservations">View reservations</Link>
+                <Link href="/reservations">Xem lịch đặt</Link>
               </Button>
             </div>
           }
@@ -126,7 +126,7 @@ function WaitingListWorkspace() {
     onSuccess(result) {
       const entry = result.entry;
 
-      toast.success("Waiting-list entry created. Refresh details when staff asks you to respond.");
+      toast.success("Đã đăng ký danh sách chờ. Hãy cập nhật khi nhân viên yêu cầu phản hồi.");
       form.reset();
       syncWaitingListEntry(entry);
     },
@@ -181,22 +181,22 @@ function WaitingListWorkspace() {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6">
       <section className="mb-5 space-y-2">
-        <h1 className="text-4xl font-semibold tracking-normal">Waiting list</h1>
+        <h1 className="text-4xl font-semibold tracking-normal">Danh sách chờ</h1>
         <p className="max-w-3xl text-muted-foreground">
-          This Wave 2 surface stays rollout-gated by default. When QA or UAT enables it, the browser flow stays owner-scoped to the signed-in customer token only, with no fake realtime or staff-notification simulation.
+          Đăng ký chờ bàn, theo dõi lời mời từ nhà hàng và phản hồi khi bạn vẫn muốn nhận bàn.
         </p>
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
         <Card className="h-fit rounded-lg">
           <CardHeader>
-            <CardTitle>Join waiting list</CardTitle>
+            <CardTitle>Đăng ký chờ bàn</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-lg border bg-secondary/30 p-4">
-              <p className="font-medium">Owner scope only</p>
+              <p className="font-medium">Thông báo dành cho bạn</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Waiting-list entry ownership follows the signed-in customer token. This surface does not attach a browser visit session and does not simulate notification or final seating steps.
+                Nhà hàng sẽ cập nhật trạng thái tại đây. Hãy bấm cập nhật khi nhân viên yêu cầu kiểm tra hoặc sau khi bạn phản hồi lời mời.
               </p>
             </div>
             <form
@@ -207,7 +207,7 @@ function WaitingListWorkspace() {
               })}
             >
               <div className="space-y-2">
-                <Label htmlFor="guest_name">Guest name</Label>
+                <Label htmlFor="guest_name">Tên khách</Label>
                 <Input id="guest_name" className="min-h-11 rounded-lg" {...form.register("guest_name")} />
                 {form.formState.errors.guest_name ? (
                   <p className="text-sm text-destructive">{form.formState.errors.guest_name.message}</p>
@@ -215,7 +215,7 @@ function WaitingListWorkspace() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="guest_count">Guests</Label>
+                  <Label htmlFor="guest_count">Số khách</Label>
                   <Input
                     id="guest_count"
                     type="number"
@@ -228,19 +228,19 @@ function WaitingListWorkspace() {
                   ) : null}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
+                  <Label htmlFor="phone">Số điện thoại</Label>
                   <Input id="phone" className="min-h-11 rounded-lg" {...form.register("phone")} />
                   {form.formState.errors.phone ? <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p> : null}
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
+                <Label htmlFor="notes">Ghi chú</Label>
                 <Textarea id="notes" className="min-h-20 rounded-lg" {...form.register("notes")} />
                 {form.formState.errors.notes ? <p className="text-sm text-destructive">{form.formState.errors.notes.message}</p> : null}
               </div>
-              {createError ? <ErrorState error={createError} title="Could not join waiting list" /> : null}
+              {createError ? <ErrorState error={createError} title="Chưa đăng ký được danh sách chờ" /> : null}
               <Button type="submit" className="min-h-11 w-full rounded-lg" disabled={createMutation.isPending}>
-                {createMutation.isPending ? "Joining" : "Join waiting list"}
+                {createMutation.isPending ? "Đang đăng ký" : "Đăng ký chờ bàn"}
               </Button>
             </form>
           </CardContent>
@@ -250,7 +250,7 @@ function WaitingListWorkspace() {
           <Card className="rounded-lg">
             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-1">
-                <CardTitle>Your entries</CardTitle>
+                <CardTitle>Đăng ký của bạn</CardTitle>
                 <p className="text-sm text-muted-foreground">{refreshPolicy.description}</p>
               </div>
               <Button
@@ -262,18 +262,18 @@ function WaitingListWorkspace() {
                   void refreshCurrentView();
                 }}
               >
-                {waitingListQuery.isFetching ? "Refreshing list" : "Refresh list"}
+                {waitingListQuery.isFetching ? "Đang cập nhật" : "Cập nhật danh sách"}
               </Button>
             </CardHeader>
             <CardContent className="space-y-3">
-              {waitingListLoading ? <LoadingBlock label="Loading waiting-list entries" /> : null}
+              {waitingListLoading ? <LoadingBlock label="Đang tải danh sách chờ" /> : null}
               {waitingListQuery.error ? (
-                <ErrorState error={waitingListQuery.error} title="Waiting list is unavailable" onRetry={() => void refreshCurrentView()} />
+                <ErrorState error={waitingListQuery.error} title="Chưa tải được danh sách chờ" onRetry={() => void refreshCurrentView()} />
               ) : null}
               {!waitingListLoading && !waitingListQuery.error && orderedEntries.length === 0 ? (
                 <EmptyState
-                  title="No waiting-list entries yet"
-                  description="Join the waiting list when the restaurant asks you to register or when a Wave 2 QA pass needs owner-response coverage."
+                  title="Chưa có đăng ký chờ"
+                  description="Đăng ký chờ bàn khi nhà hàng cần bạn ghi danh hoặc chưa có bàn trống ngay."
                 />
               ) : null}
               {orderedEntries.map((entry) => {
@@ -292,17 +292,17 @@ function WaitingListWorkspace() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Entry #{entry.waiting_id}</p>
+                        <p className="text-sm text-muted-foreground">Mã chờ #{entry.waiting_id}</p>
                         <p className="text-lg font-semibold">
-                          {entry.guest_name ?? "Guest"} - {entry.guest_count} guests
+                          {entry.guest_name ?? "Khách"} - {entry.guest_count} khách
                         </p>
                         <p className="text-sm text-muted-foreground">{journey.title}</p>
                       </div>
                       <StatusBadge status={entry.status} />
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                      <span>Requested {formatDateTime(entry.requested_at)}</span>
-                      <span>Next step {formatInlineStateLabel(entry.next_step)}</span>
+                      <span>Đăng ký {formatDateTime(entry.requested_at)}</span>
+                      <span>Bước tiếp theo {formatInlineStateLabel(entry.next_step)}</span>
                     </div>
                   </button>
                 );
@@ -313,9 +313,9 @@ function WaitingListWorkspace() {
           <Card className="rounded-lg">
             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-1">
-                <CardTitle>Entry details</CardTitle>
+                <CardTitle>Chi tiết đăng ký</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Detail reads stay owner-scoped. Refresh manually after a staff prompt or after you submit a response.
+                  Cập nhật thủ công sau khi nhân viên nhắc bạn kiểm tra hoặc sau khi bạn gửi phản hồi.
                 </p>
               </div>
               <Button
@@ -327,29 +327,29 @@ function WaitingListWorkspace() {
                   void refreshCurrentView();
                 }}
               >
-                {detailQuery.isFetching ? "Refreshing details" : "Refresh details"}
+                {detailQuery.isFetching ? "Đang cập nhật" : "Cập nhật chi tiết"}
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
-              {detailLoading ? <LoadingBlock label="Loading waiting-list entry details" /> : null}
+              {detailLoading ? <LoadingBlock label="Đang tải chi tiết danh sách chờ" /> : null}
               {!detailLoading && detailError?.kind === "not_found" ? (
                 <EmptyState
-                  title="This entry is no longer available for this account"
-                  description="Refresh the waiting-list entries to load the latest owner-visible record before trying another response."
+                  title="Đăng ký này không còn khả dụng"
+                  description="Cập nhật danh sách chờ để lấy thông tin mới nhất trước khi phản hồi tiếp."
                   action={
                     <Button type="button" variant="outline" className="rounded-lg" onClick={() => void refreshCurrentView()}>
-                      Refresh entries
+                      Cập nhật đăng ký
                     </Button>
                   }
                 />
               ) : null}
               {!detailLoading && detailQuery.error && detailError?.kind !== "not_found" ? (
-                <ErrorState error={detailQuery.error} title="Waiting-list details are unavailable" onRetry={() => void refreshCurrentView()} />
+                <ErrorState error={detailQuery.error} title="Chưa tải được chi tiết danh sách chờ" onRetry={() => void refreshCurrentView()} />
               ) : null}
               {!detailLoading && !detailQuery.error && !activeEntry ? (
                 <EmptyState
-                  title="Select an entry"
-                  description="Choose a waiting-list entry to review its journey, seat-result state, and owner actions."
+                  title="Chọn một đăng ký"
+                  description="Chọn đăng ký chờ để xem trạng thái, kết quả xếp bàn và thao tác có thể làm."
                 />
               ) : null}
               {activeEntry && journeyState && actionPolicy && seatResultState ? (
@@ -357,12 +357,12 @@ function WaitingListWorkspace() {
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm text-muted-foreground">Entry #{activeEntry.waiting_id}</p>
+                        <p className="text-sm text-muted-foreground">Mã chờ #{activeEntry.waiting_id}</p>
                         <h2 className="text-xl font-semibold">
-                          {activeEntry.guest_name ?? "Guest"} - {activeEntry.guest_count} guests
+                          {activeEntry.guest_name ?? "Khách"} - {activeEntry.guest_count} khách
                         </h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          Requested {formatDateTime(activeEntry.requested_at)} - Next step {formatInlineStateLabel(activeEntry.next_step)}
+                          Đăng ký {formatDateTime(activeEntry.requested_at)} - Bước tiếp theo {formatInlineStateLabel(activeEntry.next_step)}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -374,40 +374,40 @@ function WaitingListWorkspace() {
 
                   <div className="grid gap-3 lg:grid-cols-2">
                     <div className="rounded-lg bg-secondary p-4">
-                      <p className="text-sm text-muted-foreground">Journey state</p>
+                      <p className="text-sm text-muted-foreground">Trạng thái chờ</p>
                       <p className="mt-1 text-lg font-semibold">{journeyState.title}</p>
                       <p className="mt-2 text-sm text-muted-foreground">{journeyState.description}</p>
                       <p className="mt-3 text-sm font-medium">{journeyState.nextStep}</p>
                     </div>
                     <div className="rounded-lg bg-secondary p-4">
-                      <p className="text-sm text-muted-foreground">Seat result visibility</p>
+                      <p className="text-sm text-muted-foreground">Kết quả xếp bàn</p>
                       <p className="mt-1 text-lg font-semibold">{seatResultState.title}</p>
                       <p className="mt-2 text-sm text-muted-foreground">{seatResultState.description}</p>
                       {seatResultState.reservationId !== null ? (
-                        <p className="mt-3 text-sm font-medium">Linked reservation #{seatResultState.reservationId}</p>
+                        <p className="mt-3 text-sm font-medium">Lịch đặt liên kết #{seatResultState.reservationId}</p>
                       ) : null}
-                      {seatResultState.tableLabel ? <p className="mt-1 text-sm text-muted-foreground">Last exposed {seatResultState.tableLabel}</p> : null}
+                      {seatResultState.tableLabel ? <p className="mt-1 text-sm text-muted-foreground">Bàn gần nhất {seatResultState.tableLabel}</p> : null}
                     </div>
                   </div>
 
                   <div className="grid gap-3 lg:grid-cols-2">
                     <div className="rounded-lg border p-4">
-                      <p className="text-sm text-muted-foreground">Invite window</p>
+                      <p className="text-sm text-muted-foreground">Khung phản hồi lời mời</p>
                       <p className="mt-1 font-medium">{describeInviteWindow(activeEntry)}</p>
                       <p className="mt-2 text-sm text-muted-foreground">
-                        Notified {formatDateTime(activeEntry.notified_at)} - Expires {formatDateTime(activeEntry.notify_window.expires_at)}
+                        Thông báo {formatDateTime(activeEntry.notified_at)} - Hết hạn {formatDateTime(activeEntry.notify_window.expires_at)}
                       </p>
                     </div>
                     <div className="rounded-lg border p-4">
                       <p className="text-sm text-muted-foreground">{refreshPolicy.title}</p>
-                      <p className="mt-1 font-medium">Row version {activeEntry.row_version}</p>
+                      <p className="mt-1 font-medium">Phiên bản cập nhật {activeEntry.row_version}</p>
                       <p className="mt-2 text-sm text-muted-foreground">{refreshPolicy.description}</p>
                     </div>
                   </div>
 
                   <section className="space-y-3">
                     <div>
-                      <h3 className="text-lg font-semibold">Available actions</h3>
+                      <h3 className="text-lg font-semibold">Thao tác có thể làm</h3>
                       <p className="mt-1 font-medium">{actionPolicy.title}</p>
                       <p className="text-sm text-muted-foreground">{actionPolicy.description}</p>
                     </div>
@@ -444,7 +444,7 @@ function WaitingListWorkspace() {
                     {actionError ? (
                       <ErrorState
                         error={actionError}
-                        title={isConflictLikeApiError(actionError) ? "Waiting-list details changed" : "Waiting-list action failed"}
+                        title={isConflictLikeApiError(actionError) ? "Thông tin danh sách chờ đã thay đổi" : "Chưa xử lý được danh sách chờ"}
                         onRetry={() => void refreshCurrentView()}
                       />
                     ) : null}
@@ -481,36 +481,36 @@ function waitingListActionSuccessMessage(
     | Awaited<ReturnType<typeof cancelWaitingListEntry>>,
 ) {
   if (action === "arrival" && result.meta) {
-    return result.meta.message ?? "Arrival confirmed. Staff still needs to finish the final seating step.";
+    return result.meta.message ?? "Đã xác nhận bạn có mặt. Nhân viên vẫn cần hoàn tất bước xếp bàn.";
   }
 
   switch (action) {
     case "accept":
-      return "Invite accepted. Confirm arrival when you reach the restaurant.";
+      return "Đã nhận lời mời. Hãy xác nhận khi bạn tới nhà hàng.";
     case "arrival":
-      return "Arrival confirmed. Staff still needs to finish the final seating step.";
+      return "Đã xác nhận bạn có mặt. Nhân viên vẫn cần hoàn tất bước xếp bàn.";
     case "decline":
-      return "Invite declined.";
+      return "Đã từ chối lời mời.";
     case "cancel":
     default:
-      return "Waiting-list entry cancelled.";
+      return "Đã hủy đăng ký chờ bàn.";
   }
 }
 
 function describeInviteWindow(entry: CustomerWaitingListEntry) {
   if (entry.notify_window.is_open) {
-    return `Active invite until ${formatDateTime(entry.notify_window.expires_at)}`;
+    return `Lời mời còn hiệu lực đến ${formatDateTime(entry.notify_window.expires_at)}`;
   }
 
   if (entry.notify_window.expires_at && entry.status === "Notified") {
-    return `Invite expired at ${formatDateTime(entry.notify_window.expires_at)}`;
+    return `Lời mời đã hết hạn lúc ${formatDateTime(entry.notify_window.expires_at)}`;
   }
 
   if (entry.notified_at) {
-    return `Last invite opened at ${formatDateTime(entry.notified_at)}`;
+    return `Lời mời gần nhất mở lúc ${formatDateTime(entry.notified_at)}`;
   }
 
-  return "No active invite window";
+  return "Chưa có lời mời đang mở";
 }
 
 function formatInlineStateLabel(value: string | null | undefined): string {

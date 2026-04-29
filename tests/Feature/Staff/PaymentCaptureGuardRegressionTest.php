@@ -28,7 +28,34 @@ final class PaymentCaptureGuardRegressionTest extends TestCase
         Cache::store('redis')->getStore()->flush();
     }
 
-    public function test_same_payment_idempotency_key_replays_and_payload_mismatch_conflicts_without_double_capture(): void
+    public function test_pay_persists_bill_snapshot_before_completion(): void
+    {
+        [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario();
+        $this->openCashierShiftForReservationBranch($staffId, $reservationId);
+
+        $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', [
+            'payment_method' => 'Cash',
+            'payment_provider' => 'Cash',
+            'paid_amount' => 50000,
+            'currency' => 'VND',
+            'transaction_code' => 'PAY-SNAPSHOT-COMPLETE-1',
+            'row_version' => 1,
+        ], $this->withIdempotencyKey($this->staffAuthHeaders($staffId, 'payment-capture-snapshot'), 'idem-payment-snapshot-complete'))
+            ->assertOk()
+            ->assertJsonPath('data.status', 'Completed');
+
+        $reservation = DB::table('reservations')
+            ->where('reservation_id', $reservationId)
+            ->first(['status', 'final_bill_amount', 'bill_currency', 'billed_at', 'checked_out_at']);
+
+        self::assertSame('Completed', (string) $reservation->status);
+        self::assertSame('50000.00', number_format((float) $reservation->final_bill_amount, 2, '.', ''));
+        self::assertSame('VND', (string) $reservation->bill_currency);
+        self::assertNotNull($reservation->billed_at);
+        self::assertNotNull($reservation->checked_out_at);
+    }
+
+    public function test_pay_replay_same_idempotency_does_not_duplicate_payment_or_mutate_snapshot(): void
     {
         [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario();
         $this->openCashierShiftForReservationBranch($staffId, $reservationId);
@@ -43,16 +70,16 @@ final class PaymentCaptureGuardRegressionTest extends TestCase
         ];
 
         $first = $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', $payload, $headers);
+        $snapshotAfterFirst = DB::table('reservations')
+            ->where('reservation_id', $reservationId)
+            ->first(['final_bill_amount', 'bill_currency', 'billed_at', 'checked_out_at']);
         $second = $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', $payload, $headers);
-        $conflict = $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', array_merge($payload, [
-            'paid_amount' => 40000,
-            'transaction_code' => 'PAY-CAPTURE-IDEM-2',
-        ]), $headers);
+        $snapshotAfterReplay = DB::table('reservations')
+            ->where('reservation_id', $reservationId)
+            ->first(['final_bill_amount', 'bill_currency', 'billed_at', 'checked_out_at']);
 
         $first->assertOk()->assertHeader('Idempotency-Replayed', 'false');
         $second->assertOk()->assertHeader('Idempotency-Replayed', 'true');
-        $conflict->assertStatus(409)
-            ->assertJsonPath('error', 'idempotency_conflict');
 
         self::assertSame(
             1,
@@ -63,9 +90,43 @@ final class PaymentCaptureGuardRegressionTest extends TestCase
                 ->count()
         );
         self::assertSame('50000.00', number_format((float) DB::table('payments')->where('reservation_id', $reservationId)->value('amount'), 2, '.', ''));
+        self::assertEquals($snapshotAfterFirst, $snapshotAfterReplay);
     }
 
-    public function test_payment_without_open_cashier_shift_is_denied_before_capture(): void
+    public function test_pay_idempotency_mismatch_is_rejected(): void
+    {
+        [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario();
+        $this->openCashierShiftForReservationBranch($staffId, $reservationId);
+        $headers = $this->withIdempotencyKey($this->staffAuthHeaders($staffId, 'payment-capture-idem-mismatch'), 'idem-payment-capture-mismatch');
+        $payload = [
+            'payment_method' => 'Cash',
+            'payment_provider' => 'Cash',
+            'paid_amount' => 50000,
+            'currency' => 'VND',
+            'transaction_code' => 'PAY-CAPTURE-MISMATCH-1',
+            'row_version' => 1,
+        ];
+
+        $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', $payload, $headers)->assertOk();
+
+        $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', array_merge($payload, [
+            'paid_amount' => 40000,
+            'transaction_code' => 'PAY-CAPTURE-MISMATCH-2',
+        ]), $headers)
+            ->assertStatus(409)
+            ->assertJsonPath('error', 'idempotency_conflict');
+
+        self::assertSame(
+            1,
+            (int) DB::table('payments')
+                ->where('reservation_id', $reservationId)
+                ->where('payment_type', 'Final')
+                ->where('idempotency_key', 'idem-payment-capture-mismatch')
+                ->count()
+        );
+    }
+
+    public function test_payment_requires_open_cashier_shift(): void
     {
         [$staffId, $orderId, $reservationId] = $this->seedActiveOrderScenario();
 
@@ -108,8 +169,8 @@ final class PaymentCaptureGuardRegressionTest extends TestCase
             'row_version' => $orderRowVersion,
         ], $this->withIdempotencyKey($this->staffAuthHeaders($staffId, 'payment-capture-updated-line-total'), 'idem-payment-line-total-capture'))
             ->assertOk()
-            ->assertJsonPath('data.totals.total_due', '150000.00')
-            ->assertJsonPath('data.totals.outstanding', '100000.00')
+            ->assertJsonPath('data.total_amount', 150000)
+            ->assertJsonPath('data.outstanding_amount', 100000)
             ->assertJsonPath('data.payment_status', 'Partial');
 
         self::assertSame('150000.00', number_format((float) DB::table('reservation_order_items')->where('order_item_id', $orderItemId)->value('line_total'), 2, '.', ''));

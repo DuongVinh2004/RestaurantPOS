@@ -96,7 +96,7 @@ export function DepositPanel({
       const session = paymentSession?.payment_session;
 
       if (!session) {
-        throw new Error("No payment session is available to refresh.");
+        throw new Error("Chưa có phiên thanh toán để cập nhật.");
       }
 
       return refreshDepositPaymentSession(reservationId, session.deposit_payment_session_id, session.row_version);
@@ -109,7 +109,7 @@ export function DepositPanel({
       const session = paymentSession?.payment_session;
 
       if (!session) {
-        throw new Error("No payment session is available to confirm.");
+        throw new Error("Chưa có phiên thanh toán để xác nhận.");
       }
 
       return confirmDepositPaymentSession(reservationId, session.deposit_payment_session_id, session.row_version);
@@ -134,22 +134,22 @@ export function DepositPanel({
   const previewActionError = acknowledgeMutation.error ?? intentMutation.error ?? revokeMutation.error;
   const sessionActionError = createSessionMutation.error ?? refreshSessionMutation.error ?? confirmSessionMutation.error;
   const actionError = previewActionError ?? sessionActionError;
-  const loadBoundary = depositQuery.error ? getSelfServiceBlockedState("deposit", depositQuery.error, "Deposit is unavailable") : null;
+  const loadBoundary = depositQuery.error ? getSelfServiceBlockedState("deposit", depositQuery.error, "Chưa tải được đặt cọc") : null;
   const actionBoundary = actionError
     ? getSelfServiceBlockedState(
         "deposit",
         actionError,
-        isConflictLikeApiError(actionError) ? "Deposit details changed" : sessionActionError ? "Payment session failed" : "Deposit action failed",
+        isConflictLikeApiError(actionError) ? "Thông tin đặt cọc đã thay đổi" : sessionActionError ? "Chưa mở được thanh toán" : "Chưa xử lý được đặt cọc",
       )
     : null;
   const noActionTitle =
     depositSummary.state === "not_required"
-      ? "No deposit required"
+      ? "Không cần đặt cọc"
       : depositSummary.state === "paid"
-        ? "Deposit settled"
+        ? "Đặt cọc đã xử lý"
         : depositSummary.state === "refunded"
-          ? "Deposit refunded"
-          : "No deposit action required";
+          ? "Đặt cọc đã hoàn tiền"
+          : "Không cần thao tác đặt cọc";
 
   useEffect(() => {
     if (!session || !sessionPolicy || sessionPolicy.refreshMode !== "auto" || !sessionPolicy.autoRefreshMs) {
@@ -180,10 +180,10 @@ export function DepositPanel({
   return (
     <Card className="rounded-lg">
       <CardHeader>
-        <CardTitle>Deposit</CardTitle>
+        <CardTitle>Đặt cọc</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {depositQuery.isLoading ? <LoadingBlock label="Loading deposit" /> : null}
+        {depositQuery.isLoading ? <LoadingBlock label="Đang tải đặt cọc" /> : null}
         {loadBoundary ? (
           loadBoundary.kind === "error" ? (
             <ErrorState error={loadBoundary.error} title={loadBoundary.title} onRetry={() => depositQuery.refetch()} />
@@ -195,17 +195,17 @@ export function DepositPanel({
           <>
             <section className="space-y-3">
               <div>
-                <h3 className="text-lg font-semibold">Deposit preview</h3>
-                <p className="text-sm text-muted-foreground">Review the current deposit requirement before opening or refreshing a payment session.</p>
+                <h3 className="text-lg font-semibold">Tóm tắt đặt cọc</h3>
+                <p className="text-sm text-muted-foreground">Xem khoản đặt cọc cần xử lý trước khi thanh toán.</p>
               </div>
               <div className="rounded-lg bg-secondary p-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Deposit status</p>
+                  <p className="text-sm text-muted-foreground">Trạng thái đặt cọc</p>
                   <p className="text-lg font-semibold">{depositSummary.title}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{depositSummary.description}</p>
                 </div>
                 <div className="mt-4">
-                  <p className="text-sm text-muted-foreground">Amount due</p>
+                  <p className="text-sm text-muted-foreground">Số tiền cần trả</p>
                   <p className="text-2xl font-semibold">{formatMoney(depositPolicy.amount, depositPolicy.currency)}</p>
                 </div>
               </div>
@@ -213,33 +213,33 @@ export function DepositPanel({
                 <div className="grid gap-2 sm:grid-cols-2">
                   {depositPolicy.canAcknowledge ? (
                     <Button type="button" variant="outline" className="rounded-lg" disabled={acknowledgeMutation.isPending} onClick={() => acknowledgeMutation.mutate()}>
-                      Acknowledge deposit
+                      Tôi đã hiểu yêu cầu đặt cọc
                     </Button>
                   ) : null}
                   {depositPolicy.canSubmitIntent ? (
                     <Button type="button" variant="outline" className="rounded-lg" disabled={intentMutation.isPending} onClick={() => intentMutation.mutate()}>
-                      Mark as self-pay
+                      Tôi sẽ tự thanh toán
                     </Button>
                   ) : null}
                   {depositPolicy.canRevokeIntent ? (
                     <Button type="button" variant="outline" className="rounded-lg" disabled={revokeMutation.isPending} onClick={() => revokeMutation.mutate()}>
-                      Remove self-pay
+                      Hủy tự thanh toán
                     </Button>
                   ) : null}
                 </div>
               ) : (
-                <EmptyState title={noActionTitle} description={depositPolicy.noActionMessage ?? "No further deposit action is available right now."} />
+                <EmptyState title={noActionTitle} description={depositPolicy.noActionMessage ?? "Hiện không cần thao tác thêm với đặt cọc."} />
               )}
             </section>
 
             <section className="space-y-3">
               <div>
-                <h3 className="text-lg font-semibold">Payment session lifecycle</h3>
-                <p className="text-sm text-muted-foreground">Open a payment session only when the backend exposes a supported runtime path for this reservation.</p>
+                <h3 className="text-lg font-semibold">Thanh toán đặt cọc</h3>
+                <p className="text-sm text-muted-foreground">Mở thanh toán khi lịch đặt đã sẵn sàng để khách trả đặt cọc.</p>
               </div>
               {session && sessionPolicy ? (
                 <PaymentSessionCard
-                  surfaceLabel="Deposit"
+                  surfaceLabel="Đặt cọc"
                   session={session}
                   policy={sessionPolicy}
                   refreshPending={refreshSessionMutation.isPending}
@@ -254,7 +254,7 @@ export function DepositPanel({
                   action={
                     depositPolicy.canCreatePaymentSession ? (
                       <Button type="button" className="rounded-lg" disabled={createSessionMutation.isPending} onClick={() => createSessionMutation.mutate()}>
-                        {createSessionMutation.isPending ? "Opening payment" : "Continue to deposit payment"}
+                        {createSessionMutation.isPending ? "Đang mở thanh toán" : "Thanh toán đặt cọc"}
                       </Button>
                     ) : undefined
                   }

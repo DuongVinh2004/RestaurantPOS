@@ -6,18 +6,18 @@ import type {
   AdminMasterDataImportDomain,
   AdminMasterDataImportResult,
   AdminMasterDataImportRow,
-} from '../../../shared/api/staff-api';
-import { importAdminMasterData } from '../../../shared/api/staff-api';
-import { formatApiError } from '../../../shared/api/errors';
-import type { AdminImportDomainOption } from '../../../domains/admin/admin-master-data';
+} from '../../../../shared/api/staff-api';
+import { importAdminMasterData } from '../../../../shared/api/staff-api';
+import { formatApiError } from '../../../../shared/api/errors';
+import type { AdminImportDomainOption } from '../../../../domains/admin/admin-master-data';
 import {
   createAdminImportCommitPayload,
   parseAdminImportRows,
   summarizeAdminImportResult,
-} from '../../../domains/admin/admin-master-data';
-import { EmptyBlock, InlineWarning, TransientFailureState } from '../../../shared/ui/states/StateBlocks';
-import { StatusChip } from '../../../shared/ui/status/StatusChip';
-import { toast } from '../../../shared/ui/feedback/toast';
+} from '../../../../domains/admin/admin-master-data';
+import { EmptyBlock, InlineWarning, TransientFailureState } from '../../../../shared/ui/states/StateBlocks';
+import { StatusChip } from '../../../../shared/ui/status/StatusChip';
+import { toast } from '../../../../shared/ui/feedback/toast';
 
 export function AdminMasterDataImportPanel({
   domains,

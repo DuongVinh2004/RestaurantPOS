@@ -23,35 +23,35 @@ export function ReservationsPage() {
     <main className="mx-auto w-full max-w-5xl px-4 py-6">
       <section className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-4xl font-semibold tracking-normal">Reservations</h1>
+          <h1 className="text-4xl font-semibold tracking-normal">Lịch đặt</h1>
           <p className="mt-2 max-w-xl text-muted-foreground">
-            Review upcoming visits, manage deposits, and pay bills from live customer routes.
+            Xem các lượt ghé sắp tới, theo dõi đặt cọc và thanh toán hóa đơn khi nhà hàng đã sẵn sàng.
           </p>
         </div>
         <Button asChild className="min-h-11 rounded-lg">
-          <Link href="/reservations/new">Create reservation</Link>
+          <Link href="/reservations/new">Tạo lịch đặt</Link>
         </Button>
       </section>
 
       <Tabs value={bucket} onValueChange={(value) => setBucket(value as Bucket)} className="mb-5">
         <TabsList className="rounded-lg">
-          <TabsTrigger value="upcoming" className="rounded-md">Upcoming</TabsTrigger>
-          <TabsTrigger value="history" className="rounded-md">History</TabsTrigger>
-          <TabsTrigger value="all" className="rounded-md">All</TabsTrigger>
+          <TabsTrigger value="upcoming" className="rounded-md">Sắp tới</TabsTrigger>
+          <TabsTrigger value="history" className="rounded-md">Lịch sử</TabsTrigger>
+          <TabsTrigger value="all" className="rounded-md">Tất cả</TabsTrigger>
         </TabsList>
       </Tabs>
 
-      {reservationsQuery.isLoading ? <LoadingBlock label="Loading reservations" /> : null}
+      {reservationsQuery.isLoading ? <LoadingBlock label="Đang tải lịch đặt" /> : null}
       {reservationsQuery.error ? (
-        <ErrorState error={reservationsQuery.error} title="Reservations are unavailable" onRetry={() => reservationsQuery.refetch()} />
+        <ErrorState error={reservationsQuery.error} title="Chưa tải được lịch đặt" onRetry={() => reservationsQuery.refetch()} />
       ) : null}
       {reservationsQuery.data?.length === 0 ? (
         <EmptyState
-          title="No reservations found"
-          description="Create a reservation or hold a table to start a new visit."
+          title="Chưa có lịch đặt"
+          description="Tìm bàn hoặc tạo lịch đặt mới để bắt đầu lượt ghé nhà hàng."
           action={
             <Button asChild className="rounded-lg">
-              <Link href="/booking">Find a table</Link>
+              <Link href="/booking">Tìm bàn</Link>
             </Button>
           }
         />

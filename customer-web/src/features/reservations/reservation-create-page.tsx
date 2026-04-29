@@ -129,14 +129,14 @@ export function ReservationCreatePage() {
     mutationFn: ({ holdId: liveHoldId, rowVersion }: { holdId: string; rowVersion: number }) => refreshTableHold(liveHoldId, rowVersion),
     onSuccess(result) {
       queryClient.setQueryData(queryKeys.tableBooking.hold(result.hold_id), result);
-      toast.success("Table hold refreshed.");
+      toast.success("Đã gia hạn giữ bàn.");
     },
   });
   const cancelHoldMutation = useMutation({
     mutationFn: ({ holdId: liveHoldId, rowVersion }: { holdId: string; rowVersion: number }) => cancelTableHold(liveHoldId, rowVersion),
     onSuccess(result) {
       queryClient.setQueryData(queryKeys.tableBooking.hold(result.hold_id), result);
-      toast.success("Table hold cancelled.");
+      toast.success("Đã hủy giữ bàn.");
     },
   });
 
@@ -145,7 +145,7 @@ export function ReservationCreatePage() {
     onSuccess(result) {
       queryClient.setQueryData(queryKeys.reservations.detail(result.reservation_id), result);
       void queryClient.invalidateQueries({ queryKey: queryKeys.reservations.lists, refetchType: "inactive" });
-      toast.success("Reservation created.");
+      toast.success("Đã tạo lịch đặt.");
       router.push(`/reservations/${result.reservation_id}`);
     },
   });
@@ -155,26 +155,26 @@ export function ReservationCreatePage() {
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6">
       <section className="mb-5">
-        <h1 className="text-4xl font-semibold tracking-normal">Create reservation</h1>
+        <h1 className="text-4xl font-semibold tracking-normal">Tạo lịch đặt</h1>
         <p className="mt-2 text-muted-foreground">
-          This sends the live reservation create request with the current customer session and idempotency key.
+          Điền thông tin liên hệ để nhà hàng xác nhận lượt ghé của bạn.
         </p>
       </section>
 
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle>Visit details</CardTitle>
+          <CardTitle>Thông tin lượt ghé</CardTitle>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => createMutation.mutate(values))}>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="guest_name">Guest name</Label>
+                <Label htmlFor="guest_name">Tên khách</Label>
                 <Input id="guest_name" className="min-h-11 rounded-lg" {...form.register("guest_name")} />
                 {form.formState.errors.guest_name ? <p className="text-sm text-destructive">{form.formState.errors.guest_name.message}</p> : null}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="guest_phone">Phone</Label>
+                <Label htmlFor="guest_phone">Số điện thoại</Label>
                 <Input id="guest_phone" className="min-h-11 rounded-lg" {...form.register("guest_phone")} />
                 {form.formState.errors.guest_phone ? <p className="text-sm text-destructive">{form.formState.errors.guest_phone.message}</p> : null}
               </div>
@@ -186,7 +186,7 @@ export function ReservationCreatePage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2 sm:col-span-1">
-                <Label htmlFor="start_time">Start time</Label>
+                <Label htmlFor="start_time">Giờ bắt đầu</Label>
                 <Input
                   id="start_time"
                   type="datetime-local"
@@ -197,7 +197,7 @@ export function ReservationCreatePage() {
                 {form.formState.errors.start_time ? <p className="text-sm text-destructive">{form.formState.errors.start_time.message}</p> : null}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="duration_minutes">Minutes</Label>
+                <Label htmlFor="duration_minutes">Thời lượng phút</Label>
                 <Input
                   id="duration_minutes"
                   type="number"
@@ -209,7 +209,7 @@ export function ReservationCreatePage() {
                 {form.formState.errors.duration_minutes ? <p className="text-sm text-destructive">{form.formState.errors.duration_minutes.message}</p> : null}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="guest_count">Guests</Label>
+                <Label htmlFor="guest_count">Số khách</Label>
                 <Input
                   id="guest_count"
                   type="number"
@@ -222,33 +222,33 @@ export function ReservationCreatePage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
+              <Label htmlFor="notes">Ghi chú</Label>
               <Textarea id="notes" className="min-h-24 rounded-lg" {...form.register("notes")} />
             </div>
             {holdId ? (
               <Alert variant={expiredHold ? "destructive" : "default"} className="rounded-lg">
                 <AlertDescription>
                   {holdQuery.isLoading ? (
-                    <>Checking table hold {holdId} before reservation create.</>
+                    <>Đang kiểm tra bàn giữ {holdId} trước khi tạo lịch đặt.</>
                   ) : holdQuery.error ? (
                     <>
-                      Table hold {holdId} could not be verified. {userFacingApiMessage(holdQuery.error)}
+                      Chưa xác minh được bàn giữ {holdId}. {userFacingApiMessage(holdQuery.error)}
                     </>
                   ) : expiredHold ? (
                     <>
-                      Table hold {liveHoldState?.holdId ?? holdId} is no longer active
-                      {liveHoldState?.expiresAt ? ` as of ${formatDateTime(liveHoldState.expiresAt)}` : holdExpiresAt ? ` as of ${formatDateTime(holdExpiresAt)}` : ""}. Search
-                      availability again before creating a reservation.
+                      Bàn giữ {liveHoldState?.holdId ?? holdId} không còn hiệu lực
+                      {liveHoldState?.expiresAt ? ` từ ${formatDateTime(liveHoldState.expiresAt)}` : holdExpiresAt ? ` từ ${formatDateTime(holdExpiresAt)}` : ""}. Hãy tìm bàn
+                      trống lại trước khi tạo lịch đặt.
                     </>
                   ) : hasLockedHoldDetails ? (
                     <>
-                      Using table hold {liveHoldState?.holdId ?? holdId} for {holdGuestCount} guests starting{" "}
-                      {formatDateTime(parseLocalDateTimeInput(liveHoldStartTime as string)?.toISOString() ?? null)} for{" "}
-                      {liveHoldDurationMinutes} minutes. Search again if you need to change visit details. Tables:{" "}
-                      {liveHoldTableIds?.join(", ") || "from hold"}.
+                      Đang dùng bàn giữ {liveHoldState?.holdId ?? holdId} cho {holdGuestCount} khách, bắt đầu{" "}
+                      {formatDateTime(parseLocalDateTimeInput(liveHoldStartTime as string)?.toISOString() ?? null)} trong{" "}
+                      {liveHoldDurationMinutes} phút. Hãy tìm lại nếu bạn cần đổi thông tin. Bàn:{" "}
+                      {liveHoldTableIds?.join(", ") || "theo bàn giữ"}.
                     </>
                   ) : (
-                    <>Using table hold {liveHoldState?.holdId ?? holdId}. Review visit details carefully before submitting. Tables: {liveHoldTableIds?.join(", ") || "from hold"}.</>
+                    <>Đang dùng bàn giữ {liveHoldState?.holdId ?? holdId}. Kiểm tra kỹ thông tin trước khi gửi. Bàn: {liveHoldTableIds?.join(", ") || "theo bàn giữ"}.</>
                   )}
                 </AlertDescription>
               </Alert>
@@ -262,7 +262,7 @@ export function ReservationCreatePage() {
                   disabled={holdActionPending}
                   onClick={() => refreshHoldMutation.mutate({ holdId: liveHoldState.holdId, rowVersion: liveHoldState.rowVersion })}
                 >
-                  {refreshHoldMutation.isPending ? "Refreshing hold" : "Refresh hold"}
+                  {refreshHoldMutation.isPending ? "Đang gia hạn" : "Gia hạn giữ bàn"}
                 </Button>
                 <Button
                   type="button"
@@ -271,7 +271,7 @@ export function ReservationCreatePage() {
                   disabled={holdActionPending}
                   onClick={() => cancelHoldMutation.mutate({ holdId: liveHoldState.holdId, rowVersion: liveHoldState.rowVersion })}
                 >
-                  {cancelHoldMutation.isPending ? "Releasing hold" : "Release hold"}
+                  {cancelHoldMutation.isPending ? "Đang nhả bàn" : "Nhả bàn"}
                 </Button>
               </div>
             ) : null}
@@ -282,7 +282,7 @@ export function ReservationCreatePage() {
             ) : null}
             {expiredHold || Boolean(holdQuery.error) ? (
               <Button asChild variant="outline" className="w-full rounded-lg">
-                <Link href="/booking">Search availability again</Link>
+                <Link href="/booking">Tìm bàn trống lại</Link>
               </Button>
             ) : null}
             {createMutation.error ? (
@@ -295,7 +295,7 @@ export function ReservationCreatePage() {
               className="min-h-11 w-full rounded-lg"
               disabled={createMutation.isPending || holdActionPending || expiredHold || holdQuery.isLoading || Boolean(holdQuery.error)}
             >
-              {createMutation.isPending ? "Creating reservation" : "Create reservation"}
+              {createMutation.isPending ? "Đang tạo lịch đặt" : "Tạo lịch đặt"}
             </Button>
           </form>
         </CardContent>

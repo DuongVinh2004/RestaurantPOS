@@ -35,16 +35,16 @@ export function getSelfServiceAccessState(accessScope?: string | null): SelfServ
   if (accessScope === "owner") {
     return {
       kind: "owner_only",
-      title: "Account owner access",
-      description: "You are viewing this reservation as the signed-in customer account owner.",
+      title: "Truy cập theo tài khoản",
+      description: "Bạn đang xem lịch đặt bằng tài khoản khách hàng đã đăng nhập.",
     };
   }
 
   if (accessScope === "session") {
     return {
       kind: "session_linked",
-      title: "Linked visit session",
-      description: "You are viewing this reservation through the linked visit session for this browser.",
+      title: "Phiên ghé nhà hàng đã liên kết",
+      description: "Bạn đang xem lịch đặt qua phiên ghé nhà hàng trên trình duyệt này.",
     };
   }
 
@@ -84,59 +84,59 @@ export function getSelfServiceBlockedState(
 function getUnavailableTitle(entity: SelfServiceBoundaryEntity): string {
   switch (entity) {
     case "reservation":
-      return "This reservation is unavailable";
+      return "Lịch đặt không khả dụng";
     case "deposit":
-      return "Deposit is unavailable";
+      return "Đặt cọc không khả dụng";
     case "bill":
-      return "Bill is unavailable";
+      return "Hóa đơn không khả dụng";
     case "preorder":
-      return "Preorder is unavailable";
+      return "Món đặt trước không khả dụng";
     case "benefits":
-      return "Benefits are unavailable";
+      return "Ưu đãi không khả dụng";
   }
 }
 
 function getUnavailableDescription(entity: SelfServiceBoundaryEntity): string {
   switch (entity) {
     case "reservation":
-      return "The reservation could not be found or is no longer available from customer self-service.";
+      return "Không tìm thấy lịch đặt hoặc lịch đặt không còn mở cho khách tự thao tác.";
     case "deposit":
-      return "Deposit details are not available for this reservation right now.";
+      return "Hiện chưa có thông tin đặt cọc cho lịch đặt này.";
     case "bill":
-      return "Bill details are not available for this reservation right now.";
+      return "Hiện chưa có thông tin hóa đơn cho lịch đặt này.";
     case "preorder":
-      return "Preorder details are not available for this reservation right now.";
+      return "Hiện chưa có thông tin món đặt trước cho lịch đặt này.";
     case "benefits":
-      return "Benefits preview is not available for this reservation right now.";
+      return "Hiện chưa có thông tin ưu đãi cho lịch đặt này.";
   }
 }
 
 function getForbiddenTitle(entity: SelfServiceBoundaryEntity): string {
   switch (entity) {
     case "reservation":
-      return "Reservation access is blocked";
+      return "Không thể mở lịch đặt";
     case "deposit":
-      return "Deposit access is blocked";
+      return "Không thể mở đặt cọc";
     case "bill":
-      return "Bill access is blocked";
+      return "Không thể mở hóa đơn";
     case "preorder":
-      return "Preorder access is blocked";
+      return "Không thể mở món đặt trước";
     case "benefits":
-      return "Benefits access is blocked";
+      return "Không thể mở ưu đãi";
   }
 }
 
 function getForbiddenDescription(entity: SelfServiceBoundaryEntity): string {
   switch (entity) {
     case "reservation":
-      return "This reservation cannot be opened from customer self-service with the current actor.";
+      return "Tài khoản hoặc phiên hiện tại không có quyền mở lịch đặt này.";
     case "deposit":
-      return "Deposit self-service is not available for the current actor on this reservation.";
+      return "Tài khoản hoặc phiên hiện tại không thể tự xử lý đặt cọc cho lịch đặt này.";
     case "bill":
-      return "Bill self-service is not available for the current actor on this reservation.";
+      return "Tài khoản hoặc phiên hiện tại không thể tự xử lý hóa đơn cho lịch đặt này.";
     case "preorder":
-      return "Preorder self-service is not available for the current actor on this reservation.";
+      return "Tài khoản hoặc phiên hiện tại không thể mở món đặt trước cho lịch đặt này.";
     case "benefits":
-      return "Benefits preview is not available for the current actor on this reservation.";
+      return "Tài khoản hoặc phiên hiện tại không thể mở ưu đãi cho lịch đặt này.";
   }
 }

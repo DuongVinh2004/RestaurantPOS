@@ -90,6 +90,7 @@ return [
                     'GET api/v1/staff/cashier/shifts/{shift_id}',
                     'POST api/v1/staff/cashier/shifts/{shift_id}/close',
                     'GET api/v1/staff/orders/{order_id}/settlement-preview',
+                    'POST api/v1/staff/orders/{order_id}/pay',
                     'POST api/v1/staff/orders/{order_id}/settlement/finalize',
                 ],
             ],
@@ -469,6 +470,9 @@ return [
             'GET api/v1/staff/orders/{order_id}/settlement-preview' => [
                 'path' => ['order_id' => 'orderId'],
             ],
+            'POST api/v1/staff/orders/{order_id}/pay' => [
+                'path' => ['order_id' => 'orderId'],
+            ],
             'POST api/v1/staff/orders/{order_id}/settlement/finalize' => [
                 'path' => ['order_id' => 'orderId'],
             ],
@@ -748,6 +752,15 @@ return [
             'POST api/v1/staff/orders/{order_id}/bill-snapshot' => [
                 'row_version' => '{{orderRowVersion}}',
                 'notes' => 'Postman bill snapshot',
+            ],
+            'POST api/v1/staff/orders/{order_id}/pay' => [
+                'payment_method' => 'Cash',
+                'payment_provider' => 'Cash',
+                'paid_amount' => '{{paymentAmount}}',
+                'currency' => '{{currency}}',
+                'transaction_code' => 'PAY-{{$timestamp}}-{{$randomInt}}',
+                'notes' => 'Postman order payment',
+                'row_version' => '{{orderRowVersion}}',
             ],
             'POST api/v1/reservations/{reservation_id}/bill/payment-sessions' => [
                 'row_version' => '{{reservationRowVersionDineIn}}',
@@ -1057,6 +1070,7 @@ return [
                     'PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}',
                     'POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status',
                     'POST api/v1/staff/orders/{order_id}/bill-snapshot',
+                    'POST api/v1/staff/orders/{order_id}/pay',
                     'POST api/v1/staff/orders/{order_id}/settlement/finalize',
                     'POST api/v1/staff/cashier/shifts/open',
                     'POST api/v1/staff/cashier/shifts/{shift_id}/close',

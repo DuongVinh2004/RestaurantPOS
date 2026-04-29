@@ -34,10 +34,10 @@ export type WaitingListRefreshPolicy = {
 type WaitingListEntryLike = CustomerWaitingListEntry | CustomerWaitingListCollectionEnvelope["data"][number];
 
 export const waitingListActionLabels: Record<WaitingListOwnerAction, string> = {
-  accept: "Accept invite",
-  arrival: "Confirm arrival",
-  decline: "Decline invite",
-  cancel: "Cancel entry",
+  accept: "Nhận lời mời",
+  arrival: "Xác nhận đã đến",
+  decline: "Từ chối lời mời",
+  cancel: "Hủy đăng ký chờ",
 };
 
 export function sortWaitingListEntries<T extends WaitingListEntryLike>(entries: T[]): T[] {
@@ -54,80 +54,80 @@ export function getWaitingListJourneyState(entry: WaitingListEntryLike): Waiting
   if (entry.status === "Cancelled") {
     return {
       state: "cancelled",
-      title: "Entry cancelled",
-      description: "This waiting-list entry is no longer active for this customer account.",
-      nextStep: "Join again later if you still need a table.",
+      title: "Đã hủy đăng ký chờ",
+      description: "Đăng ký chờ này không còn hiệu lực với tài khoản khách hàng.",
+      nextStep: "Đăng ký lại sau nếu bạn vẫn cần bàn.",
     };
   }
 
   if (responseState === "declined") {
     return {
       state: "declined",
-      title: "Invite declined",
-      description: "This invite has a recorded customer decline response.",
-      nextStep: "Wait for another invite if the restaurant opens one.",
+      title: "Đã từ chối lời mời",
+      description: "Nhà hàng đã ghi nhận bạn từ chối lời mời này.",
+      nextStep: "Chờ lời mời mới nếu nhà hàng mở thêm.",
     };
   }
 
   if (entry.status === "Seated" || Boolean(entry.seated_at)) {
     return {
       state: "seated",
-      title: "Seated",
-      description: "The restaurant marked this waiting-list entry as seated in the backend runtime.",
-      nextStep: "No further waiting-list action is needed from customer-web.",
+      title: "Đã có bàn",
+      description: "Nhà hàng đã ghi nhận bạn được xếp bàn.",
+      nextStep: "Bạn không cần thao tác thêm trong danh sách chờ.",
     };
   }
 
   if (entry.status === "Waiting") {
     return {
       state: "waiting",
-      title: "Waiting for an invite",
-      description: "The restaurant has your request, but no invite window is open for this entry yet.",
-      nextStep: "Wait for restaurant outreach, then refresh this page manually when staff asks you to check again.",
+      title: "Đang chờ lời mời",
+      description: "Nhà hàng đã nhận yêu cầu, nhưng chưa mở lời mời cho đăng ký này.",
+      nextStep: "Chờ nhà hàng liên hệ, rồi bấm cập nhật khi nhân viên yêu cầu kiểm tra.",
     };
   }
 
   if (entry.status !== "Notified") {
     return {
       state: "unknown",
-      title: "Waiting-list state changed",
-      description: "This entry moved into a state that this browser workspace does not manage automatically.",
-      nextStep: "Refresh the entry details before taking another action.",
+      title: "Trạng thái danh sách chờ đã thay đổi",
+      description: "Đăng ký này đã chuyển sang trạng thái khác.",
+      nextStep: "Cập nhật chi tiết trước khi thao tác tiếp.",
     };
   }
 
   if (responseState === "arrival_confirmed") {
     return {
       state: "arrival_confirmed",
-      title: "Arrival confirmed",
-      description: "Your arrival is confirmed. Final seating still happens from restaurant runtime.",
-      nextStep: "Wait for staff to seat you, then refresh manually for the latest result.",
+      title: "Đã xác nhận đến nơi",
+      description: "Bạn đã xác nhận có mặt. Nhân viên sẽ xếp bàn sau.",
+      nextStep: "Chờ nhân viên xếp bàn, rồi cập nhật để xem kết quả mới nhất.",
     };
   }
 
   if (!isNotifyWindowOpen(entry)) {
     return {
       state: "expired",
-      title: "Invite window expired",
-      description: "The current invite window is no longer active for this entry.",
-      nextStep: "Wait for another invite or contact the restaurant directly if staff asked you to respond again.",
+      title: "Lời mời đã hết hạn",
+      description: "Khung phản hồi lời mời hiện tại không còn hiệu lực.",
+      nextStep: "Chờ lời mời mới hoặc liên hệ nhà hàng nếu nhân viên yêu cầu phản hồi lại.",
     };
   }
 
   if (responseState === "accepted") {
     return {
       state: "accepted",
-      title: "Invite accepted",
-      description: "You accepted the current invite. Staff still needs your arrival confirmation or final seating action from restaurant runtime.",
-      nextStep: "Confirm arrival when you reach the restaurant.",
+      title: "Đã nhận lời mời",
+      description: "Bạn đã nhận lời mời hiện tại. Nhà hàng vẫn cần bạn xác nhận khi đến hoặc nhân viên xếp bàn.",
+      nextStep: "Xác nhận đã đến khi bạn tới nhà hàng.",
     };
   }
 
   return {
     state: "invite_pending",
-    title: "Invite response available",
-    description: "A live invite window is open for this entry and the backend returned owner actions for this customer.",
-    nextStep: formatNextStep(entry.next_step) ?? "Use the available actions before the invite window closes.",
+    title: "Có lời mời cần phản hồi",
+    description: "Nhà hàng đã mở lời mời cho đăng ký chờ này.",
+    nextStep: formatNextStep(entry.next_step) ?? "Chọn thao tác phù hợp trước khi lời mời hết hạn.",
   };
 }
 
@@ -137,60 +137,60 @@ export function getWaitingListOwnerActionPolicy(entry: WaitingListEntryLike): Wa
   if (entry.status === "Waiting") {
     return {
       availableActions,
-      title: availableActions.includes("cancel") ? "Cancel is available" : "No online response available",
+      title: availableActions.includes("cancel") ? "Có thể hủy đăng ký chờ" : "Chưa có phản hồi trực tuyến",
       description: availableActions.includes("cancel")
-        ? "This entry is still waiting for an invite, so the only customer action available online is to cancel it."
-        : "This waiting-list entry is read-only from customer-web.",
+        ? "Đăng ký này đang chờ lời mời, nên bạn chỉ có thể hủy nếu không còn cần bàn."
+        : "Đăng ký chờ này hiện chỉ để xem.",
     };
   }
 
   if (entry.status !== "Notified") {
     return {
       availableActions,
-      title: "No online response available",
-      description: "This waiting-list status is read-only from customer-web.",
+      title: "Chưa có phản hồi trực tuyến",
+      description: "Trạng thái này hiện chỉ để xem.",
     };
   }
 
   if (responseStateFromPayload(entry) === "declined") {
     return {
       availableActions: [],
-      title: "Invite already declined",
-      description: "This invite was already declined, so no further owner response is available from customer-web.",
+      title: "Lời mời đã bị từ chối",
+      description: "Bạn đã từ chối lời mời này, nên không còn phản hồi thêm.",
     };
   }
 
   if (!isNotifyWindowOpen(entry)) {
     return {
       availableActions: [],
-      title: "Invite window closed",
-      description: "The current invite window is no longer active, so customer response buttons stay hidden until the backend opens another state.",
+      title: "Lời mời đã đóng",
+      description: "Khung phản hồi hiện không còn hiệu lực. Hãy chờ nhà hàng mở lời mời mới.",
     };
   }
 
   if (responseStateFromPayload(entry) === "accepted") {
     return {
       availableActions,
-      title: "Arrival confirmation available",
-      description: "The invite is already accepted. Confirm arrival when you reach the restaurant, or decline or cancel before staff seats you.",
+      title: "Có thể xác nhận đã đến",
+      description: "Bạn đã nhận lời mời. Hãy xác nhận khi tới nhà hàng, hoặc hủy nếu không còn cần bàn.",
     };
   }
 
   if (availableActions.length === 0 && entry.arrival_confirmation.staff_seat_required) {
     return {
       availableActions,
-      title: "Waiting for staff seating",
-      description: "Arrival is confirmed or staff owns the next step. Customer-web stays read-only until staff finishes the seating outcome.",
+      title: "Đang chờ nhân viên xếp bàn",
+      description: "Bạn đã xác nhận đến nơi hoặc nhân viên đang xử lý bước tiếp theo.",
     };
   }
 
   return {
     availableActions,
-    title: availableActions.length > 0 ? "Invite response available" : "No online response available",
+    title: availableActions.length > 0 ? "Có lời mời cần phản hồi" : "Chưa có phản hồi trực tuyến",
     description:
       availableActions.length > 0
-        ? "The invite window is active and backend returned the owner actions available for this entry."
-        : "The invite window is active, but the backend did not return any customer actions for this entry.",
+        ? "Lời mời đang hiệu lực. Chọn phản hồi phù hợp trước khi hết hạn."
+        : "Lời mời đang hiệu lực nhưng hiện chưa có thao tác khách hàng.",
   };
 }
 
@@ -200,8 +200,8 @@ export function getWaitingListSeatResultState(entry: WaitingListEntryLike): Wait
   if (entry.status === "Cancelled") {
     return {
       state: "cancelled",
-      title: "No seat result",
-      description: "This entry was cancelled before the restaurant recorded a final seating result.",
+      title: "Chưa có kết quả xếp bàn",
+      description: "Đăng ký này đã hủy trước khi nhà hàng ghi nhận kết quả xếp bàn.",
       reservationId: null,
       tableLabel: null,
     };
@@ -210,8 +210,8 @@ export function getWaitingListSeatResultState(entry: WaitingListEntryLike): Wait
   if (entry.status === "Seated" || Boolean(entry.seated_at)) {
     return {
       state: "seated",
-      title: "Seat result recorded",
-      description: "The restaurant marked this entry as seated in backend runtime.",
+      title: "Đã ghi nhận xếp bàn",
+      description: "Nhà hàng đã ghi nhận bạn được xếp bàn.",
       reservationId: null,
       tableLabel: null,
     };
@@ -220,8 +220,8 @@ export function getWaitingListSeatResultState(entry: WaitingListEntryLike): Wait
   if (entry.status === "Notified" && responseState === "arrival_confirmed" && entry.arrival_confirmation.staff_seat_required) {
     return {
       state: "waiting_for_staff",
-      title: "Waiting for staff seat result",
-      description: "Your arrival is confirmed, but final seating still happens in restaurant runtime. Refresh manually when staff asks you to check again.",
+      title: "Đang chờ kết quả xếp bàn",
+      description: "Bạn đã xác nhận đến nơi. Hãy cập nhật khi nhân viên yêu cầu kiểm tra lại.",
       reservationId: null,
       tableLabel: null,
     };
@@ -229,9 +229,9 @@ export function getWaitingListSeatResultState(entry: WaitingListEntryLike): Wait
 
   return {
     state: "unavailable",
-    title: "Seat result not exposed yet",
+    title: "Chưa có kết quả xếp bàn",
     description:
-      "This page does not fake notification or seating progress. Seat-result details only appear here after the backend exposes a stable owner-visible record.",
+      "Kết quả xếp bàn sẽ hiển thị khi nhà hàng cập nhật ổn định cho tài khoản của bạn.",
     reservationId: null,
     tableLabel: null,
   };
@@ -240,9 +240,9 @@ export function getWaitingListSeatResultState(entry: WaitingListEntryLike): Wait
 export function getWaitingListRefreshPolicy(): WaitingListRefreshPolicy {
   return {
     mode: "manual",
-    title: "Refresh manually",
+    title: "Cập nhật thủ công",
     description:
-      "Waiting-list updates are not pushed to this browser. Use Refresh list or Refresh details when staff asks you to check again or after you submit an owner response.",
+      "Danh sách chờ không tự đẩy thông báo vào trình duyệt. Bấm cập nhật khi nhân viên yêu cầu kiểm tra hoặc sau khi bạn phản hồi.",
   };
 }
 

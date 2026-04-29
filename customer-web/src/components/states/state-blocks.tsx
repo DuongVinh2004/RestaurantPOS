@@ -6,7 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getApiErrorDisplay } from "@/lib/api/errors";
 
-export function LoadingBlock({ label = "Loading" }: { label?: string }) {
+export function LoadingBlock({ label = "Đang tải" }: { label?: string }) {
   return (
     <div className="space-y-4" aria-busy="true" aria-label={label} aria-live="polite">
       <div className="flex items-center gap-3">
@@ -45,7 +45,7 @@ export function EmptyState({
 
 export function ErrorState({
   error,
-  title = "Could not load this",
+  title = "Chưa tải được nội dung",
   onRetry,
 }: {
   error: unknown;
@@ -73,7 +73,7 @@ export function ErrorState({
         {onRetry ? (
           <Button type="button" variant="outline" size="sm" className="w-fit rounded-lg bg-background" onClick={onRetry}>
             <RefreshCw className="mr-2 h-4 w-4" />
-            Try again
+            Thử lại
           </Button>
         ) : null}
       </AlertDescription>

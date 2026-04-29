@@ -81,6 +81,14 @@ return [
             'optional' => false,
             'required_fragments' => $canonicalReleaseContractFragments,
         ],
+        'release_contract_verifier' => [
+            'path' => 'tools/mysql/verify_release_contract.sql',
+            'optional' => false,
+            'required_fragments' => [
+                'reservations.completed_paid_bill_snapshot:ok',
+                '__drifted_completed_paid_reservations_missing_bill_snapshot__',
+            ],
+        ],
         'core_ops_gate_definition' => [
             'path' => 'tests/fixtures/core_ops_gate_suite.json',
             'optional' => false,
@@ -290,6 +298,7 @@ return [
         '2026_04_27_000060_order_item_line_total_invariant.sql',
         '2026_04_28_000061_inventory_master_data_row_version.sql',
         '2026_04_29_000062_payment_cashier_shift_link.sql',
+        '2026_04_29_000063_completed_paid_bill_snapshot_gate.sql',
     ],
     'release_manifest' => [
         'definition_path' => 'config/booking_release.php',

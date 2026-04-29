@@ -77,7 +77,7 @@ export function PaymentSessionCard({
     <div className="space-y-4 rounded-lg border p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm text-muted-foreground">{surfaceLabel} payment session</p>
+          <p className="text-sm text-muted-foreground">Thanh toán {surfaceLabel.toLocaleLowerCase("vi-VN")}</p>
           <p className="mt-1 text-lg font-semibold">{policy.title}</p>
           <p className="mt-1 text-sm text-muted-foreground">{policy.description}</p>
         </div>
@@ -90,32 +90,32 @@ export function PaymentSessionCard({
 
       <div className="grid gap-3 sm:grid-cols-3">
         <SessionTile
-          eyebrow="Final status"
+          eyebrow="Kết quả"
           title={policy.settlementTitle}
           description={policy.settlementDescription}
           status={session.settlement_status}
         />
-        <SessionTile eyebrow="Refresh" title={policy.refreshTitle} description={policy.refreshDescription} />
-        <SessionTile eyebrow="Provider support" title={policy.providerSupport.title} description={policy.providerSupport.description} />
+        <SessionTile eyebrow="Cập nhật" title={policy.refreshTitle} description={policy.refreshDescription} />
+        <SessionTile eyebrow="Kết nối thanh toán" title={policy.providerSupport.title} description={policy.providerSupport.description} />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <SessionMeta label="Reference" value={session.provider_session_code} />
-        <SessionMeta label="Amount" value={amountLabel} />
-        <SessionMeta label="Provider expiry" value={expiryLabel} />
-        <SessionMeta label="Last checked" value={lastCheckedLabel} />
+        <SessionMeta label="Mã tham chiếu" value={session.provider_session_code} />
+        <SessionMeta label="Số tiền" value={amountLabel} />
+        <SessionMeta label="Hết hạn" value={expiryLabel} />
+        <SessionMeta label="Lần kiểm tra cuối" value={lastCheckedLabel} />
       </div>
 
       {policy.canRefresh || policy.canConfirm ? (
         <div className="flex flex-wrap gap-2">
           {policy.canRefresh ? (
             <Button type="button" variant="outline" className="rounded-lg" disabled={refreshPending} onClick={onRefresh}>
-              {refreshPending ? "Refreshing status" : "Refresh status"}
+              {refreshPending ? "Đang cập nhật" : "Cập nhật trạng thái"}
             </Button>
           ) : null}
           {policy.canConfirm ? (
             <Button type="button" className="rounded-lg" disabled={confirmPending} onClick={onConfirm}>
-              {confirmPending ? "Confirming payment" : "Confirm payment"}
+              {confirmPending ? "Đang xác nhận" : "Xác nhận thanh toán"}
             </Button>
           ) : null}
         </div>

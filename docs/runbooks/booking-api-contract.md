@@ -166,7 +166,7 @@ These routes currently have explicit tags, request schemas, response schemas, au
 - Payment provider webhooks
 - Staff table board
 - Staff cashier shift flows
-- Staff bill snapshot, settlement preview/finalize, refund preview/refund/refund-cancel
+- Staff bill snapshot, order pay, settlement preview/finalize, refund preview/refund/refund-cancel
 - Admin branch master data
 - Deprecated legacy `/api/user` runtime probe
 
@@ -196,6 +196,13 @@ The legacy `/api/user` route is also explicitly deprecated in metadata. It keeps
 - The spec exposes `x-auth-mode`, `x-runtime-middleware`, and `x-contract-grade` for runtime-aware tooling.
 - Priority flows already include concrete examples suitable for mock handlers and integration fixtures.
 
+### Staff Checkout Contract
+
+- `POST /api/v1/staff/orders/{order_id}/pay` is the canonical partial/final capture route for active staff orders. It requires `X-Staff-Key`, `Idempotency-Key`, `settlement.manage`, and body `row_version`. Replay returns the cached `StaffCheckoutSettlementEnvelope`; payload mismatch returns `409 idempotency_conflict`.
+- `POST /api/v1/staff/orders/{order_id}/bill-snapshot` is the canonical explicit bill lock route. `POST /api/v1/staff/orders/{order_id}/close` is only the deprecated compatibility alias.
+- `POST /api/v1/staff/orders/{order_id}/settlement/finalize` is the canonical final checkout route. `POST /api/v1/staff/orders/{order_id}/checkout` is only the deprecated compatibility alias.
+- Full payment completion from either `/pay` or `/settlement/finalize` must durably return the same settlement envelope shape and leave `final_bill_amount`, `bill_currency`, `billed_at`, `checked_out_at`, `status=Completed`, and the guarded row version persisted.
+
 ### SDK generation
 
 - The artifact is OpenAPI `3.1.0`.
@@ -205,7 +212,7 @@ The legacy `/api/user` route is also explicitly deprecated in metadata. It keeps
 
 ## Current limitations
 
-As of 2026-04-24, the generated spec reports `124` full-contract operations and `112` fallback operations.
+As of 2026-04-29, the generated spec reports `127` full-contract operations and `109` fallback operations.
 
 Routes still below contract-grade are intentionally left as fallback until their response shape is formalized or the source is tightened. The main remaining groups are:
 

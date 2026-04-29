@@ -438,6 +438,38 @@ EXECUTE verify_stmt;
 DEALLOCATE PREPARE verify_stmt;
 
 SET @stmt := IF(
+    NOT EXISTS (
+        SELECT 1
+        FROM reservations r
+        WHERE r.status = 'Completed'
+          AND (
+              r.final_bill_amount IS NULL
+              OR r.billed_at IS NULL
+              OR TRIM(COALESCE(r.bill_currency, '')) = ''
+          )
+          AND EXISTS (
+              SELECT 1
+              FROM reservation_orders ro
+              WHERE ro.reservation_id = r.reservation_id
+                AND ro.order_type = 'OnSpot'
+                AND ro.status = 'Completed'
+          )
+          AND EXISTS (
+              SELECT 1
+              FROM payments p
+              WHERE p.reservation_id = r.reservation_id
+                AND p.payment_type IN ('Deposit', 'Final')
+                AND p.status IN ('Success', 'Partial')
+          )
+    ),
+    'SELECT "reservations.completed_paid_bill_snapshot:ok"',
+    'SELECT * FROM __drifted_completed_paid_reservations_missing_bill_snapshot__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
     EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'customer_privacy_requests'),
     'SELECT "customer_privacy_requests:ok"',
     'SELECT * FROM __missing_restore_contract_customer_privacy_requests__'

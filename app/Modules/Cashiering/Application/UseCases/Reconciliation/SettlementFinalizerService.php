@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Cashiering\Application\UseCases\Reconciliation;
 
 use App\Enums\ReservationOrderStatus;
+use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
 use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateService;
 use App\Modules\Loyalty\Application\UseCases\Points\LoyaltyPointsService;
@@ -14,6 +15,7 @@ use App\Modules\Reservations\Domain\Policies\ReservationStatusTransitionPolicy;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class SettlementFinalizerService
 {
@@ -39,6 +41,7 @@ class SettlementFinalizerService
             false,
             'reservation'
         );
+        $this->assertPaidServiceReservationHasBillSnapshot($reservation);
 
         $tableIds = DB::table('reservation_tables')
             ->where('reservation_id', $reservationId)
@@ -88,6 +91,47 @@ class SettlementFinalizerService
             'reservation_id' => $reservationId,
             'source' => 'staff_settlement_finalize',
             'reason' => 'settlement_finalize',
+        ]);
+    }
+
+    private function assertPaidServiceReservationHasBillSnapshot(Reservation $reservation): void
+    {
+        $reservationId = (int) $reservation->reservation_id;
+        if ($reservationId <= 0) {
+            throw ValidationException::withMessages([
+                'reservation' => ['Settlement finalization requires a persisted reservation.'],
+            ]);
+        }
+
+        $hasPaidSettlement = DB::table('payments')
+            ->where('reservation_id', $reservationId)
+            ->whereIn('payment_type', ['Deposit', 'Final'])
+            ->whereIn('status', ['Success', 'Partial'])
+            ->exists();
+
+        if (! $hasPaidSettlement) {
+            return;
+        }
+
+        $hasOnSpotServiceOrder = ReservationOrder::query()
+            ->where('reservation_id', $reservationId)
+            ->where('order_type', ReservationOrderType::OnSpot->value)
+            ->exists();
+
+        if (! $hasOnSpotServiceOrder) {
+            return;
+        }
+
+        if (
+            $reservation->final_bill_amount !== null
+            && trim((string) ($reservation->bill_currency ?? '')) !== ''
+            && $reservation->billed_at !== null
+        ) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'bill_snapshot' => ['Paid service reservations require final_bill_amount, bill_currency, and billed_at before settlement can complete.'],
         ]);
     }
 }

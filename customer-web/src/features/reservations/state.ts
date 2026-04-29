@@ -1,7 +1,6 @@
 import { formatLocalDateTimeInput } from "@/lib/contracts/datetime";
 import { stringValue } from "@/lib/contracts/format";
 import { asRecord, booleanValue, numberValue, recordValue } from "@/lib/contracts/loose";
-import { getSupportMatrixEntryById } from "@/lib/config/support-matrix";
 import {
   depositStatusValues,
   paymentStatusValues,
@@ -184,9 +183,6 @@ export type ReservationActiveOrderSummaryState = {
   status: string | null;
 };
 
-const preorderSupport = getSupportMatrixEntryById("preorder");
-const benefitsSupport = getSupportMatrixEntryById("account-benefits");
-
 export type PaymentSurface = "deposit" | "bill";
 
 export type PaymentSessionLifecycle = "pending" | "confirmed" | "succeeded" | "failed" | "expired" | "cancelled";
@@ -363,7 +359,7 @@ export function isReservationActive(reservation: ReservationSummary): boolean {
 
 function actionUnavailableReason(reservation: ReservationSummary, action: "cancel" | "reschedule"): string | null {
   if (!isReservationActive(reservation)) {
-    return "Online changes are only available while a reservation is active.";
+    return "Chỉ có thể đổi lịch khi lịch đặt còn hiệu lực.";
   }
 
   const statusFlags = parseReservationStatusFlags(reservation.status_flags);
@@ -371,13 +367,13 @@ function actionUnavailableReason(reservation: ReservationSummary, action: "cance
   const canAttempt = action === "cancel" ? selfService.canAttemptCancel : selfService.canAttemptReschedule;
 
   if (statusFlags.isActive === false || statusFlags.activeOnly === false) {
-    return "This reservation is no longer active.";
+    return "Lịch đặt này không còn hiệu lực.";
   }
 
   if (canAttempt === false) {
     return action === "cancel"
-      ? "Cancellation is no longer available online for this reservation."
-      : "Rescheduling is no longer available online for this reservation.";
+      ? "Bạn không thể hủy lịch đặt này trực tuyến nữa."
+      : "Bạn không thể đổi giờ lịch đặt này trực tuyến nữa.";
   }
 
   return null;
@@ -401,9 +397,9 @@ export function getReservationActionPolicy(reservation: ReservationSummary) {
     rescheduleReason,
     manageMessage,
     manageState: canManage ? ("available" as const) : ("no_longer_manageable" as const),
-    manageTitle: canManage ? "Manage reservation online" : "Online changes are no longer available",
+    manageTitle: canManage ? "Quản lý lịch đặt trực tuyến" : "Không còn thao tác trực tuyến",
     manageDescription:
-      manageMessage ?? "Cancel or request a new time while this reservation still stays active in customer self-service.",
+      manageMessage ?? "Bạn có thể hủy hoặc yêu cầu đổi giờ khi lịch đặt còn trong thời gian cho phép.",
   };
 }
 
@@ -470,15 +466,15 @@ export function getDepositPolicy(reservation: ReservationSummary, deposit: Depos
   let noActionMessage: string | null = null;
 
   if (!needsDeposit) {
-    noActionMessage = "This reservation does not require a deposit.";
+    noActionMessage = "Lịch đặt này không cần đặt cọc.";
   } else if (isSettled || !hasOutstandingBalance) {
-    noActionMessage = "The deposit is already settled.";
+    noActionMessage = "Khoản đặt cọc đã được xử lý.";
   } else if (!isReservationActive(reservation)) {
-    noActionMessage = "Deposit self-service is no longer available for this reservation.";
+    noActionMessage = "Không thể tự xử lý đặt cọc cho lịch đặt này nữa.";
   } else if (deposit.selfService.supported === false) {
-    noActionMessage = "Online deposit payment is not available for this reservation.";
+    noActionMessage = "Lịch đặt này chưa hỗ trợ thanh toán đặt cọc trực tuyến.";
   } else if (deposit.selfService.requiresStaffPaymentCollection === true && !canCreatePaymentSession) {
-    noActionMessage = "Deposit payment is not ready online yet. Follow the current deposit step or check with the restaurant.";
+    noActionMessage = "Đặt cọc trực tuyến chưa sẵn sàng. Vui lòng làm theo hướng dẫn hiện tại hoặc hỏi nhà hàng.";
   }
 
   return {
@@ -524,15 +520,15 @@ export function getBillingPolicy({
   let noActionMessage: string | null = null;
 
   if (!hasBill && !hasActiveOrder) {
-    noActionMessage = "The final bill is not ready yet.";
+    noActionMessage = "Hóa đơn cuối chưa sẵn sàng.";
   } else if (!hasBill && hasActiveOrder) {
-    noActionMessage = "An active order is still open. The final bill will appear after staff closes it.";
+    noActionMessage = "Đơn tại bàn vẫn đang mở. Hóa đơn cuối sẽ xuất hiện sau khi nhân viên chốt đơn.";
   } else if (outstandingAmount !== null && outstandingAmount <= 0) {
-    noActionMessage = "Nothing is due right now.";
+    noActionMessage = "Hiện không còn khoản cần thanh toán.";
   } else if (paymentStatus === "Paid" || paymentStatus === "Succeeded") {
-    noActionMessage = "This bill is already settled.";
+    noActionMessage = "Hóa đơn này đã được thanh toán.";
   } else if (selfPaymentSupported === false) {
-    noActionMessage = bill?.selfPayment.disabledReason ?? "Online bill payment is not available for this reservation.";
+    noActionMessage = bill?.selfPayment.disabledReason ?? "Lịch đặt này chưa hỗ trợ thanh toán hóa đơn trực tuyến.";
   } else if (selfPaymentAvailable === false) {
     noActionMessage = billSelfPaymentUnavailableMessage(bill);
   }
@@ -569,57 +565,57 @@ export function getReservationWorkspaceStatus(reservation: ReservationSummary): 
     case "Confirmed":
       return {
         state: "confirmed",
-        label: "Confirmed",
-        title: "Reservation confirmed",
-        description: "Your booking is active and can still be managed while it stays within the online self-service window.",
+        label: "Đã xác nhận",
+        title: "Lịch đặt đã xác nhận",
+        description: "Lịch đặt đang hiệu lực và vẫn có thể quản lý trong thời gian nhà hàng cho phép.",
         manageable: true,
       };
     case "Reserved":
       return {
         state: "reserved",
-        label: "Reserved",
-        title: "Reservation in service",
-        description: "The reservation has moved into the visit window. Payment and order details may appear as the restaurant finalizes them.",
+        label: "Đang phục vụ",
+        title: "Lượt ghé đang diễn ra",
+        description: "Bạn đang trong khung giờ ghé nhà hàng. Thông tin món và thanh toán sẽ cập nhật khi nhà hàng chốt.",
         manageable: true,
       };
     case "Completed":
       return {
         state: "completed",
-        label: "Completed",
-        title: "Visit completed",
-        description: "The reservation is closed. You can still review any final payment details that remain available here.",
+        label: "Hoàn tất",
+        title: "Lượt ghé đã hoàn tất",
+        description: "Lịch đặt đã đóng. Bạn vẫn có thể xem lại các thông tin thanh toán còn hiển thị.",
         manageable: false,
       };
     case "Cancelled":
       return {
         state: "cancelled",
-        label: "Cancelled",
-        title: "Reservation cancelled",
-        description: "This booking is no longer active and cannot be changed from customer self-service.",
+        label: "Đã hủy",
+        title: "Lịch đặt đã hủy",
+        description: "Lịch đặt này không còn hiệu lực và không thể thay đổi trực tuyến.",
         manageable: false,
       };
     case "NoShow":
       return {
         state: "no_show",
-        label: "No-show",
-        title: "Reservation marked as no-show",
-        description: "The restaurant recorded this booking as missed, so online changes are no longer available.",
+        label: "Không đến",
+        title: "Lịch đặt được ghi nhận là không đến",
+        description: "Nhà hàng đã ghi nhận lượt đặt này bị lỡ, nên không còn thao tác trực tuyến.",
         manageable: false,
       };
     case "Expired":
       return {
         state: "expired",
-        label: "Expired",
-        title: "Reservation expired",
-        description: "The reservation window ended without a live visit session, so only limited history may remain available.",
+        label: "Đã hết hạn",
+        title: "Lịch đặt đã hết hạn",
+        description: "Khung giờ đặt đã qua, nên chỉ còn một số thông tin lịch sử.",
         manageable: false,
       };
     default:
       return {
         state: "unknown",
-        label: reservation.status ?? "Unknown",
-        title: "Reservation status unavailable",
-        description: "The current reservation status could not be classified for this workspace.",
+        label: reservation.status ?? "Chưa rõ",
+        title: "Chưa rõ trạng thái lịch đặt",
+        description: "Hệ thống chưa phân loại được trạng thái hiện tại của lịch đặt này.",
         manageable: isReservationActive(reservation),
       };
   }
@@ -632,9 +628,9 @@ export function getReservationHoldSummaryState(reservation: ReservationSummary):
   if (!hold.holdId) {
     return {
       state: "unavailable",
-      label: "No active hold",
-      title: "No active hold",
-      description: "This reservation does not currently have a live table hold linked to it.",
+      label: "Chưa giữ bàn",
+      title: "Chưa có bàn giữ",
+      description: "Lịch đặt này hiện chưa có bàn giữ tạm thời.",
       expiresAt: null,
       tableCount: 0,
     };
@@ -643,9 +639,9 @@ export function getReservationHoldSummaryState(reservation: ReservationSummary):
   if (hold.isExpired) {
     return {
       state: "expired",
-      label: "Expired",
-      title: "Hold expired",
-      description: "The temporary table hold has expired and is no longer protecting table availability for this reservation.",
+      label: "Đã hết hạn",
+      title: "Bàn giữ đã hết hạn",
+      description: "Bàn giữ tạm thời đã hết hạn và không còn đảm bảo bàn trống cho lịch đặt này.",
       expiresAt: hold.expiresAt,
       tableCount,
     };
@@ -654,12 +650,12 @@ export function getReservationHoldSummaryState(reservation: ReservationSummary):
   if (!hold.isActive) {
     return {
       state: "released",
-      label: hold.status ?? "Released",
-      title: "Hold released",
+      label: hold.status ?? "Đã nhả bàn",
+      title: "Bàn giữ đã được nhả",
       description:
         hold.confirmedReservationId !== null
-          ? "The temporary hold has already been converted into a confirmed reservation or released by staff."
-          : "The temporary hold is no longer active for this reservation.",
+          ? "Bàn giữ tạm thời đã được chuyển thành lịch đặt xác nhận hoặc được nhân viên nhả."
+          : "Bàn giữ tạm thời không còn hiệu lực cho lịch đặt này.",
       expiresAt: hold.expiresAt,
       tableCount,
     };
@@ -667,12 +663,12 @@ export function getReservationHoldSummaryState(reservation: ReservationSummary):
 
   return {
     state: "active",
-    label: hold.status ?? "Active",
-    title: "Hold active",
+    label: hold.status ?? "Đang giữ",
+    title: "Bàn đang được giữ",
     description:
       tableCount > 0
-        ? `Tables are currently being held for this reservation${hold.expiresAt ? " until the current hold deadline." : "."}`
-        : "A temporary table hold is currently active for this reservation.",
+        ? `Nhà hàng đang giữ bàn cho lịch đặt này${hold.expiresAt ? " đến thời hạn hiện tại." : "."}`
+        : "Bàn giữ tạm thời đang hiệu lực cho lịch đặt này.",
     expiresAt: hold.expiresAt,
     tableCount,
   };
@@ -739,7 +735,7 @@ export function getBillSummaryState({
 
   return {
     state,
-    label: available ? (amount ? amount : "Ready") : "Not available yet",
+    label: available ? (amount ? amount : "Sẵn sàng") : "Chưa có",
     title: billSummaryTitle(state),
     description: billSummaryDescription(state),
     amount,
@@ -754,8 +750,8 @@ export function getActiveOrderSummaryState(activeOrder: ActiveOrderContractState
   if (!activeOrder.present) {
     return {
       state: "absent",
-      label: "No active order",
-      description: "There is no open dine-in order linked to this reservation right now.",
+      label: "Chưa có đơn đang mở",
+      description: "Hiện chưa có đơn tại bàn đang mở cho lịch đặt này.",
       orderId: null,
       status: null,
     };
@@ -763,8 +759,8 @@ export function getActiveOrderSummaryState(activeOrder: ActiveOrderContractState
 
   return {
     state: "present",
-    label: activeOrder.status ? `Order ${activeOrder.status}` : "Active order",
-    description: "An active dine-in order is still open, so the final bill may continue to change.",
+    label: activeOrder.status ? `Đơn ${activeOrder.status}` : "Đơn đang mở",
+    description: "Đơn tại bàn vẫn đang mở, nên hóa đơn cuối có thể còn thay đổi.",
     orderId: activeOrder.orderId,
     status: activeOrder.status,
   };
@@ -780,26 +776,26 @@ export function getDepositPaymentSupportState({
   if (deposit.selfService.supported === false) {
     return {
       state: "not_enabled",
-      title: "Online payment not enabled",
-      description: "Deposit details are available, but online deposit payment is not enabled for this reservation yet.",
+      title: "Chưa bật thanh toán trực tuyến",
+      description: "Bạn có thể xem đặt cọc, nhưng lịch đặt này chưa hỗ trợ thanh toán đặt cọc trực tuyến.",
     };
   }
 
   if (!canCreatePaymentSession) {
     return {
       state: "conditional",
-      title: "Payment session not enabled yet",
+      title: "Chưa thể mở thanh toán",
       description:
         deposit.selfService.requiresStaffPaymentCollection === true || deposit.selfService.nextStep === "awaiting_staff_payment_collection"
-          ? "Deposit self-pay is supported for this surface, but the restaurant still needs to move this reservation to the next payment step before a session can open."
-          : "Deposit self-pay is supported here, but this reservation is not ready to open an online payment session yet.",
+          ? "Nhà hàng cần chuyển lịch đặt sang bước thanh toán tiếp theo trước khi bạn có thể trả đặt cọc."
+          : "Lịch đặt này chưa sẵn sàng để mở phiên thanh toán đặt cọc.",
     };
   }
 
   return {
     state: "conditional",
-    title: "Payment session ready",
-    description: "This reservation can open a deposit payment session now. Provider proof will appear after the session opens.",
+    title: "Có thể thanh toán",
+    description: "Bạn có thể mở thanh toán đặt cọc cho lịch đặt này.",
   };
 }
 
@@ -817,8 +813,8 @@ export function getBillPaymentSupportState({
   if (bill?.selfPayment.supported === false) {
     return {
       state: "not_enabled",
-      title: "Online payment not enabled",
-      description: "Bill details are available, but online bill payment is not enabled for this reservation yet.",
+      title: "Chưa bật thanh toán trực tuyến",
+      description: "Bạn có thể xem hóa đơn, nhưng lịch đặt này chưa hỗ trợ thanh toán hóa đơn trực tuyến.",
     };
   }
 
@@ -826,29 +822,29 @@ export function getBillPaymentSupportState({
     if (!hasBill && !hasActiveOrder) {
       return {
         state: "seeded_uat_required",
-        title: "Waiting for live bill data",
+        title: "Đang chờ hóa đơn",
         description:
-          "Bill self-pay stays enabled for this surface, but the current live or seeded UAT data does not expose a payable bill session yet.",
+          "Nhà hàng chưa gửi hóa đơn có thể thanh toán trực tuyến cho lượt ghé này.",
       };
     }
 
     return {
       state: "conditional",
-      title: "Payment session not enabled yet",
+      title: "Chưa thể mở thanh toán",
       description:
         bill?.selfPayment.awaitingStaffFinalization === true ||
         bill?.selfPayment.requiresLockedBill === true ||
         hasActiveOrder ||
         bill?.selfPayment.nextStep === "awaiting_staff_bill_lock"
-          ? "Bill self-pay is supported here, but staff still needs to finalize and lock the current bill before a session can open."
-          : "Bill self-pay is supported here, but this reservation is not ready to open an online payment session yet.",
+          ? "Nhân viên cần chốt hóa đơn hiện tại trước khi bạn có thể thanh toán trực tuyến."
+          : "Lịch đặt này chưa sẵn sàng để mở phiên thanh toán hóa đơn.",
     };
   }
 
   return {
     state: "conditional",
-    title: "Payment session ready",
-    description: "This bill can open a payment session now. Provider proof will appear after the session opens.",
+    title: "Có thể thanh toán",
+    description: "Bạn có thể mở thanh toán cho hóa đơn này.",
   };
 }
 
@@ -861,7 +857,7 @@ export function getPaymentSessionPolicy(
 ): PaymentSessionPolicy {
   const surface = options.surface ?? "deposit";
   const now = options.now ?? new Date();
-  const failureMessage = session.failure_message ?? (session.failure_code ? `Provider reported ${session.failure_code}.` : null);
+  const failureMessage = session.failure_message ?? (session.failure_code ? `Nhà cung cấp báo lỗi ${session.failure_code}.` : null);
   const providerSupport = getRuntimeProviderSupportState(surface, session.provider_code);
   const settlement = getSettlementState(session);
   const lifecycle = getPaymentLifecycleState(session, settlement, now);
@@ -879,8 +875,8 @@ export function getPaymentSessionPolicy(
   const refreshDescription = paymentRefreshDescription(refreshMode);
   const statusMessage =
     failureMessage ??
-    (settlement === "applied" ? "Settlement has been applied to the reservation." : null) ??
-    (session.confirmed_at ? "Payment confirmation was received from the provider." : null);
+    (settlement === "applied" ? "Thanh toán đã được ghi nhận vào lịch đặt." : null) ??
+    (session.confirmed_at ? "Nhà cung cấp đã xác nhận thanh toán." : null);
 
   return {
     lifecycle,
@@ -905,17 +901,16 @@ export function getPaymentSessionPolicy(
 export function getPreorderPolicy(payload: CustomerReservationPreorderPayload) {
   const hasPreorder = payload.pre_order.present;
   const reasons = payload.management_policy.reasons.filter(Boolean);
-  const launchMessage =
-    preorderSupport?.frontendDecision ?? "Preorder is visible here for reference, but online preorder changes are not part of the current launch.";
+  const launchMessage = "Món đặt trước hiện chỉ hiển thị để tham khảo trong giai đoạn này.";
   const managementMessage = reasons.length > 0 ? reasons.join(". ") : launchMessage;
 
   return {
     hasPreorder,
     state: hasPreorder ? ("read_only" as const) : ("empty" as const),
-    title: hasPreorder ? "Preorder summary" : "No preorder attached",
+    title: hasPreorder ? "Tóm tắt món đặt trước" : "Chưa có món đặt trước",
     message: hasPreorder
-      ? "Preorder details are shown here for reference only while this workspace keeps preorder changes gated."
-      : "If the restaurant attaches a preorder, it will appear here. Online preorder changes stay gated from this workspace.",
+      ? "Thông tin món đặt trước chỉ dùng để xem lại trong giai đoạn này."
+      : "Nếu nhà hàng ghi nhận món đặt trước, thông tin sẽ hiển thị tại đây.",
     launchMessage,
     managementMessage,
   };
@@ -927,12 +922,12 @@ export function getBenefitsPolicy(preview: CustomerReservationBenefitsPreview) {
   const canRelease = preview.reservation.loyalty.can_release;
   const hasVouchers = preview.available_vouchers.length > 0;
 
-  let summaryMessage = "Benefits can be reviewed for this reservation.";
+  let summaryMessage = "Bạn có thể xem ưu đãi cho lịch đặt này.";
 
   if (!loyaltyEnabled && !hasVouchers) {
-    summaryMessage = "No loyalty or voucher benefits are available for this reservation right now.";
+    summaryMessage = "Hiện chưa có điểm thưởng hoặc voucher cho lịch đặt này.";
   } else if (!canRedeem && !canRelease && !hasVouchers) {
-    summaryMessage = "Benefits are visible, but there is nothing actionable for this reservation yet.";
+    summaryMessage = "Có thông tin ưu đãi, nhưng hiện chưa có thao tác cần làm.";
   }
 
   return {
@@ -941,20 +936,16 @@ export function getBenefitsPolicy(preview: CustomerReservationBenefitsPreview) {
     canRelease,
     hasVouchers,
     state: hasVouchers || loyaltyEnabled ? ("read_only" as const) : ("empty" as const),
-    title: hasVouchers || loyaltyEnabled ? "Benefits preview" : "No benefits available",
+    title: hasVouchers || loyaltyEnabled ? "Xem trước ưu đãi" : "Chưa có ưu đãi",
     summaryMessage,
-    readOnlyMessage:
-      benefitsSupport?.frontendDecision ??
-      "Loyalty and voucher details stay read-only in this workspace until the broader account-benefits rollout is enabled.",
+    readOnlyMessage: "Thông tin điểm thưởng và voucher hiện chỉ dùng để xem lại.",
   };
 }
 
 export function getBenefitsGateState() {
   return {
-    title: "Benefits are not available yet",
-    description:
-      benefitsSupport?.frontendDecision ??
-      "Loyalty and voucher surfaces stay off by default until the account-benefits rollout is ready.",
+    title: "Ưu đãi chưa khả dụng",
+    description: "Tính năng điểm thưởng và voucher sẽ hiển thị khi nhà hàng bật cho khách hàng.",
   };
 }
 
@@ -962,18 +953,18 @@ function getRuntimeProviderSupportState(surface: PaymentSurface, providerCode: s
   if (providerCode === "simulated") {
     return {
       state: "simulated",
-      title: "Simulated payment proof",
-      description: "This payment session uses the simulated provider for local or UAT proof only. It is not evidence of a production-ready payment provider.",
+      title: "Thanh toán mô phỏng",
+      description: "Phiên này chỉ dùng để kiểm thử, chưa phải thanh toán thật.",
     };
   }
 
   return {
     state: "provider_backed",
-    title: "Provider runtime confirmed",
+    title: "Thanh toán đã kết nối",
     description:
       surface === "deposit"
-        ? "The backend opened a provider-backed deposit payment session for this reservation. This is real runtime support, not a simulated-only proof."
-        : "The backend opened a provider-backed bill payment session for this reservation. This is real runtime support, not a simulated-only proof.",
+        ? "Nhà hàng đã mở phiên thanh toán đặt cọc qua nhà cung cấp."
+        : "Nhà hàng đã mở phiên thanh toán hóa đơn qua nhà cung cấp.",
   };
 }
 
@@ -1070,18 +1061,18 @@ function hasExpiredPaymentProviderWindow(expiresAt: string | null | undefined, n
 function paymentLifecycleTitle(lifecycle: PaymentSessionLifecycle): string {
   switch (lifecycle) {
     case "confirmed":
-      return "Payment confirmed";
+      return "Đã xác nhận thanh toán";
     case "succeeded":
-      return "Payment applied";
+      return "Đã ghi nhận thanh toán";
     case "failed":
-      return "Payment failed";
+      return "Thanh toán không thành công";
     case "expired":
-      return "Payment session expired";
+      return "Phiên thanh toán đã hết hạn";
     case "cancelled":
-      return "Payment cancelled";
+      return "Thanh toán đã hủy";
     case "pending":
     default:
-      return "Payment session open";
+      return "Đang mở thanh toán";
   }
 }
 
@@ -1097,35 +1088,35 @@ function paymentLifecycleDescription({
   switch (lifecycle) {
     case "confirmed":
       return settlement === "applied"
-        ? "Payment was confirmed and applied to this reservation."
-        : "The provider confirmed the payment. We are waiting for the reservation settlement to apply.";
+        ? "Thanh toán đã được xác nhận và ghi nhận vào lịch đặt."
+        : "Nhà cung cấp đã xác nhận thanh toán. Hệ thống đang cập nhật vào lịch đặt.";
     case "succeeded":
-      return "The payment was received and applied to this reservation.";
+      return "Nhà hàng đã nhận và ghi nhận khoản thanh toán này.";
     case "failed":
-      return failureMessage ?? "The provider reported that this payment did not complete.";
+      return failureMessage ?? "Thanh toán chưa hoàn tất.";
     case "expired":
-      return "This payment session expired before the payment was fully applied.";
+      return "Phiên thanh toán đã hết hạn trước khi khoản thanh toán được ghi nhận.";
     case "cancelled":
-      return "This payment session was cancelled before the payment was applied.";
+      return "Phiên thanh toán đã bị hủy trước khi khoản thanh toán được ghi nhận.";
     case "pending":
     default:
-      return "The provider session is open. Complete the payment, then check for the latest status here.";
+      return "Phiên thanh toán đang mở. Hoàn tất thanh toán rồi kiểm tra trạng thái mới nhất tại đây.";
   }
 }
 
 function paymentSettlementTitle(settlement: PaymentSettlementState): string {
   switch (settlement) {
     case "applied":
-      return "Final status applied";
+      return "Đã ghi nhận";
     case "failed":
-      return "Final status failed";
+      return "Không thành công";
     case "expired":
-      return "Final status expired";
+      return "Đã hết hạn";
     case "cancelled":
-      return "Final status cancelled";
+      return "Đã hủy";
     case "unapplied":
     default:
-      return "Final status pending";
+      return "Đang chờ ghi nhận";
   }
 }
 
@@ -1138,42 +1129,42 @@ function paymentSettlementDescription({
 }): string {
   switch (settlement) {
     case "applied":
-      return "Settlement has been applied to this reservation.";
+      return "Thanh toán đã được ghi nhận vào lịch đặt.";
     case "failed":
-      return "The payment did not reach a final applied state.";
+      return "Thanh toán chưa được ghi nhận thành công.";
     case "expired":
-      return "The payment session expired before settlement could be applied.";
+      return "Phiên thanh toán đã hết hạn trước khi được ghi nhận.";
     case "cancelled":
-      return "The payment session was cancelled before settlement could be applied.";
+      return "Phiên thanh toán đã hủy trước khi được ghi nhận.";
     case "unapplied":
     default:
       return lifecycle === "confirmed"
-        ? "Payment was confirmed, but settlement is still being applied."
-        : "The provider has not reported a final applied settlement result yet.";
+        ? "Thanh toán đã xác nhận, hệ thống đang cập nhật vào lịch đặt."
+        : "Chưa có kết quả ghi nhận cuối cùng từ nhà cung cấp.";
   }
 }
 
 function paymentRefreshTitle(refreshMode: PaymentRefreshMode): string {
   switch (refreshMode) {
     case "auto":
-      return "Refreshing automatically";
+      return "Tự động cập nhật";
     case "manual":
-      return "Refresh manually";
+      return "Cập nhật thủ công";
     case "stopped":
     default:
-      return "Refresh stopped";
+      return "Đã dừng cập nhật";
   }
 }
 
 function paymentRefreshDescription(refreshMode: PaymentRefreshMode): string {
   switch (refreshMode) {
     case "auto":
-      return "We will keep checking this payment session for the next minute. You can still refresh now if you need an immediate check.";
+      return "Hệ thống sẽ tự kiểm tra trạng thái trong khoảng một phút tới. Bạn vẫn có thể bấm cập nhật ngay.";
     case "manual":
-      return "Automatic refresh paused to avoid extra requests. Use Refresh status when you want to check again.";
+      return "Tự động cập nhật đã tạm dừng. Bấm cập nhật trạng thái khi bạn muốn kiểm tra lại.";
     case "stopped":
     default:
-      return "This payment session reached a final status, so refresh controls are stopped.";
+      return "Phiên thanh toán đã có trạng thái cuối, nên không cần cập nhật thêm.";
   }
 }
 
@@ -1229,8 +1220,13 @@ function mapDepositSummaryState(status: string): ReservationDepositSummaryState[
 
 function depositSummaryLabel(status: string): string {
   if (status === "NotRequired") {
-    return "Not required";
+    return "Không cần đặt cọc";
   }
+
+  if (status === "Pending") return "Cần đặt cọc";
+  if (status === "Paid" || status === "Succeeded" || status === "Success") return "Đã thanh toán";
+  if (status === "Refunded") return "Đã hoàn tiền";
+  if (status === "PartiallyRefunded") return "Hoàn một phần";
 
   return status;
 }
@@ -1238,14 +1234,14 @@ function depositSummaryLabel(status: string): string {
 function depositSummaryTitle(state: ReservationDepositSummaryState["state"]): string {
   switch (state) {
     case "not_required":
-      return "Deposit not required";
+      return "Không cần đặt cọc";
     case "paid":
-      return "Deposit settled";
+      return "Đặt cọc đã xử lý";
     case "refunded":
-      return "Deposit refunded";
+      return "Đặt cọc đã hoàn tiền";
     case "pending":
     default:
-      return "Deposit pending";
+      return "Cần xử lý đặt cọc";
   }
 }
 
@@ -1257,22 +1253,22 @@ function depositSummaryDescription({
   requiresAction: boolean;
 }): string {
   if (status === "NotRequired") {
-    return "This reservation does not require a deposit before the visit.";
+    return "Lịch đặt này không cần đặt cọc trước khi đến.";
   }
 
   if (status === "Refunded" || status === "PartiallyRefunded") {
-    return "A refund has already been recorded against this reservation deposit.";
+    return "Khoản hoàn tiền đặt cọc đã được ghi nhận cho lịch đặt này.";
   }
 
   if (SETTLED_DEPOSIT_STATUSES.has(status)) {
-    return "The deposit is already settled for this reservation.";
+    return "Khoản đặt cọc đã được xử lý cho lịch đặt này.";
   }
 
   if (requiresAction) {
-    return "A deposit step is still open for this reservation.";
+    return "Lịch đặt này vẫn còn bước đặt cọc cần xử lý.";
   }
 
-  return "Deposit details are available, but no further online deposit action is open right now.";
+  return "Bạn có thể xem thông tin đặt cọc, nhưng hiện chưa có thao tác trực tuyến cần làm.";
 }
 
 function mapBillSummaryState({
@@ -1303,30 +1299,30 @@ function mapBillSummaryState({
 function billSummaryTitle(state: ReservationBillSummaryState["state"]): string {
   switch (state) {
     case "settled":
-      return "Bill settled";
+      return "Hóa đơn đã thanh toán";
     case "available":
-      return "Bill available";
+      return "Hóa đơn đã sẵn sàng";
     case "unavailable":
     default:
-      return "Bill unavailable";
+      return "Chưa có hóa đơn";
   }
 }
 
 function billSummaryDescription(state: ReservationBillSummaryState["state"]): string {
   switch (state) {
     case "settled":
-      return "The current bill has already been settled or nothing is due right now.";
+      return "Hóa đơn hiện tại đã thanh toán hoặc không còn khoản cần trả.";
     case "available":
-      return "Current bill details are available from this reservation workspace.";
+      return "Bạn có thể xem thông tin hóa đơn cho lịch đặt này.";
     case "unavailable":
     default:
-      return "The final bill is not ready yet for this reservation.";
+      return "Hóa đơn cuối chưa sẵn sàng cho lịch đặt này.";
   }
 }
 
 function billSelfPaymentUnavailableMessage(bill: BillContractState | null): string {
   if (!bill) {
-    return "The bill is not ready for payment yet.";
+    return "Hóa đơn chưa sẵn sàng để thanh toán.";
   }
 
   if (bill.selfPayment.disabledReason) {
@@ -1334,8 +1330,8 @@ function billSelfPaymentUnavailableMessage(bill: BillContractState | null): stri
   }
 
   if (bill.selfPayment.awaitingStaffFinalization || bill.selfPayment.requiresLockedBill || bill.selfPayment.nextStep === "awaiting_staff_bill_lock") {
-    return "The bill is not ready for self-payment yet. Wait for staff to finalize it.";
+    return "Hóa đơn chưa sẵn sàng để tự thanh toán. Vui lòng chờ nhân viên chốt hóa đơn.";
   }
 
-  return "The bill is not ready for payment yet.";
+  return "Hóa đơn chưa sẵn sàng để thanh toán.";
 }

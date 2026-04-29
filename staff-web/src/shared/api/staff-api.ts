@@ -33,6 +33,7 @@ import type {
   GenericDataEnvelope,
   InviteWaitlistCustomerRequest as NotifyWaitingListRequest,
   OpenCashierShiftRequest,
+  PayOrderRequest,
   ReservationEnvelope,
   RefundAndCancelReservationRequest,
   RefundReservationRequest,
@@ -1202,6 +1203,14 @@ export async function getSettlementPreview(
   query: GetV1StaffOrdersOrderIdSettlementPreviewQueryParams = {},
 ): Promise<StaffCheckoutSettlementEnvelope> {
   return staffClient.getV1StaffOrdersOrderIdSettlementPreview({ order_id: orderId }, query);
+}
+
+export async function payOrder(orderId: number, payload: PayOrderRequest): Promise<StaffCheckoutSettlementEnvelope> {
+  return staffClient.postV1StaffOrdersOrderIdPay(
+    { order_id: orderId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`order-pay-${orderId}`) },
+  );
 }
 
 export async function finalizeSettlement(orderId: number, payload: CheckoutOrderRequest): Promise<StaffCheckoutSettlementEnvelope> {

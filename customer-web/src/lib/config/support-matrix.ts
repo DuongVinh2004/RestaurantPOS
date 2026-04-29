@@ -159,10 +159,10 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
     frontendDecision: "Contract coverage exists, but preorder is outside the current go-live dependency chain and should not be treated as live launch proof.",
     gateFlag: "enablePreorder",
     envFlags: ["NEXT_PUBLIC_FEATURE_PREORDER"],
-    disabledTitle: "Preorder is not in this rollout",
+    disabledTitle: "Món đặt trước chưa được bật",
     disabledDescription:
-      "Preorder stays off by default because live replace and clear proof is outside the current launch scope. Enable the preorder flag only for a focused contract or QA pass.",
-    liveProofSummary: "Preorder remains contract-visible and CI-safe, but it is outside the current live launch proof boundary.",
+      "Nhà hàng chưa bật tính năng đặt món trước cho khách hàng trong phiên bản này.",
+    liveProofSummary: "Món đặt trước hiện chỉ hiển thị để tham khảo.",
   },
   {
     id: "deposit-self-pay",
@@ -232,11 +232,11 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
       "Keep customer waiting-list disabled by default for day 1. When Wave 2 QA enables it, use customer-token owner mutations, manual refresh, and staff-backed notification setup without faking realtime or final seating.",
     gateFlag: "enableWaitingList",
     envFlags: ["NEXT_PUBLIC_FEATURE_WAITING_LIST"],
-    disabledTitle: "Waiting list is not in this rollout",
+    disabledTitle: "Danh sách chờ chưa được bật",
     disabledDescription:
-      "This build keeps customer waiting-list access off by default. Enable the dedicated waiting-list rollout flag only for a focused QA, UAT, or Wave 2 pass.",
+      "Nhà hàng chưa bật danh sách chờ trực tuyến cho khách hàng.",
     liveProofSummary:
-      "Waiting-list owner list, create, detail, accept, confirm-arrival, decline, cancel, stale row-version refresh, and owner denial have live proof behind the waiting-list flag. Day 1 still keeps customer waiting-list off; notification delivery, realtime updates, and final seat-result rollout remain backend runtime prerequisites.",
+      "Danh sách chờ chỉ hoạt động khi nhà hàng bật tính năng này.",
   },
   {
     id: "account-benefits",
@@ -259,11 +259,11 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
       "Keep loyalty and voucher benefits disabled by default. When QA enables the flag, account reads and reservation-level voucher or loyalty mutations use owner scope, Idempotency-Key, and latest row_version.",
     gateFlag: "enableAccountBenefits",
     envFlags: ["NEXT_PUBLIC_FEATURE_ACCOUNT_BENEFITS"],
-    disabledTitle: "Benefits are not in this rollout",
+    disabledTitle: "Ưu đãi chưa được bật",
     disabledDescription:
-      "Loyalty and vouchers stay off by default. Enable the account-benefits rollout flag only for a deliberate QA or Wave 2 pass.",
+      "Điểm thưởng và voucher chưa được bật cho tài khoản khách hàng.",
     liveProofSummary:
-      "Loyalty, vouchers, reservation benefits preview, voucher apply/remove, loyalty redeem/release, stale row-version refresh, and reservation benefit state merge have live proof behind the account-benefits flag.",
+      "Điểm thưởng và voucher sẽ hiển thị khi nhà hàng bật tính năng.",
   },
   {
     id: "privacy-requests",
@@ -277,11 +277,11 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
     frontendDecision: "Privacy request entry points stay disabled by default and only open when the privacy-tools flag is enabled.",
     gateFlag: "enablePrivacyTools",
     envFlags: ["NEXT_PUBLIC_FEATURE_PRIVACY_TOOLS"],
-    disabledTitle: "Privacy tools are not in this rollout",
+    disabledTitle: "Công cụ dữ liệu cá nhân chưa được bật",
     disabledDescription:
-      "Privacy requests stay off by default and only open during a dedicated QA, UAT, or Wave 2 rollout.",
+      "Nhà hàng chưa bật yêu cầu dữ liệu cá nhân trong phiên bản này.",
     liveProofSummary:
-      "Privacy request list and idempotent anonymization request creation have live proof behind the privacy-tools flag. Request processing remains an operator lifecycle outside browser proof.",
+      "Yêu cầu dữ liệu cá nhân chỉ hoạt động khi nhà hàng bật tính năng.",
   },
   {
     id: "data-export",
@@ -295,11 +295,11 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
     frontendDecision: "Data export remains an explicit Wave 2 extra and should never become a go-live dependency for booking core.",
     gateFlag: "enableDataExport",
     envFlags: ["NEXT_PUBLIC_FEATURE_DATA_EXPORT"],
-    disabledTitle: "Data export is not in this rollout",
+    disabledTitle: "Xuất dữ liệu chưa được bật",
     disabledDescription:
-      "Data export stays off until the broader privacy rollout is ready. Keep it disabled unless QA or UAT specifically needs export proof.",
+      "Xuất dữ liệu sẽ mở sau khi công cụ dữ liệu cá nhân sẵn sàng.",
     liveProofSummary:
-      "Customer data export reads have live proof behind the data-export flag and still require the broader privacy-tools flag in the UI.",
+      "Xuất dữ liệu chỉ hoạt động khi nhà hàng bật tính năng.",
   },
   {
     id: "dev-mock-adapter",
@@ -313,9 +313,9 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
     frontendDecision: "Use mock adapters only for local or controlled UAT diagnostics when the backend is unavailable. They are never live proof.",
     gateFlag: "enableDevMocks",
     envFlags: ["NEXT_PUBLIC_ENABLE_DEV_MOCKS"],
-    disabledTitle: "Mock adapters are off",
-    disabledDescription: "Live API paths stay active unless mock mode is explicitly enabled outside production.",
-    liveProofSummary: "Mock adapters are local or UAT-only diagnostics and never count as production-ready runtime proof.",
+    disabledTitle: "Dữ liệu mô phỏng đang tắt",
+    disabledDescription: "Ứng dụng sẽ dùng API thật trừ khi nhà phát triển bật dữ liệu mô phỏng.",
+    liveProofSummary: "Dữ liệu mô phỏng chỉ dùng để kiểm thử nội bộ.",
   },
 ];
 
@@ -393,11 +393,11 @@ export function createUnknownSupportMatrixDecision(feature: string): SurfaceRoll
     localUatOnly: false,
     rolloutGated: false,
     blocked: true,
-    title: "Blocked",
-    description: "This surface is not declared in the support matrix.",
-    disabledTitle: `${feature} is not available`,
-    disabledDescription: "Unknown customer-web surfaces fail closed until the support matrix explicitly allows them.",
-    liveProofSummary: "Unknown surfaces never count as rollout or runtime proof.",
+    title: "Đã chặn",
+    description: "Tính năng này chưa được khai báo cho customer-web.",
+    disabledTitle: `${feature} chưa khả dụng`,
+    disabledDescription: "Tính năng chưa rõ sẽ được đóng cho đến khi nhà hàng bật rõ ràng.",
+    liveProofSummary: "Tính năng chưa rõ không được xem là sẵn sàng.",
   };
 }
 
@@ -417,69 +417,69 @@ function resolveExposure(entry: SupportMatrixEntry, envRequested: boolean): bool
 function supportStatusTitle(status: SupportStatus): string {
   switch (status) {
     case "live-ready":
-      return "Live-ready";
+      return "Sẵn sàng";
     case "live-conditional":
-      return "Live-conditional";
+      return "Có điều kiện";
     case "ci-safe-only":
-      return "CI-safe only";
+      return "Chỉ kiểm thử";
     case "local-uat-only":
-      return "Local or UAT only";
+      return "Chỉ nội bộ";
     case "rollout-gated":
-      return "Rollout gated";
+      return "Chưa bật";
     case "blocked":
     default:
-      return "Blocked";
+      return "Đã chặn";
   }
 }
 
 function defaultDisabledTitle(entry: SupportMatrixEntry): string {
   switch (entry.status) {
     case "rollout-gated":
-      return `${entry.feature} is not in this rollout`;
+      return `${entry.feature} chưa được bật`;
     case "local-uat-only":
-      return `${entry.feature} is local or UAT only`;
+      return `${entry.feature} chỉ dùng nội bộ`;
     case "ci-safe-only":
-      return `${entry.feature} is outside live launch proof`;
+      return `${entry.feature} chưa mở cho khách`;
     case "blocked":
-      return `${entry.feature} is blocked`;
+      return `${entry.feature} đang bị chặn`;
     case "live-ready":
     case "live-conditional":
     default:
-      return `${entry.feature} is not available`;
+      return `${entry.feature} chưa khả dụng`;
   }
 }
 
 function defaultDisabledDescription(entry: SupportMatrixEntry): string {
   switch (entry.status) {
     case "rollout-gated":
-      return "This surface stays off by default until its dedicated rollout flag is intentionally enabled.";
+      return "Tính năng này sẽ đóng cho đến khi nhà hàng bật rõ ràng.";
     case "local-uat-only":
-      return "This proof path is for local or controlled UAT diagnostics only and does not count as live rollout support.";
+      return "Tính năng này chỉ dùng cho kiểm thử nội bộ.";
     case "ci-safe-only":
-      return "This surface may stay visible for contract or CI coverage, but it is outside the live launch proof boundary.";
+      return "Tính năng này chỉ dùng để kiểm thử và chưa mở cho khách.";
     case "blocked":
-      return "This surface stays disabled until backend support and rollout prerequisites are proven.";
+      return "Tính năng này đang bị tắt cho đến khi nhà hàng sẵn sàng.";
     case "live-ready":
     case "live-conditional":
     default:
-      return "This surface is not available in the current runtime.";
+      return "Tính năng này chưa khả dụng trong phiên hiện tại.";
   }
 }
 
 function defaultLiveProofSummary(entry: SupportMatrixEntry): string {
   switch (entry.status) {
     case "live-ready":
-      return "This surface is within the current live rollout boundary.";
+      return "Tính năng này nằm trong phạm vi đang bật.";
     case "live-conditional":
-      return "This surface is live only when its runtime prerequisites are genuinely present.";
+      return "Tính năng này chỉ hoạt động khi điều kiện vận hành đã sẵn sàng.";
     case "ci-safe-only":
-      return "This surface is safe for deterministic contract or CI checks, but it does not count as live launch proof.";
+      return "Tính năng này chỉ phù hợp cho kiểm thử tự động.";
     case "local-uat-only":
-      return "This surface is only valid for local or controlled UAT diagnostics.";
+      return "Tính năng này chỉ dùng cho kiểm thử nội bộ.";
     case "rollout-gated":
-      return "This surface stays disabled until its rollout gate is explicitly enabled.";
+      return "Tính năng này sẽ đóng cho đến khi được bật rõ ràng.";
     case "blocked":
     default:
-      return "This surface stays blocked until support is proven.";
+      return "Tính năng này đang bị chặn cho đến khi được hỗ trợ đầy đủ.";
   }
 }

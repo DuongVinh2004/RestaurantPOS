@@ -8,21 +8,21 @@ import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext"],
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext"],
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "RestaurantPOS Customer",
-    template: "%s | RestaurantPOS Customer",
+    default: "RestaurantPOS Khách hàng",
+    template: "%s | RestaurantPOS Khách hàng",
   },
-  description: "Browse the menu, find a table, and manage reservations, deposits, and bills from one customer app.",
-  applicationName: "RestaurantPOS Customer",
+  description: "Xem thực đơn, đặt bàn, quản lý lịch đặt, đặt cọc và hóa đơn trong một giao diện dành cho khách hàng.",
+  applicationName: "RestaurantPOS Khách hàng",
   formatDetection: {
     telephone: false,
     email: false,
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "RestaurantPOS Customer",
+    title: "RestaurantPOS Khách hàng",
   },
 };
 
@@ -45,7 +45,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="vi"
       data-scroll-behavior="smooth"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >

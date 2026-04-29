@@ -22,24 +22,24 @@ export function ReservationCard({ reservation }: { reservation: ReservationSumma
         </div>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div>
-            <p className="text-muted-foreground">Guests</p>
-            <p className="font-medium">{reservation.guest_count ?? "Not set"}</p>
+            <p className="text-muted-foreground">Số khách</p>
+            <p className="font-medium">{reservation.guest_count ?? "Chưa có"}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Deposit</p>
+            <p className="text-muted-foreground">Đặt cọc</p>
             <p className="font-medium">{deposit.label}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Bill</p>
+            <p className="text-muted-foreground">Hóa đơn</p>
             <p className="font-medium">{bill.available ? formatMoney(bill.amount, bill.currency) : bill.label}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Tables</p>
-            <p className="font-medium">{reservation.table_ids?.join(", ") || "Pending"}</p>
+            <p className="text-muted-foreground">Bàn</p>
+            <p className="font-medium">{reservation.table_ids?.join(", ") || "Đang chờ"}</p>
           </div>
         </div>
         <Button asChild className="w-full rounded-lg">
-          <Link href={`/reservations/${reservation.reservation_id}`}>Open visit</Link>
+          <Link href={`/reservations/${reservation.reservation_id}`}>Mở chi tiết</Link>
         </Button>
       </CardContent>
     </Card>

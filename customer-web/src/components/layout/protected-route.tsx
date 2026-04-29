@@ -50,10 +50,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
                 className="flex-1 rounded-lg"
                 onClick={restoreDisplay.primaryAction === "retry" ? retryBootstrap : () => void logout({ nextPath })}
               >
-                {restoreDisplay.primaryAction === "retry" ? "Retry session check" : "Go to sign in"}
+                {restoreDisplay.primaryAction === "retry" ? "Kiểm tra lại phiên" : "Đến trang đăng nhập"}
               </Button>
               <Button type="button" variant="outline" className="flex-1 rounded-lg" onClick={() => void logout()}>
-                Reset session
+                Đặt lại phiên
               </Button>
             </div>
           </CardContent>
@@ -78,10 +78,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
               <p className="text-sm text-muted-foreground">{routeAccess.description}</p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button asChild className="flex-1 rounded-lg">
-                  <Link href="/booking">Find a table</Link>
+                  <Link href="/booking">Tìm bàn</Link>
                 </Button>
                 <Button asChild variant="outline" className="flex-1 rounded-lg">
-                  <Link href={buildCustomerLoginHref(nextPath)}>Sign in</Link>
+                  <Link href={buildCustomerLoginHref(nextPath)}>Đăng nhập</Link>
                 </Button>
               </div>
             </CardContent>
@@ -99,7 +99,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">{routeAccess.description}</p>
             <Button asChild className="w-full rounded-lg">
-              <Link href={buildCustomerLoginHref(nextPath)}>Sign in</Link>
+              <Link href={buildCustomerLoginHref(nextPath)}>Đăng nhập</Link>
             </Button>
           </CardContent>
         </Card>

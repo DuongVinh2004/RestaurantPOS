@@ -25,11 +25,45 @@ const toneByStatus: Record<string, string> = {
   NoShow: "border-zinc-200 bg-zinc-50 text-zinc-600",
 };
 
+const labelByStatus: Record<string, string> = {
+  Active: "Đang hoạt động",
+  Applied: "Đã áp dụng",
+  Available: "Có thể dùng",
+  Cancelled: "Đã hủy",
+  Completed: "Hoàn tất",
+  Confirmed: "Đã xác nhận",
+  Created: "Đã tạo",
+  Expired: "Đã hết hạn",
+  Failed: "Không thành công",
+  Forfeited: "Đã mất hiệu lực",
+  Holding: "Đang giữ bàn",
+  NoShow: "Không đến",
+  Notified: "Đã thông báo",
+  Paid: "Đã thanh toán",
+  PartiallyRefunded: "Hoàn một phần",
+  Pending: "Đang chờ",
+  Refunded: "Đã hoàn tiền",
+  Reserved: "Đang phục vụ",
+  Revoked: "Đã thu hồi",
+  Submitted: "Đã gửi",
+  Succeeded: "Thành công",
+  Success: "Thành công",
+  Waiting: "Đang chờ",
+};
+
+export function formatStatusLabel(status: string | null | undefined): string {
+  if (!status) {
+    return "Chưa rõ";
+  }
+
+  return labelByStatus[status] ?? status.replace(/[_-]+/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
+}
+
 export function StatusBadge({ status, className }: { status: string | null | undefined; className?: string }) {
-  const label = status || "Unknown";
+  const label = formatStatusLabel(status);
 
   return (
-    <Badge variant="outline" className={cn("rounded-md px-2 py-1 text-xs font-medium", toneByStatus[label], className)}>
+    <Badge variant="outline" className={cn("rounded-md px-2 py-1 text-xs font-medium", toneByStatus[status ?? ""], className)}>
       {label}
     </Badge>
   );

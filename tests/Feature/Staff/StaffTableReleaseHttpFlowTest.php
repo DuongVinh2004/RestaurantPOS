@@ -60,6 +60,25 @@ class StaffTableReleaseHttpFlowTest extends TestCase
         self::assertTrue((bool) data_get($log->summary_json, 'notes_present'));
     }
 
+    public function test_release_rejects_stale_table_row_version_without_changing_state(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $tableId = $this->createRestaurantTable(['status' => 'Occupied', 'row_version' => 2]);
+
+        $this->withHeaders($this->withIdempotencyKey('staff-table-release-stale-row-version', $this->staffAuthHeaders($staffId)))
+            ->postJson('/api/v1/staff/tables/'.$tableId.'/release', [
+                'row_version' => 1,
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('error_code', 'stale_row_version')
+            ->assertJsonPath('category_code', 'stale_write')
+            ->assertJsonPath('details.errors.row_version.0', 'Data changed (row_version mismatch). Reload and try again.');
+
+        $table = DB::table('restaurant_tables')->where('table_id', $tableId)->first();
+        self::assertSame('Occupied', (string) $table->status);
+        self::assertSame(2, (int) $table->row_version);
+    }
+
     public function test_release_rejects_table_with_active_checked_in_reservation(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);

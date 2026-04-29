@@ -415,6 +415,53 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
         $this->assertStringContainsString('2026_04_29_000062_payment_cashier_shift_link.sql', $releaseManifest);
     }
 
+    public function test_release_contract_gates_completed_paid_service_reservations_missing_bill_snapshot(): void
+    {
+        foreach ([
+            base_path('database/schema/mysql-schema.sql'),
+            base_path('db_all.sql'),
+        ] as $path) {
+            $sql = (string) File::get($path);
+
+            $this->assertStringContainsString('`final_bill_amount` decimal(14,2) DEFAULT NULL', $sql);
+            $this->assertStringContainsString('`bill_currency` varchar(10)', $sql);
+            $this->assertStringContainsString('`billed_at` datetime(6) DEFAULT NULL', $sql);
+        }
+
+        $patchSql = (string) File::get(base_path('database/patches/2026_04_29_000063_completed_paid_bill_snapshot_gate.sql'));
+        $verifySql = (string) File::get(base_path('tools/mysql/verify_release_contract.sql'));
+        $bookingReleaseConfig = (string) File::get(base_path('config/booking_release.php'));
+        $releaseManifest = (string) File::get(base_path('storage/app/booking_release/release_manifest_snapshot.json'));
+        $databaseReadme = (string) File::get(base_path('database/README_release_bootstrap.md'));
+        $toolsReadme = (string) File::get(base_path('tools/mysql/README_bootstrap_release.md'));
+
+        foreach ([
+            'reservations.completed_paid_bill_snapshot:ok',
+            '__drifted_completed_paid_reservations_missing_bill_snapshot__',
+            "p.`payment_type` IN ('Deposit', 'Final')",
+            "p.`status` IN ('Success', 'Partial')",
+            "ro.`order_type` = 'OnSpot'",
+        ] as $fragment) {
+            $this->assertStringContainsString($fragment, $patchSql);
+        }
+
+        foreach ([
+            'reservations.completed_paid_bill_snapshot:ok',
+            '__drifted_completed_paid_reservations_missing_bill_snapshot__',
+            "p.payment_type IN ('Deposit', 'Final')",
+            "p.status IN ('Success', 'Partial')",
+            "ro.order_type = 'OnSpot'",
+        ] as $fragment) {
+            $this->assertStringContainsString($fragment, $verifySql);
+        }
+
+        $this->assertStringContainsString('release_contract_verifier', $bookingReleaseConfig);
+        $this->assertStringContainsString('2026_04_29_000063_completed_paid_bill_snapshot_gate.sql', $bookingReleaseConfig);
+        $this->assertStringContainsString('2026_04_29_000063_completed_paid_bill_snapshot_gate.sql', $releaseManifest);
+        $this->assertStringContainsString('completed paid on-spot service reservations', strtolower($databaseReadme));
+        $this->assertStringContainsString('completed paid on-spot reservations missing', strtolower($toolsReadme));
+    }
+
     public function test_schema_dump_db_all_verifier_contain_chk_reservation_order_items_line_total_matches(): void
     {
         foreach ([

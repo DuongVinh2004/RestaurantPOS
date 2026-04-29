@@ -1,7 +1,5 @@
-import { getSupportMatrixEntryById, type SurfaceRolloutDecision } from "@/lib/config/support-matrix";
+import type { SurfaceRolloutDecision } from "@/lib/config/support-matrix";
 import type { CustomerLoyaltySummary, CustomerReservationBenefitsPreview, CustomerVoucher } from "@/lib/contracts/generated/restaurantpos-sdk";
-
-const benefitsSupport = getSupportMatrixEntryById("account-benefits");
 
 export type BenefitAvailabilityState = "available" | "unavailable" | "expired" | "not_eligible" | "gated" | "empty";
 
@@ -64,7 +62,7 @@ export function getBenefitsVisibilityState(rollout: SurfaceRolloutDecision): Ben
   if (!rollout.enabled) {
     return {
       state: "gated",
-      badgeLabel: "Gated",
+      badgeLabel: "Chưa bật",
       title: rollout.disabledTitle,
       description: rollout.disabledDescription,
     };
@@ -72,31 +70,29 @@ export function getBenefitsVisibilityState(rollout: SurfaceRolloutDecision): Ben
 
   return {
     state: "contract_visible",
-    badgeLabel: "Contract-visible",
-    title: "Benefits rollout proof enabled",
-    description:
-      rollout.liveProofSummary ||
-      "Benefits data and reservation-level actions use live customer contract routes inside this gated rollout.",
+    badgeLabel: "Đã bật",
+    title: "Ưu đãi đã sẵn sàng",
+    description: "Bạn có thể xem điểm thưởng, voucher và các ưu đãi áp dụng cho lịch đặt.",
   };
 }
 
 export function getLoyaltyAccountState(summary: CustomerLoyaltySummary): LoyaltyAccountState {
   const totalPoints = summary.user.total_points;
   const hasTransactions = summary.transactions.length > 0;
-  const tierLabel = summary.user.current_tier ? `${summary.user.current_tier.tier_name} tier` : null;
+  const tierLabel = summary.user.current_tier ? `Hạng ${summary.user.current_tier.tier_name}` : null;
   const nextTier =
     summary.user.next_tier && typeof summary.user.next_tier.points_to_unlock === "number"
-      ? `${summary.user.next_tier.points_to_unlock} points to unlock ${summary.user.next_tier.tier_name}.`
+      ? `Cần ${summary.user.next_tier.points_to_unlock} điểm để mở hạng ${summary.user.next_tier.tier_name}.`
       : null;
 
   if (totalPoints <= 0 && !hasTransactions) {
     return {
       state: "empty",
-      title: "No loyalty balance yet",
-      description: "This account does not have loyalty points or recent loyalty activity yet.",
+      title: "Chưa có điểm thưởng",
+      description: "Tài khoản này chưa có điểm thưởng hoặc hoạt động điểm gần đây.",
       totalPoints,
-      transactionTitle: "No loyalty activity yet",
-      transactionDescription: "Recent loyalty transactions will appear here after the restaurant records them in backend runtime.",
+      transactionTitle: "Chưa có hoạt động điểm",
+      transactionDescription: "Các giao dịch điểm gần đây sẽ hiển thị sau khi nhà hàng ghi nhận.",
       tierLabel,
       nextTierLabel: nextTier,
     };
@@ -104,13 +100,13 @@ export function getLoyaltyAccountState(summary: CustomerLoyaltySummary): Loyalty
 
   return {
     state: "available",
-    title: tierLabel ? `${tierLabel} visible` : "Loyalty balance visible",
-    description: nextTier ?? "Loyalty points and recent activity are visible for this account.",
+    title: tierLabel ? `${tierLabel} đang hiển thị` : "Đã có điểm thưởng",
+    description: nextTier ?? "Điểm thưởng và hoạt động gần đây đang hiển thị cho tài khoản này.",
     totalPoints,
-    transactionTitle: hasTransactions ? "Recent loyalty activity" : "No recent loyalty activity",
+    transactionTitle: hasTransactions ? "Hoạt động điểm gần đây" : "Chưa có hoạt động gần đây",
     transactionDescription: hasTransactions
-      ? "Recent point movements are visible here for review."
-      : "Your loyalty balance is visible, but there are no recent transactions to review yet.",
+      ? "Các thay đổi điểm gần đây đang hiển thị tại đây."
+      : "Bạn có điểm thưởng, nhưng chưa có giao dịch gần đây để xem.",
     tierLabel,
     nextTierLabel: nextTier,
   };
@@ -120,9 +116,9 @@ export function getVoucherWalletState(vouchers: CustomerVoucher[]): VoucherWalle
   if (vouchers.length === 0) {
     return {
       state: "empty",
-      title: "No vouchers in this wallet",
-      description: "This account does not have any loyalty or voucher benefits to review right now.",
-      summary: "No active benefits",
+      title: "Chưa có voucher",
+      description: "Tài khoản này hiện chưa có voucher để xem.",
+      summary: "Chưa có ưu đãi",
       counts: {
         available: 0,
         unavailable: 0,
@@ -154,8 +150,8 @@ export function getVoucherWalletState(vouchers: CustomerVoucher[]): VoucherWalle
   if (counts.available > 0) {
     return {
       state: "available",
-      title: "Voucher wallet visible",
-      description: "Voucher wallet entries are visible here. Reservation-level voucher actions stay behind the account-benefits rollout.",
+      title: "Ví voucher đang hiển thị",
+      description: "Các voucher của tài khoản đang hiển thị tại đây.",
       summary: summarizeVoucherCounts(counts),
       counts,
       items,
@@ -165,8 +161,8 @@ export function getVoucherWalletState(vouchers: CustomerVoucher[]): VoucherWalle
   if (counts.notEligible > 0 && counts.expired === 0 && counts.unavailable === 0) {
     return {
       state: "not_eligible",
-      title: "Vouchers not eligible right now",
-      description: "Voucher wallet entries are visible, but the current backend applicability rules do not allow them right now.",
+      title: "Voucher chưa đủ điều kiện",
+      description: "Voucher đang hiển thị, nhưng hiện chưa thể dùng cho lượt ghé này.",
       summary: summarizeVoucherCounts(counts),
       counts,
       items,
@@ -176,8 +172,8 @@ export function getVoucherWalletState(vouchers: CustomerVoucher[]): VoucherWalle
   if (counts.expired > 0 && counts.available === 0 && counts.notEligible === 0 && counts.unavailable === 0) {
     return {
       state: "expired",
-      title: "Only expired vouchers remain",
-      description: "These voucher wallet entries are still visible for reference, but their validity window already ended.",
+      title: "Chỉ còn voucher hết hạn",
+      description: "Các voucher này vẫn hiển thị để tham khảo, nhưng đã hết hạn.",
       summary: summarizeVoucherCounts(counts),
       counts,
       items,
@@ -186,8 +182,8 @@ export function getVoucherWalletState(vouchers: CustomerVoucher[]): VoucherWalle
 
   return {
     state: "unavailable",
-    title: "No voucher is usable right now",
-    description: "Voucher wallet entries are visible, but none of them is currently usable from customer-web.",
+    title: "Chưa có voucher dùng được",
+    description: "Voucher đang hiển thị, nhưng chưa có voucher nào dùng được ngay.",
     summary: summarizeVoucherCounts(counts),
     counts,
     items,
@@ -206,14 +202,12 @@ export function getReservationBenefitsState(preview: CustomerReservationBenefits
   if (!hasVisibleLoyalty && !hasVisibleVouchers) {
     return {
       state: "empty",
-      title: "No active benefits",
-      description: "No loyalty or voucher benefits are available for this reservation right now.",
-      actionTitle: "Contract-visible rollout path",
-      actionDescription:
-        benefitsSupport?.liveProofSummary ??
-        "Benefits remain behind an explicit rollout gate until QA enables the account-benefits surface.",
-      loyaltyTitle: "No loyalty benefit visible",
-      loyaltyDescription: "This reservation does not expose an active loyalty benefit right now.",
+      title: "Chưa có ưu đãi",
+      description: "Hiện chưa có điểm thưởng hoặc voucher cho lịch đặt này.",
+      actionTitle: "Ưu đãi chưa cần thao tác",
+      actionDescription: "Nhà hàng chưa bật thao tác ưu đãi cho lịch đặt này.",
+      loyaltyTitle: "Chưa có điểm thưởng áp dụng",
+      loyaltyDescription: "Lịch đặt này chưa có ưu đãi điểm thưởng đang hoạt động.",
       voucherTitle: voucherWallet.title,
       voucherDescription: voucherWallet.description,
       hasVisibleLoyalty,
@@ -233,34 +227,32 @@ export function getReservationBenefitsState(preview: CustomerReservationBenefits
     state,
     title:
       state === "available"
-        ? "Benefits visible in contract"
+        ? "Ưu đãi đang hiển thị"
         : state === "expired"
-          ? "Only expired benefits remain"
-          : "Benefits not eligible right now",
+          ? "Chỉ còn ưu đãi hết hạn"
+          : "Ưu đãi chưa đủ điều kiện",
     description:
       state === "available"
-        ? "Loyalty points and voucher previews are visible for this reservation. Available actions stay row-versioned and idempotent."
+        ? "Điểm thưởng và voucher đang hiển thị cho lịch đặt này."
         : state === "expired"
-          ? "The reservation still exposes benefit history, but only expired voucher states remain."
-          : "Benefits are visible for this reservation, but the current loyalty or voucher rules do not allow a customer action.",
-    actionTitle: "Row-versioned benefit actions",
-    actionDescription:
-      benefitsSupport?.liveProofSummary ??
-      "Voucher and loyalty actions remain gated by rollout flag, customer owner scope, idempotency, and the latest reservation row version.",
+          ? "Lịch đặt vẫn hiển thị lịch sử ưu đãi, nhưng chỉ còn voucher đã hết hạn."
+          : "Ưu đãi đang hiển thị, nhưng hiện chưa có thao tác khách hàng có thể làm.",
+    actionTitle: "Thao tác ưu đãi",
+    actionDescription: "Bạn chỉ nên áp dụng hoặc gỡ ưu đãi khi nhà hàng cho phép trên lịch đặt này.",
     loyaltyTitle:
       loyaltyState === "available"
-        ? "Loyalty visible"
+        ? "Điểm thưởng đang hiển thị"
         : loyaltyState === "not_eligible"
-          ? "Loyalty not eligible right now"
-          : "No loyalty benefit visible",
+          ? "Điểm thưởng chưa đủ điều kiện"
+          : "Chưa có điểm thưởng áp dụng",
     loyaltyDescription:
       loyaltyState === "available"
         ? loyalty.can_redeem || loyalty.can_release
-          ? "The backend exposes loyalty actions for this reservation."
-          : "The backend exposes loyalty balances for this reservation, but no redeem or release action is currently available."
+          ? "Bạn có thể thao tác điểm thưởng cho lịch đặt này."
+          : "Bạn có thể xem điểm thưởng, nhưng hiện chưa có thao tác đổi hoặc gỡ điểm."
         : loyaltyState === "not_eligible"
-          ? "Loyalty is visible for this reservation, but the current rules do not allow a customer action right now."
-          : "This reservation does not expose an active loyalty benefit right now.",
+          ? "Điểm thưởng đang hiển thị, nhưng hiện chưa thể dùng cho lịch đặt này."
+          : "Lịch đặt này chưa có ưu đãi điểm thưởng đang hoạt động.",
     voucherTitle: voucherWallet.title,
     voucherDescription: voucherWallet.description,
     hasVisibleLoyalty,
@@ -274,11 +266,11 @@ export function getVoucherWalletItemState(voucher: CustomerVoucher): VoucherWall
     return {
       voucher,
       state: "expired",
-      badgeLabel: "Expired",
-      title: "Expired",
+      badgeLabel: "Hết hạn",
+      title: "Đã hết hạn",
       description: voucher.expires_at
-        ? `This voucher expired at ${voucher.expires_at}.`
-        : "This voucher is visible for reference only because its expiry window already ended.",
+        ? `Voucher này đã hết hạn lúc ${voucher.expires_at}.`
+        : "Voucher này chỉ còn để tham khảo vì đã hết hạn.",
     };
   }
 
@@ -286,11 +278,11 @@ export function getVoucherWalletItemState(voucher: CustomerVoucher): VoucherWall
     return {
       voucher,
       state: "unavailable",
-      badgeLabel: "Unavailable",
-      title: "Already used",
+      badgeLabel: "Không khả dụng",
+      title: "Đã dùng",
       description: voucher.used_reservation_id
-        ? `This voucher was already used on reservation #${voucher.used_reservation_id}.`
-        : "This voucher has already been used and is no longer available.",
+        ? `Voucher này đã được dùng cho lịch đặt #${voucher.used_reservation_id}.`
+        : "Voucher này đã được dùng và không còn khả dụng.",
     };
   }
 
@@ -298,9 +290,9 @@ export function getVoucherWalletItemState(voucher: CustomerVoucher): VoucherWall
     return {
       voucher,
       state: "unavailable",
-      badgeLabel: "Unavailable",
-      title: "Locked on another reservation",
-      description: "The backend reports that this voucher is locked by a different reservation right now.",
+      badgeLabel: "Không khả dụng",
+      title: "Đang giữ cho lịch đặt khác",
+      description: "Voucher này đang được giữ cho một lịch đặt khác.",
     };
   }
 
@@ -308,11 +300,11 @@ export function getVoucherWalletItemState(voucher: CustomerVoucher): VoucherWall
     return {
       voucher,
       state: "unavailable",
-      badgeLabel: "Unavailable",
-      title: "Temporarily locked",
+      badgeLabel: "Không khả dụng",
+      title: "Đang tạm giữ",
       description: voucher.locked_until
-        ? `This voucher stays locked until ${voucher.locked_until}.`
-        : "The backend reports that this voucher is temporarily locked right now.",
+        ? `Voucher này đang được giữ đến ${voucher.locked_until}.`
+        : "Voucher này đang được tạm giữ.",
     };
   }
 
@@ -320,9 +312,9 @@ export function getVoucherWalletItemState(voucher: CustomerVoucher): VoucherWall
     return {
       voucher,
       state: "available",
-      badgeLabel: "Available",
-      title: "Already linked",
-      description: "This voucher is already linked from backend runtime and can be removed while the rollout is enabled.",
+      badgeLabel: "Có thể dùng",
+      title: "Đã áp dụng",
+      description: "Voucher này đang được áp dụng cho lịch đặt và có thể gỡ khi nhà hàng cho phép.",
     };
   }
 
@@ -330,32 +322,32 @@ export function getVoucherWalletItemState(voucher: CustomerVoucher): VoucherWall
     return {
       voucher,
       state: "available",
-      badgeLabel: "Available",
-      title: "Available to review",
-      description: "This voucher is visible in contract and currently passes the backend applicability checks.",
+      badgeLabel: "Có thể dùng",
+      title: "Có thể dùng",
+      description: "Voucher này hiện đủ điều kiện để dùng.",
     };
   }
 
   return {
     voucher,
     state: "not_eligible",
-    badgeLabel: "Not eligible",
-    title: "Not eligible right now",
+    badgeLabel: "Chưa đủ điều kiện",
+    title: "Chưa đủ điều kiện",
     description:
       voucher.applicability_reasons.find((reason) => reason.trim() !== "") ??
-      "This voucher is visible in the wallet, but the current backend rules do not allow it right now.",
+      "Voucher này đang hiển thị trong ví, nhưng hiện chưa thể dùng.",
   };
 }
 
 function summarizeVoucherCounts(counts: VoucherWalletState["counts"]): string {
   const parts = [
-    counts.available > 0 ? `${counts.available} available` : null,
-    counts.notEligible > 0 ? `${counts.notEligible} not eligible` : null,
-    counts.expired > 0 ? `${counts.expired} expired` : null,
-    counts.unavailable > 0 ? `${counts.unavailable} unavailable` : null,
+    counts.available > 0 ? `${counts.available} có thể dùng` : null,
+    counts.notEligible > 0 ? `${counts.notEligible} chưa đủ điều kiện` : null,
+    counts.expired > 0 ? `${counts.expired} hết hạn` : null,
+    counts.unavailable > 0 ? `${counts.unavailable} không khả dụng` : null,
   ].filter((value): value is string => value !== null);
 
-  return parts.length > 0 ? parts.join(" - ") : "No active benefits";
+  return parts.length > 0 ? parts.join(" - ") : "Chưa có ưu đãi";
 }
 
 function isVoucherExpired(voucher: CustomerVoucher): boolean {

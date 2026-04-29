@@ -171,9 +171,9 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('data.totals.total_due', '150000.00')
-            ->assertJsonPath('data.totals.paid', '50000.00')
-            ->assertJsonPath('data.totals.outstanding', '100000.00')
+            ->assertJsonPath('data.total_amount', 150000)
+            ->assertJsonPath('data.paid_amount', 50000)
+            ->assertJsonPath('data.outstanding_amount', 100000)
             ->assertJsonPath('data.payment_status', 'Partial');
 
         self::assertSame('50000.00', number_format((float) $this->table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Final')->value('amount'), 2, '.', ''));
