@@ -20,7 +20,7 @@ describe('StaffWorkspaceSwitcher', () => {
       />,
     );
 
-    expect(screen.queryByRole('combobox', { name: /switch workspace/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /chuyển khu vực làm việc/i })).not.toBeInTheDocument();
   });
 
   it('renders a native select and forwards safe workspace switches', () => {
@@ -47,7 +47,7 @@ describe('StaffWorkspaceSwitcher', () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole('combobox', { name: /switch workspace/i }), {
+    fireEvent.change(screen.getByRole('combobox', { name: /chuyển khu vực làm việc/i }), {
       target: { value: 'kitchen' },
     });
 

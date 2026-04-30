@@ -252,6 +252,36 @@ class StaffTableBoardHttpFlowTest extends TestCase
         self::assertSame('none', data_get($row, 'operational_hints.preferred_action'));
     }
 
+    public function test_staff_table_board_surfaces_check_in_for_early_arrival_when_table_is_free(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->staffAuthHeaders($staffId, 'board-early-checkin-key');
+
+        $tableId = $this->createRestaurantTableWithSeats(4, ['zone' => 'Main', 'status' => 'Available']);
+        $now = Carbon::now('UTC')->startOfMinute();
+        $reservationId = $this->createReservation([
+            'status' => 'Confirmed',
+            'start_time' => $now->copy()->addHours(2),
+            'end_time' => $now->copy()->addHours(4),
+            'guest_count' => 4,
+            'row_version' => 5,
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+
+        $response = $this->withHeaders($headers)->getJson(
+            '/api/v1/staff/tables/board?from='.urlencode($now->copy()->subMinutes(30)->toIso8601String()).'&to='.urlencode($now->copy()->addHours(5)->toIso8601String())
+        );
+
+        $response->assertOk();
+
+        $row = collect($response->json('data'))->firstWhere('table_id', $tableId);
+        self::assertIsArray($row);
+        self::assertTrue((bool) data_get($row, 'actions.check_in.available'));
+        self::assertTrue((bool) data_get($row, 'actions.check_in.checks.early_check_in'));
+        self::assertTrue((bool) data_get($row, 'actions.check_in.checks.all_assigned_tables_available'));
+        self::assertSame('check_in', data_get($row, 'operational_hints.preferred_action'));
+    }
+
     public function test_staff_table_board_hides_check_in_when_assigned_table_has_active_hold_conflict(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);

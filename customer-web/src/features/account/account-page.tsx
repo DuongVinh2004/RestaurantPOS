@@ -1,10 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
+import { StatusBadge } from "@/components/status/status-badge";
 import { PrivacyPanel } from "@/features/privacy/privacy-panel";
+import { listReservations } from "@/features/reservations/api";
 import { listVouchers } from "@/features/vouchers/api";
 import { getBenefitsVisibilityState, getLoyaltyAccountState, getVoucherWalletState } from "@/features/vouchers/state";
 import { useAuth } from "@/providers/auth-provider";
@@ -25,6 +29,10 @@ export function AccountPage() {
     queryKey: queryKeys.account.loyalty,
     queryFn: getLoyalty,
     enabled: accountBenefitsRollout.enabled,
+  });
+  const upcomingReservationsQuery = useQuery({
+    queryKey: queryKeys.reservations.list("upcoming"),
+    queryFn: () => listReservations("upcoming"),
   });
   const vouchersQuery = useQuery({
     queryKey: queryKeys.account.vouchers,
@@ -72,6 +80,56 @@ export function AccountPage() {
           {profile?.name ?? "Khách hàng"} có thể xem điểm thưởng, voucher và các công cụ dữ liệu cá nhân khi nhà hàng bật cho tài khoản.
         </p>
       </section>
+
+      <Card className="mb-5 rounded-lg">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle>Lịch đặt sắp tới</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">Theo dõi nhanh các lượt ghé đã đặt với nhà hàng.</p>
+          </div>
+          <Button asChild variant="outline" className="rounded-lg">
+            <Link href="/reservations">Xem tất cả</Link>
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {upcomingReservationsQuery.isLoading ? <LoadingBlock label="Đang tải lịch đặt sắp tới" /> : null}
+          {upcomingReservationsQuery.error ? (
+            <ErrorState
+              error={upcomingReservationsQuery.error}
+              title="Chưa tải được lịch đặt sắp tới"
+              onRetry={() => upcomingReservationsQuery.refetch()}
+            />
+          ) : null}
+          {!upcomingReservationsQuery.isLoading && !upcomingReservationsQuery.error && (upcomingReservationsQuery.data?.length ?? 0) === 0 ? (
+            <EmptyState
+              title="Chưa có lịch đặt sắp tới"
+              description="Bạn có thể tìm bàn trống và tạo lịch đặt mới khi cần."
+              action={(
+                <Button asChild className="rounded-lg">
+                  <Link href="/booking">Đặt bàn</Link>
+                </Button>
+              )}
+            />
+          ) : null}
+          <div className="grid gap-3">
+            {(upcomingReservationsQuery.data ?? []).slice(0, 3).map((reservation) => (
+              <Link
+                key={reservation.reservation_id}
+                href={`/reservations/${reservation.reservation_id}`}
+                className="flex flex-col gap-3 rounded-lg border p-4 transition hover:border-primary/50 hover:bg-secondary/30 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="font-semibold">{reservation.reservation_code}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {formatDateTime(reservation.start_time ?? reservation.booking_time ?? null)} • {reservation.guest_count ?? "Chưa rõ"} khách
+                  </p>
+                </div>
+                <StatusBadge status={reservation.status} />
+              </Link>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="mb-5 rounded-lg">
         <CardHeader>

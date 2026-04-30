@@ -224,7 +224,7 @@ test.beforeEach(async ({ page }) => {
 test("menu home loads with mock-backed customer content", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Chọn món và đặt bàn trong vài thao tác." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Chọn món và đặt bàn trong vài thao tác" })).toBeVisible();
   await expect(page.getByRole("searchbox", { name: "Tìm món trong thực đơn" })).toBeVisible();
   await expect(page.getByRole("main").getByRole("link", { name: "Tìm bàn" })).toBeVisible();
   await expect(page.getByText("Cơm gà rau thơm")).toBeVisible();
@@ -240,7 +240,8 @@ test("booking can create a hold and continue to reservation", async ({ page }) =
 
   await tableOption.click();
   await expect(tableOption).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Giữ bàn" }).click();
+  await expect(page.getByText("Mã giữ bàn")).toBeVisible();
+  await expect(page.getByText("hold-dev-1")).toBeVisible();
 
   const continueLink = page.getByRole("link", { name: "Tiếp tục đặt chỗ" });
   await expect(continueLink).toBeVisible();

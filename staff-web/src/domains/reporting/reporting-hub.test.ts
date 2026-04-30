@@ -74,7 +74,7 @@ describe('reporting hub helpers', () => {
   });
 
   it('classifies invalid reporting date ranges before calling the backend', () => {
-    expect(reportingDateRangeError({ dateFrom: '2026-04-10', dateTo: '2026-04-01' })).toBe('End date must be on or after start date.');
+    expect(reportingDateRangeError({ dateFrom: '2026-04-10', dateTo: '2026-04-01' })).toBe('Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.');
     expect(reportingDateRangeError({ dateFrom: '2026-04-01', dateTo: '2026-04-10' })).toBeNull();
     expect(reportingDateRangeError({ dateFrom: '', dateTo: '2026-04-10' })).toBeNull();
   });
@@ -237,13 +237,13 @@ describe('reporting hub helpers', () => {
       },
     } as ExtendedMeta;
 
-    expect(snapshotHealthLabel(meta)).toBe('Stale từng phần');
+    expect(snapshotHealthLabel(meta)).toBe('Cần làm mới một phần');
     expect(snapshotHealthReferenceAgeSeconds(meta)).toBe(172800);
-    expect(snapshotHealthScopeSummary(meta)).toBe('Phạm vi 2 | stale 1 | ổn 1');
+    expect(snapshotHealthScopeSummary(meta)).toBe('Phạm vi 2 | cần làm mới 1 | ổn 1');
     expect(snapshotHealthScopeExamples(meta)).toContain('branch_id=3');
     expect(snapshotHealthScopeExamples(meta)).toContain('ingredient_id=88');
-    expect(snapshotHealthDescription(meta)).toContain('stale 1');
-    expect(snapshotHealthDescription(meta)).toContain('Snapshot stale');
+    expect(snapshotHealthDescription(meta)).toContain('cần làm mới 1');
+    expect(snapshotHealthDescription(meta)).toContain('Snapshot cần làm mới');
   });
 
   it('keeps empty-scope messaging explicit', () => {

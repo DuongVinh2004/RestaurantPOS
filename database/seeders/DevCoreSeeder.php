@@ -16,9 +16,6 @@ class DevCoreSeeder extends Seeder
         $now = Carbon::now();
 
         DB::transaction(function () use ($now): void {
-            /**
-             * 1) Roles (idempotent)
-             */
             foreach (['Admin', 'Staff', 'Customer'] as $name) {
                 DB::table('roles')->updateOrInsert(
                     ['role_name' => $name],
@@ -30,9 +27,6 @@ class DevCoreSeeder extends Seeder
             $roleStaff = (int) DB::table('roles')->where('role_name', 'Staff')->value('role_id');
             $roleCustomer = (int) DB::table('roles')->where('role_name', 'Customer')->value('role_id');
 
-            /**
-             * 2) Users (idempotent theo username)
-             */
             DB::table('users')->updateOrInsert(
                 ['username' => 'admin'],
                 [
@@ -53,7 +47,7 @@ class DevCoreSeeder extends Seeder
                 ['username' => 'staff1'],
                 [
                     'password_hash' => Hash::make('password'),
-                    'full_name' => 'Staff Dev',
+                    'full_name' => 'Nhân viên Dev',
                     'email' => 'staff1@example.local',
                     'phone' => '0900000002',
                     'role_id' => $roleStaff,
@@ -69,7 +63,7 @@ class DevCoreSeeder extends Seeder
                 ['username' => 'customer1'],
                 [
                     'password_hash' => Hash::make('password'),
-                    'full_name' => 'Customer Dev',
+                    'full_name' => 'Khách hàng Dev',
                     'email' => 'customer1@example.local',
                     'phone' => '0900000003',
                     'role_id' => $roleCustomer,
@@ -84,30 +78,29 @@ class DevCoreSeeder extends Seeder
             $staffId = (int) DB::table('users')->where('username', 'staff1')->value('user_id');
             $customerId = (int) DB::table('users')->where('username', 'customer1')->value('user_id');
 
-            /**
-             * 3) Menu Categories
-             */
-            DB::table('menu_categories')->updateOrInsert(
-                ['name' => 'Món chính'],
-                ['description' => 'Các món chính', 'sort_order' => 1, 'is_deleted' => 0]
-            );
-            DB::table('menu_categories')->updateOrInsert(
-                ['name' => 'Đồ uống'],
-                ['description' => 'Thức uống', 'sort_order' => 2, 'is_deleted' => 0]
-            );
+            foreach ([
+                'Món chính' => ['description' => 'Các món chính', 'sort_order' => 1],
+                'Đồ uống' => ['description' => 'Thức uống', 'sort_order' => 2],
+            ] as $name => $payload) {
+                DB::table('menu_categories')->updateOrInsert(
+                    ['name' => $name],
+                    [
+                        'description' => $payload['description'],
+                        'sort_order' => $payload['sort_order'],
+                        'is_deleted' => 0,
+                    ]
+                );
+            }
 
             $catMain = (int) DB::table('menu_categories')->where('name', 'Món chính')->value('category_id');
             $catDrink = (int) DB::table('menu_categories')->where('name', 'Đồ uống')->value('category_id');
 
-            /**
-             * 4) Menu Items (code unique)
-             */
             DB::table('menu_items')->updateOrInsert(
                 ['code' => 'FOOD-001'],
                 [
                     'category_id' => $catMain,
                     'name' => 'Bò lúc lắc',
-                    'description' => 'Bò xào sốt tiêu đen',
+                    'description' => 'Bò xào sốt tiêu đen, dùng kèm rau và khoai chiên.',
                     'img_url' => null,
                     'is_available' => 1,
                     'created_at' => $now,
@@ -119,7 +112,7 @@ class DevCoreSeeder extends Seeder
                 [
                     'category_id' => $catDrink,
                     'name' => 'Trà đào',
-                    'description' => 'Trà đào mát lạnh',
+                    'description' => 'Trà đào mát lạnh với miếng đào ngâm.',
                     'img_url' => null,
                     'is_available' => 1,
                     'created_at' => $now,
@@ -130,9 +123,6 @@ class DevCoreSeeder extends Seeder
             $itemFood = (int) DB::table('menu_items')->where('code', 'FOOD-001')->value('item_id');
             $itemDrink = (int) DB::table('menu_items')->where('code', 'DRINK-001')->value('item_id');
 
-            /**
-             * 5) Prices (xóa giá cũ của item rồi insert 1 giá hiện hành)
-             */
             DB::table('menu_item_prices')->where('item_id', $itemFood)->delete();
             DB::table('menu_item_prices')->where('item_id', $itemDrink)->delete();
 
@@ -153,23 +143,17 @@ class DevCoreSeeder extends Seeder
                 ],
             ]);
 
-            /**
-             * 6) Table templates
-             */
             DB::table('table_templates')->updateOrInsert(
                 ['template_code' => 'TBL-2'],
-                ['seats' => 2, 'description' => 'Bàn 2']
+                ['seats' => 2, 'description' => 'Bàn 2 chỗ']
             );
             DB::table('table_templates')->updateOrInsert(
                 ['template_code' => 'TBL-4'],
-                ['seats' => 4, 'description' => 'Bàn 4']
+                ['seats' => 4, 'description' => 'Bàn 4 chỗ']
             );
 
             $tpl2 = (int) DB::table('table_templates')->where('template_code', 'TBL-2')->value('template_id');
 
-            /**
-             * 7) Restaurant tables (code unique)
-             */
             for ($i = 1; $i <= 5; $i++) {
                 DB::table('restaurant_tables')->updateOrInsert(
                     ['table_code' => sprintf('A%02d', $i)],
@@ -191,10 +175,6 @@ class DevCoreSeeder extends Seeder
 
             $tableId = (int) DB::table('restaurant_tables')->where('table_code', 'A01')->value('table_id');
 
-            /**
-             * 8) Reservation (unique code) + attach table
-             * Xoá theo reservation_code để idempotent (CASCADE sẽ xoá reservation_tables/orders/items/payments)
-             */
             $reservationCode = 'RSV-DEV-001';
             $existingReservationId = DB::table('reservations')->where('reservation_code', $reservationCode)->value('reservation_id');
             if ($existingReservationId) {
@@ -212,7 +192,7 @@ class DevCoreSeeder extends Seeder
                 'end_time' => $end,
                 'guest_count' => 2,
                 'status' => 'Confirmed',
-                'notes' => 'Dev seed reservation',
+                'notes' => 'Đặt bàn mẫu cho môi trường dev',
                 'created_at' => $now,
                 'updated_at' => $now,
                 'row_version' => 1,
@@ -223,16 +203,13 @@ class DevCoreSeeder extends Seeder
                 ['reservation_id' => $reservationId, 'table_id' => $tableId]
             );
 
-            /**
-             * 9) Order + items
-             */
             $orderId = (int) DB::table('reservation_orders')->insertGetId([
                 'reservation_id' => $reservationId,
                 'order_type' => 'PreOrder',
                 'status' => 'Active',
                 'created_at' => $now,
                 'created_by' => $staffId,
-                'notes' => 'Dev seed order',
+                'notes' => 'Đơn đặt trước mẫu',
             ]);
 
             DB::table('reservation_order_items')->insert([
@@ -254,9 +231,6 @@ class DevCoreSeeder extends Seeder
                 ],
             ]);
 
-            /**
-             * 10) Payment
-             */
             DB::table('payments')->insert([
                 'reservation_id' => $reservationId,
                 'amount' => '210000.00',
@@ -267,12 +241,9 @@ class DevCoreSeeder extends Seeder
                 'paid_at' => null,
                 'created_at' => $now,
                 'created_by' => $staffId,
-                'notes' => 'Dev seed payment',
+                'notes' => 'Thanh toán mẫu',
             ]);
 
-            /**
-             * 11) Link lại conversation seed trước đó (nếu đã có DevConversationSeeder)
-             */
             DB::table('conversations')
                 ->where('conversation_id', '11111111-1111-1111-1111-111111111111')
                 ->update(['user_id' => $customerId]);

@@ -101,6 +101,34 @@ class StaffCheckInFlowTest extends TestCase
         self::assertSame('Confirmed', DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
     }
 
+    public function test_check_in_allows_early_arrival_when_assigned_table_is_available(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $headers = $this->withIdempotencyKey('checkin-early-arrival', $this->staffAuthHeaders($staffId));
+
+        $tableId = $this->createRestaurantTable(['status' => 'Available']);
+        $checkedInAt = $this->nowUtc()->copy()->startOfMinute();
+        $start = $checkedInAt->copy()->addHours(2);
+        $reservationId = $this->createReservation([
+            'start_time' => $start,
+            'end_time' => $start->copy()->addHours(2),
+            'status' => 'Confirmed',
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+
+        $response = $this->withHeaders($headers)->postJson("/api/v1/staff/reservations/{$reservationId}/check-in", [
+            'table_ids' => [$tableId],
+            'checked_in_at' => $checkedInAt->toIso8601String(),
+            'row_version' => 1,
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('data.status', 'Reserved');
+
+        self::assertSame('Reserved', DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
+        self::assertSame('Occupied', DB::table('restaurant_tables')->where('table_id', $tableId)->value('status'));
+    }
+
     public function test_check_in_rejects_assigned_tables_with_overlapping_active_hold(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);

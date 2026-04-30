@@ -128,7 +128,7 @@ describe('AuditTrailPage', () => {
     renderAuditTrailPage();
 
     const searchInput = await screen.findByLabelText('Tìm kiếm trong nhật ký audit');
-    const requestIdInput = screen.getByLabelText('Lọc theo Request ID');
+    const requestIdInput = screen.getByLabelText('Lọc theo mã truy vết');
 
     fireEvent.change(searchInput, { target: { value: 'refund' } });
     fireEvent.change(requestIdInput, { target: { value: 'req-999' } });

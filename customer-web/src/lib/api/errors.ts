@@ -43,6 +43,9 @@ export type SessionRestoreDisplay = ApiErrorDisplay & {
   primaryAction: "retry" | "sign_in";
 };
 
+export const ACTIVE_TABLE_HOLD_SESSION_MESSAGE =
+  "Phiên này đang có một lượt giữ bàn khác. Vui lòng tiếp tục đặt bàn với lượt giữ hiện tại, gia hạn, hủy lượt giữ cũ hoặc tải lại trang.";
+
 type ErrorPayload = {
   message?: unknown;
   error_code?: unknown;
@@ -229,6 +232,16 @@ export function getApiErrorDisplay(error: unknown): ApiErrorDisplay {
 
     return {
       message: "Mục này không khả dụng với phiên khách hàng hiện tại.",
+      retryHint: null,
+      statusLabel,
+      requestIdLabel,
+      errorCodeLabel,
+    };
+  }
+
+  if (isActiveTableHoldSessionError(normalized)) {
+    return {
+      message: ACTIVE_TABLE_HOLD_SESSION_MESSAGE,
       retryHint: null,
       statusLabel,
       requestIdLabel,
@@ -440,6 +453,18 @@ export function isSessionDriftLikeApiError(error: unknown): boolean {
     /(access session|linked visit session|browser session|session[_\s-]?id)/.test(haystack) &&
     /(invalid|inactive|expired|mismatch|drift|reload|try again|active)/.test(haystack)
   );
+}
+
+export function isActiveTableHoldSessionError(error: unknown): boolean {
+  const normalized = normalizeApiError(error);
+
+  if (normalized.kind !== "validation" || !hasValidationField(normalized, ["session_id"])) {
+    return false;
+  }
+
+  const haystack = searchableErrorText(normalized);
+
+  return /active hold|another active hold|holding|pending/.test(haystack);
 }
 
 export function isUnauthorizedOwnerAccessError(error: unknown): boolean {

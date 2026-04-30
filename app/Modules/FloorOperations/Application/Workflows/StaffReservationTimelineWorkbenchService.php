@@ -58,7 +58,7 @@ class StaffReservationTimelineWorkbenchService
             && ! $isCheckedIn
             && $hasAssignedTables
             && $status === ReservationStatus::Confirmed->value
-            && $nowUtc->betweenIncluded($checkInWindowStartUtc, $checkInWindowEndUtc)));
+            && $nowUtc->lessThanOrEqualTo($checkInWindowEndUtc)));
         $checkInBlockedReason = $checkInReadiness !== null
             ? (is_string($checkInReadiness['blocked_reason_code'] ?? null) ? $checkInReadiness['blocked_reason_code'] : null)
             : null;
@@ -138,8 +138,8 @@ class StaffReservationTimelineWorkbenchService
             recommended: $nextRecommendedAction === 'check_in',
             blockedReasonCode: $checkInWindowOpen
                 ? null
-                : ($checkInBlockedReason ?? $this->resolveCheckInBlockedReason($isTerminal, $isCheckedIn, $hasAssignedTables, $status, $nowUtc, $checkInWindowStartUtc, $checkInWindowEndUtc)),
-            hint: 'Check in using the current assigned table set when the grace window is open.',
+                : ($checkInBlockedReason ?? $this->resolveCheckInBlockedReason($isTerminal, $isCheckedIn, $hasAssignedTables, $status, $nowUtc, $checkInWindowEndUtc)),
+            hint: 'Check in using the current assigned table set when the table is ready.',
             requiredFields: ['row_version'],
             payloadDefaults: ['row_version' => $rowVersion],
             context: [
@@ -239,7 +239,6 @@ class StaffReservationTimelineWorkbenchService
         bool $hasAssignedTables,
         string $status,
         Carbon $nowUtc,
-        Carbon $checkInWindowStartUtc,
         Carbon $checkInWindowEndUtc,
     ): string {
         if ($isTerminal) {
@@ -256,10 +255,6 @@ class StaffReservationTimelineWorkbenchService
 
         if ($status !== ReservationStatus::Confirmed->value) {
             return 'status_not_confirmed';
-        }
-
-        if ($nowUtc->lt($checkInWindowStartUtc)) {
-            return 'check_in_window_not_open';
         }
 
         if ($nowUtc->gt($checkInWindowEndUtc)) {

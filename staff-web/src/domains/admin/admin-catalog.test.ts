@@ -48,6 +48,6 @@ describe('admin catalog helpers', () => {
       pricedItems: 1,
       priceRows: 1,
     });
-    expect(formatCatalogPrice('1234.5', 'VND')).toBe('1,234.5 VND');
+    expect(formatCatalogPrice('1234.5', 'VND')).toBe('1.234,5 ₫');
   });
 });

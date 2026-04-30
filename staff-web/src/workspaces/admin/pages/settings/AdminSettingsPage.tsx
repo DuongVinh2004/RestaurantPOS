@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFlowStore } from '../../../../app/store/flow-store';
 import {
   adminSettingsSurfaces,
+  adminTableStatusLabel,
   adminTableStatusTone,
   branchReservationLeadLabel,
   branchSameDayCutoffLabel,
@@ -39,12 +40,12 @@ type BranchRow = Awaited<ReturnType<typeof listAdminBranches>>['data'][number];
 type NewTableStatus = 'Available' | 'Blocked' | 'Maintenance';
 
 const tableStatusOptions = [
-  { value: '', label: 'All statuses' },
-  { value: 'Available', label: 'Available' },
-  { value: 'Reserved', label: 'Reserved' },
-  { value: 'Occupied', label: 'Occupied' },
-  { value: 'Blocked', label: 'Blocked' },
-  { value: 'Maintenance', label: 'Maintenance' },
+  { value: '', label: 'Tất cả trạng thái' },
+  { value: 'Available', label: 'Bàn trống' },
+  { value: 'Reserved', label: 'Đã đặt' },
+  { value: 'Occupied', label: 'Đang phục vụ' },
+  { value: 'Blocked', label: 'Đang khóa' },
+  { value: 'Maintenance', label: 'Bảo trì' },
 ];
 
 export function AdminSettingsPage() {
@@ -108,7 +109,7 @@ export function AdminSettingsPage() {
       const price = tableForm.seatsPrice.trim() === '' ? null : Number(tableForm.seatsPrice);
 
       if (tableForm.tableCode.trim() === '' || !Number.isInteger(templateId) || templateId <= 0) {
-        throw new Error('Table code and template are required.');
+        throw new Error('Hãy nhập mã bàn và chọn mẫu bàn trước khi tạo.');
       }
 
       return createAdminRestaurantTable({
@@ -123,10 +124,10 @@ export function AdminSettingsPage() {
     onSuccess: async () => {
       setTableForm((current) => ({ ...current, tableCode: '', seatsPrice: '' }));
       await queryClient.invalidateQueries({ queryKey: ['admin-settings-tables'] });
-      toast.success('Restaurant table created.');
+      toast.success('Đã tạo bàn nhà hàng.');
     },
     onError: (error) => {
-      toast.error(formatApiError(error, 'Could not create restaurant table.'));
+      toast.error(formatApiError(error, 'Chưa tạo được bàn nhà hàng.'));
     },
   });
 
@@ -147,34 +148,34 @@ export function AdminSettingsPage() {
   const main = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <PageHeader
-        eyebrow="Configuration"
-        title="Branches and settings lane"
-        description="Keep branch registry, table ownership, kitchen routing, and settings-side imports away from the live ops shell."
+        eyebrow="Cấu hình"
+        title="Chi nhánh và thiết lập"
+        description="Quản lý chi nhánh, bàn, khu vực, tuyến bếp và dữ liệu nhập/xuất tách khỏi màn vận hành đang chạy."
         context={(
           <>
-            <StatusChip label={`${summary.total} branches`} tone="processing" />
-            <StatusChip label={`${summary.active} active`} tone="success" />
-            <StatusChip label={`${summary.withClosures} with closures`} tone={summary.withClosures > 0 ? 'warning' : 'default'} />
-            <StatusChip label={`${tableSummary.total} tables`} tone="processing" />
-            <StatusChip label={startupBranchId ? `Shell branch #${startupBranchId}` : 'No shell branch'} tone={startupBranchId ? 'processing' : 'warning'} />
+            <StatusChip label={`${summary.total} chi nhánh`} tone="processing" />
+            <StatusChip label={`${summary.active} đang hoạt động`} tone="success" />
+            <StatusChip label={`${summary.withClosures} có lịch đóng`} tone={summary.withClosures > 0 ? 'warning' : 'default'} />
+            <StatusChip label={`${tableSummary.total} bàn`} tone="processing" />
+            <StatusChip label={startupBranchId ? `Chi nhánh #${startupBranchId}` : 'Chưa chọn chi nhánh'} tone={startupBranchId ? 'processing' : 'warning'} />
           </>
         )}
       />
 
-      <Card className="staff-workspace-filter-card" title="Filter branches">
+      <Card className="staff-workspace-filter-card" title="Lọc chi nhánh">
         <Row gutter={[12, 12]}>
           <Col xs={24} md={16}>
             <Input
-              aria-label="Search admin branches"
+              aria-label="Tìm chi nhánh quản trị"
               autoComplete="off"
               value={filters.query}
-              placeholder="Branch code or branch name"
+              placeholder="Mã hoặc tên chi nhánh"
               onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))}
             />
           </Col>
           <Col xs={24} md={8}>
             <label className="staff-admin-switch-row">
-              <span>Active only</span>
+              <span>Chỉ chi nhánh hoạt động</span>
               <Switch
                 checked={filters.activeOnly}
                 onChange={(checked) => setFilters((current) => ({ ...current, activeOnly: checked }))}
@@ -187,31 +188,31 @@ export function AdminSettingsPage() {
       <Row gutter={[16, 16]}>
         <Col xs={24} md={6}>
           <Card className="staff-admin-summary-card">
-            <Statistic title="Active branches" value={summary.active} />
+            <Statistic title="Chi nhánh hoạt động" value={summary.active} />
           </Card>
         </Col>
         <Col xs={24} md={6}>
           <Card className="staff-admin-summary-card">
-            <Statistic title="Default branches" value={summary.defaults} />
+            <Statistic title="Chi nhánh mặc định" value={summary.defaults} />
           </Card>
         </Col>
         <Col xs={24} md={6}>
           <Card className="staff-admin-summary-card">
-            <Statistic title="Configured hours" value={summary.withBusinessHours} />
+            <Statistic title="Đã có giờ mở cửa" value={summary.withBusinessHours} />
           </Card>
         </Col>
         <Col xs={24} md={6}>
           <Card className="staff-admin-summary-card">
-            <Statistic title="Branches with closures" value={summary.withClosures} />
+            <Statistic title="Có lịch đóng" value={summary.withClosures} />
           </Card>
         </Col>
       </Row>
 
-      <Card className="staff-workspace-table-card" title="Branch registry">
-        {branchesQuery.isLoading ? <InlineLoading tip="Loading branch registry..." /> : null}
-        {branchesQuery.error ? <ApiStateBlock error={branchesQuery.error} fallback="Unable to load admin branches." onRetry={() => void branchesQuery.refetch()} /> : null}
+      <Card className="staff-workspace-table-card" title="Danh bạ chi nhánh">
+        {branchesQuery.isLoading ? <InlineLoading tip="Đang tải danh bạ chi nhánh..." /> : null}
+        {branchesQuery.error ? <ApiStateBlock error={branchesQuery.error} fallback="Chưa tải được danh sách chi nhánh." onRetry={() => void branchesQuery.refetch()} /> : null}
         {!branchesQuery.isLoading && !branchesQuery.error && branches.length === 0 ? (
-          <EmptyBlock title="No branches matched this filter" description="Relax the current search or active-state filter to inspect another branch." />
+          <EmptyBlock title="Không có chi nhánh phù hợp" description="Hãy nới điều kiện tìm kiếm hoặc tắt bộ lọc hoạt động để xem thêm chi nhánh." />
         ) : null}
         {branches.length > 0 ? (
           <div className="staff-admin-branch-list">
@@ -224,11 +225,11 @@ export function AdminSettingsPage() {
               >
                 <div className="staff-admin-branch-row-main">
                   <strong>{branch.branch_name}</strong>
-                  <span>{branch.branch_code} • {branch.timezone ?? 'No timezone'}</span>
+                  <span>{branch.branch_code} / {branch.timezone ?? 'Chưa có múi giờ'}</span>
                 </div>
                 <Space wrap size={6}>
-                  {branch.is_default ? <StatusChip label="Default" tone="processing" /> : null}
-                  <StatusChip label={branch.is_active ? 'Active' : 'Inactive'} tone={branch.is_active ? 'success' : 'warning'} />
+                  {branch.is_default ? <StatusChip label="Mặc định" tone="processing" /> : null}
+                  <StatusChip label={branch.is_active ? 'Đang hoạt động' : 'Tạm tắt'} tone={branch.is_active ? 'success' : 'warning'} />
                 </Space>
               </button>
             ))}
@@ -236,38 +237,38 @@ export function AdminSettingsPage() {
         ) : null}
       </Card>
 
-      <Card className="staff-workspace-filter-card" title="Filter tables">
+      <Card className="staff-workspace-filter-card" title="Lọc bàn">
         <Row gutter={[12, 12]}>
           <Col xs={24} md={8}>
             <Input
-              aria-label="Search admin tables"
+              aria-label="Tìm bàn quản trị"
               autoComplete="off"
               value={tableFilters.query}
-              placeholder="Table code or description"
+              placeholder="Mã bàn hoặc mô tả"
               onChange={(event) => setTableFilters((current) => ({ ...current, query: event.target.value }))}
             />
           </Col>
           <Col xs={24} md={4}>
             <Input
-              aria-label="Admin table zone"
+              aria-label="Khu vực bàn"
               autoComplete="off"
               value={tableFilters.zone}
-              placeholder="Zone"
+              placeholder="Khu vực"
               onChange={(event) => setTableFilters((current) => ({ ...current, zone: event.target.value }))}
             />
           </Col>
           <Col xs={24} md={4}>
             <Input
-              aria-label="Admin table branch id"
+              aria-label="Mã chi nhánh của bàn"
               autoComplete="off"
               value={tableFilters.branchIdInput}
-              placeholder="Branch id"
+              placeholder="Mã chi nhánh"
               onChange={(event) => setTableFilters((current) => ({ ...current, branchIdInput: event.target.value }))}
             />
           </Col>
           <Col xs={24} md={4}>
             <Select
-              aria-label="Admin table status"
+              aria-label="Trạng thái bàn"
               style={{ width: '100%' }}
               options={tableStatusOptions}
               value={tableFilters.status}
@@ -276,7 +277,7 @@ export function AdminSettingsPage() {
           </Col>
           <Col xs={24} md={4}>
             <label className="staff-admin-switch-row">
-              <span>Include archived</span>
+              <span>Gồm bàn đã lưu trữ</span>
               <Switch
                 checked={tableFilters.includeDeleted}
                 onChange={(checked) => setTableFilters((current) => ({ ...current, includeDeleted: checked }))}
@@ -289,31 +290,31 @@ export function AdminSettingsPage() {
       <Row gutter={[16, 16]}>
         <Col xs={24} md={6}>
           <Card className="staff-admin-summary-card">
-            <Statistic title="Tables" value={tableSummary.total} />
+            <Statistic title="Bàn" value={tableSummary.total} />
           </Card>
         </Col>
         <Col xs={24} md={6}>
           <Card className="staff-admin-summary-card">
-            <Statistic title="Allocatable" value={tableSummary.allocatable} />
+            <Statistic title="Có thể xếp khách" value={tableSummary.allocatable} />
           </Card>
         </Col>
         <Col xs={24} md={6}>
           <Card className="staff-admin-summary-card">
-            <Statistic title="Linked live" value={tableSummary.operationallyLinked} />
+            <Statistic title="Đang liên kết live" value={tableSummary.operationallyLinked} />
           </Card>
         </Col>
         <Col xs={24} md={6}>
           <Card className="staff-admin-summary-card">
-            <Statistic title="Table branches" value={tableSummary.branchScoped} />
+            <Statistic title="Chi nhánh có bàn" value={tableSummary.branchScoped} />
           </Card>
         </Col>
       </Row>
 
-      <Card className="staff-workspace-table-card" title="Table management">
-        {tableQuery.isLoading ? <InlineLoading tip="Loading restaurant tables..." /> : null}
-        {tableQuery.error ? <ApiStateBlock error={tableQuery.error} fallback="Unable to load restaurant tables." onRetry={() => void tableQuery.refetch()} /> : null}
+      <Card className="staff-workspace-table-card" title="Quản lý bàn">
+        {tableQuery.isLoading ? <InlineLoading tip="Đang tải danh sách bàn..." /> : null}
+        {tableQuery.error ? <ApiStateBlock error={tableQuery.error} fallback="Chưa tải được danh sách bàn." onRetry={() => void tableQuery.refetch()} /> : null}
         {!tableQuery.isLoading && !tableQuery.error && tables.length === 0 ? (
-          <EmptyBlock title="No tables matched this filter" description="Adjust the branch, zone, or status filter to inspect another table set." />
+          <EmptyBlock title="Không có bàn phù hợp" description="Hãy đổi chi nhánh, khu vực hoặc trạng thái để xem nhóm bàn khác." />
         ) : null}
         {tables.length > 0 ? (
           <div className="staff-admin-surface-list">
@@ -326,12 +327,12 @@ export function AdminSettingsPage() {
               >
                 <div className="staff-admin-branch-row-main">
                   <strong>{table.table_code}</strong>
-                  <span>{table.branch?.branch_code ?? `Branch #${table.branch_id ?? 'n/a'}`} / {table.zone ?? 'No zone'}</span>
+                  <span>{table.branch?.branch_code ?? `Chi nhánh #${table.branch_id ?? 'không rõ'}`} / {table.zone ?? 'Chưa có khu vực'}</span>
                 </div>
                 <Space wrap size={6}>
-                  <StatusChip label={table.status} tone={adminTableStatusTone(table.status)} />
-                  <StatusChip label={`${table.row_version ?? 'n/a'} rv`} tone="default" />
-                  {table.usage?.has_active_operational_links ? <StatusChip label="Live links" tone="warning" /> : null}
+                  <StatusChip label={adminTableStatusLabel(table.status)} tone={adminTableStatusTone(table.status)} />
+                  <StatusChip label={`v${table.row_version ?? 'không rõ'}`} tone="default" />
+                  {table.usage?.has_active_operational_links ? <StatusChip label="Đang liên kết" tone="warning" /> : null}
                 </Space>
               </button>
             ))}
@@ -339,56 +340,56 @@ export function AdminSettingsPage() {
         ) : null}
       </Card>
 
-      <Card className="staff-workspace-table-card" title="Create table">
+      <Card className="staff-workspace-table-card" title="Tạo bàn">
         <Row gutter={[12, 12]}>
           <Col xs={24} md={6}>
             <Input
-              aria-label="New table code"
+              aria-label="Mã bàn mới"
               autoComplete="off"
               value={tableForm.tableCode}
-              placeholder="Table code"
+              placeholder="Mã bàn"
               onChange={(event) => setTableForm((current) => ({ ...current, tableCode: event.target.value }))}
             />
           </Col>
           <Col xs={24} md={4}>
             <Input
-              aria-label="New table branch id"
+              aria-label="Mã chi nhánh của bàn mới"
               autoComplete="off"
               value={tableForm.branchId}
-              placeholder="Branch id"
+              placeholder="Mã chi nhánh"
               onChange={(event) => setTableForm((current) => ({ ...current, branchId: event.target.value }))}
             />
           </Col>
           <Col xs={24} md={5}>
             <Select
-              aria-label="New table template"
+              aria-label="Mẫu bàn mới"
               style={{ width: '100%' }}
-              placeholder="Template"
+              placeholder="Mẫu bàn"
               loading={templatesQuery.isLoading}
               value={tableForm.templateId || undefined}
               options={templates.map((template) => ({
                 value: String(template.template_id),
-                label: `${template.template_code} / ${template.seats} seats`,
+                label: `${template.template_code} / ${template.seats} ghế`,
               }))}
               onChange={(value) => setTableForm((current) => ({ ...current, templateId: value }))}
             />
           </Col>
           <Col xs={24} md={4}>
             <Input
-              aria-label="New table zone"
+              aria-label="Khu vực bàn mới"
               autoComplete="off"
               value={tableForm.zone}
-              placeholder="Zone"
+              placeholder="Khu vực"
               onChange={(event) => setTableForm((current) => ({ ...current, zone: event.target.value }))}
             />
           </Col>
           <Col xs={24} md={3}>
             <InputNumber
-              aria-label="New table price"
+              aria-label="Giá bàn mới"
               style={{ width: '100%' }}
               min={0}
               value={tableForm.seatsPrice === '' ? null : Number(tableForm.seatsPrice)}
-              placeholder="Price"
+              placeholder="Giá"
               onChange={(value) => setTableForm((current) => ({ ...current, seatsPrice: value === null ? '' : String(value) }))}
             />
           </Col>
@@ -399,13 +400,13 @@ export function AdminSettingsPage() {
               loading={createTableMutation.isPending}
               disabled={createTableMutation.isPending}
             >
-              Create
+              Tạo
             </Button>
           </Col>
         </Row>
         {createTableMutation.error ? (
           <Typography.Paragraph type="danger">
-            {formatApiError(createTableMutation.error, 'Could not create restaurant table.')}
+            {formatApiError(createTableMutation.error, 'Chưa tạo được bàn nhà hàng.')}
           </Typography.Paragraph>
         ) : null}
       </Card>
@@ -414,30 +415,30 @@ export function AdminSettingsPage() {
 
   const side = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-      <Card className="staff-workspace-detail-card" title="Selected branch">
+      <Card className="staff-workspace-detail-card" title="Chi nhánh đang chọn">
         {!selectedBranch ? (
-          <EmptyBlock title="No branch selected" description="Pick a branch from the registry to inspect policy, schedule, and operational context." />
+          <EmptyBlock title="Chưa chọn chi nhánh" description="Chọn một chi nhánh để xem chính sách đặt bàn, lịch hoạt động và ngữ cảnh vận hành." />
         ) : (
           <Space orientation="vertical" size={12} style={{ width: '100%' }}>
             <Space wrap size={6}>
-              {selectedBranch.is_default ? <StatusChip label="Default branch" tone="processing" /> : null}
-              <StatusChip label={selectedBranch.is_active ? 'Active' : 'Inactive'} tone={selectedBranch.is_active ? 'success' : 'warning'} />
-              <StatusChip label={`Row version ${selectedBranch.row_version ?? 'n/a'}`} tone="default" />
+              {selectedBranch.is_default ? <StatusChip label="Chi nhánh mặc định" tone="processing" /> : null}
+              <StatusChip label={selectedBranch.is_active ? 'Đang hoạt động' : 'Tạm tắt'} tone={selectedBranch.is_active ? 'success' : 'warning'} />
+              <StatusChip label={`Phiên bản ${selectedBranch.row_version ?? 'không rõ'}`} tone="default" />
             </Space>
 
             <Descriptions bordered size="small" column={1}>
-              <Descriptions.Item label="Code">{selectedBranch.branch_code}</Descriptions.Item>
-              <Descriptions.Item label="Timezone">{selectedBranch.timezone ?? 'Not set'}</Descriptions.Item>
-              <Descriptions.Item label="Currency">{selectedBranch.currency ?? 'Not set'}</Descriptions.Item>
-              <Descriptions.Item label="Updated at">{formatDateTime(selectedBranch.updated_at ?? selectedBranch.created_at ?? null, selectedBranch.timezone ?? undefined)}</Descriptions.Item>
-              <Descriptions.Item label="Reservation lead">{branchReservationLeadLabel(selectedBranch)}</Descriptions.Item>
-              <Descriptions.Item label="Same-day cutoff">{branchSameDayCutoffLabel(selectedBranch)}</Descriptions.Item>
-              <Descriptions.Item label="Waiting list">{branchWaitingListLabel(selectedBranch)}</Descriptions.Item>
+              <Descriptions.Item label="Mã chi nhánh">{selectedBranch.branch_code}</Descriptions.Item>
+              <Descriptions.Item label="Múi giờ">{selectedBranch.timezone ?? 'Chưa thiết lập'}</Descriptions.Item>
+              <Descriptions.Item label="Tiền tệ">{selectedBranch.currency ?? 'Chưa thiết lập'}</Descriptions.Item>
+              <Descriptions.Item label="Cập nhật lúc">{formatDateTime(selectedBranch.updated_at ?? selectedBranch.created_at ?? null, selectedBranch.timezone ?? undefined)}</Descriptions.Item>
+              <Descriptions.Item label="Thời gian đặt trước">{branchReservationLeadLabel(selectedBranch)}</Descriptions.Item>
+              <Descriptions.Item label="Chốt đặt trong ngày">{branchSameDayCutoffLabel(selectedBranch)}</Descriptions.Item>
+              <Descriptions.Item label="Danh sách chờ">{branchWaitingListLabel(selectedBranch)}</Descriptions.Item>
             </Descriptions>
 
-            <Card size="small" title="Business hours" className="staff-workspace-detail-subcard">
+            <Card size="small" title="Giờ mở cửa" className="staff-workspace-detail-subcard">
               {selectedBranch.business_hours.length === 0 ? (
-                <EmptyBlock title="No business hours configured" description="This branch does not expose any opening periods in the current payload." />
+                <EmptyBlock title="Chưa cấu hình giờ mở cửa" description="Chi nhánh này chưa có khung giờ hoạt động trong dữ liệu hiện tại." />
               ) : (
                 <div className="staff-admin-detail-list">
                   {selectedBranch.business_hours.map((businessHour: BranchRow['business_hours'][number]) => (
@@ -450,15 +451,15 @@ export function AdminSettingsPage() {
               )}
             </Card>
 
-            <Card size="small" title="Closure windows" className="staff-workspace-detail-subcard">
+            <Card size="small" title="Lịch đóng tạm thời" className="staff-workspace-detail-subcard">
               {selectedBranch.closure_windows.length === 0 ? (
-                <EmptyBlock title="No closure windows" description="No temporary closure overrides are active for this branch." />
+                <EmptyBlock title="Không có lịch đóng" description="Chi nhánh không có khung đóng tạm thời đang áp dụng." />
               ) : (
                 <div className="staff-admin-detail-list">
                   {selectedBranch.closure_windows.map((closureWindow: BranchRow['closure_windows'][number], index: number) => (
                     <div key={`${closureWindow.start_local ?? 'closure'}-${index}`} className="staff-admin-detail-item">
-                      <strong>{closureWindow.reason ?? 'Closure window'}</strong>
-                      <span>{formatDateTime(closureWindow.start_local ?? null, selectedBranch.timezone ?? undefined)} to {formatDateTime(closureWindow.end_local ?? null, selectedBranch.timezone ?? undefined)}</span>
+                      <strong>{closureWindow.reason ?? 'Lịch đóng tạm thời'}</strong>
+                      <span>{formatDateTime(closureWindow.start_local ?? null, selectedBranch.timezone ?? undefined)} đến {formatDateTime(closureWindow.end_local ?? null, selectedBranch.timezone ?? undefined)}</span>
                     </div>
                   ))}
                 </div>
@@ -468,17 +469,17 @@ export function AdminSettingsPage() {
         )}
       </Card>
 
-      <Card className="staff-workspace-detail-card" title="Selected table">
+      <Card className="staff-workspace-detail-card" title="Bàn đang chọn">
         {!selectedTable ? (
-          <EmptyBlock title="No table selected" description="Pick a table from the management list to inspect row version, live guards, and audit timestamps." />
+          <EmptyBlock title="Chưa chọn bàn" description="Chọn một bàn để xem phiên bản dữ liệu, ràng buộc live và thời điểm cập nhật." />
         ) : (
           <TableDetail table={selectedTable} />
         )}
       </Card>
 
       <AdminMasterDataImportPanel
-        title="Settings import dry run"
-        description="Preview branches or restaurant tables with backend validation before committing with an idempotency key."
+        title="Chạy thử nhập cấu hình"
+        description="Kiểm tra chi nhánh hoặc bàn bằng validate backend trước khi ghi nhận với Idempotency-Key."
         domains={settingsImportDomains}
         onCommitted={() => {
           void queryClient.invalidateQueries({ queryKey: ['admin-settings-branches'] });
@@ -486,7 +487,7 @@ export function AdminSettingsPage() {
         }}
       />
 
-      <Card className="staff-workspace-detail-card" title="Configuration ownership">
+      <Card className="staff-workspace-detail-card" title="Phạm vi cấu hình">
         <div className="staff-admin-surface-list">
           {adminSettingsSurfaces.map((surface) => (
             <div key={surface.key} className="staff-admin-surface-item">
@@ -512,31 +513,31 @@ function TableDetail({ table }: { table: AdminRestaurantTable }) {
   return (
     <Space orientation="vertical" size={12} style={{ width: '100%' }}>
       <Space wrap size={6}>
-        <StatusChip label={table.status} tone={adminTableStatusTone(table.status)} />
-        <StatusChip label={table.is_allocatable ? 'Allocatable' : 'Not allocatable'} tone={table.is_allocatable ? 'success' : 'warning'} />
-        <StatusChip label={`Row version ${table.row_version ?? 'n/a'}`} tone="default" />
+        <StatusChip label={adminTableStatusLabel(table.status)} tone={adminTableStatusTone(table.status)} />
+        <StatusChip label={table.is_allocatable ? 'Có thể xếp khách' : 'Không xếp khách'} tone={table.is_allocatable ? 'success' : 'warning'} />
+        <StatusChip label={`Phiên bản ${table.row_version ?? 'không rõ'}`} tone="default" />
       </Space>
 
       <Descriptions bordered size="small" column={1}>
-        <Descriptions.Item label="Code">{table.table_code}</Descriptions.Item>
-        <Descriptions.Item label="Branch">{table.branch?.branch_name ?? `Branch #${table.branch_id ?? 'n/a'}`}</Descriptions.Item>
-        <Descriptions.Item label="Template">{table.template?.template_code ?? `Template #${table.template_id ?? 'n/a'}`}</Descriptions.Item>
-        <Descriptions.Item label="Seats">{table.seats ?? table.capacity ?? 'Not set'}</Descriptions.Item>
-        <Descriptions.Item label="Zone">{table.zone ?? 'Not set'}</Descriptions.Item>
-        <Descriptions.Item label="Price">{table.price ?? 'Not set'}</Descriptions.Item>
-        <Descriptions.Item label="Updated at">{formatDateTime(table.updated_at ?? table.created_at ?? null)}</Descriptions.Item>
+        <Descriptions.Item label="Mã bàn">{table.table_code}</Descriptions.Item>
+        <Descriptions.Item label="Chi nhánh">{table.branch?.branch_name ?? `Chi nhánh #${table.branch_id ?? 'không rõ'}`}</Descriptions.Item>
+        <Descriptions.Item label="Mẫu bàn">{table.template?.template_code ?? `Mẫu #${table.template_id ?? 'không rõ'}`}</Descriptions.Item>
+        <Descriptions.Item label="Số ghế">{table.seats ?? table.capacity ?? 'Chưa thiết lập'}</Descriptions.Item>
+        <Descriptions.Item label="Khu vực">{table.zone ?? 'Chưa thiết lập'}</Descriptions.Item>
+        <Descriptions.Item label="Giá">{table.price ?? 'Chưa thiết lập'}</Descriptions.Item>
+        <Descriptions.Item label="Cập nhật lúc">{formatDateTime(table.updated_at ?? table.created_at ?? null)}</Descriptions.Item>
       </Descriptions>
 
-      <Card size="small" title="Live guards" className="staff-workspace-detail-subcard">
+      <Card size="small" title="Ràng buộc live" className="staff-workspace-detail-subcard">
         <div className="staff-admin-detail-list">
           <div className="staff-admin-detail-item">
-            <strong>Operational links</strong>
-            <span>{table.usage?.has_active_operational_links ? 'Active reservations, holds, or orders exist' : 'No active operational links reported'}</span>
+            <strong>Liên kết vận hành</strong>
+            <span>{table.usage?.has_active_operational_links ? 'Đang có đặt bàn, giữ bàn hoặc đơn hàng liên quan' : 'Không có liên kết vận hành đang mở'}</span>
           </div>
           {Object.entries(table.guards ?? {}).map(([key, value]) => (
             <div key={key} className="staff-admin-detail-item">
               <strong>{key}</strong>
-              <span>{value ? 'Allowed' : 'Blocked'}</span>
+              <span>{value ? 'Cho phép' : 'Đang chặn'}</span>
             </div>
           ))}
         </div>

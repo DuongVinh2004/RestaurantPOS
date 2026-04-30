@@ -25,7 +25,8 @@ describe('StateBlocks', () => {
       </AntdApp>,
     );
 
-    expect(screen.getByText('Dữ liệu đang dùng đã cũ')).toBeInTheDocument();
+    expect(screen.getByText('Dữ liệu đã thay đổi')).toBeInTheDocument();
+    expect(screen.getByText('Vui lòng tải lại trước khi thao tác.')).toBeInTheDocument();
     expect(screen.getByText('Mã truy vết: req-stale-001')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));

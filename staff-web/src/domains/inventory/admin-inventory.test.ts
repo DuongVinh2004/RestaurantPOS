@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   adminPurchaseOrderTone,
+  adminPurchaseOrderStatusLabel,
   buildAdminIngredientMovementQuery,
   buildAdminIngredientQuery,
   buildAdminPurchaseOrderQuery,
   buildAdminSupplierQuery,
   formatInventoryQuantity,
+  inventoryMovementTypeLabel,
   inventoryMovementTone,
   summarizeAdminIngredientMovements,
   summarizeAdminIngredients,
@@ -102,7 +104,9 @@ describe('admin inventory helpers', () => {
   });
 
   it('formats quantities and PO tone safely', () => {
-    expect(formatInventoryQuantity('3.125')).toBe('3.125');
+    expect(formatInventoryQuantity('3.125')).toBe('3,125');
+    expect(adminPurchaseOrderStatusLabel('PartiallyReceived')).toBe('Nhận một phần');
+    expect(inventoryMovementTypeLabel('Wastage')).toBe('Hao hụt');
     expect(adminPurchaseOrderTone('Received')).toBe('success');
     expect(adminPurchaseOrderTone('Cancelled')).toBe('error');
     expect(inventoryMovementTone('Wastage')).toBe('error');

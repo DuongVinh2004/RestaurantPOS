@@ -151,13 +151,24 @@ class TableHoldService
                         throw ValidationException::withMessages(['table_ids' => ['Some selected tables were deleted: '.implode(',', $deleted)]]);
                     }
 
-                    $nonAllocatable = $tables->filter(fn ($t) => ! $this->tableStateService->isAllocatableForBooking((string) $t->status))
+                    $nowUtc = Carbon::now('UTC');
+                    $isRealtimeHoldWindow = $start->lessThanOrEqualTo($nowUtc->copy()->addMinute())
+                        && $end->greaterThanOrEqualTo($nowUtc->copy()->subMinute());
+                    $nonAllocatable = $tables->filter(function ($t) use ($isRealtimeHoldWindow): bool {
+                        $status = (string) $t->status;
+
+                        if ($isRealtimeHoldWindow) {
+                            return ! $this->tableStateService->isAllocatableForBooking($status);
+                        }
+
+                        return $this->tableStateService->isOperationallyBlocked($status);
+                    })
                         ->pluck('table_id')
                         ->values()
                         ->all();
                     if (! empty($nonAllocatable)) {
                         throw ValidationException::withMessages([
-                            'table_ids' => ['Some selected tables are not in Available status: '.implode(',', $nonAllocatable)],
+                            'table_ids' => ['Some selected tables cannot be held for this time window: '.implode(',', $nonAllocatable)],
                         ]);
                     }
 
@@ -236,8 +247,6 @@ class TableHoldService
                     // use a dedicated endpoint when acting on behalf of another customer.
 
                     $holdId = (string) Str::uuid();
-                    $nowUtc = Carbon::now('UTC');
-
                     $hold = new TableHold;
                     $hold->hold_id = $holdId;
                     $hold->branch_id = $tableBranchId;

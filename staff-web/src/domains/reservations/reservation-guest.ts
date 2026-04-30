@@ -23,6 +23,15 @@ export function getReservationGuestLabel(
     ?? fallback;
 }
 
+export function getReservationGuestPhone(
+  reservation: ReservationGuestIdentity,
+  fallback = 'Chưa có số',
+): string {
+  return reservation?.user?.phone
+    ?? reservation?.guest?.phone
+    ?? fallback;
+}
+
 export function isReservationSnapshotOnlyGuest(reservation: ReservationGuestIdentity): boolean {
   return Boolean(reservation?.guest?.is_snapshot_only);
 }

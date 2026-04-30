@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RestaurantPosApiError } from "@/lib/contracts/generated/restaurantpos-sdk";
-import { getApiErrorDisplay } from "./errors";
+import { ACTIVE_TABLE_HOLD_SESSION_MESSAGE, getApiErrorDisplay, isActiveTableHoldSessionError } from "./errors";
 
 describe("API error display helpers", () => {
   it("surfaces request id, status, and retry guidance for conflict errors", () => {
@@ -50,6 +50,28 @@ describe("API error display helpers", () => {
       retryHint: null,
       statusLabel: "Trạng thái 422",
       requestIdLabel: "Mã hỗ trợ: req-validation-1",
+      errorCodeLabel: "Mã lỗi validation_error",
+    });
+  });
+
+  it("translates active table hold session validation into a recovery message", () => {
+    const error = new RestaurantPosApiError("Validation error.", 422, {
+      message: "Validation error.",
+      error_code: "validation_error",
+      request_id: "req-active-hold",
+      errors: {
+        session_id: [
+          "This session already has another active hold. Refresh or cancel the existing hold, or replay the original request with the same Idempotency-Key.",
+        ],
+      },
+    });
+
+    expect(isActiveTableHoldSessionError(error)).toBe(true);
+    expect(getApiErrorDisplay(error)).toMatchObject({
+      message: ACTIVE_TABLE_HOLD_SESSION_MESSAGE,
+      retryHint: null,
+      statusLabel: "Trạng thái 422",
+      requestIdLabel: "Mã hỗ trợ: req-active-hold",
       errorCodeLabel: "Mã lỗi validation_error",
     });
   });

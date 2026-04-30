@@ -472,7 +472,7 @@ export function getDepositPolicy(reservation: ReservationSummary, deposit: Depos
   } else if (!isReservationActive(reservation)) {
     noActionMessage = "Không thể tự xử lý đặt cọc cho lịch đặt này nữa.";
   } else if (deposit.selfService.supported === false) {
-    noActionMessage = "Lịch đặt này chưa hỗ trợ thanh toán đặt cọc trực tuyến.";
+    noActionMessage = "Nhà hàng hiện chưa bật thanh toán trực tuyến. Quý khách vui lòng thanh toán tại quầy.";
   } else if (deposit.selfService.requiresStaffPaymentCollection === true && !canCreatePaymentSession) {
     noActionMessage = "Đặt cọc trực tuyến chưa sẵn sàng. Vui lòng làm theo hướng dẫn hiện tại hoặc hỏi nhà hàng.";
   }
@@ -528,7 +528,7 @@ export function getBillingPolicy({
   } else if (paymentStatus === "Paid" || paymentStatus === "Succeeded") {
     noActionMessage = "Hóa đơn này đã được thanh toán.";
   } else if (selfPaymentSupported === false) {
-    noActionMessage = bill?.selfPayment.disabledReason ?? "Lịch đặt này chưa hỗ trợ thanh toán hóa đơn trực tuyến.";
+    noActionMessage = bill?.selfPayment.disabledReason ?? "Nhà hàng hiện chưa bật thanh toán trực tuyến. Quý khách vui lòng thanh toán tại quầy.";
   } else if (selfPaymentAvailable === false) {
     noActionMessage = billSelfPaymentUnavailableMessage(bill);
   }
@@ -777,7 +777,7 @@ export function getDepositPaymentSupportState({
     return {
       state: "not_enabled",
       title: "Chưa bật thanh toán trực tuyến",
-      description: "Bạn có thể xem đặt cọc, nhưng lịch đặt này chưa hỗ trợ thanh toán đặt cọc trực tuyến.",
+      description: "Nhà hàng hiện chưa bật thanh toán trực tuyến. Quý khách vui lòng thanh toán tại quầy.",
     };
   }
 
@@ -814,7 +814,7 @@ export function getBillPaymentSupportState({
     return {
       state: "not_enabled",
       title: "Chưa bật thanh toán trực tuyến",
-      description: "Bạn có thể xem hóa đơn, nhưng lịch đặt này chưa hỗ trợ thanh toán hóa đơn trực tuyến.",
+      description: "Nhà hàng hiện chưa bật thanh toán trực tuyến. Quý khách vui lòng thanh toán tại quầy.",
     };
   }
 

@@ -232,8 +232,8 @@ export function EmptyBlock({
 }
 
 export function PermissionDeniedState({
-  title = 'Phiên hiện tại chưa có quyền',
-  description = 'Hãy chuyển sang màn hình được cấp hoặc dùng đúng phiên vai trò trước khi thử lại.',
+  title = 'Bạn chưa có quyền thực hiện thao tác này',
+  description = 'Hãy chuyển sang đúng vai trò hoặc nhờ quản lý cấp quyền trước khi thử lại.',
   meta,
   primaryAction,
   secondaryAction,
@@ -282,8 +282,8 @@ export function BranchPolicyState({
 }
 
 export function ConflictState({
-  title = 'Dữ liệu vừa thay đổi',
-  description = 'Làm mới để lấy phiên bản mới nhất trước khi tiếp tục thao tác.',
+  title = 'Dữ liệu đã thay đổi',
+  description = 'Vui lòng tải lại trước khi thao tác.',
   meta,
   primaryAction,
   secondaryAction,
@@ -448,7 +448,7 @@ export function ApiStateBlock({
     return (
       <PermissionDeniedState
         variant={variant}
-        title={forbiddenTitle ?? 'Phiên hiện tại chưa có quyền'}
+        title={forbiddenTitle ?? 'Bạn chưa có quyền thực hiện thao tác này'}
         description={capabilityDescription}
         meta={meta}
         primaryAction={retryAction}
@@ -479,7 +479,7 @@ export function ApiStateBlock({
           conflictTitle
           ?? (
             staleWrite
-              ? 'Dữ liệu đang dùng đã cũ'
+              ? 'Dữ liệu đã thay đổi'
               : idempotencyConflict
                 ? 'Yêu cầu trước đó vẫn đang chiếm giao dịch này'
                 : 'Dữ liệu vừa thay đổi ở nơi khác'
@@ -489,7 +489,7 @@ export function ApiStateBlock({
           conflictDescription
           ?? (
             staleWrite
-              ? 'Tải lại để lấy phiên bản mới nhất trước khi thao tác lại.'
+              ? 'Vui lòng tải lại trước khi thao tác.'
               : idempotencyConflict
                 ? 'Hãy chờ mutation trước hoàn tất hoặc làm mới trạng thái giao dịch rồi thử lại.'
                 : 'Làm mới dữ liệu hiện tại để đồng bộ lại trạng thái trước khi tiếp tục.'

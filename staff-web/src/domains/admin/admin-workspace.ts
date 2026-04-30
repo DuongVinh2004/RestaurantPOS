@@ -35,8 +35,8 @@ const adminWorkspaceDefinitions: Array<AdminWorkspaceCardDefinition> = [
   {
     key: 'branches-settings',
     group: 'control',
-    title: 'Branches and settings',
-    description: 'Branch registry, finance settings, and import-export entry points for branch-owned configuration.',
+    title: 'Chi nhánh và thiết lập',
+    description: 'Quản lý chi nhánh, cấu hình tài chính và nhập/xuất dữ liệu cấu hình.',
     capability: 'settings.manage',
     route: staffRoutePaths.admin.settings,
     backendSurface: '/admin/settings/branches, /admin/settings/finance/tax-profile',
@@ -46,8 +46,8 @@ const adminWorkspaceDefinitions: Array<AdminWorkspaceCardDefinition> = [
   {
     key: 'table-config',
     group: 'control',
-    title: 'Table configuration',
-    description: 'Dining-room tables, zones, and import flows stay under the settings ownership lane.',
+    title: 'Bàn và khu vực',
+    description: 'Thiết lập bàn ăn, khu vực phục vụ và luồng nhập danh mục bàn.',
     capability: 'settings.manage',
     route: staffRoutePaths.admin.settings,
     backendSurface: '/admin/restaurant/tables, /admin/restaurant/zones',
@@ -57,8 +57,8 @@ const adminWorkspaceDefinitions: Array<AdminWorkspaceCardDefinition> = [
   {
     key: 'kitchen-routing-config',
     group: 'control',
-    title: 'Kitchen routing config',
-    description: 'Stations and category routes stay in back-office configuration instead of the live kitchen lane.',
+    title: 'Tuyến bếp',
+    description: 'Cấu hình trạm bếp và tuyến món theo danh mục, tách khỏi màn vận hành bếp trực tiếp.',
     capability: 'settings.manage',
     route: staffRoutePaths.admin.settings,
     backendSurface: '/admin/kitchen/stations, /admin/kitchen/stations/{station_id}/category-routes',
@@ -68,8 +68,8 @@ const adminWorkspaceDefinitions: Array<AdminWorkspaceCardDefinition> = [
   {
     key: 'menu-pricing',
     group: 'catalog',
-    title: 'Menu and pricing',
-    description: 'Menu categories, item pricing, and pricing imports stay on a dedicated menu.manage admin route.',
+    title: 'Thực đơn và giá bán',
+    description: 'Quản lý loại món, món ăn, giá bán và nhập danh mục thực đơn.',
     capability: 'menu.manage',
     route: staffRoutePaths.admin.catalog,
     backendSurface: '/admin/menu/categories, /admin/menu/items, /admin/menu/prices',
@@ -79,8 +79,8 @@ const adminWorkspaceDefinitions: Array<AdminWorkspaceCardDefinition> = [
   {
     key: 'benefits',
     group: 'catalog',
-    title: 'Voucher and loyalty settings',
-    description: 'Voucher master data and loyalty tiers belong to admin ownership rather than the live ops workspace.',
+    title: 'Voucher và khách thân thiết',
+    description: 'Quản lý voucher, hạng thành viên và các cấu hình ưu đãi.',
     capability: 'voucher.master_data.manage',
     route: null,
     backendSurface: '/admin/benefits/vouchers, /admin/benefits/loyalty-tiers, /admin/settings/benefits',
@@ -90,8 +90,8 @@ const adminWorkspaceDefinitions: Array<AdminWorkspaceCardDefinition> = [
   {
     key: 'privacy-review',
     group: 'catalog',
-    title: 'Privacy review',
-    description: 'Privacy request review and customer export flows stay inside the back-office governance surface.',
+    title: 'Rà soát dữ liệu khách',
+    description: 'Xử lý yêu cầu dữ liệu cá nhân và xuất dữ liệu khách hàng trong khu vực quản trị.',
     capability: 'privacy.manage',
     route: null,
     backendSurface: '/admin/privacy/requests, /admin/privacy/customers/{user_id}/data-export',
@@ -101,8 +101,8 @@ const adminWorkspaceDefinitions: Array<AdminWorkspaceCardDefinition> = [
   {
     key: 'inventory-purchasing',
     group: 'supply',
-    title: 'Inventory and purchasing',
-    description: 'Ingredient, supplier, purchase-order, and receiving reads are grouped into one supply-control lane.',
+    title: 'Kho và mua hàng',
+    description: 'Theo dõi nguyên liệu, nhà cung cấp, đơn mua và nhận hàng.',
     capability: 'inventory.manage',
     route: staffRoutePaths.admin.inventory,
     backendSurface: '/admin/inventory/ingredients, /admin/inventory/suppliers, /admin/inventory/purchase-orders',
@@ -112,8 +112,8 @@ const adminWorkspaceDefinitions: Array<AdminWorkspaceCardDefinition> = [
   {
     key: 'reporting-read-models',
     group: 'governance',
-    title: 'Reporting read models',
-    description: 'Daily sales, operations, and inventory snapshots stay in the admin workspace instead of the floor lane.',
+    title: 'Báo cáo vận hành',
+    description: 'Xem snapshot bán hàng, vận hành và kho theo ngày trong khu vực quản trị.',
     capability: 'reporting.view',
     route: staffRoutePaths.admin.reporting,
     backendSurface: '/staff/reporting/daily-sales, /staff/reporting/daily-operations, /staff/reporting/daily-inventory',
@@ -123,8 +123,8 @@ const adminWorkspaceDefinitions: Array<AdminWorkspaceCardDefinition> = [
   {
     key: 'audit-trail',
     group: 'governance',
-    title: 'Audit trail',
-    description: 'Request-linked audit reads and investigation paths stay in back-office governance.',
+    title: 'Nhật ký thao tác',
+    description: 'Tra cứu lịch sử thao tác, request và dữ liệu truy vết phục vụ kiểm soát.',
     capability: 'audit.view',
     route: staffRoutePaths.admin.auditTrail,
     backendSurface: '/staff/audit-trail',
@@ -156,10 +156,10 @@ export function resolveAdminWorkspaceCards(session: StaffSession | null): Array<
 
 export function groupAdminWorkspaceCards(cards: Array<AdminWorkspaceCard>): Array<AdminWorkspaceGroup> {
   const groups: Array<AdminWorkspaceGroup> = [
-    { key: 'control', label: 'Configuration ownership', cards: cards.filter((card) => card.group === 'control') },
-    { key: 'catalog', label: 'Catalog and benefits', cards: cards.filter((card) => card.group === 'catalog') },
-    { key: 'supply', label: 'Supply and receiving', cards: cards.filter((card) => card.group === 'supply') },
-    { key: 'governance', label: 'Governance and read models', cards: cards.filter((card) => card.group === 'governance') },
+    { key: 'control', label: 'Cấu hình vận hành', cards: cards.filter((card) => card.group === 'control') },
+    { key: 'catalog', label: 'Danh mục và ưu đãi', cards: cards.filter((card) => card.group === 'catalog') },
+    { key: 'supply', label: 'Kho và nhận hàng', cards: cards.filter((card) => card.group === 'supply') },
+    { key: 'governance', label: 'Kiểm soát và báo cáo', cards: cards.filter((card) => card.group === 'governance') },
   ];
 
   return groups.filter((group) => group.cards.length > 0);
@@ -195,23 +195,23 @@ export function resolveAdminQuickLinks(cards: Array<AdminWorkspaceCard>): Array<
 function statusLabel(status: AdminWorkspaceCardStatus): string {
   switch (status) {
     case 'live':
-      return 'Live page';
+      return 'Đã có màn';
     case 'contract-ready':
-      return 'API ready';
+      return 'API đã sẵn sàng';
     default:
-      return 'Capability required';
+      return 'Cần quyền';
   }
 }
 
 function workflowLabel(workflow: AdminWorkspaceCardDefinition['workflow']): string {
   switch (workflow) {
     case 'import-export':
-      return 'Import / export';
+      return 'Nhập / xuất';
     case 'dry-run-commit':
-      return 'Review / commit';
+      return 'Rà soát / ghi nhận';
     case 'read-write':
-      return 'Read / write';
+      return 'Xem / chỉnh sửa';
     default:
-      return 'Read only';
+      return 'Chỉ xem';
   }
 }

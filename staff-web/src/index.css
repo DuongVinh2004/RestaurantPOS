@@ -2438,6 +2438,7 @@ textarea {
   .staff-task-grid,
   .staff-dashboard-main-grid,
   .staff-dashboard-secondary-grid,
+  .staff-admin-overview-grid,
   .staff-admin-domain-grid,
   .staff-kitchen-landing-grid,
   .staff-kitchen-board-grid {
@@ -2541,6 +2542,133 @@ textarea {
 .staff-admin-domain-section {
   display: grid;
   gap: 16px;
+}
+
+.staff-admin-overview-card {
+  border-radius: 8px;
+}
+
+.staff-admin-overview-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+}
+
+.staff-admin-chart-panel,
+.staff-admin-flow-panel {
+  background: #f8f9f7;
+  border: 1px solid rgba(202, 205, 199, 0.76);
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.staff-admin-chart-head {
+  display: grid;
+  gap: 4px;
+}
+
+.staff-admin-chart-head .ant-typography {
+  margin-bottom: 0 !important;
+}
+
+.staff-admin-chart-bars {
+  display: grid;
+  gap: 12px;
+}
+
+.staff-admin-chart-row {
+  display: grid;
+  gap: 7px;
+}
+
+.staff-admin-chart-label {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.staff-admin-chart-label span {
+  color: #3d463f;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.staff-admin-chart-label strong {
+  color: #18231f;
+  font-variant-numeric: tabular-nums;
+}
+
+.staff-admin-chart-track {
+  background: #e7ece6;
+  border-radius: 999px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.staff-admin-chart-fill {
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  min-width: 4px;
+}
+
+.staff-admin-chart-fill-processing {
+  background: #3b82f6;
+}
+
+.staff-admin-chart-fill-success {
+  background: #22c55e;
+}
+
+.staff-admin-chart-fill-warning {
+  background: #f59e0b;
+}
+
+.staff-admin-chart-fill-default {
+  background: #8b8f88;
+}
+
+.staff-admin-flow-map {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.staff-admin-flow-step {
+  border: 1px solid rgba(142, 160, 148, 0.42);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  min-height: 96px;
+  padding: 12px;
+}
+
+.staff-admin-flow-step span,
+.staff-admin-flow-step small {
+  color: #53615a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.staff-admin-flow-step strong {
+  color: #18231f;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.staff-admin-flow-step-processing {
+  background: #eaf3ff;
+}
+
+.staff-admin-flow-step-warning {
+  background: #fff4df;
+}
+
+.staff-admin-flow-step-success {
+  background: #e7f4ea;
 }
 
 .staff-admin-domain-grid {
@@ -2866,6 +2994,21 @@ textarea {
   padding: 12px;
 }
 
+.staff-kitchen-ticket-lane-queued {
+  background: linear-gradient(180deg, rgba(255, 247, 230, 0.98), rgba(255, 252, 246, 0.92));
+  border-color: rgba(193, 140, 55, 0.36);
+}
+
+.staff-kitchen-ticket-lane-fired {
+  background: linear-gradient(180deg, rgba(234, 243, 255, 0.98), rgba(247, 251, 255, 0.92));
+  border-color: rgba(89, 132, 184, 0.32);
+}
+
+.staff-kitchen-ticket-lane-ready {
+  background: linear-gradient(180deg, rgba(231, 244, 234, 0.98), rgba(247, 252, 248, 0.92));
+  border-color: rgba(86, 151, 102, 0.34);
+}
+
 .staff-kitchen-lane-head strong {
   align-items: center;
   background: #18231f;
@@ -2882,6 +3025,7 @@ textarea {
 .staff-kitchen-ticket-card {
   color: inherit;
   cursor: pointer;
+  min-height: 96px;
   text-align: left;
 }
 
@@ -2910,7 +3054,8 @@ textarea {
 
 .staff-kitchen-fast-actions .ant-btn {
   min-height: 48px;
-  min-width: 96px;
+  min-width: 120px;
+  font-weight: 800;
 }
 
 .staff-kitchen-timeline-item {
@@ -3083,6 +3228,7 @@ textarea {
   .staff-dashboard-alert-strip,
   .staff-dashboard-kpi-grid,
   .staff-dashboard-topbar-meta,
+  .staff-admin-flow-map,
   .staff-kitchen-hero,
   .staff-kitchen-board-head,
   .staff-kitchen-hero-metrics,

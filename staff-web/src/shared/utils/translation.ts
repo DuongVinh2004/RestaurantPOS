@@ -111,8 +111,8 @@ const translationMap: Record<string, string> = {
   'degraded': 'Cần kiểm tra',
   'empty_scope': 'Phạm vi trống',
   'reporting_snapshot_empty': 'Ph\u1ea1m vi tr\u1ed1ng',
-  'reporting_snapshot_stale': 'Snapshot stale',
-  'reporting_snapshot_scope_partial': 'Stale t\u1eebng ph\u1ea7n',
+  'reporting_snapshot_stale': 'Snapshot cần làm mới',
+  'reporting_snapshot_scope_partial': 'Cần làm mới một phần',
 };
 
 function normalizeTranslationKey(value: string): string {

@@ -3,8 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/status/status-badge";
 import { formatDateTime, formatMoney } from "@/lib/contracts/format";
+import { formatCustomerTableName } from "@/lib/i18n/customer-display";
 import type { ReservationSummary } from "@/lib/contracts/generated/restaurantpos-sdk";
 import { getReservationBillSummaryState, getReservationDepositSummaryState } from "./state";
+
+function tableListLabel(tableIds: number[] | null | undefined): string {
+  return tableIds?.length
+    ? tableIds.map((tableId) => formatCustomerTableName(null, null, tableId)).join(", ")
+    : "Đang chờ";
+}
 
 export function ReservationCard({ reservation }: { reservation: ReservationSummary }) {
   const deposit = getReservationDepositSummaryState(reservation);
@@ -35,7 +42,7 @@ export function ReservationCard({ reservation }: { reservation: ReservationSumma
           </div>
           <div>
             <p className="text-muted-foreground">Bàn</p>
-            <p className="font-medium">{reservation.table_ids?.join(", ") || "Đang chờ"}</p>
+            <p className="font-medium">{tableListLabel(reservation.table_ids)}</p>
           </div>
         </div>
         <Button asChild className="w-full rounded-lg">

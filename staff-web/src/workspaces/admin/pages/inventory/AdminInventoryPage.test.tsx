@@ -48,7 +48,7 @@ describe('AdminInventoryPage', () => {
         {
           ingredient_id: 4,
           code: 'BEANS',
-          name: 'Beans',
+          name: 'Hạt cà phê',
           unit_code: 'kg',
           is_active: true,
           recipe_usage_count: 3,
@@ -61,7 +61,7 @@ describe('AdminInventoryPage', () => {
         {
           supplier_id: 5,
           code: 'SUP-1',
-          name: 'Roaster',
+          name: 'Nhà rang',
           contact_name: 'Linh',
           phone: '0909',
           email: 'roaster@example.test',
@@ -77,7 +77,7 @@ describe('AdminInventoryPage', () => {
           purchase_order_status: 'Draft',
           supplier_id: 5,
           branch_id: 3,
-          supplier: { name: 'Roaster' },
+          supplier: { name: 'Nhà rang' },
           branch: { branch_code: 'B3' },
           summary: { receipt_count: 1, remaining_total_quantity: 12 },
           expected_at: '2026-04-20T00:00:00Z',
@@ -93,9 +93,9 @@ describe('AdminInventoryPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Inventory and purchasing lane')).toBeInTheDocument();
+    expect(await screen.findByText('Kho và mua hàng')).toBeInTheDocument();
     expect(await screen.findByText('PO-9')).toBeInTheDocument();
-    expect(screen.getByText('Zero-stock ingredients')).toBeInTheDocument();
+    expect(screen.getByText('Nguyên liệu hết tồn')).toBeInTheDocument();
 
     await waitFor(() => expect(apiMocks.listAdminPurchaseOrders).toHaveBeenCalledWith({
       q: undefined,

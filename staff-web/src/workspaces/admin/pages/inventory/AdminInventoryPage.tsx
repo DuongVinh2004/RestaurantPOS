@@ -5,13 +5,16 @@ import { useFlowStore } from '../../../../app/store/flow-store';
 import {
   adminInventoryLaneNotes,
   adminPurchaseOrderTone,
+  adminPurchaseOrderStatusLabel,
   buildAdminIngredientMovementQuery,
   buildAdminIngredientQuery,
   buildAdminPurchaseOrderQuery,
   buildAdminSupplierQuery,
   formatInventoryQuantity,
   inventoryMovementTone,
+  inventoryMovementTypeLabel,
   inventoryMovementTypeOptions,
+  inventoryReceiptStatusLabel,
   summarizeAdminIngredientMovements,
   summarizeAdminIngredients,
   summarizeAdminPurchaseOrders,
@@ -36,12 +39,12 @@ import { StatusChip } from '../../../../shared/ui/status/StatusChip';
 import { toast } from '../../../../shared/ui/feedback/toast';
 
 const purchaseOrderStatusOptions = [
-  { value: '', label: 'All statuses' },
-  { value: 'Draft', label: 'Draft' },
-  { value: 'Ordered', label: 'Ordered' },
-  { value: 'PartiallyReceived', label: 'Partially received' },
-  { value: 'Received', label: 'Received' },
-  { value: 'Cancelled', label: 'Cancelled' },
+  { value: '', label: 'Tất cả trạng thái' },
+  { value: 'Draft', label: 'Nháp' },
+  { value: 'Ordered', label: 'Đã đặt hàng' },
+  { value: 'PartiallyReceived', label: 'Nhận một phần' },
+  { value: 'Received', label: 'Đã nhận đủ' },
+  { value: 'Cancelled', label: 'Đã hủy' },
 ];
 
 export function AdminInventoryPage() {
@@ -117,13 +120,13 @@ export function AdminInventoryPage() {
   const createMovementMutation = useMutation({
     mutationFn: async () => {
       if (!selectedIngredient) {
-        throw new Error('Select an ingredient before creating a movement.');
+        throw new Error('Hãy chọn nguyên liệu trước khi ghi nhận xuất nhập kho.');
       }
 
       const quantity = Number(movementForm.quantity);
       const scopedBranchId = Number(filters.branchIdInput) || branchId;
       if (!Number.isFinite(quantity) || quantity <= 0) {
-        throw new Error('Movement quantity must be greater than zero.');
+        throw new Error('Số lượng xuất nhập kho phải lớn hơn 0.');
       }
 
       return createAdminIngredientMovement(selectedIngredient.ingredient_id, {
@@ -140,42 +143,42 @@ export function AdminInventoryPage() {
         queryClient.invalidateQueries({ queryKey: ['admin-inventory-ingredients'] }),
         queryClient.invalidateQueries({ queryKey: ['admin-inventory-ingredient-movements'] }),
       ]);
-      toast.success('Inventory movement created.');
+      toast.success('Đã ghi nhận xuất nhập kho.');
     },
     onError: (error) => {
-      toast.error(formatApiError(error, 'Could not create inventory movement.'));
+      toast.error(formatApiError(error, 'Chưa ghi nhận được xuất nhập kho.'));
     },
   });
 
   const main = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <PageHeader
-        eyebrow="Supply control"
-        title="Inventory and purchasing lane"
-        description="Use the admin workspace for ingredient, supplier, and purchase-order oversight without mixing it back into ops."
+        eyebrow="Kho"
+        title="Kho và mua hàng"
+        description="Theo dõi nguyên liệu, nhà cung cấp và đơn mua hàng trong khu quản trị, tách khỏi màn vận hành ca."
         context={(
           <>
-            <StatusChip label={`Branch ${filters.branchIdInput || branchId || 'all'}`} tone={filters.branchIdInput || branchId ? 'processing' : 'default'} />
-            <StatusChip label={`${purchaseOrderSummary.openCount} open PO`} tone={purchaseOrderSummary.openCount > 0 ? 'warning' : 'success'} />
-            <StatusChip label={`${ingredientSummary.zeroStockCount} zero stock`} tone={ingredientSummary.zeroStockCount > 0 ? 'warning' : 'default'} />
+            <StatusChip label={filters.branchIdInput || branchId ? `Chi nhánh #${filters.branchIdInput || branchId}` : 'Tất cả chi nhánh'} tone={filters.branchIdInput || branchId ? 'processing' : 'default'} />
+            <StatusChip label={`${purchaseOrderSummary.openCount} đơn mua đang mở`} tone={purchaseOrderSummary.openCount > 0 ? 'warning' : 'success'} />
+            <StatusChip label={`${ingredientSummary.zeroStockCount} nguyên liệu hết tồn`} tone={ingredientSummary.zeroStockCount > 0 ? 'warning' : 'default'} />
           </>
         )}
       />
 
-      <Card className="staff-workspace-filter-card" title="Inventory filters">
+      <Card className="staff-workspace-filter-card" title="Lọc kho">
         <Row gutter={[12, 12]}>
           <Col xs={24} md={12}>
             <Input
-              aria-label="Search ingredients"
+              aria-label="Tìm nguyên liệu"
               autoComplete="off"
-              placeholder="Ingredient search"
+              placeholder="Tìm nguyên liệu"
               value={filters.ingredientQuery}
               onChange={(event) => setFilters((current) => ({ ...current, ingredientQuery: event.target.value }))}
             />
           </Col>
           <Col xs={24} md={12}>
             <label className="staff-admin-switch-row">
-              <span>Active ingredients only</span>
+              <span>Chỉ nguyên liệu đang dùng</span>
               <Switch
                 checked={filters.ingredientActiveOnly}
                 onChange={(checked) => setFilters((current) => ({ ...current, ingredientActiveOnly: checked }))}
@@ -184,16 +187,16 @@ export function AdminInventoryPage() {
           </Col>
           <Col xs={24} md={12}>
             <Input
-              aria-label="Search suppliers"
+              aria-label="Tìm nhà cung cấp"
               autoComplete="off"
-              placeholder="Supplier search"
+              placeholder="Tìm nhà cung cấp"
               value={filters.supplierQuery}
               onChange={(event) => setFilters((current) => ({ ...current, supplierQuery: event.target.value }))}
             />
           </Col>
           <Col xs={24} md={12}>
             <label className="staff-admin-switch-row">
-              <span>Active suppliers only</span>
+              <span>Chỉ nhà cung cấp đang dùng</span>
               <Switch
                 checked={filters.supplierActiveOnly}
                 onChange={(checked) => setFilters((current) => ({ ...current, supplierActiveOnly: checked }))}
@@ -202,25 +205,25 @@ export function AdminInventoryPage() {
           </Col>
           <Col xs={24} md={8}>
             <Input
-              aria-label="Search purchase orders"
+              aria-label="Tìm đơn mua hàng"
               autoComplete="off"
-              placeholder="Purchase order search"
+              placeholder="Tìm đơn mua hàng"
               value={filters.purchaseOrderQuery}
               onChange={(event) => setFilters((current) => ({ ...current, purchaseOrderQuery: event.target.value }))}
             />
           </Col>
           <Col xs={24} md={8}>
             <Input
-              aria-label="Purchase order branch id"
+              aria-label="Mã chi nhánh của đơn mua"
               autoComplete="off"
-              placeholder="Branch id"
+              placeholder="Mã chi nhánh"
               value={filters.branchIdInput}
               onChange={(event) => setFilters((current) => ({ ...current, branchIdInput: event.target.value }))}
             />
           </Col>
           <Col xs={24} md={8}>
             <Select
-              aria-label="Purchase order status"
+              aria-label="Trạng thái đơn mua"
               style={{ width: '100%' }}
               options={purchaseOrderStatusOptions}
               value={filters.purchaseOrderStatus}
@@ -233,28 +236,28 @@ export function AdminInventoryPage() {
       <Row gutter={[16, 16]}>
         <Col xs={24} md={8}>
           <Card className="staff-admin-summary-card">
-            <Statistic title="Ingredients" value={ingredientSummary.displayedCount} />
+            <Statistic title="Nguyên liệu" value={ingredientSummary.displayedCount} />
           </Card>
         </Col>
         <Col xs={24} md={8}>
           <Card className="staff-admin-summary-card">
-            <Statistic title="Suppliers" value={supplierSummary.displayedCount} />
+            <Statistic title="Nhà cung cấp" value={supplierSummary.displayedCount} />
           </Card>
         </Col>
         <Col xs={24} md={8}>
           <Card className="staff-admin-summary-card">
-            <Statistic title="Purchase orders" value={purchaseOrderSummary.displayedCount} />
+            <Statistic title="Đơn mua hàng" value={purchaseOrderSummary.displayedCount} />
           </Card>
         </Col>
       </Row>
 
-      <Card className="staff-workspace-table-card" title="Ingredients">
+      <Card className="staff-workspace-table-card" title="Nguyên liệu">
         <QuerySurface
           loading={ingredientsQuery.isLoading}
           error={ingredientsQuery.error}
-          fallback="Unable to load ingredient snapshots."
-          emptyTitle="No ingredients matched this filter"
-          emptyDescription="Adjust the search or active-state filter to inspect another ingredient."
+          fallback="Chưa tải được danh sách nguyên liệu."
+          emptyTitle="Không có nguyên liệu phù hợp"
+          emptyDescription="Hãy đổi từ khóa hoặc bộ lọc hoạt động để xem nguyên liệu khác."
           rows={ingredientRows}
           renderRows={() => (
             <div className="staff-admin-surface-list">
@@ -268,15 +271,15 @@ export function AdminInventoryPage() {
                   <div>
                     <strong>{ingredient.name}</strong>
                     <Typography.Paragraph type="secondary">
-                      {ingredient.code ?? `Ingredient #${ingredient.ingredient_id}`} • {ingredient.unit_code}
+                      {ingredient.code ?? `Nguyên liệu #${ingredient.ingredient_id}`} / {ingredient.unit_code}
                     </Typography.Paragraph>
                   </div>
                   <Space wrap size={6}>
-                    <StatusChip label={ingredient.is_active ? 'Active' : 'Inactive'} tone={ingredient.is_active ? 'success' : 'warning'} />
-                    <StatusChip label={`${ingredient.recipe_usage_count} recipe refs`} tone="default" />
+                    <StatusChip label={ingredient.is_active ? 'Đang dùng' : 'Tạm tắt'} tone={ingredient.is_active ? 'success' : 'warning'} />
+                    <StatusChip label={`${ingredient.recipe_usage_count} công thức`} tone="default" />
                   </Space>
                   <Typography.Text type="secondary">
-                    On hand {formatInventoryQuantity(ingredient.stock.on_hand)} {ingredient.stock.unit_code}
+                    Tồn kho {formatInventoryQuantity(ingredient.stock.on_hand)} {ingredient.stock.unit_code}
                   </Typography.Text>
                 </button>
               ))}
@@ -286,13 +289,13 @@ export function AdminInventoryPage() {
         />
       </Card>
 
-      <Card className="staff-workspace-table-card" title="Suppliers">
+      <Card className="staff-workspace-table-card" title="Nhà cung cấp">
         <QuerySurface
           loading={suppliersQuery.isLoading}
           error={suppliersQuery.error}
-          fallback="Unable to load supplier reads."
-          emptyTitle="No suppliers matched this filter"
-          emptyDescription="Adjust the current filter to inspect supplier coverage."
+          fallback="Chưa tải được danh sách nhà cung cấp."
+          emptyTitle="Không có nhà cung cấp phù hợp"
+          emptyDescription="Hãy đổi bộ lọc để xem nhóm nhà cung cấp khác."
           rows={supplierRows}
           renderRows={() => (
             <div className="staff-admin-surface-list">
@@ -301,14 +304,14 @@ export function AdminInventoryPage() {
                   <div>
                     <strong>{supplier.name}</strong>
                     <Typography.Paragraph type="secondary">
-                      {supplier.code ?? `Supplier #${supplier.supplier_id}`} • {supplier.contact_name ?? 'No contact'}
+                      {supplier.code ?? `Nhà cung cấp #${supplier.supplier_id}`} / {supplier.contact_name ?? 'Chưa có người liên hệ'}
                     </Typography.Paragraph>
                   </div>
                   <Space wrap size={6}>
-                    <StatusChip label={supplier.is_active ? 'Active' : 'Inactive'} tone={supplier.is_active ? 'success' : 'warning'} />
+                    <StatusChip label={supplier.is_active ? 'Đang dùng' : 'Tạm tắt'} tone={supplier.is_active ? 'success' : 'warning'} />
                   </Space>
                   <Typography.Text type="secondary">
-                    {supplier.phone ?? 'No phone'} • {supplier.email ?? 'No email'}
+                    {supplier.phone ?? 'Chưa có số điện thoại'} / {supplier.email ?? 'Chưa có email'}
                   </Typography.Text>
                 </div>
               ))}
@@ -318,13 +321,13 @@ export function AdminInventoryPage() {
         />
       </Card>
 
-      <Card className="staff-workspace-table-card" title="Purchase orders">
+      <Card className="staff-workspace-table-card" title="Đơn mua hàng">
         <QuerySurface
           loading={purchaseOrdersQuery.isLoading}
           error={purchaseOrdersQuery.error}
-          fallback="Unable to load purchase-order reads."
-          emptyTitle="No purchase orders matched this filter"
-          emptyDescription="Try another branch or status filter to inspect receiving activity."
+          fallback="Chưa tải được danh sách đơn mua hàng."
+          emptyTitle="Không có đơn mua phù hợp"
+          emptyDescription="Hãy đổi chi nhánh hoặc trạng thái để xem lịch nhận hàng khác."
           rows={purchaseOrderRows}
           renderRows={() => (
             <div className="staff-admin-surface-list">
@@ -338,15 +341,15 @@ export function AdminInventoryPage() {
                   <div>
                     <strong>{purchaseOrder.order_code}</strong>
                     <Typography.Paragraph type="secondary">
-                      {purchaseOrder.supplier?.name ?? `Supplier #${purchaseOrder.supplier_id}`} • {purchaseOrder.branch?.branch_code ?? `Branch #${purchaseOrder.branch_id}`}
+                      {purchaseOrder.supplier?.name ?? `Nhà cung cấp #${purchaseOrder.supplier_id}`} / {purchaseOrder.branch?.branch_code ?? `Chi nhánh #${purchaseOrder.branch_id}`}
                     </Typography.Paragraph>
                   </div>
                   <Space wrap size={6}>
-                    <StatusChip label={purchaseOrder.purchase_order_status} tone={adminPurchaseOrderTone(purchaseOrder.purchase_order_status)} />
-                    <StatusChip label={`${purchaseOrder.summary.receipt_count} receipts`} tone="default" />
+                    <StatusChip label={adminPurchaseOrderStatusLabel(purchaseOrder.purchase_order_status)} tone={adminPurchaseOrderTone(purchaseOrder.purchase_order_status)} />
+                    <StatusChip label={`${purchaseOrder.summary.receipt_count} phiếu nhận`} tone="default" />
                   </Space>
                   <Typography.Text type="secondary">
-                    Remaining {formatInventoryQuantity(purchaseOrder.summary.remaining_total_quantity)} • expected {formatDateTime(purchaseOrder.expected_at ?? purchaseOrder.ordered_at ?? purchaseOrder.created_at)}
+                    Còn lại {formatInventoryQuantity(purchaseOrder.summary.remaining_total_quantity)} / dự kiến {formatDateTime(purchaseOrder.expected_at ?? purchaseOrder.ordered_at ?? purchaseOrder.created_at)}
                   </Typography.Text>
                 </button>
               ))}
@@ -360,38 +363,38 @@ export function AdminInventoryPage() {
 
   const side = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-      <Card className="staff-workspace-detail-card" title="Supply overview">
+      <Card className="staff-workspace-detail-card" title="Tổng quan kho">
         <Row gutter={[12, 12]}>
           <Col span={24}>
-            <Statistic title="Zero-stock ingredients" value={ingredientSummary.zeroStockCount} />
+            <Statistic title="Nguyên liệu hết tồn" value={ingredientSummary.zeroStockCount} />
           </Col>
           <Col span={24}>
-            <Statistic title="Recipe references" value={ingredientSummary.recipeUsageCount} />
+            <Statistic title="Liên kết công thức" value={ingredientSummary.recipeUsageCount} />
           </Col>
           <Col span={24}>
-            <Statistic title="Supplier coverage" value={supplierSummary.withPhoneCount} suffix={`/ ${supplierSummary.displayedCount}`} />
+            <Statistic title="Nhà cung cấp có số ĐT" value={supplierSummary.withPhoneCount} suffix={`/ ${supplierSummary.displayedCount}`} />
           </Col>
           <Col span={24}>
-            <Statistic title="Remaining PO quantity" value={purchaseOrderSummary.remainingQuantity} formatter={(value) => formatInventoryQuantity(Number(value ?? 0))} />
+            <Statistic title="Số lượng mua còn lại" value={purchaseOrderSummary.remainingQuantity} formatter={(value) => formatInventoryQuantity(Number(value ?? 0))} />
           </Col>
         </Row>
       </Card>
 
-      <Card className="staff-workspace-detail-card" title="Stock movement history">
+      <Card className="staff-workspace-detail-card" title="Lịch sử xuất nhập kho">
         {!selectedIngredient ? (
-          <EmptyBlock title="No ingredient selected" description="Select an ingredient to inspect movement history and create manual adjustments or wastage." />
+          <EmptyBlock title="Chưa chọn nguyên liệu" description="Chọn một nguyên liệu để xem lịch sử xuất nhập, điều chỉnh thủ công hoặc hao hụt." />
         ) : (
           <Space orientation="vertical" size={12} style={{ width: '100%' }}>
             <Space wrap size={6}>
               <StatusChip label={selectedIngredient.name} tone="processing" />
-              <StatusChip label={`${movementSummary.displayedCount} movements`} tone="default" />
-              <StatusChip label={`${movementSummary.auditedCount} audited`} tone="success" />
+              <StatusChip label={`${movementSummary.displayedCount} lần ghi nhận`} tone="default" />
+              <StatusChip label={`${movementSummary.auditedCount} có người thao tác`} tone="success" />
             </Space>
-            {ingredientMovementsQuery.isLoading ? <InlineLoading tip="Loading movement history..." /> : null}
+            {ingredientMovementsQuery.isLoading ? <InlineLoading tip="Đang tải lịch sử xuất nhập kho..." /> : null}
             {ingredientMovementsQuery.error ? (
               <ApiStateBlock
                 error={ingredientMovementsQuery.error}
-                fallback="Unable to load ingredient movements."
+                fallback="Chưa tải được lịch sử xuất nhập kho."
                 onRetry={() => void ingredientMovementsQuery.refetch()}
               />
             ) : null}
@@ -399,38 +402,38 @@ export function AdminInventoryPage() {
               <div className="staff-admin-detail-list">
                 {movementRows.map((movement) => (
                   <div key={movement.movement_id} className="staff-admin-detail-item">
-                    <strong>{movement.movement_type}</strong>
+                    <strong>{inventoryMovementTypeLabel(movement.movement_type)}</strong>
                     <span>
                       {formatInventoryQuantity(movement.quantity_delta)} {movement.unit_code} / {formatDateTime(movement.created_at)}
                     </span>
-                    <StatusChip label={movement.created_by ? `Actor #${movement.created_by}` : 'No actor'} tone={movement.created_by ? 'success' : 'warning'} />
+                    <StatusChip label={movement.created_by ? `Người thao tác #${movement.created_by}` : 'Chưa rõ người thao tác'} tone={movement.created_by ? 'success' : 'warning'} />
                   </div>
                 ))}
               </div>
             ) : !ingredientMovementsQuery.isLoading && !ingredientMovementsQuery.error ? (
-              <EmptyBlock title="No movement history" description="No movements matched the current branch scope." />
+              <EmptyBlock title="Chưa có lịch sử xuất nhập" description="Không có ghi nhận nào trong phạm vi chi nhánh hiện tại." />
             ) : null}
 
             <Select
-              aria-label="Inventory movement type"
+              aria-label="Loại xuất nhập kho"
               style={{ width: '100%' }}
               options={[...inventoryMovementTypeOptions]}
               value={movementForm.movementType}
               onChange={(value) => setMovementForm((current) => ({ ...current, movementType: value }))}
             />
             <InputNumber
-              aria-label="Inventory movement quantity"
+              aria-label="Số lượng xuất nhập kho"
               style={{ width: '100%' }}
               min={0}
               value={movementForm.quantity === '' ? null : Number(movementForm.quantity)}
-              placeholder={`Quantity (${selectedIngredient.unit_code})`}
+              placeholder={`Số lượng (${selectedIngredient.unit_code})`}
               onChange={(value) => setMovementForm((current) => ({ ...current, quantity: value === null ? '' : String(value) }))}
             />
             <Input
-              aria-label="Inventory movement notes"
+              aria-label="Ghi chú xuất nhập kho"
               autoComplete="off"
               value={movementForm.notes}
-              placeholder="Adjustment notes"
+              placeholder="Ghi chú điều chỉnh"
               onChange={(event) => setMovementForm((current) => ({ ...current, notes: event.target.value }))}
             />
             <Space wrap>
@@ -440,34 +443,34 @@ export function AdminInventoryPage() {
                 loading={createMovementMutation.isPending}
                 disabled={createMovementMutation.isPending}
               >
-                Create movement
+                Ghi nhận xuất nhập
               </Button>
-              <StatusChip label={inventoryMovementTypeOptions.find((option) => option.value === movementForm.movementType)?.label ?? movementForm.movementType} tone={inventoryMovementTone(movementForm.movementType)} />
+              <StatusChip label={inventoryMovementTypeLabel(movementForm.movementType)} tone={inventoryMovementTone(movementForm.movementType)} />
             </Space>
             {createMovementMutation.error ? (
               <Typography.Text type="danger">
-                {formatApiError(createMovementMutation.error, 'Could not create inventory movement.')}
+                {formatApiError(createMovementMutation.error, 'Chưa ghi nhận được xuất nhập kho.')}
               </Typography.Text>
             ) : null}
           </Space>
         )}
       </Card>
 
-      <Card className="staff-workspace-detail-card" title="Receiving receipts">
+      <Card className="staff-workspace-detail-card" title="Phiếu nhận hàng">
         {!selectedPurchaseOrder ? (
-          <EmptyBlock title="No purchase order selected" description="Select a purchase order to inspect backend receipt history." />
+          <EmptyBlock title="Chưa chọn đơn mua" description="Chọn một đơn mua hàng để xem lịch sử nhận hàng từ backend." />
         ) : (
           <Space orientation="vertical" size={12} style={{ width: '100%' }}>
             <Space wrap size={6}>
               <StatusChip label={selectedPurchaseOrder.order_code} tone="processing" />
-              <StatusChip label={`${receiptSummary.displayedCount} receipts`} tone="default" />
-              <StatusChip label={`${formatInventoryQuantity(receiptSummary.receivedQuantity)} received`} tone="success" />
+              <StatusChip label={`${receiptSummary.displayedCount} phiếu nhận`} tone="default" />
+              <StatusChip label={`${formatInventoryQuantity(receiptSummary.receivedQuantity)} đã nhận`} tone="success" />
             </Space>
-            {purchaseOrderReceiptsQuery.isLoading ? <InlineLoading tip="Loading receipt history..." /> : null}
+            {purchaseOrderReceiptsQuery.isLoading ? <InlineLoading tip="Đang tải lịch sử nhận hàng..." /> : null}
             {purchaseOrderReceiptsQuery.error ? (
               <ApiStateBlock
                 error={purchaseOrderReceiptsQuery.error}
-                fallback="Unable to load purchase-order receipts."
+                fallback="Chưa tải được phiếu nhận hàng."
                 onRetry={() => void purchaseOrderReceiptsQuery.refetch()}
               />
             ) : null}
@@ -477,19 +480,19 @@ export function AdminInventoryPage() {
                   <div key={receipt.receipt_id} className="staff-admin-detail-item">
                     <strong>{receipt.receipt_code}</strong>
                     <span>
-                      {receipt.receipt_status} / {formatInventoryQuantity(receipt.summary.received_total_quantity)} received / {formatDateTime(receipt.received_at ?? receipt.created_at)}
+                      {inventoryReceiptStatusLabel(receipt.receipt_status)} / {formatInventoryQuantity(receipt.summary.received_total_quantity)} đã nhận / {formatDateTime(receipt.received_at ?? receipt.created_at)}
                     </span>
                   </div>
                 ))}
               </div>
             ) : !purchaseOrderReceiptsQuery.isLoading && !purchaseOrderReceiptsQuery.error ? (
-              <EmptyBlock title="No receipts yet" description="Receiving commit remains hidden until the line-detail create contract is promoted into the staff-web facade." />
+              <EmptyBlock title="Chưa có phiếu nhận" description="Luồng ghi nhận nhận hàng vẫn được ẩn cho tới khi contract tạo chi tiết dòng được đưa vào facade staff-web." />
             ) : null}
           </Space>
         )}
       </Card>
 
-      <Card className="staff-workspace-detail-card" title="Lane notes">
+      <Card className="staff-workspace-detail-card" title="Ghi chú khu vực kho">
         <div className="staff-admin-note-list">
           {adminInventoryLaneNotes.map((note) => (
             <div key={note} className="staff-admin-note-item">
@@ -525,7 +528,7 @@ function QuerySurface({
   onRetry: () => void;
 }) {
   if (loading) {
-    return <InlineLoading tip="Loading admin reads..." />;
+    return <InlineLoading tip="Đang tải dữ liệu quản trị..." />;
   }
 
   if (error) {

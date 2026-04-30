@@ -95,7 +95,7 @@ describe('ReportingHubPage', () => {
     await waitFor(() => expect(currencyInput).toHaveValue(''));
   });
 
-  it('shows a stale snapshot recovery state when the active reporting tab is degraded', async () => {
+  it('shows a Vietnamese snapshot recovery state when the active reporting tab needs attention', async () => {
     apiMocks.listDailySalesReporting.mockResolvedValue({
       data: [],
       meta: createReportingMeta({
@@ -107,7 +107,7 @@ describe('ReportingHubPage', () => {
 
     renderReportingHubPage();
 
-    expect(await screen.findByText(/Snapshot chi nhánh #3 đang degraded/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Snapshot chi nhánh #3 cần kiểm tra/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tải lại tab hiện tại' })).toBeInTheDocument();
   });
 });

@@ -5,7 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
+import { CheckCircle2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,11 +14,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { BookingProgress } from "@/components/booking/booking-progress";
+import { StickyBookingSummary } from "@/components/booking/sticky-booking-summary";
 import { queryKeys } from "@/lib/api/query-keys";
 import { createRoundedFutureLocalDateTimeInput, formatLocalDateTimeInput, parseLocalDateTimeInput } from "@/lib/contracts/datetime";
 import { userFacingApiMessage } from "@/lib/api/errors";
 import { formatDateTime } from "@/lib/contracts/format";
-import { cancelTableHold, getTableHold, refreshTableHold } from "@/features/table-booking/api";
+import { formatCustomerTableName } from "@/lib/i18n/customer-display";
+import { getTableHold, refreshTableHold } from "@/features/table-booking/api";
 import { parseTableHoldState } from "@/features/table-booking/state";
 import { createReservation } from "./api";
 import { reservationFormSchema, type ReservationFormValues } from "./schemas";
@@ -66,6 +70,67 @@ function getTableIdsFromLiveHold(
   return tableIds.length > 0 ? tableIds : fallback;
 }
 
+function formatHeldTables(
+  hold: { tables?: Array<{ table_id: number; table_code?: string | null; zone?: string | null }> | null } | null,
+  fallback: number[] | undefined,
+): string {
+  if (hold?.tables?.length) {
+    return hold.tables
+      .map((table) => formatCustomerTableName(table.table_code ?? null, table.zone ?? null, table.table_id))
+      .join(", ");
+  }
+
+  return fallback?.map((tableId) => formatCustomerTableName(null, null, tableId)).join(", ") || "theo bàn đã chọn";
+}
+
+function formatVisitStartForCustomer(value: string | null | undefined): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value ?? "");
+
+  if (!match) {
+    return "Chưa chọn";
+  }
+
+  const [, year, month, day, hour, minute] = match;
+
+  return `${hour}:${minute}, ${day}/${month}/${year}`;
+}
+
+function HoldDetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-background/80 px-3 py-2">
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dd className="mt-1 break-words text-sm font-semibold text-foreground">{value}</dd>
+    </div>
+  );
+}
+
+function HeldTableNotice({
+  tableLabel,
+  startLabel,
+  guestCount,
+  durationMinutes,
+}: {
+  tableLabel: string;
+  startLabel: string;
+  guestCount: number;
+  durationMinutes: number;
+}) {
+  return (
+    <section aria-label="Thông tin bàn đang giữ" className="space-y-3">
+      <div>
+        <p className="font-semibold text-foreground">Bàn đang được giữ cho bạn</p>
+        <p className="mt-1 text-xs text-muted-foreground">Nhà hàng sẽ dùng thông tin này để xác nhận đặt bàn.</p>
+      </div>
+      <dl className="grid gap-2 sm:grid-cols-2">
+        <HoldDetailItem label="Bàn đã chọn" value={tableLabel} />
+        <HoldDetailItem label="Thời gian đến" value={startLabel} />
+        <HoldDetailItem label="Số khách" value={`${guestCount} khách`} />
+        <HoldDetailItem label="Thời lượng giữ bàn" value={`${durationMinutes} phút`} />
+      </dl>
+    </section>
+  );
+}
+
 export function ReservationCreatePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -90,6 +155,8 @@ export function ReservationCreatePage() {
       notes: "",
     },
   });
+  const watchedGuestCount = useWatch({ control: form.control, name: "guest_count" });
+  const watchedDurationMinutes = useWatch({ control: form.control, name: "duration_minutes" });
   const holdQuery = useQuery({
     queryKey: holdId ? queryKeys.tableBooking.hold(holdId) : ["tables", "hold", "none"],
     queryFn: () => getTableHold(holdId as string),
@@ -102,6 +169,7 @@ export function ReservationCreatePage() {
   const liveHoldDurationMinutes =
     typeof liveHold?.duration_minutes === "number" && liveHold.duration_minutes > 0 ? liveHold.duration_minutes : holdDurationMinutes;
   const liveHoldTableIds = getTableIdsFromLiveHold(liveHold, tableIds);
+  const liveHoldTableLabel = formatHeldTables(liveHold, tableIds);
   const hasLockedHoldDetails = Boolean(holdId && liveHoldStartTime && liveHoldDurationMinutes && holdGuestCount);
   const expiredHold = Boolean(
     holdId &&
@@ -110,6 +178,15 @@ export function ReservationCreatePage() {
         : (holdStatus && holdStatus !== "Holding") ||
           (holdExpiresAt && Date.parse(holdExpiresAt) <= openedAtMs)),
   );
+  const visitStartLabel = liveHoldStartTime
+    ? formatVisitStartForCustomer(liveHoldStartTime)
+    : "Chưa chọn";
+  const bookingSummaryItems = [
+    { label: "Ngày giờ", value: visitStartLabel },
+    { label: "Số khách", value: `${holdGuestCount ?? watchedGuestCount} khách` },
+    { label: "Thời lượng", value: `${liveHoldDurationMinutes ?? watchedDurationMinutes} phút` },
+    { label: "Bàn đã chọn", value: liveHoldTableLabel },
+  ];
 
   useEffect(() => {
     if (!holdId || !liveHold) {
@@ -125,20 +202,31 @@ export function ReservationCreatePage() {
       guest_count: holdGuestCount ?? currentValues.guest_count,
     });
   }, [form, holdGuestCount, holdId, liveHold, liveHoldDurationMinutes, liveHoldStartTime]);
+
   const refreshHoldMutation = useMutation({
     mutationFn: ({ holdId: liveHoldId, rowVersion }: { holdId: string; rowVersion: number }) => refreshTableHold(liveHoldId, rowVersion),
     onSuccess(result) {
       queryClient.setQueryData(queryKeys.tableBooking.hold(result.hold_id), result);
-      toast.success("Đã gia hạn giữ bàn.");
     },
   });
-  const cancelHoldMutation = useMutation({
-    mutationFn: ({ holdId: liveHoldId, rowVersion }: { holdId: string; rowVersion: number }) => cancelTableHold(liveHoldId, rowVersion),
-    onSuccess(result) {
-      queryClient.setQueryData(queryKeys.tableBooking.hold(result.hold_id), result);
-      toast.success("Đã hủy giữ bàn.");
-    },
-  });
+
+  useEffect(() => {
+    if (!liveHoldState?.isActive || !liveHoldState.expiresAt || refreshHoldMutation.isPending) {
+      return;
+    }
+
+    const expiresAtMs = Date.parse(liveHoldState.expiresAt);
+    if (!Number.isFinite(expiresAtMs)) {
+      return;
+    }
+
+    const delayMs = Math.max(1000, expiresAtMs - Date.now() - 30_000);
+    const timer = window.setTimeout(() => {
+      refreshHoldMutation.mutate({ holdId: liveHoldState.holdId, rowVersion: liveHoldState.rowVersion });
+    }, delayMs);
+
+    return () => window.clearTimeout(timer);
+  }, [liveHoldState?.expiresAt, liveHoldState?.holdId, liveHoldState?.isActive, liveHoldState?.rowVersion, refreshHoldMutation]);
 
   const createMutation = useMutation({
     mutationFn: (values: ReservationFormValues) => createReservation({ ...values, hold_id: holdId, table_ids: liveHoldTableIds }),
@@ -149,21 +237,21 @@ export function ReservationCreatePage() {
       router.push(`/reservations/${result.reservation_id}`);
     },
   });
-  const holdActionError = refreshHoldMutation.error ?? cancelHoldMutation.error;
-  const holdActionPending = refreshHoldMutation.isPending || cancelHoldMutation.isPending;
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6">
-      <section className="mb-5">
-        <h1 className="text-4xl font-semibold tracking-normal">Tạo lịch đặt</h1>
+    <main className="mx-auto w-full max-w-5xl px-4 py-6 pb-28 lg:pb-8">
+      <section className="mb-5 space-y-3">
+        <h1 className="text-4xl font-semibold tracking-normal">Xác nhận đặt bàn</h1>
         <p className="mt-2 text-muted-foreground">
-          Điền thông tin liên hệ để nhà hàng xác nhận lượt ghé của bạn.
+          Điền thông tin liên hệ để nhà hàng xác nhận đặt bàn.
         </p>
+        <BookingProgress currentStep="guest" />
       </section>
 
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle>Thông tin lượt ghé</CardTitle>
+          <CardTitle>Thông tin khách</CardTitle>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => createMutation.mutate(values))}>
@@ -197,7 +285,7 @@ export function ReservationCreatePage() {
                 {form.formState.errors.start_time ? <p className="text-sm text-destructive">{form.formState.errors.start_time.message}</p> : null}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="duration_minutes">Thời lượng phút</Label>
+                <Label htmlFor="duration_minutes">Thời lượng</Label>
                 <Input
                   id="duration_minutes"
                   type="number"
@@ -229,60 +317,46 @@ export function ReservationCreatePage() {
               <Alert variant={expiredHold ? "destructive" : "default"} className="rounded-lg">
                 <AlertDescription>
                   {holdQuery.isLoading ? (
-                    <>Đang kiểm tra bàn giữ {holdId} trước khi tạo lịch đặt.</>
+                    <>Đang kiểm tra bàn đã chọn trước khi tạo lịch đặt.</>
                   ) : holdQuery.error ? (
                     <>
-                      Chưa xác minh được bàn giữ {holdId}. {userFacingApiMessage(holdQuery.error)}
+                      Chưa xác minh được bàn đã chọn. {userFacingApiMessage(holdQuery.error)}
                     </>
                   ) : expiredHold ? (
                     <>
-                      Bàn giữ {liveHoldState?.holdId ?? holdId} không còn hiệu lực
-                      {liveHoldState?.expiresAt ? ` từ ${formatDateTime(liveHoldState.expiresAt)}` : holdExpiresAt ? ` từ ${formatDateTime(holdExpiresAt)}` : ""}. Hãy tìm bàn
-                      trống lại trước khi tạo lịch đặt.
+                      Bàn đã chọn không còn hiệu lực
+                      {liveHoldState?.expiresAt ? ` từ ${formatDateTime(liveHoldState.expiresAt)}` : holdExpiresAt ? ` từ ${formatDateTime(holdExpiresAt)}` : ""}.
+                      Hãy tìm bàn phù hợp lại trước khi tạo lịch đặt.
                     </>
                   ) : hasLockedHoldDetails ? (
-                    <>
-                      Đang dùng bàn giữ {liveHoldState?.holdId ?? holdId} cho {holdGuestCount} khách, bắt đầu{" "}
-                      {formatDateTime(parseLocalDateTimeInput(liveHoldStartTime as string)?.toISOString() ?? null)} trong{" "}
-                      {liveHoldDurationMinutes} phút. Hãy tìm lại nếu bạn cần đổi thông tin. Bàn:{" "}
-                      {liveHoldTableIds?.join(", ") || "theo bàn giữ"}.
-                    </>
+                    <HeldTableNotice
+                      tableLabel={liveHoldTableLabel}
+                      startLabel={formatVisitStartForCustomer(liveHoldStartTime)}
+                      guestCount={holdGuestCount ?? watchedGuestCount}
+                      durationMinutes={liveHoldDurationMinutes ?? watchedDurationMinutes}
+                    />
                   ) : (
-                    <>Đang dùng bàn giữ {liveHoldState?.holdId ?? holdId}. Kiểm tra kỹ thông tin trước khi gửi. Bàn: {liveHoldTableIds?.join(", ") || "theo bàn giữ"}.</>
+                    <section aria-label="Thông tin bàn đang giữ" className="space-y-2">
+                      <p className="font-semibold text-foreground">Bàn đang được giữ cho bạn</p>
+                      <p>
+                        Bàn đã chọn: <span className="font-medium text-foreground">{liveHoldTableLabel}</span>. Kiểm tra lại thời gian và số khách trước khi gửi.
+                      </p>
+                    </section>
                   )}
                 </AlertDescription>
               </Alert>
             ) : null}
-            {holdId && liveHoldState?.isActive ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-lg"
-                  disabled={holdActionPending}
-                  onClick={() => refreshHoldMutation.mutate({ holdId: liveHoldState.holdId, rowVersion: liveHoldState.rowVersion })}
-                >
-                  {refreshHoldMutation.isPending ? "Đang gia hạn" : "Gia hạn giữ bàn"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-lg"
-                  disabled={holdActionPending}
-                  onClick={() => cancelHoldMutation.mutate({ holdId: liveHoldState.holdId, rowVersion: liveHoldState.rowVersion })}
-                >
-                  {cancelHoldMutation.isPending ? "Đang nhả bàn" : "Nhả bàn"}
-                </Button>
-              </div>
-            ) : null}
-            {holdActionError ? (
+            {refreshHoldMutation.error ? (
               <Alert variant="destructive" className="rounded-lg">
-                <AlertDescription>{userFacingApiMessage(holdActionError)}</AlertDescription>
+                <AlertDescription>{userFacingApiMessage(refreshHoldMutation.error)}</AlertDescription>
               </Alert>
             ) : null}
             {expiredHold || Boolean(holdQuery.error) ? (
               <Button asChild variant="outline" className="w-full rounded-lg">
-                <Link href="/booking">Tìm bàn trống lại</Link>
+                <Link href="/booking">
+                  <Search className="mr-2 h-4 w-4" />
+                  Tìm bàn phù hợp lại
+                </Link>
               </Button>
             ) : null}
             {createMutation.error ? (
@@ -293,13 +367,32 @@ export function ReservationCreatePage() {
             <Button
               type="submit"
               className="min-h-11 w-full rounded-lg"
-              disabled={createMutation.isPending || holdActionPending || expiredHold || holdQuery.isLoading || Boolean(holdQuery.error)}
+              disabled={createMutation.isPending || refreshHoldMutation.isPending || expiredHold || holdQuery.isLoading || Boolean(holdQuery.error)}
             >
+              <CheckCircle2 className="mr-2 h-4 w-4" />
               {createMutation.isPending ? "Đang tạo lịch đặt" : "Tạo lịch đặt"}
             </Button>
           </form>
         </CardContent>
       </Card>
+
+      <StickyBookingSummary
+        title="Tóm tắt trước khi xác nhận"
+        items={bookingSummaryItems}
+        holdCode={holdId}
+        holdExpiresAt={liveHoldState?.expiresAt ?? holdExpiresAt}
+        holdStatusLabel={liveHoldState?.statusLabel}
+        primaryActionLabel={createMutation.isPending ? "Đang tạo lịch đặt" : "Xác nhận đặt bàn"}
+        primaryActionDisabled={createMutation.isPending || refreshHoldMutation.isPending || expiredHold || holdQuery.isLoading || Boolean(holdQuery.error)}
+        onPrimaryAction={() => form.handleSubmit((values) => createMutation.mutate(values))()}
+        onRefreshHold={
+          liveHoldState?.isActive
+            ? () => refreshHoldMutation.mutate({ holdId: liveHoldState.holdId, rowVersion: liveHoldState.rowVersion })
+            : undefined
+        }
+        refreshPending={refreshHoldMutation.isPending}
+      />
+      </div>
     </main>
   );
 }

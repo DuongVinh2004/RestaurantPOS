@@ -1,6 +1,6 @@
 ﻿import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Card, Space, Typography } from 'antd';
+import { Button, Card, Input, Space, Typography } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { StaffTableBoardRow, StaffTableBoardUnassignedReservation } from '../../../../shared/api/sdk';
 import {
@@ -26,6 +26,7 @@ import {
 } from '../../../journey-labels';
 import {
   getReservationGuestLabel,
+  getReservationGuestPhone,
   isReservationSnapshotOnlyGuest,
   RESERVATION_SNAPSHOT_GUEST_LABEL,
 } from '../../../../domains/reservations/reservation-guest';
@@ -145,30 +146,30 @@ function tableCardActionCopy(row: StaffTableBoardRow): string {
   const boardState = (row.board_state ?? '').toLowerCase();
 
   if (row.active_order) {
-    return 'Mở đơn đang phục vụ';
+    return 'Mở đơn';
   }
 
   if (row.actions?.check_in?.available) {
-    return 'Nhận khách vào bàn';
+    return 'Nhận bàn';
   }
 
   if (row.reservation) {
-    return 'Xem chi tiết đặt bàn';
+    return 'Chi tiết';
   }
 
   if (boardState === 'available') {
-    return 'Xếp khách vào bàn';
+    return 'Xếp khách';
   }
 
   if (row.availability?.has_hold_in_range || row.hold || (row.holds?.length ?? 0) > 0) {
-    return 'Kiểm tra giữ bàn';
+    return 'Đang giữ';
   }
 
   if (row.availability?.is_realtime_occupied) {
-    return 'Kiểm tra bàn đang dùng';
+    return 'Đang dùng';
   }
 
-  return 'Mở chi tiết bàn';
+  return 'Chi tiết';
 }
 
 function buildTableCardContext(row: StaffTableBoardRow): {
@@ -184,16 +185,16 @@ function buildTableCardContext(row: StaffTableBoardRow): {
       label: 'Đang phục vụ',
       value: `Đơn #${row.active_order.order_id}`,
       meta: row.reservation
-        ? `${row.reservation.reservation_code} • ${row.reservation.guest_count} khách`
-        : `${translateUiCode(row.active_order.status)} • ${row.capacity.seats ?? 'Chưa rõ'} chỗ`,
+        ? `${row.reservation.guest_count} khách`
+        : translateUiCode(row.active_order.status),
     };
   }
 
   if (row.reservation) {
     return {
       label: 'Đặt bàn hiện tại',
-      value: row.reservation.reservation_code,
-      meta: `${row.reservation.guest_count} khách • ${getReservationGuestLabel(row.reservation)}`,
+      value: `${row.reservation.guest_count} khách`,
+      meta: getReservationGuestLabel(row.reservation),
     };
   }
 
@@ -208,15 +209,15 @@ function buildTableCardContext(row: StaffTableBoardRow): {
   if ((row.board_state ?? '').toLowerCase() === 'available') {
     return {
       label: 'Sẵn sàng',
-      value: 'Trống & sẵn nhận khách',
-      meta: 'Không có đặt bàn hoặc đơn đang giữ bàn',
+      value: 'Trống',
+      meta: `${row.capacity.seats ?? 'Không rõ'} chỗ`,
     };
   }
 
   return {
     label: 'Trạng thái',
     value: boardStateLabel,
-    meta: 'Mở chi tiết để xem thao tác phù hợp cho bàn này',
+    meta: '',
   };
 }
 
@@ -266,6 +267,7 @@ export function TableBoardPage() {
   const boardUrlState = useMemo(() => readTableBoardUrlState(searchParams), [searchParams]);
   const zone = boardUrlState.zone !== '' ? boardUrlState.zone : undefined;
   const selectedTableId = journey.tableId ?? null;
+  const [tableSearch, setTableSearch] = useState('');
   const boardDataCacheKey = `${branchId ?? 'default'}|${zone ?? 'all'}|${windowRange.from}|${windowRange.to}`;
 
   const updateBoardSearch = useCallback((
@@ -339,6 +341,34 @@ export function TableBoardPage() {
   const isBoardColdLoading = !boardData && boardQuery.isLoading;
   const isBoardRefreshing = Boolean(boardData && boardQuery.isFetching);
   const boardRealtimeVersion = boardData?.meta.realtime.current_version;
+  const filteredBoardRows = useMemo(() => {
+    const query = normalizeDisplayToken(tableSearch);
+    const rows = boardData?.data ?? [];
+
+    if (!query) {
+      return rows;
+    }
+
+    return rows.filter((row) => {
+      const tableDisplayName = formatBoardTableName(row.table_code, row.zone, row.table_id);
+      const cardContext = buildTableCardContext(row);
+      const tokens = [
+        tableDisplayName,
+        row.table_code,
+        formatBoardZone(row.zone),
+        translateUiCode(row.board_state),
+        translateUiCode(row.realtime_status),
+        cardContext.value,
+        cardContext.meta,
+        row.reservation?.reservation_code,
+        row.reservation ? getReservationGuestLabel(row.reservation) : null,
+        row.reservation ? getReservationGuestPhone(row.reservation) : null,
+        row.active_order ? `Đơn ${row.active_order.order_id}` : null,
+      ];
+
+      return normalizeDisplayToken(tokens.filter(Boolean).join(' ')).includes(query);
+    });
+  }, [boardData?.data, tableSearch]);
 
   const selectedTable = useMemo(
     () => boardData?.data.find((row) => row.table_id === selectedTableId) ?? null,
@@ -1008,6 +1038,15 @@ export function TableBoardPage() {
           )}
           extra={
             <>
+              <Input.Search
+                allowClear
+                aria-label="Tìm bàn, khu vực hoặc khách"
+                className="staff-table-board-search"
+                placeholder="Tìm bàn / khu / khách"
+                value={tableSearch}
+                onChange={(event) => setTableSearch(event.target.value)}
+                onSearch={(value) => setTableSearch(value)}
+              />
               <div className="staff-table-board-toolbar-select-wrap">
                 <select
                   aria-label="Lọc theo khu"
@@ -1077,8 +1116,15 @@ export function TableBoardPage() {
         </div>
       ) : null}
 
+      {boardData && filteredBoardRows.length === 0 ? (
+        <EmptyBlock
+          title="Không có bàn phù hợp"
+          description="Đổi từ khóa, khu vực hoặc tải lại sơ đồ để kiểm tra trạng thái mới nhất."
+        />
+      ) : null}
+
       <div className="staff-table-board-grid">
-        {(boardData?.data ?? []).map((row) => {
+        {filteredBoardRows.map((row) => {
           const isSelected = row.table_id === selectedTableId;
           const cardContext = buildTableCardContext(row);
           const tableDisplayName = formatBoardTableName(row.table_code, row.zone, row.table_id);
@@ -1112,9 +1158,8 @@ export function TableBoardPage() {
                 </div>
 
                 <div className="staff-table-board-card-context">
-                  <span className="staff-table-board-context-label">{cardContext.label}</span>
                   <strong className="staff-table-board-context-value">{cardContext.value}</strong>
-                  <span className="staff-table-board-context-meta">{cardContext.meta}</span>
+                  {cardContext.meta ? <span className="staff-table-board-context-meta">{cardContext.meta}</span> : null}
                 </div>
 
                 <div className="staff-table-board-card-footer">
@@ -1198,11 +1243,24 @@ export function TableBoardPage() {
             </div>
 
             {selectedTable.reservation ? (
-              <Card size="small" type="inner" className="staff-table-board-inspector-section" title="Đặt bàn">
+              <Card size="small" type="inner" className="staff-table-board-inspector-section" title="Thông tin đặt bàn">
                 <Space orientation="vertical" size={8}>
-                  <Typography.Text strong>{selectedTable.reservation.reservation_code}</Typography.Text>
+                  <div className="staff-table-board-reservation-summary">
+                    <div>
+                      <span>Tên khách</span>
+                      <strong>{getReservationGuestLabel(selectedTable.reservation)}</strong>
+                    </div>
+                    <div>
+                      <span>Điện thoại</span>
+                      <strong>{getReservationGuestPhone(selectedTable.reservation)}</strong>
+                    </div>
+                    <div>
+                      <span>Số khách</span>
+                      <strong>{selectedTable.reservation.guest_count}</strong>
+                    </div>
+                  </div>
                   <Space wrap size={8}>
-                    <Typography.Text>{getReservationGuestLabel(selectedTable.reservation)}</Typography.Text>
+                    <Typography.Text type="secondary">{selectedTable.reservation.reservation_code}</Typography.Text>
                     {isReservationSnapshotOnlyGuest(selectedTable.reservation) ? (
                       <StatusChip label={RESERVATION_SNAPSHOT_GUEST_LABEL} tone="processing" variant="freshness" />
                     ) : null}

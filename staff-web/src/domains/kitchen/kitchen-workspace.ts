@@ -8,12 +8,12 @@ import type { StaffSession } from '../../shared/auth/storage';
 import { isWorkspaceAvailable } from '../../workspaces/workspaces';
 
 export const kitchenTicketStatusOptions = [
-  { value: 'all', label: 'All tickets' },
-  { value: 'Queued', label: 'Queued' },
-  { value: 'Fired', label: 'In prep' },
-  { value: 'Ready', label: 'Ready' },
-  { value: 'Completed', label: 'Completed' },
-  { value: 'Cancelled', label: 'Cancelled' },
+  { value: 'all', label: 'Tất cả phiếu' },
+  { value: 'Queued', label: 'Chờ làm' },
+  { value: 'Fired', label: 'Đang làm' },
+  { value: 'Ready', label: 'Sẵn sàng' },
+  { value: 'Completed', label: 'Hoàn tất' },
+  { value: 'Cancelled', label: 'Đã hủy' },
 ] as const;
 
 export type KitchenTicketStatusFilter = (typeof kitchenTicketStatusOptions)[number]['value'];
@@ -60,18 +60,18 @@ export type KitchenTicketTimelineEntry = {
 export const kitchenActiveLaneDefinitions: Array<Omit<KitchenLane, 'tickets'>> = [
   {
     status: 'Queued',
-    label: 'Queue',
-    description: 'Tickets waiting to be fired.',
+    label: 'Chờ làm',
+    description: 'Món mới vào bếp, cần bắt đầu chế biến.',
   },
   {
     status: 'Fired',
-    label: 'In prep',
-    description: 'Tickets actively being prepared.',
+    label: 'Đang làm',
+    description: 'Món đang được bếp xử lý.',
   },
   {
     status: 'Ready',
-    label: 'Ready',
-    description: 'Tickets waiting for service pickup.',
+    label: 'Sẵn sàng',
+    description: 'Món đã xong, chờ nhân viên mang ra bàn.',
   },
 ];
 
@@ -90,8 +90,8 @@ export function resolveKitchenWorkspaceGuard(session: StaffSession | null): Kitc
 
   return {
     kind: 'missing-workspace-access',
-    title: 'Kitchen workspace is not available',
-    description: 'This staff session does not include kitchen workspace access. Use an allowed workspace or refresh the staff session after access changes.',
+    title: 'Phiên này chưa được vào màn bếp',
+    description: 'Tài khoản hiện tại chưa có quyền mở khu vực bếp. Hãy chuyển đúng vai trò hoặc tải lại phiên sau khi được cấp quyền.',
   };
 }
 
@@ -109,17 +109,17 @@ export function resolveKitchenBranchGuard(session: StaffSession | null, branchId
   if (branchId === null) {
     return {
       kind: 'missing-branch',
-      title: 'Select a branch before opening the line',
-      description: 'Kitchen tickets are branch scoped. Choose a branch from the shell before loading stations or changing ticket state.',
+      title: 'Chọn chi nhánh trước khi mở bếp',
+      description: 'Phiếu bếp phụ thuộc chi nhánh. Hãy chọn chi nhánh ở thanh trên trước khi tải trạm hoặc thao tác phiếu.',
     };
   }
 
   if (allowedBranchIds.length > 0 && !allowedBranchIds.includes(branchId)) {
     return {
       kind: 'invalid-branch',
-      title: 'Branch is outside this staff session',
-      description: 'The selected branch is not included in the startup branch contract for this staff session.',
-      meta: `Branch #${branchId}`,
+      title: 'Chi nhánh không thuộc phiên làm việc',
+      description: 'Chi nhánh đang chọn không nằm trong phạm vi được cấp cho tài khoản này.',
+      meta: `Chi nhánh #${branchId}`,
     };
   }
 
@@ -149,8 +149,8 @@ export function resolveKitchenStationContext({
       selectedStationId: null,
       guard: {
         kind: 'missing-assigned-station',
-        title: 'No kitchen station is assigned',
-        description: 'The startup contract did not include an assigned station for this staff session. Ask an operator to assign a station before taking ticket actions.',
+        title: 'Chưa được gán trạm bếp',
+        description: 'Phiên hiện tại chưa có trạm bếp được gán. Hãy nhờ quản lý gán trạm trước khi xử lý phiếu.',
       },
     };
   }
@@ -222,8 +222,8 @@ export function resolveKitchenStationContext({
     guard: selectableStations.length > 1
       ? {
         kind: 'station-selection-required',
-        title: 'Choose a station to lock the line',
-        description: 'This session can operate more than one station. Select one station before loading a ticket queue or using fast actions.',
+        title: 'Chọn trạm bếp để bắt đầu',
+        description: 'Phiên này có thể xử lý nhiều trạm. Hãy chọn một trạm trước khi tải hàng đợi hoặc thao tác nhanh.',
       }
       : null,
   };
@@ -268,7 +268,7 @@ export function summarizeKitchenTickets(tickets: Array<KitchenOrderItemTicket>) 
 export function ticketDisplayName(ticket: KitchenOrderItemTicket): string {
   return ticket.item?.name
     ?? ticket.order_item?.item_name_snapshot
-    ?? `Ticket #${ticket.ticket_id}`;
+    ?? `Phiếu #${ticket.ticket_id}`;
 }
 
 export function ticketAllowedActions(ticket: KitchenOrderItemTicket): Array<KitchenTicketAction> {
@@ -298,31 +298,31 @@ export function ticketTimeline(ticket: KitchenOrderItemTicket): Array<KitchenTic
   return [
     {
       key: 'dispatched',
-      label: 'Dispatched',
+      label: 'Đã gửi bếp',
       value: ticket.first_dispatched_at,
       active: Boolean(ticket.first_dispatched_at),
     },
     {
       key: 'fired',
-      label: 'Fired',
+      label: 'Đang làm',
       value: ticket.fired_at,
       active: Boolean(ticket.fired_at) || ticket.ticket_status === 'Fired',
     },
     {
       key: 'ready',
-      label: 'Ready',
+      label: 'Sẵn sàng',
       value: ticket.ready_at,
       active: Boolean(ticket.ready_at) || ticket.ticket_status === 'Ready',
     },
     {
       key: 'recalled',
-      label: 'Recalled',
+      label: 'Đã gọi lại',
       value: ticket.last_recalled_at,
       active: Boolean(ticket.last_recalled_at),
     },
     {
       key: 'closed',
-      label: ticket.ticket_status === 'Cancelled' ? 'Cancelled' : 'Completed',
+      label: ticket.ticket_status === 'Cancelled' ? 'Đã hủy' : 'Hoàn tất',
       value: ticket.cancelled_at ?? ticket.completed_at,
       active: Boolean(ticket.cancelled_at ?? ticket.completed_at) || ticket.lifecycle?.is_terminal === true,
     },
@@ -332,7 +332,39 @@ export function ticketTimeline(ticket: KitchenOrderItemTicket): Array<KitchenTic
 export function stationWorkloadLabel(station: KitchenStation): string {
   const counts = station.ticket_counts;
 
-  return `${counts.queued} queued / ${counts.fired} in prep / ${counts.ready} ready`;
+  return `${counts.queued} chờ làm / ${counts.fired} đang làm / ${counts.ready} sẵn sàng`;
+}
+
+export function kitchenStationDisplayName(station: KitchenStation | null | undefined): string {
+  if (!station) {
+    return 'Chưa chọn trạm';
+  }
+
+  const code = station.code.trim().toUpperCase();
+  const name = station.name.trim();
+  const normalizedName = name.toLowerCase();
+
+  if (code === 'HOT' || normalizedName === 'hot pass') {
+    return 'Bếp nóng';
+  }
+
+  if (code === 'COLD' || normalizedName === 'cold pass') {
+    return 'Bếp lạnh';
+  }
+
+  if (code === 'BAR' || normalizedName.includes('bar')) {
+    return 'Quầy đồ uống';
+  }
+
+  if (code === 'PASS' || normalizedName.includes('pass')) {
+    return 'Ra món';
+  }
+
+  if (code === 'GRILL' || normalizedName.includes('grill')) {
+    return 'Bếp nướng';
+  }
+
+  return name || `Trạm #${station.station_id}`;
 }
 
 export function summarizeKitchenRealtime(state: StaffOperationalRealtimeState | null | undefined): {
@@ -343,7 +375,7 @@ export function summarizeKitchenRealtime(state: StaffOperationalRealtimeState | 
 } {
   if (!state) {
     return {
-      label: 'Realtime cursor pending',
+      label: 'Đang chờ đồng bộ',
       tone: 'default',
       eventCount: 0,
       pollHintSeconds: null,
@@ -351,7 +383,7 @@ export function summarizeKitchenRealtime(state: StaffOperationalRealtimeState | 
   }
 
   return {
-    label: state.stale_cursor ? 'Realtime cursor stale' : `Realtime v${state.current_version}`,
+    label: state.stale_cursor ? 'Đồng bộ cần kiểm tra' : `Đồng bộ v${state.current_version}`,
     tone: state.stale_cursor ? 'warning' : 'success',
     eventCount: state.events.length,
     pollHintSeconds: state.poll_hint_ms > 0 ? Math.round(state.poll_hint_ms / 1000) : null,
@@ -370,9 +402,9 @@ function invalidStationContext(
     selectedStationId: null,
     guard: {
       kind: 'invalid-station',
-      title: 'Station does not match this kitchen context',
-      description: 'The station in the URL or saved context is not assigned to this staff session or is not available for the selected branch.',
-      meta: `Station #${stationId}`,
+      title: 'Trạm bếp không khớp phiên hiện tại',
+      description: 'Trạm trong đường dẫn hoặc bộ nhớ phiên không được gán cho tài khoản này, hoặc không thuộc chi nhánh đang chọn.',
+      meta: `Trạm #${stationId}`,
     },
   };
 }

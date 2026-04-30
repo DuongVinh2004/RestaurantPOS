@@ -99,7 +99,7 @@ export function normalizeApiError(error: unknown, fallback: string): NormalizedA
 
 export function formatApiError(error: unknown, fallback: string): string {
   const normalized = normalizeApiError(error, fallback);
-  const parts = [normalized.message.trim() !== '' ? normalized.message.trim() : fallback];
+  const parts = [staffFriendlyApiMessage(normalized, fallback)];
 
   if (normalized.requiredCapability) {
     parts.push(`Thiếu quyền: ${normalized.requiredCapability}.`);
@@ -269,6 +269,63 @@ function isGenericApiMessage(message: string): boolean {
     'too many requests.',
     'server error.',
   ].includes(message.trim().toLowerCase());
+}
+
+function staffFriendlyApiMessage(normalized: NormalizedApiError, fallback: string): string {
+  if (normalized.kind === 'auth') {
+    return 'Phiên làm việc đã hết hạn hoặc đã thay đổi. Hãy đăng nhập lại rồi thử tiếp.';
+  }
+
+  if (normalized.kind === 'forbidden') {
+    return 'Bạn chưa có quyền thực hiện thao tác này.';
+  }
+
+  if (normalized.kind === 'not-found') {
+    return 'Không còn tìm thấy dữ liệu cần xem trong phạm vi hiện tại.';
+  }
+
+  if (normalized.kind === 'conflict') {
+    return 'Dữ liệu đã thay đổi. Vui lòng tải lại trước khi thao tác tiếp.';
+  }
+
+  if (normalized.kind === 'validation') {
+    return 'Dữ liệu gửi lên chưa hợp lệ. Kiểm tra lại thông tin rồi thử lại.';
+  }
+
+  if (normalized.kind === 'rate-limit') {
+    return 'Hệ thống đang xử lý nhiều yêu cầu. Hãy chờ một lát rồi thử lại.';
+  }
+
+  if (normalized.kind === 'server') {
+    return fallback;
+  }
+
+  return translateKnownEnglishApiMessage(normalized.message) ?? (normalized.message.trim() !== '' ? normalized.message.trim() : fallback);
+}
+
+function translateKnownEnglishApiMessage(message: string): string | null {
+  switch (message.trim().toLowerCase()) {
+    case 'forbidden.':
+    case 'forbidden':
+      return 'Bạn chưa có quyền thực hiện thao tác này.';
+    case 'unauthorized.':
+    case 'unauthorized':
+      return 'Phiên làm việc đã hết hạn hoặc chưa hợp lệ.';
+    case 'not found.':
+    case 'not found':
+      return 'Không còn tìm thấy dữ liệu cần xem.';
+    case 'conflict.':
+    case 'conflict':
+    case 'state conflict detected.':
+    case 'the resource was modified by another writer.':
+      return 'Dữ liệu đã thay đổi. Vui lòng tải lại trước khi thao tác tiếp.';
+    case 'too many requests.':
+      return 'Hệ thống đang xử lý nhiều yêu cầu. Hãy chờ một lát rồi thử lại.';
+    case 'server error.':
+      return 'Hệ thống chưa thể xử lý yêu cầu lúc này.';
+    default:
+      return null;
+  }
 }
 
 function hasApiErrorPayload(error: unknown): error is ApiErrorWithPayload {

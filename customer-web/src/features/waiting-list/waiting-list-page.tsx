@@ -515,10 +515,24 @@ function describeInviteWindow(entry: CustomerWaitingListEntry) {
 
 function formatInlineStateLabel(value: string | null | undefined): string {
   if (!value) {
-    return "Unknown";
+    return "Chưa rõ";
   }
 
-  return value
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const normalized = value.trim().replace(/[_-]+/g, " ").toLowerCase();
+  const labels: Record<string, string> = {
+    accept: "Xác nhận nhận bàn",
+    accepted: "Đã nhận lời mời",
+    arrival: "Xác nhận đã đến",
+    cancel: "Hủy lượt chờ",
+    cancelled: "Đã hủy",
+    "confirm arrival": "Xác nhận đã đến",
+    declined: "Đã từ chối",
+    invited: "Đã mời",
+    notified: "Đã mời",
+    seat: "Xếp bàn",
+    seated: "Đã xếp bàn",
+    waiting: "Đang chờ",
+  };
+
+  return labels[normalized] ?? normalized.replace(/\b\p{L}/gu, (letter) => letter.toLocaleUpperCase("vi-VN"));
 }

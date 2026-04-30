@@ -160,7 +160,6 @@ class StaffCheckInReadinessService
                 $reservationConflictTableIds,
                 $holdConflictTableIds,
                 $checkInAt,
-                $window['start_utc'],
                 $window['end_utc'],
             ),
             'status' => $status,
@@ -174,6 +173,7 @@ class StaffCheckInReadinessService
                 'has_assigned_tables' => $assignedTableIds !== [],
                 'assigned_tables_loaded' => $missingAssignedTableIds === [],
                 'within_check_in_window' => $window['within_window'],
+                'early_check_in' => $window['early_check_in'],
                 'branch_consistent' => $branchConsistent,
                 'all_assigned_tables_available' => $nonServiceReadyTableIds === [],
                 'has_assigned_table_hold_conflict' => $holdConflictTableIds !== [],
@@ -218,8 +218,7 @@ class StaffCheckInReadinessService
             throw ValidationException::withMessages([
                 'checked_in_at' => [
                     sprintf(
-                        'Outside check-in grace window. Allowed between %s and %s UTC.',
-                        $readiness['window']['start_utc']->toIso8601String(),
+                        'Check-in is closed for this reservation. Allowed until %s UTC.',
                         $readiness['window']['end_utc']->toIso8601String(),
                     ),
                 ],
@@ -275,7 +274,7 @@ class StaffCheckInReadinessService
     }
 
     /**
-     * @return array{start_utc:Carbon,end_utc:Carbon,within_window:bool}
+     * @return array{start_utc:Carbon,end_utc:Carbon,within_window:bool,early_check_in:bool}
      */
     private function buildCheckInWindow(Reservation $reservation, Carbon $checkInAt): array
     {
@@ -283,11 +282,13 @@ class StaffCheckInReadinessService
         $startUtc = Carbon::instance(\DateTimeImmutable::createFromInterface($reservation->start_time))->utc();
         $windowStartUtc = $startUtc->copy()->subMinutes($graceMinutes);
         $windowEndUtc = $startUtc->copy()->addMinutes($graceMinutes);
+        $earlyCheckIn = $checkInAt->lt($windowStartUtc);
 
         return [
             'start_utc' => $windowStartUtc,
             'end_utc' => $windowEndUtc,
-            'within_window' => $checkInAt->betweenIncluded($windowStartUtc, $windowEndUtc),
+            'within_window' => $checkInAt->lessThanOrEqualTo($windowEndUtc),
+            'early_check_in' => $earlyCheckIn,
         ];
     }
 
@@ -309,7 +310,6 @@ class StaffCheckInReadinessService
         array $reservationConflictTableIds,
         array $holdConflictTableIds,
         Carbon $checkInAt,
-        Carbon $windowStartUtc,
         Carbon $windowEndUtc,
     ): string {
         if ($isTerminal) {
@@ -346,10 +346,6 @@ class StaffCheckInReadinessService
 
         if ($reservationConflictTableIds !== []) {
             return 'assigned_table_reservation_conflict';
-        }
-
-        if ($checkInAt->lt($windowStartUtc)) {
-            return 'check_in_window_not_open';
         }
 
         if ($checkInAt->gt($windowEndUtc)) {

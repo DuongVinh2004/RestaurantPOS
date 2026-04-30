@@ -75,7 +75,7 @@ describe('AdminSettingsPage', () => {
           created_at: '2026-04-17T09:00:00Z',
           updated_at: '2026-04-17T10:00:00Z',
           business_hours: [],
-          closure_windows: [{ reason: 'Maintenance', start_local: '2026-04-18T00:00:00Z', end_local: '2026-04-18T04:00:00Z' }],
+          closure_windows: [{ reason: 'Bảo trì', start_local: '2026-04-18T00:00:00Z', end_local: '2026-04-18T04:00:00Z' }],
           booking_policy: {},
         },
       ],
@@ -130,10 +130,10 @@ describe('AdminSettingsPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Branches and settings lane')).toBeInTheDocument();
+    expect(await screen.findByText('Chi nhánh và thiết lập')).toBeInTheDocument();
     expect(await screen.findByText('Main branch')).toBeInTheDocument();
     expect((await screen.findAllByText('T-11')).length).toBeGreaterThan(0);
-    expect(screen.getByText('Kitchen routing')).toBeInTheDocument();
+    expect(screen.getByText('Tuyến bếp')).toBeInTheDocument();
     expect(apiMocks.listAdminBranches).toHaveBeenCalledWith({ q: undefined, is_active: true });
     expect(apiMocks.listAdminRestaurantTables).toHaveBeenCalledWith({
       q: undefined,
@@ -145,8 +145,8 @@ describe('AdminSettingsPage', () => {
 
     fireEvent.click(screen.getByText('Annex'));
 
-    await waitFor(() => expect(screen.getByText('Maintenance')).toBeInTheDocument());
-    expect(screen.getByText('No business hours configured')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Bảo trì')).toBeInTheDocument());
+    expect(screen.getByText('Chưa cấu hình giờ mở cửa')).toBeInTheDocument();
   });
 });
 

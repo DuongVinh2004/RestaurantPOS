@@ -3,7 +3,7 @@ import { staffRoutePaths } from '../../app/router/workspace-paths';
 
 export const opsNavigation: StaffWorkspaceNavigationDefinition = {
   workspace: 'ops',
-  label: 'Ops',
+  label: 'Vận hành',
   description: 'Điều phối sàn, đơn hàng, thanh toán và hội thoại vận hành.',
   landingPath: staffRoutePaths.ops.dashboard,
   groups: [

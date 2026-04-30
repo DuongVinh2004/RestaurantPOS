@@ -46,15 +46,15 @@ export function AdminLandingPage() {
     <div className="staff-admin-workspace">
       <Space orientation="vertical" size={16} style={{ width: '100%' }}>
         <PageHeader
-          eyebrow="Back office"
-          title="Admin control center"
-          description="Use the admin workspace for configuration, catalog ownership, and read models without mixing with live floor execution."
+          eyebrow="Quản trị"
+          title="Trung tâm quản trị"
+          description="Quản lý cấu hình nhà hàng, danh mục, kho, báo cáo và dữ liệu kiểm soát mà không lẫn với màn vận hành trực tiếp."
           context={(
             <>
-              <StatusChip label={`${summary.enabledCount}/${summary.domainCount} domains granted`} tone="processing" />
-              <StatusChip label={`${summary.liveCount} live pages`} tone="success" />
-              <StatusChip label={`${summary.importExportCount} import/export surfaces`} tone="default" />
-              <StatusChip label={branchId ? `Branch #${branchId}` : 'No branch locked'} tone={branchId ? 'processing' : 'warning'} />
+              <StatusChip label={`${summary.enabledCount}/${summary.domainCount} phân hệ có quyền`} tone="processing" />
+              <StatusChip label={`${summary.liveCount} màn đang dùng`} tone="success" />
+              <StatusChip label={`${summary.importExportCount} luồng nhập/xuất`} tone="default" />
+              <StatusChip label={branchId ? `Chi nhánh #${branchId}` : 'Chưa chọn chi nhánh'} tone={branchId ? 'processing' : 'warning'} />
             </>
           )}
           extra={(
@@ -71,31 +71,38 @@ export function AdminLandingPage() {
         <Row gutter={[16, 16]}>
           <Col xs={24} md={6}>
             <Card className="staff-admin-summary-card">
-              <Statistic title="Granted domains" value={summary.enabledCount} />
+              <Statistic title="Phân hệ có quyền" value={summary.enabledCount} />
             </Card>
           </Col>
           <Col xs={24} md={6}>
             <Card className="staff-admin-summary-card">
-              <Statistic title="Live routes" value={summary.liveCount} />
+              <Statistic title="Màn đang dùng" value={summary.liveCount} />
             </Card>
           </Col>
           <Col xs={24} md={6}>
             <Card className="staff-admin-summary-card">
-              <Statistic title="Branches in settings" value={branchesQuery.data?.data.length ?? 0} loading={branchesQuery.isLoading} />
+              <Statistic title="Chi nhánh đã cấu hình" value={branchesQuery.data?.data.length ?? 0} loading={branchesQuery.isLoading} />
             </Card>
           </Col>
           <Col xs={24} md={6}>
             <Card className="staff-admin-summary-card">
-              <Statistic title="Open purchase orders" value={purchaseOrdersQuery.data?.data.length ?? 0} loading={purchaseOrdersQuery.isLoading} />
+              <Statistic title="Đơn mua đang mở" value={purchaseOrdersQuery.data?.data.length ?? 0} loading={purchaseOrdersQuery.isLoading} />
             </Card>
           </Col>
         </Row>
 
+        <AdminOverviewCharts
+          summary={summary}
+          branchCount={branchesQuery.data?.data.length ?? 0}
+          purchaseOrderCount={purchaseOrdersQuery.data?.data.length ?? 0}
+          loading={branchesQuery.isLoading || purchaseOrdersQuery.isLoading}
+        />
+
         <InlineState
           tone={branchId ? 'info' : 'warning'}
-          eyebrow="Workspace boundary"
-          title={branchId ? `Back-office pages can reuse branch #${branchId} when a domain is branch-scoped.` : 'Some admin domains are branch-sensitive and no branch is locked yet.'}
-          description="Settings, inventory, reporting, and audit stay inside one admin route tree. Domains without a dedicated page remain visible here as contract-ready ownership lanes."
+          eyebrow="Phạm vi quản trị"
+          title={branchId ? `Các màn quản trị có thể dùng chi nhánh #${branchId} khi dữ liệu phụ thuộc chi nhánh.` : 'Một số phân hệ cần chi nhánh nhưng hiện chưa chọn chi nhánh.'}
+          description="Thiết lập, kho, báo cáo và nhật ký nằm trong cùng cây quản trị. Phân hệ chưa có màn riêng vẫn hiển thị rõ để không lẫn vào khu vực vận hành."
         />
 
         {groupedCards.map((group) => (
@@ -104,13 +111,7 @@ export function AdminLandingPage() {
               <div>
                 <Typography.Title level={4}>{group.label}</Typography.Title>
                 <Typography.Paragraph type="secondary">
-                  {group.key === 'control'
-                    ? 'Branch, table, and kitchen configuration lives here.'
-                    : group.key === 'catalog'
-                      ? 'Catalog and review domains stay outside live ops.'
-                      : group.key === 'supply'
-                        ? 'Supply control and receiving stay under admin ownership.'
-                        : 'Read models and investigations stay in the back office.'}
+                  {groupDescription(group.key)}
                 </Typography.Paragraph>
               </div>
             </div>
@@ -132,23 +133,23 @@ export function AdminLandingPage() {
                     </div>
 
                     <Typography.Text type="secondary">
-                      Backend surface: {card.backendSurface}
+                      API liên quan: {card.backendSurface}
                     </Typography.Text>
 
                     {card.capability ? (
                       <Typography.Text type="secondary">
-                        Capability: {card.capability}
+                        Quyền cần có: {card.capability}
                       </Typography.Text>
                     ) : null}
 
                     <div className="staff-admin-domain-card-actions">
                       {card.actionPath ? (
                         <Button type="primary" onClick={() => navigate(card.actionPath as string)}>
-                          Open {card.title}
+                          Mở {card.title}
                         </Button>
                       ) : (
                         <Typography.Text type="secondary">
-                          No dedicated page yet. Keep this domain on the admin roadmap instead of merging it into ops.
+                          Chưa có màn riêng. Phân hệ này vẫn nằm trong lộ trình quản trị, không trộn vào khu vực vận hành.
                         </Typography.Text>
                       )}
                     </div>
@@ -161,4 +162,108 @@ export function AdminLandingPage() {
       </Space>
     </div>
   );
+}
+
+function AdminOverviewCharts({
+  summary,
+  branchCount,
+  purchaseOrderCount,
+  loading,
+}: {
+  summary: ReturnType<typeof summarizeAdminWorkspace>;
+  branchCount: number;
+  purchaseOrderCount: number;
+  loading: boolean;
+}) {
+  const restrictedCount = Math.max(summary.domainCount - summary.enabledCount, 0);
+
+  return (
+    <Card className="staff-admin-overview-card" title="Sơ đồ tổng quan">
+      <div className="staff-admin-overview-grid">
+        <section aria-label="Biểu đồ phân hệ quản trị" className="staff-admin-chart-panel">
+          <div className="staff-admin-chart-head">
+            <Typography.Title level={5}>Phân hệ quản trị</Typography.Title>
+            <Typography.Text type="secondary">Tỷ lệ quyền, màn đã có và luồng cần rà soát.</Typography.Text>
+          </div>
+          <div className="staff-admin-chart-bars">
+            <ChartBar label="Có quyền thao tác" value={summary.enabledCount} max={summary.domainCount} tone="processing" />
+            <ChartBar label="Màn đang dùng" value={summary.liveCount} max={summary.domainCount} tone="success" />
+            <ChartBar label="Nhập / xuất dữ liệu" value={summary.importExportCount} max={summary.domainCount} tone="default" />
+            <ChartBar label="Cần quyền bổ sung" value={restrictedCount} max={summary.domainCount} tone="warning" />
+          </div>
+        </section>
+
+        <section aria-label="Sơ đồ vận hành quản trị" className="staff-admin-flow-panel">
+          <div className="staff-admin-chart-head">
+            <Typography.Title level={5}>Tín hiệu vận hành</Typography.Title>
+            <Typography.Text type="secondary">Dữ liệu thật từ các API quản trị đang có quyền đọc.</Typography.Text>
+          </div>
+          <div className="staff-admin-flow-map" aria-busy={loading}>
+            <AdminFlowStep label="Chi nhánh" value={branchCount} description="Đã cấu hình" tone="processing" />
+            <AdminFlowStep label="Đơn mua" value={purchaseOrderCount} description="Đang mở" tone="warning" />
+            <AdminFlowStep label="Báo cáo" value={summary.liveCount} description="Màn sẵn sàng" tone="success" />
+          </div>
+        </section>
+      </div>
+    </Card>
+  );
+}
+
+function ChartBar({
+  label,
+  value,
+  max,
+  tone,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  tone: 'success' | 'warning' | 'processing' | 'default';
+}) {
+  const percent = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
+
+  return (
+    <div className="staff-admin-chart-row">
+      <div className="staff-admin-chart-label">
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </div>
+      <div className="staff-admin-chart-track" aria-label={`${label}: ${value}`}>
+        <span className={`staff-admin-chart-fill staff-admin-chart-fill-${tone}`} style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function AdminFlowStep({
+  label,
+  value,
+  description,
+  tone,
+}: {
+  label: string;
+  value: number;
+  description: string;
+  tone: 'success' | 'warning' | 'processing';
+}) {
+  return (
+    <div className={`staff-admin-flow-step staff-admin-flow-step-${tone}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{description}</small>
+    </div>
+  );
+}
+
+function groupDescription(groupKey: ReturnType<typeof groupAdminWorkspaceCards>[number]['key']): string {
+  switch (groupKey) {
+    case 'control':
+      return 'Chi nhánh, bàn và tuyến bếp được cấu hình tại đây.';
+    case 'catalog':
+      return 'Danh mục món, giá bán và ưu đãi tách khỏi màn vận hành trực tiếp.';
+    case 'supply':
+      return 'Kho, nhà cung cấp và nhận hàng thuộc quyền quản trị.';
+    default:
+      return 'Báo cáo, nhật ký và dữ liệu kiểm soát nằm ở back office.';
+  }
 }

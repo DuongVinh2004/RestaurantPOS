@@ -57,17 +57,17 @@ type PurchaseReceiptLike = {
 };
 
 export const inventoryMovementTypeOptions = [
-  { value: 'AdjustmentIncrease', label: 'Adjustment increase' },
-  { value: 'AdjustmentDecrease', label: 'Adjustment decrease' },
-  { value: 'Wastage', label: 'Wastage' },
-  { value: 'StockIn', label: 'Stock in' },
-  { value: 'StockOut', label: 'Stock out' },
+  { value: 'AdjustmentIncrease', label: 'Điều chỉnh tăng' },
+  { value: 'AdjustmentDecrease', label: 'Điều chỉnh giảm' },
+  { value: 'Wastage', label: 'Hao hụt' },
+  { value: 'StockIn', label: 'Nhập kho' },
+  { value: 'StockOut', label: 'Xuất kho' },
 ] as const;
 
 export const adminInventoryLaneNotes = [
-  'Ingredients, suppliers, and purchase orders stay together under one admin supply lane.',
-  'Purchase-order reads honor the current shell branch when a branch context is selected.',
-  'Receiving and recipe details remain backend-owned even when the first page is read-heavy.',
+  'Nguyên liệu, nhà cung cấp và đơn mua hàng được quản lý cùng một khu vực kho.',
+  'Danh sách đơn mua hàng ưu tiên chi nhánh đang chọn trong shell vận hành.',
+  'Chi tiết nhận hàng và định lượng món vẫn tuân theo hợp đồng backend hiện có.',
 ];
 
 export function buildAdminIngredientQuery(
@@ -176,6 +176,40 @@ export function adminPurchaseOrderTone(status: string): 'success' | 'warning' | 
   }
 }
 
+export function adminPurchaseOrderStatusLabel(status: string): string {
+  switch (status) {
+    case 'Draft':
+      return 'Nháp';
+    case 'Ordered':
+      return 'Đã đặt hàng';
+    case 'PartiallyReceived':
+      return 'Nhận một phần';
+    case 'Received':
+      return 'Đã nhận đủ';
+    case 'Cancelled':
+      return 'Đã hủy';
+    default:
+      return status || 'Không rõ';
+  }
+}
+
+export function inventoryMovementTypeLabel(type: string): string {
+  return inventoryMovementTypeOptions.find((option) => option.value === type)?.label ?? type;
+}
+
+export function inventoryReceiptStatusLabel(status: string): string {
+  switch (status) {
+    case 'Received':
+      return 'Đã nhận';
+    case 'Draft':
+      return 'Nháp';
+    case 'Cancelled':
+      return 'Đã hủy';
+    default:
+      return status || 'Không rõ';
+  }
+}
+
 export function inventoryMovementTone(type: string): 'success' | 'warning' | 'error' | 'processing' | 'default' {
   switch (type) {
     case 'StockIn':
@@ -192,7 +226,7 @@ export function inventoryMovementTone(type: string): 'success' | 'warning' | 'er
 }
 
 export function formatInventoryQuantity(value: string | number | null | undefined): string {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('vi-VN', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 3,
   }).format(numericValue(value));

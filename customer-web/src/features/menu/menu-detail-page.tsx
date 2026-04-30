@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorState, LoadingBlock } from "@/components/states/state-blocks";
 import { queryKeys } from "@/lib/api/query-keys";
 import { formatMoney } from "@/lib/contracts/format";
+import { displayMenuText } from "@/lib/i18n/customer-display";
 import { getMenuItem } from "./api";
 import { MenuItemImage } from "./menu-item-image";
 
@@ -35,6 +36,9 @@ export function MenuDetailPage({ id }: { id: number }) {
   }
 
   const item = itemQuery.data;
+  const itemName = displayMenuText(item.name, "Món ăn");
+  const categoryName = displayMenuText(item.category_name, "Thực đơn");
+  const description = displayMenuText(item.description, "Nhân viên nhà hàng sẽ tư vấn thêm khi bạn gọi món.");
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-6">
@@ -51,13 +55,13 @@ export function MenuDetailPage({ id }: { id: number }) {
           <div className="space-y-4 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h1 className="text-3xl font-semibold tracking-normal">{item.name}</h1>
-                <p className="mt-2 text-muted-foreground">{item.description ?? "Nhân viên nhà hàng sẽ tư vấn thêm khi bạn gọi món."}</p>
+                <h1 className="text-3xl font-semibold tracking-normal">{itemName}</h1>
+                <p className="mt-2 text-muted-foreground">{description}</p>
               </div>
-              <span className="text-xl font-semibold">{formatMoney(item.price.amount, item.price.currency ?? "USD")}</span>
+              <span className="text-xl font-semibold">{formatMoney(item.price.amount, item.price.currency ?? "VND")}</span>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="rounded-md">{item.category_name ?? "Thực đơn"}</Badge>
+              <Badge variant="outline" className="rounded-md">{categoryName}</Badge>
               <Badge variant={item.is_available ? "outline" : "secondary"} className="rounded-md">
                 {item.is_available ? "Còn phục vụ" : "Tạm hết"}
               </Badge>

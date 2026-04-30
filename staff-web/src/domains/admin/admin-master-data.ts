@@ -28,13 +28,13 @@ export type ParsedAdminImportRows =
 export const settingsImportDomains: Array<AdminImportDomainOption> = [
   {
     domain: 'branches',
-    label: 'Branches',
+    label: 'Chi nhánh',
     capability: 'settings.manage',
     requiredColumns: ['branch_code', 'branch_name'],
   },
   {
     domain: 'restaurant-tables',
-    label: 'Restaurant tables',
+    label: 'Bàn nhà hàng',
     capability: 'settings.manage',
     requiredColumns: ['branch_code', 'table_code', 'template_code'],
   },
@@ -43,19 +43,19 @@ export const settingsImportDomains: Array<AdminImportDomainOption> = [
 export const catalogImportDomains: Array<AdminImportDomainOption> = [
   {
     domain: 'menu-categories',
-    label: 'Menu categories',
+    label: 'Loại món',
     capability: 'menu.manage',
     requiredColumns: ['name'],
   },
   {
     domain: 'menu-items',
-    label: 'Menu items',
+    label: 'Món ăn',
     capability: 'menu.manage',
     requiredColumns: ['code', 'name'],
   },
   {
     domain: 'menu-prices',
-    label: 'Menu prices',
+    label: 'Giá món',
     capability: 'menu.manage',
     requiredColumns: ['item_code', 'price', 'effective_from'],
   },
@@ -68,7 +68,7 @@ export function parseAdminImportRows(input: string): ParsedAdminImportRows {
     return {
       ok: false,
       rows: [],
-      error: 'Provide a JSON array of import rows before previewing.',
+      error: 'Hãy nhập mảng JSON dữ liệu trước khi chạy thử.',
     };
   }
 
@@ -80,7 +80,7 @@ export function parseAdminImportRows(input: string): ParsedAdminImportRows {
       return {
         ok: false,
         rows: [],
-        error: 'Import JSON must be an array of objects or an object with a rows array.',
+        error: 'JSON nhập liệu phải là mảng object hoặc object có trường rows là mảng.',
       };
     }
 
@@ -88,7 +88,7 @@ export function parseAdminImportRows(input: string): ParsedAdminImportRows {
       return {
         ok: false,
         rows: [],
-        error: 'Import rows cannot be empty.',
+        error: 'Dữ liệu nhập không được để trống.',
       };
     }
 
@@ -101,7 +101,7 @@ export function parseAdminImportRows(input: string): ParsedAdminImportRows {
     return {
       ok: false,
       rows: [],
-      error: 'Import JSON is malformed.',
+      error: 'JSON nhập liệu chưa đúng định dạng.',
     };
   }
 }

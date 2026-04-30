@@ -87,10 +87,13 @@ describe("MenuPage", () => {
     mocks.listMenuCategories.mockResolvedValue([]);
   });
 
-  it("links to menu item detail when the item detail contract is enabled", async () => {
+  it("links to menu item detail and renders Vietnamese menu display text", async () => {
     renderPage();
 
     expect(await screen.findByRole("searchbox", { name: "Tìm món trong thực đơn" })).toBeInTheDocument();
+    expect(await screen.findByText("Phở bò")).toBeInTheDocument();
+    expect(screen.getByText("Món nước")).toBeInTheDocument();
+    expect(screen.getByText("Phở bò với nước dùng trong, ăn kèm rau thơm.")).toBeInTheDocument();
 
     const detailLink = await screen.findByRole("link", { name: "Chi tiết" });
 
@@ -102,7 +105,7 @@ describe("MenuPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Pho Bo")).toBeInTheDocument();
+    expect(await screen.findByText("Phở bò")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Chi tiết" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Chi tiết" })).toBeDisabled();
   });

@@ -140,7 +140,8 @@ describe("guest hold to reservation session flow", () => {
 
     renderFlow();
 
-    expect(await screen.findByText(/Đang dùng bàn giữ hold-guest-123/i)).toBeInTheDocument();
+    expect(await screen.findByText("Mã giữ bàn")).toBeInTheDocument();
+    expect(screen.getByText("hold-guest-123")).toBeInTheDocument();
     expect(screen.queryByText("Đăng nhập để tiếp tục")).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Tên khách"), "Guest Booker");

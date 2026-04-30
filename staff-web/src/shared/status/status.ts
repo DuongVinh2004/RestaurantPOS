@@ -8,11 +8,11 @@ export function tableTone(status: string | null | undefined): StatusTone {
     case 'occupied':
     case 'occupied_now':
     case 'open':
-      return 'warning';
+      return 'processing';
     case 'reserved':
     case 'reserved_in_range':
     case 'held_in_range':
-      return 'processing';
+      return 'warning';
     case 'available':
       return 'success';
     case 'blocked':
@@ -31,11 +31,13 @@ export function reservationTone(status: string | null | undefined): StatusTone {
     case 'completed':
       return 'success';
     case 'confirmed':
-    case 'pending':
       return 'processing';
+    case 'pending':
+      return 'warning';
     case 'noshow':
     case 'no_show':
     case 'cancelled':
+    case 'expired':
       return 'error';
     default:
       return 'default';
@@ -45,10 +47,12 @@ export function reservationTone(status: string | null | undefined): StatusTone {
 export function orderTone(status: string | null | undefined): StatusTone {
   switch ((status ?? '').toLowerCase()) {
     case 'ordered':
+    case 'pending':
       return 'warning';
     case 'open':
     case 'inprogress':
     case 'in_progress':
+    case 'preparing':
       return 'processing';
     case 'served':
     case 'paid':
@@ -92,6 +96,8 @@ export function paymentTone(status: string | null | undefined): StatusTone {
       return 'default';
     case 'unpaid':
     case 'pending':
+      return 'warning';
+    case 'processing':
       return 'processing';
     case 'refunded':
     case 'forfeited':
@@ -107,7 +113,7 @@ export function conversationTone(status: string | null | undefined): StatusTone 
     case 'open':
       return 'warning';
     case 'pending':
-      return 'processing';
+      return 'warning';
     case 'closed':
       return 'success';
     case 'spam':
@@ -122,7 +128,11 @@ export function waitingTone(status: string | null | undefined): StatusTone {
     case 'waiting':
       return 'warning';
     case 'notified':
+    case 'invited':
+    case 'accepted':
+    case 'confirmed':
       return 'processing';
+    case 'arrived':
     case 'seated':
       return 'success';
     case 'cancelled':

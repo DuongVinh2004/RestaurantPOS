@@ -13,8 +13,19 @@ describe('core api errors', () => {
 
     const formatted = formatApiError(error, 'Khong the hoan tat thao tac.');
 
+    expect(formatted).toContain('Bạn chưa có quyền thực hiện thao tác này.');
     expect(formatted).toContain('settlement.manage');
     expect(formatted).toContain('req-staff-403');
+  });
+
+  it('keeps staff-facing API errors in Vietnamese', () => {
+    const error = new StaffApiError(409, {
+      error_code: 'stale_row_version',
+      category_code: 'stale_write',
+      message: 'The resource was modified by another writer.',
+    }, 'Conflict');
+
+    expect(formatApiError(error, 'Không thể cập nhật dữ liệu.')).toBe('Dữ liệu đã thay đổi. Vui lòng tải lại trước khi thao tác tiếp.');
   });
 
   it('normalizes machine-readable domain metadata for mutation mapping', () => {

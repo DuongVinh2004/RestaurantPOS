@@ -36,6 +36,7 @@ import {
   groupKitchenTicketsByLane,
   isKitchenTicketStatusFilter,
   kitchenTicketStatusOptions,
+  kitchenStationDisplayName,
   resolveKitchenBranchGuard,
   resolveKitchenStationContext,
   resolveKitchenWorkspaceGuard,
@@ -165,7 +166,7 @@ export function KitchenBoardPage() {
 
     setStationContext({
       stationId: selectedStation.station_id,
-      label: selectedStation.name,
+      label: kitchenStationDisplayName(selectedStation),
       source: 'kitchen',
     });
   }, [selectedStation, setStationContext, storedStationId]);
@@ -257,11 +258,11 @@ export function KitchenBoardPage() {
   const dispatchMutation = useMutation({
     mutationFn: async () => {
       if (!journey.orderId) {
-        throw new Error('No order context is available for kitchen dispatch.');
+        throw new Error('Chưa có ngữ cảnh đơn hàng để gửi xuống bếp.');
       }
 
       if (journey.orderRowVersion === undefined) {
-        throw new Error('Refresh the order before dispatching it to kitchen.');
+        throw new Error('Hãy tải lại đơn hàng trước khi gửi xuống bếp.');
       }
 
       return dispatchKitchenOrder(journey.orderId, {
@@ -287,18 +288,18 @@ export function KitchenBoardPage() {
       }
 
       if (!dispatchedTicket && unroutedCount > 0) {
-        toast.warning(`Order #${journey.orderId} did not create kitchen tickets because ${unroutedCount} items are unrouted.`);
+        toast.warning(`Đơn #${journey.orderId} chưa tạo phiếu bếp vì ${unroutedCount} món chưa có tuyến bếp.`);
         return;
       }
 
-      toast.success(`Order #${journey.orderId} was dispatched to kitchen.`);
+      toast.success(`Đã gửi đơn #${journey.orderId} xuống bếp.`);
 
       if (unroutedCount > 0) {
-        toast.warning(`${unroutedCount} items did not create tickets because they are unrouted.`);
+        toast.warning(`${unroutedCount} món chưa tạo phiếu vì chưa được gán tuyến bếp.`);
       }
     },
     onError: (error) => {
-      toast.error(formatApiError(error, 'Could not dispatch the order to kitchen.'));
+      toast.error(formatApiError(error, 'Không thể gửi đơn xuống bếp.'));
     },
   });
 
@@ -326,10 +327,10 @@ export function KitchenBoardPage() {
         queryClient.invalidateQueries({ queryKey: ['order-detail', orderId] }),
         queryClient.invalidateQueries({ queryKey: ['checkout-order-detail', orderId] }),
       ]);
-      toast.success('Kitchen ticket was updated.');
+      toast.success('Đã cập nhật phiếu bếp.');
     },
     onError: (error) => {
-      const normalized = normalizeApiError(error, 'Could not update the kitchen ticket.');
+      const normalized = normalizeApiError(error, 'Không thể cập nhật phiếu bếp.');
       const staleWrite = normalized.code === 'stale_row_version'
         || normalized.categoryCode === 'stale_write'
         || normalized.conflictType === 'stale_write';
@@ -339,11 +340,11 @@ export function KitchenBoardPage() {
           queryClient.invalidateQueries({ queryKey: kitchenQueryKeys.ticketsRoot(), refetchType: 'active' }),
           queryClient.invalidateQueries({ queryKey: kitchenQueryKeys.stationsRoot(), refetchType: 'active' }),
         ]);
-        toast.warning(`${normalized.message} The kitchen queue was refreshed before retry.`);
+        toast.warning(`${normalized.message} Bảng phiếu bếp đã được tải lại trước khi thao tác tiếp.`);
         return;
       }
 
-      toast.error(formatApiError(error, 'Could not update the kitchen ticket.'));
+      toast.error(formatApiError(error, 'Không thể cập nhật phiếu bếp.'));
     },
   });
 
@@ -366,8 +367,8 @@ export function KitchenBoardPage() {
 
     try {
       const confirmed = await confirmAction({
-        title: `${labelForTicketAction(action)} ticket #${ticketId}`,
-        content: 'Only the next safe lifecycle transition will be sent for the selected kitchen ticket.',
+        title: `${labelForTicketAction(action)} phiếu #${ticketId}`,
+        content: 'Hệ thống chỉ gửi bước chuyển trạng thái hợp lệ tiếp theo cho phiếu bếp đang chọn.',
         okText: labelForTicketAction(action),
         danger: action === 'recall',
       });
@@ -420,21 +421,21 @@ export function KitchenBoardPage() {
 
   return (
     <div className="staff-kitchen-board-page" data-testid="kitchen-board-page">
-      <section className="staff-kitchen-board-head" aria-label="Kitchen board context">
+      <section className="staff-kitchen-board-head" aria-label="Ngữ cảnh bảng phiếu bếp">
         <div className="staff-kitchen-board-title">
-          <span className="staff-eyebrow">Kitchen line</span>
-          <h2>Ticket queue</h2>
-          <p>Run the selected station through queued, in-prep, and ready lanes.</p>
+          <span className="staff-eyebrow">Line bếp</span>
+          <h2>Bảng phiếu bếp</h2>
+          <p>Theo dõi món theo ba trạng thái rõ ràng: chờ làm, đang làm và sẵn sàng mang ra bàn.</p>
         </div>
 
         <div className="staff-kitchen-board-toolbar">
-          <StatusChip label={branchId ? `Branch #${branchId}` : 'No branch'} tone={branchId ? 'processing' : 'warning'} />
-          <StatusChip label={selectedStation ? selectedStation.name : 'No station'} tone={selectedStation ? 'processing' : 'warning'} />
-          <StatusChip label={`${ticketSummary.all} tickets`} tone="default" />
+          <StatusChip label={branchId ? `Chi nhánh #${branchId}` : 'Chưa chọn chi nhánh'} tone={branchId ? 'processing' : 'warning'} />
+          <StatusChip label={selectedStation ? kitchenStationDisplayName(selectedStation) : 'Chưa chọn trạm'} tone={selectedStation ? 'processing' : 'warning'} />
+          <StatusChip label={`${ticketSummary.all} phiếu`} tone="default" />
           <StatusChip label={realtimeSummary.label} tone={realtimeSummary.tone} />
           <div className="staff-toolbar-select-wrap">
             <select
-              aria-label="Filter kitchen tickets by status"
+              aria-label="Lọc phiếu bếp theo trạng thái"
               className="staff-toolbar-select"
               value={ticketStatus}
               onChange={handleTicketStatusChange}
@@ -447,49 +448,49 @@ export function KitchenBoardPage() {
             </select>
           </div>
           <Button onClick={() => ticketsQuery.refetch()} disabled={!stationId || !isOnline} loading={ticketsQuery.isFetching}>
-            Refresh queue
+            Tải lại phiếu
           </Button>
           <Button onClick={() => setShowChangeFeed((value) => !value)}>
-            {showChangeFeed ? 'Hide live sync' : 'Show live sync'}
+            {showChangeFeed ? 'Ẩn đồng bộ' : 'Hiện đồng bộ'}
           </Button>
         </div>
       </section>
 
       {!isOnline ? (
         <InlineWarning
-          title="Kitchen connection is offline"
-          description="Fast actions are paused. The queue will refetch when the browser reconnects."
+          title="Kết nối bếp đang ngoại tuyến"
+          description="Tạm dừng thao tác nhanh. Bảng phiếu sẽ tự tải lại khi trình duyệt kết nối lại."
         />
       ) : null}
 
       {blockingState ?? (
         <div className="staff-kitchen-board-grid">
-          <section className="staff-kitchen-panel staff-kitchen-board-stations" aria-label="Station context">
+          <section className="staff-kitchen-panel staff-kitchen-board-stations" aria-label="Trạm bếp">
             <div className="staff-kitchen-section-head">
               <div>
-                <span className="staff-eyebrow">Station</span>
-                <h3>Assigned lane</h3>
+                <span className="staff-eyebrow">Trạm</span>
+                <h3>Line đang thao tác</h3>
               </div>
               <Button
                 onClick={() => navigate(staffRoutePaths.kitchen.landing)}
                 type="text"
               >
-                Change
+                Đổi trạm
               </Button>
             </div>
 
-            {stationsQuery.isLoading ? <InlineLoading tip="Loading kitchen stations..." /> : null}
+            {stationsQuery.isLoading ? <InlineLoading tip="Đang tải trạm bếp..." /> : null}
             {stationsQuery.error ? (
               <TransientFailureState
-                title="Kitchen stations are not available"
-                description={formatApiError(stationsQuery.error, 'Could not load kitchen stations.')}
-                primaryAction={<Button onClick={() => stationsQuery.refetch()}>Retry</Button>}
+                title="Chưa tải được trạm bếp"
+                description={formatApiError(stationsQuery.error, 'Không thể tải danh sách trạm bếp.')}
+                primaryAction={<Button onClick={() => stationsQuery.refetch()}>Tải lại</Button>}
               />
             ) : null}
             {!stationsQuery.isLoading && !stationsQuery.error && stations.length === 0 ? (
               <EmptyBlock
-                title="No station configured"
-                description="The selected branch has no station available to the kitchen workspace."
+                title="Chưa có trạm bếp"
+                description="Chi nhánh đang chọn chưa có trạm bếp khả dụng."
               />
             ) : null}
             {stationContext.guard && stationContext.guard.kind !== 'missing-assigned-station' ? (
@@ -500,7 +501,7 @@ export function KitchenBoardPage() {
               />
             ) : null}
             {stationContext.selectableStations.length > 0 ? (
-              <div className="staff-kitchen-station-list" role="list" aria-label="Kitchen stations">
+              <div className="staff-kitchen-station-list" role="list" aria-label="Danh sách trạm bếp">
                 {stationContext.selectableStations.map((station) => (
                   <button
                     key={station.station_id}
@@ -513,24 +514,24 @@ export function KitchenBoardPage() {
                       <div className="staff-kitchen-station-card-head">
                         <div className="staff-kitchen-station-copy">
                           <span className="staff-kitchen-station-code">{station.code}</span>
-                          <strong>{station.name}</strong>
+                          <strong>{kitchenStationDisplayName(station)}</strong>
                         </div>
                         <span className={`staff-kitchen-station-state${station.station_id === stationId ? ' staff-kitchen-station-state-active' : ''}`}>
-                          {station.station_id === stationId ? 'Locked' : 'Select'}
+                          {station.station_id === stationId ? 'Đang chọn' : 'Chọn'}
                         </span>
                       </div>
                       <div className="staff-kitchen-station-metrics">
                         <span>
                           <strong>{translateUiCode(station.output_mode)}</strong>
-                          <small>Mode</small>
+                          <small>Chế độ</small>
                         </span>
                         <span>
                           <strong>{station.ticket_counts.queued}</strong>
-                          <small>Queued</small>
+                          <small>Chờ làm</small>
                         </span>
                         <span>
                           <strong>{station.ticket_counts.ready}</strong>
-                          <small>Ready</small>
+                          <small>Sẵn sàng</small>
                         </span>
                       </div>
                       <p className="staff-kitchen-station-summary">{stationWorkloadLabel(station)}</p>
@@ -541,37 +542,37 @@ export function KitchenBoardPage() {
             ) : null}
           </section>
 
-          <section className="staff-kitchen-panel staff-kitchen-board-lanes" aria-label="Ticket status lanes">
+          <section className="staff-kitchen-panel staff-kitchen-board-lanes" aria-label="Các cột trạng thái phiếu bếp">
             <div className="staff-kitchen-section-head">
               <div>
-                <span className="staff-eyebrow">Queue</span>
-                <h3>{selectedStation ? selectedStation.name : 'Select station'}</h3>
+                <span className="staff-eyebrow">Hàng đợi</span>
+                <h3>{selectedStation ? kitchenStationDisplayName(selectedStation) : 'Chọn trạm bếp'}</h3>
               </div>
-              <div className="staff-kitchen-lane-summary" aria-label="Ticket summary">
-                <StatusChip label={`${ticketSummary.queued} queued`} tone="warning" />
-                <StatusChip label={`${ticketSummary.fired} in prep`} tone="processing" />
-                <StatusChip label={`${ticketSummary.ready} ready`} tone="success" />
+              <div className="staff-kitchen-lane-summary" aria-label="Tóm tắt phiếu bếp">
+                <StatusChip label={`${ticketSummary.queued} chờ làm`} tone="warning" />
+                <StatusChip label={`${ticketSummary.fired} đang làm`} tone="processing" />
+                <StatusChip label={`${ticketSummary.ready} sẵn sàng`} tone="success" />
               </div>
             </div>
 
             {!stationId && !stationsQuery.isLoading ? (
               <EmptyBlock
-                title="Station selection required"
-                description="Choose one assigned station before loading tickets."
+                title="Cần chọn trạm bếp"
+                description="Chọn một trạm được gán trước khi tải danh sách phiếu."
               />
             ) : null}
-            {stationId && ticketsQuery.isLoading ? <InlineLoading tip="Loading kitchen tickets..." /> : null}
+            {stationId && ticketsQuery.isLoading ? <InlineLoading tip="Đang tải phiếu bếp..." /> : null}
             {stationId && ticketsQuery.error ? (
               <TransientFailureState
-                title="Kitchen tickets are not available"
-                description={formatApiError(ticketsQuery.error, 'Could not load kitchen tickets.')}
-                primaryAction={<Button onClick={() => ticketsQuery.refetch()}>Retry</Button>}
+                title="Chưa tải được phiếu bếp"
+                description={formatApiError(ticketsQuery.error, 'Không thể tải danh sách phiếu bếp.')}
+                primaryAction={<Button onClick={() => ticketsQuery.refetch()}>Tải lại</Button>}
               />
             ) : null}
             {stationId && !ticketsQuery.isLoading && !ticketsQuery.error && tickets.length === 0 ? (
               <EmptyBlock
-                title="No tickets in this lane"
-                description="The selected station has no tickets for the current status filter."
+                title="Chưa có phiếu trong bộ lọc này"
+                description="Trạm đang chọn chưa có phiếu bếp phù hợp với trạng thái hiện tại."
               />
             ) : null}
             {stationId && !ticketsQuery.isLoading && !ticketsQuery.error && tickets.length > 0 ? (
@@ -583,7 +584,7 @@ export function KitchenBoardPage() {
             ) : null}
           </section>
 
-          <aside className="staff-kitchen-panel staff-kitchen-board-detail" aria-label="Selected ticket">
+          <aside className="staff-kitchen-panel staff-kitchen-board-detail" aria-label="Phiếu bếp đang chọn">
             <TicketDetailPanel
               isOnline={isOnline}
               isPending={ticketActionMutation.isPending || lockedTicketAction !== null}
@@ -593,48 +594,48 @@ export function KitchenBoardPage() {
             />
 
             {journey.orderId && canDispatchOrder ? (
-              <section className="staff-kitchen-subpanel" aria-label="Order handoff">
+              <section className="staff-kitchen-subpanel" aria-label="Gửi đơn xuống bếp">
                 <div className="staff-kitchen-section-head">
                   <div>
-                    <span className="staff-eyebrow">Order handoff</span>
-                    <h3>Dispatch order #{journey.orderId}</h3>
+                    <span className="staff-eyebrow">Chuyển món</span>
+                    <h3>Gửi đơn #{journey.orderId}</h3>
                   </div>
                 </div>
-                <p className="staff-kitchen-muted">Use this only when the order flow has handed context into the kitchen workspace.</p>
+                <p className="staff-kitchen-muted">Dùng khi luồng gọi món đã chuyển đúng đơn sang màn bếp.</p>
                 <Button
                   type="primary"
                   onClick={() => dispatchMutation.mutate()}
                   disabled={!journey.orderId || journey.orderRowVersion === undefined || !isOnline}
                   loading={dispatchMutation.isPending}
                 >
-                  Dispatch order to kitchen
+                  Gửi đơn xuống bếp
                 </Button>
               </section>
             ) : null}
 
-            <section className="staff-kitchen-subpanel" aria-label="Live kitchen sync">
+            <section className="staff-kitchen-subpanel" aria-label="Đồng bộ bếp">
               <div className="staff-kitchen-section-head">
                 <div>
-                  <span className="staff-eyebrow">Live sync</span>
-                  <h3>{showChangeFeed ? 'Watching changes' : 'Collapsed'}</h3>
+                  <span className="staff-eyebrow">Đồng bộ</span>
+                  <h3>{showChangeFeed ? 'Đang theo dõi thay đổi' : 'Đã thu gọn'}</h3>
                 </div>
                 <StatusChip label={realtimeSummary.label} tone={realtimeSummary.tone} />
               </div>
               {!showChangeFeed ? (
-                <p className="staff-kitchen-muted">Open live sync when you need to confirm realtime cursor health.</p>
+                <p className="staff-kitchen-muted">Mở phần đồng bộ khi cần kiểm tra tình trạng cập nhật dữ liệu bếp.</p>
               ) : changesQuery.isLoading ? (
-                <InlineLoading tip="Reading kitchen changes..." />
+                <InlineLoading tip="Đang đọc thay đổi trong bếp..." />
               ) : changesQuery.error ? (
                 <TransientFailureState
-                  title="Kitchen sync is not available"
-                  description={formatApiError(changesQuery.error, 'Could not read the kitchen change feed.')}
-                  primaryAction={<Button onClick={() => changesQuery.refetch()}>Retry</Button>}
+                  title="Chưa đọc được đồng bộ bếp"
+                  description={formatApiError(changesQuery.error, 'Không thể đọc luồng thay đổi của bếp.')}
+                  primaryAction={<Button onClick={() => changesQuery.refetch()}>Tải lại</Button>}
                 />
               ) : (
                 <div className="staff-kitchen-sync-grid">
-                  <Metric label="Events" value={realtimeSummary.eventCount} />
-                  <Metric label="Poll sec" value={realtimeSummary.pollHintSeconds ?? 0} />
-                  <Metric label="Drift" value={ticketSummary.drift} />
+                  <Metric label="Sự kiện" value={realtimeSummary.eventCount} />
+                  <Metric label="Chu kỳ giây" value={realtimeSummary.pollHintSeconds ?? 0} />
+                  <Metric label="Lệch dữ liệu" value={ticketSummary.drift} />
                 </div>
               )}
             </section>
@@ -667,7 +668,7 @@ function TicketLanes({
           </div>
 
           {lane.tickets.length === 0 ? (
-            <p className="staff-kitchen-muted">No tickets.</p>
+            <p className="staff-kitchen-muted">Chưa có phiếu.</p>
           ) : (
             <div className="staff-kitchen-ticket-stack">
               {lane.tickets.map((ticket) => (
@@ -680,9 +681,9 @@ function TicketLanes({
                 >
                   <span className="staff-kitchen-ticket-card-title">{ticketDisplayName(ticket)}</span>
                   <span className="staff-kitchen-ticket-card-meta">
-                    Order #{ticket.order.order_id} / {formatRelativeAge(ticket.updated_at)}
+                    Đơn #{ticket.order.order_id} / {formatRelativeAge(ticket.updated_at)}
                   </span>
-                  <StatusChip label={ticket.ticket_status} tone={kitchenTone(ticket.ticket_status)} />
+                  <StatusChip label={translateUiCode(ticket.ticket_status)} tone={kitchenTone(ticket.ticket_status)} />
                 </button>
               ))}
             </div>
@@ -708,10 +709,10 @@ function TicketDetailPanel({
 }) {
   if (!selectedTicket) {
     return (
-      <section className="staff-kitchen-subpanel" aria-label="No ticket selected">
+      <section className="staff-kitchen-subpanel" aria-label="Chưa chọn phiếu bếp">
         <EmptyBlock
-          title="Select a ticket"
-          description="Choose a ticket from a status lane to inspect its timeline and fast actions."
+          title="Chọn một phiếu bếp"
+          description="Chọn phiếu trong các cột trạng thái để xem tiến trình và thao tác nhanh."
         />
       </section>
     );
@@ -721,48 +722,50 @@ function TicketDetailPanel({
   const disableActions = !isOnline || isPending || stationId === null || selectedTicket.row_version === null;
 
   return (
-    <section className="staff-kitchen-subpanel" aria-label="Selected ticket details">
+    <section className="staff-kitchen-subpanel" aria-label="Chi tiết phiếu bếp">
       <div className="staff-kitchen-section-head">
         <div>
-          <span className="staff-eyebrow">Ticket #{selectedTicket.ticket_id}</span>
+          <span className="staff-eyebrow">Phiếu #{selectedTicket.ticket_id}</span>
           <h3>{ticketDisplayName(selectedTicket)}</h3>
         </div>
-        <StatusChip label={selectedTicket.ticket_status} tone={kitchenTone(selectedTicket.ticket_status)} />
+        <StatusChip label={translateUiCode(selectedTicket.ticket_status)} tone={kitchenTone(selectedTicket.ticket_status)} />
       </div>
 
       <div className="staff-kitchen-ticket-facts">
-        <span>Order #{selectedTicket.order.order_id}</span>
-        <span>Ticket v{selectedTicket.row_version ?? 'n/a'}</span>
-        <span>Dispatch {selectedTicket.dispatch_count}</span>
-        <span>Recall {selectedTicket.recall_count}</span>
+        <span>Đơn #{selectedTicket.order.order_id}</span>
+        <span>Phiếu v{selectedTicket.row_version ?? 'chưa có'}</span>
+        <span>Gửi bếp {selectedTicket.dispatch_count}</span>
+        <span>Gọi lại {selectedTicket.recall_count}</span>
         <span>{formatRelativeAge(selectedTicket.updated_at)}</span>
       </div>
 
-      <div className="staff-kitchen-ticket-timeline" aria-label="Ticket timeline">
+      <div className="staff-kitchen-ticket-timeline" aria-label="Tiến trình phiếu bếp">
         {ticketTimeline(selectedTicket).map((entry) => (
           <div key={entry.key} className={`staff-kitchen-timeline-item${entry.active ? ' staff-kitchen-timeline-item-active' : ''}`}>
             <span>{entry.label}</span>
-            <strong>{entry.value ? formatDateTime(entry.value) : 'Pending'}</strong>
+            <strong>{entry.value ? formatDateTime(entry.value) : 'Chưa có'}</strong>
           </div>
         ))}
       </div>
 
       <div className="staff-kitchen-fast-actions">
         <Button
+          type="primary"
           size="large"
           onClick={() => onTicketAction('fire')}
           disabled={disableActions || !allowedActions.includes('fire')}
           loading={isPending}
         >
-          Fire
+          Bắt đầu làm
         </Button>
         <Button
+          type="primary"
           size="large"
           onClick={() => onTicketAction('bump')}
           disabled={disableActions || !allowedActions.includes('bump')}
           loading={isPending}
         >
-          Bump ready
+          Báo đã xong
         </Button>
         <Button
           size="large"
@@ -771,7 +774,7 @@ function TicketDetailPanel({
           disabled={disableActions || !allowedActions.includes('recall')}
           loading={isPending}
         >
-          Recall
+          Gọi lại bếp
         </Button>
       </div>
     </section>
@@ -836,9 +839,9 @@ function renderKitchenBoardGuard({
     return (
       <TransientFailureState
         variant="page"
-        title="Kitchen board is offline"
-        description="Reconnect before loading ticket queues or sending fast actions."
-        primaryAction={<Button onClick={onRetry}>Retry sync</Button>}
+        title="Bảng phiếu bếp đang ngoại tuyến"
+        description="Kết nối lại trước khi tải hàng đợi hoặc gửi thao tác nhanh."
+        primaryAction={<Button onClick={onRetry}>Đồng bộ lại</Button>}
       />
     );
   }
@@ -848,12 +851,12 @@ function renderKitchenBoardGuard({
 
 function labelForTicketAction(action: KitchenTicketAction): string {
   if (action === 'fire') {
-    return 'Fire';
+    return 'Bắt đầu làm';
   }
 
   if (action === 'bump') {
-    return 'Bump ready';
+    return 'Báo đã xong';
   }
 
-  return 'Recall';
+  return 'Gọi lại bếp';
 }

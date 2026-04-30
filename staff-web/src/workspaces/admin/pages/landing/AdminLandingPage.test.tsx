@@ -57,12 +57,15 @@ describe('AdminLandingPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Admin control center')).toBeInTheDocument();
-    expect(await screen.findByRole('button', { name: 'Branches and settings' })).toBeInTheDocument();
-    expect(screen.getByText('Menu and pricing')).toBeInTheDocument();
-    expect(screen.getAllByText('Capability required').length).toBeGreaterThan(0);
+    expect(await screen.findByText('Trung tâm quản trị')).toBeInTheDocument();
+    expect(screen.getByText('Sơ đồ tổng quan')).toBeInTheDocument();
+    expect(screen.getByText('Phân hệ quản trị')).toBeInTheDocument();
+    expect(screen.getByText('Tín hiệu vận hành')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Chi nhánh và thiết lập' })).toBeInTheDocument();
+    expect(screen.getByText('Thực đơn và giá bán')).toBeInTheDocument();
+    expect(screen.getAllByText('Cần quyền').length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Branches and settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chi nhánh và thiết lập' }));
 
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/admin/settings'));
   });

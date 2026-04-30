@@ -3,6 +3,7 @@ import {
   branchReservationLeadLabel,
   branchSameDayCutoffLabel,
   branchWaitingListLabel,
+  adminTableStatusLabel,
   buildAdminBranchesQuery,
   buildAdminRestaurantTableQuery,
   formatBusinessPeriods,
@@ -67,9 +68,10 @@ describe('admin settings domain helpers', () => {
       withBusinessHours: 2,
     });
     expect(formatBusinessPeriods(branchFixture.business_hours[0].periods)).toBe('08:00 - 17:00');
-    expect(branchReservationLeadLabel(branchFixture)).toBe('45 min');
+    expect(branchReservationLeadLabel(branchFixture)).toBe('45 phút');
     expect(branchSameDayCutoffLabel(branchFixture)).toBe('18:00');
-    expect(branchWaitingListLabel(branchFixture)).toBe('Enabled');
+    expect(branchWaitingListLabel(branchFixture)).toBe('Đang bật');
+    expect(adminTableStatusLabel('Available')).toBe('Bàn trống');
   });
 
   it('summarizes table management reads', () => {

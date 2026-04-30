@@ -116,7 +116,7 @@ describe('KitchenBoardPage', () => {
   it('focuses the dispatched station and ticket after kitchen handoff', async () => {
     renderWithProviders('/kitchen?source=order&order_id=56&order_row_version=10');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Dispatch order to kitchen' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Gửi đơn xuống bếp' }));
 
     await waitFor(() => expect(apiMocks.dispatchKitchenOrder).toHaveBeenCalledWith(56, {
       row_version: 10,
@@ -139,13 +139,13 @@ describe('KitchenBoardPage', () => {
 
     renderWithProviders('/kitchen?source=order&order_id=56&order_row_version=10');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Dispatch order to kitchen' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Gửi đơn xuống bếp' }));
 
     await waitFor(() => expect(apiMocks.dispatchKitchenOrder).toHaveBeenCalledWith(56, {
       row_version: 10,
     }));
-    await waitFor(() => expect(toastMocks.warning).toHaveBeenCalledWith(expect.stringContaining('did not create kitchen tickets')));
-    expect(toastMocks.success).not.toHaveBeenCalledWith(expect.stringContaining('dispatched to kitchen'));
+    await waitFor(() => expect(toastMocks.warning).toHaveBeenCalledWith(expect.stringContaining('chưa tạo phiếu bếp')));
+    expect(toastMocks.success).not.toHaveBeenCalledWith(expect.stringContaining('xuống bếp'));
     expect(screen.getByTestId('location-search').textContent).not.toContain('ticket=');
     expect(screen.getByTestId('location-search').textContent).not.toContain('station_id=');
   });
@@ -156,14 +156,14 @@ describe('KitchenBoardPage', () => {
     renderWithProviders('/kitchen?source=order&order_id=56&order_row_version=10');
 
     await waitFor(() => expect(apiMocks.listKitchenStations).toHaveBeenCalled());
-    expect(screen.queryByRole('button', { name: 'Dispatch order to kitchen' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Gửi đơn xuống bếp' })).not.toBeInTheDocument();
     expect(apiMocks.dispatchKitchenOrder).not.toHaveBeenCalled();
   });
 
   it('sends the selected ticket row version with kitchen fast actions', async () => {
     renderWithProviders('/kitchen?station_id=33&ticket=801');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Fire' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu làm' }));
 
     await waitFor(() => expect(confirmActionMock).toHaveBeenCalled());
     await waitFor(() => expect(apiMocks.fireKitchenTicket).toHaveBeenCalledWith(801, 17));
@@ -177,7 +177,7 @@ describe('KitchenBoardPage', () => {
 
     renderWithProviders('/kitchen?station_id=33&ticket=801');
 
-    const fireButton = await screen.findByRole('button', { name: 'Fire' });
+    const fireButton = await screen.findByRole('button', { name: 'Bắt đầu làm' });
     fireEvent.click(fireButton);
 
     await waitFor(() => expect(fireButton).toBeDisabled());
@@ -207,9 +207,9 @@ describe('KitchenBoardPage', () => {
     apiMocks.getKitchenStationTickets.mockClear();
     apiMocks.listKitchenStations.mockClear();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Fire' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu làm' }));
 
-    await waitFor(() => expect(toastMocks.warning).toHaveBeenCalledWith(expect.stringContaining('refreshed')));
+    await waitFor(() => expect(toastMocks.warning).toHaveBeenCalledWith(expect.stringContaining('đã được tải lại')));
     await waitFor(() => expect(apiMocks.getKitchenStationTickets).toHaveBeenCalled());
     await waitFor(() => expect(apiMocks.listKitchenStations).toHaveBeenCalled());
   });
@@ -226,7 +226,7 @@ describe('KitchenBoardPage', () => {
 
     renderWithProviders('/kitchen?station_id=33&ticket=801');
 
-    expect(await screen.findByRole('button', { name: 'Fire' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Bắt đầu làm' })).toBeDisabled();
     expect(apiMocks.fireKitchenTicket).not.toHaveBeenCalled();
   });
 
@@ -271,7 +271,7 @@ describe('KitchenBoardPage', () => {
   it('switches the focused station from the station cards', async () => {
     renderWithProviders('/kitchen');
 
-    fireEvent.click(await screen.findByRole('button', { name: /Hot Pass/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Bếp nóng/i }));
 
     await waitFor(() => expect(screen.getByTestId('location-search').textContent).toContain('station_id=33'));
   });
@@ -279,7 +279,7 @@ describe('KitchenBoardPage', () => {
   it('updates the ticket filter from the native status select', async () => {
     renderWithProviders('/kitchen');
 
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Filter kitchen tickets by status' }), {
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Lọc phiếu bếp theo trạng thái' }), {
       target: { value: 'Ready' },
     });
 

@@ -57,7 +57,7 @@ export function DashboardTopBar({
 
       <div className="staff-dashboard-topbar-meta">
         <TopBarMetric label="Ca hiện tại" value={shiftLabel} tone={shiftLabel === 'Chưa có ca thu ngân' ? 'warning' : 'success'} />
-        <TopBarMetric label="Readiness" value={readinessLabel} tone={readinessTone} />
+        <TopBarMetric label="Trạng thái" value={readinessLabel} tone={readinessTone} />
         <TopBarMetric label="Dữ liệu" value={updatedLabel} tone={freshnessTone} />
       </div>
 

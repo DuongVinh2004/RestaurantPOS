@@ -14,6 +14,7 @@ import { queryKeys } from "@/lib/api/query-keys";
 import { featureFlags } from "@/lib/config/feature-flags";
 import { createRoundedFutureLocalDateTimeInput, toUtcIsoFromLocalDateTimeInput } from "@/lib/contracts/datetime";
 import { formatMoney } from "@/lib/contracts/format";
+import { displayMenuText } from "@/lib/i18n/customer-display";
 import { listMenuCategories, listMenuItems, previewMenuPreorder } from "./api";
 import { MenuItemImage } from "./menu-item-image";
 
@@ -50,7 +51,7 @@ export function MenuPage() {
       <section className="grid gap-5 md:grid-cols-[1fr_320px] md:items-end">
         <div className="space-y-3">
           <Badge variant="outline" className="rounded-md">Thực đơn nhà hàng</Badge>
-          <h1 className="max-w-2xl text-4xl font-semibold leading-tight tracking-normal">Chọn món và đặt bàn trong vài thao tác.</h1>
+          <h1 className="max-w-2xl text-4xl font-semibold leading-tight tracking-normal">Chọn món và đặt bàn trong vài thao tác</h1>
           <p className="max-w-xl text-muted-foreground">
             Tìm món, xem món còn phục vụ và kiểm tra món có thể đặt trước trước khi bạn đến nhà hàng.
           </p>
@@ -96,7 +97,7 @@ export function MenuPage() {
                 className="min-h-10 shrink-0 rounded-lg"
                 onClick={() => setCategoryId(category.category_id)}
               >
-                {category.name}
+                {displayMenuText(category.name, "Danh mục")}
               </Button>
             ))}
           </div>
@@ -109,60 +110,66 @@ export function MenuPage() {
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {itemsQuery.data?.map((item) => (
-            <Card key={item.item_id} className="group overflow-hidden rounded-lg border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-              <div className="relative">
-                <MenuItemImage item={item} />
-                <div className="absolute bottom-3 left-3 flex flex-wrap gap-2">
-                  <Badge variant={item.is_available ? "outline" : "secondary"} className="rounded-md bg-background/90">
-                    {item.is_available ? "Còn phục vụ" : "Tạm hết"}
-                  </Badge>
-                  <Badge variant="outline" className="rounded-md bg-background/90">
-                    {item.category_name ?? "Món ăn"}
-                  </Badge>
-                </div>
-              </div>
-              <CardContent className="space-y-4 p-4">
-                <div className="space-y-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <h2 className="text-lg font-semibold">{item.name}</h2>
-                    <span className="shrink-0 font-semibold">
-                      {formatMoney(item.price.amount, item.price.currency ?? "USD")}
-                    </span>
+          {itemsQuery.data?.map((item) => {
+            const itemName = displayMenuText(item.name, "Món ăn");
+            const categoryName = displayMenuText(item.category_name, "Món ăn");
+            const description = displayMenuText(item.description, "Nhà hàng sẽ cung cấp thêm thông tin khi bạn gọi món.");
+
+            return (
+              <Card key={item.item_id} className="group overflow-hidden rounded-lg border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                <div className="relative">
+                  <MenuItemImage item={item} />
+                  <div className="absolute bottom-3 left-3 flex flex-wrap gap-2">
+                    <Badge variant={item.is_available ? "outline" : "secondary"} className="rounded-md bg-background/90">
+                      {item.is_available ? "Còn phục vụ" : "Tạm hết"}
+                    </Badge>
+                    <Badge variant="outline" className="rounded-md bg-background/90">
+                      {categoryName}
+                    </Badge>
                   </div>
-                  <p className="line-clamp-2 min-h-11 text-sm text-muted-foreground">
-                    {item.description ?? "Nhà hàng sẽ cung cấp thêm thông tin khi bạn gọi món."}
-                  </p>
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                  <Badge variant="outline" className="rounded-md">
-                    {item.preorder.enabled ? "Có thể đặt trước" : "Dùng tại bàn"}
-                  </Badge>
-                  {!item.is_available ? <span className="text-sm font-medium text-muted-foreground">Hỏi nhân viên để được gợi ý món khác.</span> : null}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {featureFlags.menuItemDetail ? (
-                    <Button asChild variant="outline" className="min-h-11 rounded-lg">
-                      <Link href={`/menu/${item.item_id}`}>Chi tiết</Link>
+                <CardContent className="space-y-4 p-4">
+                  <div className="space-y-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <h2 className="text-lg font-semibold">{itemName}</h2>
+                      <span className="shrink-0 font-semibold">
+                        {formatMoney(item.price.amount, item.price.currency ?? "VND")}
+                      </span>
+                    </div>
+                    <p className="line-clamp-2 min-h-11 text-sm text-muted-foreground">
+                      {description}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge variant="outline" className="rounded-md">
+                      {item.preorder.enabled ? "Có thể đặt trước" : "Dùng tại bàn"}
+                    </Badge>
+                    {!item.is_available ? <span className="text-sm font-medium text-muted-foreground">Hỏi nhân viên để được gợi ý món khác.</span> : null}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {featureFlags.menuItemDetail ? (
+                      <Button asChild variant="outline" className="min-h-11 rounded-lg">
+                        <Link href={`/menu/${item.item_id}`}>Chi tiết</Link>
+                      </Button>
+                    ) : (
+                      <Button type="button" variant="outline" className="min-h-11 rounded-lg" disabled>
+                        Chi tiết
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      className="min-h-11 rounded-lg"
+                      disabled={!item.preorder.enabled || previewMutation.isPending}
+                      onClick={() => previewMutation.mutate(item.item_id)}
+                    >
+                      <ShoppingBag className="mr-2 h-4 w-4" />
+                      Kiểm tra
                     </Button>
-                  ) : (
-                    <Button type="button" variant="outline" className="min-h-11 rounded-lg" disabled>
-                      Chi tiết
-                    </Button>
-                  )}
-                  <Button
-                    type="button"
-                    className="min-h-11 rounded-lg"
-                    disabled={!item.preorder.enabled || previewMutation.isPending}
-                    onClick={() => previewMutation.mutate(item.item_id)}
-                  >
-                    <ShoppingBag className="mr-2 h-4 w-4" />
-                    Kiểm tra
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </section>
     </main>

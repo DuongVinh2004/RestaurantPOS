@@ -45,10 +45,10 @@ describe('StaffAppShell layout styles', () => {
   });
 
   it('keeps the active shell header compact instead of stacking large context cards', () => {
-    expect(uiOverridesCss).toMatch(/\.staff-shell-header\s*\{[^}]*padding:\s*12px 18px;/s);
-    expect(uiOverridesCss).toMatch(/\.staff-shell-header-top\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*minmax\(260px,\s*320px\);/s);
-    expect(uiOverridesCss).toMatch(/\.staff-shell-header-context\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;[^}]*gap:\s*8px;/s);
-    expect(uiOverridesCss).toMatch(/\.staff-shell-context-card\s*\{[^}]*border-radius:\s*999px;[^}]*display:\s*inline-flex;[^}]*padding:\s*7px 10px;/s);
+    expect(uiOverridesCss).toMatch(/\.staff-shell-header\s*\{[^}]*padding:\s*8px 16px;/s);
+    expect(uiOverridesCss).toMatch(/\.staff-shell-header-top\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*auto;/s);
+    expect(uiOverridesCss).toMatch(/\.staff-shell-workspace-kicker\s*\{[^}]*border-radius:\s*999px;[^}]*font-size:\s*11px;/s);
+    expect(uiOverridesCss).toMatch(/\.staff-shell-header-context\s*\{[^}]*display:\s*none;/s);
     expect(uiOverridesCss).toMatch(/\.staff-shell-context-meta\s*\{[^}]*display:\s*none;/s);
     expect(uiOverridesCss).toMatch(/\.staff-page-header\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*360px\),\s*1fr\)\);/s);
     expect(uiOverridesCss).toMatch(/\.staff-page-header-actions-wrap\s*\{[^}]*min-width:\s*min\(100%,\s*360px\);/s);
@@ -78,8 +78,10 @@ describe('StaffAppShell layout styles', () => {
 
   it('keeps the sidebar brand terse and improves navigation legibility', () => {
     expect(uiOverridesCss).toMatch(/\.staff-sider-brand-copy\s*\{[^}]*display:\s*none !important;/s);
-    expect(uiOverridesCss).toMatch(/\.staff-shell-nav-item\s*\{[^}]*gap:\s*12px;[^}]*min-height:\s*42px;[^}]*padding:\s*10px 12px;/s);
-    expect(uiOverridesCss).toMatch(/\.staff-nav-item-icon\s*\{[^}]*flex:\s*0 0 20px;[^}]*width:\s*20px;/s);
+    expect(uiOverridesCss).toMatch(/\.staff-shell-sider\s*\{[^}]*linear-gradient\(180deg,\s*#111827\s*0%,\s*#0b1220\s*100%\)/s);
+    expect(uiOverridesCss).toMatch(/\.staff-shell-nav-item\s*\{[^}]*gap:\s*10px;[^}]*min-height:\s*38px;[^}]*padding:\s*8px 10px;/s);
+    expect(uiOverridesCss).toMatch(/\.staff-shell-nav-item-selected\s*\{[^}]*box-shadow:\s*inset 3px 0 0 rgba\(45,\s*212,\s*191,\s*0\.86\);/s);
+    expect(uiOverridesCss).toMatch(/\.staff-nav-item-icon\s*\{[^}]*flex:\s*0 0 18px;[^}]*width:\s*18px;/s);
     expect(uiOverridesCss).toMatch(/\.staff-shell-sider::-webkit-scrollbar-thumb\s*\{[^}]*border-radius:\s*999px;/s);
     expect(uiOverridesCss).toMatch(/\.staff-shell-sider\s*\{[^}]*scrollbar-width:\s*thin;/s);
   });

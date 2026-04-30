@@ -9,7 +9,6 @@ export function KitchenShell({
   compactNavigation,
   navigationGroups,
   selectedMenuKey,
-  contextDock,
   freshnessLabel,
   freshnessTone,
   branchId,
@@ -31,17 +30,13 @@ export function KitchenShell({
   const navigation = (
     <AppFrameNavigation
       brandEyebrow="RestaurantPOS"
-      brandTitle={workspaceOption?.label ?? 'Kitchen'}
-      brandCopy={workspaceOption?.description ?? 'Station-first ticket operations.'}
+      brandTitle={workspaceOption?.label ?? 'Bếp'}
+      brandCopy={workspaceOption?.description ?? 'Điều phối phiếu bếp theo từng trạm.'}
       navigationGroups={navigationGroups}
       selectedMenuKey={selectedMenuKey}
       onOpenPath={onOpenPath}
     />
   );
-
-  const kitchenContext = contextDock
-    .filter((entry) => entry.key === 'context' || entry.key === 'readiness' || entry.key === 'branch')
-    .slice(0, 2);
 
   const header = (
     <header className="staff-shell-header staff-shell-header-kitchen">
@@ -49,31 +44,14 @@ export function KitchenShell({
         <div className="staff-shell-header-primary staff-shell-header-primary-kitchen">
           <div className="staff-shell-header-status" aria-label="Current workspace context">
             <div className="staff-shell-header-title-block">
-              <span className="staff-eyebrow">Kitchen line</span>
               <div className="staff-shell-header-title-row">
+                <span className="staff-shell-workspace-kicker">Bếp</span>
                 <h1 className="staff-shell-header-title">{routeDescriptor.label}</h1>
                 <span className={`staff-shell-freshness-chip staff-shell-freshness-chip-${freshnessTone}`}>
                   {freshnessLabel}
                 </span>
               </div>
             </div>
-          </div>
-
-          <p className="staff-shell-header-note staff-shell-header-note-kitchen">
-            Station, queue, and live sync stay in one kitchen lane.
-          </p>
-
-          <div className="staff-shell-header-context staff-shell-header-context-kitchen">
-            {kitchenContext.map((entry) => (
-              <div
-                key={entry.key}
-                className={`staff-shell-context-card staff-shell-context-card-${entry.tone}`}
-                aria-label={entry.label}
-              >
-                <span className="staff-shell-context-label">{entry.label}</span>
-                <strong className="staff-shell-context-value">{entry.value}</strong>
-              </div>
-            ))}
           </div>
         </div>
 

@@ -129,6 +129,25 @@ class TableHoldHttpFlowTest extends TestCase
             ->assertJsonValidationErrors(['session_id']);
     }
 
+    public function test_future_hold_can_use_currently_occupied_table_when_time_window_is_free(): void
+    {
+        $tableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Occupied']);
+        $start = $this->nowUtc()->copy()->addHours(5);
+        $end = $start->copy()->addHour();
+
+        $response = $this->postJson('/api/v1/table-holds', [
+            'session_id' => 'sess-table-hold-future-occupied',
+            'start_time' => $start->toIso8601String(),
+            'end_time' => $end->toIso8601String(),
+            'table_ids' => [$tableId],
+            'hold_minutes' => 5,
+        ], $this->withIdempotencyKey('table-hold-future-occupied'));
+
+        $response->assertCreated()
+            ->assertJsonPath('data.hold_status', 'Holding')
+            ->assertJsonPath('data.tables.0.table_id', $tableId);
+    }
+
     public function test_second_session_cannot_create_conflicting_hold_for_same_table_window_once_first_hold_exists(): void
     {
         $tableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available']);

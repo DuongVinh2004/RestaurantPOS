@@ -39,11 +39,11 @@ describe('StaffAppShell workspace shells', () => {
     const { container } = renderShell('/ops/dashboard');
 
     expect(container.querySelector('.staff-shell-layout-ops')).not.toBeNull();
-    expect(screen.getByText('Floor operations')).toBeInTheDocument();
-    expect(screen.getByText('Tables, reservations, orders, and checkout stay coordinated in one operator lane.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Dashboard' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Ticket queue' })).not.toBeInTheDocument();
-    expect(document.title).toBe('Dashboard | Ops | RestaurantPOS Staff');
+    expect(container.querySelector('.staff-shell-workspace-kicker')?.textContent).toBe('Vận hành');
+    expect(screen.queryByText('Tables, reservations, orders, and checkout stay coordinated in one operator lane.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tổng quan' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Phiếu bếp' })).not.toBeInTheDocument();
+    expect(document.title).toBe('Tổng quan | Vận hành | RestaurantPOS Staff');
   });
 
   it('renders the kitchen shell with the lower-distraction frame', () => {
@@ -52,12 +52,12 @@ describe('StaffAppShell workspace shells', () => {
     const { container } = renderShell('/kitchen/board');
 
     expect(container.querySelector('.staff-shell-layout-kitchen')).not.toBeNull();
-    expect(screen.getByText('Kitchen line')).toBeInTheDocument();
-    expect(screen.getByText('Station, queue, and live sync stay in one kitchen lane.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ticket queue' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Tim' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Reporting' })).not.toBeInTheDocument();
-    expect(document.title).toBe('Ticket queue | Kitchen | RestaurantPOS Staff');
+    expect(container.querySelector('.staff-shell-workspace-kicker')?.textContent).toBe('Bếp');
+    expect(screen.queryByText('Station, queue, and live sync stay in one kitchen lane.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Phiếu bếp' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tìm nhanh' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Báo cáo' })).not.toBeInTheDocument();
+    expect(document.title).toBe('Phiếu bếp | Bếp | RestaurantPOS Staff');
   });
 
   it('renders the admin shell with the back-office frame', () => {
@@ -66,11 +66,11 @@ describe('StaffAppShell workspace shells', () => {
     const { container } = renderShell('/admin/reporting');
 
     expect(container.querySelector('.staff-shell-layout-admin')).not.toBeNull();
-    expect(screen.getByText('Back office')).toBeInTheDocument();
-    expect(screen.getByText('Settings, governance, and read models stay inside one admin lane.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reporting' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Dashboard' })).not.toBeInTheDocument();
-    expect(document.title).toBe('Reporting | Admin | RestaurantPOS Staff');
+    expect(container.querySelector('.staff-shell-workspace-kicker')?.textContent).toBe('Quản trị');
+    expect(screen.queryByText('Settings, governance, and read models stay inside one admin lane.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Báo cáo' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tổng quan' })).not.toBeInTheDocument();
+    expect(document.title).toBe('Báo cáo | Quản trị | RestaurantPOS Staff');
   });
 });
 
@@ -87,32 +87,32 @@ function renderShell(initialEntry: string) {
 }
 
 function buildShellContext(workspace: 'ops' | 'kitchen' | 'admin'): ReturnType<typeof useStaffShellContext> {
-  const label = workspace === 'ops' ? 'Ops' : workspace === 'kitchen' ? 'Kitchen' : 'Admin';
+  const label = workspace === 'ops' ? 'Vận hành' : workspace === 'kitchen' ? 'Bếp' : 'Quản trị';
   const navItem = workspace === 'ops'
     ? {
       key: 'dashboard',
-      label: 'Dashboard',
+      label: 'Tổng quan',
       path: '/ops/dashboard',
       iconKey: 'dashboard' as const,
       workspace,
-      description: 'Ops dashboard',
+      description: 'Tổng quan vận hành',
     }
     : workspace === 'kitchen'
       ? {
         key: 'kitchen-board',
-        label: 'Ticket queue',
+        label: 'Phiếu bếp',
         path: '/kitchen/board',
         iconKey: 'kitchen' as const,
         workspace,
-        description: 'Ticket queue',
+        description: 'Phiếu bếp',
       }
       : {
         key: 'reporting',
-        label: 'Reporting',
+        label: 'Báo cáo',
         path: '/admin/reporting',
         iconKey: 'reporting' as const,
         workspace,
-        description: 'Reporting',
+        description: 'Báo cáo',
       };
 
   return {

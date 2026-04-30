@@ -100,8 +100,8 @@ export function AppFrameNavigation({
       ) : (
         <div className="staff-shell-nav-empty">
           <AppFramePermissionState
-            title="No routes are available"
-            description="Capability guards did not expose any destination in this workspace for the current session."
+            title="Chưa có màn hình phù hợp"
+            description="Phiên hiện tại chưa được cấp quyền vào màn hình nào trong workspace này."
           />
         </div>
       )}

@@ -65,7 +65,7 @@ describe('KitchenLandingPage', () => {
   it('opens the ticket queue with assigned station context', async () => {
     renderLanding();
 
-    fireEvent.click(await screen.findByRole('button', { name: /Hot Pass/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Bếp nóng/i }));
 
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/kitchen/board'));
     expect(screen.getByTestId('location')).toHaveTextContent('station_id=33');
@@ -86,7 +86,7 @@ describe('KitchenLandingPage', () => {
 
     renderLanding();
 
-    expect(await screen.findByText('No kitchen station is assigned')).toBeInTheDocument();
+    expect(await screen.findByText('Chưa được gán trạm bếp')).toBeInTheDocument();
   });
 });
 

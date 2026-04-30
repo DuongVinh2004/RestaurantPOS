@@ -8,6 +8,8 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { BookingProgress } from "@/components/booking/booking-progress";
+import { ReservationTimeline, type ReservationTimelineItem } from "@/components/booking/reservation-timeline";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -54,6 +56,71 @@ function WorkspaceSummaryTile({
       {footer ? <p className="mt-3 text-sm font-medium">{footer}</p> : null}
     </div>
   );
+}
+
+function buildReservationTimelineItems({
+  reservation,
+  holdSummary,
+  depositSummary,
+  billSummary,
+  workspaceStatus,
+}: {
+  reservation: ReservationSummary;
+  holdSummary: ReturnType<typeof getReservationHoldSummaryState>;
+  depositSummary: ReturnType<typeof getReservationDepositSummaryState>;
+  billSummary: ReturnType<typeof getReservationBillSummaryState>;
+  workspaceStatus: ReturnType<typeof getReservationWorkspaceStatus>;
+}): ReservationTimelineItem[] {
+  const status = (reservation.status ?? "").toLowerCase();
+  const isCancelled = status.includes("cancel");
+  const isCompleted = status.includes("completed");
+  const isServing = status.includes("reserved") || status.includes("checked") || status.includes("seated");
+
+  return [
+    {
+      key: "created",
+      title: "Đã tạo lịch đặt",
+      description: "Nhà hàng đã nhận thông tin đặt bàn của bạn.",
+      state: "done",
+      meta: reservation.reservation_code,
+    },
+    {
+      key: "hold",
+      title: holdSummary.title,
+      description: holdSummary.description,
+      state: holdSummary.state === "active" || holdSummary.state === "released" ? "done" : holdSummary.state === "expired" ? "blocked" : "pending",
+      meta: holdSummary.expiresAt ? formatDateTime(holdSummary.expiresAt) : null,
+    },
+    {
+      key: "deposit",
+      title: depositSummary.title,
+      description: depositSummary.description,
+      state: depositSummary.state === "paid" || depositSummary.state === "not_required" ? "done" : depositSummary.requiresAction ? "current" : "pending",
+      meta: depositSummary.amount ? formatMoney(depositSummary.amount, depositSummary.currency) : null,
+    },
+    {
+      key: "confirmed",
+      title: workspaceStatus.title,
+      description: workspaceStatus.description,
+      state: isCancelled ? "blocked" : "done",
+      meta: workspaceStatus.label,
+    },
+    {
+      key: "service",
+      title: isCompleted ? "Lượt ghé đã hoàn tất" : isServing ? "Đang phục vụ tại nhà hàng" : "Chờ đến giờ nhận bàn",
+      description: isServing || isCompleted
+        ? "Nhân viên sẽ cập nhật món, hóa đơn và thanh toán khi phát sinh."
+        : "Khi đến nhà hàng, nhân viên sẽ nhận bàn và mở luồng phục vụ.",
+      state: isCompleted ? "done" : isServing ? "current" : "pending",
+    },
+    {
+      key: "bill",
+      title: billSummary.title,
+      description: billSummary.description,
+      state: billSummary.state === "settled" ? "done" : billSummary.available ? "current" : "pending",
+      meta: billSummary.available ? formatMoney(billSummary.amount, billSummary.currency) : billSummary.label,
+    },
+  ];
 }
 
 export function ReservationDetailPage({ id }: { id: number }) {
@@ -183,6 +250,13 @@ export function ReservationDetailPage({ id }: { id: number }) {
       : null;
   const depositFooter = depositSummary.amount ? formatMoney(depositSummary.amount, depositSummary.currency) : null;
   const billFooter = billSummary.available ? formatMoney(billSummary.amount, billSummary.currency) : billSummary.label;
+  const timelineItems = buildReservationTimelineItems({
+    reservation,
+    holdSummary,
+    depositSummary,
+    billSummary,
+    workspaceStatus,
+  });
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6">
@@ -218,10 +292,14 @@ export function ReservationDetailPage({ id }: { id: number }) {
           <WorkspaceSummaryTile eyebrow="Đặt cọc" title={depositSummary.title} description={depositSummary.description} footer={depositFooter} />
           <WorkspaceSummaryTile eyebrow="Hóa đơn" title={billSummary.title} description={billSummary.description} footer={billFooter} />
         </div>
+        <div className="mt-5">
+          <BookingProgress currentStep="confirm" />
+        </div>
       </section>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="space-y-5">
+          <ReservationTimeline items={timelineItems} />
           <div className="space-y-1">
             <h2 className="text-xl font-semibold">Chi tiết lượt ghé</h2>
             <p className="text-sm text-muted-foreground">Theo dõi bàn giữ, đặt cọc, hóa đơn, món đặt trước và ưu đãi từ một nơi.</p>

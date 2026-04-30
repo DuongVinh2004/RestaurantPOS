@@ -86,7 +86,7 @@ export function reportingDateRangeError(filters: Pick<ReportingFilterState, 'dat
     return null;
   }
 
-  return startDate <= endDate ? null : 'End date must be on or after start date.';
+  return startDate <= endDate ? null : 'Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.';
 }
 
 export function summarizeSales(rows: Array<ReportingDailySalesSnapshot>) {
@@ -139,7 +139,7 @@ export function snapshotHealthLabel(meta?: StaffReportingCollectionMeta | null):
   }
 
   if (health.status === 'degraded' && isPartialScopeStaleness(health)) {
-    return 'Stale t\u1eebng ph\u1ea7n';
+    return 'Cần làm mới một phần';
   }
 
   if (health.status === 'degraded') {
@@ -167,7 +167,7 @@ export function snapshotHealthDescription(meta?: StaffReportingCollectionMeta | 
     `Ng\u00e0y kinh doanh m\u1edbi nh\u1ea5t ${health.latest_business_date ?? 'Kh\u00f4ng c\u00f3'}`,
     `Tu\u1ed5i d\u1eef li\u1ec7u tham chi\u1ebfu ${referenceAge ?? 'Kh\u00f4ng c\u00f3'} gi\u00e2y`,
     scopeSummary,
-    examples ? `V\u00ed d\u1ee5 stale ${examples}` : null,
+    examples ? `Ví dụ cần làm mới ${examples}` : null,
     `Nguy\u00ean nh\u00e2n ${reasons}`,
   ].filter((part): part is string => !!part).join(' | ');
 }
@@ -201,7 +201,7 @@ export function snapshotHealthScopeSummary(meta?: StaffReportingCollectionMeta |
     ? health.healthy_scope_count
     : Math.max(0, health.scope_count - staleCount);
 
-  return `Ph\u1ea1m vi ${health.scope_count} | stale ${staleCount} | \u1ed5n ${healthyCount}`;
+  return `Phạm vi ${health.scope_count} | cần làm mới ${staleCount} | ổn ${healthyCount}`;
 }
 
 export function snapshotHealthScopeExamples(meta?: StaffReportingCollectionMeta | null): string | null {

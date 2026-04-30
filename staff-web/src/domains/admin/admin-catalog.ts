@@ -76,11 +76,12 @@ export function summarizeAdminCatalog<TCategory extends CategoryLike, TItem exte
 export function formatCatalogPrice(value: string | number | null | undefined, currency: string | null | undefined): string {
   const amount = numericValue(value);
   const normalizedCurrency = currency?.trim() || 'VND';
-
-  return `${new Intl.NumberFormat('en-US', {
+  const formattedAmount = new Intl.NumberFormat('vi-VN', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
-  }).format(amount)} ${normalizedCurrency}`;
+  }).format(amount);
+
+  return normalizedCurrency === 'VND' ? `${formattedAmount} ₫` : `${formattedAmount} ${normalizedCurrency}`;
 }
 
 function normalizedString(value: string): string | undefined {

@@ -97,11 +97,13 @@ describe("table booking api", () => {
 
     expect(mocks.createStableIdempotencyKey).toHaveBeenCalledWith(
       "table-hold-create",
-      expect.objectContaining({
+      {
         branch_id: 2,
+        end_time: new Date(2026, 3, 18, 20, 0, 0, 0).toISOString(),
         session_id: "session-123",
+        start_time: new Date(2026, 3, 18, 18, 30, 0, 0).toISOString(),
         table_ids: [7, 8],
-      }),
+      },
     );
     expect(mocks.idempotentSessionOptions).toHaveBeenCalledWith("table-hold-create", { idempotencyKey: "idem-stable-123" });
     expect(mocks.postV1TableHolds).toHaveBeenCalledWith(

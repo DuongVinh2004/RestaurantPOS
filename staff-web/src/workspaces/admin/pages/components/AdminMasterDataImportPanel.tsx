@@ -47,18 +47,18 @@ export function AdminMasterDataImportPanel({
     onSuccess: (envelope, rows) => {
       setResult(envelope.data);
       setCommitPayload(envelope.data.can_commit ? createAdminImportCommitPayload(selectedDomain, rows) : null);
-      toast.success('Import preview completed.');
+      toast.success('Đã chạy thử dữ liệu nhập.');
     },
     onError: (error) => {
       setCommitPayload(null);
-      toast.error(formatApiError(error, 'Import preview failed.'));
+      toast.error(formatApiError(error, 'Chạy thử dữ liệu nhập chưa thành công.'));
     },
   });
 
   const commitMutation = useMutation({
     mutationFn: async () => {
       if (!commitPayload) {
-        throw new Error('Preview a valid import before committing.');
+        throw new Error('Hãy chạy thử dữ liệu hợp lệ trước khi ghi nhận.');
       }
 
       return importAdminMasterData(selectedDomain, commitPayload);
@@ -66,11 +66,11 @@ export function AdminMasterDataImportPanel({
     onSuccess: (envelope) => {
       setResult(envelope.data);
       setCommitPayload(null);
-      toast.success('Import commit completed.');
+      toast.success('Đã ghi nhận dữ liệu nhập.');
       onCommitted?.();
     },
     onError: (error) => {
-      toast.error(formatApiError(error, 'Import commit failed.'));
+      toast.error(formatApiError(error, 'Ghi nhận dữ liệu nhập chưa thành công.'));
     },
   });
 
@@ -102,7 +102,7 @@ export function AdminMasterDataImportPanel({
         <Typography.Paragraph type="secondary">{description}</Typography.Paragraph>
 
         <Select
-          aria-label="Admin import domain"
+          aria-label="Nhóm dữ liệu nhập quản trị"
           style={{ width: '100%' }}
           value={selectedDomain}
           options={domains.map((domain) => ({
@@ -121,20 +121,20 @@ export function AdminMasterDataImportPanel({
           <div className="staff-admin-note-item">
             <span />
             <Typography.Text>
-              Required columns: {selectedDefinition.requiredColumns.join(', ')}
+              Cột bắt buộc: {selectedDefinition.requiredColumns.join(', ')}
             </Typography.Text>
           </div>
         ) : null}
 
         <Input.TextArea
-          aria-label="Admin import JSON rows"
+          aria-label="Dòng JSON nhập liệu quản trị"
           rows={6}
           value={rowsJson}
-          placeholder='[{"name":"Breakfast","sort_order":10}]'
+          placeholder='[{"name":"Bữa trưa","sort_order":10}]'
           onChange={(event) => setRowsJson(event.target.value)}
         />
 
-        {parseError ? <InlineWarning title="Import payload is not ready" description={parseError} /> : null}
+        {parseError ? <InlineWarning title="Dữ liệu nhập chưa sẵn sàng" description={parseError} /> : null}
 
         <Space wrap>
           <Button
@@ -143,7 +143,7 @@ export function AdminMasterDataImportPanel({
             loading={dryRunMutation.isPending}
             disabled={commitMutation.isPending}
           >
-            Preview dry run
+            Chạy thử
           </Button>
           <Button
             danger
@@ -151,33 +151,33 @@ export function AdminMasterDataImportPanel({
             loading={commitMutation.isPending}
             disabled={!commitPayload || dryRunMutation.isPending}
           >
-            Commit import
+            Ghi nhận dữ liệu
           </Button>
         </Space>
 
         {commitPayload ? (
           <Typography.Text type="secondary">
-            Commit will send Idempotency-Key {commitPayload.idempotencyKey}.
+            Khi ghi nhận, hệ thống sẽ gửi Idempotency-Key {commitPayload.idempotencyKey}.
           </Typography.Text>
         ) : null}
 
         {dryRunMutation.error ? (
           <TransientFailureState
-            title="Preview failed"
-            description={formatApiError(dryRunMutation.error, 'Import preview failed.')}
+            title="Chạy thử chưa thành công"
+            description={formatApiError(dryRunMutation.error, 'Chạy thử dữ liệu nhập chưa thành công.')}
           />
         ) : null}
         {commitMutation.error ? (
           <TransientFailureState
-            title="Commit failed"
-            description={formatApiError(commitMutation.error, 'Import commit failed.')}
+            title="Ghi nhận chưa thành công"
+            description={formatApiError(commitMutation.error, 'Ghi nhận dữ liệu nhập chưa thành công.')}
           />
         ) : null}
 
         {result ? (
           <ImportResult result={result} summary={summary} />
         ) : (
-          <EmptyBlock title="No import preview yet" description="Dry-run rows before enabling a commit." />
+          <EmptyBlock title="Chưa có kết quả chạy thử" description="Hãy chạy thử dữ liệu trước khi bật nút ghi nhận." />
         )}
       </Space>
     </Card>
@@ -194,27 +194,27 @@ function ImportResult({
   return (
     <Space orientation="vertical" size={12} style={{ width: '100%' }}>
       <Space wrap>
-        <StatusChip label={result.can_commit ? 'Can commit' : 'Blocked'} tone={result.can_commit ? 'success' : 'warning'} />
-        <StatusChip label={result.mode} tone="default" />
+        <StatusChip label={result.can_commit ? 'Có thể ghi nhận' : 'Đang bị chặn'} tone={result.can_commit ? 'success' : 'warning'} />
+        <StatusChip label={result.mode === 'dry_run' ? 'Chạy thử' : 'Ghi nhận'} tone="default" />
         {summary.batchId ? <StatusChip label={summary.batchId} tone="processing" /> : null}
       </Space>
 
       <div className="staff-kitchen-sync-grid">
-        <Statistic title="Rows" value={summary.totalRows} />
-        <Statistic title="Valid" value={summary.validRows} />
-        <Statistic title="Invalid" value={summary.invalidRows} />
+        <Statistic title="Dòng" value={summary.totalRows} />
+        <Statistic title="Hợp lệ" value={summary.validRows} />
+        <Statistic title="Lỗi" value={summary.invalidRows} />
       </div>
 
       {result.schema.errors.length > 0 ? (
         <InlineWarning
-          title="Schema errors"
+          title="Lỗi cấu trúc dữ liệu"
           description={result.schema.errors.map((error) => `${error.field}: ${error.message}`).join(' ')}
         />
       ) : null}
 
       {summary.batchId ? (
         <Typography.Text type="secondary">
-          Batch {summary.batchId} committed {summary.committedRows} rows.
+          Lô {summary.batchId} đã ghi nhận {summary.committedRows} dòng.
         </Typography.Text>
       ) : null}
 
@@ -222,20 +222,44 @@ function ImportResult({
         {result.rows.slice(0, 5).map((row) => (
           <div key={row.row_number} className="staff-admin-surface-item">
             <div>
-              <strong>Row {row.row_number}</strong>
+              <strong>Dòng {row.row_number}</strong>
               <Typography.Paragraph type="secondary">
-                {row.operation} / {row.status}
+                {formatImportOperation(row.operation)} / {formatImportRowStatus(row.status)}
               </Typography.Paragraph>
             </div>
             <Space wrap size={6}>
-              <StatusChip label={row.status} tone={row.status === 'valid' ? 'success' : 'warning'} />
+              <StatusChip label={formatImportRowStatus(row.status)} tone={row.status === 'valid' ? 'success' : 'warning'} />
             </Space>
             <Typography.Text type="secondary">
-              {row.errors.length > 0 ? row.errors.map((error) => `${error.field}: ${error.message}`).join(' ') : 'No row errors'}
+              {row.errors.length > 0 ? row.errors.map((error) => `${error.field}: ${error.message}`).join(' ') : 'Dòng này không có lỗi.'}
             </Typography.Text>
           </div>
         ))}
       </div>
     </Space>
   );
+}
+
+function formatImportOperation(operation: string): string {
+  switch (operation) {
+    case 'create':
+      return 'Tạo mới';
+    case 'update':
+      return 'Cập nhật';
+    case 'noop':
+      return 'Giữ nguyên';
+    default:
+      return operation || 'Không rõ thao tác';
+  }
+}
+
+function formatImportRowStatus(status: string): string {
+  switch (status) {
+    case 'valid':
+      return 'Hợp lệ';
+    case 'invalid':
+      return 'Có lỗi';
+    default:
+      return status || 'Không rõ trạng thái';
+  }
 }

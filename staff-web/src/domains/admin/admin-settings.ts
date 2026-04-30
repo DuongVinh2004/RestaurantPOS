@@ -44,31 +44,31 @@ export type AdminSettingsSurface = {
 export const adminSettingsSurfaces: Array<AdminSettingsSurface> = [
   {
     key: 'branch-registry',
-    title: 'Branch registry',
-    description: 'Default branch, activity state, and branch import-export stay in this ownership lane.',
+    title: 'Danh bạ chi nhánh',
+    description: 'Chi nhánh mặc định, trạng thái hoạt động và luồng nhập/xuất chi nhánh nằm trong khu vực này.',
     backendSurface: '/admin/settings/branches, /admin/settings/branches/export, /admin/settings/branches/import',
-    workflowLabel: 'Import / export',
+    workflowLabel: 'Nhập / xuất',
   },
   {
     key: 'table-config',
-    title: 'Table and zone config',
-    description: 'Tables, zones, and dining-room imports stay separate from live floor control.',
+    title: 'Bàn và khu vực',
+    description: 'Bàn, khu vực và dữ liệu phòng ăn được quản trị tách khỏi màn vận hành sàn đang chạy.',
     backendSurface: '/admin/restaurant/tables, /admin/restaurant/zones',
-    workflowLabel: 'Import / export',
+    workflowLabel: 'Nhập / xuất',
   },
   {
     key: 'kitchen-routing',
-    title: 'Kitchen routing',
-    description: 'Stations and category-route ownership belongs to admin settings instead of the live kitchen shell.',
+    title: 'Tuyến bếp',
+    description: 'Trạm bếp và tuyến món thuộc cấu hình quản trị, không chỉnh trực tiếp trong màn bếp live.',
     backendSurface: '/admin/kitchen/stations, /admin/kitchen/stations/{station_id}/category-routes',
-    workflowLabel: 'Read / write',
+    workflowLabel: 'Xem / chỉnh sửa',
   },
   {
     key: 'finance-settings',
-    title: 'Finance and snapshot controls',
-    description: 'Tax profile and reporting snapshot rebuild stay in back-office settings.',
+    title: 'Tài chính và snapshot báo cáo',
+    description: 'Hồ sơ thuế và thao tác dựng lại snapshot báo cáo nằm ở khu vực back-office.',
     backendSurface: '/admin/settings/finance/tax-profile, /admin/settings/reporting/snapshots/rebuild',
-    workflowLabel: 'Dry run / commit',
+    workflowLabel: 'Chạy thử / ghi nhận',
   },
 ];
 
@@ -145,13 +145,30 @@ export function adminTableStatusTone(status: string): 'success' | 'warning' | 'e
   }
 }
 
+export function adminTableStatusLabel(status: string): string {
+  switch (status) {
+    case 'Available':
+      return 'Bàn trống';
+    case 'Reserved':
+      return 'Đã đặt';
+    case 'Occupied':
+      return 'Đang phục vụ';
+    case 'Blocked':
+      return 'Đang khóa';
+    case 'Maintenance':
+      return 'Bảo trì';
+    default:
+      return status || 'Không rõ';
+  }
+}
+
 export function dayOfWeekLabel(dayOfWeek: number): string {
-  return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek] ?? `Day ${dayOfWeek}`;
+  return ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'][dayOfWeek] ?? `Ngày ${dayOfWeek}`;
 }
 
 export function formatBusinessPeriods(periods: Array<{ start_time: string; end_time: string }>): string {
   if (periods.length === 0) {
-    return 'Closed';
+    return 'Đóng cửa';
   }
 
   return periods.map((period) => `${period.start_time} - ${period.end_time}`).join(', ');
@@ -161,14 +178,14 @@ export function branchReservationLeadLabel(branch: BranchLike): string {
   const reservation = asRecord(branch.booking_policy.reservation);
   const leadMinutes = readNumber(reservation?.min_lead_time_minutes);
 
-  return leadMinutes === null ? 'Not set' : `${leadMinutes} min`;
+  return leadMinutes === null ? 'Chưa thiết lập' : `${leadMinutes} phút`;
 }
 
 export function branchSameDayCutoffLabel(branch: BranchLike): string {
   const reservation = asRecord(branch.booking_policy.reservation);
   return typeof reservation?.same_day_cutoff_time === 'string' && reservation.same_day_cutoff_time !== ''
     ? reservation.same_day_cutoff_time
-    : 'Not set';
+    : 'Chưa thiết lập';
 }
 
 export function branchWaitingListLabel(branch: BranchLike): string {
@@ -176,10 +193,10 @@ export function branchWaitingListLabel(branch: BranchLike): string {
   const enabled = waitingList?.enabled;
 
   if (typeof enabled !== 'boolean') {
-    return 'Not set';
+    return 'Chưa thiết lập';
   }
 
-  return enabled ? 'Enabled' : 'Disabled';
+  return enabled ? 'Đang bật' : 'Đang tắt';
 }
 
 function normalizedString(value: string): string | undefined {

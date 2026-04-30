@@ -21,6 +21,7 @@ import {
   resolveKitchenBranchGuard,
   resolveKitchenStationContext,
   resolveKitchenWorkspaceGuard,
+  kitchenStationDisplayName,
   stationWorkloadLabel,
   summarizeKitchenRealtime,
 } from '../../../../domains/kitchen/kitchen-workspace';
@@ -88,7 +89,7 @@ export function KitchenLandingPage() {
     if (station) {
       setStationContext({
         stationId: station.station_id,
-        label: station.name,
+        label: kitchenStationDisplayName(station),
         source: 'kitchen',
       });
     }
@@ -112,56 +113,56 @@ export function KitchenLandingPage() {
 
   return (
     <div className="staff-kitchen-workspace" data-testid="kitchen-landing-page">
-      <section className="staff-kitchen-hero" aria-label="Kitchen workspace status">
+      <section className="staff-kitchen-hero" aria-label="Tình trạng khu bếp">
         <div className="staff-kitchen-hero-copy">
-          <span className="staff-eyebrow">Kitchen workspace</span>
-          <h2>Line control</h2>
-          <p>Lock a branch and station, then stay in the ticket queue until the line is clear.</p>
+          <span className="staff-eyebrow">Khu bếp</span>
+          <h2>Điều phối món</h2>
+          <p>Chọn đúng chi nhánh và trạm bếp, sau đó xử lý phiếu theo từng trạng thái cho đến khi hết hàng đợi.</p>
         </div>
 
-        <div className="staff-kitchen-hero-metrics" aria-label="Kitchen workload">
-          <Metric label="Queued" value={workload.queued} tone="warning" />
-          <Metric label="In prep" value={workload.fired} tone="processing" />
-          <Metric label="Ready" value={workload.ready} tone="success" />
-          <Metric label="Sync" value={realtimeSummary.eventCount} tone={realtimeSummary.tone} />
+        <div className="staff-kitchen-hero-metrics" aria-label="Tải việc hiện tại của bếp">
+          <Metric label="Chờ làm" value={workload.queued} tone="warning" />
+          <Metric label="Đang làm" value={workload.fired} tone="processing" />
+          <Metric label="Sẵn sàng" value={workload.ready} tone="success" />
+          <Metric label="Đồng bộ" value={realtimeSummary.eventCount} tone={realtimeSummary.tone} />
         </div>
       </section>
 
       {!isOnline ? (
         <InlineWarning
-          title="Kitchen connection is offline"
-          description="Station reads and ticket actions will resume when the browser reconnects."
+          title="Kết nối bếp đang ngoại tuyến"
+          description="Danh sách trạm và thao tác phiếu sẽ tự tải lại khi trình duyệt kết nối lại."
         />
       ) : null}
 
       {blockingState ?? (
         <>
-          {stationsQuery.isLoading ? <InlineLoading tip="Loading kitchen stations..." /> : null}
+          {stationsQuery.isLoading ? <InlineLoading tip="Đang tải trạm bếp..." /> : null}
           {stationsQuery.error ? (
             <TransientFailureState
-              title="Kitchen stations are not available"
-              description={formatApiError(stationsQuery.error, 'Could not load kitchen stations.')}
-              primaryAction={<Button onClick={() => stationsQuery.refetch()}>Retry</Button>}
+              title="Chưa tải được trạm bếp"
+              description={formatApiError(stationsQuery.error, 'Không thể tải danh sách trạm bếp.')}
+              primaryAction={<Button onClick={() => stationsQuery.refetch()}>Tải lại</Button>}
             />
           ) : null}
 
           {!stationsQuery.isLoading && !stationsQuery.error && stations.length === 0 ? (
             <EmptyBlock
-              title="No kitchen stations are configured"
-              description="The selected branch has no active station surface for the kitchen workspace."
+              title="Chưa có trạm bếp"
+              description="Chi nhánh đang chọn chưa có trạm bếp đang hoạt động."
             />
           ) : null}
 
           {!stationsQuery.isLoading && !stationsQuery.error && stations.length > 0 ? (
             <div className="staff-kitchen-landing-grid">
-              <section className="staff-kitchen-panel" aria-label="Station selection">
+              <section className="staff-kitchen-panel" aria-label="Chọn trạm bếp">
                 <div className="staff-kitchen-section-head">
                   <div>
-                    <span className="staff-eyebrow">Station context</span>
-                    <h3>Select station</h3>
+                    <span className="staff-eyebrow">Trạm bếp</span>
+                    <h3>Chọn line làm việc</h3>
                   </div>
                   <StatusChip
-                    label={stationContext.selectedStation ? stationContext.selectedStation.name : 'Selection required'}
+                    label={stationContext.selectedStation ? kitchenStationDisplayName(stationContext.selectedStation) : 'Cần chọn trạm'}
                     tone={stationContext.selectedStation ? 'processing' : 'warning'}
                   />
                 </div>
@@ -181,7 +182,7 @@ export function KitchenLandingPage() {
                   />
                 ) : null}
 
-                <div className="staff-kitchen-station-list staff-kitchen-station-list-landing" role="list" aria-label="Assigned kitchen stations">
+                <div className="staff-kitchen-station-list staff-kitchen-station-list-landing" role="list" aria-label="Trạm bếp được phép thao tác">
                   {stationContext.selectableStations.map((station) => (
                     <button
                       key={station.station_id}
@@ -194,10 +195,10 @@ export function KitchenLandingPage() {
                         <div className="staff-kitchen-station-card-head">
                           <div className="staff-kitchen-station-copy">
                             <span className="staff-kitchen-station-code">{station.code}</span>
-                            <strong>{station.name}</strong>
+                            <strong>{kitchenStationDisplayName(station)}</strong>
                           </div>
                           <span className="staff-kitchen-station-state">
-                            Open line
+                            Mở line
                           </span>
                         </div>
                         <p className="staff-kitchen-station-summary">{stationWorkloadLabel(station)}</p>
@@ -207,20 +208,20 @@ export function KitchenLandingPage() {
                 </div>
               </section>
 
-              <section className="staff-kitchen-panel staff-kitchen-panel-journey" aria-label="Kitchen journey">
+              <section className="staff-kitchen-panel staff-kitchen-panel-journey" aria-label="Quy trình bếp">
                 <div className="staff-kitchen-section-head">
                   <div>
-                    <span className="staff-eyebrow">Line journey</span>
-                    <h3>Run the queue</h3>
+                    <span className="staff-eyebrow">Quy trình</span>
+                    <h3>Xử lý phiếu nhanh</h3>
                   </div>
                   <StatusChip label={realtimeSummary.label} tone={realtimeSummary.tone} />
                 </div>
 
                 <div className="staff-kitchen-journey-list">
-                  <JourneyStep title="1. Station" description="Confirm assigned station and branch context before taking ticket actions." />
-                  <JourneyStep title="2. Queue" description="Work Queued, In prep, and Ready lanes without leaving the kitchen workspace." />
-                  <JourneyStep title="3. Fast actions" description="Fire, bump, and recall only when the ticket lifecycle allows the transition." />
-                  <JourneyStep title="4. Live changes" description="The line refreshes from the kitchen change cursor and refetches on reconnect." />
+                  <JourneyStep title="1. Chọn trạm" description="Kiểm tra chi nhánh và trạm được gán trước khi thao tác." />
+                  <JourneyStep title="2. Theo dõi line" description="Phiếu được chia rõ thành Chờ làm, Đang làm và Sẵn sàng." />
+                  <JourneyStep title="3. Thao tác nhanh" description="Bắt đầu làm, báo đã xong hoặc gọi lại chỉ khi phiếu cho phép." />
+                  <JourneyStep title="4. Đồng bộ" description="Bảng phiếu tự làm mới theo luồng thay đổi và khi kết nối trở lại." />
                 </div>
 
                 <Button
@@ -229,7 +230,7 @@ export function KitchenLandingPage() {
                   disabled={!stationContext.selectedStation || !isOnline}
                   onClick={() => openBoard()}
                 >
-                  Open ticket queue
+                  Mở bảng phiếu bếp
                 </Button>
               </section>
             </div>
@@ -315,9 +316,9 @@ function renderKitchenBlockingState({
     return (
       <TransientFailureState
         variant="page"
-        title="Kitchen workspace is offline"
-        description="Reconnect before loading station queues or changing ticket state."
-        primaryAction={<Button onClick={onRetry}>Retry sync</Button>}
+        title="Khu bếp đang ngoại tuyến"
+        description="Kết nối lại trước khi tải hàng đợi trạm hoặc đổi trạng thái phiếu."
+        primaryAction={<Button onClick={onRetry}>Đồng bộ lại</Button>}
       />
     );
   }

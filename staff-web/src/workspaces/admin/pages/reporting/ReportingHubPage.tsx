@@ -166,7 +166,7 @@ export function ReportingHubPage() {
 
       {activeMeta?.snapshot_health?.status === 'degraded' ? (
         <ConflictState
-          title={branchId ? `Snapshot chi nhánh #${branchId} đang degraded` : 'Snapshot báo cáo trong phạm vi hiện tại đang degraded'}
+          title={branchId ? `Snapshot chi nhánh #${branchId} cần kiểm tra` : 'Snapshot báo cáo trong phạm vi hiện tại cần kiểm tra'}
           description="Phạm vi chi nhánh lấy từ bộ chọn ở shell. Bộ lọc tiền tệ và nguyên liệu chỉ áp dụng cho từng nhóm báo cáo tương ứng. Hãy dùng panel chi tiết bên phải để khoanh vùng trước khi mở luồng khác."
           primaryAction={<Button onClick={() => void activeQuery.refetch()}>Tải lại tab hiện tại</Button>}
           className="staff-inline-note"
@@ -219,8 +219,8 @@ export function ReportingHubPage() {
       {dateRangeError ? (
         <InlineState
           tone="warning"
-          eyebrow="Filter validation"
-          title="Invalid reporting date range"
+          eyebrow="Kiểm tra bộ lọc"
+          title="Khoảng ngày báo cáo chưa hợp lệ"
           description={dateRangeError}
           className="staff-inline-note"
         />
@@ -332,30 +332,30 @@ export function ReportingHubPage() {
 
   const side = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-      <Card title="Finance drilldown" className="staff-workspace-detail-card">
+      <Card title="Đi sâu tài chính" className="staff-workspace-detail-card">
         <Space orientation="vertical" size={12} style={{ width: '100%' }}>
           {can(session, 'settlement.manage') ? (
             <Button block onClick={() => navigate(staffRoutePaths.ops.financeReview)}>
-              Finance review
+              Rà soát tài chính
             </Button>
           ) : null}
           {can(session, 'cashier.shift.manage') ? (
             <Button block onClick={() => navigate(staffRoutePaths.ops.cashierShift)}>
-              Cashier shifts
+              Ca thu ngân
             </Button>
           ) : null}
           {can(session, 'payment.refund') ? (
             <Button block onClick={() => navigate(staffRoutePaths.ops.refunds)}>
-              Refund review
+              Rà soát hoàn tiền
             </Button>
           ) : null}
           {can(session, 'audit.view') ? (
             <Button block onClick={() => navigate(staffRoutePaths.admin.auditTrail)}>
-              Audit trail
+              Nhật ký thao tác
             </Button>
           ) : null}
           {!can(session, 'settlement.manage') && !can(session, 'cashier.shift.manage') && !can(session, 'payment.refund') && !can(session, 'audit.view') ? (
-            <EmptyBlock title="No finance drilldowns available" description="The current staff session does not expose settlement, cashier, refund, or audit capabilities." />
+            <EmptyBlock title="Chưa có luồng tài chính khả dụng" description="Phiên hiện tại chưa có quyền xem quyết toán, ca thu ngân, hoàn tiền hoặc nhật ký thao tác." />
           ) : null}
         </Space>
       </Card>
@@ -368,7 +368,7 @@ export function ReportingHubPage() {
           </Typography.Paragraph>
           {scopeExamples ? (
             <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-              {`Phạm vi đang stale: ${scopeExamples}`}
+              {`Phạm vi cần làm mới: ${scopeExamples}`}
             </Typography.Paragraph>
           ) : null}
         </Space>

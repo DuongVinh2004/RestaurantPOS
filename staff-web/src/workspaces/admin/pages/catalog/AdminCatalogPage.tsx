@@ -81,7 +81,7 @@ export function AdminCatalogPage() {
     mutationFn: () => {
       const sortOrder = Number(categoryForm.sortOrder);
       if (categoryForm.name.trim() === '') {
-        throw new Error('Category name is required.');
+        throw new Error('Hãy nhập tên loại món.');
       }
 
       return createAdminMenuCategory({
@@ -93,16 +93,16 @@ export function AdminCatalogPage() {
     onSuccess: async () => {
       setCategoryForm({ name: '', description: '', sortOrder: '0' });
       await queryClient.invalidateQueries({ queryKey: ['admin-catalog-categories'] });
-      toast.success('Menu category created.');
+      toast.success('Đã tạo loại món.');
     },
-    onError: (error) => toast.error(formatApiError(error, 'Could not create menu category.')),
+    onError: (error) => toast.error(formatApiError(error, 'Chưa tạo được loại món.')),
   });
 
   const createItemMutation = useMutation({
     mutationFn: () => {
       const categoryId = Number(itemForm.categoryId);
       if (itemForm.name.trim() === '') {
-        throw new Error('Menu item name is required.');
+        throw new Error('Hãy nhập tên món.');
       }
 
       return createAdminMenuItem({
@@ -116,9 +116,9 @@ export function AdminCatalogPage() {
     onSuccess: async () => {
       setItemForm((current) => ({ ...current, code: '', name: '', description: '' }));
       await queryClient.invalidateQueries({ queryKey: ['admin-catalog-items'] });
-      toast.success('Menu item created.');
+      toast.success('Đã tạo món ăn.');
     },
-    onError: (error) => toast.error(formatApiError(error, 'Could not create menu item.')),
+    onError: (error) => toast.error(formatApiError(error, 'Chưa tạo được món ăn.')),
   });
 
   const createPriceMutation = useMutation({
@@ -126,7 +126,7 @@ export function AdminCatalogPage() {
       const itemId = selectedItemId;
       const price = Number(priceForm.price);
       if (!itemId || !Number.isFinite(price) || price < 0 || priceForm.effectiveFrom.trim() === '') {
-        throw new Error('Select a menu item, price, and effective date first.');
+        throw new Error('Hãy chọn món, nhập giá và thời điểm áp dụng trước.');
       }
 
       return createAdminMenuItemPrice(itemId, {
@@ -141,40 +141,40 @@ export function AdminCatalogPage() {
         queryClient.invalidateQueries({ queryKey: ['admin-catalog-items'] }),
         queryClient.invalidateQueries({ queryKey: ['admin-catalog-prices'] }),
       ]);
-      toast.success('Menu price row created.');
+      toast.success('Đã thêm dòng giá món.');
     },
-    onError: (error) => toast.error(formatApiError(error, 'Could not create menu price.')),
+    onError: (error) => toast.error(formatApiError(error, 'Chưa tạo được giá món.')),
   });
 
   const main = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <PageHeader
-        eyebrow="Catalog"
-        title="Menu and pricing lane"
-        description="Manage menu categories, items, price rows, and catalog imports through menu.manage routes."
+        eyebrow="Thực đơn"
+        title="Thực đơn và giá bán"
+        description="Quản lý loại món, món ăn, dòng giá và dữ liệu nhập/xuất thực đơn qua quyền menu.manage."
         context={(
           <>
-            <StatusChip label={`${summary.categories} categories`} tone="processing" />
-            <StatusChip label={`${summary.items} items`} tone="processing" />
-            <StatusChip label={`${summary.pricedItems} priced items`} tone="success" />
+            <StatusChip label={`${summary.categories} loại món`} tone="processing" />
+            <StatusChip label={`${summary.items} món`} tone="processing" />
+            <StatusChip label={`${summary.pricedItems} món có giá`} tone="success" />
           </>
         )}
       />
 
-      <Card className="staff-workspace-filter-card" title="Catalog filters">
+      <Card className="staff-workspace-filter-card" title="Lọc thực đơn">
         <Row gutter={[12, 12]}>
           <Col xs={24} md={8}>
             <Input
-              aria-label="Search menu categories"
+              aria-label="Tìm loại món"
               autoComplete="off"
-              placeholder="Category search"
+              placeholder="Tìm loại món"
               value={filters.categoryQuery}
               onChange={(event) => setFilters((current) => ({ ...current, categoryQuery: event.target.value }))}
             />
           </Col>
           <Col xs={24} md={4}>
             <label className="staff-admin-switch-row">
-              <span>Include deleted</span>
+              <span>Gồm mục đã xóa</span>
               <Switch
                 checked={filters.includeDeletedCategories}
                 onChange={(checked) => setFilters((current) => ({ ...current, includeDeletedCategories: checked }))}
@@ -183,16 +183,16 @@ export function AdminCatalogPage() {
           </Col>
           <Col xs={24} md={8}>
             <Input
-              aria-label="Search menu items"
+              aria-label="Tìm món ăn"
               autoComplete="off"
-              placeholder="Item search"
+              placeholder="Tìm món ăn"
               value={filters.itemQuery}
               onChange={(event) => setFilters((current) => ({ ...current, itemQuery: event.target.value }))}
             />
           </Col>
           <Col xs={24} md={4}>
             <label className="staff-admin-switch-row">
-              <span>Available only</span>
+              <span>Chỉ món đang bán</span>
               <Switch
                 checked={filters.availableOnly}
                 onChange={(checked) => setFilters((current) => ({ ...current, availableOnly: checked }))}
@@ -201,18 +201,18 @@ export function AdminCatalogPage() {
           </Col>
           <Col xs={24} md={6}>
             <Input
-              aria-label="Catalog item category id"
+              aria-label="Mã loại món"
               autoComplete="off"
-              placeholder="Category id"
+              placeholder="Mã loại món"
               value={filters.categoryIdInput}
               onChange={(event) => setFilters((current) => ({ ...current, categoryIdInput: event.target.value }))}
             />
           </Col>
           <Col xs={24} md={6}>
             <Input
-              aria-label="Selected catalog item id"
+              aria-label="Mã món đang chọn"
               autoComplete="off"
-              placeholder="Selected item id for prices"
+              placeholder="Mã món để xem giá"
               value={filters.selectedItemIdInput}
               onChange={(event) => setFilters((current) => ({ ...current, selectedItemIdInput: event.target.value }))}
             />
@@ -223,28 +223,28 @@ export function AdminCatalogPage() {
       <Row gutter={[16, 16]}>
         <Col xs={24} md={8}>
           <Card className="staff-admin-summary-card">
-            <Statistic title="Categories" value={summary.categories} />
+            <Statistic title="Loại món" value={summary.categories} />
           </Card>
         </Col>
         <Col xs={24} md={8}>
           <Card className="staff-admin-summary-card">
-            <Statistic title="Available items" value={summary.availableItems} />
+            <Statistic title="Món đang bán" value={summary.availableItems} />
           </Card>
         </Col>
         <Col xs={24} md={8}>
           <Card className="staff-admin-summary-card">
-            <Statistic title="Price rows" value={summary.priceRows} />
+            <Statistic title="Dòng giá" value={summary.priceRows} />
           </Card>
         </Col>
       </Row>
 
-      <Card className="staff-workspace-table-card" title="Menu categories">
+      <Card className="staff-workspace-table-card" title="Loại món">
         <CatalogSurface
           loading={categoriesQuery.isLoading}
           error={categoriesQuery.error}
-          fallback="Unable to load menu categories."
+          fallback="Chưa tải được loại món."
           rows={categories}
-          emptyTitle="No categories matched this filter"
+          emptyTitle="Không có loại món phù hợp"
           onRetry={() => void categoriesQuery.refetch()}
           renderRows={() => (
             <div className="staff-admin-surface-list">
@@ -252,12 +252,12 @@ export function AdminCatalogPage() {
                 <div key={category.category_id} className="staff-admin-surface-item">
                   <div>
                     <strong>{category.name}</strong>
-                    <Typography.Paragraph type="secondary">Category #{category.category_id} / sort {category.sort_order}</Typography.Paragraph>
+                    <Typography.Paragraph type="secondary">Loại #{category.category_id} / thứ tự {category.sort_order}</Typography.Paragraph>
                   </div>
                   <Space wrap size={6}>
-                    <StatusChip label={category.is_deleted ? 'Deleted' : 'Active'} tone={category.is_deleted ? 'warning' : 'success'} />
+                    <StatusChip label={category.is_deleted ? 'Đã xóa' : 'Đang dùng'} tone={category.is_deleted ? 'warning' : 'success'} />
                   </Space>
-                  <Typography.Text type="secondary">{category.description ?? 'No description'}</Typography.Text>
+                  <Typography.Text type="secondary">{category.description ?? 'Chưa có mô tả'}</Typography.Text>
                 </div>
               ))}
             </div>
@@ -265,13 +265,13 @@ export function AdminCatalogPage() {
         />
       </Card>
 
-      <Card className="staff-workspace-table-card" title="Menu items">
+      <Card className="staff-workspace-table-card" title="Món ăn">
         <CatalogSurface
           loading={itemsQuery.isLoading}
           error={itemsQuery.error}
-          fallback="Unable to load menu items."
+          fallback="Chưa tải được món ăn."
           rows={items}
-          emptyTitle="No menu items matched this filter"
+          emptyTitle="Không có món ăn phù hợp"
           onRetry={() => void itemsQuery.refetch()}
           renderRows={() => (
             <div className="staff-admin-surface-list">
@@ -284,11 +284,11 @@ export function AdminCatalogPage() {
                 >
                   <div className="staff-admin-branch-row-main">
                     <strong>{item.name}</strong>
-                    <span>{item.code ?? `Item #${item.item_id}`} / {item.category?.name ?? `Category #${item.category_id ?? 'n/a'}`}</span>
+                    <span>{item.code ?? `Món #${item.item_id}`} / {item.category?.name ?? `Loại #${item.category_id ?? 'không rõ'}`}</span>
                   </div>
                   <Space wrap size={6}>
-                    <StatusChip label={item.is_available ? 'Available' : 'Unavailable'} tone={item.is_available ? 'success' : 'warning'} />
-                    <StatusChip label={item.current_price ? formatCatalogPrice(item.current_price.price, item.current_price.currency) : 'No current price'} tone={item.current_price ? 'success' : 'warning'} />
+                    <StatusChip label={item.is_available ? 'Đang bán' : 'Tạm ngưng'} tone={item.is_available ? 'success' : 'warning'} />
+                    <StatusChip label={item.current_price ? formatCatalogPrice(item.current_price.price, item.current_price.currency) : 'Chưa có giá hiện tại'} tone={item.current_price ? 'success' : 'warning'} />
                   </Space>
                 </button>
               ))}
@@ -301,131 +301,131 @@ export function AdminCatalogPage() {
 
   const side = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-      <Card className="staff-workspace-detail-card" title="Create category">
+      <Card className="staff-workspace-detail-card" title="Tạo loại món">
         <Space orientation="vertical" size={12} style={{ width: '100%' }}>
           <Input
-            aria-label="New category name"
+            aria-label="Tên loại món mới"
             autoComplete="off"
-            placeholder="Name"
+            placeholder="Tên loại món"
             value={categoryForm.name}
             onChange={(event) => setCategoryForm((current) => ({ ...current, name: event.target.value }))}
           />
           <Input
-            aria-label="New category description"
+            aria-label="Mô tả loại món mới"
             autoComplete="off"
-            placeholder="Description"
+            placeholder="Mô tả"
             value={categoryForm.description}
             onChange={(event) => setCategoryForm((current) => ({ ...current, description: event.target.value }))}
           />
           <InputNumber
-            aria-label="New category sort order"
+            aria-label="Thứ tự loại món mới"
             style={{ width: '100%' }}
             value={Number(categoryForm.sortOrder)}
             onChange={(value) => setCategoryForm((current) => ({ ...current, sortOrder: value === null ? '0' : String(value) }))}
           />
           <Button type="primary" loading={createCategoryMutation.isPending} disabled={createCategoryMutation.isPending} onClick={() => createCategoryMutation.mutate()}>
-            Create category
+            Tạo loại món
           </Button>
-          {createCategoryMutation.error ? <Typography.Text type="danger">{formatApiError(createCategoryMutation.error, 'Could not create menu category.')}</Typography.Text> : null}
+          {createCategoryMutation.error ? <Typography.Text type="danger">{formatApiError(createCategoryMutation.error, 'Chưa tạo được loại món.')}</Typography.Text> : null}
         </Space>
       </Card>
 
-      <Card className="staff-workspace-detail-card" title="Create item">
+      <Card className="staff-workspace-detail-card" title="Tạo món ăn">
         <Space orientation="vertical" size={12} style={{ width: '100%' }}>
           <Input
-            aria-label="New item code"
+            aria-label="Mã món mới"
             autoComplete="off"
-            placeholder="Code"
+            placeholder="Mã món"
             value={itemForm.code}
             onChange={(event) => setItemForm((current) => ({ ...current, code: event.target.value }))}
           />
           <Input
-            aria-label="New item name"
+            aria-label="Tên món mới"
             autoComplete="off"
-            placeholder="Name"
+            placeholder="Tên món"
             value={itemForm.name}
             onChange={(event) => setItemForm((current) => ({ ...current, name: event.target.value }))}
           />
           <Select
-            aria-label="New item category"
+            aria-label="Loại món của món mới"
             style={{ width: '100%' }}
-            placeholder="Category"
+            placeholder="Loại món"
             allowClear
             value={itemForm.categoryId || undefined}
             options={categories.map((category) => ({ value: String(category.category_id), label: category.name }))}
             onChange={(value) => setItemForm((current) => ({ ...current, categoryId: value ?? '' }))}
           />
           <Input
-            aria-label="New item description"
+            aria-label="Mô tả món mới"
             autoComplete="off"
-            placeholder="Description"
+            placeholder="Mô tả"
             value={itemForm.description}
             onChange={(event) => setItemForm((current) => ({ ...current, description: event.target.value }))}
           />
           <label className="staff-admin-switch-row">
-            <span>Available</span>
+            <span>Đang bán</span>
             <Switch
               checked={itemForm.available}
               onChange={(checked) => setItemForm((current) => ({ ...current, available: checked }))}
             />
           </label>
           <Button type="primary" loading={createItemMutation.isPending} disabled={createItemMutation.isPending} onClick={() => createItemMutation.mutate()}>
-            Create item
+            Tạo món
           </Button>
-          {createItemMutation.error ? <Typography.Text type="danger">{formatApiError(createItemMutation.error, 'Could not create menu item.')}</Typography.Text> : null}
+          {createItemMutation.error ? <Typography.Text type="danger">{formatApiError(createItemMutation.error, 'Chưa tạo được món ăn.')}</Typography.Text> : null}
         </Space>
       </Card>
 
-      <Card className="staff-workspace-detail-card" title="Price management">
+      <Card className="staff-workspace-detail-card" title="Quản lý giá">
         {!selectedItem ? (
-          <EmptyBlock title="No item selected" description="Select an item row or enter an item id to inspect and add price rows." />
+          <EmptyBlock title="Chưa chọn món" description="Chọn một món hoặc nhập mã món để xem và thêm dòng giá." />
         ) : (
           <Space orientation="vertical" size={12} style={{ width: '100%' }}>
             <Typography.Text>{selectedItem.name}</Typography.Text>
-            {pricesQuery.isLoading ? <InlineLoading tip="Loading price rows..." /> : null}
-            {pricesQuery.error ? <ApiStateBlock error={pricesQuery.error} fallback="Unable to load price rows." onRetry={() => void pricesQuery.refetch()} /> : null}
+            {pricesQuery.isLoading ? <InlineLoading tip="Đang tải dòng giá..." /> : null}
+            {pricesQuery.error ? <ApiStateBlock error={pricesQuery.error} fallback="Chưa tải được dòng giá." onRetry={() => void pricesQuery.refetch()} /> : null}
             {prices.length > 0 ? (
               <div className="staff-admin-detail-list">
                 {prices.map((price) => (
                   <div key={price.price_id} className="staff-admin-detail-item">
                     <strong>{formatCatalogPrice(price.price, price.currency)}</strong>
-                    <span>{formatDateTime(price.effective_from)} to {price.effective_to ? formatDateTime(price.effective_to) : 'open ended'}</span>
+                    <span>{formatDateTime(price.effective_from)} đến {price.effective_to ? formatDateTime(price.effective_to) : 'chưa có ngày kết thúc'}</span>
                   </div>
                 ))}
               </div>
             ) : !pricesQuery.isLoading && !pricesQuery.error ? (
-              <EmptyBlock title="No price rows" description="Add a price row before this item can be sold with a current price." />
+              <EmptyBlock title="Chưa có dòng giá" description="Hãy thêm giá trước khi món này có thể bán với giá hiện tại." />
             ) : null}
             <InputNumber
-              aria-label="New item price"
+              aria-label="Giá món mới"
               style={{ width: '100%' }}
               min={0}
               value={priceForm.price === '' ? null : Number(priceForm.price)}
-              placeholder="Price"
+              placeholder="Giá"
               onChange={(value) => setPriceForm((current) => ({ ...current, price: value === null ? '' : String(value) }))}
             />
             <Input
-              aria-label="New price currency"
+              aria-label="Tiền tệ của giá mới"
               autoComplete="off"
               value={priceForm.currency}
               onChange={(event) => setPriceForm((current) => ({ ...current, currency: event.target.value }))}
             />
             <Input
-              aria-label="New price effective from"
+              aria-label="Thời điểm áp dụng giá mới"
               type="datetime-local"
               value={priceForm.effectiveFrom}
               onChange={(event) => setPriceForm((current) => ({ ...current, effectiveFrom: event.target.value }))}
             />
             <Button type="primary" loading={createPriceMutation.isPending} disabled={createPriceMutation.isPending} onClick={() => createPriceMutation.mutate()}>
-              Add price row
+              Thêm dòng giá
             </Button>
           </Space>
         )}
       </Card>
 
       <AdminMasterDataImportPanel
-        title="Catalog import dry run"
-        description="Preview menu category, item, or price rows before committing with an idempotency key."
+        title="Chạy thử nhập thực đơn"
+        description="Kiểm tra loại món, món ăn hoặc dòng giá trước khi ghi nhận với Idempotency-Key."
         domains={catalogImportDomains}
         onCommitted={() => {
           void queryClient.invalidateQueries({ queryKey: ['admin-catalog-categories'] });
@@ -457,7 +457,7 @@ function CatalogSurface({
   onRetry: () => void;
 }) {
   if (loading) {
-    return <InlineLoading tip="Loading catalog reads..." />;
+    return <InlineLoading tip="Đang tải dữ liệu thực đơn..." />;
   }
 
   if (error) {
@@ -465,7 +465,7 @@ function CatalogSurface({
   }
 
   if (rows.length === 0) {
-    return <EmptyBlock title={emptyTitle} description="Adjust filters or create/import records for this catalog surface." />;
+    return <EmptyBlock title={emptyTitle} description="Hãy đổi bộ lọc hoặc tạo/nhập thêm dữ liệu cho khu vực này." />;
   }
 
   return renderRows();

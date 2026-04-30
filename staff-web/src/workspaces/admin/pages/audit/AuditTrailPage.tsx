@@ -168,13 +168,13 @@ export function AuditTrailPage() {
   const main = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <PageHeader
-        eyebrow="Điều tra audit trail"
+        eyebrow="Điều tra nhật ký"
         title="Rà soát nhật ký vận hành"
         description="Dùng màn này để lần vết sự cố, kiểm tra hành động nhạy cảm và nối lại ngữ cảnh giữa audit với luồng đặt bàn, đơn hàng hoặc tài chính."
         context={(
           <>
             <StatusChip
-              label={filters.branchScope === 'shell' && branchId ? `Chi nhánh #${branchId}` : 'Toàn ph\u1ea1m vi audit'}
+              label={filters.branchScope === 'shell' && branchId ? `Chi nhánh #${branchId}` : 'Toàn phạm vi nhật ký'}
               tone={filters.branchScope === 'shell' ? 'processing' : 'default'}
             />
             <StatusChip label={`${auditQuery.data?.meta?.total ?? 0} dòng khớp bộ lọc`} tone="processing" />
@@ -213,7 +213,7 @@ export function AuditTrailPage() {
               aria-label="Tìm kiếm trong nhật ký audit"
               autoComplete="off"
               name="auditSearch"
-              placeholder={'Action, request, actor hoặc subject…'}
+              placeholder="Thao tác, mã truy vết, người thao tác hoặc đối tượng…"
               spellCheck={false}
               value={filters.searchText}
               onChange={(event) => updateFilter('searchText', event.target.value)}
@@ -221,10 +221,10 @@ export function AuditTrailPage() {
           </Col>
           <Col xs={24} md={6}>
             <Input
-              aria-label="Lọc theo Request ID"
+              aria-label="Lọc theo mã truy vết"
               autoComplete="off"
               name="requestId"
-              placeholder="Request ID…"
+              placeholder="Mã truy vết…"
               spellCheck={false}
               value={filters.requestId}
               onChange={(event) => updateFilter('requestId', event.target.value)}
@@ -400,7 +400,7 @@ export function AuditTrailPage() {
             <StatusChip label={selectedEntry.primary_subject.type} />
             <StatusChip label={selectedEntry.actor.type ?? 'unknown'} tone="processing" />
             {selectedEntry.request?.method ? <StatusChip label={selectedEntry.request.method} tone="warning" /> : null}
-            {selectedEntry.request?.branch_id ? <StatusChip label={`Branch #${selectedEntry.request.branch_id}`} tone="default" /> : null}
+            {selectedEntry.request?.branch_id ? <StatusChip label={`Chi nhánh #${selectedEntry.request.branch_id}`} tone="default" /> : null}
           </Space>
 
           <Descriptions bordered size="small" column={1}>

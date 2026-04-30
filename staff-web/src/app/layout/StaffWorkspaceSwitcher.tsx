@@ -28,13 +28,13 @@ export function StaffWorkspaceSwitcher({
   return (
     <div className="staff-shell-header-select">
       <label className="staff-shell-branch-label" htmlFor="staff-shell-workspace-select">
-        Workspace
+        Khu vực
       </label>
 
       <div className="staff-shell-select-wrap">
         <select
           id="staff-shell-workspace-select"
-          aria-label="Switch workspace"
+          aria-label="Chuyển khu vực làm việc"
           className="staff-shell-branch-select"
           value={activeWorkspace}
           onChange={handleChange}

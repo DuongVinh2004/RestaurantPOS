@@ -4,6 +4,7 @@ import { buildStaffSession } from '../../test/fixtures';
 import {
   canDispatchKitchenOrder,
   groupKitchenTicketsByLane,
+  kitchenStationDisplayName,
   resolveKitchenBranchGuard,
   resolveKitchenStationContext,
   resolveKitchenWorkspaceGuard,
@@ -34,7 +35,7 @@ describe('kitchen workspace domain rules', () => {
 
     expect(resolveKitchenBranchGuard(session, 9)).toMatchObject({
       kind: 'invalid-branch',
-      meta: 'Branch #9',
+      meta: 'Chi nhánh #9',
     });
   });
 
@@ -92,8 +93,13 @@ describe('kitchen workspace domain rules', () => {
       requestedStationId: 22,
     }).guard).toMatchObject({
       kind: 'invalid-station',
-      meta: 'Station #22',
+      meta: 'Trạm #22',
     });
+  });
+
+  it('shows default kitchen station names in Vietnamese', () => {
+    expect(kitchenStationDisplayName(makeStation(11))).toBe('Bếp nóng');
+    expect(kitchenStationDisplayName(makeStation(22))).toBe('Bếp lạnh');
   });
 
   it('groups tickets into operational status lanes and maps safe fast actions', () => {

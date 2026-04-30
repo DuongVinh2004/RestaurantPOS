@@ -163,7 +163,7 @@ describe('TableBoardPage', () => {
     expect(view.container.querySelector('[data-testid="table-board-page"]')).toBeNull();
   });
 
-  it('shows a single primary table status and one next step on each board card', async () => {
+  it('keeps board cards compact with one status and one short next step', async () => {
     apiMocks.getTableBoard.mockResolvedValue(createBoardEnvelope([
       createBoardRow({
         table_id: 21,
@@ -181,10 +181,60 @@ describe('TableBoardPage', () => {
     expect(within(card).getAllByText('Sẵn bàn')).toHaveLength(1);
     expect(within(card).queryByText('Gợi ý')).not.toBeInTheDocument();
     expect(within(card).getByText('Khu B')).toBeInTheDocument();
-    expect(within(card).getByText('Sẵn sàng')).toBeInTheDocument();
-    expect(within(card).getByText('Trống & sẵn nhận khách')).toBeInTheDocument();
+    expect(within(card).getByText('Trống')).toBeInTheDocument();
     expect(within(card).queryByText('Tiếp theo')).not.toBeInTheDocument();
-    expect(within(card).getByText('Xếp khách vào bàn')).toBeInTheDocument();
+    expect(within(card).getByText('Xếp khách')).toBeInTheDocument();
+  });
+
+  it('shows reservation guest name phone and party size in the selected table inspector', async () => {
+    apiMocks.getTableBoard.mockResolvedValue(createBoardEnvelope([
+      createBoardRow({
+        table_id: 22,
+        table_code: 'MAIN-S-02',
+        board_state: 'reserved_in_range',
+        realtime_status: 'Available',
+        reservation: {
+          reservation_id: 51,
+          reservation_code: 'RSV-051',
+          status: 'Confirmed',
+          row_version: 3,
+          table_ids: [22],
+          guest_count: 4,
+          start_time: '2026-04-11T12:15:00Z',
+          end_time: '2026-04-11T14:15:00Z',
+          user: {
+            full_name: 'Mai Anh',
+            phone: '0901122334',
+          },
+          guest: null,
+        },
+        actions: {
+          check_in: {
+            available: true,
+            method: 'POST',
+            endpoint: '/api/v1/staff/reservations/51/check-in',
+            required_payload: ['row_version'],
+            preferred_payload: {
+              row_version: 3,
+              table_ids: [22],
+            },
+            checks: {},
+          },
+          move_table: null,
+        },
+      }),
+    ]));
+
+    renderWithProviders('/ops/tables?source=board&table_id=22');
+
+    await screen.findByText('Thông tin đặt bàn');
+    const summary = screen.getByText('Tên khách').closest('.staff-table-board-reservation-summary') as HTMLElement;
+    expect(summary).not.toBeNull();
+    expect(within(summary).getByText('Mai Anh')).toBeInTheDocument();
+    expect(within(summary).getByText('Điện thoại')).toBeInTheDocument();
+    expect(within(summary).getByText('0901122334')).toBeInTheDocument();
+    expect(within(summary).getByText('Số khách')).toBeInTheDocument();
+    expect(within(summary).getByText('4')).toBeInTheDocument();
   });
 
   it('polls table board changes with the active branch after branch switch', async () => {
@@ -256,11 +306,11 @@ describe('TableBoardPage', () => {
     const selectedCard = await screen.findByRole('button', { name: /Bàn 1/i });
     const reservedCard = await screen.findByRole('button', { name: /Bàn 2/i });
 
-    expect(within(selectedCard).getByText('Xếp khách vào bàn')).toBeInTheDocument();
+    expect(within(selectedCard).getByText('Xếp khách')).toBeInTheDocument();
     expect(within(selectedCard).queryByText('Đang mở chi tiết')).not.toBeInTheDocument();
     expect(within(reservedCard).getByText('Đã đặt')).toBeInTheDocument();
     expect(within(reservedCard).queryByText('reserved_in_range')).not.toBeInTheDocument();
-    expect(within(reservedCard).getByText('Nhận khách vào bàn')).toBeInTheDocument();
+    expect(within(reservedCard).getByText('Nhận bàn')).toBeInTheDocument();
   });
 
   it('moves a checked-in reservation to a new table and carries order context forward', async () => {

@@ -20,12 +20,12 @@ function BranchControl({
   return (
     <div className="staff-shell-header-select">
       <label className="staff-shell-branch-label" htmlFor="staff-shell-branch-select">
-        Chi nhanh thao tac
+        Chi nhánh thao tác
       </label>
       <div className="staff-shell-select-wrap">
         <select
           id="staff-shell-branch-select"
-          aria-label="Chon chi nhanh hoat dong"
+          aria-label="Chọn chi nhánh hoạt động"
           className="staff-shell-branch-select"
           value={branchSelectValue}
           disabled={branchesLoading || branchOptions.length === 0}
@@ -33,7 +33,7 @@ function BranchControl({
         >
           {branchSelectValue === '' ? (
             <option value="">
-              {branchesLoading ? 'Dang tai chi nhanh...' : 'Chon chi nhanh'}
+              {branchesLoading ? 'Đang tải chi nhánh...' : 'Chọn chi nhánh'}
             </option>
           ) : null}
           {branchOptions.map((option) => (
@@ -69,7 +69,8 @@ function ActionRow({
           type="button"
           className="staff-shell-control-button staff-shell-button-ghost staff-shell-button-icon staff-shell-nav-toggle"
           onClick={onOpenNavigation}
-          aria-label="Open navigation"
+          aria-label="Mở điều hướng"
+          title="Mở điều hướng"
         >
           <PanelLeftOpen size={18} />
         </button>
@@ -77,31 +78,34 @@ function ActionRow({
 
       <button
         type="button"
-        className="staff-shell-control-button staff-shell-button-subtle"
+        className="staff-shell-control-button staff-shell-button-subtle staff-shell-button-icon"
         onClick={onRefresh}
+        aria-label="Làm mới"
+        title="Làm mới"
       >
         <RefreshCcw size={16} />
-        <span>Lam moi</span>
       </button>
 
       {showCommandPalette ? (
         <button
           type="button"
-          className="staff-shell-control-button staff-shell-button-quiet"
+          className="staff-shell-control-button staff-shell-button-quiet staff-shell-button-icon"
           onClick={onOpenCommandPalette}
+          aria-label="Tìm nhanh"
+          title="Tìm nhanh"
         >
           <Command size={16} />
-          <span>Tim</span>
         </button>
       ) : null}
 
       <button
         type="button"
-        className="staff-shell-control-button staff-shell-button-ghost"
+        className="staff-shell-control-button staff-shell-button-ghost staff-shell-button-icon"
         onClick={onLogout}
+        aria-label="Đăng xuất"
+        title="Đăng xuất"
       >
         <LogOut size={16} />
-        <span>Dang xuat</span>
       </button>
     </div>
   );
