@@ -137,6 +137,7 @@ final class ApiOpenApiContractCoverageTest extends TestCase
             'GET api/v1/auth/customer/me',
             'POST api/v1/auth/customer/refresh',
             'POST api/v1/auth/customer/logout',
+            'GET api/v1/restaurant/profile',
             'GET api/v1/menu/categories',
             'GET api/v1/menu/items',
             'GET api/v1/menu/items/{id}',
@@ -212,6 +213,33 @@ final class ApiOpenApiContractCoverageTest extends TestCase
         $this->assertSame(
             ['refresh_cookie'],
             data_get($spec, 'components.schemas.StaffLoginRequest.properties.session_transport.enum')
+        );
+    }
+
+    public function test_public_restaurant_profile_route_exposes_branch_hours_contract(): void
+    {
+        $spec = app(OpenApiSpecService::class)->build();
+        $operations = $this->specOperations($spec);
+
+        $this->assertArrayHasKey('GET api/v1/restaurant/profile', $operations);
+        $this->assertSame('full', $operations['GET api/v1/restaurant/profile']['x-contract-grade'] ?? null);
+        $this->assertSame('public', $operations['GET api/v1/restaurant/profile']['x-auth-mode'] ?? null);
+        $this->assertSame([], $operations['GET api/v1/restaurant/profile']['security'] ?? null);
+        $this->assertSame(
+            '#/components/schemas/RestaurantProfileEnvelope',
+            data_get($operations['GET api/v1/restaurant/profile'], 'responses.200.content.application/json.schema.$ref')
+        );
+        $this->assertSame(
+            '#/components/schemas/RestaurantProfile',
+            data_get($spec, 'components.schemas.RestaurantProfileEnvelope.properties.data.$ref')
+        );
+        $this->assertSame(
+            'array',
+            data_get($spec, 'components.schemas.RestaurantProfile.properties.business_hours.type')
+        );
+        $this->assertSame(
+            'boolean',
+            data_get($spec, 'components.schemas.RestaurantProfile.properties.current_status.properties.is_open.type')
         );
     }
 

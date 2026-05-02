@@ -68,6 +68,10 @@
             "description": "Reservation lifecycle and self-service access."
         },
         {
+            "name": "Restaurant Profile",
+            "description": "Public customer-web restaurant profile, default branch hours, and open-state context."
+        },
+        {
             "name": "Staff Cashier",
             "description": "Cashier shift opening, current view, and closing flows."
         },
@@ -13692,6 +13696,52 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/restaurant/profile": {
+            "get": {
+                "operationId": "get_v1_restaurant_profile",
+                "summary": "Show public restaurant profile",
+                "description": "Return customer-web public restaurant operating context for footer and booking entry points, including default branch timezone, business hours, today hours, and current open state.",
+                "tags": [
+                    "Restaurant Profile"
+                ],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RestaurantProfileEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "deprecated": false,
+                "x-route-key": "get_v1_restaurant_profile",
+                "x-action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Guest\\RestaurantProfileController@show",
+                "x-auth-mode": "public",
+                "x-contract-grade": "full",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware"
+                ]
             }
         },
         "/api/v1/staff/audit-trail": {
@@ -45060,6 +45110,153 @@
                         "boolean"
                     ]
                 }
+            },
+            "RestaurantProfile": {
+                "type": "object",
+                "required": [
+                    "branch_id",
+                    "branch_code",
+                    "branch_name",
+                    "timezone",
+                    "business_hours",
+                    "today_hours",
+                    "current_status"
+                ],
+                "properties": {
+                    "branch_id": {
+                        "type": "integer"
+                    },
+                    "branch_code": {
+                        "type": "string"
+                    },
+                    "branch_name": {
+                        "type": "string"
+                    },
+                    "timezone": {
+                        "type": "string"
+                    },
+                    "business_hours": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "day_of_week",
+                                "periods"
+                            ],
+                            "properties": {
+                                "day_of_week": {
+                                    "type": "integer"
+                                },
+                                "periods": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "required": [
+                                            "start_time",
+                                            "end_time"
+                                        ],
+                                        "properties": {
+                                            "start_time": {
+                                                "type": "string"
+                                            },
+                                            "end_time": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    },
+                    "today_hours": {
+                        "type": "object",
+                        "required": [
+                            "day_of_week",
+                            "periods",
+                            "is_closed"
+                        ],
+                        "properties": {
+                            "day_of_week": {
+                                "type": "integer"
+                            },
+                            "periods": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "required": [
+                                        "start_time",
+                                        "end_time"
+                                    ],
+                                    "properties": {
+                                        "start_time": {
+                                            "type": "string"
+                                        },
+                                        "end_time": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "additionalProperties": false
+                                }
+                            },
+                            "is_closed": {
+                                "type": "boolean"
+                            }
+                        },
+                        "additionalProperties": false
+                    },
+                    "current_status": {
+                        "type": "object",
+                        "required": [
+                            "is_open",
+                            "reason",
+                            "checked_at_local",
+                            "timezone"
+                        ],
+                        "properties": {
+                            "is_open": {
+                                "type": "boolean"
+                            },
+                            "reason": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "checked_at_local": {
+                                "type": "string"
+                            },
+                            "timezone": {
+                                "type": "string"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                },
+                "additionalProperties": false
+            },
+            "RestaurantProfileEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/RestaurantProfile"
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "action": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "action"
+                        ],
+                        "additionalProperties": false
+                    }
+                },
+                "additionalProperties": false
             },
             "RestaurantTable": {
                 "type": "object",

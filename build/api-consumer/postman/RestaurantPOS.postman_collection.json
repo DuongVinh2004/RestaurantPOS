@@ -288,6 +288,22 @@
             "name": "Availability + Reservation",
             "item": [
                 {
+                    "name": "Show public restaurant profile",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/restaurant/profile",
+                        "description": "Return customer-web public restaurant operating context for footer and booking entry points, including default branch timezone, business hours, today hours, and current open state.\n\nSignature: `GET api/v1/restaurant/profile`\nAuth mode: `public`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
                     "name": "List available tables",
                     "request": {
                         "method": "GET",

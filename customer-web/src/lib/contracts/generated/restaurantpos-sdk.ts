@@ -2352,6 +2352,41 @@ export type ReservationSummary = {
   [key: string]: unknown;
 };
 
+export type RestaurantProfile = {
+  branch_id: number;
+  branch_code: string;
+  branch_name: string;
+  timezone: string;
+  business_hours: Array<{
+  day_of_week: number;
+  periods: Array<{
+  start_time: string;
+  end_time: string;
+}>;
+}>;
+  today_hours: {
+  day_of_week: number;
+  periods: Array<{
+  start_time: string;
+  end_time: string;
+}>;
+  is_closed: boolean;
+};
+  current_status: {
+  is_open: boolean;
+  reason: (string) | null;
+  checked_at_local: string;
+  timezone: string;
+};
+};
+
+export type RestaurantProfileEnvelope = {
+  data: RestaurantProfile;
+  meta?: {
+  action: string;
+};
+};
+
 export type RestaurantTable = {
   table_id: number;
   branch_id: (number) | null;
@@ -3957,6 +3992,19 @@ export class RestaurantPosClient {
       'POST',
       '/api/v1/auth/staff/logout',
       'staffBrowserSession',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1RestaurantProfile(options: RequestOptions = {}): Promise<RestaurantProfileEnvelope> {
+    return this.request<RestaurantProfileEnvelope>(
+      'GET',
+      '/api/v1/restaurant/profile',
+      'none',
       false,
       false,
       undefined,

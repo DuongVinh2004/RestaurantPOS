@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CalendarDays, Users, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/status/status-badge";
@@ -18,7 +19,7 @@ export function ReservationCard({ reservation }: { reservation: ReservationSumma
   const bill = getReservationBillSummaryState(reservation);
 
   return (
-    <Card className="rounded-lg">
+    <Card className="rounded-lg transition hover:border-primary/40 hover:shadow-sm">
       <CardContent className="space-y-4 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -28,21 +29,21 @@ export function ReservationCard({ reservation }: { reservation: ReservationSumma
           <StatusBadge status={reservation.status} />
         </div>
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <div>
-            <p className="text-muted-foreground">Số khách</p>
-            <p className="font-medium">{reservation.guest_count ?? "Chưa có"}</p>
+          <div className="rounded-lg border bg-background/70 p-3">
+            <p className="flex items-center gap-2 text-muted-foreground"><Users className="h-3.5 w-3.5" /> Số khách</p>
+            <p className="mt-1 font-medium">{reservation.guest_count ?? "Chưa có"}</p>
           </div>
-          <div>
-            <p className="text-muted-foreground">Đặt cọc</p>
-            <p className="font-medium">{deposit.label}</p>
+          <div className="rounded-lg border bg-background/70 p-3">
+            <p className="flex items-center gap-2 text-muted-foreground"><WalletCards className="h-3.5 w-3.5" /> Đặt cọc</p>
+            <p className="mt-1 font-medium">{deposit.label}</p>
           </div>
-          <div>
-            <p className="text-muted-foreground">Hóa đơn</p>
-            <p className="font-medium">{bill.available ? formatMoney(bill.amount, bill.currency) : bill.label}</p>
+          <div className="rounded-lg border bg-background/70 p-3">
+            <p className="flex items-center gap-2 text-muted-foreground"><WalletCards className="h-3.5 w-3.5" /> Hóa đơn</p>
+            <p className="mt-1 font-medium">{bill.available ? formatMoney(bill.amount, bill.currency) : bill.label}</p>
           </div>
-          <div>
-            <p className="text-muted-foreground">Bàn</p>
-            <p className="font-medium">{tableListLabel(reservation.table_ids)}</p>
+          <div className="rounded-lg border bg-background/70 p-3">
+            <p className="flex items-center gap-2 text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" /> Bàn</p>
+            <p className="mt-1 font-medium">{tableListLabel(reservation.table_ids)}</p>
           </div>
         </div>
         <Button asChild className="w-full rounded-lg">

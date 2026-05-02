@@ -1,0 +1,108 @@
+import { theme, type ThemeConfig } from 'antd';
+
+export const staffThemeTokens = {
+  background: '#0f1115',
+  backgroundAccent: '#10141c',
+  surface1: '#151922',
+  surface2: '#1b2130',
+  surface3: '#232b3b',
+  border: '#2d3748',
+  borderSubtle: '#202838',
+  textPrimary: '#f3f6fb',
+  textSecondary: '#bcc7d6',
+  textTertiary: '#8d9aaf',
+  disabled: '#657289',
+  primary: '#7c5cff',
+  primaryHover: '#6f4cff',
+  info: '#3b82f6',
+  success: '#22c55e',
+  warning: '#f59e0b',
+  danger: '#ef4444',
+  analytics: '#d946ef',
+} as const;
+
+export const staffAntTheme: ThemeConfig = {
+  algorithm: [theme.darkAlgorithm, theme.compactAlgorithm],
+  token: {
+    colorPrimary: staffThemeTokens.primary,
+    colorInfo: staffThemeTokens.info,
+    colorSuccess: staffThemeTokens.success,
+    colorWarning: staffThemeTokens.warning,
+    colorError: staffThemeTokens.danger,
+    colorBgLayout: staffThemeTokens.background,
+    colorBgContainer: staffThemeTokens.surface1,
+    colorBgElevated: staffThemeTokens.surface2,
+    colorBorder: staffThemeTokens.border,
+    colorBorderSecondary: staffThemeTokens.borderSubtle,
+    colorText: staffThemeTokens.textPrimary,
+    colorTextSecondary: staffThemeTokens.textSecondary,
+    colorTextTertiary: staffThemeTokens.textTertiary,
+    colorTextDisabled: staffThemeTokens.disabled,
+    borderRadius: 10,
+    borderRadiusLG: 14,
+    borderRadiusSM: 8,
+    controlHeight: 36,
+    controlHeightSM: 30,
+    controlHeightLG: 44,
+    fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    fontSize: 13,
+    wireframe: false,
+  },
+  components: {
+    Alert: {
+      colorInfoBg: 'rgba(59, 130, 246, 0.12)',
+      colorSuccessBg: 'rgba(34, 197, 94, 0.12)',
+      colorWarningBg: 'rgba(245, 158, 11, 0.12)',
+      colorErrorBg: 'rgba(239, 68, 68, 0.12)',
+    },
+    Button: {
+      borderRadius: 10,
+      controlHeight: 36,
+      controlHeightLG: 44,
+      fontWeight: 700,
+      primaryShadow: '0 10px 22px rgba(64, 44, 150, 0.34)',
+    },
+    Card: {
+      borderRadiusLG: 14,
+      colorBgContainer: staffThemeTokens.surface1,
+      colorBorderSecondary: staffThemeTokens.border,
+      paddingLG: 16,
+    },
+    Drawer: {
+      colorBgElevated: staffThemeTokens.surface1,
+    },
+    Input: {
+      activeBorderColor: staffThemeTokens.primary,
+      hoverBorderColor: '#8a6eff',
+    },
+    Layout: {
+      bodyBg: staffThemeTokens.background,
+      headerBg: 'rgba(15, 17, 21, 0.86)',
+      siderBg: '#0d1118',
+    },
+    Menu: {
+      darkItemBg: '#0d1118',
+      darkSubMenuItemBg: '#0d1118',
+      darkItemSelectedBg: 'rgba(124, 92, 255, 0.18)',
+      darkItemSelectedColor: staffThemeTokens.textPrimary,
+    },
+    Modal: {
+      contentBg: staffThemeTokens.surface1,
+      headerBg: staffThemeTokens.surface1,
+    },
+    Select: {
+      optionSelectedBg: 'rgba(124, 92, 255, 0.18)',
+    },
+    Table: {
+      borderColor: staffThemeTokens.border,
+      headerBg: staffThemeTokens.surface2,
+      headerColor: staffThemeTokens.textSecondary,
+      rowHoverBg: 'rgba(124, 92, 255, 0.08)',
+    },
+    Tabs: {
+      itemActiveColor: staffThemeTokens.textPrimary,
+      itemSelectedColor: staffThemeTokens.primary,
+      inkBarColor: staffThemeTokens.primary,
+    },
+  },
+};

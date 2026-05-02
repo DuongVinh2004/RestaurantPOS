@@ -428,6 +428,12 @@
             "action": "App\\Modules\\Payments\\Http\\Controllers\\Customer\\ReservationDepositPaymentController@show"
         },
         {
+            "key": "get_v1_restaurant_profile",
+            "method": "GET",
+            "uri": "api/v1/restaurant/profile",
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Guest\\RestaurantProfileController@show"
+        },
+        {
             "key": "get_v1_staff_audit_trail",
             "method": "GET",
             "uri": "api/v1/staff/audit-trail",

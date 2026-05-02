@@ -5,6 +5,9 @@ export const queryKeys = {
   backend: {
     health: ["backend", "health"] as const,
   },
+  restaurant: {
+    profile: ["restaurant", "profile"] as const,
+  },
   menu: {
     categories: (params?: unknown) => ["menu", "categories", params ?? {}] as const,
     items: (params?: unknown) => ["menu", "items", params ?? {}] as const,

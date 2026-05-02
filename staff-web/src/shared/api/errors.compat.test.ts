@@ -22,14 +22,14 @@ describe('api-errors', () => {
     expect(normalized.validation.row_version).toEqual(['The row_version field is required.']);
   });
 
-  it('falls back to the first useful API message', () => {
+  it('keeps conflict messages operator-facing instead of exposing row-version internals', () => {
     const error = buildApiError(409, {
       error: {
         message: 'Stale row_version detected.',
       },
     });
 
-    expect(formatApiError(error, 'Fallback')).toBe('Stale row_version detected.');
+    expect(formatApiError(error, 'Fallback')).toBe('Dữ liệu đã thay đổi. Vui lòng tải lại trước khi thao tác tiếp.');
   });
 
   it('merges top-level and details validation errors and prefers actionable detail messages', () => {

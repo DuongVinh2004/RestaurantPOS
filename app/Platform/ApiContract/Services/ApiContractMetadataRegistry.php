@@ -122,6 +122,18 @@ class ApiContractMetadataRegistry
                 'deprecated' => true,
                 'contract_grade' => 'full',
             ],
+            'GET api/v1/restaurant/profile' => [
+                'summary' => 'Show public restaurant profile',
+                'description' => 'Return customer-web public restaurant operating context for footer and booking entry points, including default branch timezone, business hours, today hours, and current open state.',
+                'tags' => ['Restaurant Profile'],
+                'responses' => [
+                    200 => ['schema' => 'RestaurantProfileEnvelope'],
+                    404 => ['schema' => 'NotFoundError'],
+                ],
+                'auth_mode' => 'public',
+                'security' => [],
+                'contract_grade' => 'full',
+            ],
             'GET api/v1/tables/available' => [
                 'summary' => 'List available tables',
                 'description' => 'Return customer-visible table availability for a requested time window, branch, guest count, and optional suggestion filters.',
@@ -3351,6 +3363,46 @@ class ApiContractMetadataRegistry
             'additionalProperties' => false,
         ];
 
+        $restaurantProfileSchema = [
+            'type' => 'object',
+            'required' => ['branch_id', 'branch_code', 'branch_name', 'timezone', 'business_hours', 'today_hours', 'current_status'],
+            'properties' => [
+                'branch_id' => ['type' => 'integer'],
+                'branch_code' => ['type' => 'string'],
+                'branch_name' => ['type' => 'string'],
+                'timezone' => ['type' => 'string'],
+                'business_hours' => [
+                    'type' => 'array',
+                    'items' => $branchBusinessHoursDaySchema,
+                ],
+                'today_hours' => [
+                    'type' => 'object',
+                    'required' => ['day_of_week', 'periods', 'is_closed'],
+                    'properties' => [
+                        'day_of_week' => ['type' => 'integer'],
+                        'periods' => [
+                            'type' => 'array',
+                            'items' => $branchBusinessHoursPeriodSchema,
+                        ],
+                        'is_closed' => ['type' => 'boolean'],
+                    ],
+                    'additionalProperties' => false,
+                ],
+                'current_status' => [
+                    'type' => 'object',
+                    'required' => ['is_open', 'reason', 'checked_at_local', 'timezone'],
+                    'properties' => [
+                        'is_open' => ['type' => 'boolean'],
+                        'reason' => ['type' => 'string', 'nullable' => true],
+                        'checked_at_local' => ['type' => 'string'],
+                        'timezone' => ['type' => 'string'],
+                    ],
+                    'additionalProperties' => false,
+                ],
+            ],
+            'additionalProperties' => false,
+        ];
+
         $cashierShiftSchema = [
             'type' => 'object',
             'required' => ['cashier_shift_id', 'branch_id', 'shift_code', 'status', 'currency', 'row_version'],
@@ -5662,6 +5714,7 @@ class ApiContractMetadataRegistry
             'CustomerDepositPaymentSession' => $depositPaymentSession,
             'CustomerBillPaymentSession' => $billPaymentSession,
             'Branch' => $branchSchema,
+            'RestaurantProfile' => $restaurantProfileSchema,
             'AdminIngredient' => $adminIngredientSchema,
             'AdminSupplier' => $adminSupplierSchema,
             'AdminPurchaseOrder' => $adminPurchaseOrderSchema,
@@ -6307,6 +6360,16 @@ class ApiContractMetadataRegistry
                 'required' => ['action'],
                 'additionalProperties' => false,
             ]),
+            'RestaurantProfileEnvelope' => $this->dataEnvelope([
+                '$ref' => '#/components/schemas/RestaurantProfile',
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'action' => ['type' => 'string'],
+                ],
+                'required' => ['action'],
+                'additionalProperties' => false,
+            ]),
             'BranchCollectionEnvelope' => $this->collectionEnvelope($branchSchema, [
                 'type' => 'object',
                 'properties' => [
@@ -6626,6 +6689,7 @@ class ApiContractMetadataRegistry
         return [
             'Auth' => 'Opaque customer and staff authentication sessions.',
             'Health' => 'Operational health and readiness endpoints.',
+            'Restaurant Profile' => 'Public customer-web restaurant profile, default branch hours, and open-state context.',
             'Availability' => 'Customer-facing table availability and session-bound table hold flows.',
             'Menu Catalog' => 'Customer-visible menu browsing and service-time-aware item availability.',
             'Reservations' => 'Reservation lifecycle and self-service access.',

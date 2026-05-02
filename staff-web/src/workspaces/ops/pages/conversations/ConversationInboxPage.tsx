@@ -19,11 +19,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { StaffConversationCollectionEnvelope } from '../../../../shared/api/sdk';
 import {
   addConversationInternalNote,
+  assignConversation,
+  linkConversation,
   getConversationDetail,
   listConversations,
   sendConversationOutboundReply,
   takeOverConversation,
   unassignConversation,
+  unlinkConversationReservation,
+  unlinkConversationWaitingList,
+  updateConversationWorkflowState,
+  type ConversationWorkflowState,
 } from '../../../../shared/api/staff-api';
 import { formatApiError, isApiStatus } from '../../../../shared/api/errors';
 import { can } from '../../../../shared/auth/capabilities';
@@ -48,6 +54,7 @@ import {
   assignmentAgentLabel,
   buildConversationInboxSearch,
   buildConversationWaitingListPath,
+  type ConversationItem,
   type ConversationAssignmentFilter,
   type ConversationChannelFilter,
   type ConversationInboxTab,
@@ -98,6 +105,15 @@ const detailQueryDefaults = {
   event_limit: 12,
   include_closed_assignments: true,
 } satisfies Parameters<typeof getConversationDetail>[1];
+const workflowWriteOptions = [
+  { value: 'Open', label: 'Đang mở' },
+  { value: 'Triaged', label: 'Đã triage' },
+  { value: 'PendingCustomer', label: 'Chờ khách' },
+  { value: 'Resolved', label: 'Đã xử lý' },
+  { value: 'Closed', label: 'Đã đóng' },
+] satisfies Array<{ value: WorkflowWriteState; label: string }>;
+
+type WorkflowWriteState = Exclude<ConversationWorkflowState, 'Assigned'>;
 
 export function ConversationInboxPage() {
   const navigate = useNavigate();
@@ -111,8 +127,17 @@ export function ConversationInboxPage() {
   const [searchDraft, setSearchDraft] = useState('');
   const [noteDraft, setNoteDraft] = useState('');
   const [replyDraft, setReplyDraft] = useState('');
+  const [assignAgentIdDraft, setAssignAgentIdDraft] = useState('');
+  const [assignNotesDraft, setAssignNotesDraft] = useState('');
+  const [workflowStateDraft, setWorkflowStateDraft] = useState<WorkflowWriteState>('Open');
+  const [workflowReasonDraft, setWorkflowReasonDraft] = useState('');
+  const [linkReservationIdDraft, setLinkReservationIdDraft] = useState('');
+  const [linkWaitingListIdDraft, setLinkWaitingListIdDraft] = useState('');
+  const [linkCustomerUserIdDraft, setLinkCustomerUserIdDraft] = useState('');
+  const [linkNotesDraft, setLinkNotesDraft] = useState('');
   const [selectedConversationIds, setSelectedConversationIds] = useState<Array<string>>([]);
   const currentStaffUserId = session?.user?.user_id ?? null;
+  const canManageConversation = can(session, 'conversation.manage');
 
   const urlState = useMemo(() => readConversationInboxUrlState(searchParams), [searchParams]);
   const statusFilter = urlState.status;
@@ -130,6 +155,13 @@ export function ConversationInboxPage() {
   useEffect(() => {
     setNoteDraft('');
     setReplyDraft('');
+    setAssignAgentIdDraft('');
+    setAssignNotesDraft('');
+    setWorkflowReasonDraft('');
+    setLinkReservationIdDraft('');
+    setLinkWaitingListIdDraft('');
+    setLinkCustomerUserIdDraft('');
+    setLinkNotesDraft('');
   }, [selectedConversationId]);
 
   const updateUrlState = useCallback((
@@ -198,8 +230,10 @@ export function ConversationInboxPage() {
   );
   const linkedReservationId = detailConversation ? conversationReservationId(detailConversation) : null;
   const linkedReservationCode = detailConversation ? conversationReservationCode(detailConversation) : null;
+  const linkedReservationRowVersion = detailConversation ? conversationReservationRowVersion(detailConversation) : null;
   const linkedWaitingListId = detailConversation ? conversationWaitingListId(detailConversation) : null;
   const linkedWaitingListLabel = detailConversation ? conversationWaitingLabel(detailConversation) : null;
+  const currentWorkflowState = detailConversation ? conversationWorkflowState(detailConversation.workflow.state) : null;
   const currentAssignment = detailConversation?.active_assignment ?? null;
   const canTakeOver = !!activeConversationId && currentAssignment?.agent_user_id !== currentStaffUserId;
   const canUnassign = !!activeConversationId && currentAssignment?.agent_user_id === currentStaffUserId;
@@ -209,6 +243,13 @@ export function ConversationInboxPage() {
   const bulkUnassignIds = selectedConversationRows
     .filter((item) => item.assignment_state.is_mine)
     .map((item) => item.conversation_id);
+
+  useEffect(() => {
+    const editableWorkflowState = toWorkflowWriteState(currentWorkflowState);
+    if (editableWorkflowState) {
+      setWorkflowStateDraft(editableWorkflowState);
+    }
+  }, [currentWorkflowState]);
 
   const takeOverMutation = useMutation({
     mutationFn: () => takeOverConversation(activeConversationId as string),
@@ -229,6 +270,41 @@ export function ConversationInboxPage() {
         message_text: draft,
         related_reservation_id: linkedReservationId ?? undefined,
       }),
+  });
+  const assignMutation = useMutation({
+    mutationFn: ({ agentUserId, notes }: { agentUserId: number; notes?: string | null }) =>
+      assignConversation(activeConversationId as string, {
+        agent_user_id: agentUserId,
+        notes,
+      }),
+  });
+  const workflowMutation = useMutation({
+    mutationFn: ({ workflowState, reason }: { workflowState: WorkflowWriteState; reason?: string | null }) =>
+      updateConversationWorkflowState(activeConversationId as string, {
+        workflow_state: workflowState,
+        expected_workflow_state: currentWorkflowState,
+        reason,
+      }),
+  });
+  const linkMutation = useMutation({
+    mutationFn: (payload: {
+      reservationId?: number;
+      waitingListId?: number;
+      customerUserId?: number;
+      notes?: string | null;
+    }) =>
+      linkConversation(activeConversationId as string, {
+        reservation_id: payload.reservationId ?? null,
+        waiting_list_id: payload.waitingListId ?? null,
+        customer_user_id: payload.customerUserId ?? null,
+        notes: payload.notes ?? null,
+      }),
+  });
+  const unlinkReservationMutation = useMutation({
+    mutationFn: () => unlinkConversationReservation(activeConversationId as string),
+  });
+  const unlinkWaitingListMutation = useMutation({
+    mutationFn: () => unlinkConversationWaitingList(activeConversationId as string),
   });
   const bulkOwnershipMutation = useMutation({
     mutationFn: async ({ mode, ids }: { mode: 'takeover' | 'unassign'; ids: Array<string> }) => {
@@ -253,6 +329,12 @@ export function ConversationInboxPage() {
     ]);
   }
 
+  async function refreshAfterGuardedError(error: unknown, conversationId = activeConversationId) {
+    if (conversationId && (isApiStatus(error, 409) || isApiStatus(error, 422))) {
+      await refreshInbox(conversationId);
+    }
+  }
+
   async function handleTakeOver() {
     if (!activeConversationId) {
       return;
@@ -264,9 +346,7 @@ export function ConversationInboxPage() {
       message.success(`Đã nhận xử lý hội thoại ${activeConversationId}.`);
     } catch (error) {
       message.error(formatApiError(error, 'Không thể nhận xử lý hội thoại.'));
-      if (isApiStatus(error, 409)) {
-        await refreshInbox(activeConversationId);
-      }
+      await refreshAfterGuardedError(error, activeConversationId);
     }
   }
 
@@ -292,9 +372,115 @@ export function ConversationInboxPage() {
       message.success(`Đã trả hội thoại ${activeConversationId} về hàng chờ.`);
     } catch (error) {
       message.error(formatApiError(error, 'Không thể bỏ phân công hội thoại.'));
-      if (isApiStatus(error, 409)) {
-        await refreshInbox(activeConversationId);
+      await refreshAfterGuardedError(error, activeConversationId);
+    }
+  }
+
+  async function handleAssign() {
+    if (!activeConversationId) {
+      return;
+    }
+
+    const agentUserId = parsePositiveInteger(assignAgentIdDraft);
+    if (!agentUserId) {
+      message.error('Nhập staff user id hợp lệ trước khi phân công hội thoại.');
+      return;
+    }
+
+    try {
+      await assignMutation.mutateAsync({
+        agentUserId,
+        notes: emptyToNull(assignNotesDraft),
+      });
+      setAssignAgentIdDraft('');
+      setAssignNotesDraft('');
+      await refreshInbox(activeConversationId);
+      message.success(`Đã phân công hội thoại ${activeConversationId} cho nhân viên #${agentUserId}.`);
+    } catch (error) {
+      message.error(formatApiError(error, 'Không thể phân công hội thoại.'));
+      await refreshAfterGuardedError(error, activeConversationId);
+    }
+  }
+
+  async function handleWorkflowStateUpdate() {
+    if (!activeConversationId) {
+      return;
+    }
+
+    try {
+      await workflowMutation.mutateAsync({
+        workflowState: workflowStateDraft,
+        reason: emptyToNull(workflowReasonDraft),
+      });
+      setWorkflowReasonDraft('');
+      await refreshInbox(activeConversationId);
+      message.success('Đã cập nhật trạng thái workflow của hội thoại.');
+    } catch (error) {
+      message.error(formatApiError(error, 'Không thể cập nhật workflow của hội thoại.'));
+      await refreshAfterGuardedError(error, activeConversationId);
+    }
+  }
+
+  async function handleLinkConversation() {
+    if (!activeConversationId) {
+      return;
+    }
+
+    const reservationId = parsePositiveInteger(linkReservationIdDraft);
+    const waitingListId = parsePositiveInteger(linkWaitingListIdDraft);
+    const customerUserId = parsePositiveInteger(linkCustomerUserIdDraft);
+
+    if (!reservationId && !waitingListId && !customerUserId) {
+      message.error('Nhập ít nhất một reservation, waiting-list hoặc customer user id để liên kết.');
+      return;
+    }
+
+    try {
+      await linkMutation.mutateAsync({
+        reservationId: reservationId ?? undefined,
+        waitingListId: waitingListId ?? undefined,
+        customerUserId: customerUserId ?? undefined,
+        notes: emptyToNull(linkNotesDraft),
+      });
+      setLinkReservationIdDraft('');
+      setLinkWaitingListIdDraft('');
+      setLinkCustomerUserIdDraft('');
+      setLinkNotesDraft('');
+      await refreshInbox(activeConversationId);
+      message.success('Đã liên kết hội thoại với ngữ cảnh nghiệp vụ.');
+    } catch (error) {
+      message.error(formatApiError(error, 'Không thể liên kết hội thoại.'));
+      await refreshAfterGuardedError(error, activeConversationId);
+    }
+  }
+
+  async function handleUnlinkConversationLink(type: 'reservation' | 'waiting-list') {
+    if (!activeConversationId) {
+      return;
+    }
+
+    const confirmed = await confirmAction({
+      title: type === 'reservation' ? 'Gỡ liên kết đặt bàn?' : 'Gỡ liên kết khách chờ?',
+      content: 'Thao tác này chỉ gỡ liên kết trong inbox hội thoại, không xóa dữ liệu nghiệp vụ gốc.',
+      okText: 'Gỡ liên kết',
+      danger: true,
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      if (type === 'reservation') {
+        await unlinkReservationMutation.mutateAsync();
+      } else {
+        await unlinkWaitingListMutation.mutateAsync();
       }
+      await refreshInbox(activeConversationId);
+      message.success('Đã gỡ liên kết hội thoại.');
+    } catch (error) {
+      message.error(formatApiError(error, 'Không thể gỡ liên kết hội thoại.'));
+      await refreshAfterGuardedError(error, activeConversationId);
     }
   }
 
@@ -311,9 +497,7 @@ export function ConversationInboxPage() {
       message.success('Đã thêm ghi chú nội bộ.');
     } catch (error) {
       message.error(formatApiError(error, 'Không thể thêm ghi chú nội bộ.'));
-      if (isApiStatus(error, 409)) {
-        await refreshInbox(activeConversationId);
-      }
+      await refreshAfterGuardedError(error, activeConversationId);
     }
   }
 
@@ -340,9 +524,7 @@ export function ConversationInboxPage() {
       message.success('Đã xếp hàng phản hồi ra ngoài.');
     } catch (error) {
       message.error(formatApiError(error, 'Không thể xếp hàng phản hồi ra ngoài.'));
-      if (isApiStatus(error, 409)) {
-        await refreshInbox(activeConversationId);
-      }
+      await refreshAfterGuardedError(error, activeConversationId);
     }
   }
 
@@ -389,11 +571,14 @@ export function ConversationInboxPage() {
 
     setReservationContext({
       reservationId: linkedReservationId,
+      reservationRowVersion: linkedReservationRowVersion,
+      label: linkedReservationCode,
       source: 'reservation',
     });
-                      navigate(`${staffRoutePaths.ops.reservations}?${buildJourneySearch({
+    navigate(`${staffRoutePaths.ops.reservations}?${buildJourneySearch({
       source: 'reservation',
       reservationId: linkedReservationId,
+      reservationRowVersion: linkedReservationRowVersion ?? undefined,
     })}`);
   }
 
@@ -688,6 +873,157 @@ export function ConversationInboxPage() {
             {linkedWaitingListId && can(session, 'waiting_list.manage') ? <Button onClick={() => navigate(buildConversationWaitingListPath(linkedWaitingListId))}>Mở danh sách chờ</Button> : null}
           </div>
 
+          <div className="staff-conversation-ops-panel">
+            <Typography.Text strong>Phân công rõ nhân viên</Typography.Text>
+            <Typography.Text type="secondary">
+              Dùng route assign khi cần giao hội thoại cho một staff cụ thể thay vì chỉ nhận xử lý bằng tài khoản hiện tại.
+            </Typography.Text>
+            <Space wrap align="start">
+              <Input
+                aria-label="Staff user id nhận hội thoại"
+                inputMode="numeric"
+                placeholder="Staff user id"
+                value={assignAgentIdDraft}
+                onChange={(event) => setAssignAgentIdDraft(event.target.value)}
+                style={{ width: 160 }}
+                disabled={!canManageConversation}
+              />
+              <Input
+                aria-label="Ghi chú phân công hội thoại"
+                placeholder="Ghi chú phân công"
+                value={assignNotesDraft}
+                onChange={(event) => setAssignNotesDraft(event.target.value)}
+                style={{ width: 260 }}
+                disabled={!canManageConversation}
+              />
+              <Button
+                type="primary"
+                onClick={() => void handleAssign()}
+                loading={assignMutation.isPending}
+                disabled={!canManageConversation || parsePositiveInteger(assignAgentIdDraft) === null}
+              >
+                Phân công
+              </Button>
+            </Space>
+          </div>
+
+          <div className="staff-conversation-ops-panel">
+            <Typography.Text strong>Workflow hội thoại</Typography.Text>
+            <Typography.Text type="secondary">
+              Gửi kèm expected_workflow_state hiện tại để backend phát hiện stale state trước khi đổi trạng thái.
+            </Typography.Text>
+            <Space wrap align="start">
+              <Select<WorkflowWriteState>
+                aria-label="Trạng thái workflow hội thoại"
+                value={workflowStateDraft}
+                options={workflowWriteOptions}
+                onChange={(value) => setWorkflowStateDraft(value)}
+                style={{ width: 180 }}
+                disabled={!canManageConversation}
+              />
+              <Input
+                aria-label="Lý do cập nhật workflow"
+                placeholder="Lý do nếu có"
+                value={workflowReasonDraft}
+                onChange={(event) => setWorkflowReasonDraft(event.target.value)}
+                style={{ width: 280 }}
+                disabled={!canManageConversation}
+              />
+              <Button
+                type="primary"
+                onClick={() => void handleWorkflowStateUpdate()}
+                loading={workflowMutation.isPending}
+                disabled={!canManageConversation || !activeConversationId}
+              >
+                Cập nhật workflow
+              </Button>
+              <StatusChip
+                label={`Hiện tại: ${humanizeCode(currentWorkflowState ?? detailConversation.workflow.state)}`}
+                tone="processing"
+                variant="freshness"
+              />
+            </Space>
+          </div>
+
+          <div className="staff-conversation-ops-panel">
+            <Typography.Text strong>Liên kết nghiệp vụ</Typography.Text>
+            <Typography.Text type="secondary">
+              Link hoặc unlink theo route backend riêng, sau đó refetch lại detail để dùng liên kết canonical.
+            </Typography.Text>
+            <Space wrap align="start">
+              <Input
+                aria-label="Reservation id cần liên kết"
+                inputMode="numeric"
+                placeholder="Reservation id"
+                value={linkReservationIdDraft}
+                onChange={(event) => setLinkReservationIdDraft(event.target.value)}
+                style={{ width: 150 }}
+                disabled={!canManageConversation}
+              />
+              <Input
+                aria-label="Waiting-list id cần liên kết"
+                inputMode="numeric"
+                placeholder="Waiting-list id"
+                value={linkWaitingListIdDraft}
+                onChange={(event) => setLinkWaitingListIdDraft(event.target.value)}
+                style={{ width: 150 }}
+                disabled={!canManageConversation}
+              />
+              <Input
+                aria-label="Customer user id cần liên kết"
+                inputMode="numeric"
+                placeholder="Customer user id"
+                value={linkCustomerUserIdDraft}
+                onChange={(event) => setLinkCustomerUserIdDraft(event.target.value)}
+                style={{ width: 160 }}
+                disabled={!canManageConversation}
+              />
+              <Input
+                aria-label="Ghi chú liên kết hội thoại"
+                placeholder="Ghi chú liên kết"
+                value={linkNotesDraft}
+                onChange={(event) => setLinkNotesDraft(event.target.value)}
+                style={{ width: 240 }}
+                disabled={!canManageConversation}
+              />
+              <Button
+                type="primary"
+                onClick={() => void handleLinkConversation()}
+                loading={linkMutation.isPending}
+                disabled={
+                  !canManageConversation
+                  || (
+                    parsePositiveInteger(linkReservationIdDraft) === null
+                    && parsePositiveInteger(linkWaitingListIdDraft) === null
+                    && parsePositiveInteger(linkCustomerUserIdDraft) === null
+                  )
+                }
+              >
+                Liên kết
+              </Button>
+              {linkedReservationId ? (
+                <Button
+                  danger
+                  onClick={() => void handleUnlinkConversationLink('reservation')}
+                  loading={unlinkReservationMutation.isPending}
+                  disabled={!canManageConversation}
+                >
+                  Gỡ đặt bàn
+                </Button>
+              ) : null}
+              {linkedWaitingListId ? (
+                <Button
+                  danger
+                  onClick={() => void handleUnlinkConversationLink('waiting-list')}
+                  loading={unlinkWaitingListMutation.isPending}
+                  disabled={!canManageConversation}
+                >
+                  Gỡ khách chờ
+                </Button>
+              ) : null}
+            </Space>
+          </div>
+
           <Descriptions bordered size="small" column={1} className="staff-conversation-linkage-grid">
             <Descriptions.Item label="Khách">{conversationCustomerLabel(detailConversation)}</Descriptions.Item>
             <Descriptions.Item label="Người đang phụ trách">{assignmentAgentLabel(currentAssignment)}</Descriptions.Item>
@@ -742,6 +1078,57 @@ export function ConversationInboxPage() {
   );
 
   return <SplitWorkspace main={main} side={side} variant="balanced" className="staff-conversation-workspace" />;
+}
+
+function parsePositiveInteger(value: string): number | null {
+  const parsed = Number(value.trim());
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function emptyToNull(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+function conversationWorkflowState(value: string): ConversationWorkflowState | null {
+  return value === 'Open'
+    || value === 'Triaged'
+    || value === 'Assigned'
+    || value === 'PendingCustomer'
+    || value === 'Resolved'
+    || value === 'Closed'
+    ? value
+    : null;
+}
+
+function toWorkflowWriteState(value: ConversationWorkflowState | null): WorkflowWriteState | null {
+  if (!value || value === 'Assigned') {
+    return null;
+  }
+
+  return value;
+}
+
+function conversationReservationRowVersion(item: ConversationItem): number | null {
+  return readNumberFromRecord(item.linked_reservation, 'row_version')
+    ?? readNumberFromRecord(item.linked_reservation, 'reservation_row_version');
+}
+
+function readNumberFromRecord(source: unknown, key: string): number | null {
+  const value = source && typeof source === 'object' && !Array.isArray(source)
+    ? (source as Record<string, unknown>)[key]
+    : null;
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
 }
 
 function describeOutboundReplyState(state: ReturnType<typeof outboundReplyState>): string {

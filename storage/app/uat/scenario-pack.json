@@ -1,7 +1,7 @@
 {
     "pack": {
         "name": "restaurantpos-uat-demo",
-        "generated_at_utc": "2026-04-29T16:49:49+00:00",
+        "generated_at_utc": "2026-04-30T08:40:38+00:00",
         "environment": "local",
         "base_url": "http://127.0.0.1:8000",
         "reset_recommended_before_full_run": true
@@ -9,7 +9,7 @@
     "branch": {
         "branch_id": 2,
         "branch_code": "UATDEMO",
-        "branch_name": "UAT Demo Branch",
+        "branch_name": "Chi nhánh UAT",
         "timezone": "Asia/Ho_Chi_Minh",
         "currency": "VND",
         "business_hours": [
@@ -100,7 +100,7 @@
             "email": "uat.admin@example.test",
             "phone": "0900001001",
             "role_name": "Admin",
-            "api_key": "spk_8keugtugoon7bwpwkqa9jdpagm0tc4h64u5pxqnuowhfnnyw"
+            "api_key": "spk_aor5hs0w18egjtll0opx7qsmtl5ztjxcms7qlglqjpbx1d9h"
         },
         "staff": {
             "user_id": 4,
@@ -110,7 +110,7 @@
             "email": "uat.staff@example.test",
             "phone": "0900001002",
             "role_name": "Staff",
-            "api_key": "spk_ruytxjpq6yuu0lqrgtb8p0ejdf8dkjdfypp6qfgodktymrx3"
+            "api_key": "spk_had4cirim7zpdvvcnvskmgf0hglyaxymdyylrns8m8nf23vm"
         },
         "customer_primary": {
             "user_id": 5,
@@ -136,8 +136,8 @@
     "tables": {
         "main_2p": {
             "table_id": 9,
-            "table_code": "UATDEMO-M-01",
-            "zone": "Main",
+            "table_code": "UATDEMO-K-A-01",
+            "zone": "Khu A",
             "status": "Available",
             "template_id": 1,
             "template_code": "BOOT-2P",
@@ -145,8 +145,8 @@
         },
         "main_4p": {
             "table_id": 10,
-            "table_code": "UATDEMO-M-02",
-            "zone": "Main",
+            "table_code": "UATDEMO-K-A-02",
+            "zone": "Khu A",
             "status": "Available",
             "template_id": 2,
             "template_code": "BOOT-4P",
@@ -154,8 +154,8 @@
         },
         "patio_4p": {
             "table_id": 14,
-            "table_code": "UATDEMO-P-02",
-            "zone": "Patio",
+            "table_code": "UATDEMO-K-B-02",
+            "zone": "Khu B",
             "status": "Available",
             "template_id": 2,
             "template_code": "BOOT-4P",
@@ -175,19 +175,19 @@
                 "template_id": 1,
                 "template_code": "BOOT-2P",
                 "seats": 2,
-                "description": "Ban 2 cho khoi tao"
+                "description": "Bàn 2 chỗ khởi tạo"
             },
             "4p": {
                 "template_id": 2,
                 "template_code": "BOOT-4P",
                 "seats": 4,
-                "description": "Ban 4 cho khoi tao"
+                "description": "Bàn 4 chỗ khởi tạo"
             },
             "6p": {
                 "template_id": 3,
                 "template_code": "BOOT-6P",
                 "seats": 6,
-                "description": "Ban 6 cho khoi tao"
+                "description": "Bàn 6 chỗ khởi tạo"
             }
         }
     },
@@ -195,18 +195,18 @@
         "categories": {
             "signatures": {
                 "category_id": 3,
-                "name": "UAT Signatures"
+                "name": "Món chính UAT"
             },
             "drinks": {
                 "category_id": 4,
-                "name": "UAT Drinks"
+                "name": "Đồ uống UAT"
             }
         },
         "items": {
             "steak": {
                 "item_id": 4,
                 "code": "UAT-STEAK",
-                "name": "UAT Pepper Steak",
+                "name": "Bò lúc lắc",
                 "category_id": 3,
                 "active_price_id": 4,
                 "current_price": "180000.00",
@@ -215,7 +215,7 @@
             "pho": {
                 "item_id": 5,
                 "code": "UAT-PHO",
-                "name": "UAT Beef Pho",
+                "name": "Phở bò",
                 "category_id": 3,
                 "active_price_id": 5,
                 "current_price": "95000.00",
@@ -224,7 +224,7 @@
             "dessert": {
                 "item_id": 6,
                 "code": "UAT-DESSERT",
-                "name": "UAT Caramel Flan",
+                "name": "Bánh flan caramel",
                 "category_id": 3,
                 "active_price_id": 6,
                 "current_price": "45000.00",
@@ -233,7 +233,7 @@
             "tea": {
                 "item_id": 7,
                 "code": "UAT-TEA",
-                "name": "UAT Peach Tea",
+                "name": "Trà đào",
                 "category_id": 4,
                 "active_price_id": 7,
                 "current_price": "35000.00",
@@ -260,8 +260,8 @@
             "reservation_code": "UAT-DEP-001",
             "status": "Confirmed",
             "row_version": 1,
-            "start_time_utc": "2026-04-29T21:00:00+00:00",
-            "end_time_utc": "2026-04-29T23:00:00+00:00",
+            "start_time_utc": "2026-04-30T12:45:00+00:00",
+            "end_time_utc": "2026-04-30T14:45:00+00:00",
             "bill_currency": "VND",
             "deposit_status": "Pending"
         },
@@ -270,8 +270,8 @@
             "reservation_code": "UAT-DINE-001",
             "status": "Confirmed",
             "row_version": 1,
-            "start_time_utc": "2026-04-29T17:00:00+00:00",
-            "end_time_utc": "2026-04-29T19:00:00+00:00",
+            "start_time_utc": "2026-04-30T08:50:00+00:00",
+            "end_time_utc": "2026-04-30T10:50:00+00:00",
             "bill_currency": "VND",
             "deposit_status": "NotRequired"
         },
@@ -280,8 +280,8 @@
             "reservation_code": "UAT-BEN-001",
             "status": "Confirmed",
             "row_version": 1,
-            "start_time_utc": "2026-04-29T23:00:00+00:00",
-            "end_time_utc": "2026-04-30T01:00:00+00:00",
+            "start_time_utc": "2026-04-30T14:45:00+00:00",
+            "end_time_utc": "2026-04-30T16:45:00+00:00",
             "bill_currency": "VND",
             "deposit_status": "NotRequired",
             "user_voucher_id": 1,
@@ -292,8 +292,8 @@
             "reservation_code": "UAT-RF-001",
             "status": "Completed",
             "row_version": 1,
-            "start_time_utc": "2026-04-29T12:49:49+00:00",
-            "end_time_utc": "2026-04-29T14:49:49+00:00",
+            "start_time_utc": "2026-04-30T04:40:38+00:00",
+            "end_time_utc": "2026-04-30T06:40:38+00:00",
             "bill_currency": "VND",
             "deposit_status": "Paid"
         },
@@ -302,8 +302,8 @@
             "reservation_code": "UAT-RFC-001",
             "status": "Reserved",
             "row_version": 1,
-            "start_time_utc": "2026-04-29T13:49:49+00:00",
-            "end_time_utc": "2026-04-29T17:49:49+00:00",
+            "start_time_utc": "2026-04-30T05:40:38+00:00",
+            "end_time_utc": "2026-04-30T09:40:38+00:00",
             "bill_currency": "VND",
             "deposit_status": "Paid"
         }
@@ -336,7 +336,7 @@
             "matched_branch_id": 2,
             "default_enabled": true,
             "override_reason": "Enabled for canonical UAT/demo scenario pack.",
-            "updated_at": "2026-04-29T16:49:49+00:00",
+            "updated_at": "2026-04-30T08:40:38+00:00",
             "updated_by": 3,
             "row_version": 1,
             "message": "Feature flag is enabled."
@@ -355,7 +355,7 @@
             "matched_branch_id": 2,
             "default_enabled": true,
             "override_reason": "Enabled for canonical UAT/demo scenario pack.",
-            "updated_at": "2026-04-29T16:49:49+00:00",
+            "updated_at": "2026-04-30T08:40:38+00:00",
             "updated_by": 3,
             "row_version": 1,
             "message": "Feature flag is enabled."
@@ -374,7 +374,7 @@
             "matched_branch_id": 2,
             "default_enabled": true,
             "override_reason": "Enabled for canonical UAT/demo scenario pack.",
-            "updated_at": "2026-04-29T16:49:49+00:00",
+            "updated_at": "2026-04-30T08:40:38+00:00",
             "updated_by": 3,
             "row_version": 1,
             "message": "Feature flag is enabled."
@@ -393,7 +393,7 @@
             "matched_branch_id": 2,
             "default_enabled": true,
             "override_reason": "Enabled for canonical UAT/demo scenario pack.",
-            "updated_at": "2026-04-29T16:49:49+00:00",
+            "updated_at": "2026-04-30T08:40:38+00:00",
             "updated_by": 3,
             "row_version": 1,
             "message": "Feature flag is enabled."
@@ -412,7 +412,7 @@
             "matched_branch_id": 2,
             "default_enabled": true,
             "override_reason": "Enabled for canonical UAT/demo scenario pack.",
-            "updated_at": "2026-04-29T16:49:49+00:00",
+            "updated_at": "2026-04-30T08:40:38+00:00",
             "updated_by": 3,
             "row_version": 1,
             "message": "Feature flag is enabled."
@@ -423,8 +423,8 @@
             "branch_id": 2,
             "guest_count": 4,
             "session_id": "uat-session-booking",
-            "from_utc": "2026-04-29T21:00:00+00:00",
-            "to_utc": "2026-04-29T23:00:00+00:00",
+            "from_utc": "2026-04-30T12:45:00+00:00",
+            "to_utc": "2026-04-30T14:45:00+00:00",
             "preferred_table_ids": [
                 18
             ]

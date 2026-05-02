@@ -57,6 +57,17 @@ export function MessageThread({ messages }: { messages: Array<StaffConversationM
             </div>
           ) : null}
 
+          {message.attachment?.access_url ? (
+            <div className="staff-conversation-message-links">
+              <Typography.Link href={message.attachment.access_url} target="_blank" rel="noreferrer">
+                Tệp đính kèm đã ký
+              </Typography.Link>
+              <Typography.Text type="secondary">
+                Hết hạn {formatDateTime(message.attachment.access_expires_at)}
+              </Typography.Text>
+            </div>
+          ) : null}
+
           {message.entities?.length ? (
             <div className="staff-conversation-message-entities">
               {message.entities.map((entity) => (

@@ -2790,6 +2790,30 @@ textarea {
   padding: 12px 14px;
 }
 
+.staff-clickable-surface {
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+.staff-clickable-surface:hover {
+  border-color: rgba(104, 157, 112, 0.46);
+  box-shadow: 0 0 0 1px rgba(104, 157, 112, 0.14);
+}
+
+.staff-json-preview {
+  background: #f8f9f7;
+  border: 1px solid rgba(202, 205, 199, 0.7);
+  border-radius: 8px;
+  color: #263029;
+  max-height: 260px;
+  overflow: auto;
+  padding: 12px;
+  white-space: pre-wrap;
+}
+
 .staff-admin-note-item {
   align-items: flex-start;
   display: grid;

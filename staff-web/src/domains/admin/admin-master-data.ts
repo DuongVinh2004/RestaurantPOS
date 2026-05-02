@@ -61,6 +61,21 @@ export const catalogImportDomains: Array<AdminImportDomainOption> = [
   },
 ];
 
+export const benefitsImportDomains: Array<AdminImportDomainOption> = [
+  {
+    domain: 'benefit-vouchers',
+    label: 'Voucher ưu đãi',
+    capability: 'voucher.master_data.manage',
+    requiredColumns: ['code', 'discount_type'],
+  },
+  {
+    domain: 'loyalty-tiers',
+    label: 'Hạng khách thân thiết',
+    capability: 'voucher.master_data.manage',
+    requiredColumns: ['tier_code', 'tier_name', 'min_points'],
+  },
+];
+
 export function parseAdminImportRows(input: string): ParsedAdminImportRows {
   const trimmed = input.trim();
 

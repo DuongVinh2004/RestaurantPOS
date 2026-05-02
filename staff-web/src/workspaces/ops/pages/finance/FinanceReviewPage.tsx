@@ -23,13 +23,23 @@ import type {
   FinancialReconciliationRow,
 } from '../../../../shared/api/staff-api';
 import {
+  adjustStaffUserLoyalty,
+  applyStaffReservationVoucher,
+  getStaffReservationLoyalty,
+  getStaffUserLoyalty,
   getFinanceInvoice,
   getFinancialReconciliationDetail,
   issueFinanceInvoice,
   listFinancialReconciliation,
+  listStaffReservationVouchers,
+  redeemStaffReservationLoyalty,
+  releaseStaffReservationLoyalty,
+  releaseStaffReservationVoucher,
+  removeStaffReservationVoucher,
 } from '../../../../shared/api/staff-api';
 import { formatApiError, isApiStatus } from '../../../../shared/api/errors';
 import { can } from '../../../../shared/auth/capabilities';
+import type { StaffSession } from '../../../../shared/auth/storage';
 import { formatDateTime, formatMoney } from '../../../../shared/utils/format';
 import { buildJourneySearch, stripJourneySearch } from '../../../../app/router/journey';
 import { staffRoutePaths } from '../../../../app/router/workspace-paths';
@@ -570,6 +580,17 @@ export function FinanceReviewPage() {
               </Descriptions.Item>
             </Descriptions>
 
+            <StaffBenefitsOpsPanel
+              reservationId={currentDetail.reservation.reservation_id}
+              reservationRowVersion={selectedReservationRowVersion ?? null}
+              customerUserId={currentDetail.reservation.customer.user_id ?? null}
+              session={session}
+              onMutationSettled={() => {
+                void queryClient.invalidateQueries({ queryKey: ['finance-reconciliation'] });
+                void queryClient.invalidateQueries({ queryKey: ['finance-reconciliation-detail', branchId, selectedReservationRowId] });
+              }}
+            />
+
             {financeFlagLabels(currentDetail.summary).length > 0 ? (
               <Card size="small" title="Cờ cảnh báo" className="staff-workspace-detail-subcard">
                 <Space wrap size={6}>
@@ -684,6 +705,292 @@ export function FinanceReviewPage() {
   );
 }
 
+export function StaffBenefitsOpsPanel({
+  reservationId,
+  reservationRowVersion,
+  customerUserId,
+  session,
+  onMutationSettled,
+}: {
+  reservationId: number;
+  reservationRowVersion: number | null;
+  customerUserId: number | null;
+  session: StaffSession | null;
+  onMutationSettled: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const canManageVoucher = can(session, 'voucher.manage');
+  const canViewLoyalty = can(session, 'loyalty.view');
+  const canRedeemLoyalty = can(session, 'loyalty.redeem');
+  const canAdjustLoyalty = can(session, 'loyalty.adjust');
+  const [voucherCode, setVoucherCode] = useState('');
+  const [redeemPoints, setRedeemPoints] = useState('');
+  const [redeemReason, setRedeemReason] = useState('');
+  const [releaseReason, setReleaseReason] = useState('');
+  const [adjustPoints, setAdjustPoints] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
+  const hasRowVersion = typeof reservationRowVersion === 'number' && reservationRowVersion > 0;
+
+  const vouchersQuery = useQuery({
+    queryKey: ['staff-reservation-vouchers', reservationId],
+    queryFn: () => listStaffReservationVouchers(reservationId),
+    enabled: canManageVoucher,
+  });
+  const reservationLoyaltyQuery = useQuery({
+    queryKey: ['staff-reservation-loyalty', reservationId],
+    queryFn: () => getStaffReservationLoyalty(reservationId),
+    enabled: canViewLoyalty,
+  });
+  const userLoyaltyQuery = useQuery({
+    queryKey: ['staff-user-loyalty', customerUserId],
+    queryFn: () => getStaffUserLoyalty(customerUserId as number),
+    enabled: canViewLoyalty && customerUserId !== null,
+  });
+
+  const vouchers = useMemo(() => recordsFromGenericPayload(vouchersQuery.data?.data), [vouchersQuery.data?.data]);
+  const reservationLoyalty = useMemo(() => firstRecordFromGenericPayload(reservationLoyaltyQuery.data?.data), [reservationLoyaltyQuery.data?.data]);
+  const userLoyalty = useMemo(() => firstRecordFromGenericPayload(userLoyaltyQuery.data?.data), [userLoyaltyQuery.data?.data]);
+
+  async function invalidateBenefits() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['staff-reservation-vouchers', reservationId] }),
+      queryClient.invalidateQueries({ queryKey: ['staff-reservation-loyalty', reservationId] }),
+      customerUserId
+        ? queryClient.invalidateQueries({ queryKey: ['staff-user-loyalty', customerUserId] })
+        : Promise.resolve(),
+    ]);
+    onMutationSettled();
+  }
+
+  function guardRowVersion() {
+    if (typeof reservationRowVersion !== 'number' || reservationRowVersion <= 0) {
+      throw new Error('Đặt bàn hiện tại chưa có row_version để ghi ưu đãi an toàn.');
+    }
+
+    return reservationRowVersion;
+  }
+
+  function handleBenefitError(error: unknown, fallback: string) {
+    toast.error(formatApiError(error, fallback));
+    if (isApiStatus(error, 409) || isApiStatus(error, 422)) {
+      void invalidateBenefits();
+    }
+  }
+
+  const applyVoucherMutation = useMutation({
+    mutationFn: () => {
+      const rowVersion = guardRowVersion();
+      const code = voucherCode.trim();
+      if (code === '') {
+        throw new Error('Hãy nhập mã voucher.');
+      }
+
+      return applyStaffReservationVoucher(reservationId, {
+        row_version: rowVersion,
+        voucher_code: code,
+      });
+    },
+    onSuccess: async () => {
+      setVoucherCode('');
+      await invalidateBenefits();
+      toast.success('Đã áp dụng voucher cho đặt bàn.');
+    },
+    onError: (error) => handleBenefitError(error, 'Chưa áp dụng được voucher.'),
+  });
+
+  const removeVoucherMutation = useMutation({
+    mutationFn: () => removeStaffReservationVoucher(reservationId, { row_version: guardRowVersion() }),
+    onSuccess: async () => {
+      await invalidateBenefits();
+      toast.success('Đã gỡ voucher khỏi đặt bàn.');
+    },
+    onError: (error) => handleBenefitError(error, 'Chưa gỡ được voucher.'),
+  });
+
+  const releaseVoucherMutation = useMutation({
+    mutationFn: () => releaseStaffReservationVoucher(reservationId, { row_version: guardRowVersion() }),
+    onSuccess: async () => {
+      await invalidateBenefits();
+      toast.success('Đã release voucher đang giữ cho đặt bàn.');
+    },
+    onError: (error) => handleBenefitError(error, 'Chưa release được voucher.'),
+  });
+
+  const redeemLoyaltyMutation = useMutation({
+    mutationFn: () => {
+      const points = Number(redeemPoints);
+      if (!Number.isFinite(points) || points <= 0) {
+        throw new Error('Số điểm redeem phải lớn hơn 0.');
+      }
+
+      return redeemStaffReservationLoyalty(reservationId, {
+        row_version: guardRowVersion(),
+        points,
+        reason: emptyToNull(redeemReason),
+      });
+    },
+    onSuccess: async () => {
+      setRedeemPoints('');
+      setRedeemReason('');
+      await invalidateBenefits();
+      toast.success('Đã redeem điểm cho đặt bàn.');
+    },
+    onError: (error) => handleBenefitError(error, 'Chưa redeem được điểm.'),
+  });
+
+  const releaseLoyaltyMutation = useMutation({
+    mutationFn: () => releaseStaffReservationLoyalty(reservationId, {
+      row_version: guardRowVersion(),
+      reason: emptyToNull(releaseReason),
+    }),
+    onSuccess: async () => {
+      setReleaseReason('');
+      await invalidateBenefits();
+      toast.success('Đã release điểm đã giữ.');
+    },
+    onError: (error) => handleBenefitError(error, 'Chưa release được điểm.'),
+  });
+
+  const adjustLoyaltyMutation = useMutation({
+    mutationFn: () => {
+      if (!customerUserId) {
+        throw new Error('Đặt bàn này chưa có customer user id để điều chỉnh điểm.');
+      }
+
+      const points = Number(adjustPoints);
+      if (!Number.isFinite(points) || points === 0 || adjustReason.trim() === '') {
+        throw new Error('Hãy nhập số điểm khác 0 và lý do điều chỉnh.');
+      }
+
+      return adjustStaffUserLoyalty(customerUserId, {
+        points,
+        reason: adjustReason.trim(),
+      });
+    },
+    onSuccess: async () => {
+      setAdjustPoints('');
+      setAdjustReason('');
+      await invalidateBenefits();
+      toast.success('Đã điều chỉnh điểm khách hàng.');
+    },
+    onError: (error) => handleBenefitError(error, 'Chưa điều chỉnh được điểm khách hàng.'),
+  });
+
+  if (!canManageVoucher && !canViewLoyalty && !canRedeemLoyalty && !canAdjustLoyalty) {
+    return (
+      <Card size="small" title="Voucher / điểm thưởng" className="staff-workspace-detail-subcard">
+        <EmptyBlock title="Chưa có quyền ưu đãi" description="Phiên nhân viên hiện tại không có capability voucher.manage, loyalty.view, loyalty.redeem hoặc loyalty.adjust." />
+      </Card>
+    );
+  }
+
+  return (
+    <Card size="small" title="Voucher / điểm thưởng" className="staff-workspace-detail-subcard">
+      <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+        {!hasRowVersion ? (
+          <Alert
+            type="warning"
+            showIcon
+            title="Thiếu row_version đặt bàn"
+            description="Các mutation voucher/loyalty đang bị khóa để tránh ghi đè stale reservation state."
+          />
+        ) : null}
+
+        {canManageVoucher ? (
+          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
+            <Typography.Text strong>Voucher đặt bàn</Typography.Text>
+            {vouchersQuery.isLoading ? <InlineLoading tip="Đang tải voucher khả dụng..." /> : null}
+            {vouchersQuery.error ? <InlineError message={formatApiError(vouchersQuery.error, 'Không thể tải voucher đặt bàn.')} /> : null}
+            {!vouchersQuery.isLoading && !vouchersQuery.error && vouchers.length === 0 ? (
+              <EmptyBlock title="Chưa có voucher" description="Backend không trả về voucher khả dụng hoặc đang áp dụng cho đặt bàn này." />
+            ) : null}
+            {vouchers.length > 0 ? (
+              <div className="staff-admin-surface-list">
+                {vouchers.slice(0, 4).map((voucher, index) => (
+                  <div key={`${recordString(voucher, 'code') ?? index}`} className="staff-admin-surface-item">
+                    <strong>{recordString(voucher, 'code') ?? `Voucher #${index + 1}`}</strong>
+                    <Typography.Text type="secondary">{recordString(voucher, 'description') ?? recordString(voucher, 'status') ?? 'Không có mô tả'}</Typography.Text>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            <Space wrap>
+              <Input
+                aria-label="Mã voucher staff áp dụng"
+                value={voucherCode}
+                placeholder="Mã voucher"
+                onChange={(event) => setVoucherCode(event.target.value)}
+                style={{ width: 180 }}
+              />
+              <Button type="primary" onClick={() => applyVoucherMutation.mutate()} loading={applyVoucherMutation.isPending} disabled={!hasRowVersion || voucherCode.trim() === ''}>
+                Áp dụng voucher
+              </Button>
+              <Button danger onClick={() => removeVoucherMutation.mutate()} loading={removeVoucherMutation.isPending} disabled={!hasRowVersion}>
+                Gỡ voucher
+              </Button>
+              <Button onClick={() => releaseVoucherMutation.mutate()} loading={releaseVoucherMutation.isPending} disabled={!hasRowVersion}>
+                Release voucher
+              </Button>
+            </Space>
+          </Space>
+        ) : null}
+
+        {canViewLoyalty ? (
+          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
+            <Typography.Text strong>Điểm thưởng</Typography.Text>
+            {reservationLoyaltyQuery.isLoading || userLoyaltyQuery.isLoading ? <InlineLoading tip="Đang tải điểm thưởng..." /> : null}
+            {reservationLoyaltyQuery.error ? <InlineError message={formatApiError(reservationLoyaltyQuery.error, 'Không thể tải loyalty của đặt bàn.')} /> : null}
+            {userLoyaltyQuery.error ? <InlineError message={formatApiError(userLoyaltyQuery.error, 'Không thể tải loyalty của khách.')} /> : null}
+            <Descriptions bordered size="small" column={1}>
+              <Descriptions.Item label="Khách">
+                {customerUserId ? `User #${customerUserId}` : 'Đặt bàn chưa có user id'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Điểm khách">
+                {recordNumber(userLoyalty, 'points_balance') ?? recordNumber(userLoyalty, 'available_points') ?? 'Không có dữ liệu'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Điểm đã redeem">
+                {recordNumber(reservationLoyalty, 'redeemed_points') ?? recordNumber(reservationLoyalty, 'points') ?? 'Không có dữ liệu'}
+              </Descriptions.Item>
+            </Descriptions>
+          </Space>
+        ) : null}
+
+        {canRedeemLoyalty ? (
+          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
+            <Typography.Text strong>Redeem / release điểm</Typography.Text>
+            <Space wrap>
+              <Input aria-label="Số điểm staff redeem" inputMode="numeric" placeholder="Điểm" value={redeemPoints} onChange={(event) => setRedeemPoints(event.target.value)} style={{ width: 120 }} />
+              <Input aria-label="Lý do staff redeem điểm" placeholder="Lý do" value={redeemReason} onChange={(event) => setRedeemReason(event.target.value)} style={{ width: 220 }} />
+              <Button type="primary" onClick={() => redeemLoyaltyMutation.mutate()} loading={redeemLoyaltyMutation.isPending} disabled={!hasRowVersion || Number(redeemPoints) <= 0}>
+                Redeem điểm
+              </Button>
+            </Space>
+            <Space wrap>
+              <Input aria-label="Lý do release điểm" placeholder="Lý do release" value={releaseReason} onChange={(event) => setReleaseReason(event.target.value)} style={{ width: 220 }} />
+              <Button onClick={() => releaseLoyaltyMutation.mutate()} loading={releaseLoyaltyMutation.isPending} disabled={!hasRowVersion}>
+                Release điểm
+              </Button>
+            </Space>
+          </Space>
+        ) : null}
+
+        {canAdjustLoyalty ? (
+          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
+            <Typography.Text strong>Điều chỉnh điểm khách</Typography.Text>
+            <Space wrap>
+              <Input aria-label="Số điểm staff điều chỉnh" inputMode="numeric" placeholder="+/- điểm" value={adjustPoints} onChange={(event) => setAdjustPoints(event.target.value)} style={{ width: 120 }} />
+              <Input aria-label="Lý do staff điều chỉnh điểm" placeholder="Lý do bắt buộc" value={adjustReason} onChange={(event) => setAdjustReason(event.target.value)} style={{ width: 240 }} />
+              <Button onClick={() => adjustLoyaltyMutation.mutate()} loading={adjustLoyaltyMutation.isPending} disabled={!customerUserId || Number(adjustPoints) === 0 || adjustReason.trim() === ''}>
+                Điều chỉnh điểm
+              </Button>
+            </Space>
+          </Space>
+        ) : null}
+      </Space>
+    </Card>
+  );
+}
+
 function InvoiceBlock({ envelope }: { envelope: FinanceInvoiceEnvelope }) {
   return (
     <Descriptions bordered size="small" column={1}>
@@ -776,6 +1083,65 @@ function PaymentsTable({ rows }: { rows: Array<FinancialPaymentRow> }) {
       ]}
     />
   );
+}
+
+type GenericRecord = Record<string, unknown>;
+
+function recordsFromGenericPayload(payload: unknown): Array<GenericRecord> {
+  if (Array.isArray(payload)) {
+    return payload.filter(isGenericRecord);
+  }
+
+  if (!isGenericRecord(payload)) {
+    return [];
+  }
+
+  for (const key of ['data', 'items', 'rows', 'vouchers', 'loyalty']) {
+    const value = payload[key];
+    if (Array.isArray(value)) {
+      return value.filter(isGenericRecord);
+    }
+  }
+
+  return Object.values(payload).every((value) => isGenericRecord(value))
+    ? Object.values(payload).filter(isGenericRecord)
+    : [];
+}
+
+function firstRecordFromGenericPayload(payload: unknown): GenericRecord | null {
+  if (isGenericRecord(payload)) {
+    return payload;
+  }
+
+  return recordsFromGenericPayload(payload)[0] ?? null;
+}
+
+function recordString(row: GenericRecord | null, key: string): string | null {
+  const value = row?.[key];
+  return typeof value === 'string' && value.trim() !== '' ? value : null;
+}
+
+function recordNumber(row: GenericRecord | null, key: string): number | null {
+  const value = row?.[key];
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function emptyToNull(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+function isGenericRecord(value: unknown): value is GenericRecord {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function flagTone(label: string): 'default' | 'processing' | 'success' | 'warning' | 'error' {

@@ -3,6 +3,8 @@ export type StaffWorkspacePageId =
   | 'admin-catalog'
   | 'admin-settings'
   | 'admin-inventory'
+  | 'admin-benefits'
+  | 'admin-privacy'
   | 'dashboard'
   | 'tables'
   | 'reservations'

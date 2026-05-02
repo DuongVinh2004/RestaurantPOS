@@ -138,7 +138,23 @@ export type ReservationListQuery = GetV1StaffReservationsQueryParams & {
 
 export type ConversationInboxQuery = GetV1StaffConversationsQueryParams;
 export type ConversationDetailQuery = GetV1StaffConversationsConversationIdQueryParams;
+export type AssignConversationPayload = {
+  agent_user_id: number;
+  notes?: string | null;
+};
 export type UnassignConversationPayload = {
+  notes?: string | null;
+};
+export type ConversationWorkflowState = 'Open' | 'Triaged' | 'Assigned' | 'PendingCustomer' | 'Resolved' | 'Closed';
+export type UpdateConversationWorkflowStatePayload = {
+  workflow_state: Exclude<ConversationWorkflowState, 'Assigned'>;
+  expected_workflow_state?: ConversationWorkflowState | null;
+  reason?: string | null;
+};
+export type LinkConversationPayload = {
+  reservation_id?: number | null;
+  waiting_list_id?: number | null;
+  customer_user_id?: number | null;
   notes?: string | null;
 };
 export type AuditTrailQuery = GetV1StaffAuditTrailQueryParams;
@@ -169,6 +185,86 @@ export type FinancialReconciliationQuery = {
 
 export type BranchScopedQuery = {
   branch_id?: number;
+};
+
+export type StaffReservationVoucherPayload = {
+  row_version: number;
+  user_voucher_id?: number | null;
+  voucher_code?: string | null;
+};
+export type StaffReservationVoucherRemovePayload = {
+  row_version: number;
+};
+export type StaffReservationLoyaltyRedeemPayload = {
+  row_version: number;
+  points: number;
+  reason?: string | null;
+};
+export type StaffReservationLoyaltyReleasePayload = {
+  row_version: number;
+  reason?: string | null;
+};
+export type StaffUserLoyaltyAdjustPayload = {
+  points: number;
+  reason: string;
+};
+
+export type AdminBenefitsQuery = {
+  q?: string;
+  status?: string;
+  is_active?: boolean;
+  page?: number;
+  per_page?: number;
+  sort?: string;
+};
+
+export type AdminPrivacyRequestQuery = {
+  status?: string;
+  user_id?: number;
+  per_page?: number;
+};
+
+export type AdminVoucherPayload = {
+  code: string;
+  discount_type: 'Fixed' | 'Percent' | 'FreeItem';
+  description?: string | null;
+  discount_value?: number | null;
+  free_item_id?: number | null;
+  free_item_qty?: number | null;
+  max_usage?: number | null;
+  max_usage_per_user?: number | null;
+  min_spend?: number | null;
+  start_date?: string | null;
+  expiry_date?: string | null;
+  is_active?: boolean;
+};
+export type AdminVoucherUpdatePayload = Partial<AdminVoucherPayload> & {
+  row_version: number;
+};
+export type AdminLoyaltyTierPayload = {
+  tier_code: string;
+  tier_name: string;
+  min_points: number;
+  benefits_json?: Array<unknown> | null;
+  is_active?: boolean;
+};
+export type AdminLoyaltyTierUpdatePayload = Partial<AdminLoyaltyTierPayload> & {
+  row_version: number;
+};
+export type AdminBenefitSettingPayload = {
+  setting_key:
+    | 'loyalty.enabled'
+    | 'loyalty.earn_amount_per_point'
+    | 'loyalty.redeem_amount_per_point'
+    | 'loyalty.min_redeem_points'
+    | 'voucher.lock_minutes';
+  value: string;
+  expected_updated_at?: string | null;
+};
+export type AdminPrivacyReviewPayload = {
+  decision: 'approve' | 'reject';
+  mode: 'dry_run' | 'commit';
+  notes?: string | null;
 };
 
 export type AdminRestaurantTable = {
@@ -343,7 +439,9 @@ export type AdminMasterDataImportDomain =
   | 'restaurant-tables'
   | 'menu-categories'
   | 'menu-items'
-  | 'menu-prices';
+  | 'menu-prices'
+  | 'benefit-vouchers'
+  | 'loyalty-tiers';
 
 export type AdminMasterDataImportRow = Record<string, unknown>;
 
@@ -780,6 +878,82 @@ export async function createAdminMenuItemPrice(
   );
 }
 
+export async function listAdminBenefitVouchers(query: AdminBenefitsQuery = { per_page: 20 }): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>('/admin/benefits/vouchers', { query });
+}
+
+export async function getAdminBenefitVoucher(voucherId: number): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>(`/admin/benefits/vouchers/${voucherId}`);
+}
+
+export async function createAdminBenefitVoucher(payload: AdminVoucherPayload): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>('/admin/benefits/vouchers', {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`admin-benefit-voucher-${payload.code}`),
+  });
+}
+
+export async function updateAdminBenefitVoucher(voucherId: number, payload: AdminVoucherUpdatePayload): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>(`/admin/benefits/vouchers/${voucherId}`, {
+    method: 'PATCH',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`admin-benefit-voucher-update-${voucherId}`),
+  });
+}
+
+export async function listAdminLoyaltyTiers(query: AdminBenefitsQuery = { per_page: 20 }): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>('/admin/benefits/loyalty-tiers', { query });
+}
+
+export async function getAdminLoyaltyTier(tierId: number): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>(`/admin/benefits/loyalty-tiers/${tierId}`);
+}
+
+export async function createAdminLoyaltyTier(payload: AdminLoyaltyTierPayload): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>('/admin/benefits/loyalty-tiers', {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`admin-loyalty-tier-${payload.tier_code}`),
+  });
+}
+
+export async function updateAdminLoyaltyTier(tierId: number, payload: AdminLoyaltyTierUpdatePayload): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>(`/admin/benefits/loyalty-tiers/${tierId}`, {
+    method: 'PATCH',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`admin-loyalty-tier-update-${tierId}`),
+  });
+}
+
+export async function getAdminBenefitSettings(): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>('/admin/settings/benefits');
+}
+
+export async function upsertAdminBenefitSetting(payload: AdminBenefitSettingPayload): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>('/admin/settings/benefits', {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`admin-benefit-setting-${payload.setting_key}`),
+  });
+}
+
+export async function listAdminPrivacyRequests(query: AdminPrivacyRequestQuery = { per_page: 20 }): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>('/admin/privacy/requests', { query });
+}
+
+export async function exportAdminCustomerData(userId: number): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>(`/admin/privacy/customers/${userId}/data-export`);
+}
+
+export async function reviewAdminPrivacyRequest(requestId: number, payload: AdminPrivacyReviewPayload): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>(`/admin/privacy/requests/${requestId}/review`, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`admin-privacy-review-${requestId}-${payload.mode}`),
+  });
+}
+
 export async function importAdminMasterData(
   domain: AdminMasterDataImportDomain,
   payload: AdminMasterDataImportPayload,
@@ -814,8 +988,39 @@ export async function importAdminMasterData(
         method: 'POST',
         ...adminMasterDataImportOptions(payload),
       });
+    case 'benefit-vouchers':
+      return apiRequest<AdminMasterDataImportEnvelope>('/admin/benefits/vouchers/import', {
+        method: 'POST',
+        ...adminMasterDataImportOptions(payload),
+      });
+    case 'loyalty-tiers':
+      return apiRequest<AdminMasterDataImportEnvelope>('/admin/benefits/loyalty-tiers/import', {
+        method: 'POST',
+        ...adminMasterDataImportOptions(payload),
+      });
     default:
       throw new Error(`Unsupported admin import domain: ${String(domain)}`);
+  }
+}
+
+export async function exportAdminMasterData(domain: AdminMasterDataImportDomain): Promise<GenericDataEnvelope> {
+  switch (domain) {
+    case 'branches':
+      return apiRequest<GenericDataEnvelope>('/admin/settings/branches/export');
+    case 'restaurant-tables':
+      return apiRequest<GenericDataEnvelope>('/admin/restaurant/tables/export');
+    case 'menu-categories':
+      return apiRequest<GenericDataEnvelope>('/admin/menu/categories/export');
+    case 'menu-items':
+      return apiRequest<GenericDataEnvelope>('/admin/menu/items/export');
+    case 'menu-prices':
+      return apiRequest<GenericDataEnvelope>('/admin/menu/prices/export');
+    case 'benefit-vouchers':
+      return apiRequest<GenericDataEnvelope>('/admin/benefits/vouchers/export');
+    case 'loyalty-tiers':
+      return apiRequest<GenericDataEnvelope>('/admin/benefits/loyalty-tiers/export');
+    default:
+      throw new Error(`Unsupported admin export domain: ${String(domain)}`);
   }
 }
 
@@ -927,6 +1132,84 @@ export async function getReservationDetail(reservationId: number): Promise<Reser
   return staffClient.getV1StaffReservationsReservationId({ reservation_id: reservationId });
 }
 
+export async function listStaffReservationVouchers(reservationId: number): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>(`/staff/reservations/${reservationId}/vouchers`);
+}
+
+export async function applyStaffReservationVoucher(
+  reservationId: number,
+  payload: StaffReservationVoucherPayload,
+): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>(`/staff/reservations/${reservationId}/voucher/apply`, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`staff-reservation-voucher-apply-${reservationId}`),
+  });
+}
+
+export async function removeStaffReservationVoucher(
+  reservationId: number,
+  payload: StaffReservationVoucherRemovePayload,
+): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>(`/staff/reservations/${reservationId}/voucher/remove`, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`staff-reservation-voucher-remove-${reservationId}`),
+  });
+}
+
+export async function releaseStaffReservationVoucher(
+  reservationId: number,
+  payload: StaffReservationVoucherRemovePayload,
+): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>(`/staff/reservations/${reservationId}/voucher/remove`, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`staff-reservation-voucher-release-${reservationId}`),
+  });
+}
+
+export async function getStaffUserLoyalty(userId: number): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>(`/staff/users/${userId}/loyalty`);
+}
+
+export async function adjustStaffUserLoyalty(
+  userId: number,
+  payload: StaffUserLoyaltyAdjustPayload,
+): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>(`/staff/users/${userId}/loyalty/adjust`, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`staff-user-loyalty-adjust-${userId}`),
+  });
+}
+
+export async function getStaffReservationLoyalty(reservationId: number): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>(`/staff/reservations/${reservationId}/loyalty`);
+}
+
+export async function redeemStaffReservationLoyalty(
+  reservationId: number,
+  payload: StaffReservationLoyaltyRedeemPayload,
+): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>(`/staff/reservations/${reservationId}/loyalty/redeem`, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`staff-reservation-loyalty-redeem-${reservationId}`),
+  });
+}
+
+export async function releaseStaffReservationLoyalty(
+  reservationId: number,
+  payload: StaffReservationLoyaltyReleasePayload,
+): Promise<GenericDataEnvelope> {
+  return apiRequest<GenericDataEnvelope>(`/staff/reservations/${reservationId}/loyalty/redeem/release`, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`staff-reservation-loyalty-release-${reservationId}`),
+  });
+}
+
 export async function updateReservationStatus(
   reservationId: number,
   payload: UpdateReservationStatusPayload,
@@ -964,6 +1247,17 @@ export async function takeOverConversation(
   );
 }
 
+export async function assignConversation(
+  conversationId: string,
+  payload: AssignConversationPayload,
+): Promise<StaffConversationMutationEnvelope> {
+  return apiRequest<StaffConversationMutationEnvelope>(`/staff/conversations/${conversationId}/assign`, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`conversation-assign-${conversationId}`),
+  });
+}
+
 export async function unassignConversation(
   conversationId: string,
   payload: UnassignConversationPayload = {},
@@ -973,6 +1267,42 @@ export async function unassignConversation(
     payload,
     { idempotencyKey: createIdempotencyKey(`conversation-unassign-${conversationId}`) },
   );
+}
+
+export async function updateConversationWorkflowState(
+  conversationId: string,
+  payload: UpdateConversationWorkflowStatePayload,
+): Promise<StaffConversationMutationEnvelope> {
+  return apiRequest<StaffConversationMutationEnvelope>(`/staff/conversations/${conversationId}/workflow-state`, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`conversation-workflow-${conversationId}`),
+  });
+}
+
+export async function linkConversation(
+  conversationId: string,
+  payload: LinkConversationPayload,
+): Promise<StaffConversationMutationEnvelope> {
+  return apiRequest<StaffConversationMutationEnvelope>(`/staff/conversations/${conversationId}/links`, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`conversation-link-${conversationId}`),
+  });
+}
+
+export async function unlinkConversationReservation(conversationId: string): Promise<StaffConversationMutationEnvelope> {
+  return apiRequest<StaffConversationMutationEnvelope>(`/staff/conversations/${conversationId}/links/reservation`, {
+    method: 'DELETE',
+    idempotencyKey: createIdempotencyKey(`conversation-unlink-reservation-${conversationId}`),
+  });
+}
+
+export async function unlinkConversationWaitingList(conversationId: string): Promise<StaffConversationMutationEnvelope> {
+  return apiRequest<StaffConversationMutationEnvelope>(`/staff/conversations/${conversationId}/links/waiting-list`, {
+    method: 'DELETE',
+    idempotencyKey: createIdempotencyKey(`conversation-unlink-waiting-${conversationId}`),
+  });
 }
 
 export async function addConversationInternalNote(

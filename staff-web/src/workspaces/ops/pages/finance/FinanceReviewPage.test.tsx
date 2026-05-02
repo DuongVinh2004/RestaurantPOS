@@ -7,20 +7,38 @@ import { staffRoutePaths } from '../../../../app/router/workspace-paths';
 import { useAuthStore } from '../../../../app/store/auth-store';
 import { useFlowStore } from '../../../../app/store/flow-store';
 import { buildStaffSession } from '../../../../test/fixtures';
-import { FinanceReviewPage } from './FinanceReviewPage';
+import { FinanceReviewPage, StaffBenefitsOpsPanel } from './FinanceReviewPage';
 
 const apiMocks = vi.hoisted(() => ({
+  adjustStaffUserLoyalty: vi.fn(),
+  applyStaffReservationVoucher: vi.fn(),
   getFinanceInvoice: vi.fn(),
   getFinancialReconciliationDetail: vi.fn(),
+  getStaffReservationLoyalty: vi.fn(),
+  getStaffUserLoyalty: vi.fn(),
   issueFinanceInvoice: vi.fn(),
   listFinancialReconciliation: vi.fn(),
+  listStaffReservationVouchers: vi.fn(),
+  redeemStaffReservationLoyalty: vi.fn(),
+  releaseStaffReservationLoyalty: vi.fn(),
+  releaseStaffReservationVoucher: vi.fn(),
+  removeStaffReservationVoucher: vi.fn(),
 }));
 
 vi.mock('../../../../shared/api/staff-api', () => ({
+  adjustStaffUserLoyalty: apiMocks.adjustStaffUserLoyalty,
+  applyStaffReservationVoucher: apiMocks.applyStaffReservationVoucher,
   getFinanceInvoice: apiMocks.getFinanceInvoice,
   getFinancialReconciliationDetail: apiMocks.getFinancialReconciliationDetail,
+  getStaffReservationLoyalty: apiMocks.getStaffReservationLoyalty,
+  getStaffUserLoyalty: apiMocks.getStaffUserLoyalty,
   issueFinanceInvoice: apiMocks.issueFinanceInvoice,
   listFinancialReconciliation: apiMocks.listFinancialReconciliation,
+  listStaffReservationVouchers: apiMocks.listStaffReservationVouchers,
+  redeemStaffReservationLoyalty: apiMocks.redeemStaffReservationLoyalty,
+  releaseStaffReservationLoyalty: apiMocks.releaseStaffReservationLoyalty,
+  releaseStaffReservationVoucher: apiMocks.releaseStaffReservationVoucher,
+  removeStaffReservationVoucher: apiMocks.removeStaffReservationVoucher,
 }));
 
 const initialAuthState = useAuthStore.getState();
@@ -63,8 +81,17 @@ describe('FinanceReviewPage', () => {
   beforeEach(() => {
     apiMocks.getFinanceInvoice.mockReset();
     apiMocks.getFinancialReconciliationDetail.mockReset();
+    apiMocks.getStaffReservationLoyalty.mockReset();
+    apiMocks.getStaffUserLoyalty.mockReset();
     apiMocks.issueFinanceInvoice.mockReset();
     apiMocks.listFinancialReconciliation.mockReset();
+    apiMocks.listStaffReservationVouchers.mockReset();
+    apiMocks.applyStaffReservationVoucher.mockReset();
+    apiMocks.removeStaffReservationVoucher.mockReset();
+    apiMocks.releaseStaffReservationVoucher.mockReset();
+    apiMocks.redeemStaffReservationLoyalty.mockReset();
+    apiMocks.releaseStaffReservationLoyalty.mockReset();
+    apiMocks.adjustStaffUserLoyalty.mockReset();
     apiMocks.listFinancialReconciliation.mockResolvedValue({
       data: [],
       meta: {
@@ -74,6 +101,15 @@ describe('FinanceReviewPage', () => {
         last_page: 1,
       },
     });
+    apiMocks.listStaffReservationVouchers.mockResolvedValue({ data: [] });
+    apiMocks.getStaffReservationLoyalty.mockResolvedValue({ data: { redeemed_points: 0 } });
+    apiMocks.getStaffUserLoyalty.mockResolvedValue({ data: { points_balance: 1200 } });
+    apiMocks.applyStaffReservationVoucher.mockResolvedValue({ data: { action: 'voucher_applied' } });
+    apiMocks.removeStaffReservationVoucher.mockResolvedValue({ data: { action: 'voucher_removed' } });
+    apiMocks.releaseStaffReservationVoucher.mockResolvedValue({ data: { action: 'voucher_released' } });
+    apiMocks.redeemStaffReservationLoyalty.mockResolvedValue({ data: { action: 'loyalty_redeemed' } });
+    apiMocks.releaseStaffReservationLoyalty.mockResolvedValue({ data: { action: 'loyalty_released' } });
+    apiMocks.adjustStaffUserLoyalty.mockResolvedValue({ data: { action: 'loyalty_adjusted' } });
 
     useFlowStore.setState(initialFlowState, true);
     useAuthStore.setState({
@@ -172,6 +208,48 @@ describe('FinanceReviewPage', () => {
     expect(screen.getByTestId('location-search').textContent).toContain('reservation_id=77');
     expect(screen.getByTestId('location-search').textContent).toContain('reservation_row_version=9');
     expect(screen.getByTestId('location-search').textContent).toContain('order_id=88');
+  });
+
+  it('applies voucher and redeems loyalty with the reservation row_version', async () => {
+    apiMocks.listStaffReservationVouchers.mockResolvedValue({
+      data: [{ code: 'WELCOME', description: 'Welcome voucher' }],
+    });
+
+    renderBenefitsOpsPanel();
+
+    expect(await screen.findByText('Voucher / điểm thưởng')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Mã voucher staff áp dụng'), { target: { value: 'WELCOME' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng voucher' }));
+
+    await waitFor(() => {
+      expect(apiMocks.applyStaffReservationVoucher).toHaveBeenCalledWith(77, {
+        row_version: 9,
+        voucher_code: 'WELCOME',
+      });
+    });
+
+    fireEvent.change(screen.getByLabelText('Số điểm staff redeem'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('Lý do staff redeem điểm'), { target: { value: 'Khách dùng điểm tại quầy' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Redeem điểm' }));
+
+    await waitFor(() => {
+      expect(apiMocks.redeemStaffReservationLoyalty).toHaveBeenCalledWith(77, {
+        row_version: 9,
+        points: 100,
+        reason: 'Khách dùng điểm tại quầy',
+      });
+    });
+
+    fireEvent.change(screen.getByLabelText('Số điểm staff điều chỉnh'), { target: { value: '25' } });
+    fireEvent.change(screen.getByLabelText('Lý do staff điều chỉnh điểm'), { target: { value: 'Bù điểm từ hóa đơn trước' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Điều chỉnh điểm' }));
+
+    await waitFor(() => {
+      expect(apiMocks.adjustStaffUserLoyalty).toHaveBeenCalledWith(15, {
+        points: 25,
+        reason: 'Bù điểm từ hóa đơn trước',
+      });
+    });
   });
 });
 
@@ -273,6 +351,36 @@ function renderFinanceReviewPage(initialEntry: string = staffRoutePaths.ops.fina
           </Routes>
           <LocationProbe />
         </MemoryRouter>
+      </QueryClientProvider>
+    </AntdApp>,
+  );
+}
+
+function renderBenefitsOpsPanel() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+      mutations: {
+        retry: false,
+      },
+    },
+  });
+
+  return render(
+    <AntdApp>
+      <QueryClientProvider client={queryClient}>
+        <StaffBenefitsOpsPanel
+          reservationId={77}
+          reservationRowVersion={9}
+          customerUserId={15}
+          session={buildStaffSession({
+            capabilities: ['voucher.manage', 'loyalty.view', 'loyalty.redeem', 'loyalty.adjust'],
+            known_capabilities: ['voucher.manage', 'loyalty.view', 'loyalty.redeem', 'loyalty.adjust'],
+          })}
+          onMutationSettled={() => undefined}
+        />
       </QueryClientProvider>
     </AntdApp>,
   );

@@ -18,7 +18,7 @@ import { StickyBookingSummary } from "@/components/booking/sticky-booking-summar
 import { TimeSlotGrid, selectedDateFromLocalDateTime } from "@/components/booking/time-slot-grid";
 import { ErrorState, EmptyState, LoadingBlock } from "@/components/states/state-blocks";
 import type { RestaurantTable, TableHold } from "@/lib/contracts/generated/restaurantpos-sdk";
-import { createRoundedFutureLocalDateTimeInput, formatLocalDateTimeInput } from "@/lib/contracts/datetime";
+import { createRoundedFutureLocalDateTimeInput, formatLocalDateTimeInput, parseLocalDateTimeInput } from "@/lib/contracts/datetime";
 import { formatDateTime } from "@/lib/contracts/format";
 import { queryKeys } from "@/lib/api/query-keys";
 import { ACTIVE_TABLE_HOLD_SESSION_MESSAGE, isActiveTableHoldSessionError } from "@/lib/api/errors";
@@ -57,8 +57,44 @@ type HoldSelection = {
   tableIds: number[];
 };
 
+const guestQuickOptions = [
+  { label: "1 khách", value: 1 },
+  { label: "2 khách", value: 2 },
+  { label: "3-4 khách", value: 4 },
+  { label: "5-6 khách", value: 6 },
+  { label: "Nhóm lớn", value: 8 },
+];
+
+const durationQuickOptions = [
+  { label: "60 phút", value: 60 },
+  { label: "90 phút", value: 90 },
+  { label: "120 phút", value: 120 },
+];
+
 function tableIdKey(tableIds: number[]): string {
   return [...new Set(tableIds)].sort((left, right) => left - right).join(",");
+}
+
+function localVisitTimeForDayOffset(currentValue: string, dayOffset: number): string {
+  const current = parseLocalDateTimeInput(currentValue);
+  const date = new Date();
+
+  date.setDate(date.getDate() + dayOffset);
+  date.setHours(current?.getHours() ?? 19, current?.getMinutes() ?? 0, 0, 0);
+
+  return formatLocalDateTimeInput(date);
+}
+
+function localVisitTimeForWeekend(currentValue: string): string {
+  const current = parseLocalDateTimeInput(currentValue);
+  const date = new Date();
+  const currentDay = date.getDay();
+  const daysUntilSaturday = currentDay === 6 ? 0 : (6 - currentDay + 7) % 7 || 7;
+
+  date.setDate(date.getDate() + daysUntilSaturday);
+  date.setHours(current?.getHours() ?? 19, current?.getMinutes() ?? 0, 0, 0);
+
+  return formatLocalDateTimeInput(date);
 }
 
 function getTableIdsFromHold(hold: TableHold): number[] {
@@ -199,6 +235,8 @@ export function TableBookingPage() {
     },
   });
   const startTimeValue = useWatch({ control: form.control, name: "start_time" });
+  const guestCountValue = useWatch({ control: form.control, name: "guest_count" });
+  const durationMinutesValue = useWatch({ control: form.control, name: "duration_minutes" });
 
   const holdState = hold ? parseTableHoldState(hold) : null;
 
@@ -376,9 +414,9 @@ export function TableBookingPage() {
     <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-28 lg:pb-8">
       <section className="mb-6 space-y-3">
         <Badge variant="outline" className="rounded-md">Đặt bàn</Badge>
-        <h1 className="text-4xl font-semibold tracking-normal">Tìm bàn phù hợp</h1>
+        <h1 className="text-4xl font-semibold tracking-normal">Tìm bàn phù hợp cho lượt ghé</h1>
         <p className="max-w-xl text-muted-foreground">
-          Chọn thời gian và số khách. Bàn phù hợp sẽ được tạm giữ khi bạn chọn để tiếp tục đặt chỗ.
+          Chọn số khách, ngày giờ và thời lượng. Khi bạn chọn bàn, hệ thống sẽ giữ tạm để bạn hoàn tất lịch đặt.
         </p>
         <BookingProgress currentStep={currentStep} />
       </section>
@@ -390,26 +428,100 @@ export function TableBookingPage() {
           </CardHeader>
           <CardContent>
             <form className="space-y-4" onSubmit={form.handleSubmit((values) => searchMutation.mutate(values))}>
-              <div className="space-y-2">
-                <Label htmlFor="start_time">Ngày và giờ</Label>
-                <Input id="start_time" type="datetime-local" className="min-h-11 rounded-lg" {...form.register("start_time")} />
-                {form.formState.errors.start_time ? <p className="text-sm text-destructive">{form.formState.errors.start_time.message}</p> : null}
-              </div>
-              <TimeSlotGrid
-                selectedDate={selectedDate}
-                selectedValue={startTimeValue}
-                onSelect={(nextValue) => form.setValue("start_time", nextValue, { shouldDirty: true, shouldValidate: true })}
-              />
-              <div className="grid grid-cols-2 gap-3">
+              <section className="rounded-lg border bg-background/70 p-3">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">1. Chọn số khách</p>
+                    <p className="text-xs text-muted-foreground">Dùng chip nhanh hoặc nhập số chính xác.</p>
+                  </div>
+                  <Badge variant="outline" className="rounded-md">{guestCountValue ?? 0} khách</Badge>
+                </div>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {guestQuickOptions.map((option) => (
+                    <Button
+                      key={option.label}
+                      type="button"
+                      variant={guestCountValue === option.value ? "default" : "outline"}
+                      className="min-h-10 rounded-lg"
+                      aria-pressed={guestCountValue === option.value}
+                      onClick={() => form.setValue("guest_count", option.value, { shouldDirty: true, shouldValidate: true })}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="guest_count">Số khách</Label>
                   <Input id="guest_count" type="number" min={1} className="min-h-11 rounded-lg" {...form.register("guest_count", { valueAsNumber: true })} />
+                  {form.formState.errors.guest_count ? <p className="text-sm text-destructive">{form.formState.errors.guest_count.message}</p> : null}
+                </div>
+              </section>
+
+              <section className="rounded-lg border bg-background/70 p-3">
+                <div className="mb-3">
+                  <p className="text-sm font-semibold">2. Chọn ngày</p>
+                  <p className="text-xs text-muted-foreground">Giữ nguyên giờ đang chọn khi đổi ngày nhanh.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" className="min-h-10 rounded-lg" onClick={() => form.setValue("start_time", localVisitTimeForDayOffset(startTimeValue, 0), { shouldDirty: true, shouldValidate: true })}>
+                    Hôm nay
+                  </Button>
+                  <Button type="button" variant="outline" className="min-h-10 rounded-lg" onClick={() => form.setValue("start_time", localVisitTimeForDayOffset(startTimeValue, 1), { shouldDirty: true, shouldValidate: true })}>
+                    Ngày mai
+                  </Button>
+                  <Button type="button" variant="outline" className="min-h-10 rounded-lg" onClick={() => form.setValue("start_time", localVisitTimeForWeekend(startTimeValue), { shouldDirty: true, shouldValidate: true })}>
+                    Cuối tuần
+                  </Button>
+                </div>
+              </section>
+
+              <section className="rounded-lg border bg-background/70 p-3">
+                <div className="mb-3">
+                  <p className="text-sm font-semibold">3. Chọn giờ</p>
+                  <p className="text-xs text-muted-foreground">Có thể bấm khung giờ gợi ý hoặc nhập trực tiếp.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="start_time">Ngày và giờ</Label>
+                  <Input id="start_time" type="datetime-local" className="min-h-11 rounded-lg" {...form.register("start_time")} />
+                  {form.formState.errors.start_time ? <p className="text-sm text-destructive">{form.formState.errors.start_time.message}</p> : null}
+                </div>
+                <div className="mt-3">
+                  <TimeSlotGrid
+                    selectedDate={selectedDate}
+                    selectedValue={startTimeValue}
+                    onSelect={(nextValue) => form.setValue("start_time", nextValue, { shouldDirty: true, shouldValidate: true })}
+                  />
+                </div>
+              </section>
+
+              <section className="rounded-lg border bg-background/70 p-3">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">4. Thời lượng giữ bàn</p>
+                    <p className="text-xs text-muted-foreground">Mặc định 90 phút cho một lượt ghé.</p>
+                  </div>
+                  <Badge variant="outline" className="rounded-md">{durationMinutesValue ?? 0} phút</Badge>
+                </div>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {durationQuickOptions.map((option) => (
+                    <Button
+                      key={option.value}
+                      type="button"
+                      variant={durationMinutesValue === option.value ? "default" : "outline"}
+                      className="min-h-10 rounded-lg"
+                      aria-pressed={durationMinutesValue === option.value}
+                      onClick={() => form.setValue("duration_minutes", option.value, { shouldDirty: true, shouldValidate: true })}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="duration_minutes">Thời lượng</Label>
                   <Input id="duration_minutes" type="number" min={30} className="min-h-11 rounded-lg" {...form.register("duration_minutes", { valueAsNumber: true })} />
+                  {form.formState.errors.duration_minutes ? <p className="text-sm text-destructive">{form.formState.errors.duration_minutes.message}</p> : null}
                 </div>
-              </div>
+              </section>
               <Button type="submit" className="min-h-11 w-full rounded-lg" disabled={searchMutation.isPending || holdSelectionMutation.isPending}>
                 <Search className="mr-2 h-4 w-4" />
                 {searchMutation.isPending ? "Đang tìm bàn" : "Tìm bàn"}

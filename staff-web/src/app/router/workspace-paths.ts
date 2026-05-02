@@ -27,6 +27,8 @@ export const staffRoutePaths = {
     settings: '/admin/settings',
     catalog: '/admin/catalog',
     inventory: '/admin/inventory',
+    benefits: '/admin/benefits',
+    privacy: '/admin/privacy',
     reporting: '/admin/reporting',
     auditTrail: '/admin/audit-trail',
   },

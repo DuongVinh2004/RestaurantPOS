@@ -75,6 +75,33 @@ export function createMockFetch(): typeof fetch {
       return json({ data: { ok: true, adapter: "mock" } });
     }
 
+    if (path === "/api/v1/restaurant/profile") {
+      return json({
+        data: {
+          branch_id: 1,
+          branch_code: "MAIN",
+          branch_name: "RestaurantPOS",
+          timezone: "Asia/Ho_Chi_Minh",
+          business_hours: Array.from({ length: 7 }, (_, day) => ({
+            day_of_week: day,
+            periods: [{ start_time: "09:00", end_time: "22:00" }],
+          })),
+          today_hours: {
+            day_of_week: new Date().getDay(),
+            periods: [{ start_time: "09:00", end_time: "22:00" }],
+            is_closed: false,
+          },
+          current_status: {
+            is_open: true,
+            reason: null,
+            checked_at_local: "2026-04-30 09:00:00",
+            timezone: "Asia/Ho_Chi_Minh",
+          },
+        },
+        meta: { action: "restaurant_profile_show" },
+      });
+    }
+
     if (path === "/api/v1/auth/customer/login" && method === "POST") {
       return json({
         data: {

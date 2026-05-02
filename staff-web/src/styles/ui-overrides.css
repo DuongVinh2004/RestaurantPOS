@@ -1840,6 +1840,7 @@
 .staff-conversation-history-section,
 .staff-conversation-ai-actions,
 .staff-conversation-ai-risks,
+.staff-conversation-ops-panel,
 .staff-conversation-composer {
   display: grid;
   gap: var(--staff-space-2);
@@ -1856,6 +1857,7 @@
 }
 
 .staff-conversation-ai-summary,
+.staff-conversation-ops-panel,
 .staff-conversation-composer {
   background: rgba(255, 251, 245, 0.92);
   border: 1px solid rgba(221, 207, 188, 0.76);
@@ -2073,6 +2075,7 @@
 .staff-conversation-summary-card,
 .staff-conversation-message,
 .staff-conversation-ai-summary,
+.staff-conversation-ops-panel,
 .staff-conversation-composer,
 .staff-conversation-ai-action-item,
 .staff-conversation-timeline-item {
@@ -3091,4 +3094,420 @@ body {
   .staff-table-board-search {
     width: 100%;
   }
+}
+
+/* Production dark operational surface. Keep this layer last so older warm
+   bundle styles cannot override DESIGN.md tokens. */
+.staff-shell-layout,
+.staff-shell-layout > .ant-layout,
+.staff-shell-content,
+.staff-shell-content-dashboard,
+.staff-dashboard-page {
+  background:
+    radial-gradient(circle at top left, rgba(124, 92, 255, 0.1), transparent 22%),
+    linear-gradient(180deg, var(--staff-bg-page-accent) 0%, var(--staff-bg-page) 100%) !important;
+  color: var(--staff-text-primary) !important;
+}
+
+.staff-shell-header {
+  background: rgba(15, 17, 21, 0.86) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 18px 34px rgba(3, 6, 12, 0.26) !important;
+}
+
+.staff-shell-workspace-kicker {
+  background: rgba(124, 92, 255, 0.14) !important;
+  border-color: rgba(124, 92, 255, 0.24) !important;
+  color: #dcd4ff !important;
+}
+
+.staff-shell-branch-select,
+.staff-shell-control-button,
+.staff-shell-button-subtle,
+.staff-shell-button-quiet,
+.staff-shell-button-ghost,
+.staff-dashboard-refresh-button {
+  background: rgba(27, 33, 48, 0.9) !important;
+  border-color: rgba(59, 70, 88, 0.92) !important;
+  color: var(--staff-text-primary) !important;
+}
+
+.staff-shell-control-button:hover,
+.staff-shell-branch-select:hover {
+  border-color: rgba(124, 92, 255, 0.58) !important;
+  box-shadow: 0 0 0 2px rgba(124, 92, 255, 0.12) !important;
+}
+
+.ant-card,
+.ant-alert,
+.ant-modal-content,
+.ant-drawer-content,
+.ant-popover-inner,
+.ant-dropdown .ant-dropdown-menu,
+.ant-select-dropdown,
+.ant-picker-panel-container,
+.ant-table-container,
+.ant-descriptions-bordered .ant-descriptions-view,
+.staff-page-header,
+.staff-state-surface,
+.staff-facing-alert,
+.staff-shell-command-item,
+.staff-dashboard-topbar,
+.staff-dashboard-priority-panel,
+.staff-dashboard-activity-strip,
+.staff-dashboard-alert-card,
+.staff-dashboard-kpi-card,
+.staff-dashboard-main-zone,
+.staff-dashboard-card,
+.staff-dashboard-health-card,
+.staff-dashboard-list-item,
+.staff-dashboard-note-item,
+.staff-dashboard-metric-card,
+.staff-dashboard-board-cell,
+.staff-dashboard-topbar-metric,
+.staff-dashboard-alert-band,
+.staff-table-board-ops-panel,
+.staff-table-board-unassigned-card,
+.staff-table-board-inspector,
+.staff-table-board-inspector-section,
+.staff-table-board-sync-card,
+.staff-table-board-action-panel,
+.staff-order-current-card,
+.staff-order-menu-panel,
+.staff-order-selected-item-card,
+.staff-order-next-step-card,
+.staff-order-line-card,
+.staff-order-menu-item,
+.staff-conversation-summary-card,
+.staff-conversation-message,
+.staff-conversation-ai-summary,
+.staff-conversation-ops-panel,
+.staff-conversation-composer,
+.staff-conversation-ai-action-item,
+.staff-conversation-timeline-item,
+.staff-kitchen-panel,
+.staff-kitchen-subpanel,
+.staff-kitchen-ticket-card,
+.staff-kitchen-station-card {
+  background: linear-gradient(180deg, rgba(21, 25, 34, 0.98), rgba(17, 22, 31, 0.98)) !important;
+  border-color: rgba(59, 70, 88, 0.92) !important;
+  box-shadow: var(--staff-shadow-card) !important;
+  color: var(--staff-text-primary) !important;
+}
+
+.ant-card-head,
+.ant-card-body,
+.ant-table,
+.ant-table-thead > tr > th,
+.ant-table-tbody > tr > td,
+.ant-descriptions-item-label,
+.ant-descriptions-item-content {
+  background: transparent !important;
+  color: var(--staff-text-primary) !important;
+  border-color: rgba(59, 70, 88, 0.92) !important;
+}
+
+.ant-table-thead > tr > th {
+  background: rgba(27, 33, 48, 0.98) !important;
+  color: var(--staff-text-secondary) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+
+.ant-table-wrapper .ant-table-tbody > tr.ant-table-row:hover > td {
+  background: rgba(124, 92, 255, 0.08) !important;
+}
+
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-input-number,
+.ant-input-number .ant-input-number-input,
+.ant-select-single:not(.ant-select-customize-input) .ant-select-selector,
+.ant-select-multiple .ant-select-selector,
+.ant-picker,
+.ant-btn-default,
+.ant-btn-color-default,
+.ant-input-search-button {
+  background: var(--staff-bg-muted) !important;
+  border-color: var(--staff-border-default) !important;
+  color: var(--staff-text-primary) !important;
+}
+
+.ant-input:hover,
+.ant-input-affix-wrapper:hover,
+.ant-input-number:hover,
+.ant-select-single:not(.ant-select-customize-input) .ant-select-selector:hover,
+.ant-select-multiple .ant-select-selector:hover,
+.ant-picker:hover,
+.ant-btn-default:hover,
+.ant-btn-color-default:hover,
+.ant-input-search-button:hover {
+  background: var(--staff-bg-contrast) !important;
+  border-color: rgba(124, 92, 255, 0.58) !important;
+}
+
+.ant-btn-primary {
+  background: linear-gradient(135deg, #7c5cff, #6f4cff) !important;
+  border-color: #7c5cff !important;
+  box-shadow: 0 10px 22px rgba(64, 44, 150, 0.34) !important;
+  color: #f8f8ff !important;
+}
+
+.ant-btn-primary:hover,
+.ant-btn-primary:focus {
+  background: linear-gradient(135deg, #8a6eff, #7c5cff) !important;
+  border-color: #8a6eff !important;
+}
+
+.ant-typography,
+.ant-typography strong,
+.staff-dashboard-topbar-title,
+.staff-dashboard-context-chip,
+.staff-dashboard-topbar-metric-value,
+.staff-dashboard-priority-title,
+.staff-dashboard-alert-title,
+.staff-dashboard-kpi-value,
+.staff-dashboard-board-cell-label,
+.staff-dashboard-metric-value,
+.staff-shell-command-title,
+.staff-table-board-card-identity h4,
+.staff-table-board-context-value,
+.staff-order-menu-title-row,
+.staff-kitchen-section-head h3,
+.staff-kitchen-lane-head h4 {
+  color: var(--staff-text-primary) !important;
+}
+
+.ant-typography.ant-typography-secondary,
+.ant-typography-secondary,
+.staff-page-header-description,
+.staff-state-surface-description,
+.staff-dashboard-alert-description,
+.staff-dashboard-kpi-hint,
+.staff-dashboard-card-description,
+.staff-dashboard-card-priority-hint,
+.staff-dashboard-board-cell-meta,
+.staff-dashboard-priority-description,
+.staff-dashboard-topbar-description,
+.staff-dashboard-main-zone-head p,
+.staff-dashboard-metric-hint,
+.staff-order-menu-hint,
+.staff-order-menu-description,
+.staff-order-line-meta,
+.staff-kitchen-muted,
+.staff-table-board-zone,
+.staff-table-board-card-identity span,
+.staff-table-board-context-meta {
+  color: var(--staff-text-secondary) !important;
+}
+
+.staff-eyebrow,
+.staff-shell-context-label,
+.staff-shell-command-group,
+.staff-dashboard-topbar-metric-label,
+.staff-dashboard-kpi-label,
+.staff-dashboard-metric-label,
+.staff-table-board-inspector-label {
+  color: #c9bcff !important;
+}
+
+.staff-status-chip-default {
+  --staff-chip-bg: rgba(141, 154, 175, 0.14);
+  --staff-chip-border: rgba(141, 154, 175, 0.24);
+  --staff-chip-fg: #d8e0ec;
+  --staff-chip-fill: #657289;
+}
+
+.staff-status-chip-processing {
+  --staff-chip-bg: rgba(59, 130, 246, 0.14);
+  --staff-chip-border: rgba(59, 130, 246, 0.26);
+  --staff-chip-fg: #bfdbfe;
+  --staff-chip-fill: #3b82f6;
+}
+
+.staff-status-chip-success {
+  --staff-chip-bg: rgba(34, 197, 94, 0.14);
+  --staff-chip-border: rgba(34, 197, 94, 0.26);
+  --staff-chip-fg: #bbf7d0;
+  --staff-chip-fill: #22c55e;
+}
+
+.staff-status-chip-warning {
+  --staff-chip-bg: rgba(245, 158, 11, 0.14);
+  --staff-chip-border: rgba(245, 158, 11, 0.28);
+  --staff-chip-fg: #fde68a;
+  --staff-chip-fill: #f59e0b;
+}
+
+.staff-status-chip-error {
+  --staff-chip-bg: rgba(239, 68, 68, 0.14);
+  --staff-chip-border: rgba(239, 68, 68, 0.28);
+  --staff-chip-fg: #fecaca;
+  --staff-chip-fill: #ef4444;
+}
+
+.staff-table-board-card {
+  background: linear-gradient(180deg, rgba(27, 33, 48, 0.96), rgba(21, 25, 34, 0.98)) !important;
+  border: 1px solid rgba(59, 70, 88, 0.92) !important;
+  border-radius: var(--staff-radius-md) !important;
+  min-height: 124px !important;
+}
+
+.staff-table-board-card:hover {
+  background: linear-gradient(180deg, rgba(31, 38, 54, 0.98), rgba(21, 25, 34, 0.98)) !important;
+  border-color: rgba(124, 92, 255, 0.42) !important;
+}
+
+.staff-table-board-card.staff-card-selected {
+  background: linear-gradient(180deg, rgba(40, 35, 80, 0.98), rgba(21, 25, 34, 0.98)) !important;
+  border-color: rgba(124, 92, 255, 0.7) !important;
+  box-shadow: var(--staff-shadow-selected) !important;
+}
+
+.staff-table-board-next-action {
+  background: rgba(124, 92, 255, 0.14) !important;
+  border: 1px solid rgba(124, 92, 255, 0.28) !important;
+  color: #dcd4ff !important;
+}
+
+.staff-table-board-card-success {
+  border-color: rgba(34, 197, 94, 0.34) !important;
+  box-shadow: inset 3px 0 0 var(--staff-accent-success) !important;
+}
+
+.staff-table-board-card-processing {
+  border-color: rgba(59, 130, 246, 0.36) !important;
+  box-shadow: inset 3px 0 0 var(--staff-accent-info) !important;
+}
+
+.staff-table-board-card-warning {
+  border-color: rgba(245, 158, 11, 0.38) !important;
+  box-shadow: inset 3px 0 0 var(--staff-accent-warning) !important;
+}
+
+.staff-table-board-card-error {
+  border-color: rgba(239, 68, 68, 0.38) !important;
+  box-shadow: inset 3px 0 0 var(--staff-accent-danger) !important;
+}
+
+.staff-workspace-tabs .ant-tabs-tab,
+.ant-tabs-tab {
+  background: rgba(27, 33, 48, 0.9) !important;
+  border-color: var(--staff-border-default) !important;
+}
+
+.staff-workspace-tabs .ant-tabs-tab.ant-tabs-tab-active,
+.ant-tabs-tab.ant-tabs-tab-active {
+  background: rgba(124, 92, 255, 0.16) !important;
+  border-color: rgba(124, 92, 255, 0.36) !important;
+}
+
+.ant-tabs-ink-bar {
+  background: var(--staff-accent-primary) !important;
+}
+
+.staff-action-bar,
+.staff-filters-bar,
+.staff-kpi-grid,
+.staff-bulk-action-bar,
+.staff-form-section {
+  min-width: 0;
+}
+
+.staff-action-bar,
+.staff-filters-bar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--staff-space-3);
+  justify-content: space-between;
+}
+
+.staff-action-bar-left,
+.staff-action-bar-right,
+.staff-filters-bar-fields,
+.staff-filters-bar-actions,
+.staff-bulk-action-bar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--staff-space-2);
+  min-width: 0;
+}
+
+.staff-kpi-grid {
+  display: grid;
+  gap: var(--staff-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.staff-summary-card {
+  background: linear-gradient(180deg, rgba(27, 33, 48, 0.96), rgba(21, 25, 34, 0.98));
+  border: 1px solid var(--staff-border-default);
+  border-radius: var(--staff-radius-md);
+  display: grid;
+  gap: 6px;
+  min-height: 72px;
+  padding: 12px 14px;
+}
+
+.staff-summary-card-label,
+.staff-summary-card-hint,
+.staff-form-field-help {
+  color: var(--staff-text-tertiary);
+  font-size: 12px;
+}
+
+.staff-summary-card-value {
+  color: var(--staff-text-primary);
+  font-size: 22px;
+  font-weight: 850;
+  line-height: 1.1;
+}
+
+.staff-summary-card-delta {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.staff-form-section {
+  background: rgba(21, 25, 34, 0.7);
+  border: 1px solid var(--staff-border-default);
+  border-radius: var(--staff-radius-md);
+  display: grid;
+  gap: var(--staff-space-3);
+  padding: var(--staff-space-4);
+}
+
+.staff-form-section-header {
+  display: grid;
+  gap: 4px;
+}
+
+.staff-form-section-title {
+  color: var(--staff-text-primary);
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.staff-form-section-description {
+  color: var(--staff-text-secondary);
+  font-size: 13px;
+  margin: 0;
+}
+
+.staff-form-field {
+  display: grid;
+  gap: 6px;
+}
+
+.staff-form-field-label {
+  color: var(--staff-text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.staff-form-field-error {
+  color: #fecaca;
+  font-size: 12px;
 }

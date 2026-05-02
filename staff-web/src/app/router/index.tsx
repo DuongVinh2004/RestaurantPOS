@@ -46,6 +46,8 @@ const AdminLandingPage = lazyRoute(() => import('../../workspaces/admin/pages/la
 const AdminCatalogPage = lazyRoute(() => import('../../workspaces/admin/pages/catalog/AdminCatalogPage'), 'AdminCatalogPage');
 const AdminSettingsPage = lazyRoute(() => import('../../workspaces/admin/pages/settings/AdminSettingsPage'), 'AdminSettingsPage');
 const AdminInventoryPage = lazyRoute(() => import('../../workspaces/admin/pages/inventory/AdminInventoryPage'), 'AdminInventoryPage');
+const AdminBenefitsPage = lazyRoute(() => import('../../workspaces/admin/pages/benefits/AdminBenefitsPage'), 'AdminBenefitsPage');
+const AdminPrivacyPage = lazyRoute(() => import('../../workspaces/admin/pages/privacy/AdminPrivacyPage'), 'AdminPrivacyPage');
 const AuditTrailPage = lazyRoute(() => import('../../workspaces/admin/pages/audit/AuditTrailPage'), 'AuditTrailPage');
 const ReportingHubPage = lazyRoute(() => import('../../workspaces/admin/pages/reporting/ReportingHubPage'), 'ReportingHubPage');
 
@@ -111,6 +113,10 @@ function renderWorkspacePage(page: StaffWorkspacePageId): JSX.Element {
       return <AdminSettingsPage />;
     case 'admin-inventory':
       return <AdminInventoryPage />;
+    case 'admin-benefits':
+      return <AdminBenefitsPage />;
+    case 'admin-privacy':
+      return <AdminPrivacyPage />;
     case 'dashboard':
       return <DashboardRoute />;
     case 'tables':

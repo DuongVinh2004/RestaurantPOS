@@ -4,6 +4,7 @@ use App\Http\Middleware\CustomerOrStaffMiddleware;
 use App\Http\Middleware\MetricsRequestMiddleware;
 use App\Http\Middleware\ResolveCustomerAuthMiddleware;
 use App\Modules\Billing\Http\Controllers\Customer\ReservationBillController;
+use App\Modules\BranchScheduling\Http\Controllers\Guest\RestaurantProfileController;
 use App\Modules\BranchScheduling\Http\Controllers\Guest\TableAvailabilityController;
 use App\Modules\BranchScheduling\Http\Controllers\Guest\TableHoldController;
 use App\Modules\Catalog\Http\Controllers\Customer\MenuCatalogController;
@@ -25,6 +26,8 @@ Route::middleware([
     MetricsRequestMiddleware::class,
     ResolveCustomerAuthMiddleware::class,
 ])->group(function () {
+    Route::get('restaurant/profile', [RestaurantProfileController::class, 'show']);
+
     Route::get('menu/categories', [MenuCatalogController::class, 'categories']);
     Route::get('menu/items', [MenuCatalogController::class, 'items']);
     Route::get('menu/items/{id}', [MenuCatalogController::class, 'show'])->whereNumber('id');

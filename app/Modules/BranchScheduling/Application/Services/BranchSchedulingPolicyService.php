@@ -222,6 +222,41 @@ class BranchSchedulingPolicyService
     }
 
     /**
+     * @return array{is_open:bool,reason:?string,branch_id:int,timezone:string,checked_at_local:string}
+     */
+    public function currentOpenStatus(mixed $branchId = null, ?CarbonInterface $at = null, bool $activeOnly = true): array
+    {
+        $context = $this->resolveContext($branchId, $activeOnly);
+        $timezone = (string) $context['timezone'];
+        $localPoint = ($at instanceof CarbonInterface ? CarbonImmutable::instance($at) : CarbonImmutable::now())
+            ->setTimezone($timezone);
+
+        $isWithinBusinessHours = $this->pointWithinBusinessHours((array) $context['business_hours'], $localPoint);
+        $closureWindow = $this->firstOverlappingClosureWindow(
+            (array) $context['closure_windows'],
+            $timezone,
+            $localPoint,
+            $localPoint->addMinute()
+        );
+
+        $reason = null;
+        if (! $isWithinBusinessHours) {
+            $reason = 'outside_business_hours';
+        }
+        if ($closureWindow !== null) {
+            $reason = 'closure_window';
+        }
+
+        return [
+            'is_open' => $isWithinBusinessHours && $closureWindow === null,
+            'reason' => $reason,
+            'branch_id' => (int) $context['branch_id'],
+            'timezone' => $timezone,
+            'checked_at_local' => $localPoint->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    /**
      * @return array{
      *   bookable:bool,
      *   reasons:list<string>,

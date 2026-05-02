@@ -30,6 +30,20 @@ export const adminWorkspaceRoutes: Array<StaffWorkspaceRouteDefinition> = [
     capability: 'inventory.manage',
   },
   {
+    key: 'benefits',
+    path: 'benefits',
+    absolutePath: staffRoutePaths.admin.benefits,
+    page: 'admin-benefits',
+    capability: 'voucher.master_data.manage',
+  },
+  {
+    key: 'privacy',
+    path: 'privacy',
+    absolutePath: staffRoutePaths.admin.privacy,
+    page: 'admin-privacy',
+    capability: 'privacy.manage',
+  },
+  {
     key: 'reporting',
     path: 'reporting',
     absolutePath: staffRoutePaths.admin.reporting,

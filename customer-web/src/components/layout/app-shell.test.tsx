@@ -40,6 +40,10 @@ vi.mock("./backend-status-banner", () => ({
   BackendStatusBanner: () => <div data-testid="backend-status-banner" />,
 }));
 
+vi.mock("./public-footer", () => ({
+  PublicFooter: () => <footer data-testid="public-footer" />,
+}));
+
 vi.mock("@/components/ui/sheet", () => ({
   Sheet: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SheetTrigger: ({ children }: { children: ReactNode }) => <div>{children}</div>,

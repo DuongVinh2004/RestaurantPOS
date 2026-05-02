@@ -1,6 +1,6 @@
 ﻿import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Card, Input, Space, Typography } from 'antd';
+import { Button, Card, Space, Typography } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { StaffTableBoardRow, StaffTableBoardUnassignedReservation } from '../../../../shared/api/sdk';
 import {
@@ -42,6 +42,12 @@ import {
   TransientFailureState,
 } from '../../../../shared/ui/states/StateBlocks';
 import { StatusChip } from '../../../../shared/ui/status/StatusChip';
+import {
+  FiltersBar,
+  KPIGrid,
+  SearchInput,
+  SummaryCard,
+} from '../../../../shared/ui/primitives';
 import { useAuthStore } from '../../../../app/store/auth-store';
 import { useFlowStore } from '../../../../app/store/flow-store';
 import { useConfirmAction } from '../../../../shared/hooks/useConfirmAction';
@@ -268,6 +274,7 @@ export function TableBoardPage() {
   const zone = boardUrlState.zone !== '' ? boardUrlState.zone : undefined;
   const selectedTableId = journey.tableId ?? null;
   const [tableSearch, setTableSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const boardDataCacheKey = `${branchId ?? 'default'}|${zone ?? 'all'}|${windowRange.from}|${windowRange.to}`;
 
   const updateBoardSearch = useCallback((
@@ -341,15 +348,31 @@ export function TableBoardPage() {
   const isBoardColdLoading = !boardData && boardQuery.isLoading;
   const isBoardRefreshing = Boolean(boardData && boardQuery.isFetching);
   const boardRealtimeVersion = boardData?.meta.realtime.current_version;
+  const boardStatusOptions = useMemo(() => {
+    const statuses = new Map<string, string>();
+    (boardData?.data ?? []).forEach((row) => {
+      const value = row.board_state ?? '';
+      if (value) {
+        statuses.set(value, translateUiCode(value));
+      }
+    });
+
+    return Array.from(statuses.entries()).sort((left, right) => left[1].localeCompare(right[1], 'vi'));
+  }, [boardData?.data]);
+
   const filteredBoardRows = useMemo(() => {
     const query = normalizeDisplayToken(tableSearch);
     const rows = boardData?.data ?? [];
 
-    if (!query) {
-      return rows;
-    }
-
     return rows.filter((row) => {
+      if (statusFilter && row.board_state !== statusFilter) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
       const tableDisplayName = formatBoardTableName(row.table_code, row.zone, row.table_id);
       const cardContext = buildTableCardContext(row);
       const tokens = [
@@ -368,7 +391,7 @@ export function TableBoardPage() {
 
       return normalizeDisplayToken(tokens.filter(Boolean).join(' ')).includes(query);
     });
-  }, [boardData?.data, tableSearch]);
+  }, [boardData?.data, statusFilter, tableSearch]);
 
   const selectedTable = useMemo(
     () => boardData?.data.find((row) => row.table_id === selectedTableId) ?? null,
@@ -1037,60 +1060,87 @@ export function TableBoardPage() {
             </>
           )}
           extra={
-            <>
-              <Input.Search
-                allowClear
-                aria-label="Tìm bàn, khu vực hoặc khách"
-                className="staff-table-board-search"
-                placeholder="Tìm bàn / khu / khách"
-                value={tableSearch}
-                onChange={(event) => setTableSearch(event.target.value)}
-                onSearch={(value) => setTableSearch(value)}
-              />
-              <div className="staff-table-board-toolbar-select-wrap">
-                <select
-                  aria-label="Lọc theo khu"
-                  className="staff-table-board-zone-select"
-                  value={zone ?? ''}
-                  onChange={(event) => updateBoardSearch(
-                    { zone: event.target.value },
-                    { source: 'board' },
-                    { replace: true },
-                  )}
-                >
-                  <option value="">Lọc theo khu</option>
-                  {(boardData?.zones ?? []).map((zoneSummary) => (
-                    <option key={zoneSummary.zone} value={zoneSummary.zone}>
-                      {`${formatBoardZone(zoneSummary.zone)} (${zoneSummary.summary.table_count})`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <Button className="staff-table-board-toolbar-button" onClick={() => boardQuery.refetch()} loading={isBoardRefreshing}>
-                Làm mới
-              </Button>
-            </>
+            <FiltersBar
+              fields={(
+                <>
+                  <SearchInput
+                    aria-label="Tìm bàn, khu vực hoặc khách"
+                    className="staff-table-board-search"
+                    placeholder="Tìm bàn / khu / khách"
+                    value={tableSearch}
+                    onChange={(event) => setTableSearch(event.target.value)}
+                    onSearch={(value) => setTableSearch(value)}
+                  />
+                  <div className="staff-table-board-toolbar-select-wrap">
+                    <select
+                      aria-label="Lọc theo khu"
+                      className="staff-table-board-zone-select"
+                      value={zone ?? ''}
+                      onChange={(event) => updateBoardSearch(
+                        { zone: event.target.value },
+                        { source: 'board' },
+                        { replace: true },
+                      )}
+                    >
+                      <option value="">Lọc theo khu</option>
+                      {(boardData?.zones ?? []).map((zoneSummary) => (
+                        <option key={zoneSummary.zone} value={zoneSummary.zone}>
+                          {`${formatBoardZone(zoneSummary.zone)} (${zoneSummary.summary.table_count})`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="staff-table-board-toolbar-select-wrap">
+                    <select
+                      aria-label="Lọc theo trạng thái bàn"
+                      className="staff-table-board-zone-select"
+                      value={statusFilter}
+                      onChange={(event) => setStatusFilter(event.target.value)}
+                    >
+                      <option value="">Tất cả trạng thái</option>
+                      {boardStatusOptions.map(([status, label]) => (
+                        <option key={status} value={status}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+              actions={(
+                <Button className="staff-table-board-toolbar-button" onClick={() => boardQuery.refetch()} loading={isBoardRefreshing}>
+                  Làm mới
+                </Button>
+              )}
+            />
           }
         />
 
-        <div className="staff-table-board-summary-strip">
-          <div className="staff-table-board-summary-item staff-table-board-summary-item-active">
-            <span>Đơn phục vụ</span>
-            <strong>{boardData?.summary.active_order_count ?? 0}</strong>
-          </div>
-          <div className="staff-table-board-summary-item">
-            <span>Chưa gán bàn</span>
-            <strong>{boardData?.summary.unassigned_reservation_count ?? 0}</strong>
-          </div>
-          <div className="staff-table-board-summary-item">
-            <span>Khu</span>
-            <strong>{zone ? formatBoardZone(zone) : 'Tất cả'}</strong>
-          </div>
-          <div className="staff-table-board-summary-item">
-            <span>Realtime</span>
-            <strong>v{boardRealtimeVersion ?? 0}</strong>
-          </div>
-        </div>
+        <KPIGrid className="staff-table-board-summary-strip">
+          <SummaryCard
+            label="Đơn phục vụ"
+            value={boardData?.summary.active_order_count ?? 0}
+            tone="processing"
+            hint="Đang mở trên sơ đồ"
+          />
+          <SummaryCard
+            label="Chưa gán bàn"
+            value={boardData?.summary.unassigned_reservation_count ?? 0}
+            tone={(boardData?.summary.unassigned_reservation_count ?? 0) > 0 ? 'warning' : 'success'}
+            hint="Cần điều phối"
+          />
+          <SummaryCard
+            label="Bàn đang hiển thị"
+            value={filteredBoardRows.length}
+            hint={statusFilter ? translateUiCode(statusFilter) : zone ? formatBoardZone(zone) : 'Tất cả khu'}
+          />
+          <SummaryCard
+            label="Realtime"
+            value={`v${boardRealtimeVersion ?? 0}`}
+            tone="default"
+            hint={isBoardRefreshing ? 'Đang đồng bộ' : 'Ổn định'}
+          />
+        </KPIGrid>
       </div>
 
       {isBoardColdLoading ? <InlineLoading tip="Đang tải sơ đồ bàn..." /> : null}
