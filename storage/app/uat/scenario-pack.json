@@ -1,7 +1,7 @@
 {
     "pack": {
         "name": "restaurantpos-uat-demo",
-        "generated_at_utc": "2026-04-30T08:40:38+00:00",
+        "generated_at_utc": "2026-05-03T05:34:09+00:00",
         "environment": "local",
         "base_url": "http://127.0.0.1:8000",
         "reset_recommended_before_full_run": true
@@ -100,7 +100,7 @@
             "email": "uat.admin@example.test",
             "phone": "0900001001",
             "role_name": "Admin",
-            "api_key": "spk_aor5hs0w18egjtll0opx7qsmtl5ztjxcms7qlglqjpbx1d9h"
+            "api_key": "spk_z8fz5wqasgo1o6bqx4czeekrsp80b6bdbnskhtehlybd6bqd"
         },
         "staff": {
             "user_id": 4,
@@ -110,7 +110,7 @@
             "email": "uat.staff@example.test",
             "phone": "0900001002",
             "role_name": "Staff",
-            "api_key": "spk_had4cirim7zpdvvcnvskmgf0hglyaxymdyylrns8m8nf23vm"
+            "api_key": "spk_etpjrldnrnqot8gbyz9neworjetshvgp29ibvirkkhduatqa"
         },
         "customer_primary": {
             "user_id": 5,
@@ -260,8 +260,8 @@
             "reservation_code": "UAT-DEP-001",
             "status": "Confirmed",
             "row_version": 1,
-            "start_time_utc": "2026-04-30T12:45:00+00:00",
-            "end_time_utc": "2026-04-30T14:45:00+00:00",
+            "start_time_utc": "2026-05-03T09:45:00+00:00",
+            "end_time_utc": "2026-05-03T11:45:00+00:00",
             "bill_currency": "VND",
             "deposit_status": "Pending"
         },
@@ -270,8 +270,8 @@
             "reservation_code": "UAT-DINE-001",
             "status": "Confirmed",
             "row_version": 1,
-            "start_time_utc": "2026-04-30T08:50:00+00:00",
-            "end_time_utc": "2026-04-30T10:50:00+00:00",
+            "start_time_utc": "2026-05-03T05:45:00+00:00",
+            "end_time_utc": "2026-05-03T07:45:00+00:00",
             "bill_currency": "VND",
             "deposit_status": "NotRequired"
         },
@@ -280,8 +280,8 @@
             "reservation_code": "UAT-BEN-001",
             "status": "Confirmed",
             "row_version": 1,
-            "start_time_utc": "2026-04-30T14:45:00+00:00",
-            "end_time_utc": "2026-04-30T16:45:00+00:00",
+            "start_time_utc": "2026-05-03T11:45:00+00:00",
+            "end_time_utc": "2026-05-03T13:45:00+00:00",
             "bill_currency": "VND",
             "deposit_status": "NotRequired",
             "user_voucher_id": 1,
@@ -292,8 +292,8 @@
             "reservation_code": "UAT-RF-001",
             "status": "Completed",
             "row_version": 1,
-            "start_time_utc": "2026-04-30T04:40:38+00:00",
-            "end_time_utc": "2026-04-30T06:40:38+00:00",
+            "start_time_utc": "2026-05-03T01:34:08+00:00",
+            "end_time_utc": "2026-05-03T03:34:08+00:00",
             "bill_currency": "VND",
             "deposit_status": "Paid"
         },
@@ -302,8 +302,8 @@
             "reservation_code": "UAT-RFC-001",
             "status": "Reserved",
             "row_version": 1,
-            "start_time_utc": "2026-04-30T05:40:38+00:00",
-            "end_time_utc": "2026-04-30T09:40:38+00:00",
+            "start_time_utc": "2026-05-03T02:34:08+00:00",
+            "end_time_utc": "2026-05-03T06:34:08+00:00",
             "bill_currency": "VND",
             "deposit_status": "Paid"
         }
@@ -336,7 +336,7 @@
             "matched_branch_id": 2,
             "default_enabled": true,
             "override_reason": "Enabled for canonical UAT/demo scenario pack.",
-            "updated_at": "2026-04-30T08:40:38+00:00",
+            "updated_at": "2026-05-03T05:34:09+00:00",
             "updated_by": 3,
             "row_version": 1,
             "message": "Feature flag is enabled."
@@ -355,7 +355,7 @@
             "matched_branch_id": 2,
             "default_enabled": true,
             "override_reason": "Enabled for canonical UAT/demo scenario pack.",
-            "updated_at": "2026-04-30T08:40:38+00:00",
+            "updated_at": "2026-05-03T05:34:09+00:00",
             "updated_by": 3,
             "row_version": 1,
             "message": "Feature flag is enabled."
@@ -374,7 +374,7 @@
             "matched_branch_id": 2,
             "default_enabled": true,
             "override_reason": "Enabled for canonical UAT/demo scenario pack.",
-            "updated_at": "2026-04-30T08:40:38+00:00",
+            "updated_at": "2026-05-03T05:34:09+00:00",
             "updated_by": 3,
             "row_version": 1,
             "message": "Feature flag is enabled."
@@ -393,7 +393,7 @@
             "matched_branch_id": 2,
             "default_enabled": true,
             "override_reason": "Enabled for canonical UAT/demo scenario pack.",
-            "updated_at": "2026-04-30T08:40:38+00:00",
+            "updated_at": "2026-05-03T05:34:09+00:00",
             "updated_by": 3,
             "row_version": 1,
             "message": "Feature flag is enabled."
@@ -412,7 +412,7 @@
             "matched_branch_id": 2,
             "default_enabled": true,
             "override_reason": "Enabled for canonical UAT/demo scenario pack.",
-            "updated_at": "2026-04-30T08:40:38+00:00",
+            "updated_at": "2026-05-03T05:34:09+00:00",
             "updated_by": 3,
             "row_version": 1,
             "message": "Feature flag is enabled."
@@ -423,8 +423,8 @@
             "branch_id": 2,
             "guest_count": 4,
             "session_id": "uat-session-booking",
-            "from_utc": "2026-04-30T12:45:00+00:00",
-            "to_utc": "2026-04-30T14:45:00+00:00",
+            "from_utc": "2026-05-03T09:45:00+00:00",
+            "to_utc": "2026-05-03T11:45:00+00:00",
             "preferred_table_ids": [
                 18
             ]

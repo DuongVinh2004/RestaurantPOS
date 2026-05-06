@@ -6,6 +6,10 @@ import {
   buildConversationInboxSearch,
   buildConversationWaitingListPath,
   conversationBranchLabel,
+  conversationCanTakeOver,
+  conversationCanUnassignMine,
+  conversationInboxViewStats,
+  conversationMutationCapabilities,
   conversationReservationId,
   conversationSummaryStats,
   conversationTitle,
@@ -78,6 +82,21 @@ describe('conversation inbox helpers', () => {
     });
   });
 
+  it('reads operational inbox view counters with safe zero fallbacks', () => {
+    expect(conversationInboxViewStats({
+      views: {
+        unassigned: 3,
+        overdue: 1,
+        waiting_on_customer: 2,
+      },
+    })).toEqual({
+      unassigned: 3,
+      overdue: 1,
+      waitingOnCustomer: 2,
+      resolvedToday: 0,
+    });
+  });
+
   it('reads outbound reply capability from the detail envelope', () => {
     const state = outboundReplyState({
       conversation: makeConversation(),
@@ -121,6 +140,93 @@ describe('conversation inbox helpers', () => {
     });
   });
 
+  it('reads lifecycle-aware mutation capability targets from the detail envelope', () => {
+    expect(conversationMutationCapabilities({
+      conversation: makeConversation(),
+      messages: [],
+      events: [],
+      analyses: [],
+      ai_assist: {
+        status: 'ready',
+        feature_key: 'staff.conversation_ai_assist',
+        summary: null,
+        suggested_actions: [],
+        risk_flags: [],
+        disclaimer: 'Source of truth remains the thread.',
+        generated_from: {
+          message_count: 0,
+          customer_message_count: 0,
+          internal_note_count: 0,
+          analysis_count: 0,
+        },
+      },
+      assignment_history: [],
+      capabilities: {
+        can_assign: false,
+        can_take_over: false,
+        can_unassign: false,
+        can_link: false,
+        can_update_workflow_state: true,
+        can_add_internal_note: false,
+        workflow_state_targets: ['Triaged', 'Closed', 'Assigned'],
+      },
+    } satisfies StaffConversationDetailEnvelope['data'])).toEqual({
+      canAssign: false,
+      canTakeOver: false,
+      canUnassign: false,
+      canLink: false,
+      canUpdateWorkflowState: true,
+      canAddInternalNote: false,
+      workflowStateTargets: ['Triaged', 'Closed'],
+    });
+  });
+
+  it('filters bulk ownership actions away from resolved or closed conversations', () => {
+    expect(conversationCanTakeOver(makeConversation({
+      workflow: {
+        state: 'Open',
+        state_reason: 'open',
+        state_changed_at: null,
+        first_triaged_at: null,
+        resolved_at: null,
+        closed_at: null,
+        is_terminal: false,
+        allowed_actions: ['assign'],
+      },
+    }))).toBe(true);
+
+    expect(conversationCanTakeOver(makeConversation({
+      workflow: {
+        state: 'Resolved',
+        state_reason: 'resolved',
+        state_changed_at: null,
+        first_triaged_at: null,
+        resolved_at: null,
+        closed_at: null,
+        is_terminal: true,
+        allowed_actions: ['reopen'],
+      },
+    }))).toBe(false);
+
+    expect(conversationCanUnassignMine(makeConversation({
+      workflow: {
+        state: 'Closed',
+        state_reason: 'closed',
+        state_changed_at: null,
+        first_triaged_at: null,
+        resolved_at: null,
+        closed_at: null,
+        is_terminal: true,
+        allowed_actions: ['reopen'],
+      },
+      assignment_state: {
+        is_assigned: true,
+        is_unassigned: false,
+        is_mine: true,
+      },
+    }))).toBe(false);
+  });
+
   it('renders assignee fallback when agent profile is absent', () => {
     expect(assignmentAgentLabel({
       assignment_id: 7,
@@ -131,8 +237,10 @@ describe('conversation inbox helpers', () => {
   });
 
   it('reads url-driven queue state with safe defaults', () => {
-    expect(readConversationInboxUrlState('?status=Pending&assignment=mine&channel=Zalo&q=late%20guest&page=3&conversation=conv-007&tab=history')).toEqual({
+    expect(readConversationInboxUrlState('?status=Pending&workflow_state=Resolved&inbox_view=resolved_today&assignment=mine&channel=Zalo&q=late%20guest&page=3&conversation=conv-007&tab=history')).toEqual({
       status: 'Pending',
+      workflowState: 'Resolved',
+      inboxView: 'resolved_today',
       assignment: 'mine',
       channel: 'Zalo',
       q: 'late guest',
@@ -147,6 +255,8 @@ describe('conversation inbox helpers', () => {
       '?source=reservation&reservation_id=12',
       {
         status: 'Open',
+        workflowState: 'Triaged',
+        inboxView: 'overdue',
         assignment: 'unassigned',
         channel: 'all',
         q: 'guest',
@@ -154,7 +264,7 @@ describe('conversation inbox helpers', () => {
         conversationId: 'conv-009',
         tab: 'ai',
       },
-    )).toBe('source=reservation&reservation_id=12&status=Open&assignment=unassigned&q=guest&page=2&conversation=conv-009&tab=ai');
+    )).toBe('source=reservation&reservation_id=12&status=Open&workflow_state=Triaged&inbox_view=overdue&assignment=unassigned&q=guest&page=2&conversation=conv-009&tab=ai');
   });
 
   it('builds a waiting-list focus path for linked waiting entries', () => {

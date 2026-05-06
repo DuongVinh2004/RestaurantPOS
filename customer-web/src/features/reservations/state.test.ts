@@ -365,11 +365,31 @@ describe("reservation state helpers", () => {
     expect(getReservationBillSummaryState(refundedReservation).state).toBe("settled");
   });
 
-  it("keeps preorder read-only even when the backend exposes a preorder contract", () => {
+  it("marks preorder as manageable when the backend allows customer changes", () => {
+    const policy = getPreorderPolicy(
+      createPreorderPayload({
+        management_policy: {
+          can_manage: true,
+          reservation_status: "Confirmed",
+          cutoff_minutes: 30,
+          service_start: "2026-04-18T18:30:00Z",
+          manage_until: "2026-04-18T18:00:00Z",
+          reasons: [],
+        },
+      }),
+    );
+
+    expect(policy.canManage).toBe(true);
+    expect(policy.state).toBe("manageable");
+    expect(policy.message).toContain("xem trước rồi thay thế");
+  });
+
+  it("keeps locked preorder read-only when the backend management policy denies changes", () => {
     const policy = getPreorderPolicy(createPreorderPayload());
 
+    expect(policy.canManage).toBe(false);
     expect(policy.state).toBe("read_only");
-    expect(policy.message).toContain("chỉ dùng để xem lại");
+    expect(policy.message).toContain("chế độ chỉ xem");
     expect(policy.managementMessage).toContain("kitchen prep");
   });
 

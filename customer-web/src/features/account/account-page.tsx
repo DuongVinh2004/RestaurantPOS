@@ -262,6 +262,13 @@ export function AccountPage() {
                           </div>
                           <p className="mt-3 text-sm font-medium">{item.title}</p>
                           <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
+                          {item.detailLines.length > 0 ? (
+                            <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+                              {item.detailLines.map((line, index) => (
+                                <p key={`${item.voucher.user_voucher_id}-${index}`}>{line}</p>
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
                       ))}
                     </div>

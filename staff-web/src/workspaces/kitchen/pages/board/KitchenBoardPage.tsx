@@ -16,6 +16,7 @@ import { staffRoutePaths } from '../../../../app/router/workspace-paths';
 import { kitchenTone } from '../../../../shared/status/status';
 import { translateUiCode } from '../../../../shared/utils/translation';
 import { toast } from '../../../../shared/ui/feedback/toast';
+import { MutationStatusNotice } from '../../../../shared/ui/feedback/MutationStatusNotice';
 import {
   BranchPolicyState,
   EmptyBlock,
@@ -55,6 +56,10 @@ import {
   useKitchenStationsQuery,
   useKitchenTicketsQuery,
 } from '../../../../domains/kitchen/useKitchenWorkspace';
+import {
+  createIdleMutationFeedback,
+  mapMutationErrorToFeedback,
+} from '../../../../shared/mutations/mutation-ux';
 
 export function KitchenBoardPage() {
   const navigate = useNavigate();
@@ -69,6 +74,7 @@ export function KitchenBoardPage() {
   const isOnline = useOnlineStatus();
   const [showChangeFeed, setShowChangeFeed] = useState(true);
   const [lockedTicketAction, setLockedTicketAction] = useState<KitchenTicketAction | null>(null);
+  const [mutationFeedback, setMutationFeedback] = useState(createIdleMutationFeedback);
   const ticketActionLockRef = useRef(false);
   const lastAppliedKitchenChangeVersionRef = useRef<number | null>(null);
   const kitchenUrlState = useMemo(() => readKitchenBoardUrlState(searchParams), [searchParams]);
@@ -255,6 +261,51 @@ export function KitchenBoardPage() {
     updateKitchenSearch,
   ]);
 
+  async function refreshKitchenWorkspaceSlices(orderId?: number | null) {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: kitchenQueryKeys.stationsRoot(), refetchType: 'active' }),
+      queryClient.invalidateQueries({ queryKey: kitchenQueryKeys.ticketsRoot(), refetchType: 'active' }),
+      queryClient.invalidateQueries({ queryKey: ['kitchen-changes'], refetchType: 'active' }),
+      orderId
+        ? queryClient.invalidateQueries({ queryKey: ['order-detail', orderId], refetchType: 'active' })
+        : Promise.resolve(),
+      orderId
+        ? queryClient.invalidateQueries({ queryKey: ['checkout-order-detail', orderId], refetchType: 'active' })
+        : Promise.resolve(),
+    ]);
+  }
+
+  async function handleKitchenMutationError(
+    error: unknown,
+    context: {
+      actionLabel: string;
+      fallbackMessage: string;
+    },
+    orderId?: number | null,
+  ) {
+    const feedback = mapMutationErrorToFeedback(error, context);
+    const normalized = normalizeApiError(error, context.fallbackMessage);
+    const staleWrite = normalized.code === 'stale_row_version'
+      || normalized.categoryCode === 'stale_write'
+      || normalized.conflictType === 'stale_write';
+
+    setMutationFeedback(feedback);
+
+    if (feedback.phase === 'conflict') {
+      await refreshKitchenWorkspaceSlices(orderId);
+
+      if (staleWrite) {
+        toast.warning(`${normalized.message} Bảng phiếu bếp đã được tải lại trước khi thao tác tiếp.`);
+      }
+
+      return;
+    }
+
+    if (feedback.phase === 'retriable_failure') {
+      toast.error(formatApiError(error, context.fallbackMessage));
+    }
+  }
+
   const dispatchMutation = useMutation({
     mutationFn: async () => {
       if (!journey.orderId) {
@@ -268,6 +319,9 @@ export function KitchenBoardPage() {
       return dispatchKitchenOrder(journey.orderId, {
         row_version: journey.orderRowVersion,
       });
+    },
+    onMutate: () => {
+      setMutationFeedback(createIdleMutationFeedback());
     },
     onSuccess: async (dispatchEnvelope) => {
       const dispatchedTicket = dispatchEnvelope.data[0] ?? null;
@@ -287,6 +341,8 @@ export function KitchenBoardPage() {
         updateKitchenSearch({ ticketId: null }, dispatchedStationId, { replace: true });
       }
 
+      setMutationFeedback(createIdleMutationFeedback());
+
       if (!dispatchedTicket && unroutedCount > 0) {
         toast.warning(`Đơn #${journey.orderId} chưa tạo phiếu bếp vì ${unroutedCount} món chưa có tuyến bếp.`);
         return;
@@ -299,7 +355,10 @@ export function KitchenBoardPage() {
       }
     },
     onError: (error) => {
-      toast.error(formatApiError(error, 'Không thể gửi đơn xuống bếp.'));
+      void handleKitchenMutationError(error, {
+        actionLabel: 'Gửi đơn xuống bếp',
+        fallbackMessage: 'Không thể gửi đơn xuống bếp.',
+      }, journey.orderId ?? null);
     },
   });
 
@@ -318,6 +377,9 @@ export function KitchenBoardPage() {
 
       return recallKitchenTicket(input.ticketId, input.rowVersion);
     },
+    onMutate: () => {
+      setMutationFeedback(createIdleMutationFeedback());
+    },
     onSuccess: async (ticketEnvelope) => {
       const orderId = ticketEnvelope.data.order.order_id;
       updateKitchenSearch({ ticketId: ticketEnvelope.data.ticket_id }, ticketEnvelope.data.station?.station_id ?? stationId, { replace: true });
@@ -327,24 +389,14 @@ export function KitchenBoardPage() {
         queryClient.invalidateQueries({ queryKey: ['order-detail', orderId] }),
         queryClient.invalidateQueries({ queryKey: ['checkout-order-detail', orderId] }),
       ]);
+      setMutationFeedback(createIdleMutationFeedback());
       toast.success('Đã cập nhật phiếu bếp.');
     },
-    onError: (error) => {
-      const normalized = normalizeApiError(error, 'Không thể cập nhật phiếu bếp.');
-      const staleWrite = normalized.code === 'stale_row_version'
-        || normalized.categoryCode === 'stale_write'
-        || normalized.conflictType === 'stale_write';
-
-      if (staleWrite) {
-        void Promise.all([
-          queryClient.invalidateQueries({ queryKey: kitchenQueryKeys.ticketsRoot(), refetchType: 'active' }),
-          queryClient.invalidateQueries({ queryKey: kitchenQueryKeys.stationsRoot(), refetchType: 'active' }),
-        ]);
-        toast.warning(`${normalized.message} Bảng phiếu bếp đã được tải lại trước khi thao tác tiếp.`);
-        return;
-      }
-
-      toast.error(formatApiError(error, 'Không thể cập nhật phiếu bếp.'));
+    onError: (error, variables) => {
+      void handleKitchenMutationError(error, {
+        actionLabel: labelForTicketAction(variables.action),
+        fallbackMessage: 'Không thể cập nhật phiếu bếp.',
+      }, selectedTicket?.order.order_id ?? journey.orderId ?? null);
     },
   });
 
@@ -585,6 +637,13 @@ export function KitchenBoardPage() {
           </section>
 
           <aside className="staff-kitchen-panel staff-kitchen-board-detail" aria-label="Phiếu bếp đang chọn">
+            <MutationStatusNotice
+              feedback={mutationFeedback}
+              onDismiss={() => setMutationFeedback(createIdleMutationFeedback())}
+              onRetry={() => {
+                void refreshKitchenWorkspaceSlices(selectedTicket?.order.order_id ?? journey.orderId ?? null);
+              }}
+            />
             <TicketDetailPanel
               isOnline={isOnline}
               isPending={ticketActionMutation.isPending || lockedTicketAction !== null}
@@ -720,6 +779,15 @@ function TicketDetailPanel({
 
   const allowedActions = ticketAllowedActions(selectedTicket);
   const disableActions = !isOnline || isPending || stationId === null || selectedTicket.row_version === null;
+  const orderItemQuantity = selectedTicket.order_item?.quantity ?? null;
+  const orderItemStatus = selectedTicket.order_item?.status ?? selectedTicket.reconciliation.order_item_expected_status ?? null;
+  const ticketNotes = readTicketNote(selectedTicket.ticket_notes);
+  const orderItemNotes = readTicketNote(selectedTicket.order_item?.notes);
+  const reconciliationLabel = selectedTicket.reconciliation.order_item_matches_ticket === false
+    ? 'Đang lệch'
+    : selectedTicket.reconciliation.order_item_matches_ticket === true
+      ? 'Đang khớp'
+      : 'Chưa rõ';
 
   return (
     <section className="staff-kitchen-subpanel" aria-label="Chi tiết phiếu bếp">
@@ -738,6 +806,35 @@ function TicketDetailPanel({
         <span>Gọi lại {selectedTicket.recall_count}</span>
         <span>{formatRelativeAge(selectedTicket.updated_at)}</span>
       </div>
+
+      <div className="staff-kitchen-ticket-stack" aria-label="Ngữ cảnh món trên phiếu bếp">
+        <div className="staff-kitchen-ticket-card">
+          <span>Số lượng</span>
+          <strong>{orderItemQuantity === null ? 'Chưa có' : `x${orderItemQuantity}`}</strong>
+        </div>
+        <div className="staff-kitchen-ticket-card">
+          <span>Trạng thái món trên đơn</span>
+          <strong>{orderItemStatus ? translateUiCode(orderItemStatus) : 'Chưa có'}</strong>
+        </div>
+        <div className="staff-kitchen-ticket-card">
+          <span>Đối soát phiếu</span>
+          <strong>{reconciliationLabel}</strong>
+        </div>
+      </div>
+
+      {ticketNotes ? (
+        <div className="staff-kitchen-ticket-card" aria-label="Ghi chú phiếu bếp">
+          <span>Ghi chú phiếu bếp</span>
+          <p className="staff-kitchen-ticket-copy">{ticketNotes}</p>
+        </div>
+      ) : null}
+
+      {orderItemNotes ? (
+        <div className="staff-kitchen-ticket-card" aria-label="Ghi chú món">
+          <span>Ghi chú món</span>
+          <p className="staff-kitchen-ticket-copy">{orderItemNotes}</p>
+        </div>
+      ) : null}
 
       <div className="staff-kitchen-ticket-timeline" aria-label="Tiến trình phiếu bếp">
         {ticketTimeline(selectedTicket).map((entry) => (
@@ -859,4 +956,13 @@ function labelForTicketAction(action: KitchenTicketAction): string {
   }
 
   return 'Gọi lại bếp';
+}
+
+function readTicketNote(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized === '' ? null : normalized;
 }

@@ -23,7 +23,8 @@ import {
   updateOrderItem,
   updateOrderItemStatus,
 } from '../../../../shared/api/staff-api';
-import { formatApiError, isApiStatus } from '../../../../shared/api/errors';
+import { formatApiError, isApiStatus, normalizeApiError } from '../../../../shared/api/errors';
+import { isRowVersionConflict } from '../../../../shared/api/conflicts';
 import { formatMoney } from '../../../../shared/utils/format';
 import { buildJourneySearch } from '../../../../app/router/journey';
 import { staffRoutePaths } from '../../../../app/router/workspace-paths';
@@ -89,6 +90,11 @@ type AddItemMutationResult = {
   orderEnvelope: OrderMutationEnvelope;
   orderItemId?: number;
 };
+
+type OrderMutationFeedback =
+  | { kind: 'stale-row-version'; error: unknown }
+  | { kind: 'stale-order'; error: unknown }
+  | { kind: 'api-error'; error: unknown };
 
 function mergeOrderMutationEnvelopeIntoDetail(
   current: OrderDetailEnvelope | undefined,
@@ -200,6 +206,7 @@ export function OrderWorkspacePage() {
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [menuDrafts, setMenuDrafts] = useState<Record<number, MenuDraft>>({});
   const [routeOrderRecoveryEnabled, setRouteOrderRecoveryEnabled] = useState(false);
+  const [orderMutationFeedback, setOrderMutationFeedback] = useState<OrderMutationFeedback | null>(null);
   const [editItemForm] = Form.useForm<EditItemValues>();
 
   const routeTableIds = useMemo(() => journey.tableIds ?? [], [journey.tableIds]);
@@ -210,6 +217,7 @@ export function OrderWorkspacePage() {
 
   useEffect(() => {
     setRouteOrderRecoveryEnabled(false);
+    setOrderMutationFeedback(null);
   }, [routeOrderId]);
 
   const activeOrderByTableQuery = useQuery({
@@ -473,6 +481,53 @@ export function OrderWorkspacePage() {
       label: buildOrderContextLabel(orderId),
       source: journey.source ?? 'order',
     });
+    setOrderMutationFeedback(null);
+  }
+
+  async function refreshOrderWorkspaceSlices() {
+    await Promise.all([
+      resolvedOrderId
+        ? queryClient.invalidateQueries({ queryKey: ['order-detail', resolvedOrderId], refetchType: 'active' })
+        : Promise.resolve(),
+      resolvedOrderId
+        ? queryClient.invalidateQueries({ queryKey: ['checkout-order-detail', resolvedOrderId], refetchType: 'active' })
+        : Promise.resolve(),
+      tableId
+        ? queryClient.invalidateQueries({ queryKey: ['active-order-by-table', tableId], refetchType: 'active' })
+        : Promise.resolve(),
+      reservationId
+        ? queryClient.invalidateQueries({ queryKey: ['active-order-by-reservation', reservationId], refetchType: 'active' })
+        : Promise.resolve(),
+    ]);
+  }
+
+  async function recoverRouteOrderContext() {
+    setRouteOrderRecoveryEnabled(true);
+    await Promise.all([
+      tableId
+        ? queryClient.invalidateQueries({ queryKey: ['active-order-by-table', tableId], refetchType: 'active' })
+        : Promise.resolve(),
+      reservationId
+        ? queryClient.invalidateQueries({ queryKey: ['active-order-by-reservation', reservationId], refetchType: 'active' })
+        : Promise.resolve(),
+    ]);
+  }
+
+  async function handleOrderMutationError(error: unknown, fallback: string) {
+    if (isRowVersionConflict(error)) {
+      setOrderMutationFeedback({ kind: 'stale-row-version', error });
+      await refreshOrderWorkspaceSlices();
+      return;
+    }
+
+    if (isApiStatus(error, 404) && (tableId || reservationId)) {
+      setOrderMutationFeedback({ kind: 'stale-order', error });
+      await recoverRouteOrderContext();
+      return;
+    }
+
+    setOrderMutationFeedback({ kind: 'api-error', error });
+    message.error(formatApiError(error, fallback));
   }
 
   const createOrderMutation = useMutation({
@@ -586,6 +641,9 @@ export function OrderWorkspacePage() {
   });
 
   const updateItemMutation = useMutation({
+    onMutate: () => {
+      setOrderMutationFeedback(null);
+    },
     mutationFn: async (values: EditItemValues) => {
       const orderId = resolvedOrderId;
       const orderRowVersion = orderDetailQuery.data?.data.order.row_version;
@@ -610,12 +668,15 @@ export function OrderWorkspacePage() {
       ]);
       message.success('Đã cập nhật dòng món đã chọn.');
     },
-    onError: (error) => {
-      message.error(formatApiError(error, 'Không thể cập nhật dòng món đã chọn.'));
+    onError: async (error) => {
+      await handleOrderMutationError(error, 'Không thể cập nhật dòng món đã chọn.');
     },
   });
 
   const updateItemStatusMutation = useMutation({
+    onMutate: () => {
+      setOrderMutationFeedback(null);
+    },
     mutationFn: async (status: StaffOrderItemTransitionStatus) => {
       const orderId = resolvedOrderId;
       const orderRowVersion = orderDetailQuery.data?.data.order.row_version;
@@ -641,8 +702,8 @@ export function OrderWorkspacePage() {
       ]);
       message.success(`Đã chuyển dòng món sang trạng thái ${translateUiCode(status)}.`);
     },
-    onError: (error) => {
-      message.error(formatApiError(error, 'Không thể cập nhật trạng thái dòng món.'));
+    onError: async (error) => {
+      await handleOrderMutationError(error, 'Không thể cập nhật trạng thái dòng món.');
     },
   });
 
@@ -698,7 +759,11 @@ export function OrderWorkspacePage() {
   }
 
   async function handleUpdateItem(values: EditItemValues) {
-    await updateItemMutation.mutateAsync(values);
+    try {
+      await updateItemMutation.mutateAsync(values);
+    } catch {
+      // Mutation onError surfaces the operator-facing recovery state.
+    }
   }
 
   function handleAddMenuItem(item: MenuItemData) {
@@ -723,7 +788,11 @@ export function OrderWorkspacePage() {
     });
 
     if (confirmed) {
-      await updateItemStatusMutation.mutateAsync(status);
+      try {
+        await updateItemStatusMutation.mutateAsync(status);
+      } catch {
+        // Mutation onError surfaces the operator-facing recovery state.
+      }
     }
   }
 
@@ -731,6 +800,34 @@ export function OrderWorkspacePage() {
   const itemConcurrencyMissing = orderItems.some((item) => !item.row_version) || (orderItems.length > 0 && !orderDetailQuery.data?.data.order.row_version);
   const selectedItemEditable = canEditOrderItem(selectedItem?.status);
   const allowedStatusTransitions = getAllowedOrderItemStatuses(selectedItem?.status);
+  const mutationFeedbackMeta = orderMutationFeedback ? normalizeApiError(orderMutationFeedback.error, '').requestId : null;
+  const orderMutationFeedbackBlock = orderMutationFeedback?.kind === 'stale-row-version' ? (
+    <ConflictState
+      title="Đơn hàng hoặc dòng món vừa thay đổi"
+      description="Workspace đã yêu cầu tải lại chi tiết mới nhất. Kiểm tra lại số lượng, ghi chú hoặc trạng thái trước khi thao tác tiếp."
+      meta={mutationFeedbackMeta ? `Mã truy vết: ${mutationFeedbackMeta}` : undefined}
+      primaryAction={<Button onClick={() => void refreshOrderWorkspaceSlices()}>Tải lại chi tiết</Button>}
+      className="staff-inline-note"
+    />
+  ) : orderMutationFeedback?.kind === 'stale-order' && !staleRouteOrderRecovered ? (
+    <ConflictState
+      title="Đơn hàng trên URL không còn hợp lệ"
+      description="Workspace đang dò lại active order theo bàn hoặc đặt bàn hiện tại trước khi cho phép thao tác tiếp."
+      meta={mutationFeedbackMeta ? `Mã truy vết: ${mutationFeedbackMeta}` : undefined}
+      primaryAction={<Button onClick={() => void recoverRouteOrderContext()}>Dò lại đơn hiện tại</Button>}
+      className="staff-inline-note"
+    />
+  ) : orderMutationFeedback?.kind === 'api-error' ? (
+    <ApiStateBlock
+      error={orderMutationFeedback.error}
+      fallback="Không thể hoàn tất thao tác với dòng món đã chọn."
+      onRetry={() => {
+        void orderDetailQuery.refetch();
+      }}
+      conflictTitle="Dòng món vừa thay đổi"
+      conflictDescription="Tải lại chi tiết đơn hàng trước khi thử lại thao tác này."
+    />
+  ) : null;
 
   const main = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }} className="staff-order-workspace-main">
@@ -768,6 +865,7 @@ export function OrderWorkspacePage() {
           }}
         />
       ) : null}
+      {orderMutationFeedbackBlock}
 
       {staleRouteOrderRecovered && resolvedOrderId && resolvedOrderId !== routeOrderId ? (
         <InlineState

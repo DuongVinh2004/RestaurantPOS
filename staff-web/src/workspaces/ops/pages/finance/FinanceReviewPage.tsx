@@ -48,7 +48,7 @@ import { paymentTone, reservationTone } from '../../../../shared/status/status';
 import { PageHeader } from '../../../../shared/ui/layout/PageHeader';
 import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
 import { toast } from '../../../../shared/ui/feedback/toast';
-import { EmptyBlock, InlineError, InlineLoading } from '../../../../shared/ui/states/StateBlocks';
+import { ApiStateBlock, EmptyBlock, InlineLoading } from '../../../../shared/ui/states/StateBlocks';
 import { StatusChip } from '../../../../shared/ui/status/StatusChip';
 import { useAuthStore } from '../../../../app/store/auth-store';
 import { useFlowStore } from '../../../../app/store/flow-store';
@@ -236,6 +236,11 @@ export function FinanceReviewPage() {
     } as Partial<typeof urlState>, { replace: true });
   }
 
+  function refreshFinanceDetailWorkspace() {
+    void financeDetailQuery.refetch();
+    void financeInvoiceQuery.refetch();
+  }
+
   async function handleIssueInvoice() {
     if (!selectedReservationRowId || !canIssueInvoiceForRow(currentDetail?.summary ?? selectedRow)) {
       return;
@@ -343,8 +348,8 @@ export function FinanceReviewPage() {
         <Alert
           type={selectedRow.flags.has_discrepancy ? 'warning' : 'info'}
           showIcon
-          title="Dòng đang chọn cần review kỹ trước khi phát hành hóa đơn"
-          description={`Còn thiếu ${formatMoney(selectedRow.reconciliation.bill_outstanding_amount, selectedRow.reservation.bill_currency ?? 'VND')}. Hãy kiểm tra chênh lệch, giao dịch và invoice state ở panel chi tiết trước khi đi tiếp.`}
+          title="Dòng đang chọn cần xem kỹ trước khi phát hành hóa đơn"
+          description={`Còn thiếu ${formatMoney(selectedRow.reconciliation.bill_outstanding_amount, selectedRow.reservation.bill_currency ?? 'VND')}. Hãy kiểm tra chênh lệch, giao dịch và trạng thái hóa đơn ở khung chi tiết trước khi đi tiếp.`}
         />
       ) : null}
 
@@ -458,14 +463,21 @@ export function FinanceReviewPage() {
         <Alert
           type="warning"
           showIcon
-          title="Invalid activity date range"
+          title="Khoảng ngày hoạt động thanh toán không hợp lệ"
           description={dateRangeError}
         />
       ) : null}
 
       <Card title="Dòng đối soát" className="staff-workspace-table-card">
         {financeListQuery.isLoading ? <InlineLoading tip="Đang tải dữ liệu đối soát..." /> : null}
-        {financeListQuery.error ? <InlineError message={formatApiError(financeListQuery.error, 'Không thể tải dữ liệu đối soát.')} /> : null}
+        {financeListQuery.error ? (
+          <ApiStateBlock
+            error={financeListQuery.error}
+            fallback="Không thể tải dữ liệu đối soát."
+            onRetry={() => void financeListQuery.refetch()}
+            retryLabel="Tải lại dữ liệu đối soát"
+          />
+        ) : null}
         {!financeListQuery.isLoading && !financeListQuery.error && (financeListQuery.data?.data.length ?? 0) === 0 ? (
           <EmptyBlock title="Không có dòng đối soát" description="Bộ lọc hiện tại không trả về dữ liệu tài chính nào." />
         ) : null}
@@ -555,7 +567,12 @@ export function FinanceReviewPage() {
         ) : financeDetailQuery.isLoading ? (
           <InlineLoading tip="Đang tải chi tiết tài chính..." />
         ) : financeDetailQuery.error ? (
-          <InlineError message={formatApiError(financeDetailQuery.error, 'Không thể tải chi tiết tài chính.')} />
+          <ApiStateBlock
+            error={financeDetailQuery.error}
+            fallback="Không thể tải chi tiết tài chính."
+            onRetry={refreshFinanceDetailWorkspace}
+            retryLabel="Tải lại khung chi tiết"
+          />
         ) : currentDetail ? (
           <Space orientation="vertical" size={16} style={{ width: '100%' }}>
             <Descriptions bordered size="small" column={1}>
@@ -621,7 +638,12 @@ export function FinanceReviewPage() {
                   </Button>
                 </Space>
               ) : financeInvoiceQuery.error ? (
-                <InlineError message={formatApiError(financeInvoiceQuery.error, 'Không thể tải trạng thái hóa đơn.')} />
+                <ApiStateBlock
+                  error={financeInvoiceQuery.error}
+                  fallback="Không thể tải trạng thái hóa đơn."
+                  onRetry={() => void financeInvoiceQuery.refetch()}
+                  retryLabel="Tải lại trạng thái hóa đơn"
+                />
               ) : (
                 <EmptyBlock title="Chưa đọc được trạng thái hóa đơn" description="Làm mới khung chi tiết rồi thử lại." />
               )}
@@ -811,16 +833,16 @@ export function StaffBenefitsOpsPanel({
     mutationFn: () => releaseStaffReservationVoucher(reservationId, { row_version: guardRowVersion() }),
     onSuccess: async () => {
       await invalidateBenefits();
-      toast.success('Đã release voucher đang giữ cho đặt bàn.');
+      toast.success('Đã giải phóng voucher đang giữ cho đặt bàn.');
     },
-    onError: (error) => handleBenefitError(error, 'Chưa release được voucher.'),
+    onError: (error) => handleBenefitError(error, 'Chưa giải phóng được voucher.'),
   });
 
   const redeemLoyaltyMutation = useMutation({
     mutationFn: () => {
       const points = Number(redeemPoints);
       if (!Number.isFinite(points) || points <= 0) {
-        throw new Error('Số điểm redeem phải lớn hơn 0.');
+        throw new Error('Số điểm sử dụng phải lớn hơn 0.');
       }
 
       return redeemStaffReservationLoyalty(reservationId, {
@@ -833,9 +855,9 @@ export function StaffBenefitsOpsPanel({
       setRedeemPoints('');
       setRedeemReason('');
       await invalidateBenefits();
-      toast.success('Đã redeem điểm cho đặt bàn.');
+      toast.success('Đã sử dụng điểm cho đặt bàn.');
     },
-    onError: (error) => handleBenefitError(error, 'Chưa redeem được điểm.'),
+    onError: (error) => handleBenefitError(error, 'Chưa sử dụng được điểm.'),
   });
 
   const releaseLoyaltyMutation = useMutation({
@@ -846,15 +868,15 @@ export function StaffBenefitsOpsPanel({
     onSuccess: async () => {
       setReleaseReason('');
       await invalidateBenefits();
-      toast.success('Đã release điểm đã giữ.');
+      toast.success('Đã giải phóng điểm đã giữ.');
     },
-    onError: (error) => handleBenefitError(error, 'Chưa release được điểm.'),
+    onError: (error) => handleBenefitError(error, 'Chưa giải phóng được điểm.'),
   });
 
   const adjustLoyaltyMutation = useMutation({
     mutationFn: () => {
       if (!customerUserId) {
-        throw new Error('Đặt bàn này chưa có customer user id để điều chỉnh điểm.');
+        throw new Error('Đặt bàn này chưa có mã người dùng khách hàng để điều chỉnh điểm.');
       }
 
       const points = Number(adjustPoints);
@@ -892,7 +914,7 @@ export function StaffBenefitsOpsPanel({
             type="warning"
             showIcon
             title="Thiếu row_version đặt bàn"
-            description="Các mutation voucher/loyalty đang bị khóa để tránh ghi đè stale reservation state."
+            description="Các mutation voucher và điểm thưởng đang bị khóa để tránh ghi đè trạng thái đặt bàn đã cũ."
           />
         ) : null}
 
@@ -900,7 +922,14 @@ export function StaffBenefitsOpsPanel({
           <Space orientation="vertical" size={8} style={{ width: '100%' }}>
             <Typography.Text strong>Voucher đặt bàn</Typography.Text>
             {vouchersQuery.isLoading ? <InlineLoading tip="Đang tải voucher khả dụng..." /> : null}
-            {vouchersQuery.error ? <InlineError message={formatApiError(vouchersQuery.error, 'Không thể tải voucher đặt bàn.')} /> : null}
+            {vouchersQuery.error ? (
+              <ApiStateBlock
+                error={vouchersQuery.error}
+                fallback="Không thể tải voucher đặt bàn."
+                onRetry={() => void vouchersQuery.refetch()}
+                retryLabel="Tải lại voucher"
+              />
+            ) : null}
             {!vouchersQuery.isLoading && !vouchersQuery.error && vouchers.length === 0 ? (
               <EmptyBlock title="Chưa có voucher" description="Backend không trả về voucher khả dụng hoặc đang áp dụng cho đặt bàn này." />
             ) : null}
@@ -929,7 +958,7 @@ export function StaffBenefitsOpsPanel({
                 Gỡ voucher
               </Button>
               <Button onClick={() => releaseVoucherMutation.mutate()} loading={releaseVoucherMutation.isPending} disabled={!hasRowVersion}>
-                Release voucher
+                Giải phóng voucher
               </Button>
             </Space>
           </Space>
@@ -939,16 +968,30 @@ export function StaffBenefitsOpsPanel({
           <Space orientation="vertical" size={8} style={{ width: '100%' }}>
             <Typography.Text strong>Điểm thưởng</Typography.Text>
             {reservationLoyaltyQuery.isLoading || userLoyaltyQuery.isLoading ? <InlineLoading tip="Đang tải điểm thưởng..." /> : null}
-            {reservationLoyaltyQuery.error ? <InlineError message={formatApiError(reservationLoyaltyQuery.error, 'Không thể tải loyalty của đặt bàn.')} /> : null}
-            {userLoyaltyQuery.error ? <InlineError message={formatApiError(userLoyaltyQuery.error, 'Không thể tải loyalty của khách.')} /> : null}
+            {reservationLoyaltyQuery.error ? (
+              <ApiStateBlock
+                error={reservationLoyaltyQuery.error}
+                fallback="Không thể tải điểm thưởng của đặt bàn."
+                onRetry={() => void reservationLoyaltyQuery.refetch()}
+                retryLabel="Tải lại điểm thưởng của đặt bàn"
+              />
+            ) : null}
+            {userLoyaltyQuery.error ? (
+              <ApiStateBlock
+                error={userLoyaltyQuery.error}
+                fallback="Không thể tải điểm thưởng của khách."
+                onRetry={() => void userLoyaltyQuery.refetch()}
+                retryLabel="Tải lại điểm thưởng của khách"
+              />
+            ) : null}
             <Descriptions bordered size="small" column={1}>
               <Descriptions.Item label="Khách">
-                {customerUserId ? `User #${customerUserId}` : 'Đặt bàn chưa có user id'}
+                {customerUserId ? `Khách #${customerUserId}` : 'Đặt bàn chưa có mã người dùng khách hàng'}
               </Descriptions.Item>
               <Descriptions.Item label="Điểm khách">
                 {recordNumber(userLoyalty, 'points_balance') ?? recordNumber(userLoyalty, 'available_points') ?? 'Không có dữ liệu'}
               </Descriptions.Item>
-              <Descriptions.Item label="Điểm đã redeem">
+              <Descriptions.Item label="Điểm đã sử dụng">
                 {recordNumber(reservationLoyalty, 'redeemed_points') ?? recordNumber(reservationLoyalty, 'points') ?? 'Không có dữ liệu'}
               </Descriptions.Item>
             </Descriptions>
@@ -957,18 +1000,18 @@ export function StaffBenefitsOpsPanel({
 
         {canRedeemLoyalty ? (
           <Space orientation="vertical" size={8} style={{ width: '100%' }}>
-            <Typography.Text strong>Redeem / release điểm</Typography.Text>
+            <Typography.Text strong>Sử dụng / giải phóng điểm</Typography.Text>
             <Space wrap>
-              <Input aria-label="Số điểm staff redeem" inputMode="numeric" placeholder="Điểm" value={redeemPoints} onChange={(event) => setRedeemPoints(event.target.value)} style={{ width: 120 }} />
-              <Input aria-label="Lý do staff redeem điểm" placeholder="Lý do" value={redeemReason} onChange={(event) => setRedeemReason(event.target.value)} style={{ width: 220 }} />
+              <Input aria-label="Số điểm staff sử dụng" inputMode="numeric" placeholder="Điểm" value={redeemPoints} onChange={(event) => setRedeemPoints(event.target.value)} style={{ width: 120 }} />
+              <Input aria-label="Lý do staff sử dụng điểm" placeholder="Lý do" value={redeemReason} onChange={(event) => setRedeemReason(event.target.value)} style={{ width: 220 }} />
               <Button type="primary" onClick={() => redeemLoyaltyMutation.mutate()} loading={redeemLoyaltyMutation.isPending} disabled={!hasRowVersion || Number(redeemPoints) <= 0}>
-                Redeem điểm
+                Sử dụng điểm
               </Button>
             </Space>
             <Space wrap>
-              <Input aria-label="Lý do release điểm" placeholder="Lý do release" value={releaseReason} onChange={(event) => setReleaseReason(event.target.value)} style={{ width: 220 }} />
+              <Input aria-label="Lý do giải phóng điểm" placeholder="Lý do giải phóng" value={releaseReason} onChange={(event) => setReleaseReason(event.target.value)} style={{ width: 220 }} />
               <Button onClick={() => releaseLoyaltyMutation.mutate()} loading={releaseLoyaltyMutation.isPending} disabled={!hasRowVersion}>
-                Release điểm
+                Giải phóng điểm
               </Button>
             </Space>
           </Space>

@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   submitDepositIntent: vi.fn(),
   revokeDepositIntent: vi.fn(),
   createDepositPaymentSession: vi.fn(),
+  getDepositPaymentSession: vi.fn(),
   refreshDepositPaymentSession: vi.fn(),
   confirmDepositPaymentSession: vi.fn(),
 }));
@@ -21,6 +22,7 @@ vi.mock("./api", () => ({
   submitDepositIntent: mocks.submitDepositIntent,
   revokeDepositIntent: mocks.revokeDepositIntent,
   createDepositPaymentSession: mocks.createDepositPaymentSession,
+  getDepositPaymentSession: mocks.getDepositPaymentSession,
   refreshDepositPaymentSession: mocks.refreshDepositPaymentSession,
   confirmDepositPaymentSession: mocks.confirmDepositPaymentSession,
 }));
@@ -39,7 +41,11 @@ function createReservation(overrides: Partial<ReservationSummary> = {}): Reserva
   };
 }
 
-function createPaymentSessionEnvelope(rowVersion: number, sessionStatus = "Pending", overrides: Record<string, unknown> = {}) {
+function createPaymentSessionEnvelope(
+  rowVersion: number,
+  sessionStatus = "Pending",
+  overrides: Record<string, unknown> = {},
+) {
   const terminal = sessionStatus === "Succeeded";
 
   return {
@@ -89,11 +95,14 @@ function renderPanel() {
 
 describe("DepositPanel", () => {
   beforeEach(() => {
+    window.sessionStorage.clear();
+
     mocks.getDepositPreview.mockReset();
     mocks.acknowledgeDeposit.mockReset();
     mocks.submitDepositIntent.mockReset();
     mocks.revokeDepositIntent.mockReset();
     mocks.createDepositPaymentSession.mockReset();
+    mocks.getDepositPaymentSession.mockReset();
     mocks.refreshDepositPaymentSession.mockReset();
     mocks.confirmDepositPaymentSession.mockReset();
 
@@ -112,6 +121,28 @@ describe("DepositPanel", () => {
       },
     });
   });
+
+  it("restores a stored payment session through the canonical show route", async () => {
+    window.sessionStorage.setItem("restaurantpos.customer.session-id.v1", "browser-session-1");
+    window.sessionStorage.setItem(
+      "restaurantpos.customer.payment-session.v1.deposit.7",
+      JSON.stringify({
+        surface: "deposit",
+        reservation_id: 7,
+        session_id: 301,
+        browser_session_id: "browser-session-1",
+      }),
+    );
+    mocks.getDepositPaymentSession.mockResolvedValue(createPaymentSessionEnvelope(15));
+
+    renderPanel();
+
+    await waitFor(() => {
+      expect(mocks.getDepositPaymentSession).toHaveBeenCalledWith(7, 301);
+    });
+    expect(await screen.findByText("dep-1")).toBeInTheDocument();
+  });
+
   it("renders deposit payment session details and refreshes using the payment session row version", async () => {
     const user = userEvent.setup();
 

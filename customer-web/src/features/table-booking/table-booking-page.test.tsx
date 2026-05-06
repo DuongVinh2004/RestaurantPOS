@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   refreshTableHold: vi.fn(),
   cancelTableHold: vi.fn(),
   toastSuccess: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 vi.mock("next/link", () => ({
@@ -22,6 +23,7 @@ vi.mock("next/link", () => ({
 vi.mock("sonner", () => ({
   toast: {
     success: mocks.toastSuccess,
+    error: mocks.toastError,
   },
 }));
 
@@ -55,6 +57,10 @@ function futureIso(minutesFromNow: number): string {
   return new Date(Date.now() + minutesFromNow * 60_000).toISOString();
 }
 
+async function clickSearchButton(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", { name: "Tìm bàn" }));
+}
+
 describe("TableBookingPage", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -64,6 +70,7 @@ describe("TableBookingPage", () => {
     mocks.refreshTableHold.mockReset();
     mocks.cancelTableHold.mockReset();
     mocks.toastSuccess.mockReset();
+    mocks.toastError.mockReset();
   });
 
   it("searches live availability, auto-creates a hold on table selection, and links into reservation create", async () => {
@@ -94,7 +101,7 @@ describe("TableBookingPage", () => {
 
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: "Tìm bàn" }));
+    await clickSearchButton(user);
 
     await waitFor(() => {
       expect(mocks.searchAvailableTables).toHaveBeenCalledWith(
@@ -158,7 +165,7 @@ describe("TableBookingPage", () => {
 
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: "Tìm bàn" }));
+    await clickSearchButton(user);
     const tableOption = await screen.findByRole("button", { name: "Chọn Bàn 7" });
 
     await user.clear(screen.getByLabelText("Số khách"));
@@ -226,7 +233,7 @@ describe("TableBookingPage", () => {
 
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: "Tìm bàn" }));
+    await clickSearchButton(user);
     await user.click(await screen.findByRole("button", { name: "Chọn Bàn 7" }));
     await screen.findByRole("link", { name: "Tiếp tục đặt chỗ" });
 
@@ -281,7 +288,7 @@ describe("TableBookingPage", () => {
 
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: "Tìm bàn" }));
+    await clickSearchButton(user);
     await user.dblClick(await screen.findByRole("button", { name: "Chọn Bàn 7" }));
 
     expect(mocks.createTableHold).toHaveBeenCalledTimes(1);
@@ -335,7 +342,7 @@ describe("TableBookingPage", () => {
     expect(screen.getByText("hold-local-1")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Tiếp tục đặt chỗ" })).toHaveAttribute("href", expect.stringContaining("hold_id=hold-local-1"));
 
-    await user.click(screen.getByRole("button", { name: "Tìm bàn" }));
+    await clickSearchButton(user);
     await user.click(await screen.findByRole("button", { name: "Chọn Bàn 7" }));
 
     expect(mocks.createTableHold).not.toHaveBeenCalled();
@@ -375,7 +382,7 @@ describe("TableBookingPage", () => {
 
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: "Tìm bàn" }));
+    await clickSearchButton(user);
     await user.click(await screen.findByRole("button", { name: "Chọn Bàn 7" }));
 
     expect(await screen.findByText("Phiên đặt bàn đang có lượt giữ khác")).toBeInTheDocument();
@@ -423,7 +430,7 @@ describe("TableBookingPage", () => {
 
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: "Tìm bàn" }));
+    await clickSearchButton(user);
     await user.click(await screen.findByRole("button", { name: "Chọn Bàn 7" }));
     await screen.findByRole("link", { name: "Tiếp tục đặt chỗ" });
 
@@ -477,9 +484,10 @@ describe("TableBookingPage", () => {
 
     renderPage();
 
-    await user.clear(screen.getByLabelText("Số khách"));
-    await user.type(screen.getByLabelText("Số khách"), "6");
-    await user.click(screen.getByRole("button", { name: "Tìm bàn" }));
+    const guestCountInput = await screen.findByLabelText("Số khách");
+    await user.clear(guestCountInput);
+    await user.type(guestCountInput, "6");
+    await clickSearchButton(user);
     await user.click(await screen.findByRole("button", { name: "Chọn Ghép Bàn 7 + Bàn 8" }));
 
     await waitFor(() => {
@@ -518,7 +526,7 @@ describe("TableBookingPage", () => {
 
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: "Tìm bàn" }));
+    await clickSearchButton(user);
     await user.click(await screen.findByRole("button", { name: "Chọn Bàn 7" }));
 
     expect(await screen.findByText("Bàn đã chọn không còn hiệu lực")).toBeInTheDocument();
@@ -537,7 +545,7 @@ describe("TableBookingPage", () => {
 
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: "Tìm bàn" }));
+    await clickSearchButton(user);
 
     expect(screen.getByLabelText("Đang tìm bàn trống")).toBeInTheDocument();
 
@@ -555,7 +563,7 @@ describe("TableBookingPage", () => {
       validationErrors: null,
     });
 
-    await user.click(screen.getByRole("button", { name: "Tìm bàn" }));
+    await clickSearchButton(user);
 
     expect(await screen.findByText("Chưa tìm được bàn trống")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Thử lại" }));

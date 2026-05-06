@@ -53,6 +53,12 @@ describe('ConversationInboxPage', () => {
           assigned: 0,
           unassigned: 1,
           mine: 0,
+          views: {
+            unassigned: 1,
+            overdue: 0,
+            waiting_on_customer: 0,
+            resolved_today: 0,
+          },
         },
       },
     });
@@ -82,7 +88,7 @@ describe('ConversationInboxPage', () => {
 
     await waitFor(() => {
       expect(apiMocks.updateConversationWorkflowState).toHaveBeenCalledWith('conv-001', {
-        workflow_state: 'Open',
+        workflow_state: 'Triaged',
         expected_workflow_state: 'Open',
         reason: 'Đã kiểm tra thread',
       });
@@ -100,6 +106,125 @@ describe('ConversationInboxPage', () => {
         notes: 'Khách hỏi đổi giờ',
       });
     });
+  });
+
+  it('passes workflow and inbox view filters from the url into the conversation list query', async () => {
+    renderWithProviders('/ops/conversations?workflow_state=Resolved&inbox_view=resolved_today&assignment=mine&status=Closed');
+
+    await waitFor(() => {
+      expect(apiMocks.listConversations).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'Closed',
+        workflow_state: 'Resolved',
+        inbox_view: 'resolved_today',
+        assignment_state: 'mine',
+      }));
+    });
+  });
+
+  it('defaults workflow mutation to the first backend-approved target for assigned conversations', async () => {
+    apiMocks.getConversationDetail.mockResolvedValueOnce(makeConversationDetail({
+      conversation: makeConversation({
+        workflow: {
+          state: 'Assigned',
+          state_reason: 'assigned',
+          state_changed_at: null,
+          first_triaged_at: null,
+          resolved_at: null,
+          closed_at: null,
+          is_terminal: false,
+          allowed_actions: ['unassign', 'mark_pending_customer', 'resolve', 'close'],
+        },
+        assignment_state: {
+          is_assigned: true,
+          is_unassigned: false,
+          is_mine: true,
+        },
+        active_assignment: {
+          assignment_id: 11,
+          conversation_id: 'conv-001',
+          agent_user_id: 7,
+          is_active: true,
+        },
+      }),
+      capabilities: {
+        can_assign: true,
+        can_take_over: true,
+        can_unassign: true,
+        can_link: true,
+        can_update_workflow_state: true,
+        workflow_state_targets: ['PendingCustomer', 'Resolved', 'Closed'],
+        can_add_internal_note: true,
+        can_send_outbound_reply: false,
+        outbound_reply: {
+          supported: false,
+          reason_code: 'unsupported_channel',
+          channel: null,
+          delivery_mode: null,
+          recipient_masked: null,
+        },
+      },
+    }));
+
+    renderWithProviders('/ops/conversations');
+
+    expect(await screen.findByText('Phân công rõ nhân viên')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Lý do cập nhật workflow'), { target: { value: 'Chuyển qua chờ khách' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật workflow' }));
+
+    await waitFor(() => {
+      expect(apiMocks.updateConversationWorkflowState).toHaveBeenCalledWith('conv-001', {
+        workflow_state: 'PendingCustomer',
+        expected_workflow_state: 'Assigned',
+        reason: 'Chuyển qua chờ khách',
+      });
+    });
+  });
+
+  it('locks assignment, linkage and internal note controls for closed conversations', async () => {
+    apiMocks.getConversationDetail.mockResolvedValueOnce(makeConversationDetail({
+      conversation: makeConversation({
+        status: 'Closed',
+        workflow: {
+          state: 'Closed',
+          state_reason: 'closed',
+          state_changed_at: null,
+          first_triaged_at: null,
+          resolved_at: null,
+          closed_at: null,
+          is_terminal: true,
+          allowed_actions: ['reopen'],
+        },
+      }),
+      capabilities: {
+        can_assign: false,
+        can_take_over: false,
+        can_unassign: false,
+        can_link: false,
+        can_update_workflow_state: true,
+        workflow_state_targets: ['Triaged'],
+        can_add_internal_note: false,
+        can_send_outbound_reply: false,
+        outbound_reply: {
+          supported: false,
+          reason_code: 'conversation_closed',
+          channel: null,
+          delivery_mode: null,
+          recipient_masked: null,
+        },
+      },
+    }));
+
+    renderWithProviders('/ops/conversations');
+
+    expect(await screen.findByText('Phân công rõ nhân viên')).toBeInTheDocument();
+
+    expect(screen.queryByRole('button', { name: 'Nhận xử lý' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Staff user id nhận hội thoại')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Phân công' })).toBeDisabled();
+    expect(screen.getByLabelText('Reservation id cần liên kết')).toBeDisabled();
+    expect(screen.getByPlaceholderText('Ghi chú cho bàn giao, rủi ro thời gian hoặc theo dõi đặt bàn.')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Thêm ghi chú' })).toBeDisabled();
   });
 });
 
@@ -170,7 +295,25 @@ function makeConversation(overrides: Partial<StaffConversationSummary> = {}): St
   };
 }
 
-function makeConversationDetail(): StaffConversationDetailEnvelope {
+function makeConversationDetail(overrides: Partial<StaffConversationDetailEnvelope['data']> = {}): StaffConversationDetailEnvelope {
+  const defaultCapabilities = {
+    can_assign: true,
+    can_take_over: true,
+    can_unassign: false,
+    can_link: true,
+    can_update_workflow_state: true,
+    workflow_state_targets: ['Triaged', 'PendingCustomer', 'Closed'],
+    can_add_internal_note: true,
+    can_send_outbound_reply: false,
+    outbound_reply: {
+      supported: false,
+      reason_code: 'unsupported_channel',
+      channel: null,
+      delivery_mode: null,
+      recipient_masked: null,
+    },
+  };
+
   return {
     data: {
       conversation: makeConversation(),
@@ -193,16 +336,8 @@ function makeConversationDetail(): StaffConversationDetailEnvelope {
           analysis_count: 0,
         },
       },
-      capabilities: {
-        can_send_outbound_reply: false,
-        outbound_reply: {
-          supported: false,
-          reason_code: 'unsupported_channel',
-          channel: null,
-          delivery_mode: null,
-          recipient_masked: null,
-        },
-      },
+      capabilities: defaultCapabilities,
+      ...overrides,
     },
   };
 }

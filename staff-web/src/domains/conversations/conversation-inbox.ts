@@ -26,13 +26,37 @@ export type OutboundReplyState = {
   recipientMasked: string | null;
 };
 
+export type ConversationInboxViewStats = {
+  unassigned: number;
+  overdue: number;
+  waitingOnCustomer: number;
+  resolvedToday: number;
+};
+
+export type ConversationWorkflowStateValue = Exclude<ConversationWorkflowFilter, 'all'>;
+export type ConversationWorkflowWriteState = Exclude<ConversationWorkflowStateValue, 'Assigned'>;
+
+export type ConversationMutationCapabilities = {
+  canAssign: boolean;
+  canTakeOver: boolean;
+  canUnassign: boolean;
+  canLink: boolean;
+  canUpdateWorkflowState: boolean;
+  canAddInternalNote: boolean;
+  workflowStateTargets: Array<ConversationWorkflowWriteState>;
+};
+
 export type ConversationInboxTab = 'messages' | 'ai' | 'history';
 export type ConversationStatusFilter = 'all' | NonNullable<GetV1StaffConversationsQueryParams['status']>;
+export type ConversationWorkflowFilter = 'all' | NonNullable<GetV1StaffConversationsQueryParams['workflow_state']>;
+export type ConversationInboxViewFilter = NonNullable<GetV1StaffConversationsQueryParams['inbox_view']>;
 export type ConversationAssignmentFilter = 'all' | NonNullable<GetV1StaffConversationsQueryParams['assignment_state']>;
 export type ConversationChannelFilter = 'all' | NonNullable<GetV1StaffConversationsQueryParams['channel']>;
 
 export type ConversationInboxUrlState = {
   status: ConversationStatusFilter;
+  workflowState: ConversationWorkflowFilter;
+  inboxView: ConversationInboxViewFilter;
   assignment: ConversationAssignmentFilter;
   channel: ConversationChannelFilter;
   q: string;
@@ -104,6 +128,17 @@ export function conversationSummaryStats(summary: Record<string, unknown> | null
   };
 }
 
+export function conversationInboxViewStats(summary: Record<string, unknown> | null | undefined): ConversationInboxViewStats {
+  const views = asRecord(summary?.views);
+
+  return {
+    unassigned: readNumber(views, 'unassigned') ?? 0,
+    overdue: readNumber(views, 'overdue') ?? 0,
+    waitingOnCustomer: readNumber(views, 'waiting_on_customer') ?? 0,
+    resolvedToday: readNumber(views, 'resolved_today') ?? 0,
+  };
+}
+
 export function outboundReplyState(detail: StaffConversationDetailEnvelope['data'] | null | undefined): OutboundReplyState {
   const capabilities = asRecord(detail?.capabilities);
   const reply = asRecord(capabilities?.outbound_reply);
@@ -118,11 +153,45 @@ export function outboundReplyState(detail: StaffConversationDetailEnvelope['data
   };
 }
 
+export function conversationMutationCapabilities(
+  detail: StaffConversationDetailEnvelope['data'] | null | undefined,
+): ConversationMutationCapabilities {
+  const capabilities = asRecord(detail?.capabilities);
+
+  return {
+    canAssign: readBoolean(capabilities, 'can_assign') ?? false,
+    canTakeOver: readBoolean(capabilities, 'can_take_over') ?? false,
+    canUnassign: readBoolean(capabilities, 'can_unassign') ?? false,
+    canLink: readBoolean(capabilities, 'can_link') ?? false,
+    canUpdateWorkflowState: readBoolean(capabilities, 'can_update_workflow_state') ?? false,
+    canAddInternalNote: readBoolean(capabilities, 'can_add_internal_note') ?? false,
+    workflowStateTargets: readWorkflowWriteStates(capabilities?.workflow_state_targets),
+  };
+}
+
+export function conversationCanTakeOver(item: ConversationItem): boolean {
+  return conversationAllowsAssignment(item) && !item.assignment_state.is_mine;
+}
+
+export function conversationCanUnassignMine(item: ConversationItem): boolean {
+  return conversationAllowsAssignment(item) && item.assignment_state.is_mine;
+}
+
 export function readConversationInboxUrlState(search: string | URLSearchParams): ConversationInboxUrlState {
   const params = toSearchParams(search);
 
   return {
     status: readEnumValue(params.get('status'), ['all', 'Open', 'Pending', 'Closed', 'Spam'], 'all'),
+    workflowState: readEnumValue(
+      params.get('workflow_state'),
+      ['all', 'Open', 'Triaged', 'Assigned', 'PendingCustomer', 'Resolved', 'Closed'],
+      'all',
+    ),
+    inboxView: readEnumValue(
+      params.get('inbox_view'),
+      ['all', 'unassigned', 'overdue', 'waiting_on_customer', 'resolved_today'],
+      'all',
+    ),
     assignment: readEnumValue(params.get('assignment'), ['all', 'assigned', 'unassigned', 'mine'], 'all'),
     channel: readEnumValue(params.get('channel'), ['all', 'WebChat', 'Facebook', 'Zalo', 'Whatsapp', 'Instagram', 'Line', 'Other'], 'all'),
     q: params.get('q')?.trim() ?? '',
@@ -143,6 +212,8 @@ export function buildConversationInboxSearch(
   } satisfies ConversationInboxUrlState;
 
   setOrDelete(params, 'status', merged.status !== 'all' ? merged.status : null);
+  setOrDelete(params, 'workflow_state', merged.workflowState !== 'all' ? merged.workflowState : null);
+  setOrDelete(params, 'inbox_view', merged.inboxView !== 'all' ? merged.inboxView : null);
   setOrDelete(params, 'assignment', merged.assignment !== 'all' ? merged.assignment : null);
   setOrDelete(params, 'channel', merged.channel !== 'all' ? merged.channel : null);
   setOrDelete(params, 'q', merged.q !== '' ? merged.q : null);
@@ -200,6 +271,17 @@ function readBoolean(source: unknown, key: string): boolean | null {
   return typeof value === 'boolean' ? value : null;
 }
 
+function readWorkflowWriteStates(source: unknown): Array<ConversationWorkflowWriteState> {
+  if (!Array.isArray(source)) {
+    return [];
+  }
+
+  return source.flatMap((value) => {
+    const state = typeof value === 'string' ? readConversationWorkflowWriteState(value) : null;
+    return state ? [state] : [];
+  });
+}
+
 function readEnumValue<TValue extends string>(
   value: string | null,
   allowed: ReadonlyArray<TValue>,
@@ -228,4 +310,31 @@ function setOrDelete(params: URLSearchParams, key: string, value: string | null)
   }
 
   params.set(key, value);
+}
+
+function conversationAllowsAssignment(item: ConversationItem): boolean {
+  const workflowState = readConversationWorkflowState(item.workflow.state);
+
+  return workflowState !== null && workflowState !== 'Resolved' && workflowState !== 'Closed';
+}
+
+function readConversationWorkflowState(value: string): ConversationWorkflowStateValue | null {
+  return value === 'Open'
+    || value === 'Triaged'
+    || value === 'Assigned'
+    || value === 'PendingCustomer'
+    || value === 'Resolved'
+    || value === 'Closed'
+    ? value
+    : null;
+}
+
+function readConversationWorkflowWriteState(value: string): ConversationWorkflowWriteState | null {
+  return value === 'Open'
+    || value === 'Triaged'
+    || value === 'PendingCustomer'
+    || value === 'Resolved'
+    || value === 'Closed'
+    ? value
+    : null;
 }

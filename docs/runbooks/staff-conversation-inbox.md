@@ -62,6 +62,9 @@ All routes are under `/api/v1/staff/conversations` and require `staff.capability
 Runtime note for staff-web and other consumers:
 
 - Conversation detail responses expose `data.capabilities` and nested `data.capabilities.outbound_reply`.
+- `data.capabilities.can_assign`, `can_take_over`, `can_unassign`, `can_link`, `can_add_internal_note`, and `can_update_workflow_state` now reflect lifecycle-aware availability for the currently opened thread.
+- `data.capabilities.workflow_state_targets[]` exposes the backend-approved workflow targets for the `workflow-state` route.
+- Consumers should use `workflow_state_targets[]` instead of hardcoding transition maps in the UI.
 - Consumers must use that detail envelope to decide whether outbound reply is operationally enabled.
 - Session capability alone is not enough to infer reply availability because assignment state, runtime delivery support, and recipient readiness can still lock the action.
 - Conversation detail now also exposes `data.ai_assist` as an optional, bounded assist envelope for summary + follow-up hints.

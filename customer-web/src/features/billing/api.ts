@@ -38,6 +38,18 @@ export function createBillPaymentSession(
   ).then(unwrapData);
 }
 
+export function getBillPaymentSession(
+  reservationId: number,
+  sessionId: number,
+): Promise<BillPaymentSessionResult> {
+  return apiCall((client) =>
+    client.getV1ReservationsReservationIdBillPaymentSessionsSessionId({
+      reservation_id: reservationId,
+      session_id: sessionId,
+    }),
+  ).then(unwrapData);
+}
+
 export function refreshBillPaymentSession(
   reservationId: number,
   sessionId: number,

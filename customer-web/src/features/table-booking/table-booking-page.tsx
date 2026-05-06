@@ -71,6 +71,34 @@ const durationQuickOptions = [
   { label: "120 phút", value: 120 },
 ];
 
+// Trích xuất thông báo lỗi Validation (422) từ Backend Laravel (Type-Safe)
+function getErrorMessage(error: unknown, defaultTitle: string): string {
+  const err = (error ?? {}) as Record<string, unknown>;
+  const response = (err.response ?? {}) as Record<string, unknown>;
+  const status = err.status ?? response.status;
+
+  if (status === 422) {
+    const data = (response.data ?? err.data ?? {}) as Record<string, unknown>;
+
+    if (data.errors && typeof data.errors === "object" && !Array.isArray(data.errors)) {
+      const errorsObj = data.errors as Record<string, unknown>;
+      const firstKey = Object.keys(errorsObj)[0];
+      if (firstKey) {
+        const firstError = Array.isArray(errorsObj[firstKey]) ? errorsObj[firstKey][0] : errorsObj[firstKey];
+        if (typeof firstError === "string") {
+          return `${defaultTitle} (${firstError})`;
+        }
+      }
+    }
+
+    if (typeof data.message === "string") {
+      return `${defaultTitle} (${data.message})`;
+    }
+  }
+
+  return defaultTitle;
+}
+
 function tableIdKey(tableIds: number[]): string {
   return [...new Set(tableIds)].sort((left, right) => left - right).join(",");
 }
@@ -208,12 +236,22 @@ function holdMatchesSelection(
 
 export function TableBookingPage() {
   const queryClient = useQueryClient();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 0);
+    return () => clearTimeout(timer);
+  }, []);
+
   const [initialSession] = useState(() => {
+    if (typeof window === "undefined") {
+      return { sessionId: "", snapshot: null };
+    }
     const sessionId = ensureCustomerSessionId();
     const snapshot = readStoredActiveTableHoldSnapshot(sessionId);
-
     return { sessionId, snapshot };
   });
+
   const customerSessionId = initialSession.sessionId;
   const restoredVisitDetails = initialSession.snapshot ? visitDetailsFromSnapshot(initialSession.snapshot) : null;
   const holdCreateInFlightKeyRef = useRef<string | null>(null);
@@ -223,9 +261,8 @@ export function TableBookingPage() {
   const [heldVisitDetails, setHeldVisitDetails] = useState<AvailabilitySearchValues | null>(restoredVisitDetails);
   const [heldTableIds, setHeldTableIds] = useState<number[]>(() => initialSession.snapshot?.table_ids ?? []);
   const [selectedTableIds, setSelectedTableIds] = useState<number[]>(() => initialSession.snapshot?.table_ids ?? []);
-  const [activeHoldNotice, setActiveHoldNotice] = useState<string | null>(
-    initialSession.snapshot ? ACTIVE_TABLE_HOLD_SESSION_MESSAGE : null,
-  );
+  const [activeHoldGuardVisible, setActiveHoldGuardVisible] = useState(false);
+
   const form = useForm<AvailabilitySearchValues>({
     resolver: zodResolver(availabilitySearchSchema),
     defaultValues: {
@@ -253,7 +290,7 @@ export function TableBookingPage() {
     setHeldVisitDetails(visitDetails);
     setHeldTableIds(effectiveTableIds);
     setSelectedTableIds(effectiveTableIds);
-    setActiveHoldNotice(null);
+    setActiveHoldGuardVisible(false);
     queryClient.setQueryData(queryKeys.tableBooking.hold(result.hold_id), result);
 
     const snapshot = createActiveTableHoldSnapshot(result, {
@@ -271,6 +308,34 @@ export function TableBookingPage() {
       clearStoredActiveTableHoldSnapshot(customerSessionId);
     }
   }
+
+  const cancelHoldMutation = useMutation({
+    mutationFn: ({ holdId, rowVersion }: { holdId: string; rowVersion: number }) => cancelTableHold(holdId, rowVersion),
+    onSuccess() {
+      setHold(null);
+      setHeldVisitDetails(null);
+      setHeldTableIds([]);
+      setSelectedTableIds([]);
+      setActiveHoldGuardVisible(false);
+      clearStoredActiveTableHoldSnapshot(customerSessionId);
+    },
+    onError(error: unknown) {
+      const err = (error ?? {}) as Record<string, unknown>;
+      const response = (err.response ?? {}) as Record<string, unknown>;
+      const status = err.status ?? response.status;
+
+      if (status === 422 || status === 404 || status === 409) {
+        setHold(null);
+        setHeldVisitDetails(null);
+        setHeldTableIds([]);
+        setActiveHoldGuardVisible(false);
+        clearStoredActiveTableHoldSnapshot(customerSessionId);
+        if (!holdCreateInFlightKeyRef.current) {
+          setSelectedTableIds([]);
+        }
+      }
+    }
+  });
 
   const searchMutation = useMutation({
     mutationFn: (values: AvailabilitySearchValues) => searchAvailableTables(values),
@@ -291,7 +356,40 @@ export function TableBookingPage() {
     mutationFn: ({ values, tableIds }: HoldSelection) => createTableHold(values, tableIds),
     onSuccess(result, selection) {
       applyActiveHold(result, selection.values, selection.tableIds);
-      toast.success("Đã chọn bàn cho lượt đặt.");
+    },
+    onError(error: unknown) {
+      const err = (error ?? {}) as Record<string, unknown>;
+      const response = (err.response ?? {}) as Record<string, unknown>;
+      const status = err.status ?? response.status;
+      const message = typeof err.message === 'string' ? err.message : '';
+      const isConflictError = status === 409 || message.includes('conflict');
+
+      if (isConflictError) {
+        toast.error("Bàn bạn chọn vừa có người khác đặt. Hệ thống đang tải lại danh sách bàn trống!", {
+           duration: 4000
+        });
+
+        setSelectedTableIds([]);
+        searchMutation.mutate(form.getValues());
+      } else if (status === 422) {
+        const data = (response.data ?? err.data ?? {}) as Record<string, unknown>;
+        let validationMsg = "Dữ liệu không hợp lệ.";
+
+        if (data.errors && typeof data.errors === "object" && !Array.isArray(data.errors)) {
+          const errorsObj = data.errors as Record<string, unknown>;
+          const firstKey = Object.keys(errorsObj)[0];
+          if (firstKey) {
+            const firstError = Array.isArray(errorsObj[firstKey]) ? errorsObj[firstKey][0] : errorsObj[firstKey];
+            if (typeof firstError === "string") validationMsg = firstError;
+          }
+        } else if (typeof data.message === "string") {
+          validationMsg = data.message;
+        }
+
+        toast.error(`Từ chối giữ bàn: ${validationMsg}`);
+      } else {
+        toast.error("Chưa thể giữ bàn lúc này. Vui lòng thử lại.");
+      }
     },
     onSettled() {
       holdCreateInFlightKeyRef.current = null;
@@ -303,19 +401,21 @@ export function TableBookingPage() {
     onSuccess(result) {
       applyActiveHold(result, heldVisitDetails, heldTableIds);
     },
-  });
+    onError(error: unknown) {
+      const err = (error ?? {}) as Record<string, unknown>;
+      const response = (err.response ?? {}) as Record<string, unknown>;
+      const status = err.status ?? response.status;
 
-  const cancelHoldMutation = useMutation({
-    mutationFn: ({ holdId, rowVersion }: { holdId: string; rowVersion: number }) => cancelTableHold(holdId, rowVersion),
-    onSuccess() {
-      setHold(null);
-      setHeldVisitDetails(null);
-      setHeldTableIds([]);
-      setSelectedTableIds([]);
-      setActiveHoldNotice(null);
-      clearStoredActiveTableHoldSnapshot(customerSessionId);
-      toast.success("Đã hủy giữ bàn.");
-    },
+      if (status === 422 || status === 404 || status === 409) {
+        setHold(null);
+        setHeldVisitDetails(null);
+        setHeldTableIds([]);
+        setSelectedTableIds([]);
+        setActiveHoldGuardVisible(false);
+        clearStoredActiveTableHoldSnapshot(customerSessionId);
+        toast.error("Bàn đang giữ đã mất hiệu lực. Vui lòng chọn lại.");
+      }
+    }
   });
 
   const tables = useMemo(() => availability?.tables ?? [], [availability?.tables]);
@@ -327,7 +427,11 @@ export function TableBookingPage() {
   const groupedChoices = useMemo(() => groupChoicesByZone(choices), [choices]);
   const selectedKey = tableIdKey(selectedTableIds);
   const selectedChoice = useMemo(() => choices.find((choice) => choice.key === selectedKey) ?? null, [choices, selectedKey]);
-  const pendingSelectionKey = holdSelectionMutation.variables ? tableIdKey(holdSelectionMutation.variables.tableIds) : "";
+
+  const pendingSelectionKey = holdSelectionMutation.variables
+    ? tableIdKey(holdSelectionMutation.variables.tableIds)
+    : (cancelHoldMutation.isPending ? selectedKey : "");
+
   const selectedDate = selectedDateFromLocalDateTime(startTimeValue);
   const currentStep = holdState?.isActive || availability ? "table" : "time";
   const activeVisitDetails = heldVisitDetails ?? availabilitySearchValues ?? form.getValues();
@@ -342,8 +446,10 @@ export function TableBookingPage() {
     { label: "Thời lượng", value: `${activeVisitDetails.duration_minutes ?? 0} phút` },
     { label: "Bàn đã chọn", value: selectedChoice?.title ?? (heldTableIds.length ? `${heldTableIds.length} bàn` : "Chưa chọn") },
   ];
+
+  const isoStartTime = heldVisitDetails?.start_time ? new Date(heldVisitDetails.start_time).toISOString() : "";
   const reservationCreateHref = holdState?.isActive && heldVisitDetails
-    ? `/reservations/new?hold_id=${encodeURIComponent(holdState.holdId)}&hold_status=${encodeURIComponent(holdState.status)}&hold_expires_at=${encodeURIComponent(holdState.expiresAt ?? "")}&tables=${heldTableIds.join(",")}&start_time=${encodeURIComponent(heldVisitDetails.start_time)}&duration_minutes=${heldVisitDetails.duration_minutes}&guest_count=${heldVisitDetails.guest_count}`
+    ? `/reservations/new?hold_id=${encodeURIComponent(holdState.holdId)}&hold_status=${encodeURIComponent(holdState.status)}&hold_expires_at=${encodeURIComponent(holdState.expiresAt ?? "")}&tables=${heldTableIds.join(",")}&start_time=${encodeURIComponent(isoStartTime)}&duration_minutes=${heldVisitDetails.duration_minutes}&guest_count=${heldVisitDetails.guest_count}`
     : null;
   const activeHoldSessionError = Boolean(holdSelectionMutation.error && isActiveTableHoldSessionError(holdSelectionMutation.error));
 
@@ -354,24 +460,53 @@ export function TableBookingPage() {
   }, [customerSessionId, holdState?.isActive]);
 
   useEffect(() => {
-    if (!holdState?.isActive || !holdState.expiresAt || refreshHoldMutation.isPending) {
-      return;
+    const syncAndRefreshHold = () => {
+      const currentSnapshot = readStoredActiveTableHoldSnapshot(customerSessionId);
+
+      if (!holdState?.isActive || !holdState.expiresAt) return;
+
+      if (currentSnapshot && currentSnapshot.hold_id !== holdState.holdId) {
+        return;
+      }
+
+      const expiresAtMs = Date.parse(holdState.expiresAt);
+      if (!Number.isFinite(expiresAtMs)) return;
+
+      const now = Date.now();
+      const timeLeftMs = expiresAtMs - now;
+
+      if (timeLeftMs <= 0) {
+        toast.error("Phiên chọn bàn đã hết hạn do bạn rời đi quá lâu. Vui lòng chọn lại.");
+        cancelHoldMutation.mutate({ holdId: holdState.holdId, rowVersion: holdState.rowVersion });
+      } else if (timeLeftMs < 30_000 && !refreshHoldMutation.isPending) {
+        refreshHoldMutation.mutate({ holdId: holdState.holdId, rowVersion: holdState.rowVersion });
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncAndRefreshHold();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    let timer: number;
+    if (holdState?.isActive && holdState.expiresAt && !refreshHoldMutation.isPending) {
+      const expiresAtMs = Date.parse(holdState.expiresAt);
+      if (Number.isFinite(expiresAtMs)) {
+        const delayMs = Math.max(1000, expiresAtMs - Date.now() - 30_000);
+        timer = window.setTimeout(() => syncAndRefreshHold(), delayMs);
+      }
     }
 
-    const expiresAtMs = Date.parse(holdState.expiresAt);
-    if (!Number.isFinite(expiresAtMs)) {
-      return;
-    }
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.clearTimeout(timer);
+    };
+  }, [holdState?.expiresAt, holdState?.holdId, holdState?.isActive, holdState?.rowVersion, customerSessionId, refreshHoldMutation, cancelHoldMutation]);
 
-    const delayMs = Math.max(1000, expiresAtMs - Date.now() - 30_000);
-    const timer = window.setTimeout(() => {
-      refreshHoldMutation.mutate({ holdId: holdState.holdId, rowVersion: holdState.rowVersion });
-    }, delayMs);
-
-    return () => window.clearTimeout(timer);
-  }, [holdState?.expiresAt, holdState?.holdId, holdState?.isActive, holdState?.rowVersion, refreshHoldMutation]);
-
-  function chooseTables(tableIds: number[]) {
+  async function chooseTables(tableIds: number[]) {
     const values = availabilitySearchValues ?? form.getValues();
     const selectionKey = tableIdKey(tableIds);
     const storedActiveHold = readStoredActiveTableHoldSnapshot(customerSessionId);
@@ -383,31 +518,58 @@ export function TableBookingPage() {
       setHeldVisitDetails(restoredVisitDetailsFromStorage);
       setHeldTableIds(storedActiveHold.table_ids);
       setSelectedTableIds(storedActiveHold.table_ids);
-      setActiveHoldNotice(ACTIVE_TABLE_HOLD_SESSION_MESSAGE);
-      return;
-    }
-
-    if (holdState?.isActive) {
-      setSelectedTableIds(heldTableIds);
-      setActiveHoldNotice(ACTIVE_TABLE_HOLD_SESSION_MESSAGE);
+      setActiveHoldGuardVisible(true);
       return;
     }
 
     if (holdMatchesSelection(holdState, heldVisitDetails, heldTableIds, values, tableIds)) {
       setSelectedTableIds(tableIds);
+      setActiveHoldGuardVisible(false);
       return;
     }
 
-    if (holdSelectionMutation.isPending || holdCreateInFlightKeyRef.current === selectionKey) {
+    if (holdSelectionMutation.isPending || cancelHoldMutation.isPending || holdCreateInFlightKeyRef.current === selectionKey) {
+      return;
+    }
+
+    if (holdState?.isActive) {
+      setSelectedTableIds(heldTableIds);
+      setActiveHoldGuardVisible(true);
       return;
     }
 
     holdCreateInFlightKeyRef.current = selectionKey;
     setSelectedTableIds(tableIds);
+    setActiveHoldGuardVisible(false);
     holdSelectionMutation.mutate({
       values,
       tableIds,
     });
+  }
+
+  if (!isMounted) {
+    return (
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-28 lg:pb-8">
+        <section className="mb-6 space-y-3">
+          <Badge variant="outline" className="rounded-md">Đặt bàn</Badge>
+          <h1 className="text-4xl font-semibold tracking-normal">Tìm bàn phù hợp cho lượt ghé</h1>
+          <p className="max-w-xl text-muted-foreground">
+            Chọn số khách, ngày giờ và thời lượng. Khi bạn chọn bàn, hệ thống sẽ giữ tạm để bạn hoàn tất lịch đặt.
+          </p>
+          <BookingProgress currentStep="time" />
+        </section>
+        <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)_320px]">
+          <Card className="h-fit rounded-lg">
+            <CardHeader>
+              <CardTitle>Thông tin lượt ghé</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-center py-10">
+              <LoadingBlock label="Đang tải dữ liệu phiên..." />
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -522,7 +684,7 @@ export function TableBookingPage() {
                   {form.formState.errors.duration_minutes ? <p className="text-sm text-destructive">{form.formState.errors.duration_minutes.message}</p> : null}
                 </div>
               </section>
-              <Button type="submit" className="min-h-11 w-full rounded-lg" disabled={searchMutation.isPending || holdSelectionMutation.isPending}>
+              <Button type="submit" className="min-h-11 w-full rounded-lg" disabled={searchMutation.isPending || holdSelectionMutation.isPending || cancelHoldMutation.isPending}>
                 <Search className="mr-2 h-4 w-4" />
                 {searchMutation.isPending ? "Đang tìm bàn" : "Tìm bàn"}
               </Button>
@@ -535,7 +697,7 @@ export function TableBookingPage() {
           {searchMutation.error ? (
             <ErrorState
               error={searchMutation.error}
-              title="Chưa tìm được bàn trống"
+              title={getErrorMessage(searchMutation.error, "Chưa tìm được bàn trống")}
               onRetry={() => searchMutation.mutate(form.getValues())}
             />
           ) : null}
@@ -550,14 +712,6 @@ export function TableBookingPage() {
             </div>
           ) : null}
 
-          {activeHoldNotice && holdState?.isActive ? (
-            <Alert className="rounded-lg border-amber-200 bg-amber-50 text-amber-950">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Đang có lượt giữ bàn</AlertTitle>
-              <AlertDescription>{activeHoldNotice}</AlertDescription>
-            </Alert>
-          ) : null}
-
           {choices.length > 0 ? (
             <div className="space-y-4">
               {groupedChoices.map((group) => (
@@ -569,7 +723,7 @@ export function TableBookingPage() {
                   <div className="grid gap-3 sm:grid-cols-2">
                     {group.choices.map((choice) => {
                       const selected = selectedKey === choice.key;
-                      const pending = holdSelectionMutation.isPending && pendingSelectionKey === choice.key;
+                      const pending = (holdSelectionMutation.isPending || cancelHoldMutation.isPending) && pendingSelectionKey === choice.key;
 
                       return (
                         <button
@@ -577,7 +731,7 @@ export function TableBookingPage() {
                           key={choice.key}
                           aria-label={`Chọn ${choice.title}`}
                           aria-pressed={selected}
-                          disabled={searchMutation.isPending || holdSelectionMutation.isPending}
+                          disabled={searchMutation.isPending || holdSelectionMutation.isPending || cancelHoldMutation.isPending}
                           className={`min-h-36 rounded-lg border bg-card p-4 text-left transition ${
                             selected ? "border-primary ring-2 ring-primary/20" : "hover:border-primary/50"
                           }`}
@@ -597,12 +751,12 @@ export function TableBookingPage() {
                             {pending ? (
                               <>
                                 <CalendarClock className="h-4 w-4" />
-                                Đang giữ bàn
+                                Đang chọn bàn
                               </>
                             ) : selected && holdState?.isActive ? (
                               <>
                                 <CheckCircle2 className="h-4 w-4 text-primary" />
-                                Sẵn sàng tiếp tục
+                                Đã chọn thành công
                               </>
                             ) : (
                               <>
@@ -620,6 +774,16 @@ export function TableBookingPage() {
             </div>
           ) : null}
 
+          {activeHoldGuardVisible && holdState?.isActive ? (
+            <Alert className="rounded-lg border-amber-200 bg-amber-50 text-amber-900">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Đang có lượt giữ bàn</AlertTitle>
+              <AlertDescription className="mt-2 space-y-3">
+                <p>{ACTIVE_TABLE_HOLD_SESSION_MESSAGE}</p>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
           {activeHoldSessionError && !holdState?.isActive ? (
             <Alert variant="destructive" className="rounded-lg border-destructive/30 bg-destructive/5">
               <AlertTriangle className="h-4 w-4" />
@@ -632,30 +796,21 @@ export function TableBookingPage() {
                 </Button>
               </AlertDescription>
             </Alert>
-          ) : holdSelectionMutation.error ? (
-            <ErrorState
-              error={holdSelectionMutation.error}
-              title="Chưa chọn được bàn này"
-              onRetry={() => {
-                if (selectedTableIds.length > 0) {
-                  chooseTables(selectedTableIds);
-                }
-              }}
-            />
           ) : null}
 
-          {refreshHoldMutation.error ? (
+          {/* Ẩn các hộp ErrorState của Cancel và Refresh nếu Hold đã bị tự động dọn dẹp do 422 */}
+          {refreshHoldMutation.error && holdState?.isActive ? (
             <ErrorState
               error={refreshHoldMutation.error}
-              title="Bàn đã chọn cần được kiểm tra lại"
+              title={getErrorMessage(refreshHoldMutation.error, "Bàn đã chọn cần được kiểm tra lại")}
               onRetry={() => searchMutation.mutate(form.getValues())}
             />
           ) : null}
 
-          {cancelHoldMutation.error ? (
+          {cancelHoldMutation.error && holdState?.isActive ? (
             <ErrorState
               error={cancelHoldMutation.error}
-              title="Chưa hủy được giữ bàn"
+              title={getErrorMessage(cancelHoldMutation.error, "Chưa hủy được giữ bàn")}
               onRetry={() => {
                 if (holdState?.isActive) {
                   cancelHoldMutation.mutate({ holdId: holdState.holdId, rowVersion: holdState.rowVersion });
@@ -664,44 +819,17 @@ export function TableBookingPage() {
             />
           ) : null}
 
-          {hold && heldVisitDetails && holdState ? (
-            <Card className="rounded-lg border-primary">
-              <CardContent className="space-y-4 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold">Bàn đã chọn</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {heldVisitDetails.guest_count} khách, {heldVisitDetails.duration_minutes} phút, bắt đầu{" "}
-                      {formatDateTime(new Date(heldVisitDetails.start_time).toISOString())}
-                    </p>
-                    {holdState.expiresAt ? (
-                      <p className="mt-1 text-sm text-muted-foreground">Giữ tạm đến {formatDateTime(holdState.expiresAt)}</p>
-                    ) : null}
-                  </div>
-                  <Badge variant="outline" className="rounded-md">{holdState.statusLabel}</Badge>
-                </div>
-
-                {holdState.isActive && reservationCreateHref ? (
-                  <Button asChild className="min-h-11 w-full rounded-lg">
-                    <Link href={reservationCreateHref}>
-                      <CheckCircle2 className="mr-2 h-4 w-4" />
-                      Tiếp tục đặt chỗ
-                    </Link>
-                  </Button>
-                ) : (
-                  <EmptyState
-                    title="Bàn đã chọn không còn hiệu lực"
-                    description="Tìm lại bàn phù hợp trước khi tạo lịch đặt."
-                    action={
-                      <Button type="button" className="rounded-lg" onClick={() => searchMutation.mutate(form.getValues())}>
-                        <Search className="mr-2 h-4 w-4" />
-                        Tìm lại
-                      </Button>
-                    }
-                  />
-                )}
-              </CardContent>
-            </Card>
+          {hold && heldVisitDetails && holdState && !holdState.isActive ? (
+             <EmptyState
+               title="Bàn đã chọn không còn hiệu lực"
+               description="Thời gian giữ bàn đã hết. Tìm lại bàn phù hợp trước khi tạo lịch đặt."
+               action={
+                 <Button type="button" className="rounded-lg" onClick={() => searchMutation.mutate(form.getValues())}>
+                   <Search className="mr-2 h-4 w-4" />
+                   Tìm bàn mới
+                 </Button>
+               }
+             />
           ) : null}
         </section>
 
@@ -713,12 +841,12 @@ export function TableBookingPage() {
           primaryAction={
             reservationCreateHref ? (
               <Button asChild className="min-h-11 w-full rounded-lg">
-                <Link href={reservationCreateHref}>Tiếp tục đặt bàn</Link>
+                <Link href={reservationCreateHref}>Tiếp tục đặt chỗ</Link>
               </Button>
             ) : undefined
           }
-          primaryActionDisabled={!availability || selectedTableIds.length === 0 || holdSelectionMutation.isPending}
-          primaryActionLabel={selectedTableIds.length > 0 ? "Đang giữ bàn" : "Chọn bàn để tiếp tục"}
+          primaryActionDisabled={!availability || selectedTableIds.length === 0 || holdSelectionMutation.isPending || cancelHoldMutation.isPending}
+          primaryActionLabel={selectedTableIds.length > 0 ? "Tiếp tục đặt chỗ" : "Chọn bàn để tiếp tục đặt chỗ"}
           onPrimaryAction={() => searchMutation.mutate(form.getValues())}
           onRefreshHold={
             holdState?.isActive

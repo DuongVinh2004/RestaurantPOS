@@ -1,0 +1,352 @@
+Folder PATH listing for volume Windows 10
+Volume serial number is 8B5D-A210
+C:\USERS\DUONG VINH\RESTAURANTPOS-LARAVEL\STAFF-WEB\SRC
+|   index.css
+|   main.tsx
+|   vite-env.d.ts
+|   
++---app
+|   |   App.test.tsx
+|   |   App.tsx
+|   |   
+|   +---auth
+|   |       LoginPage.tsx
+|   |       startup.test.ts
+|   |       startup.ts
+|   |       
+|   +---layout
+|   |   |   AdminShell.tsx
+|   |   |   KitchenShell.tsx
+|   |   |   OpsShell.tsx
+|   |   |   route-scope.test.ts
+|   |   |   route-scope.ts
+|   |   |   staff-shell-types.ts
+|   |   |   StaffAppShell.styles.test.ts
+|   |   |   StaffAppShell.test.tsx
+|   |   |   StaffAppShell.tsx
+|   |   |   StaffShellCommandPalette.tsx
+|   |   |   StaffShellControls.tsx
+|   |   |   StaffShellNavDrawer.tsx
+|   |   |   StaffWorkspaceSwitcher.test.tsx
+|   |   |   StaffWorkspaceSwitcher.tsx
+|   |   |   useStaffShellContext.test.tsx
+|   |   |   useStaffShellContext.ts
+|   |   |   
+|   |   \---frame
+|   |           AppFrame.tsx
+|   |           AppFrameNavigation.tsx
+|   |           AppFrameState.tsx
+|   |           
+|   +---providers
+|   |       AppProviders.tsx
+|   |       query-client.ts
+|   |       
+|   +---router
+|   |       active-runtime-boundary.test.ts
+|   |       index.test.tsx
+|   |       index.tsx
+|   |       journey.test.ts
+|   |       journey.ts
+|   |       navigation.test.ts
+|   |       navigation.ts
+|   |       session-paths.ts
+|   |       useJourneyContext.ts
+|   |       workspace-paths.ts
+|   |       workspace-route-guards.test.tsx
+|   |       workspace-route-guards.tsx
+|   |       
+|   \---store
+|           auth-store.test.ts
+|           auth-store.ts
+|           flow-store.test.ts
+|           flow-store.ts
+|           workspace-store.test.ts
+|           workspace-store.ts
+|           
++---domains
+|   +---admin
+|   |       admin-catalog.test.ts
+|   |       admin-catalog.ts
+|   |       admin-master-data.test.ts
+|   |       admin-master-data.ts
+|   |       admin-settings.test.ts
+|   |       admin-settings.ts
+|   |       admin-workspace.test.ts
+|   |       admin-workspace.ts
+|   |       
+|   +---audit
+|   |       audit-trail.test.ts
+|   |       audit-trail.ts
+|   |       
+|   +---conversations
+|   |       conversation-inbox.test.ts
+|   |       conversation-inbox.ts
+|   |       
+|   +---finance
+|   |       errors.test.ts
+|   |       errors.ts
+|   |       finance-review.test.ts
+|   |       finance-review.ts
+|   |       
+|   +---inventory
+|   |       admin-inventory.test.ts
+|   |       admin-inventory.ts
+|   |       
+|   +---kitchen
+|   |       kitchen-board-url.test.ts
+|   |       kitchen-board-url.ts
+|   |       kitchen-workspace.test.ts
+|   |       kitchen-workspace.ts
+|   |       useKitchenWorkspace.ts
+|   |       
+|   +---orders
+|   |       order-item-workflow.test.ts
+|   |       order-item-workflow.ts
+|   |       
+|   +---reporting
+|   |       reporting-hub.test.ts
+|   |       reporting-hub.ts
+|   |       
+|   +---reservations
+|   |       reservation-active-order.ts
+|   |       reservation-create.ts
+|   |       reservation-guest.ts
+|   |       reservation-tables.ts
+|   |       reservations-url.test.ts
+|   |       reservations-url.ts
+|   |       
+|   \---tables
+|           boardPolling.ts
+|           table-board-forms.ts
+|           table-board-url.test.ts
+|           table-board-url.ts
+|           
++---shared
+|   +---api
+|   |       client.test.ts
+|   |       client.ts
+|   |       conflicts.test.ts
+|   |       conflicts.ts
+|   |       errors.bundle.test.ts
+|   |       errors.compat.test.ts
+|   |       errors.test.ts
+|   |       errors.ts
+|   |       http.test.ts
+|   |       http.ts
+|   |       sdk.auth-session.test.ts
+|   |       sdk.test.ts
+|   |       sdk.ts
+|   |       staff-api.bundle.test.ts
+|   |       staff-api.generated.test.ts
+|   |       staff-api.ts
+|   |       staff-auth-api.test.ts
+|   |       staff-auth-api.ts
+|   |       staff-branch-api.ts
+|   |       
+|   +---auth
+|   |       capabilities.compat.test.ts
+|   |       capabilities.test.ts
+|   |       capabilities.ts
+|   |       session-events.ts
+|   |       storage.test.ts
+|   |       storage.ts
+|   |       
+|   +---config
+|   |       env.test.ts
+|   |       env.ts
+|   |       
+|   +---hooks
+|   |       useConfirmAction.ts
+|   |       useOnlineStatus.ts
+|   |       useStaffMutationFeedback.ts
+|   |       
+|   +---mutations
+|   |       mutation-ux.test.ts
+|   |       mutation-ux.ts
+|   |       
+|   +---status
+|   |       status.ts
+|   |       
+|   +---ui
+|   |   |   primitives.test.tsx
+|   |   |   primitives.tsx
+|   |   |   ui.tsx
+|   |   |   
+|   |   +---drawers
+|   |   |       ReservationDetailDrawer.test.tsx
+|   |   |       ReservationDetailDrawer.tsx
+|   |   |       
+|   |   +---feedback
+|   |   |       MutationStatusNotice.tsx
+|   |   |       staff-feedback.bundle.test.ts
+|   |   |       StaffFacingAlert.tsx
+|   |   |       toast.ts
+|   |   |       
+|   |   +---guards
+|   |   |       CapabilityGuard.tsx
+|   |   |       
+|   |   +---layout
+|   |   |       PageHeader.test.tsx
+|   |   |       PageHeader.tsx
+|   |   |       SplitWorkspace.test.tsx
+|   |   |       SplitWorkspace.tsx
+|   |   |       
+|   |   +---states
+|   |   |       StateBlocks.test.tsx
+|   |   |       StateBlocks.tsx
+|   |   |       
+|   |   \---status
+|   |           StatusChip.test.tsx
+|   |           StatusChip.tsx
+|   |           
+|   \---utils
+|           format.test.ts
+|           format.ts
+|           idempotency.test.ts
+|           idempotency.ts
+|           text-encoding.ts
+|           translation.ts
+|           
++---styles
+|       design-bundle-overrides.css
+|       theme.ts
+|       tokens.css
+|       ui-overrides.css
+|       
++---test
+|       fixtures.ts
+|       setup.ts
+|       
+\---workspaces
+    |   journey-labels.ts
+    |   routes.ts
+    |   workspaces.test.ts
+    |   workspaces.ts
+    |   
+    +---admin
+    |   |   routes.tsx
+    |   |   
+    |   +---components
+    |   \---pages
+    |       +---audit
+    |       |       AuditTrailPage.test.tsx
+    |       |       AuditTrailPage.tsx
+    |       |       
+    |       +---benefits
+    |       |       AdminBenefitsPage.test.tsx
+    |       |       AdminBenefitsPage.tsx
+    |       |       
+    |       +---catalog
+    |       |       AdminCatalogPage.test.tsx
+    |       |       AdminCatalogPage.tsx
+    |       |       
+    |       +---components
+    |       |       AdminMasterDataImportPanel.tsx
+    |       |       
+    |       +---inventory
+    |       |       AdminInventoryPage.test.tsx
+    |       |       AdminInventoryPage.tsx
+    |       |       
+    |       +---landing
+    |       |       AdminLandingPage.test.tsx
+    |       |       AdminLandingPage.tsx
+    |       |       
+    |       +---privacy
+    |       |       AdminPrivacyPage.test.tsx
+    |       |       AdminPrivacyPage.tsx
+    |       |       
+    |       +---reporting
+    |       |       ReportingHubPage.test.tsx
+    |       |       ReportingHubPage.tsx
+    |       |       
+    |       \---settings
+    |               AdminSettingsPage.test.tsx
+    |               AdminSettingsPage.tsx
+    |               
+    +---kitchen
+    |   |   routes.tsx
+    |   |   
+    |   \---pages
+    |       +---board
+    |       |       KitchenBoardPage.branch-scope.test.tsx
+    |       |       KitchenBoardPage.bundle.test.ts
+    |       |       KitchenBoardPage.test.tsx
+    |       |       KitchenBoardPage.tsx
+    |       |       
+    |       \---landing
+    |               KitchenLandingPage.test.tsx
+    |               KitchenLandingPage.tsx
+    |               
+    +---navigation
+    |       admin-navigation.ts
+    |       kitchen-navigation.ts
+    |       ops-navigation.ts
+    |       types.ts
+    |       
+    +---ops
+    |   |   routes.tsx
+    |   |   
+    |   \---pages
+    |       +---cashier
+    |       |       CashierShiftPage.tsx
+    |       |       
+    |       +---checkout
+    |       |       CheckoutPage.test.tsx
+    |       |       CheckoutPage.tsx
+    |       |       
+    |       +---conversations
+    |       |       ConversationInboxPage.test.tsx
+    |       |       ConversationInboxPage.tsx
+    |       |       ConversationInboxPanels.tsx
+    |       |       
+    |       +---dashboard
+    |       |   |   dashboard-errors.ts
+    |       |   |   dashboard-view-model.ts
+    |       |   |   DashboardPage.branch-scope.test.tsx
+    |       |   |   DashboardPage.test.tsx
+    |       |   |   DashboardPage.tsx
+    |       |   |   
+    |       |   \---components
+    |       |           CashierSnapshotCard.tsx
+    |       |           ConversationSnapshotCard.tsx
+    |       |           DashboardSectionHeader.tsx
+    |       |           DashboardTopBar.tsx
+    |       |           KpiCard.tsx
+    |       |           MiniTableBoardCard.tsx
+    |       |           QueueSnapshotCard.tsx
+    |       |           ShiftHealthCard.tsx
+    |       |           UrgentAlertCard.tsx
+    |       |           
+    |       +---finance
+    |       |       FinanceReviewPage.test.tsx
+    |       |       FinanceReviewPage.tsx
+    |       |       
+    |       +---orders
+    |       |       OrderWorkspacePage.test.tsx
+    |       |       OrderWorkspacePage.tsx
+    |       |       
+    |       +---refunds
+    |       |       RefundWorkspacePage.tsx
+    |       |       
+    |       +---reservations
+    |       |       ReservationCreateModal.tsx
+    |       |       ReservationsPage.test.tsx
+    |       |       ReservationsPage.tsx
+    |       |       
+    |       +---tables
+    |       |       TableBoardAssignmentTables.tsx
+    |       |       TableBoardDialogs.tsx
+    |       |       TableBoardPage.bundle.test.ts
+    |       |       TableBoardPage.test.tsx
+    |       |       TableBoardPage.tsx
+    |       |       
+    |       \---waiting
+    |               WaitingListPage.test.tsx
+    |               WaitingListPage.tsx
+    |               
+    \---shared
+        \---pages
+            \---access
+                    AccessGatePage.test.tsx
+                    AccessGatePage.tsx
+                    

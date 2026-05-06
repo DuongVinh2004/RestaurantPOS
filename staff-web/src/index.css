@@ -3066,6 +3066,13 @@ textarea {
   font-weight: 800;
 }
 
+.staff-kitchen-ticket-copy {
+  color: #18231f;
+  line-height: 1.5;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
 .staff-kitchen-ticket-card-meta {
   color: #53615a;
   font-size: 12px;

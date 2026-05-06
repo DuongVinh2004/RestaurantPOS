@@ -248,6 +248,160 @@ describe('OrderWorkspacePage', () => {
     expect(apiMocks.updateOrderItem).not.toHaveBeenCalled();
   });
 
+  it('updates the selected order item with the latest order and item row versions', async () => {
+    apiMocks.getOrderDetail.mockResolvedValue(createOrderDetailEnvelope({
+      items: [
+        createOrderItem({
+          order_item_id: 201,
+          item_id: 100,
+          quantity: 1,
+          status: 'Ordered',
+          row_version: 3,
+        }),
+      ],
+    }));
+    apiMocks.listMenuItems.mockResolvedValue(createMenuEnvelope());
+    apiMocks.updateOrderItem.mockResolvedValue({ data: { order_id: 56, row_version: 11 } });
+
+    renderWithProviders('/ops/orders?source=board&table_id=12&reservation_id=34&reservation_row_version=5&order_id=56&order_row_version=10');
+
+    const noteInput = await screen.findByPlaceholderText('Ghi chú cho bếp hoặc phục vụ');
+    fireEvent.change(noteInput, { target: { value: 'Không hành' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi dòng món' }));
+
+    await waitFor(() => expect(apiMocks.updateOrderItem).toHaveBeenCalledWith(56, 201, {
+      qty: 1,
+      note: 'Không hành',
+      order_row_version: 10,
+      row_version: 3,
+    }));
+  });
+
+  it('refetches the order detail and keeps conflict guidance visible when an item status update hits a stale row version', async () => {
+    apiMocks.getOrderDetail
+      .mockResolvedValueOnce(createOrderDetailEnvelope({
+        items: [
+          createOrderItem({
+            order_item_id: 201,
+            item_id: 100,
+            quantity: 1,
+            status: 'Ordered',
+            row_version: 3,
+          }),
+        ],
+      }))
+      .mockResolvedValueOnce(createOrderDetailEnvelope({
+        orderRowVersion: 11,
+        items: [
+          createOrderItem({
+            order_item_id: 201,
+            item_id: 100,
+            quantity: 1,
+            status: 'InProgress',
+            row_version: 4,
+          }),
+        ],
+      }));
+    apiMocks.listMenuItems.mockResolvedValue(createMenuEnvelope());
+    apiMocks.updateOrderItemStatus.mockRejectedValue(new StaffApiError(422, {
+      error_code: 'validation_error',
+      request_id: 'req-order-item-stale',
+      errors: {
+        row_version: ['stale row_version mismatch'],
+      },
+    }, 'Unprocessable Entity'));
+
+    renderWithProviders('/ops/orders?source=board&table_id=12&reservation_id=34&reservation_row_version=5&order_id=56&order_row_version=10');
+
+    const statusButtons = await screen.findAllByRole('button', { name: /Đánh dấu/i });
+    fireEvent.click(statusButtons[0]);
+
+    await waitFor(() => expect(apiMocks.updateOrderItemStatus).toHaveBeenCalledWith(56, 201, {
+      status: 'InProgress',
+      order_row_version: 10,
+      row_version: 3,
+    }));
+    await waitFor(() => expect(apiMocks.getOrderDetail).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText('Đơn hàng hoặc dòng món vừa thay đổi')).toBeInTheDocument();
+    expect(screen.getByText(/req-order-item-stale/i)).toBeInTheDocument();
+  });
+
+  it('surfaces capability errors inline when updating an order item is forbidden', async () => {
+    apiMocks.getOrderDetail.mockResolvedValue(createOrderDetailEnvelope({
+      items: [
+        createOrderItem({
+          order_item_id: 201,
+          item_id: 100,
+          quantity: 1,
+          status: 'Ordered',
+          row_version: 3,
+        }),
+      ],
+    }));
+    apiMocks.listMenuItems.mockResolvedValue(createMenuEnvelope());
+    apiMocks.updateOrderItem.mockRejectedValue(new StaffApiError(403, {
+      error_code: 'forbidden',
+      message: 'Forbidden.',
+      required_capability: 'order.manage',
+      request_id: 'req-order-forbidden',
+    }, 'Forbidden'));
+
+    renderWithProviders('/ops/orders?source=board&table_id=12&reservation_id=34&reservation_row_version=5&order_id=56&order_row_version=10');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Lưu thay đổi dòng món' }));
+
+    expect(await screen.findByText('Bạn chưa có quyền thực hiện thao tác này')).toBeInTheDocument();
+    expect(screen.getByText(/order\.manage/i)).toBeInTheDocument();
+    expect(screen.getByText(/req-order-forbidden/i)).toBeInTheDocument();
+  });
+
+  it('recovers the current active order when an order-item mutation reports the route order is stale', async () => {
+    apiMocks.getOrderDetail
+      .mockResolvedValueOnce(createOrderDetailEnvelope({
+        items: [
+          createOrderItem({
+            order_item_id: 201,
+            item_id: 100,
+            quantity: 1,
+            status: 'Ordered',
+            row_version: 3,
+          }),
+        ],
+      }))
+      .mockResolvedValueOnce(createOrderDetailEnvelope({
+        orderId: 72,
+        orderRowVersion: 12,
+        items: [
+          createOrderItem({
+            order_item_id: 301,
+            item_id: 100,
+            quantity: 1,
+            status: 'Ordered',
+            row_version: 6,
+          }),
+        ],
+      }));
+    apiMocks.listMenuItems.mockResolvedValue(createMenuEnvelope());
+    apiMocks.updateOrderItem.mockRejectedValue(new StaffApiError(404, {
+      error_code: 'not_found',
+      message: 'Order not found.',
+      request_id: 'req-order-stale-mutation',
+    }, 'Not Found'));
+    apiMocks.getActiveOrderByTable.mockResolvedValueOnce(createActiveOrderEnvelope({
+      orderId: 72,
+      rowVersion: 12,
+    }));
+
+    renderWithProviders('/ops/orders?source=board&table_id=12&reservation_id=34&reservation_row_version=5&order_id=56&order_row_version=10');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Lưu thay đổi dòng món' }));
+
+    await waitFor(() => expect(apiMocks.getActiveOrderByTable).toHaveBeenCalledWith(12));
+    expect(await screen.findByText('Đã khôi phục sang đơn hàng đang phục vụ #72')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('location-search').textContent).toContain('order_id=72'));
+    expect(screen.getByTestId('location-search').textContent).toContain('order_row_version=12');
+  });
+
   it('renders snapshot guest and multi-table context from journey metadata', async () => {
     apiMocks.getOrderDetail.mockResolvedValue(createOrderDetailEnvelope());
     apiMocks.listMenuItems.mockResolvedValue(createMenuEnvelope());

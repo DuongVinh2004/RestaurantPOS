@@ -900,17 +900,33 @@ export function getPaymentSessionPolicy(
 
 export function getPreorderPolicy(payload: CustomerReservationPreorderPayload) {
   const hasPreorder = payload.pre_order.present;
+  const canManage = payload.management_policy.can_manage === true;
   const reasons = payload.management_policy.reasons.filter(Boolean);
-  const launchMessage = "Món đặt trước hiện chỉ hiển thị để tham khảo trong giai đoạn này.";
-  const managementMessage = reasons.length > 0 ? reasons.join(". ") : launchMessage;
+  const launchMessage = "Nhà hàng chưa mở chỉnh sửa món đặt trước cho lịch đặt này.";
+  const managementMessage = canManage
+    ? "Bạn có thể chọn món, xem trước và thay thế danh sách món đặt trước hiện tại."
+    : reasons.length > 0
+      ? reasons.join(". ")
+      : launchMessage;
 
   return {
     hasPreorder,
-    state: hasPreorder ? ("read_only" as const) : ("empty" as const),
-    title: hasPreorder ? "Tóm tắt món đặt trước" : "Chưa có món đặt trước",
-    message: hasPreorder
-      ? "Thông tin món đặt trước chỉ dùng để xem lại trong giai đoạn này."
-      : "Nếu nhà hàng ghi nhận món đặt trước, thông tin sẽ hiển thị tại đây.",
+    canManage,
+    state: canManage ? ("manageable" as const) : hasPreorder ? ("read_only" as const) : ("empty" as const),
+    title: canManage
+      ? hasPreorder
+        ? "Có thể cập nhật món đặt trước"
+        : "Chọn món đặt trước"
+      : hasPreorder
+        ? "Tóm tắt món đặt trước"
+        : "Chưa có món đặt trước",
+    message: canManage
+      ? hasPreorder
+        ? "Bạn có thể xem trước rồi thay thế danh sách món đặt trước hiện tại."
+        : "Chọn món, xem trước tổng tiền và gửi món đặt trước cho lịch đặt này."
+      : hasPreorder
+        ? "Thông tin món đặt trước hiện đang ở chế độ chỉ xem."
+        : "Nếu nhà hàng ghi nhận món đặt trước, thông tin sẽ hiển thị tại đây.",
     launchMessage,
     managementMessage,
   };

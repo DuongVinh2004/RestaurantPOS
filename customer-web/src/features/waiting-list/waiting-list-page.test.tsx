@@ -26,7 +26,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ children, href, ...props }: { children: ReactNode; href: string }) => <a href={href} {...props}>{children}</a>,
+  default: ({ children, href, ...props }: { children: ReactNode; href: string }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
 vi.mock("sonner", () => ({
@@ -193,7 +197,7 @@ describe("WaitingListPage", () => {
     expect(screen.queryByRole("button", { name: "Từ chối lời mời" })).not.toBeInTheDocument();
   });
 
-  it("shows the backend owner response set for an active invite window and keeps refresh manual", async () => {
+  it("shows queue priority, notes, and the backend owner response set for an active invite window", async () => {
     const notifiedEntry = activeInvite();
 
     mocks.customerWebRollout.waitingList.enabled = true;
@@ -210,6 +214,36 @@ describe("WaitingListPage", () => {
     expect(screen.getAllByText("Cập nhật thủ công")[0]).toBeInTheDocument();
     expect(screen.getByText("Chưa có kết quả xếp bàn")).toBeInTheDocument();
     expect(screen.queryByText("Đang chờ kết quả xếp bàn")).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Ưu tiên 1/i).length).toBeGreaterThan(0);
+    expect(screen.getByText("Window seat")).toBeInTheDocument();
+    expect(screen.getByText("Customers only confirm arrival. Staff still completes seating.")).toBeInTheDocument();
+  });
+
+  it("shows cancellation context and removes owner actions when the entry has already been cancelled", async () => {
+    const cancelledEntry = createWaitingListEntryRecord({
+      status: "Cancelled",
+      cancelled_at: "2026-04-19T10:20:00Z",
+      cancel_reason: "Guest changed plans",
+      can_cancel: false,
+      available_actions: {
+        accept: false,
+        decline: false,
+        confirm_arrival: false,
+        cancel: false,
+      },
+    });
+
+    mocks.customerWebRollout.waitingList.enabled = true;
+    mocks.listWaitingList.mockResolvedValue([cancelledEntry]);
+    mocks.getWaitingListEntry.mockResolvedValue(cancelledEntry);
+
+    renderPage();
+
+    expect(await screen.findByText("Guest changed plans")).toBeInTheDocument();
+    expect(screen.getByText("Window seat")).toBeInTheDocument();
+    expect(screen.getAllByText(/Đã hủy/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Ưu tiên 1/i).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Hủy đăng ký chờ" })).not.toBeInTheDocument();
   });
 
   it("uses response_state to distinguish accepted from arrival-confirmed entries", async () => {

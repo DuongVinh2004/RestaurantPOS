@@ -152,6 +152,87 @@ describe('FinanceReviewPage', () => {
     await waitFor(() => expect(reservationCodeInput).toHaveValue(''));
   });
 
+  it('shows a Vietnamese warning when the activity date range is invalid', async () => {
+    renderFinanceReviewPage(`${staffRoutePaths.ops.financeReview}?activity_from=2026-05-10&activity_to=2026-05-01`);
+
+    expect(await screen.findByText('Khoảng ngày hoạt động thanh toán không hợp lệ')).toBeInTheDocument();
+    expect(apiMocks.listFinancialReconciliation).not.toHaveBeenCalled();
+  });
+
+  it('lets staff retry the reconciliation list from the inline error state', async () => {
+    apiMocks.listFinancialReconciliation.mockRejectedValue(new Error('List unavailable'));
+
+    renderFinanceReviewPage();
+
+    const retryButton = await screen.findByRole('button', { name: 'Tải lại dữ liệu đối soát' });
+    const attemptsBeforeRetry = apiMocks.listFinancialReconciliation.mock.calls.length;
+    fireEvent.click(retryButton);
+
+    await waitFor(() => {
+      expect(apiMocks.listFinancialReconciliation.mock.calls.length).toBeGreaterThan(attemptsBeforeRetry);
+    });
+  });
+
+  it('retries both finance detail queries when staff reloads the selected detail panel', async () => {
+    apiMocks.listFinancialReconciliation.mockResolvedValue({
+      data: [createFinanceRow()],
+      meta: {
+        page: 1,
+        per_page: 15,
+        total: 1,
+        last_page: 1,
+      },
+    });
+    apiMocks.getFinancialReconciliationDetail.mockRejectedValue(new Error('Detail unavailable'));
+    apiMocks.getFinanceInvoice.mockRejectedValue(new Error('Invoice unavailable'));
+
+    renderFinanceReviewPage(`${staffRoutePaths.ops.financeReview}?reservation_id=77`);
+
+    const retryButton = await screen.findByRole('button', { name: 'Tải lại khung chi tiết' });
+    const detailAttemptsBeforeRetry = apiMocks.getFinancialReconciliationDetail.mock.calls.length;
+    const invoiceAttemptsBeforeRetry = apiMocks.getFinanceInvoice.mock.calls.length;
+    fireEvent.click(retryButton);
+
+    await waitFor(() => {
+      expect(apiMocks.getFinancialReconciliationDetail.mock.calls.length).toBeGreaterThan(detailAttemptsBeforeRetry);
+      expect(apiMocks.getFinanceInvoice.mock.calls.length).toBeGreaterThan(invoiceAttemptsBeforeRetry);
+    });
+  });
+
+  it('lets staff retry the invoice status block without leaving the finance detail view', async () => {
+    apiMocks.listFinancialReconciliation.mockResolvedValue({
+      data: [createFinanceRow()],
+      meta: {
+        page: 1,
+        per_page: 15,
+        total: 1,
+        last_page: 1,
+      },
+    });
+    apiMocks.getFinancialReconciliationDetail.mockResolvedValue({
+      data: createFinanceDetail(),
+      meta: {
+        action: 'financial_reconciliation_show',
+      },
+    });
+    apiMocks.getFinanceInvoice.mockRejectedValue(new Error('Invoice unavailable'));
+
+    renderFinanceReviewPage(`${staffRoutePaths.ops.financeReview}?reservation_id=77`);
+
+    await screen.findByText('Lệch cọc');
+    await waitFor(() => {
+      expect(apiMocks.getFinanceInvoice.mock.calls.length).toBeGreaterThanOrEqual(1);
+    });
+
+    const retryButton = await screen.findByRole('button', { name: 'Tải lại trạng thái hóa đơn' }, { timeout: 5000 });
+    const attemptsBeforeRetry = apiMocks.getFinanceInvoice.mock.calls.length;
+    fireEvent.click(retryButton);
+
+    await waitFor(() => {
+      expect(apiMocks.getFinanceInvoice.mock.calls.length).toBeGreaterThan(attemptsBeforeRetry);
+    });
+  });
+
   it('reopens reservation flow with reservation row_version from reconciliation detail', async () => {
     apiMocks.listFinancialReconciliation.mockResolvedValue({
       data: [createFinanceRow()],
@@ -228,9 +309,9 @@ describe('FinanceReviewPage', () => {
       });
     });
 
-    fireEvent.change(screen.getByLabelText('Số điểm staff redeem'), { target: { value: '100' } });
-    fireEvent.change(screen.getByLabelText('Lý do staff redeem điểm'), { target: { value: 'Khách dùng điểm tại quầy' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Redeem điểm' }));
+    fireEvent.change(screen.getByLabelText('Số điểm staff sử dụng'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('Lý do staff sử dụng điểm'), { target: { value: 'Khách dùng điểm tại quầy' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sử dụng điểm' }));
 
     await waitFor(() => {
       expect(apiMocks.redeemStaffReservationLoyalty).toHaveBeenCalledWith(77, {
@@ -249,6 +330,35 @@ describe('FinanceReviewPage', () => {
         points: 25,
         reason: 'Bù điểm từ hóa đơn trước',
       });
+    });
+  });
+
+  it('shows Vietnamese retry actions for voucher and loyalty query failures', async () => {
+    apiMocks.listStaffReservationVouchers.mockRejectedValue(new Error('Voucher unavailable'));
+    apiMocks.getStaffReservationLoyalty.mockRejectedValue(new Error('Reservation loyalty unavailable'));
+    apiMocks.getStaffUserLoyalty.mockRejectedValue(new Error('User loyalty unavailable'));
+
+    renderBenefitsOpsPanel();
+
+    const voucherRetry = await screen.findByRole('button', { name: 'Tải lại voucher' });
+    const voucherAttemptsBeforeRetry = apiMocks.listStaffReservationVouchers.mock.calls.length;
+    fireEvent.click(voucherRetry);
+    await waitFor(() => {
+      expect(apiMocks.listStaffReservationVouchers.mock.calls.length).toBeGreaterThan(voucherAttemptsBeforeRetry);
+    });
+
+    const reservationLoyaltyRetry = screen.getByRole('button', { name: 'Tải lại điểm thưởng của đặt bàn' });
+    const reservationLoyaltyAttemptsBeforeRetry = apiMocks.getStaffReservationLoyalty.mock.calls.length;
+    fireEvent.click(reservationLoyaltyRetry);
+    await waitFor(() => {
+      expect(apiMocks.getStaffReservationLoyalty.mock.calls.length).toBeGreaterThan(reservationLoyaltyAttemptsBeforeRetry);
+    });
+
+    const userLoyaltyRetry = screen.getByRole('button', { name: 'Tải lại điểm thưởng của khách' });
+    const userLoyaltyAttemptsBeforeRetry = apiMocks.getStaffUserLoyalty.mock.calls.length;
+    fireEvent.click(userLoyaltyRetry);
+    await waitFor(() => {
+      expect(apiMocks.getStaffUserLoyalty.mock.calls.length).toBeGreaterThan(userLoyaltyAttemptsBeforeRetry);
     });
   });
 });

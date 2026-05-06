@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   getBillPreview: vi.fn(),
   getBill: vi.fn(),
   createBillPaymentSession: vi.fn(),
+  getBillPaymentSession: vi.fn(),
   refreshBillPaymentSession: vi.fn(),
   confirmBillPaymentSession: vi.fn(),
 }));
@@ -19,6 +20,7 @@ vi.mock("./api", () => ({
   getBillPreview: mocks.getBillPreview,
   getBill: mocks.getBill,
   createBillPaymentSession: mocks.createBillPaymentSession,
+  getBillPaymentSession: mocks.getBillPaymentSession,
   refreshBillPaymentSession: mocks.refreshBillPaymentSession,
   confirmBillPaymentSession: mocks.confirmBillPaymentSession,
 }));
@@ -84,10 +86,13 @@ function renderPanel() {
 
 describe("BillingPanel", () => {
   beforeEach(() => {
+    window.sessionStorage.clear();
+
     mocks.getActiveOrder.mockReset();
     mocks.getBillPreview.mockReset();
     mocks.getBill.mockReset();
     mocks.createBillPaymentSession.mockReset();
+    mocks.getBillPaymentSession.mockReset();
     mocks.refreshBillPaymentSession.mockReset();
     mocks.confirmBillPaymentSession.mockReset();
 
@@ -106,6 +111,27 @@ describe("BillingPanel", () => {
         currency: "USD",
       },
     });
+  });
+
+  it("restores a stored bill payment session through the canonical show route", async () => {
+    window.sessionStorage.setItem("restaurantpos.customer.session-id.v1", "browser-session-1");
+    window.sessionStorage.setItem(
+      "restaurantpos.customer.payment-session.v1.bill.7",
+      JSON.stringify({
+        surface: "bill",
+        reservation_id: 7,
+        session_id: 401,
+        browser_session_id: "browser-session-1",
+      }),
+    );
+    mocks.getBillPaymentSession.mockResolvedValue(createPaymentSessionEnvelope(18));
+
+    renderPanel();
+
+    await waitFor(() => {
+      expect(mocks.getBillPaymentSession).toHaveBeenCalledWith(7, 401);
+    });
+    expect(await screen.findByText("bill-1")).toBeInTheDocument();
   });
 
   it("uses the bill payment session row version for refresh and confirm actions", async () => {
@@ -153,7 +179,9 @@ describe("BillingPanel", () => {
     renderPanel();
 
     expect(await screen.findByText("Không thể mở hóa đơn")).toBeInTheDocument();
-    expect(screen.getByText("Tài khoản hoặc phiên hiện tại không thể tự xử lý hóa đơn cho lịch đặt này.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Tài khoản hoặc phiên hiện tại không thể tự xử lý hóa đơn cho lịch đặt này."),
+    ).toBeInTheDocument();
   });
 
   it("surfaces an active order state when the final bill is not ready yet", async () => {
@@ -173,7 +201,9 @@ describe("BillingPanel", () => {
     renderPanel();
 
     expect(await screen.findByText("Đơn tại bàn đang mở")).toBeInTheDocument();
-    expect(screen.getByText("Đơn tại bàn vẫn đang mở. Hóa đơn cuối sẽ xuất hiện sau khi nhân viên chốt đơn.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Đơn tại bàn vẫn đang mở. Hóa đơn cuối sẽ xuất hiện sau khi nhân viên chốt đơn."),
+    ).toBeInTheDocument();
   });
 
   it("shows seeded-data support messaging when bill self-pay is enabled but no payable bill path is exposed", async () => {

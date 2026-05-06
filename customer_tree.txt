@@ -1,0 +1,229 @@
+Folder PATH listing for volume Windows 10
+Volume serial number is 8B5D-A210
+C:\USERS\DUONG VINH\RESTAURANTPOS-LARAVEL\CUSTOMER-WEB\SRC
++---app
+|   |   error.tsx
+|   |   favicon.ico
+|   |   globals.css
+|   |   layout.tsx
+|   |   loading.tsx
+|   |   not-found.tsx
+|   |   
+|   +---(auth)
+|   |   \---login
+|   |           page.tsx
+|   |           
+|   +---(protected)
+|   |   |   layout.tsx
+|   |   |   
+|   |   +---account
+|   |   |       page.tsx
+|   |   |       
+|   |   +---reservations
+|   |   |   |   page.tsx
+|   |   |   |   
+|   |   |   +---new
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   \---[id]
+|   |   |           page.tsx
+|   |   |           
+|   |   \---waiting-list
+|   |           page.tsx
+|   |           
+|   \---(public)
+|       |   page.tsx
+|       |   
+|       +---booking
+|       |       page.tsx
+|       |       
+|       \---menu
+|           \---[id]
+|                   page.tsx
+|                   
++---components
+|   +---booking
+|   |       booking-progress.tsx
+|   |       reservation-timeline.tsx
+|   |       sticky-booking-summary.test.tsx
+|   |       sticky-booking-summary.tsx
+|   |       time-slot-grid.test.tsx
+|   |       time-slot-grid.tsx
+|   |       
+|   +---layout
+|   |       app-shell.test.tsx
+|   |       app-shell.tsx
+|   |       backend-status-banner.test.tsx
+|   |       backend-status-banner.tsx
+|   |       protected-route.test.tsx
+|   |       protected-route.tsx
+|   |       public-footer.test.tsx
+|   |       public-footer.tsx
+|   |       
+|   +---states
+|   |       state-blocks.tsx
+|   |       
+|   +---status
+|   |       status-badge.tsx
+|   |       
+|   \---ui
+|           alert.tsx
+|           badge.tsx
+|           button.tsx
+|           card.tsx
+|           dialog.tsx
+|           dropdown-menu.tsx
+|           input.tsx
+|           label.tsx
+|           select.tsx
+|           separator.tsx
+|           sheet.tsx
+|           skeleton.tsx
+|           sonner.tsx
+|           tabs.tsx
+|           textarea.tsx
+|           
++---features
+|   +---account
+|   |       account-page.test.tsx
+|   |       account-page.tsx
+|   |       api.ts
+|   |       
+|   +---auth
+|   |       api.ts
+|   |       login-page.test.tsx
+|   |       login-page.tsx
+|   |       schemas.ts
+|   |       
+|   +---billing
+|   |       api.test.ts
+|   |       api.ts
+|   |       billing-panel.test.tsx
+|   |       billing-panel.tsx
+|   |       
+|   +---deposit
+|   |       api.test.ts
+|   |       api.ts
+|   |       deposit-panel.test.tsx
+|   |       deposit-panel.tsx
+|   |       
+|   +---menu
+|   |       api.ts
+|   |       menu-detail-page.tsx
+|   |       menu-item-image.tsx
+|   |       menu-page.test.tsx
+|   |       menu-page.tsx
+|   |       
+|   +---payments
+|   |       payment-session-card.tsx
+|   |       
+|   +---preorder
+|   |       api.test.ts
+|   |       api.ts
+|   |       preorder-panel.test.tsx
+|   |       preorder-panel.tsx
+|   |       
+|   +---privacy
+|   |       api.test.ts
+|   |       api.ts
+|   |       privacy-panel.test.tsx
+|   |       privacy-panel.tsx
+|   |       
+|   +---reservations
+|   |       api.test.ts
+|   |       api.ts
+|   |       guest-reservation-session-flow.test.tsx
+|   |       reservation-card.tsx
+|   |       reservation-create-page.test.tsx
+|   |       reservation-create-page.tsx
+|   |       reservation-detail-page.test.tsx
+|   |       reservation-detail-page.tsx
+|   |       reservations-page.tsx
+|   |       schemas.ts
+|   |       self-service-boundary.ts
+|   |       state.test.ts
+|   |       state.ts
+|   |       
+|   +---restaurant
+|   |       api.test.ts
+|   |       api.ts
+|   |       state.ts
+|   |       
+|   +---table-booking
+|   |       api.test.ts
+|   |       api.ts
+|   |       schemas.ts
+|   |       state.test.ts
+|   |       state.ts
+|   |       table-booking-page.test.tsx
+|   |       table-booking-page.tsx
+|   |       
+|   +---vouchers
+|   |       api.test.ts
+|   |       api.ts
+|   |       benefits-panel.test.tsx
+|   |       benefits-panel.tsx
+|   |       state.test.ts
+|   |       state.ts
+|   |       
+|   \---waiting-list
+|           api.test.ts
+|           api.ts
+|           schemas.ts
+|           state.test.ts
+|           state.ts
+|           waiting-list-page.test.tsx
+|           waiting-list-page.tsx
+|           
++---hooks
++---lib
+|   |   utils.ts
+|   |   
+|   +---api
+|   |       envelope.ts
+|   |       errors.test.ts
+|   |       errors.ts
+|   |       idempotency.ts
+|   |       mock-fetch.ts
+|   |       query-keys.ts
+|   |       sdk-client.test.ts
+|   |       sdk-client.ts
+|   |       
+|   +---auth
+|   |       navigation.test.ts
+|   |       navigation.ts
+|   |       route-access.test.ts
+|   |       route-access.ts
+|   |       runtime-block.ts
+|   |       session.ts
+|   |       storage.test.ts
+|   |       storage.ts
+|   |       
+|   +---config
+|   |       env.test.ts
+|   |       env.ts
+|   |       feature-flags.ts
+|   |       support-matrix.test.ts
+|   |       support-matrix.ts
+|   |       
+|   +---contracts
+|   |   |   datetime.test.ts
+|   |   |   datetime.ts
+|   |   |   format.ts
+|   |   |   loose.ts
+|   |   |   
+|   |   \---generated
+|   |           restaurantpos-enums.ts
+|   |           restaurantpos-sdk.ts
+|   |           
+|   \---i18n
+|           customer-display.ts
+|           
++---providers
+|       auth-provider.test.tsx
+|       auth-provider.tsx
+|       query-provider.tsx
+|       
+\---tests
+        setup.ts
+        

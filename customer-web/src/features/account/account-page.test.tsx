@@ -9,8 +9,7 @@ const mocks = vi.hoisted(() => ({
   customerWebRollout: {
     accountBenefits: {
       enabled: false,
-      description:
-        "Keep loyalty and voucher data contract-visible behind an explicit rollout flag.",
+      description: "Keep loyalty and voucher data contract-visible behind an explicit rollout flag.",
       liveProofSummary:
         "Loyalty, vouchers, reservation benefits preview, and row-versioned voucher or loyalty mutations have live proof behind the account-benefits rollout flag.",
       disabledTitle: "Benefits are not in this rollout",
@@ -21,8 +20,7 @@ const mocks = vi.hoisted(() => ({
       enabled: false,
       description: "Privacy request entry points stay disabled by default and only open when the privacy-tools flag is enabled.",
       disabledTitle: "Privacy tools are not in this rollout",
-      disabledDescription:
-        "Privacy requests stay off by default and only open during a dedicated QA, UAT, or Wave 2 rollout.",
+      disabledDescription: "Privacy requests stay off by default and only open during a dedicated QA, UAT, or Wave 2 rollout.",
     },
     dataExport: {
       enabled: false,
@@ -127,7 +125,7 @@ describe("AccountPage", () => {
         description: "10% off",
         discount_type: "Percentage",
         discount_value: "10.00",
-        min_spend: "0.00",
+        min_spend: "50.00",
         free_item: null,
         assigned_at: "2026-04-01T09:00:00Z",
         used_at: null,
@@ -165,5 +163,7 @@ describe("AccountPage", () => {
     expect(screen.getAllByText("Chưa đủ điều kiện").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Spend more before this voucher can apply.")).toBeInTheDocument();
     expect(screen.getByText(/Thao tác áp dụng hoặc gỡ voucher nằm trong chi tiết lịch đặt/i)).toBeInTheDocument();
+    expect(screen.getByText(/Đơn tối thiểu/i)).toBeInTheDocument();
+    expect(screen.getByText(/Giảm dự kiến/i)).toBeInTheDocument();
   });
 });

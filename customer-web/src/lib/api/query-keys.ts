@@ -19,9 +19,11 @@ export const queryKeys = {
     detail: (id: number) => ["reservations", "detail", id] as const,
     preorder: (id: number) => ["reservations", "preorder", id] as const,
     deposit: (id: number) => ["reservations", "deposit", id] as const,
+    depositPaymentSession: (id: number, sessionId: number | null) => ["reservations", "deposit-payment-session", id, sessionId] as const,
     activeOrder: (id: number) => ["reservations", "active-order", id] as const,
     bill: (id: number) => ["reservations", "bill", id] as const,
     billPreview: (id: number) => ["reservations", "bill-preview", id] as const,
+    billPaymentSession: (id: number, sessionId: number | null) => ["reservations", "bill-payment-session", id, sessionId] as const,
     benefits: (id: number) => ["reservations", "benefits", id] as const,
   },
   tableBooking: {

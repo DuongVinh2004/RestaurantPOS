@@ -148,12 +148,14 @@ describe("PreorderPanel", () => {
     renderPanel();
 
     expect(screen.getByText("Preorder is not in this rollout")).toBeInTheDocument();
-    expect(screen.getByText(/replace and clear proof is outside the current launch scope/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/replace and clear proof is outside the current launch scope/i),
+    ).toBeInTheDocument();
     expect(mocks.getReservationPreorder).not.toHaveBeenCalled();
     expect(mocks.listMenuItems).not.toHaveBeenCalled();
   });
 
-  it("previews and replaces preorder items with the latest reservation and preorder row versions", async () => {
+  it("requires a fresh preview before replacing preorder items", async () => {
     const user = userEvent.setup();
 
     mocks.previewReservationPreorder.mockResolvedValue(
@@ -188,8 +190,16 @@ describe("PreorderPanel", () => {
     renderPanel();
 
     const quantityInput = await screen.findByLabelText("Số lượng Spring rolls");
+    const replaceButton = screen.getByRole("button", { name: "Cập nhật món đặt trước" });
+
     await user.clear(quantityInput);
     await user.type(quantityInput, "2");
+
+    expect(replaceButton).toBeDisabled();
+    expect(
+      screen.getByText(/Bạn đã thay đổi giỏ món. Vui lòng xem trước lại/i),
+    ).toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "Xem trước món" }));
 
     await waitFor(() => {
@@ -198,8 +208,9 @@ describe("PreorderPanel", () => {
       });
     });
     expect(await screen.findByText("Bản xem trước")).toBeInTheDocument();
+    expect(replaceButton).toBeEnabled();
 
-    await user.click(screen.getByRole("button", { name: "Cập nhật món đặt trước" }));
+    await user.click(replaceButton);
 
     await waitFor(() => {
       expect(mocks.replaceReservationPreorder).toHaveBeenCalledWith(7, {
@@ -208,6 +219,44 @@ describe("PreorderPanel", () => {
         pre_order_row_version: 9,
       });
     });
+  });
+
+  it("invalidates the preview when the cart changes again", async () => {
+    const user = userEvent.setup();
+
+    mocks.previewReservationPreorder.mockResolvedValue(
+      createPayload({
+        pre_order: {
+          ...createPayload().pre_order,
+          totals: {
+            item_count: 1,
+            quantity: 2,
+            subtotal: "24.00",
+          },
+          normalized_pre_order_items: [{ item_id: 10, quantity: 2 }],
+        },
+      }),
+    );
+
+    renderPanel();
+
+    const quantityInput = await screen.findByLabelText("Số lượng Spring rolls");
+    const replaceButton = screen.getByRole("button", { name: "Cập nhật món đặt trước" });
+
+    await user.clear(quantityInput);
+    await user.type(quantityInput, "2");
+    await user.click(screen.getByRole("button", { name: "Xem trước món" }));
+
+    expect(await screen.findByText("Bản xem trước")).toBeInTheDocument();
+    expect(replaceButton).toBeEnabled();
+
+    await user.clear(quantityInput);
+    await user.type(quantityInput, "3");
+
+    expect(replaceButton).toBeDisabled();
+    expect(
+      screen.getByText(/Bạn đã thay đổi giỏ món. Vui lòng xem trước lại/i),
+    ).toBeInTheDocument();
   });
 
   it("clears preorder with reservation and preorder row versions", async () => {
@@ -244,6 +293,19 @@ describe("PreorderPanel", () => {
   it("refreshes preorder and shows conflict guidance after a stale replace", async () => {
     const user = userEvent.setup();
 
+    mocks.previewReservationPreorder.mockResolvedValue(
+      createPayload({
+        pre_order: {
+          ...createPayload().pre_order,
+          totals: {
+            item_count: 1,
+            quantity: 3,
+            subtotal: "36.00",
+          },
+          normalized_pre_order_items: [{ item_id: 10, quantity: 3 }],
+        },
+      }),
+    );
     mocks.replaceReservationPreorder.mockRejectedValue({
       kind: "validation",
       status: 422,
@@ -259,7 +321,8 @@ describe("PreorderPanel", () => {
     const quantityInput = await screen.findByLabelText("Số lượng Spring rolls");
     await user.clear(quantityInput);
     await user.type(quantityInput, "3");
-    await user.click(screen.getByRole("button", { name: "Cập nhật món đặt trước" }));
+    await user.click(screen.getByRole("button", { name: "Xem trước món" }));
+    await user.click(await screen.findByRole("button", { name: "Cập nhật món đặt trước" }));
 
     expect(await screen.findByText("Thông tin món đặt trước đã thay đổi")).toBeInTheDocument();
     expect(screen.getByText(/Thông tin đã thay đổi trong lúc bạn thao tác/i)).toBeInTheDocument();

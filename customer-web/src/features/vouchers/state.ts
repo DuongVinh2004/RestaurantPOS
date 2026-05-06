@@ -1,3 +1,4 @@
+import { formatDateTime, formatMoney } from "@/lib/contracts/format";
 import type { SurfaceRolloutDecision } from "@/lib/config/support-matrix";
 import type { CustomerLoyaltySummary, CustomerReservationBenefitsPreview, CustomerVoucher } from "@/lib/contracts/generated/restaurantpos-sdk";
 
@@ -27,6 +28,7 @@ export type VoucherWalletItemState = {
   badgeLabel: string;
   title: string;
   description: string;
+  detailLines: string[];
 };
 
 export type VoucherWalletState = {
@@ -262,6 +264,8 @@ export function getReservationBenefitsState(preview: CustomerReservationBenefits
 }
 
 export function getVoucherWalletItemState(voucher: CustomerVoucher): VoucherWalletItemState {
+  const detailLines = getVoucherDetailLines(voucher);
+
   if (isVoucherExpired(voucher)) {
     return {
       voucher,
@@ -271,6 +275,7 @@ export function getVoucherWalletItemState(voucher: CustomerVoucher): VoucherWall
       description: voucher.expires_at
         ? `Voucher này đã hết hạn lúc ${voucher.expires_at}.`
         : "Voucher này chỉ còn để tham khảo vì đã hết hạn.",
+      detailLines,
     };
   }
 
@@ -283,6 +288,7 @@ export function getVoucherWalletItemState(voucher: CustomerVoucher): VoucherWall
       description: voucher.used_reservation_id
         ? `Voucher này đã được dùng cho lịch đặt #${voucher.used_reservation_id}.`
         : "Voucher này đã được dùng và không còn khả dụng.",
+      detailLines,
     };
   }
 
@@ -293,6 +299,7 @@ export function getVoucherWalletItemState(voucher: CustomerVoucher): VoucherWall
       badgeLabel: "Không khả dụng",
       title: "Đang giữ cho lịch đặt khác",
       description: "Voucher này đang được giữ cho một lịch đặt khác.",
+      detailLines,
     };
   }
 
@@ -305,6 +312,7 @@ export function getVoucherWalletItemState(voucher: CustomerVoucher): VoucherWall
       description: voucher.locked_until
         ? `Voucher này đang được giữ đến ${voucher.locked_until}.`
         : "Voucher này đang được tạm giữ.",
+      detailLines,
     };
   }
 
@@ -315,6 +323,7 @@ export function getVoucherWalletItemState(voucher: CustomerVoucher): VoucherWall
       badgeLabel: "Có thể dùng",
       title: "Đã áp dụng",
       description: "Voucher này đang được áp dụng cho lịch đặt và có thể gỡ khi nhà hàng cho phép.",
+      detailLines,
     };
   }
 
@@ -325,6 +334,7 @@ export function getVoucherWalletItemState(voucher: CustomerVoucher): VoucherWall
       badgeLabel: "Có thể dùng",
       title: "Có thể dùng",
       description: "Voucher này hiện đủ điều kiện để dùng.",
+      detailLines,
     };
   }
 
@@ -336,7 +346,38 @@ export function getVoucherWalletItemState(voucher: CustomerVoucher): VoucherWall
     description:
       voucher.applicability_reasons.find((reason) => reason.trim() !== "") ??
       "Voucher này đang hiển thị trong ví, nhưng hiện chưa thể dùng.",
+    detailLines,
   };
+}
+
+export function getVoucherDetailLines(voucher: CustomerVoucher): string[] {
+  const detailLines: string[] = [];
+
+  if (voucher.starts_at) {
+    detailLines.push(`Hiệu lực từ ${formatDateTime(voucher.starts_at)}.`);
+  }
+
+  if (voucher.expires_at) {
+    detailLines.push(`Hết hạn ${formatDateTime(voucher.expires_at)}.`);
+  }
+
+  if (voucher.min_spend) {
+    detailLines.push(`Đơn tối thiểu ${formatMoneyWithOptionalCurrency(voucher.min_spend, voucher.preview_currency)}.`);
+  }
+
+  if (voucher.preview_discount_amount) {
+    detailLines.push(`Giảm dự kiến ${formatMoneyWithOptionalCurrency(voucher.preview_discount_amount, voucher.preview_currency)}.`);
+  }
+
+  if (voucher.free_item) {
+    detailLines.push(`Món tặng ${voucher.free_item.item_name} x${voucher.free_item.quantity}.`);
+  }
+
+  if ((voucher.is_locked || voucher.is_locked_by_other) && voucher.locked_until) {
+    detailLines.push(`Giữ đến ${formatDateTime(voucher.locked_until)}.`);
+  }
+
+  return detailLines;
 }
 
 function summarizeVoucherCounts(counts: VoucherWalletState["counts"]): string {
@@ -366,4 +407,8 @@ function isVoucherExpired(voucher: CustomerVoucher): boolean {
 
 function containsStatus(status: string | null | undefined, fragment: string): boolean {
   return status?.toLowerCase().includes(fragment.toLowerCase()) ?? false;
+}
+
+function formatMoneyWithOptionalCurrency(amount: string | number, currency: string | null): string {
+  return currency ? formatMoney(amount, currency) : String(amount);
 }

@@ -54,14 +54,21 @@ import {
   assignmentAgentLabel,
   buildConversationInboxSearch,
   buildConversationWaitingListPath,
+  conversationCanTakeOver,
+  conversationCanUnassignMine,
   type ConversationItem,
   type ConversationAssignmentFilter,
   type ConversationChannelFilter,
+  type ConversationInboxViewFilter,
   type ConversationInboxTab,
   type ConversationInboxUrlState,
   type ConversationStatusFilter,
+  type ConversationWorkflowFilter,
+  type ConversationWorkflowWriteState,
   conversationBranchLabel,
   conversationCustomerLabel,
+  conversationInboxViewStats,
+  conversationMutationCapabilities,
   conversationReservationCode,
   conversationReservationId,
   conversationSummaryStats,
@@ -88,6 +95,24 @@ const assignmentOptions = [
   { value: 'mine', label: 'Của tôi' },
 ] satisfies Array<{ value: ConversationAssignmentFilter; label: string }>;
 
+const workflowOptions = [
+  { value: 'all', label: 'Tất cả workflow' },
+  { value: 'Open', label: 'Đang mở' },
+  { value: 'Triaged', label: 'Đã triage' },
+  { value: 'Assigned', label: 'Đã giao người xử lý' },
+  { value: 'PendingCustomer', label: 'Chờ khách' },
+  { value: 'Resolved', label: 'Đã xử lý' },
+  { value: 'Closed', label: 'Đã đóng' },
+] satisfies Array<{ value: ConversationWorkflowFilter; label: string }>;
+
+const inboxViewOptions = [
+  { value: 'all', label: 'Tất cả hàng chờ' },
+  { value: 'unassigned', label: 'Chưa phân công' },
+  { value: 'overdue', label: 'Quá hạn' },
+  { value: 'waiting_on_customer', label: 'Chờ khách phản hồi' },
+  { value: 'resolved_today', label: 'Đã xử lý hôm nay' },
+] satisfies Array<{ value: ConversationInboxViewFilter; label: string }>;
+
 const channelOptions = [
   { value: 'all', label: 'Tất cả kênh' },
   { value: 'WebChat', label: 'Web chat' },
@@ -113,7 +138,7 @@ const workflowWriteOptions = [
   { value: 'Closed', label: 'Đã đóng' },
 ] satisfies Array<{ value: WorkflowWriteState; label: string }>;
 
-type WorkflowWriteState = Exclude<ConversationWorkflowState, 'Assigned'>;
+type WorkflowWriteState = ConversationWorkflowWriteState;
 
 export function ConversationInboxPage() {
   const navigate = useNavigate();
@@ -141,13 +166,29 @@ export function ConversationInboxPage() {
 
   const urlState = useMemo(() => readConversationInboxUrlState(searchParams), [searchParams]);
   const statusFilter = urlState.status;
+  const workflowStateFilter = urlState.workflowState;
+  const inboxViewFilter = urlState.inboxView;
   const assignmentFilter = urlState.assignment;
   const channelFilter = urlState.channel;
   const searchTerm = urlState.q;
   const page = urlState.page;
   const selectedConversationId = urlState.conversationId;
   const activeTab = urlState.tab;
-
+  const assignCapabilityHelpText = () => (
+    canAssign
+      ? 'D\u00f9ng route assign khi c\u1ea7n giao h\u1ed9i tho\u1ea1i cho m\u1ed9t staff c\u1ee5 th\u1ec3 thay v\u00ec ch\u1ec9 nh\u1eadn x\u1eed l\u00fd b\u1eb1ng t\u00e0i kho\u1ea3n hi\u1ec7n t\u1ea1i.'
+      : 'H\u1ed9i tho\u1ea1i \u0111\u00e3 x\u1eed l\u00fd ho\u1eb7c \u0111\u00e3 \u0111\u00f3ng. H\u00e3y m\u1edf l\u1ea1i v\u1ec1 triaged tr\u01b0\u1edbc khi ph\u00e2n c\u00f4ng.'
+  );
+  const linkCapabilityHelpText = () => (
+    canLink
+      ? 'Link ho\u1eb7c unlink theo route backend ri\u00eang, sau \u0111\u00f3 refetch l\u1ea1i detail \u0111\u1ec3 d\u00f9ng li\u00ean k\u1ebft canonical.'
+      : 'H\u1ed9i tho\u1ea1i \u0111\u00e3 \u0111\u00f3ng n\u00ean backend kh\u00f3a thao t\u00e1c link/unlink. H\u00e3y m\u1edf l\u1ea1i thread tr\u01b0\u1edbc khi \u0111\u1ed5i li\u00ean k\u1ebft.'
+  );
+  const noteCapabilityHelpText = () => (
+    canAddInternalNote
+      ? 'Gi\u1eef l\u1ea1i b\u1ed1i c\u1ea3nh b\u00e0n giao, r\u1ee7i ro th\u1eddi gian ho\u1eb7c c\u00e1c \u0111i\u1ec3m c\u1ea7n staff ca sau ti\u1ebfp t\u1ee5c.'
+      : 'H\u1ed9i tho\u1ea1i \u0111\u00e3 \u0111\u00f3ng n\u00ean kh\u00f4ng th\u1ec3 th\u00eam ghi ch\u00fa n\u1ed9i b\u1ed9 cho \u0111\u1ee3t triage n\u00e0y.'
+  );
   useEffect(() => {
     setSearchDraft(searchTerm);
   }, [searchTerm]);
@@ -173,11 +214,13 @@ export function ConversationInboxPage() {
   }, [searchParams, setSearchParams]);
 
   const inboxQuery = useQuery({
-    queryKey: ['conversations', branchId, statusFilter, assignmentFilter, channelFilter, searchTerm, page],
+    queryKey: ['conversations', branchId, statusFilter, workflowStateFilter, inboxViewFilter, assignmentFilter, channelFilter, searchTerm, page],
     queryFn: () =>
       listConversations({
         branch_id: branchId ?? undefined,
         status: statusFilter === 'all' ? undefined : statusFilter,
+        workflow_state: workflowStateFilter === 'all' ? undefined : workflowStateFilter,
+        inbox_view: inboxViewFilter === 'all' ? undefined : inboxViewFilter,
         assignment_state: assignmentFilter === 'all' ? undefined : assignmentFilter,
         channel: channelFilter === 'all' ? undefined : channelFilter,
         q: searchTerm || undefined,
@@ -222,8 +265,10 @@ export function ConversationInboxPage() {
   });
 
   const detailConversation = detailQuery.data?.data.conversation ?? selectedConversation;
+  const detailCapabilities = conversationMutationCapabilities(detailQuery.data?.data);
   const replyState = outboundReplyState(detailQuery.data?.data);
   const summaryStats = conversationSummaryStats(inboxQuery.data?.meta?.summary);
+  const inboxViewStats = conversationInboxViewStats(inboxQuery.data?.meta?.summary);
   const selectedConversationRows = useMemo(
     () => (inboxQuery.data?.data ?? []).filter((item) => selectedConversationIds.includes(item.conversation_id)),
     [inboxQuery.data?.data, selectedConversationIds],
@@ -235,21 +280,47 @@ export function ConversationInboxPage() {
   const linkedWaitingListLabel = detailConversation ? conversationWaitingLabel(detailConversation) : null;
   const currentWorkflowState = detailConversation ? conversationWorkflowState(detailConversation.workflow.state) : null;
   const currentAssignment = detailConversation?.active_assignment ?? null;
-  const canTakeOver = !!activeConversationId && currentAssignment?.agent_user_id !== currentStaffUserId;
-  const canUnassign = !!activeConversationId && currentAssignment?.agent_user_id === currentStaffUserId;
+  const workflowTargetOptions = useMemo(
+    () => workflowWriteOptions.filter((option) => detailCapabilities.workflowStateTargets.includes(option.value)),
+    [detailCapabilities.workflowStateTargets],
+  );
+  const canTakeOver = !!activeConversationId && detailCapabilities.canTakeOver && currentAssignment?.agent_user_id !== currentStaffUserId;
+  const canUnassign = !!activeConversationId && detailCapabilities.canUnassign && currentAssignment?.agent_user_id === currentStaffUserId;
+  const canAssign = !!activeConversationId && detailCapabilities.canAssign;
+  const canLink = !!activeConversationId && detailCapabilities.canLink;
+  const canAddInternalNote = !!activeConversationId && detailCapabilities.canAddInternalNote;
+  const canUpdateWorkflowState = !!activeConversationId && detailCapabilities.canUpdateWorkflowState && workflowTargetOptions.length > 0;
   const bulkTakeOverIds = selectedConversationRows
-    .filter((item) => !item.assignment_state.is_mine)
+    .filter((item) => conversationCanTakeOver(item))
     .map((item) => item.conversation_id);
   const bulkUnassignIds = selectedConversationRows
-    .filter((item) => item.assignment_state.is_mine)
+    .filter((item) => conversationCanUnassignMine(item))
     .map((item) => item.conversation_id);
+  const assignHelpText = canAssign
+    ? 'Dùng route assign khi cần giao hội thoại cho một staff cụ thể thay vì chỉ nhận xử lý bằng tài khoản hiện tại.'
+    : 'Hội thoại đã xử lý hoặc đã đóng. Hãy mở lại về triaged trước khi phân công.';
+  const linkHelpText = canLink
+    ? 'Link hoặc unlink theo route backend riêng, sau đó refetch lại detail để dùng liên kết canonical.'
+    : 'Hội thoại đã đóng nên backend khóa thao tác link/unlink. Hãy mở lại thread trước khi đổi liên kết.';
+  const noteHelpText = canAddInternalNote
+    ? 'Giữ lại bối cảnh bàn giao, rủi ro thời gian hoặc các điểm cần staff ca sau tiếp tục.'
+    : 'Hội thoại đã đóng nên không thể thêm ghi chú nội bộ cho đợt triage này.';
+
+  void [assignHelpText, linkHelpText, noteHelpText];
 
   useEffect(() => {
-    const editableWorkflowState = toWorkflowWriteState(currentWorkflowState);
-    if (editableWorkflowState) {
-      setWorkflowStateDraft(editableWorkflowState);
+    if (workflowTargetOptions.length === 0) {
+      return;
     }
-  }, [currentWorkflowState]);
+
+    if (!workflowTargetOptions.some((option) => option.value === workflowStateDraft)) {
+      const editableWorkflowState = toWorkflowWriteState(currentWorkflowState);
+      const nextWorkflowState = editableWorkflowState && workflowTargetOptions.some((option) => option.value === editableWorkflowState)
+        ? editableWorkflowState
+        : workflowTargetOptions[0].value;
+      setWorkflowStateDraft(nextWorkflowState);
+    }
+  }, [currentWorkflowState, workflowStateDraft, workflowTargetOptions]);
 
   const takeOverMutation = useMutation({
     mutationFn: () => takeOverConversation(activeConversationId as string),
@@ -336,7 +407,7 @@ export function ConversationInboxPage() {
   }
 
   async function handleTakeOver() {
-    if (!activeConversationId) {
+    if (!activeConversationId || !canTakeOver) {
       return;
     }
 
@@ -351,7 +422,7 @@ export function ConversationInboxPage() {
   }
 
   async function handleUnassign() {
-    if (!activeConversationId) {
+    if (!activeConversationId || !canUnassign) {
       return;
     }
 
@@ -377,7 +448,7 @@ export function ConversationInboxPage() {
   }
 
   async function handleAssign() {
-    if (!activeConversationId) {
+    if (!activeConversationId || !canAssign) {
       return;
     }
 
@@ -403,7 +474,7 @@ export function ConversationInboxPage() {
   }
 
   async function handleWorkflowStateUpdate() {
-    if (!activeConversationId) {
+    if (!activeConversationId || !canUpdateWorkflowState) {
       return;
     }
 
@@ -422,7 +493,7 @@ export function ConversationInboxPage() {
   }
 
   async function handleLinkConversation() {
-    if (!activeConversationId) {
+    if (!activeConversationId || !canLink) {
       return;
     }
 
@@ -455,7 +526,7 @@ export function ConversationInboxPage() {
   }
 
   async function handleUnlinkConversationLink(type: 'reservation' | 'waiting-list') {
-    if (!activeConversationId) {
+    if (!activeConversationId || !canLink) {
       return;
     }
 
@@ -486,7 +557,7 @@ export function ConversationInboxPage() {
 
   async function handleAddNote() {
     const draft = noteDraft.trim();
-    if (!activeConversationId || draft === '') {
+    if (!activeConversationId || draft === '' || !canAddInternalNote) {
       return;
     }
 
@@ -613,6 +684,20 @@ export function ConversationInboxPage() {
               onChange={(value) => updateUrlState({ assignment: value, page: 1, conversationId: null })}
             />
             <Select
+              aria-label="Lọc theo workflow hội thoại"
+              style={{ width: 170 }}
+              value={workflowStateFilter}
+              options={workflowOptions}
+              onChange={(value) => updateUrlState({ workflowState: value, page: 1, conversationId: null })}
+            />
+            <Select
+              aria-label="Lọc theo hàng chờ vận hành"
+              style={{ width: 190 }}
+              value={inboxViewFilter}
+              options={inboxViewOptions}
+              onChange={(value) => updateUrlState({ inboxView: value, page: 1, conversationId: null })}
+            />
+            <Select
               aria-label="Lọc theo kênh hội thoại"
               style={{ width: 150 }}
               value={channelFilter}
@@ -645,19 +730,31 @@ export function ConversationInboxPage() {
 
       <Card size="small" className="staff-conversation-preset-card">
         <Space wrap>
-          <Button type={assignmentFilter === 'unassigned' ? 'primary' : 'default'} onClick={() => updateUrlState({ assignment: 'unassigned', status: 'Open', page: 1, conversationId: null })}>
-            Chưa phân công
+          <Button
+            type={inboxViewFilter === 'unassigned' ? 'primary' : 'default'}
+            onClick={() => updateUrlState({ inboxView: 'unassigned', workflowState: 'all', status: 'all', page: 1, conversationId: null })}
+          >
+            Chưa phân công ({inboxViewStats.unassigned})
           </Button>
-          <Button type={assignmentFilter === 'mine' ? 'primary' : 'default'} onClick={() => updateUrlState({ assignment: 'mine', status: 'Open', page: 1, conversationId: null })}>
-            Của tôi
+          <Button
+            type={inboxViewFilter === 'overdue' ? 'primary' : 'default'}
+            onClick={() => updateUrlState({ inboxView: 'overdue', workflowState: 'all', status: 'all', page: 1, conversationId: null })}
+          >
+            Quá hạn ({inboxViewStats.overdue})
           </Button>
-          <Button type={channelFilter === 'WebChat' ? 'primary' : 'default'} onClick={() => updateUrlState({ channel: 'WebChat', page: 1, conversationId: null })}>
-            Web chat
+          <Button
+            type={inboxViewFilter === 'waiting_on_customer' ? 'primary' : 'default'}
+            onClick={() => updateUrlState({ inboxView: 'waiting_on_customer', workflowState: 'PendingCustomer', status: 'all', page: 1, conversationId: null })}
+          >
+            Chờ khách ({inboxViewStats.waitingOnCustomer})
           </Button>
-          <Button type={statusFilter === 'Pending' ? 'primary' : 'default'} onClick={() => updateUrlState({ status: 'Pending', page: 1, conversationId: null })}>
-            Đang chờ
+          <Button
+            type={inboxViewFilter === 'resolved_today' ? 'primary' : 'default'}
+            onClick={() => updateUrlState({ inboxView: 'resolved_today', workflowState: 'Resolved', status: 'all', page: 1, conversationId: null })}
+          >
+            Đã xử lý hôm nay ({inboxViewStats.resolvedToday})
           </Button>
-          <Button onClick={() => updateUrlState({ status: 'all', assignment: 'all', channel: 'all', q: '', page: 1, conversationId: null })}>
+          <Button onClick={() => updateUrlState({ status: 'all', workflowState: 'all', inboxView: 'all', assignment: 'all', channel: 'all', q: '', page: 1, conversationId: null })}>
             Xóa preset
           </Button>
         </Space>
@@ -876,7 +973,7 @@ export function ConversationInboxPage() {
           <div className="staff-conversation-ops-panel">
             <Typography.Text strong>Phân công rõ nhân viên</Typography.Text>
             <Typography.Text type="secondary">
-              Dùng route assign khi cần giao hội thoại cho một staff cụ thể thay vì chỉ nhận xử lý bằng tài khoản hiện tại.
+              {assignCapabilityHelpText()}
             </Typography.Text>
             <Space wrap align="start">
               <Input
@@ -886,7 +983,7 @@ export function ConversationInboxPage() {
                 value={assignAgentIdDraft}
                 onChange={(event) => setAssignAgentIdDraft(event.target.value)}
                 style={{ width: 160 }}
-                disabled={!canManageConversation}
+                disabled={!canManageConversation || !canAssign}
               />
               <Input
                 aria-label="Ghi chú phân công hội thoại"
@@ -894,13 +991,13 @@ export function ConversationInboxPage() {
                 value={assignNotesDraft}
                 onChange={(event) => setAssignNotesDraft(event.target.value)}
                 style={{ width: 260 }}
-                disabled={!canManageConversation}
+                disabled={!canManageConversation || !canAssign}
               />
               <Button
                 type="primary"
                 onClick={() => void handleAssign()}
                 loading={assignMutation.isPending}
-                disabled={!canManageConversation || parsePositiveInteger(assignAgentIdDraft) === null}
+                disabled={!canManageConversation || !canAssign || parsePositiveInteger(assignAgentIdDraft) === null}
               >
                 Phân công
               </Button>
@@ -910,16 +1007,16 @@ export function ConversationInboxPage() {
           <div className="staff-conversation-ops-panel">
             <Typography.Text strong>Workflow hội thoại</Typography.Text>
             <Typography.Text type="secondary">
-              Gửi kèm expected_workflow_state hiện tại để backend phát hiện stale state trước khi đổi trạng thái.
+              Chỉ hiển thị các target backend đang cho phép và luôn gửi kèm expected_workflow_state hiện tại để bắt stale state.
             </Typography.Text>
             <Space wrap align="start">
               <Select<WorkflowWriteState>
                 aria-label="Trạng thái workflow hội thoại"
                 value={workflowStateDraft}
-                options={workflowWriteOptions}
+                options={workflowTargetOptions}
                 onChange={(value) => setWorkflowStateDraft(value)}
                 style={{ width: 180 }}
-                disabled={!canManageConversation}
+                disabled={!canManageConversation || !canUpdateWorkflowState}
               />
               <Input
                 aria-label="Lý do cập nhật workflow"
@@ -927,13 +1024,13 @@ export function ConversationInboxPage() {
                 value={workflowReasonDraft}
                 onChange={(event) => setWorkflowReasonDraft(event.target.value)}
                 style={{ width: 280 }}
-                disabled={!canManageConversation}
+                disabled={!canManageConversation || !canUpdateWorkflowState}
               />
               <Button
                 type="primary"
                 onClick={() => void handleWorkflowStateUpdate()}
                 loading={workflowMutation.isPending}
-                disabled={!canManageConversation || !activeConversationId}
+                disabled={!canManageConversation || !canUpdateWorkflowState}
               >
                 Cập nhật workflow
               </Button>
@@ -948,7 +1045,7 @@ export function ConversationInboxPage() {
           <div className="staff-conversation-ops-panel">
             <Typography.Text strong>Liên kết nghiệp vụ</Typography.Text>
             <Typography.Text type="secondary">
-              Link hoặc unlink theo route backend riêng, sau đó refetch lại detail để dùng liên kết canonical.
+              {linkCapabilityHelpText()}
             </Typography.Text>
             <Space wrap align="start">
               <Input
@@ -958,7 +1055,7 @@ export function ConversationInboxPage() {
                 value={linkReservationIdDraft}
                 onChange={(event) => setLinkReservationIdDraft(event.target.value)}
                 style={{ width: 150 }}
-                disabled={!canManageConversation}
+                disabled={!canManageConversation || !canLink}
               />
               <Input
                 aria-label="Waiting-list id cần liên kết"
@@ -967,7 +1064,7 @@ export function ConversationInboxPage() {
                 value={linkWaitingListIdDraft}
                 onChange={(event) => setLinkWaitingListIdDraft(event.target.value)}
                 style={{ width: 150 }}
-                disabled={!canManageConversation}
+                disabled={!canManageConversation || !canLink}
               />
               <Input
                 aria-label="Customer user id cần liên kết"
@@ -976,7 +1073,7 @@ export function ConversationInboxPage() {
                 value={linkCustomerUserIdDraft}
                 onChange={(event) => setLinkCustomerUserIdDraft(event.target.value)}
                 style={{ width: 160 }}
-                disabled={!canManageConversation}
+                disabled={!canManageConversation || !canLink}
               />
               <Input
                 aria-label="Ghi chú liên kết hội thoại"
@@ -984,7 +1081,7 @@ export function ConversationInboxPage() {
                 value={linkNotesDraft}
                 onChange={(event) => setLinkNotesDraft(event.target.value)}
                 style={{ width: 240 }}
-                disabled={!canManageConversation}
+                disabled={!canManageConversation || !canLink}
               />
               <Button
                 type="primary"
@@ -992,6 +1089,7 @@ export function ConversationInboxPage() {
                 loading={linkMutation.isPending}
                 disabled={
                   !canManageConversation
+                  || !canLink
                   || (
                     parsePositiveInteger(linkReservationIdDraft) === null
                     && parsePositiveInteger(linkWaitingListIdDraft) === null
@@ -1006,7 +1104,7 @@ export function ConversationInboxPage() {
                   danger
                   onClick={() => void handleUnlinkConversationLink('reservation')}
                   loading={unlinkReservationMutation.isPending}
-                  disabled={!canManageConversation}
+                  disabled={!canManageConversation || !canLink}
                 >
                   Gỡ đặt bàn
                 </Button>
@@ -1016,7 +1114,7 @@ export function ConversationInboxPage() {
                   danger
                   onClick={() => void handleUnlinkConversationLink('waiting-list')}
                   loading={unlinkWaitingListMutation.isPending}
-                  disabled={!canManageConversation}
+                  disabled={!canManageConversation || !canLink}
                 >
                   Gỡ khách chờ
                 </Button>
@@ -1061,9 +1159,9 @@ export function ConversationInboxPage() {
 
           <div className="staff-conversation-composer staff-conversation-composer-note">
             <Typography.Text strong>Thêm ghi chú nội bộ</Typography.Text>
-            <Typography.Text type="secondary">Giữ lại bối cảnh bàn giao, rủi ro thời gian hoặc các điểm cần staff ca sau tiếp tục.</Typography.Text>
-            <Input.TextArea value={noteDraft} rows={4} placeholder="Ghi chú cho bàn giao, rủi ro thời gian hoặc theo dõi đặt bàn." onChange={(event) => setNoteDraft(event.target.value)} />
-            <Button type="primary" onClick={() => void handleAddNote()} disabled={noteDraft.trim() === ''} loading={addNoteMutation.isPending}>Thêm ghi chú</Button>
+            <Typography.Text type="secondary">{noteCapabilityHelpText()}</Typography.Text>
+            <Input.TextArea value={noteDraft} rows={4} placeholder="Ghi chú cho bàn giao, rủi ro thời gian hoặc theo dõi đặt bàn." onChange={(event) => setNoteDraft(event.target.value)} disabled={!canAddInternalNote} />
+            <Button type="primary" onClick={() => void handleAddNote()} disabled={!canAddInternalNote || noteDraft.trim() === ''} loading={addNoteMutation.isPending}>Thêm ghi chú</Button>
           </div>
 
           <div className="staff-conversation-composer staff-conversation-composer-reply">

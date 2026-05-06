@@ -14,8 +14,7 @@ const mocks = vi.hoisted(() => ({
   customerWebRollout: {
     accountBenefits: {
       enabled: false,
-      description:
-        "Keep loyalty and voucher data contract-visible behind an explicit rollout flag.",
+      description: "Keep loyalty and voucher data contract-visible behind an explicit rollout flag.",
       liveProofSummary:
         "Loyalty, vouchers, reservation benefits preview, and row-versioned voucher or loyalty mutations have live proof behind the account-benefits rollout flag.",
       disabledTitle: "Benefits are not in this rollout",
@@ -144,7 +143,7 @@ describe("BenefitsPanel", () => {
     expect(mocks.getBenefitsPreview).not.toHaveBeenCalled();
   });
 
-  it("renders reservation benefits actions when the rollout flag is on", async () => {
+  it("renders reservation benefits actions plus voucher contract metadata when the rollout flag is on", async () => {
     mocks.customerWebRollout.accountBenefits.enabled = true;
     mocks.getBenefitsPreview.mockResolvedValue(createPreview());
 
@@ -156,6 +155,22 @@ describe("BenefitsPanel", () => {
     expect(screen.getAllByText("Voucher chưa đủ điều kiện").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Chưa đủ điều kiện").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Spend more before this voucher can apply.")).toBeInTheDocument();
+    expect(screen.getByText(/Đơn tối thiểu/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Giảm dự kiến/i).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("shows loyalty guidance when the customer does not yet have enough redeemable points", async () => {
+    const preview = createPreview();
+
+    preview.reservation.loyalty.available_points = 8;
+    preview.reservation.loyalty.max_redeemable_points = 0;
+    mocks.customerWebRollout.accountBenefits.enabled = true;
+    mocks.getBenefitsPreview.mockResolvedValue(preview);
+
+    renderPanel();
+
+    expect(await screen.findByText("Cần ít nhất 10 điểm. Hiện tài khoản có 8 điểm.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Dùng điểm" })).not.toBeInTheDocument();
   });
 
   it("applies vouchers with the latest reservation row version and refetches benefits", async () => {
@@ -240,6 +255,7 @@ describe("BenefitsPanel", () => {
 
     renderPanel();
 
+    expect(await screen.findByText("Có thể dùng từ 10 đến 50 điểm cho lượt đặt này.")).toBeInTheDocument();
     await user.clear(await screen.findByLabelText("Số điểm muốn dùng"));
     await user.type(screen.getByLabelText("Số điểm muốn dùng"), "25");
     await user.click(screen.getByRole("button", { name: "Dùng điểm" }));

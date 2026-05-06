@@ -375,12 +375,60 @@ class StaffConversationInboxFlowTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('data.conversation.conversation_id', $conversationId)
+            ->assertJsonPath('data.capabilities.can_assign', true)
+            ->assertJsonPath('data.capabilities.can_take_over', true)
+            ->assertJsonPath('data.capabilities.can_unassign', true)
+            ->assertJsonPath('data.capabilities.can_link', true)
+            ->assertJsonPath('data.capabilities.can_add_internal_note', true)
+            ->assertJsonPath('data.capabilities.can_update_workflow_state', true)
+            ->assertJsonPath('data.capabilities.workflow_state_targets.0', 'PendingCustomer')
+            ->assertJsonPath('data.capabilities.workflow_state_targets.1', 'Resolved')
+            ->assertJsonPath('data.capabilities.workflow_state_targets.2', 'Closed')
             ->assertJsonPath('data.capabilities.can_send_outbound_reply', false)
             ->assertJsonPath('data.capabilities.outbound_reply.supported', false)
             ->assertJsonPath('data.capabilities.outbound_reply.reason_code', 'assigned_to_other_staff')
             ->assertJsonPath('data.capabilities.outbound_reply.channel', null)
             ->assertJsonPath('data.capabilities.outbound_reply.delivery_mode', null)
             ->assertJsonPath('data.capabilities.outbound_reply.recipient_masked', null);
+    }
+
+    public function test_closed_conversation_detail_capabilities_lock_assignment_links_and_internal_notes(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $customerId = $this->createUser([
+            'role_name' => 'Customer',
+            'email' => 'conversation.closed.capability@example.test',
+        ]);
+        $branchId = $this->createBranch([
+            'branch_code' => 'CONV-CLOSED-CAP',
+            'branch_name' => 'Conversation Closed Capability Branch',
+        ]);
+        $this->grantStaffBranchAccess($branchId);
+
+        $conversationId = $this->createConversation([
+            'branch_id' => $branchId,
+            'user_id' => $customerId,
+            'status' => 'Closed',
+            'workflow_state' => 'Closed',
+            'workflow_state_reason' => 'closed',
+            'closed_at' => $this->nowUtc()->copy()->subMinutes(3),
+        ]);
+
+        $response = $this->withHeaders($this->staffAuthHeaders($staffId, 'staff-conversation-detail-closed-capability'))
+            ->getJson('/api/v1/staff/conversations/'.$conversationId);
+
+        $response->assertOk()
+            ->assertJsonPath('data.conversation.conversation_id', $conversationId)
+            ->assertJsonPath('data.conversation.workflow.state', 'Closed')
+            ->assertJsonPath('data.capabilities.can_assign', false)
+            ->assertJsonPath('data.capabilities.can_take_over', false)
+            ->assertJsonPath('data.capabilities.can_unassign', false)
+            ->assertJsonPath('data.capabilities.can_link', false)
+            ->assertJsonPath('data.capabilities.can_add_internal_note', false)
+            ->assertJsonPath('data.capabilities.can_update_workflow_state', true)
+            ->assertJsonPath('data.capabilities.workflow_state_targets.0', 'Triaged')
+            ->assertJsonPath('data.capabilities.can_send_outbound_reply', false)
+            ->assertJsonPath('data.capabilities.outbound_reply.supported', false);
     }
 
     public function test_conversation_reads_and_link_mutations_respect_staff_operational_branch_scope(): void

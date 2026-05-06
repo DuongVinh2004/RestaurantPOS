@@ -56,6 +56,18 @@ export function createDepositPaymentSession(
   ).then(unwrapData);
 }
 
+export function getDepositPaymentSession(
+  reservationId: number,
+  sessionId: number,
+): Promise<DepositPaymentSessionResult> {
+  return apiCall((client) =>
+    client.getV1ReservationsReservationIdDepositPaymentSessionsSessionId({
+      reservation_id: reservationId,
+      session_id: sessionId,
+    }),
+  ).then(unwrapData);
+}
+
 export function refreshDepositPaymentSession(
   reservationId: number,
   sessionId: number,

@@ -2,19 +2,22 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
+import { listMenuItems } from "@/features/menu/api";
+import { getSelfServiceBlockedState } from "@/features/reservations/self-service-boundary";
+import { getPreorderPolicy } from "@/features/reservations/state";
 import { isConflictLikeApiError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query-keys";
 import { customerWebRollout } from "@/lib/config/feature-flags";
 import { formatDateTime, formatMoney } from "@/lib/contracts/format";
-import type { CustomerMenuItem, CustomerReservationPreorderPayload } from "@/lib/contracts/generated/restaurantpos-sdk";
-import { listMenuItems } from "@/features/menu/api";
-import { getSelfServiceBlockedState } from "@/features/reservations/self-service-boundary";
-import { getPreorderPolicy } from "@/features/reservations/state";
+import type {
+  CustomerMenuItem,
+  CustomerReservationPreorderPayload,
+} from "@/lib/contracts/generated/restaurantpos-sdk";
 import {
   clearReservationPreorder,
   getReservationPreorder,
@@ -27,10 +30,33 @@ type PreorderCartItem = {
   quantity: number;
 };
 
+type DraftState = {
+  snapshotKey: string;
+  items: PreorderCartItem[];
+};
+
+type PreviewDraftState = {
+  snapshotKey: string;
+  cartKey: string;
+  payload: CustomerReservationPreorderPayload;
+};
+
 function normalizeCart(items: PreorderCartItem[]): PreorderCartItem[] {
   return items
-    .filter((item) => Number.isInteger(item.item_id) && item.item_id > 0 && Number.isInteger(item.quantity) && item.quantity > 0)
+    .filter(
+      (item) =>
+        Number.isInteger(item.item_id) &&
+        item.item_id > 0 &&
+        Number.isInteger(item.quantity) &&
+        item.quantity > 0,
+    )
     .sort((left, right) => left.item_id - right.item_id);
+}
+
+function cartSignature(items: PreorderCartItem[]): string {
+  return normalizeCart(items)
+    .map((item) => `${item.item_id}:${item.quantity}`)
+    .join("|");
 }
 
 function cartFromPreorder(payload: CustomerReservationPreorderPayload): PreorderCartItem[] {
@@ -48,8 +74,8 @@ function menuItemPrice(item: CustomerMenuItem): string {
 export function PreorderPanel({ reservationId }: { reservationId: number }) {
   const queryClient = useQueryClient();
   const preorderRollout = customerWebRollout.preorder;
-  const [cartDraft, setCartDraft] = useState<{ key: string; items: PreorderCartItem[] } | null>(null);
-  const [previewDraft, setPreviewDraft] = useState<{ key: string; payload: CustomerReservationPreorderPayload } | null>(null);
+  const [cartDraft, setCartDraft] = useState<DraftState | null>(null);
+  const [previewDraft, setPreviewDraft] = useState<PreviewDraftState | null>(null);
   const preorderQuery = useQuery({
     queryKey: queryKeys.reservations.preorder(reservationId),
     queryFn: () => getReservationPreorder(reservationId),
@@ -60,18 +86,25 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
     queryFn: () => listMenuItems({ preorderOnly: true }),
     enabled: preorderRollout.enabled,
   });
+
   const preorderSnapshotKey = preorderQuery.data
     ? `${preorderQuery.data.reservation_row_version}:${preorderQuery.data.pre_order.order_row_version ?? "none"}:${preorderQuery.data.pre_order.totals.quantity}`
     : "";
   const baseCart = preorderQuery.data ? cartFromPreorder(preorderQuery.data) : [];
-  const cart = cartDraft?.key === preorderSnapshotKey ? cartDraft.items : baseCart;
-  const previewResult = previewDraft?.key === preorderSnapshotKey ? previewDraft.payload : null;
+  const cart = cartDraft?.snapshotKey === preorderSnapshotKey ? cartDraft.items : baseCart;
+  const cartItems = normalizeCart(cart);
+  const baseCartKey = cartSignature(baseCart);
+  const cartKey = cartSignature(cartItems);
+  const previewResult =
+    previewDraft?.snapshotKey === preorderSnapshotKey && previewDraft.cartKey === cartKey
+      ? previewDraft.payload
+      : null;
 
   const updateCartItem = (itemId: number, rawQuantity: number) => {
     const quantity = Number.isFinite(rawQuantity) ? Math.max(0, Math.floor(rawQuantity)) : 0;
 
     setCartDraft({
-      key: preorderSnapshotKey,
+      snapshotKey: preorderSnapshotKey,
       items: normalizeCart([
         ...cart.filter((item) => item.item_id !== itemId),
         ...(quantity > 0 ? [{ item_id: itemId, quantity }] : []),
@@ -83,12 +116,19 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
     queryClient.setQueryData(queryKeys.reservations.preorder(reservationId), payload);
     setCartDraft(null);
     setPreviewDraft(null);
-    await queryClient.invalidateQueries({ queryKey: queryKeys.reservations.detail(reservationId), refetchType: "inactive" });
-    await queryClient.invalidateQueries({ queryKey: queryKeys.reservations.lists, refetchType: "inactive" });
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.reservations.detail(reservationId),
+      refetchType: "inactive",
+    });
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.reservations.lists,
+      refetchType: "inactive",
+    });
   };
 
   const refreshPreorder = async () => {
     const refreshed = await preorderQuery.refetch();
+
     if (refreshed.data) {
       setCartDraft(null);
       setPreviewDraft(null);
@@ -102,9 +142,13 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
   };
 
   const previewMutation = useMutation({
-    mutationFn: () => previewReservationPreorder(reservationId, { pre_order_items: normalizeCart(cart) }),
+    mutationFn: () => previewReservationPreorder(reservationId, { pre_order_items: cartItems }),
     onSuccess(result) {
-      setPreviewDraft({ key: preorderSnapshotKey, payload: result });
+      setPreviewDraft({
+        snapshotKey: preorderSnapshotKey,
+        cartKey,
+        payload: result,
+      });
     },
     onError: handleMutationError,
   });
@@ -115,7 +159,7 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
       }
 
       return replaceReservationPreorder(reservationId, {
-        pre_order_items: normalizeCart(cart),
+        pre_order_items: cartItems,
         row_version: preorderQuery.data.reservation_row_version,
         pre_order_row_version: preorderQuery.data.pre_order.order_row_version,
       });
@@ -138,19 +182,27 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
     onSuccess: syncPreorder,
     onError: handleMutationError,
   });
-  const loadBoundary = preorderQuery.error ? getSelfServiceBlockedState("preorder", preorderQuery.error, "Chưa tải được món đặt trước") : null;
+
+  const loadBoundary = preorderQuery.error
+    ? getSelfServiceBlockedState("preorder", preorderQuery.error, "Chưa tải được món đặt trước")
+    : null;
   const preorderPolicy = preorderQuery.data ? getPreorderPolicy(preorderQuery.data) : null;
   const actionError = previewMutation.error ?? replaceMutation.error ?? clearMutation.error;
   const actionBoundary = actionError
     ? getSelfServiceBlockedState(
         "preorder",
         actionError,
-        isConflictLikeApiError(actionError) ? "Thông tin món đặt trước đã thay đổi" : "Chưa cập nhật được món đặt trước",
+        isConflictLikeApiError(actionError)
+          ? "Thông tin món đặt trước đã thay đổi"
+          : "Chưa cập nhật được món đặt trước",
       )
     : null;
-  const cartItems = normalizeCart(cart);
   const canManage = Boolean(preorderQuery.data?.management_policy.can_manage);
   const hasExistingPreorder = Boolean(preorderQuery.data?.pre_order.present);
+  const hasCartChanges = cartKey !== baseCartKey;
+  const previewRequired = canManage && cartItems.length > 0 && hasCartChanges && !previewResult;
+  const canRequestPreview = canManage && cartItems.length > 0 && hasCartChanges;
+  const canReplace = canManage && cartItems.length > 0 && hasCartChanges && previewResult !== null;
   const mutationPending = previewMutation.isPending || replaceMutation.isPending || clearMutation.isPending;
 
   if (!preorderRollout.enabled) {
@@ -160,7 +212,10 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
           <CardTitle>Món đặt trước</CardTitle>
         </CardHeader>
         <CardContent>
-          <EmptyState title={preorderRollout.disabledTitle} description={preorderRollout.disabledDescription} />
+          <EmptyState
+            title={preorderRollout.disabledTitle}
+            description={preorderRollout.disabledDescription}
+          />
         </CardContent>
       </Card>
     );
@@ -176,13 +231,21 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
         {menuQuery.isLoading ? <LoadingBlock label="Đang tải món có thể đặt trước" /> : null}
         {loadBoundary ? (
           loadBoundary.kind === "error" ? (
-            <ErrorState error={loadBoundary.error} title={loadBoundary.title} onRetry={() => preorderQuery.refetch()} />
+            <ErrorState
+              error={loadBoundary.error}
+              title={loadBoundary.title}
+              onRetry={() => preorderQuery.refetch()}
+            />
           ) : (
             <EmptyState title={loadBoundary.title} description={loadBoundary.description} />
           )
         ) : null}
         {menuQuery.error ? (
-          <ErrorState error={menuQuery.error} title="Chưa tải được danh sách món" onRetry={() => menuQuery.refetch()} />
+          <ErrorState
+            error={menuQuery.error}
+            title="Chưa tải được danh sách món"
+            onRetry={() => menuQuery.refetch()}
+          />
         ) : null}
         {preorderQuery.data && preorderPolicy ? (
           <>
@@ -190,28 +253,58 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
               <p className="font-medium">{preorderPolicy.title}</p>
               <p className="mt-1 text-muted-foreground">{preorderPolicy.message}</p>
             </div>
+
             {preorderPolicy.hasPreorder ? (
-              <>
-                <div className="rounded-lg border p-4 text-sm">
-                  <p className="font-medium">{preorderQuery.data.pre_order.totals.quantity} món đã ghi nhận</p>
+              <div className="space-y-3 rounded-lg border p-4 text-sm">
+                <div>
+                  <p className="font-medium">
+                    {preorderQuery.data.pre_order.totals.quantity} món đã ghi nhận
+                  </p>
                   <p className="mt-1 text-muted-foreground">
-                    {formatMoney(preorderQuery.data.pre_order.totals.subtotal, preorderQuery.data.pre_order.currency)} cho khung giờ{" "}
-                    {formatDateTime(preorderQuery.data.pre_order.service_time)}
+                    {formatMoney(
+                      preorderQuery.data.pre_order.totals.subtotal,
+                      preorderQuery.data.pre_order.currency,
+                    )}{" "}
+                    cho khung giờ {formatDateTime(preorderQuery.data.pre_order.service_time)}
                   </p>
                 </div>
+                {preorderQuery.data.pre_order.lines.length > 0 ? (
+                  <div className="space-y-2">
+                    {preorderQuery.data.pre_order.lines.map((line) => (
+                      <div
+                        key={line.order_item_id}
+                        className="rounded-lg bg-secondary/30 p-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-medium">{line.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {line.quantity} phần
+                              {line.notes ? ` | Ghi chú: ${line.notes}` : ""}
+                            </p>
+                          </div>
+                          <p className="text-sm font-medium">
+                            {formatMoney(line.line_total, line.currency)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="rounded-lg border border-dashed bg-secondary/20 p-4 text-sm text-muted-foreground">
                   {preorderPolicy.managementMessage}
                 </div>
-              </>
+              </div>
             ) : (
               <EmptyState title={preorderPolicy.title} description={preorderPolicy.message} />
             )}
+
             {canManage ? (
               <div className="space-y-4 rounded-lg border p-4">
                 <div>
                   <h3 className="font-semibold">Chọn món đặt trước</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Xem trước tổng tiền trước khi thay thế danh sách món cho lịch đặt này.
+                    Hệ thống sẽ yêu cầu xem trước lại mỗi khi bạn đổi giỏ món trước khi cập nhật.
                   </p>
                 </div>
                 {menuQuery.data?.length === 0 ? (
@@ -223,15 +316,24 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
                 <div className="grid gap-3">
                   {menuQuery.data?.map((item) => {
                     const quantity = cartQuantity(cart, item.item_id);
+                    const itemAvailable = item.is_available !== false && item.preorder.enabled !== false;
 
                     return (
-                      <div key={item.item_id} className="grid gap-3 rounded-lg bg-secondary/40 p-3 sm:grid-cols-[1fr_120px] sm:items-center">
+                      <div
+                        key={item.item_id}
+                        className="grid gap-3 rounded-lg bg-secondary/40 p-3 sm:grid-cols-[1fr_120px] sm:items-center"
+                      >
                         <div>
                           <p className="font-medium">{item.name}</p>
                           <p className="text-sm text-muted-foreground">
                             {menuItemPrice(item)}
-                            {item.preorder.cutoff_minutes ? ` | Khóa trước ${item.preorder.cutoff_minutes} phút` : ""}
-                            {item.preorder.quota_per_day ? ` | Tối đa ${item.preorder.quota_per_day}/ngày` : ""}
+                            {item.preorder.cutoff_minutes
+                              ? ` | Khóa trước ${item.preorder.cutoff_minutes} phút`
+                              : ""}
+                            {item.preorder.quota_per_day
+                              ? ` | Tối đa ${item.preorder.quota_per_day}/ngày`
+                              : ""}
+                            {!itemAvailable ? " | Tạm chưa khả dụng" : ""}
                           </p>
                         </div>
                         <div className="space-y-2">
@@ -243,27 +345,47 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
                             min={0}
                             className="min-h-10 rounded-lg"
                             value={quantity}
-                            onChange={(event) => updateCartItem(item.item_id, Number(event.target.value))}
+                            disabled={!itemAvailable}
+                            onChange={(event) =>
+                              updateCartItem(item.item_id, Number(event.target.value))
+                            }
                           />
                         </div>
                       </div>
                     );
                   })}
                 </div>
+                {previewRequired ? (
+                  <div className="rounded-lg border border-dashed bg-secondary/20 p-4 text-sm text-muted-foreground">
+                    Bạn đã thay đổi giỏ món. Vui lòng xem trước lại để kiểm tra số lượng và tổng tiền
+                    mới trước khi cập nhật món đặt trước.
+                  </div>
+                ) : null}
                 {previewResult ? (
                   <div className="rounded-lg bg-secondary p-4 text-sm">
                     <p className="font-medium">Bản xem trước</p>
                     <p className="mt-1 text-muted-foreground">
                       {previewResult.pre_order.totals.quantity} món, tạm tính{" "}
-                      {formatMoney(previewResult.pre_order.totals.subtotal, previewResult.pre_order.currency)}.
+                      {formatMoney(
+                        previewResult.pre_order.totals.subtotal,
+                        previewResult.pre_order.currency,
+                      )}
+                      .
                     </p>
                   </div>
                 ) : null}
                 {actionBoundary ? (
                   actionBoundary.kind === "error" ? (
-                    <ErrorState error={actionBoundary.error} title={actionBoundary.title} onRetry={refreshPreorder} />
+                    <ErrorState
+                      error={actionBoundary.error}
+                      title={actionBoundary.title}
+                      onRetry={refreshPreorder}
+                    />
                   ) : (
-                    <EmptyState title={actionBoundary.title} description={actionBoundary.description} />
+                    <EmptyState
+                      title={actionBoundary.title}
+                      description={actionBoundary.description}
+                    />
                   )
                 ) : null}
                 <div className="grid gap-3 sm:grid-cols-3">
@@ -271,7 +393,7 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
                     type="button"
                     variant="outline"
                     className="rounded-lg"
-                    disabled={cartItems.length === 0 || mutationPending}
+                    disabled={!canRequestPreview || mutationPending}
                     onClick={() => previewMutation.mutate()}
                   >
                     {previewMutation.isPending ? "Đang xem trước" : "Xem trước món"}
@@ -279,7 +401,7 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
                   <Button
                     type="button"
                     className="rounded-lg"
-                    disabled={cartItems.length === 0 || mutationPending}
+                    disabled={!canReplace || mutationPending}
                     onClick={() => replaceMutation.mutate()}
                   >
                     {replaceMutation.isPending ? "Đang cập nhật" : "Cập nhật món đặt trước"}

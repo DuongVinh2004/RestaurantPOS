@@ -160,6 +160,27 @@ describe('KitchenBoardPage', () => {
     expect(apiMocks.dispatchKitchenOrder).not.toHaveBeenCalled();
   });
 
+  it('renders ticket notes and order item notes from the canonical kitchen payload', async () => {
+    apiMocks.getKitchenStationTickets.mockResolvedValue(createTicketsEnvelope(33, [
+      createKitchenTicket({
+        stationId: 33,
+        ticketId: 801,
+        orderId: 56,
+        ticketNotes: 'Ưu tiên ra món ngay khi line trống.',
+        orderItemNotes: 'Không hành, thêm sốt riêng.',
+        orderItemQuantity: 2,
+      }),
+    ]));
+
+    renderWithProviders('/kitchen?station_id=33&ticket=801');
+
+    expect(await screen.findByText('Ghi chú phiếu bếp')).toBeInTheDocument();
+    expect(screen.getByText('Ưu tiên ra món ngay khi line trống.')).toBeInTheDocument();
+    expect(screen.getByText('Ghi chú món')).toBeInTheDocument();
+    expect(screen.getByText('Không hành, thêm sốt riêng.')).toBeInTheDocument();
+    expect(screen.getByText('x2')).toBeInTheDocument();
+  });
+
   it('sends the selected ticket row version with kitchen fast actions', async () => {
     renderWithProviders('/kitchen?station_id=33&ticket=801');
 
@@ -214,6 +235,51 @@ describe('KitchenBoardPage', () => {
     await waitFor(() => expect(apiMocks.listKitchenStations).toHaveBeenCalled());
   });
 
+  it('surfaces capability denial inline when a kitchen fast action is forbidden', async () => {
+    apiMocks.fireKitchenTicket.mockRejectedValue({
+      status: 403,
+      payload: {
+        error_code: 'forbidden',
+        category_code: 'forbidden_capability',
+        required_capability: 'kitchen.manage',
+        request_id: 'req-kitchen-403',
+        message: 'Capability kitchen.manage is required.',
+      },
+    });
+
+    renderWithProviders('/kitchen?station_id=33&ticket=801');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu làm' }));
+
+    await waitFor(() => expect(screen.getByTestId('mutation-status-notice')).toHaveAttribute('data-phase', 'denied'));
+    expect(screen.getByText(/kitchen\.manage/i)).toBeInTheDocument();
+    expect(screen.getByText(/req-kitchen-403/i)).toBeInTheDocument();
+  });
+
+  it('refetches kitchen reads and keeps a conflict notice when a fast action hits a stale ticket route', async () => {
+    apiMocks.fireKitchenTicket.mockRejectedValue({
+      status: 404,
+      payload: {
+        error_code: 'not_found',
+        request_id: 'req-kitchen-404',
+        message: 'Kitchen ticket no longer exists.',
+      },
+    });
+
+    renderWithProviders('/kitchen?station_id=33&ticket=801');
+
+    await waitFor(() => expect(apiMocks.getKitchenStationTickets).toHaveBeenCalled());
+    apiMocks.getKitchenStationTickets.mockClear();
+    apiMocks.listKitchenStations.mockClear();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu làm' }));
+
+    await waitFor(() => expect(screen.getByTestId('mutation-status-notice')).toHaveAttribute('data-phase', 'conflict'));
+    await waitFor(() => expect(apiMocks.getKitchenStationTickets).toHaveBeenCalled());
+    await waitFor(() => expect(apiMocks.listKitchenStations).toHaveBeenCalled());
+    expect(screen.getByText(/không còn khớp với bản ghi đang xem/i)).toBeInTheDocument();
+  });
+
   it('disables kitchen fast actions until the selected ticket row version is available', async () => {
     apiMocks.getKitchenStationTickets.mockResolvedValue(createTicketsEnvelope(33, [
       createKitchenTicket({
@@ -228,6 +294,35 @@ describe('KitchenBoardPage', () => {
 
     expect(await screen.findByRole('button', { name: 'Bắt đầu làm' })).toBeDisabled();
     expect(apiMocks.fireKitchenTicket).not.toHaveBeenCalled();
+  });
+
+  it('shows a retryable inline failure when kitchen dispatch cannot be completed and allows a manual refresh', async () => {
+    apiMocks.dispatchKitchenOrder.mockRejectedValue({
+      status: 500,
+      payload: {
+        error_code: 'server_error',
+        request_id: 'req-kitchen-500',
+        message: 'Kitchen gateway timed out.',
+      },
+    });
+
+    renderWithProviders('/kitchen?source=order&order_id=56&order_row_version=10');
+
+    await waitFor(() => expect(apiMocks.listKitchenStations).toHaveBeenCalled());
+    await waitFor(() => expect(apiMocks.getKitchenStationTickets).toHaveBeenCalled());
+    apiMocks.listKitchenStations.mockClear();
+    apiMocks.getKitchenStationTickets.mockClear();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Gửi đơn xuống bếp' }));
+
+    await waitFor(() => expect(screen.getByTestId('mutation-status-notice')).toHaveAttribute('data-phase', 'retriable_failure'));
+    expect(screen.getByText('Kitchen gateway timed out.')).toBeInTheDocument();
+    expect(screen.getByText(/req-kitchen-500/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Làm mới' }));
+
+    await waitFor(() => expect(apiMocks.listKitchenStations).toHaveBeenCalled());
+    await waitFor(() => expect(apiMocks.getKitchenStationTickets).toHaveBeenCalled());
   });
 
   it('refetches kitchen slices when the realtime feed reports a newer version', async () => {
@@ -371,6 +466,11 @@ function createKitchenTicket(overrides: Partial<{
   reservationId: number;
   status: string;
   rowVersion: number | null;
+  ticketNotes: string | null;
+  orderItemNotes: string | null;
+  orderItemQuantity: number;
+  orderItemStatus: string;
+  orderItemMatchesTicket: boolean | null;
 }> = {}) {
   const status = overrides.status ?? 'Queued';
 
@@ -383,7 +483,7 @@ function createKitchenTicket(overrides: Partial<{
     recall_count: 0,
     output_mode: 'Both',
     printer_target: null,
-    ticket_notes: null,
+    ticket_notes: overrides.ticketNotes ?? null,
     first_dispatched_at: '2026-04-11T09:00:00Z',
     fired_at: status === 'Fired' || status === 'Ready' ? '2026-04-11T09:01:00Z' : null,
     ready_at: status === 'Ready' ? '2026-04-11T09:03:00Z' : null,
@@ -416,11 +516,11 @@ function createKitchenTicket(overrides: Partial<{
     order_item: {
       order_item_id: 1,
       item_id: 1,
-      quantity: 1,
+      quantity: overrides.orderItemQuantity ?? 1,
       item_name_snapshot: 'Kitchen Bowl',
-      status: 'Ordered',
+      status: overrides.orderItemStatus ?? 'Ordered',
       row_version: 19,
-      notes: null,
+      notes: overrides.orderItemNotes ?? null,
     },
     lifecycle: {
       status,
@@ -432,7 +532,7 @@ function createKitchenTicket(overrides: Partial<{
       sync_status: 'synced',
       routing_status: 'ok',
       order_item_expected_status: null,
-      order_item_matches_ticket: true,
+      order_item_matches_ticket: overrides.orderItemMatchesTicket ?? true,
       station_active: true,
       drift_reasons: [],
       next_actions: [],

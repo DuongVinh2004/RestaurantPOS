@@ -6,8 +6,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
-import { StatusBadge } from "@/components/status/status-badge";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
+import { StatusBadge } from "@/components/status/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -79,6 +79,7 @@ function WaitingListWorkspace() {
       notes: "",
     },
   });
+
   const refreshPolicy = getWaitingListRefreshPolicy();
   const waitingListQuery = useQuery({
     queryKey: queryKeys.waitingList.list,
@@ -107,6 +108,7 @@ function WaitingListWorkspace() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.waitingList.detail(detailId) });
     }
   };
+
   const syncWaitingListEntry = (entry: CustomerWaitingListEntry) => {
     setSelectedIdOverride(entry.waiting_id);
     queryClient.setQueryData(queryKeys.waitingList.detail(entry.waiting_id), entry);
@@ -121,6 +123,7 @@ function WaitingListWorkspace() {
     });
     void queryClient.invalidateQueries({ queryKey: queryKeys.waitingList.list, refetchType: "inactive" });
   };
+
   const createMutation = useMutation({
     mutationFn: createWaitingListEntry,
     onSuccess(result) {
@@ -130,10 +133,11 @@ function WaitingListWorkspace() {
       form.reset();
       syncWaitingListEntry(entry);
     },
-    onError: (error) => {
+    onError(error) {
       applyWaitingListValidationErrors(error, form);
     },
   });
+
   const actionMutation = useMutation({
     mutationFn: async ({
       action,
@@ -172,6 +176,7 @@ function WaitingListWorkspace() {
       }
     },
   });
+
   const createError = createMutation.error;
   const actionError = actionMutation.error;
   const detailError = detailQuery.error ? normalizeApiError(detailQuery.error) : null;
@@ -209,10 +214,9 @@ function WaitingListWorkspace() {
               <div className="space-y-2">
                 <Label htmlFor="guest_name">Tên khách</Label>
                 <Input id="guest_name" className="min-h-11 rounded-lg" {...form.register("guest_name")} />
-                {form.formState.errors.guest_name ? (
-                  <p className="text-sm text-destructive">{form.formState.errors.guest_name.message}</p>
-                ) : null}
+                {form.formState.errors.guest_name ? <p className="text-sm text-destructive">{form.formState.errors.guest_name.message}</p> : null}
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="guest_count">Số khách</Label>
@@ -223,9 +227,7 @@ function WaitingListWorkspace() {
                     className="min-h-11 rounded-lg"
                     {...form.register("guest_count", { valueAsNumber: true })}
                   />
-                  {form.formState.errors.guest_count ? (
-                    <p className="text-sm text-destructive">{form.formState.errors.guest_count.message}</p>
-                  ) : null}
+                  {form.formState.errors.guest_count ? <p className="text-sm text-destructive">{form.formState.errors.guest_count.message}</p> : null}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Số điện thoại</Label>
@@ -233,12 +235,15 @@ function WaitingListWorkspace() {
                   {form.formState.errors.phone ? <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p> : null}
                 </div>
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="notes">Ghi chú</Label>
                 <Textarea id="notes" className="min-h-20 rounded-lg" {...form.register("notes")} />
                 {form.formState.errors.notes ? <p className="text-sm text-destructive">{form.formState.errors.notes.message}</p> : null}
               </div>
+
               {createError ? <ErrorState error={createError} title="Chưa đăng ký được danh sách chờ" /> : null}
+
               <Button type="submit" className="min-h-11 w-full rounded-lg" disabled={createMutation.isPending}>
                 {createMutation.isPending ? "Đang đăng ký" : "Đăng ký chờ bàn"}
               </Button>
@@ -276,9 +281,11 @@ function WaitingListWorkspace() {
                   description="Đăng ký chờ bàn khi nhà hàng cần bạn ghi danh hoặc chưa có bàn trống ngay."
                 />
               ) : null}
+
               {orderedEntries.map((entry) => {
                 const selected = entry.waiting_id === selectedId;
                 const journey = getWaitingListJourneyState(entry);
+                const eventLabel = getWaitingListEventLabel(entry);
 
                 return (
                   <button
@@ -302,6 +309,8 @@ function WaitingListWorkspace() {
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                       <span>Đăng ký {formatDateTime(entry.requested_at)}</span>
+                      <span>{formatPriorityLabel(entry.priority)}</span>
+                      {eventLabel ? <span>{eventLabel}</span> : null}
                       <span>Bước tiếp theo {formatInlineStateLabel(entry.next_step)}</span>
                     </div>
                   </button>
@@ -352,6 +361,7 @@ function WaitingListWorkspace() {
                   description="Chọn đăng ký chờ để xem trạng thái, kết quả xếp bàn và thao tác có thể làm."
                 />
               ) : null}
+
               {activeEntry && journeyState && actionPolicy && seatResultState ? (
                 <>
                   <div className="space-y-2">
@@ -390,13 +400,29 @@ function WaitingListWorkspace() {
                     </div>
                   </div>
 
-                  <div className="grid gap-3 lg:grid-cols-2">
+                  <div className="grid gap-3 lg:grid-cols-3">
+                    <div className="rounded-lg border p-4">
+                      <p className="text-sm text-muted-foreground">Ưu tiên hàng chờ</p>
+                      <p className="mt-1 font-medium">{formatPriorityLabel(activeEntry.priority)}</p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Cập nhật thủ công nếu nhân viên yêu cầu kiểm tra lại thứ tự chờ hoặc thời hạn phản hồi.
+                      </p>
+                    </div>
                     <div className="rounded-lg border p-4">
                       <p className="text-sm text-muted-foreground">Khung phản hồi lời mời</p>
                       <p className="mt-1 font-medium">{describeInviteWindow(activeEntry)}</p>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Thông báo {formatDateTime(activeEntry.notified_at)} - Hết hạn {formatDateTime(activeEntry.notify_window.expires_at)}
-                      </p>
+                      {activeEntry.notified_at ? (
+                        <p className="mt-2 text-sm text-muted-foreground">Thông báo gần nhất {formatDateTime(activeEntry.notified_at)}</p>
+                      ) : null}
+                      {activeEntry.notify_window.expires_at ? (
+                        <p className="mt-1 text-sm text-muted-foreground">Hết hạn phản hồi {formatDateTime(activeEntry.notify_window.expires_at)}</p>
+                      ) : null}
+                      {activeEntry.cancelled_at ? (
+                        <p className="mt-1 text-sm text-muted-foreground">Đã hủy lúc {formatDateTime(activeEntry.cancelled_at)}</p>
+                      ) : null}
+                      {activeEntry.seated_at ? (
+                        <p className="mt-1 text-sm text-muted-foreground">Đã xếp bàn lúc {formatDateTime(activeEntry.seated_at)}</p>
+                      ) : null}
                     </div>
                     <div className="rounded-lg border p-4">
                       <p className="text-sm text-muted-foreground">{refreshPolicy.title}</p>
@@ -404,6 +430,29 @@ function WaitingListWorkspace() {
                       <p className="mt-2 text-sm text-muted-foreground">{refreshPolicy.description}</p>
                     </div>
                   </div>
+
+                  {activeEntry.notes || activeEntry.cancel_reason || activeEntry.arrival_confirmation.message ? (
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      {activeEntry.notes ? (
+                        <div className="rounded-lg border p-4">
+                          <p className="text-sm text-muted-foreground">Ghi chú của bạn</p>
+                          <p className="mt-1 font-medium">{activeEntry.notes}</p>
+                        </div>
+                      ) : null}
+                      {activeEntry.cancel_reason ? (
+                        <div className="rounded-lg border p-4">
+                          <p className="text-sm text-muted-foreground">Lý do hủy</p>
+                          <p className="mt-1 font-medium">{activeEntry.cancel_reason}</p>
+                        </div>
+                      ) : null}
+                      {activeEntry.arrival_confirmation.message ? (
+                        <div className="rounded-lg border p-4">
+                          <p className="text-sm text-muted-foreground">Lưu ý khi xác nhận đến nơi</p>
+                          <p className="mt-1 font-medium">{activeEntry.arrival_confirmation.message}</p>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
 
                   <section className="space-y-3">
                     <div>
@@ -511,6 +560,38 @@ function describeInviteWindow(entry: CustomerWaitingListEntry) {
   }
 
   return "Chưa có lời mời đang mở";
+}
+
+function getWaitingListEventLabel(entry: CustomerWaitingListEntry): string | null {
+  if (entry.notify_window.is_open && entry.notify_window.expires_at) {
+    return `Phản hồi trước ${formatDateTime(entry.notify_window.expires_at)}`;
+  }
+
+  if (entry.cancelled_at) {
+    return `Đã hủy ${formatDateTime(entry.cancelled_at)}`;
+  }
+
+  if (entry.seated_at) {
+    return `Đã xếp bàn ${formatDateTime(entry.seated_at)}`;
+  }
+
+  if (entry.notify_expires_at && entry.status === "Notified") {
+    return `Lời mời hết hạn ${formatDateTime(entry.notify_expires_at)}`;
+  }
+
+  if (entry.notified_at) {
+    return `Đã mời ${formatDateTime(entry.notified_at)}`;
+  }
+
+  return null;
+}
+
+function formatPriorityLabel(priority: number | null | undefined): string {
+  if (typeof priority === "number" && Number.isFinite(priority)) {
+    return `Ưu tiên ${priority}`;
+  }
+
+  return "Ưu tiên chưa rõ";
 }
 
 function formatInlineStateLabel(value: string | null | undefined): string {

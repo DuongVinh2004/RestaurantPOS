@@ -2,26 +2,16 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
 import { PaymentSessionCard } from "@/features/payments/payment-session-card";
-import { isConflictLikeApiError } from "@/lib/api/errors";
-import { queryKeys } from "@/lib/api/query-keys";
-import { formatMoney } from "@/lib/contracts/format";
-import type { ReservationSummary } from "@/lib/contracts/generated/restaurantpos-sdk";
-import { getSelfServiceBlockedState } from "@/features/reservations/self-service-boundary";
 import {
-  acknowledgeDeposit,
-  confirmDepositPaymentSession,
-  createDepositPaymentSession,
-  type DepositPaymentSessionResult,
-  type DepositPreview,
-  getDepositPreview,
-  refreshDepositPaymentSession,
-  revokeDepositIntent,
-  submitDepositIntent,
-} from "./api";
+  clearStoredCustomerPaymentSession,
+  readStoredCustomerPaymentSession,
+  storeCustomerPaymentSession,
+} from "@/features/payments/session-storage";
+import { getSelfServiceBlockedState } from "@/features/reservations/self-service-boundary";
 import {
   getDepositPaymentSupportState,
   getDepositPolicy,
@@ -29,6 +19,25 @@ import {
   getPaymentSessionPolicy,
   parseDepositContract,
 } from "@/features/reservations/state";
+import {
+  isConflictLikeApiError,
+  normalizeApiError,
+} from "@/lib/api/errors";
+import { queryKeys } from "@/lib/api/query-keys";
+import { formatMoney } from "@/lib/contracts/format";
+import type { ReservationSummary } from "@/lib/contracts/generated/restaurantpos-sdk";
+import {
+  acknowledgeDeposit,
+  confirmDepositPaymentSession,
+  createDepositPaymentSession,
+  type DepositPaymentSessionResult,
+  type DepositPreview,
+  getDepositPaymentSession,
+  getDepositPreview,
+  refreshDepositPaymentSession,
+  revokeDepositIntent,
+  submitDepositIntent,
+} from "./api";
 
 export function DepositPanel({
   reservation,
@@ -38,39 +47,92 @@ export function DepositPanel({
   onReservationChanged?: (reservation?: ReservationSummary) => void;
 }) {
   const queryClient = useQueryClient();
-  const [paymentSession, setPaymentSession] = useState<DepositPaymentSessionResult | null>(null);
   const reservationId = reservation.reservation_id;
+  const [paymentSession, setPaymentSession] = useState<DepositPaymentSessionResult | null>(null);
+  const [storedSessionId, setStoredSessionId] = useState<number | null>(
+    () => readStoredCustomerPaymentSession("deposit", reservationId)?.session_id ?? null,
+  );
+  const [paymentSessionRestoreError, setPaymentSessionRestoreError] = useState<unknown>(null);
   const depositQuery = useQuery({
     queryKey: queryKeys.reservations.deposit(reservationId),
     queryFn: () => getDepositPreview(reservationId),
   });
+  const paymentSessionQuery = useQuery({
+    queryKey: queryKeys.reservations.depositPaymentSession(reservationId, storedSessionId),
+    queryFn: async () => {
+      setPaymentSessionRestoreError(null);
+
+      try {
+        const result = await getDepositPaymentSession(reservationId, storedSessionId as number);
+        const restoredPolicy = getPaymentSessionPolicy(result.payment_session, { surface: "deposit" });
+
+        if (restoredPolicy.terminal) {
+          clearStoredCustomerPaymentSession("deposit", reservationId);
+          setStoredSessionId(null);
+          setPaymentSession(result);
+        }
+
+        return result;
+      } catch (error) {
+        setPaymentSessionRestoreError(error);
+        const normalized = normalizeApiError(error);
+
+        if (normalized.kind === "unauthorized" || normalized.kind === "forbidden" || normalized.kind === "not_found") {
+          clearStoredCustomerPaymentSession("deposit", reservationId);
+          setStoredSessionId(null);
+          setPaymentSession(null);
+        }
+
+        throw error;
+      }
+    },
+    enabled: storedSessionId !== null && paymentSession === null,
+  });
+
+  const clearStoredSession = () => {
+    clearStoredCustomerPaymentSession("deposit", reservationId);
+    setStoredSessionId(null);
+  };
 
   const refreshWorkspace = async ({ clearSession = false }: { clearSession?: boolean } = {}) => {
     if (clearSession) {
       setPaymentSession(null);
+      clearStoredSession();
     }
 
+    setPaymentSessionRestoreError(null);
     const refreshed = await depositQuery.refetch();
     onReservationChanged?.(refreshed.data?.reservation);
   };
+
   const currentRowVersion = depositQuery.data?.reservation.row_version ?? reservation.row_version;
+  const currentPaymentSession = paymentSession ?? paymentSessionQuery.data ?? null;
+
   const syncDepositPreview = async (result: DepositPreview) => {
     queryClient.setQueryData(queryKeys.reservations.deposit(reservationId), result);
     onReservationChanged?.(result.reservation);
   };
+
   const syncPaymentSession = async (result: DepositPaymentSessionResult) => {
     setPaymentSession(result);
+    setPaymentSessionRestoreError(null);
+    storeCustomerPaymentSession("deposit", reservationId, result.payment_session.deposit_payment_session_id);
+    setStoredSessionId(result.payment_session.deposit_payment_session_id);
+
     const nextPolicy = getPaymentSessionPolicy(result.payment_session, { surface: "deposit" });
 
     if (nextPolicy.terminal) {
+      clearStoredSession();
       await refreshWorkspace();
     }
   };
+
   const handleConflict = async (error: unknown) => {
     if (isConflictLikeApiError(error)) {
       await refreshWorkspace({ clearSession: true });
     }
   };
+
   const acknowledgeMutation = useMutation({
     mutationFn: () => acknowledgeDeposit(reservationId, currentRowVersion),
     onSuccess: syncDepositPreview,
@@ -88,12 +150,13 @@ export function DepositPanel({
   });
   const createSessionMutation = useMutation({
     mutationFn: () => createDepositPaymentSession(reservationId, currentRowVersion),
+    onMutate: () => setPaymentSessionRestoreError(null),
     onSuccess: syncPaymentSession,
     onError: handleConflict,
   });
   const refreshSessionMutation = useMutation({
     mutationFn: () => {
-      const session = paymentSession?.payment_session;
+      const session = currentPaymentSession?.payment_session;
 
       if (!session) {
         throw new Error("Chưa có phiên thanh toán để cập nhật.");
@@ -101,12 +164,13 @@ export function DepositPanel({
 
       return refreshDepositPaymentSession(reservationId, session.deposit_payment_session_id, session.row_version);
     },
+    onMutate: () => setPaymentSessionRestoreError(null),
     onSuccess: syncPaymentSession,
     onError: handleConflict,
   });
   const confirmSessionMutation = useMutation({
     mutationFn: () => {
-      const session = paymentSession?.payment_session;
+      const session = currentPaymentSession?.payment_session;
 
       if (!session) {
         throw new Error("Chưa có phiên thanh toán để xác nhận.");
@@ -114,6 +178,7 @@ export function DepositPanel({
 
       return confirmDepositPaymentSession(reservationId, session.deposit_payment_session_id, session.row_version);
     },
+    onMutate: () => setPaymentSessionRestoreError(null),
     onSuccess: syncPaymentSession,
     onError: handleConflict,
   });
@@ -125,21 +190,28 @@ export function DepositPanel({
     reservation: depositReservation,
     deposit: depositState,
   });
-  const session = paymentSession?.payment_session;
+  const session = currentPaymentSession?.payment_session;
   const sessionPolicy = session ? getPaymentSessionPolicy(session, { surface: "deposit" }) : null;
   const paymentSupport = getDepositPaymentSupportState({
     canCreatePaymentSession: depositPolicy.canCreatePaymentSession,
     deposit: depositState,
   });
   const previewActionError = acknowledgeMutation.error ?? intentMutation.error ?? revokeMutation.error;
-  const sessionActionError = createSessionMutation.error ?? refreshSessionMutation.error ?? confirmSessionMutation.error;
+  const sessionActionError =
+    paymentSessionRestoreError ?? createSessionMutation.error ?? refreshSessionMutation.error ?? confirmSessionMutation.error;
   const actionError = previewActionError ?? sessionActionError;
-  const loadBoundary = depositQuery.error ? getSelfServiceBlockedState("deposit", depositQuery.error, "Chưa tải được đặt cọc") : null;
+  const loadBoundary = depositQuery.error
+    ? getSelfServiceBlockedState("deposit", depositQuery.error, "Chưa tải được đặt cọc")
+    : null;
   const actionBoundary = actionError
     ? getSelfServiceBlockedState(
         "deposit",
         actionError,
-        isConflictLikeApiError(actionError) ? "Thông tin đặt cọc đã thay đổi" : sessionActionError ? "Chưa mở được thanh toán" : "Chưa xử lý được đặt cọc",
+        isConflictLikeApiError(actionError)
+          ? "Thông tin đặt cọc đã thay đổi"
+          : sessionActionError
+            ? "Chưa mở được thanh toán"
+            : "Chưa xử lý được đặt cọc",
       )
     : null;
   const noActionTitle =
@@ -184,6 +256,9 @@ export function DepositPanel({
       </CardHeader>
       <CardContent className="space-y-4">
         {depositQuery.isLoading ? <LoadingBlock label="Đang tải đặt cọc" /> : null}
+        {paymentSessionQuery.isLoading && storedSessionId !== null && paymentSession === null ? (
+          <LoadingBlock label="Đang khôi phục phiên thanh toán đặt cọc" />
+        ) : null}
         {loadBoundary ? (
           loadBoundary.kind === "error" ? (
             <ErrorState error={loadBoundary.error} title={loadBoundary.title} onRetry={() => depositQuery.refetch()} />
@@ -196,7 +271,9 @@ export function DepositPanel({
             <section className="space-y-3">
               <div>
                 <h3 className="text-lg font-semibold">Tóm tắt đặt cọc</h3>
-                <p className="text-sm text-muted-foreground">Xem khoản đặt cọc cần xử lý trước khi thanh toán.</p>
+                <p className="text-sm text-muted-foreground">
+                  Xem khoản đặt cọc cần xử lý trước khi thanh toán.
+                </p>
               </div>
               <div className="rounded-lg bg-secondary p-4">
                 <div>
@@ -206,36 +283,61 @@ export function DepositPanel({
                 </div>
                 <div className="mt-4">
                   <p className="text-sm text-muted-foreground">Số tiền cần trả</p>
-                  <p className="text-2xl font-semibold">{formatMoney(depositPolicy.amount, depositPolicy.currency)}</p>
+                  <p className="text-2xl font-semibold">
+                    {formatMoney(depositPolicy.amount, depositPolicy.currency)}
+                  </p>
                 </div>
               </div>
               {depositPolicy.canAcknowledge || depositPolicy.canSubmitIntent || depositPolicy.canRevokeIntent ? (
                 <div className="grid gap-2 sm:grid-cols-2">
                   {depositPolicy.canAcknowledge ? (
-                    <Button type="button" variant="outline" className="rounded-lg" disabled={acknowledgeMutation.isPending} onClick={() => acknowledgeMutation.mutate()}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-lg"
+                      disabled={acknowledgeMutation.isPending}
+                      onClick={() => acknowledgeMutation.mutate()}
+                    >
                       Tôi đã hiểu yêu cầu đặt cọc
                     </Button>
                   ) : null}
                   {depositPolicy.canSubmitIntent ? (
-                    <Button type="button" variant="outline" className="rounded-lg" disabled={intentMutation.isPending} onClick={() => intentMutation.mutate()}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-lg"
+                      disabled={intentMutation.isPending}
+                      onClick={() => intentMutation.mutate()}
+                    >
                       Tôi sẽ tự thanh toán
                     </Button>
                   ) : null}
                   {depositPolicy.canRevokeIntent ? (
-                    <Button type="button" variant="outline" className="rounded-lg" disabled={revokeMutation.isPending} onClick={() => revokeMutation.mutate()}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-lg"
+                      disabled={revokeMutation.isPending}
+                      onClick={() => revokeMutation.mutate()}
+                    >
                       Hủy tự thanh toán
                     </Button>
                   ) : null}
                 </div>
               ) : (
-                <EmptyState title={noActionTitle} description={depositPolicy.noActionMessage ?? "Hiện không cần thao tác thêm với đặt cọc."} />
+                <EmptyState
+                  title={noActionTitle}
+                  description={depositPolicy.noActionMessage ?? "Hiện không cần thao tác thêm với đặt cọc."}
+                />
               )}
             </section>
 
             <section className="space-y-3">
               <div>
                 <h3 className="text-lg font-semibold">Thanh toán đặt cọc</h3>
-                <p className="text-sm text-muted-foreground">Mở thanh toán khi lịch đặt đã sẵn sàng để khách trả đặt cọc.</p>
+                <p className="text-sm text-muted-foreground">
+                  Mở thanh toán khi lịch đặt đã sẵn sàng để khách trả đặt cọc.
+                </p>
               </div>
               {session && sessionPolicy ? (
                 <PaymentSessionCard
@@ -253,7 +355,12 @@ export function DepositPanel({
                   description={paymentSupport.description}
                   action={
                     depositPolicy.canCreatePaymentSession ? (
-                      <Button type="button" className="rounded-lg" disabled={createSessionMutation.isPending} onClick={() => createSessionMutation.mutate()}>
+                      <Button
+                        type="button"
+                        className="rounded-lg"
+                        disabled={createSessionMutation.isPending}
+                        onClick={() => createSessionMutation.mutate()}
+                      >
                         {createSessionMutation.isPending ? "Đang mở thanh toán" : "Thanh toán đặt cọc"}
                       </Button>
                     ) : undefined
@@ -263,7 +370,20 @@ export function DepositPanel({
             </section>
             {actionBoundary ? (
               actionBoundary.kind === "error" ? (
-                <ErrorState error={actionBoundary.error} title={actionBoundary.title} onRetry={() => refreshWorkspace()} />
+                <ErrorState
+                  error={actionBoundary.error}
+                  title={actionBoundary.title}
+                  onRetry={() => {
+                    setPaymentSessionRestoreError(null);
+
+                    if (storedSessionId !== null && paymentSession === null) {
+                      paymentSessionQuery.refetch();
+                      return;
+                    }
+
+                    refreshWorkspace();
+                  }}
+                />
               ) : (
                 <EmptyState title={actionBoundary.title} description={actionBoundary.description} />
               )

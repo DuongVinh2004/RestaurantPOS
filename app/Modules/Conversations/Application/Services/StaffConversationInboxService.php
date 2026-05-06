@@ -155,24 +155,7 @@ class StaffConversationInboxService
             'analyses' => $analyses,
             'ai_assist' => $this->conversationAiAssistBuilder->buildForConversationDetail($conversation, $messages, $analyses),
             'assignment_history' => $assignmentHistoryQuery->get(),
-            'capabilities' => [
-                'can_assign' => true,
-                'can_take_over' => true,
-                'can_unassign' => true,
-                'can_link' => true,
-                'can_update_workflow_state' => true,
-                'can_add_internal_note' => true,
-                'can_send_outbound_reply' => (bool) ($outboundReply['supported'] ?? false),
-                'outbound_reply' => [
-                    'supported' => (bool) ($outboundReply['supported'] ?? false),
-                    'channel' => $outboundReply['channel'] ?? null,
-                    'delivery_mode' => $outboundReply['delivery_mode'] ?? null,
-                    'recipient_masked' => $outboundReply['recipient_masked'] ?? null,
-                    'reason_code' => $outboundReply['reason_code'] ?? null,
-                    'reason' => $outboundReply['reason'] ?? null,
-                    'quiet_until_utc' => $outboundReply['quiet_until_utc'] ?? null,
-                ],
-            ],
+            'capabilities' => $this->detailCapabilities($conversation, $outboundReply),
             'message_limit' => $messageLimit,
             'event_limit' => $eventLimit,
             'include_closed_assignments' => $includeClosedAssignments,
@@ -312,6 +295,47 @@ class StaffConversationInboxService
     }
 
     /**
+     * @param  array<string, mixed>  $outboundReply
+     * @return array<string, mixed>
+     */
+    private function detailCapabilities(Conversation $conversation, array $outboundReply): array
+    {
+        $workflowState = $conversation->workflowState();
+        $workflowTargets = $this->workflowStateTargets($workflowState);
+        $hasActiveAssignment = $conversation->relationLoaded('activeAssignment')
+            ? $conversation->activeAssignment !== null
+            : $conversation->activeAssignment()->exists();
+        $canAssignOrTakeOver = ! in_array($workflowState, [
+            StaffConversationWorkflowState::Resolved,
+            StaffConversationWorkflowState::Closed,
+        ], true);
+        $canMutateLinksOrNotes = $workflowState !== StaffConversationWorkflowState::Closed;
+
+        return [
+            'can_assign' => $canAssignOrTakeOver,
+            'can_take_over' => $canAssignOrTakeOver,
+            'can_unassign' => $hasActiveAssignment,
+            'can_link' => $canMutateLinksOrNotes,
+            'can_update_workflow_state' => $workflowTargets !== [],
+            'workflow_state_targets' => array_map(
+                static fn (StaffConversationWorkflowState $state): string => $state->value,
+                $workflowTargets,
+            ),
+            'can_add_internal_note' => $canMutateLinksOrNotes,
+            'can_send_outbound_reply' => (bool) ($outboundReply['supported'] ?? false),
+            'outbound_reply' => [
+                'supported' => (bool) ($outboundReply['supported'] ?? false),
+                'channel' => $outboundReply['channel'] ?? null,
+                'delivery_mode' => $outboundReply['delivery_mode'] ?? null,
+                'recipient_masked' => $outboundReply['recipient_masked'] ?? null,
+                'reason_code' => $outboundReply['reason_code'] ?? null,
+                'reason' => $outboundReply['reason'] ?? null,
+                'quiet_until_utc' => $outboundReply['quiet_until_utc'] ?? null,
+            ],
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function buildSummary(Builder $query, ?int $staffActorUserId): array
@@ -381,6 +405,43 @@ class StaffConversationInboxService
         return match ($sortBy) {
             'created_at', 'message_count' => $sortBy,
             default => 'latest_activity',
+        };
+    }
+
+    /**
+     * @return list<StaffConversationWorkflowState>
+     */
+    private function workflowStateTargets(StaffConversationWorkflowState $currentState): array
+    {
+        return match ($currentState) {
+            StaffConversationWorkflowState::Open => [
+                StaffConversationWorkflowState::Triaged,
+                StaffConversationWorkflowState::PendingCustomer,
+                StaffConversationWorkflowState::Closed,
+            ],
+            StaffConversationWorkflowState::Triaged => [
+                StaffConversationWorkflowState::Open,
+                StaffConversationWorkflowState::PendingCustomer,
+                StaffConversationWorkflowState::Resolved,
+                StaffConversationWorkflowState::Closed,
+            ],
+            StaffConversationWorkflowState::Assigned => [
+                StaffConversationWorkflowState::PendingCustomer,
+                StaffConversationWorkflowState::Resolved,
+                StaffConversationWorkflowState::Closed,
+            ],
+            StaffConversationWorkflowState::PendingCustomer => [
+                StaffConversationWorkflowState::Triaged,
+                StaffConversationWorkflowState::Resolved,
+                StaffConversationWorkflowState::Closed,
+            ],
+            StaffConversationWorkflowState::Resolved => [
+                StaffConversationWorkflowState::Triaged,
+                StaffConversationWorkflowState::Closed,
+            ],
+            StaffConversationWorkflowState::Closed => [
+                StaffConversationWorkflowState::Triaged,
+            ],
         };
     }
 
