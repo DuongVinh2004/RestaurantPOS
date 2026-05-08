@@ -25,11 +25,12 @@ class TableAvailabilityFeatureTest extends TestCase
     {
         $start = $this->nowUtc()->copy()->addHours(3)->startOfMinute();
         $end = $start->copy()->addHours(2);
+        $zone = 'AVAIL-OWN-SESSION';
 
-        $tableA = $this->createRestaurantTableWithSeats(2, ['zone' => 'A', 'table_code' => 'A-02']);
-        $tableB = $this->createRestaurantTableWithSeats(2, ['zone' => 'A', 'table_code' => 'A-03']);
-        $reservedTable = $this->createRestaurantTableWithSeats(4, ['zone' => 'A', 'table_code' => 'A-04']);
-        $heldByOther = $this->createRestaurantTableWithSeats(4, ['zone' => 'A', 'table_code' => 'A-05']);
+        $tableA = $this->createRestaurantTableWithSeats(2, ['zone' => $zone, 'table_code' => 'A-02']);
+        $tableB = $this->createRestaurantTableWithSeats(2, ['zone' => $zone, 'table_code' => 'A-03']);
+        $reservedTable = $this->createRestaurantTableWithSeats(4, ['zone' => $zone, 'table_code' => 'A-04']);
+        $heldByOther = $this->createRestaurantTableWithSeats(4, ['zone' => $zone, 'table_code' => 'A-05']);
 
         $reservationId = $this->createReservation([
             'start_time' => $start,
@@ -53,9 +54,10 @@ class TableAvailabilityFeatureTest extends TestCase
         ], [$tableB]);
 
         $response = $this->getJson(sprintf(
-            '/api/v1/tables/available?from=%s&to=%s&zone=A&guest_count=4&suggest=1&session_id=self-session',
+            '/api/v1/tables/available?from=%s&to=%s&zone=%s&guest_count=4&suggest=1&session_id=self-session',
             urlencode($start->toIso8601String()),
             urlencode($end->toIso8601String()),
+            urlencode($zone),
         ));
 
         $response->assertOk();
@@ -76,9 +78,10 @@ class TableAvailabilityFeatureTest extends TestCase
     {
         $start = $this->nowUtc()->copy()->addHours(4)->startOfMinute();
         $end = $start->copy()->addHours(2);
+        $zone = 'AVAIL-HOLD-FILTER';
 
-        $visibleTableId = $this->createRestaurantTableWithSeats(2, ['zone' => 'A', 'table_code' => 'A-10']);
-        $ownHeldTableId = $this->createRestaurantTableWithSeats(2, ['zone' => 'A', 'table_code' => 'A-11']);
+        $visibleTableId = $this->createRestaurantTableWithSeats(2, ['zone' => $zone, 'table_code' => 'A-10']);
+        $ownHeldTableId = $this->createRestaurantTableWithSeats(2, ['zone' => $zone, 'table_code' => 'A-11']);
 
         $this->createTableHold([
             'session_id' => 'self-session',
@@ -88,9 +91,10 @@ class TableAvailabilityFeatureTest extends TestCase
         ], [$ownHeldTableId]);
 
         $response = $this->getJson(sprintf(
-            '/api/v1/tables/available?from=%s&to=%s&zone=A&guest_count=2',
+            '/api/v1/tables/available?from=%s&to=%s&zone=%s&guest_count=2',
             urlencode($start->toIso8601String()),
             urlencode($end->toIso8601String()),
+            urlencode($zone),
         ));
 
         $response->assertOk();

@@ -442,6 +442,9 @@ class ReservationHttpFlowTest extends TestCase
         ]);
         $this->attachReservationTable($existingReservationId, $tableId);
 
+        $reservationCountBefore = (int) DB::table('reservations')->count();
+        $reservationTableCountBefore = (int) DB::table('reservation_tables')->where('table_id', $tableId)->count();
+
         $response = $this->actingAs($user)->postJson('/api/v1/reservations', [
             'start_time' => $start->toIso8601String(),
             'end_time' => $end->toIso8601String(),
@@ -449,8 +452,8 @@ class ReservationHttpFlowTest extends TestCase
             'table_ids' => [$tableId],
         ], $this->withIdempotencyKey('reservation-overlap-reject'));
 
-        $this->assertSame(1, (int) DB::table('reservations')->count());
-        $this->assertSame(1, (int) DB::table('reservation_tables')->where('table_id', $tableId)->count());
+        $this->assertSame($reservationCountBefore, (int) DB::table('reservations')->count());
+        $this->assertSame($reservationTableCountBefore, (int) DB::table('reservation_tables')->where('table_id', $tableId)->count());
 
         $response->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error');

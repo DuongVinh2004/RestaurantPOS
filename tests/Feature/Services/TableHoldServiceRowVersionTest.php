@@ -35,6 +35,10 @@ class TableHoldServiceRowVersionTest extends TestCase
 
     public function test_expire_stale_holds_bumps_row_version_and_marks_hold_expired(): void
     {
+        $staleHoldCountBefore = (int) DB::table('table_holds')
+            ->where('hold_status', 'Holding')
+            ->where('expire_at', '<=', Carbon::now('UTC'))
+            ->count();
         $tableId = $this->createRestaurantTable(['status' => 'Available']);
         $holdId = $this->createTableHold([
             'session_id' => 'sess-hold-expire-rv',
@@ -46,7 +50,7 @@ class TableHoldServiceRowVersionTest extends TestCase
         $service = $this->makeTableHoldService();
         $expired = $service->expireStaleHolds();
 
-        self::assertSame(1, $expired);
+        self::assertSame($staleHoldCountBefore + 1, $expired);
         self::assertSame('Expired', (string) DB::table('table_holds')->where('hold_id', $holdId)->value('hold_status'));
         self::assertSame(2, (int) DB::table('table_holds')->where('hold_id', $holdId)->value('row_version'));
         self::assertNotNull(DB::table('table_holds')->where('hold_id', $holdId)->value('updated_at'));
@@ -54,6 +58,10 @@ class TableHoldServiceRowVersionTest extends TestCase
 
     public function test_cancel_hold_after_scheduler_expiry_rejects_stale_row_version_before_status_check(): void
     {
+        $staleHoldCountBefore = (int) DB::table('table_holds')
+            ->where('hold_status', 'Holding')
+            ->where('expire_at', '<=', Carbon::now('UTC'))
+            ->count();
         $tableId = $this->createRestaurantTable(['status' => 'Available']);
         $holdId = $this->createTableHold([
             'session_id' => 'sess-hold-expire-stale-rv',
@@ -63,7 +71,7 @@ class TableHoldServiceRowVersionTest extends TestCase
         ], [$tableId]);
 
         $service = $this->makeTableHoldService();
-        self::assertSame(1, $service->expireStaleHolds());
+        self::assertSame($staleHoldCountBefore + 1, $service->expireStaleHolds());
 
         try {
             $service->cancelHold($holdId, 'sess-hold-expire-stale-rv', false, 1, 55);

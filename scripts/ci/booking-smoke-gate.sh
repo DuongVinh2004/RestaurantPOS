@@ -39,6 +39,13 @@ booking_ci_run_step \
   "php artisan notifications:outbox-health --json | tee build/booking-ci/booking-outbox-health-smoke.json"
 
 booking_ci_run_step \
+  "smoke-reporting-snapshots-rebuild" \
+  "booking reporting snapshots rebuild smoke" \
+  300 \
+  "build/booking-ci/smoke-reporting-snapshots-rebuild.log" \
+  "php artisan booking:reporting-snapshots:rebuild --json | tee build/booking-ci/booking-reporting-snapshots-rebuild-smoke.json"
+
+booking_ci_run_step \
   "smoke-deploy-check" \
   "booking deploy preflight smoke" \
   240 \
@@ -87,12 +94,28 @@ booking_ci_run_step \
   "build/booking-ci/smoke-fast-booking.log" \
   "bash scripts/ci/booking-smoke.sh"
 
+# Runtime and idempotency smoke tests intentionally flush Redis state. Refresh
+# the scheduler heartbeat again before downstream ops checks assert freshness.
+booking_ci_run_step \
+  "smoke-heartbeat-touch-before-ops" \
+  "booking smoke scheduler heartbeat touch before ops" \
+  120 \
+  "build/booking-ci/smoke-heartbeat-touch-before-ops.log" \
+  "php artisan booking:ops-heartbeat:touch scheduler --json | tee build/booking-ci/booking-ops-heartbeat-touch-before-ops.json"
+
 booking_ci_run_step \
   "smoke-ops" \
   "booking ops smoke tests" \
   "${BOOKING_SMOKE_GATE_OPS_TIMEOUT_SECONDS:-1200}" \
   "build/booking-ci/smoke-ops.log" \
   "bash scripts/ci/booking-ops-smoke.sh"
+
+booking_ci_run_step \
+  "smoke-heartbeat-touch-before-reliability" \
+  "booking smoke scheduler heartbeat touch before reliability" \
+  120 \
+  "build/booking-ci/smoke-heartbeat-touch-before-reliability.log" \
+  "php artisan booking:ops-heartbeat:touch scheduler --json | tee build/booking-ci/booking-ops-heartbeat-touch-before-reliability.json"
 
 booking_ci_run_step \
   "smoke-reliability" \

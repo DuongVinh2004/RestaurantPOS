@@ -49,9 +49,10 @@ class StaffReservationTimelineWorkbenchFlowTest extends TestCase
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $headers = $this->staffAuthHeaders($staffId);
 
-        $checkInTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'TL-WB-CHECKIN', 'zone' => 'Main', 'status' => 'Available']);
-        $candidateTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'TL-WB-CANDIDATE', 'zone' => 'Main', 'status' => 'Available']);
-        $moveTargetTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'TL-WB-MOVE', 'zone' => 'Main', 'status' => 'Available']);
+        $zone = 'Timeline Workbench';
+        $checkInTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'TL-WB-CHECKIN', 'zone' => $zone, 'status' => 'Available']);
+        $candidateTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'TL-WB-CANDIDATE', 'zone' => $zone, 'status' => 'Available']);
+        $moveTargetTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'TL-WB-MOVE', 'zone' => $zone, 'status' => 'Available']);
 
         $unassignedReservationId = $this->createReservation([
             'reservation_code' => 'TL-WB-UNASSIGNED',
@@ -88,7 +89,7 @@ class StaffReservationTimelineWorkbenchFlowTest extends TestCase
         DB::table('restaurant_tables')->where('table_id', $moveTargetTableId)->update(['status' => 'Occupied']);
 
         $response = $this->withHeaders($headers)
-            ->getJson('/api/v1/staff/reservations/timeline?date=2026-03-21&lane_by=table&include_candidate_tables=1');
+            ->getJson('/api/v1/staff/reservations/timeline?date=2026-03-21&lane_by=table&include_candidate_tables=1&zone='.rawurlencode($zone));
 
         $response->assertOk()
             ->assertJsonPath('meta.workbench.supported', true)
@@ -256,8 +257,9 @@ class StaffReservationTimelineWorkbenchFlowTest extends TestCase
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $headers = $this->withIdempotencyKey('timeline-workbench-assign-best-fit', $this->staffAuthHeaders($staffId));
 
-        $bestFitTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'TL-WB-BESTFIT-04', 'zone' => 'Main', 'status' => 'Available']);
-        $this->createRestaurantTableWithSeats(6, ['table_code' => 'TL-WB-BESTFIT-06', 'zone' => 'Main', 'status' => 'Available']);
+        $zone = 'Timeline Best Fit';
+        $bestFitTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'TL-WB-BESTFIT-04', 'zone' => $zone, 'status' => 'Available']);
+        $this->createRestaurantTableWithSeats(6, ['table_code' => 'TL-WB-BESTFIT-06', 'zone' => $zone, 'status' => 'Available']);
         $reservationId = $this->createReservation([
             'reservation_code' => 'TL-WB-ASSIGN-BESTFIT',
             'status' => 'Confirmed',
@@ -270,6 +272,7 @@ class StaffReservationTimelineWorkbenchFlowTest extends TestCase
         $response = $this->withHeaders($headers)
             ->postJson("/api/v1/staff/reservations/{$reservationId}/timeline/actions/assign-best-fit", [
                 'row_version' => 1,
+                'zone' => $zone,
             ]);
 
         $response->assertOk()
@@ -294,14 +297,15 @@ class StaffReservationTimelineWorkbenchFlowTest extends TestCase
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $headers = $this->withIdempotencyKey('timeline-workbench-assign-best-fit-window-context', $this->staffAuthHeaders($staffId));
 
+        $zone = 'Timeline Window';
         $slotOnlyTableId = $this->createRestaurantTableWithSeats(4, [
             'table_code' => 'AA-04',
-            'zone' => 'Main',
+            'zone' => $zone,
             'status' => 'Available',
         ]);
         $openWindowTableId = $this->createRestaurantTableWithSeats(4, [
             'table_code' => 'ZZ-04',
-            'zone' => 'Main',
+            'zone' => $zone,
             'status' => 'Available',
         ]);
 
@@ -328,7 +332,7 @@ class StaffReservationTimelineWorkbenchFlowTest extends TestCase
                 'row_version' => 1,
                 'board_from' => '2026-03-20T17:00:00+00:00',
                 'board_to' => '2026-03-21T17:00:00+00:00',
-                'zone' => 'Main',
+                'zone' => $zone,
             ]);
 
         $response->assertOk()
@@ -367,7 +371,7 @@ class StaffReservationTimelineWorkbenchFlowTest extends TestCase
         $response = $this->withHeaders($headers)
             ->postJson("/api/v1/staff/reservations/{$reservationId}/timeline/actions/check-in", [
                 'row_version' => 1,
-                'checked_in_at' => Carbon::parse('2026-03-21 10:00:00', 'UTC')->toIso8601String(),
+                'checked_in_at' => Carbon::parse('2026-03-21 11:30:00', 'UTC')->toIso8601String(),
             ]);
 
         $response->assertStatus(422)

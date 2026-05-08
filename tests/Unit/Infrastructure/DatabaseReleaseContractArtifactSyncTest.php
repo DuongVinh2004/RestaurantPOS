@@ -69,6 +69,27 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
         $this->assertStringNotContainsString('bash tools/mysql/bootstrap_release.sh', $script);
     }
 
+    public function test_staff_branch_assignment_patch_seeds_canonical_operational_role_ids(): void
+    {
+        $patchPath = database_path('patches/2026_04_24_000055_staff_branch_assignments_foundation.sql');
+
+        $this->assertTrue(File::exists($patchPath), sprintf('Staff branch assignment patch is missing: %s', $patchPath));
+
+        $patch = (string) File::get($patchPath);
+
+        $this->assertStringContainsString('INSERT INTO `roles` (`role_id`, `role_name`)', $patch);
+        foreach ([
+            "(4, 'Server')",
+            "(5, 'Waiter')",
+            "(6, 'Cashier')",
+            "(7, 'Kitchen')",
+            "(8, 'Manager')",
+        ] as $fragment) {
+            $this->assertStringContainsString($fragment, $patch);
+        }
+        $this->assertStringNotContainsString('INSERT INTO `roles` (`role_name`)', $patch);
+    }
+
     public function test_smoke_gate_refreshes_scheduler_heartbeat_after_cache_clear(): void
     {
         $smokeGatePath = base_path('scripts/ci/booking-smoke-gate.sh');
@@ -79,7 +100,44 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
 
         $this->assertStringContainsString('php artisan cache:clear || true', $script);
         $this->assertStringContainsString('php artisan booking:ops-heartbeat:touch scheduler --json | tee build/booking-ci/booking-ops-heartbeat-touch.json', $script);
+        $this->assertStringContainsString('php artisan booking:ops-heartbeat:touch scheduler --json | tee build/booking-ci/booking-ops-heartbeat-touch-before-ops.json', $script);
+        $this->assertStringContainsString('php artisan booking:ops-heartbeat:touch scheduler --json | tee build/booking-ci/booking-ops-heartbeat-touch-before-reliability.json', $script);
         $this->assertStringContainsString('php artisan notifications:outbox-health --json | tee build/booking-ci/booking-outbox-health-smoke.json', $script);
+        $this->assertStringContainsString('php artisan booking:reporting-snapshots:rebuild --json | tee build/booking-ci/booking-reporting-snapshots-rebuild-smoke.json', $script);
+    }
+
+    public function test_runtime_smoke_rebuilds_reporting_snapshots_before_deploy_check(): void
+    {
+        $runtimeSmokePath = base_path('scripts/ci/booking-runtime-smoke.sh');
+
+        $this->assertTrue(File::exists($runtimeSmokePath), sprintf('Runtime smoke script is missing: %s', $runtimeSmokePath));
+
+        $script = (string) File::get($runtimeSmokePath);
+
+        $this->assertStringContainsString('php artisan booking:reporting-snapshots:rebuild --json | tee build/booking-ci/runtime-reporting-snapshots-rebuild.json', $script);
+        $this->assertStringContainsString('php artisan booking:deploy-check --mode=preflight --strict --json | tee build/booking-ci/runtime-deploy-check-strict.json', $script);
+    }
+
+    public function test_reliability_smoke_refreshes_scheduler_heartbeat_before_strict_doctor(): void
+    {
+        $reliabilitySmokePath = base_path('scripts/ci/booking-reliability-smoke.sh');
+
+        $this->assertTrue(File::exists($reliabilitySmokePath), sprintf('Reliability smoke script is missing: %s', $reliabilitySmokePath));
+
+        $script = (string) File::get($reliabilitySmokePath);
+
+        $this->assertStringContainsString('php artisan booking:ops-heartbeat:touch scheduler --json | tee build/booking-ci/reliability-ops-heartbeat-touch.json', $script);
+        $this->assertStringContainsString('php artisan booking:doctor --strict', $script);
+        $heartbeatPosition = strpos($script, 'php artisan booking:ops-heartbeat:touch scheduler --json');
+        $doctorPosition = strpos($script, 'php artisan booking:doctor --strict');
+
+        $this->assertNotFalse($heartbeatPosition);
+        $this->assertNotFalse($doctorPosition);
+        $this->assertLessThan(
+            $doctorPosition,
+            $heartbeatPosition,
+            'Reliability smoke must refresh the scheduler heartbeat before strict booking doctor runs.'
+        );
     }
 
     public function test_full_gate_runs_complete_test_static_analysis_and_style_gates(): void
@@ -91,7 +149,7 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
         $script = (string) File::get($fullGatePath);
 
         $this->assertStringContainsString('php artisan test', $script);
-        $this->assertStringContainsString('vendor/bin/phpstan analyse --no-progress --memory-limit=1G', $script);
+        $this->assertStringContainsString('BOOKING_PHPSTAN_MEMORY_LIMIT=${BOOKING_FULL_GATE_PHPSTAN_MEMORY_LIMIT:-3G} bash scripts/ci/booking-phpstan.sh', $script);
         $this->assertStringContainsString('vendor/bin/pint --test', $script);
     }
 
@@ -132,6 +190,7 @@ class DatabaseReleaseContractArtifactSyncTest extends TestCase
             $this->assertStringContainsString('Allow CI routine creators', $workflow);
             $this->assertStringContainsString('REQUIRE_REDIS_FOR_BOOKING_API: true', $workflow);
             $this->assertStringContainsString('BOOKING_CI_BOOTSTRAP_SITE: true', $workflow);
+            $this->assertStringContainsString('BOOKING_CI_BOOTSTRAP_REPORTING: true', $workflow);
             $this->assertStringContainsString('SET GLOBAL log_bin_trust_function_creators = 1;', $workflow);
             $this->assertStringContainsString('SHOW VARIABLES LIKE \'log_bin_trust_function_creators\';', $workflow);
         }

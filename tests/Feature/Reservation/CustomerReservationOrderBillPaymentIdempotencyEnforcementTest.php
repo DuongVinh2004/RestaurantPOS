@@ -23,6 +23,9 @@ final class CustomerReservationOrderBillPaymentIdempotencyEnforcementTest extend
 
         $this->requireBookingSchema();
         $this->ensureNotificationOutboxSchema();
+        config()->set('booking.payment_providers.customer_self_pay.enabled', true);
+        config()->set('booking.payment_providers.providers.simulated.enabled', true);
+        $this->upsertFeatureFlagOverride('customer.bill_self_payment', true, 'testing');
         config()->set('cache.stores.redis', [
             'driver' => 'array',
             'serialize' => false,

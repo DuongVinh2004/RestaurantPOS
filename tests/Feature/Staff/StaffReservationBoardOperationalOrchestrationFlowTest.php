@@ -29,15 +29,16 @@ class StaffReservationBoardOperationalOrchestrationFlowTest extends TestCase
 
         $now = $this->nowUtc()->copy()->setTime(9, 0);
         Carbon::setTestNow($now);
+        $zone = 'Board Orchestration Slot';
 
         $slotOnlyTableId = $this->createRestaurantTableWithSeats(4, [
             'table_code' => 'AA-04',
-            'zone' => 'Main',
+            'zone' => $zone,
             'status' => 'Available',
         ]);
         $openWindowTableId = $this->createRestaurantTableWithSeats(4, [
             'table_code' => 'ZZ-04',
-            'zone' => 'Main',
+            'zone' => $zone,
             'status' => 'Available',
         ]);
 
@@ -57,9 +58,10 @@ class StaffReservationBoardOperationalOrchestrationFlowTest extends TestCase
         ]);
 
         $response = $this->withHeaders($headers)->getJson(sprintf(
-            '/api/v1/staff/tables/board?from=%s&to=%s&include_holds=0',
+            '/api/v1/staff/tables/board?from=%s&to=%s&include_holds=0&zone=%s',
             urlencode($now->copy()->toIso8601String()),
             urlencode($now->copy()->addHours(5)->toIso8601String()),
+            urlencode($zone),
         ));
 
         $response->assertOk()
@@ -101,16 +103,17 @@ class StaffReservationBoardOperationalOrchestrationFlowTest extends TestCase
 
         $now = $this->nowUtc()->copy()->setTime(9, 0);
         Carbon::setTestNow($now);
+        $zone = 'Board Candidate Branch';
 
         $sameBranchTableId = $this->createRestaurantTableWithSeats(4, [
             'table_code' => 'MAIN-04',
-            'zone' => 'Main',
+            'zone' => $zone,
             'status' => 'Available',
             'branch_id' => 1,
         ]);
         $otherBranchTableId = $this->createRestaurantTableWithSeats(4, [
             'table_code' => 'ANNEX-04',
-            'zone' => 'Main',
+            'zone' => $zone,
             'status' => 'Available',
             'branch_id' => $annexBranchId,
         ]);
@@ -124,9 +127,10 @@ class StaffReservationBoardOperationalOrchestrationFlowTest extends TestCase
         ]);
 
         $response = $this->withHeaders($headers)->getJson(sprintf(
-            '/api/v1/staff/tables/board?from=%s&to=%s&include_holds=0',
+            '/api/v1/staff/tables/board?from=%s&to=%s&include_holds=0&zone=%s',
             urlencode($now->copy()->toIso8601String()),
             urlencode($now->copy()->addHours(4)->toIso8601String()),
+            urlencode($zone),
         ));
 
         $response->assertOk();

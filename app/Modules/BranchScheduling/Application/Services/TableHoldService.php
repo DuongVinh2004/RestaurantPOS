@@ -2,6 +2,7 @@
 
 namespace App\Modules\BranchScheduling\Application\Services;
 
+use App\Enums\TableHoldStatus;
 use App\Modules\BranchScheduling\Domain\Models\TableHold;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
@@ -226,9 +227,14 @@ class TableHoldService
                         lock: true,
                     );
                     if ($sessionActiveHold !== null) {
-                        throw ValidationException::withMessages([
-                            'session_id' => ['This session already has another active hold. Refresh or cancel the existing hold, or replay the original request with the same Idempotency-Key.'],
-                        ]);
+                        $this->cancelSessionHoldForReplacement(
+                            $sessionActiveHold,
+                            $sessionId,
+                            $userId,
+                            $tableIds,
+                            $start,
+                            $end,
+                        );
                     }
 
                     $holdConflictIds = $this->tableTimeConflictService->findHoldConflictTableIds(
@@ -352,6 +358,60 @@ class TableHoldService
         }
 
         return $query->first();
+    }
+
+    /**
+     * @param  list<int>  $replacementTableIds
+     */
+    private function cancelSessionHoldForReplacement(
+        object $hold,
+        string $sessionId,
+        ?int $actorUserId,
+        array $replacementTableIds,
+        Carbon $replacementStart,
+        Carbon $replacementEnd,
+    ): void {
+        if ((string) ($hold->session_id ?? '') !== $sessionId) {
+            throw ValidationException::withMessages([
+                'session_id' => ['session_id does not match the active hold being replaced.'],
+            ]);
+        }
+
+        if (! in_array($this->tableHoldStatusValue($hold->hold_status ?? ''), ['Holding', 'Pending'], true)) {
+            return;
+        }
+
+        $holdModel = TableHold::query()
+            ->whereKey((string) $hold->hold_id)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $holdModel) {
+            throw ValidationException::withMessages(['hold_id' => ['Hold does not exist.']]);
+        }
+
+        if (! in_array($this->tableHoldStatusValue($holdModel->hold_status), ['Holding', 'Pending'], true)) {
+            return;
+        }
+
+        $holdModel->hold_status = TableHoldStatus::Cancelled;
+        $holdModel->updated_by = $actorUserId;
+        $holdModel->updated_at = Carbon::now('UTC');
+        $holdModel->save();
+
+        AuditEvent::info('table_hold_replaced', [
+            'hold_id' => (string) $holdModel->hold_id,
+            'replacement_table_ids' => $replacementTableIds,
+            'replacement_start_time_utc' => $replacementStart->toIso8601String(),
+            'replacement_end_time_utc' => $replacementEnd->toIso8601String(),
+            'session_hash' => hash_hmac('sha256', $sessionId, (string) config('app.key', 'app')),
+            'actor_user_id' => $actorUserId,
+        ]);
+    }
+
+    private function tableHoldStatusValue(mixed $status): string
+    {
+        return $status instanceof TableHoldStatus ? $status->value : (string) $status;
     }
 
     public function getHold(string $holdId, ?string $sessionId = null): array

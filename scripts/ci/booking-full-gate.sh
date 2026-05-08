@@ -52,9 +52,9 @@ run_full_gate_step \
 run_full_gate_step \
   "full-phpstan" \
   "phpstan evidence lane" \
-  "${BOOKING_FULL_GATE_PHPSTAN_TIMEOUT_SECONDS:-1500}" \
+  "${BOOKING_FULL_GATE_PHPSTAN_TIMEOUT_SECONDS:-2400}" \
   "build/booking-ci/full-phpstan.log" \
-  "vendor/bin/phpstan analyse --no-progress --memory-limit=1G"
+  "BOOKING_PHPSTAN_MEMORY_LIMIT=${BOOKING_FULL_GATE_PHPSTAN_MEMORY_LIMIT:-3G} bash scripts/ci/booking-phpstan.sh"
 
 run_full_gate_step \
   "full-pint" \

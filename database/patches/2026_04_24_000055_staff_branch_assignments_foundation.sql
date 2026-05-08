@@ -1,24 +1,13 @@
 SET NAMES utf8mb4;
 
-INSERT INTO `roles` (`role_name`)
-SELECT 'Server'
-WHERE NOT EXISTS (SELECT 1 FROM `roles` WHERE `role_name` = 'Server');
-
-INSERT INTO `roles` (`role_name`)
-SELECT 'Waiter'
-WHERE NOT EXISTS (SELECT 1 FROM `roles` WHERE `role_name` = 'Waiter');
-
-INSERT INTO `roles` (`role_name`)
-SELECT 'Cashier'
-WHERE NOT EXISTS (SELECT 1 FROM `roles` WHERE `role_name` = 'Cashier');
-
-INSERT INTO `roles` (`role_name`)
-SELECT 'Kitchen'
-WHERE NOT EXISTS (SELECT 1 FROM `roles` WHERE `role_name` = 'Kitchen');
-
-INSERT INTO `roles` (`role_name`)
-SELECT 'Manager'
-WHERE NOT EXISTS (SELECT 1 FROM `roles` WHERE `role_name` = 'Manager');
+INSERT INTO `roles` (`role_id`, `role_name`)
+VALUES
+  (4, 'Server'),
+  (5, 'Waiter'),
+  (6, 'Cashier'),
+  (7, 'Kitchen'),
+  (8, 'Manager')
+ON DUPLICATE KEY UPDATE `role_name` = VALUES(`role_name`);
 
 CREATE TABLE IF NOT EXISTS `staff_branch_assignments` (
   `staff_branch_assignment_id` bigint unsigned NOT NULL AUTO_INCREMENT,

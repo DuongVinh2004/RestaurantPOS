@@ -106,10 +106,13 @@ class StaffDepositSelfServiceOperationalReadFlowTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('summary.deposit_acknowledged_reservation_count', 2)
             ->assertJsonPath('summary.deposit_intent_submitted_reservation_count', 1)
-            ->assertJsonPath('summary.deposit_self_service_follow_up_count', 2)
-            ->assertJsonPath('data.0.reservation.deposit.self_service.intent_status', 'Submitted')
-            ->assertJsonPath('data.0.reservation.flags.deposit_self_service_follow_up', true)
-            ->assertJsonPath('data.0.availability.requires_deposit_follow_up', true);
+            ->assertJsonPath('summary.deposit_self_service_follow_up_count', 2);
+
+        $assignedRow = collect($response->json('data'))->firstWhere('reservation.reservation_id', $assignedReservationId);
+        self::assertIsArray($assignedRow);
+        self::assertSame('Submitted', data_get($assignedRow, 'reservation.deposit.self_service.intent_status'));
+        self::assertTrue((bool) data_get($assignedRow, 'reservation.flags.deposit_self_service_follow_up'));
+        self::assertTrue((bool) data_get($assignedRow, 'availability.requires_deposit_follow_up'));
 
         $unassigned = collect($response->json('unassigned_reservations'))->keyBy('reservation_id');
         self::assertSame('Revoked', data_get($unassigned[$unassignedReservationId], 'deposit.self_service.intent_status'));

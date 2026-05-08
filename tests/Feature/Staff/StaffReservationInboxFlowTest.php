@@ -28,12 +28,12 @@ class StaffReservationInboxFlowTest extends TestCase
         $tableB = $this->createRestaurantTableWithSeats(6, ['table_code' => 'B-02', 'zone' => 'Patio']);
 
         $upcomingReservationId = $this->createReservation([
-            'reservation_code' => 'RSV-UPCOMING-01',
+            'reservation_code' => 'INBOX-UPCOMING-01',
         ]);
         $this->attachReservationTable($upcomingReservationId, $tableA);
 
         $checkedInReservationId = $this->createReservation([
-            'reservation_code' => 'RSV-CHECKEDIN-01',
+            'reservation_code' => 'INBOX-CHECKEDIN-01',
             'status' => 'Reserved',
             'start_time' => $this->nowUtc()->copy()->subMinutes(30),
             'end_time' => $this->nowUtc()->copy()->addHour(),
@@ -41,14 +41,14 @@ class StaffReservationInboxFlowTest extends TestCase
         $this->attachReservationTable($checkedInReservationId, $tableB);
 
         $historyReservationId = $this->createReservation([
-            'reservation_code' => 'RSV-HISTORY-01',
+            'reservation_code' => 'INBOX-HISTORY-01',
             'status' => 'Completed',
             'start_time' => $this->nowUtc()->copy()->subDays(2)->setHour(18),
             'end_time' => $this->nowUtc()->copy()->subDays(2)->setHour(20),
         ]);
         $this->attachReservationTable($historyReservationId, $tableA);
 
-        $response = $this->withHeaders($headers)->getJson('/api/v1/staff/reservations?bucket=upcoming&per_page=50');
+        $response = $this->withHeaders($headers)->getJson('/api/v1/staff/reservations?bucket=upcoming&per_page=50&reservation_code=INBOX-');
 
         $response->assertOk();
         $response->assertJsonPath('meta.total', 2);

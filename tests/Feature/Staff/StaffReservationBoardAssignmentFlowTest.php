@@ -43,8 +43,9 @@ class StaffReservationBoardAssignmentFlowTest extends TestCase
         $now = $this->nowUtc()->copy()->setTime(11, 0);
         Carbon::setTestNow($now);
 
-        $exactTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'BOARD-04', 'zone' => 'Main', 'status' => 'Available']);
-        $oversizedTableId = $this->createRestaurantTableWithSeats(6, ['table_code' => 'BOARD-06', 'zone' => 'Main', 'status' => 'Available']);
+        $zone = 'Board Assign Suggested';
+        $exactTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'BOARD-04', 'zone' => $zone, 'status' => 'Available']);
+        $oversizedTableId = $this->createRestaurantTableWithSeats(6, ['table_code' => 'BOARD-06', 'zone' => $zone, 'status' => 'Available']);
         $reservationId = $this->createReservation([
             'start_time' => $now->copy()->addMinutes(20),
             'end_time' => $now->copy()->addHours(2),
@@ -54,9 +55,10 @@ class StaffReservationBoardAssignmentFlowTest extends TestCase
         ]);
 
         $boardBefore = $this->withHeaders($this->staffAuthHeaders($staffId))->getJson(sprintf(
-            '/api/v1/staff/tables/board?from=%s&to=%s',
+            '/api/v1/staff/tables/board?from=%s&to=%s&zone=%s',
             urlencode($now->copy()->addMinutes(20)->toIso8601String()),
             urlencode($now->copy()->addHours(2)->toIso8601String()),
+            urlencode($zone),
         ));
 
         $boardBefore->assertOk()
@@ -86,9 +88,10 @@ class StaffReservationBoardAssignmentFlowTest extends TestCase
         self::assertSame(2, (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version'));
 
         $boardAfter = $this->withHeaders($this->staffAuthHeaders($staffId))->getJson(sprintf(
-            '/api/v1/staff/tables/board?from=%s&to=%s',
+            '/api/v1/staff/tables/board?from=%s&to=%s&zone=%s',
             urlencode($now->copy()->addMinutes(20)->toIso8601String()),
             urlencode($now->copy()->addHours(2)->toIso8601String()),
+            urlencode($zone),
         ));
 
         $boardAfter->assertOk()->assertJsonPath('summary.unassigned_reservation_count', 0);

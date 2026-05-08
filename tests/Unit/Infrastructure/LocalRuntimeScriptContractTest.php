@@ -97,7 +97,11 @@ final class LocalRuntimeScriptContractTest extends TestCase
         self::assertNotFalse($script);
 
         self::assertStringContainsString(
-            'throw (\'MySQL runtime could not be ensured. Run `npm run mysql:local` (or `npm run mysql:local:restart`)',
+            "throw ('{0} runtime could not be ensured. {1} Local helper failed: {2} Docker Compose fallback failed: {3}'",
+            $script,
+        );
+        self::assertStringContainsString(
+            "-FailureHint 'Run `npm run mysql:local` (or `npm run mysql:local:restart`)",
             $script,
         );
     }

@@ -168,7 +168,7 @@ class StaffReservationTimelineFlowTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-03-21 10:00:00', 'UTC'));
 
         [$staffId] = $this->seedTimelineScenario();
-        $patioTableId = (int) RestaurantTable::query()->where('table_code', 'TL-PATIO-01')->value('table_id');
+        $patioTableId = (int) RestaurantTable::query()->where('table_code', 'AA-TL-PATIO-01')->value('table_id');
         $customerId = $this->createUser(['role_name' => 'Customer', 'full_name' => 'Patio Lane Guest']);
 
         $patioReservationId = $this->createReservation([
@@ -234,7 +234,7 @@ class StaffReservationTimelineFlowTest extends TestCase
         self::assertTrue((bool) data_get($items[$unassignedReservationId], 'orchestration.ready_for_assignment'));
         self::assertTrue((bool) data_get($items[$unassignedReservationId], 'orchestration.candidate_table_preview_loaded'));
         self::assertGreaterThan(0, (int) data_get($items[$unassignedReservationId], 'orchestration.candidate_table_count'));
-        self::assertSame('TL-PATIO-01', (string) data_get($items[$unassignedReservationId], 'orchestration.best_fit_table.table_code'));
+        self::assertSame('AA-TL-PATIO-01', (string) data_get($items[$unassignedReservationId], 'orchestration.best_fit_table.table_code'));
 
         $lanes = collect($response->json('data.calendar.lanes'))->keyBy('lane_key');
         self::assertSame(4, (int) data_get($lanes['table:'.$mainTableId], 'reservation_count'));
@@ -318,7 +318,7 @@ class StaffReservationTimelineFlowTest extends TestCase
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $customerId = $this->createUser(['role_name' => 'Customer', 'full_name' => 'Timeline Guest']);
         $mainTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'TL-MAIN-01', 'zone' => 'Main']);
-        $patioTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'TL-PATIO-01', 'zone' => 'Patio']);
+        $patioTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'AA-TL-PATIO-01', 'zone' => 'Patio']);
 
         $dueSoonReservationId = $this->createReservation([
             'user_id' => $customerId,

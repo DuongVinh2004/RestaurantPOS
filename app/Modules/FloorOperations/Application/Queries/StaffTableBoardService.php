@@ -271,6 +271,7 @@ class StaffTableBoardService
                 'zone' => $table->zone,
                 'pos_x' => $table->pos_x,
                 'pos_y' => $table->pos_y,
+                'row_version' => (int) ($table->row_version ?? 1),
                 'realtime_status' => $realtimeStatus,
                 'board_state' => $boardState,
                 'reservations' => array_map(fn (Reservation $row): array => $this->presentAssignedReservation($row, $visibleUserFields), $reservationList),

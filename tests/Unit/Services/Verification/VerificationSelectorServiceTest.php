@@ -117,6 +117,37 @@ class VerificationSelectorServiceTest extends TestCase
         $this->assertContains('php artisan booking:harness:web-auth --json', $commands);
     }
 
+    public function test_build_report_matches_frontend_apps_without_php_fallback(): void
+    {
+        $service = new VerificationSelectorService;
+
+        $staffReport = $service->buildReport([
+            'staff-web/src/domains/orders/StaffOrderBoard.tsx',
+        ]);
+        $staffDomainKeys = array_map(static fn (array $domain): string => (string) $domain['key'], $staffReport['domains']);
+        $staffCommands = array_map(static fn (array $command): string => (string) $command['command'], $staffReport['commands']);
+
+        $this->assertContains('staff_web_frontend', $staffDomainKeys);
+        $this->assertContains('restaurantpos-staff-web-react', $staffReport['skills']);
+        $this->assertContains('restaurantpos-ui-design-system-guardian', $staffReport['skills']);
+        $this->assertContains('npm --prefix staff-web run test', $staffCommands);
+        $this->assertContains('npm --prefix staff-web run build', $staffCommands);
+        $this->assertNotContains('vendor/bin/phpstan analyse', $staffCommands);
+
+        $customerReport = $service->buildReport([
+            'customer-web/src/features/reservations/reservations-page.tsx',
+        ]);
+        $customerDomainKeys = array_map(static fn (array $domain): string => (string) $domain['key'], $customerReport['domains']);
+        $customerCommands = array_map(static fn (array $command): string => (string) $command['command'], $customerReport['commands']);
+
+        $this->assertContains('customer_web_frontend', $customerDomainKeys);
+        $this->assertContains('restaurantpos-customer-web-ui-flow', $customerReport['skills']);
+        $this->assertContains('restaurantpos-ui-design-system-guardian', $customerReport['skills']);
+        $this->assertContains('npm --prefix customer-web run typecheck', $customerCommands);
+        $this->assertContains('npm --prefix customer-web run test:journeys', $customerCommands);
+        $this->assertNotContains('vendor/bin/phpstan analyse', $customerCommands);
+    }
+
     public function test_build_report_matches_release_control_plane_domain_and_commands(): void
     {
         $service = new VerificationSelectorService;

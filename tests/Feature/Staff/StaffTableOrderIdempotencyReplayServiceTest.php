@@ -42,11 +42,7 @@ class StaffTableOrderIdempotencyReplayServiceTest extends TestCase
     public function test_create_on_spot_order_replays_same_order_for_same_idempotency_key(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
-        $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
-        $reservationId = $this->createReservation([
-            'status' => 'Reserved',
-        ]);
-        $this->attachReservationTable($reservationId, $tableId);
+        [, $tableId, $reservationId] = $this->createBranchScopedOrderContext($staffId);
 
         $service = $this->makeTableOrderService();
 
@@ -82,11 +78,7 @@ class StaffTableOrderIdempotencyReplayServiceTest extends TestCase
     public function test_create_on_spot_order_replays_when_reservation_is_resolved_from_table(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
-        $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
-        $reservationId = $this->createReservation([
-            'status' => 'Reserved',
-        ]);
-        $this->attachReservationTable($reservationId, $tableId);
+        [, $tableId, $reservationId] = $this->createBranchScopedOrderContext($staffId);
 
         $service = $this->makeTableOrderService();
 
@@ -169,11 +161,7 @@ class StaffTableOrderIdempotencyReplayServiceTest extends TestCase
     public function test_create_on_spot_order_rejects_same_idempotency_key_with_different_payload(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
-        $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
-        $reservationId = $this->createReservation([
-            'status' => 'Reserved',
-        ]);
-        $this->attachReservationTable($reservationId, $tableId);
+        [, $tableId, $reservationId] = $this->createBranchScopedOrderContext($staffId);
 
         $service = $this->makeTableOrderService();
 
@@ -219,11 +207,7 @@ class StaffTableOrderIdempotencyReplayServiceTest extends TestCase
     public function test_add_items_replays_without_creating_duplicate_line_items(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
-        $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
-        $reservationId = $this->createReservation([
-            'status' => 'Reserved',
-        ]);
-        $this->attachReservationTable($reservationId, $tableId);
+        [, $tableId, $reservationId] = $this->createBranchScopedOrderContext($staffId);
         $orderId = $this->createOrder([
             'reservation_id' => $reservationId,
             'order_type' => 'OnSpot',
@@ -343,11 +327,7 @@ class StaffTableOrderIdempotencyReplayServiceTest extends TestCase
     public function test_add_items_rejects_same_idempotency_key_with_different_payload(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
-        $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
-        $reservationId = $this->createReservation([
-            'status' => 'Reserved',
-        ]);
-        $this->attachReservationTable($reservationId, $tableId);
+        [, $tableId, $reservationId] = $this->createBranchScopedOrderContext($staffId);
         $orderId = $this->createOrder([
             'reservation_id' => $reservationId,
             'order_type' => 'OnSpot',
@@ -408,11 +388,7 @@ class StaffTableOrderIdempotencyReplayServiceTest extends TestCase
     public function test_add_items_rejects_menu_items_without_an_effective_price(): void
     {
         $staffId = $this->createUser(['role_name' => 'Staff']);
-        $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
-        $reservationId = $this->createReservation([
-            'status' => 'Reserved',
-        ]);
-        $this->attachReservationTable($reservationId, $tableId);
+        [, $tableId, $reservationId] = $this->createBranchScopedOrderContext($staffId);
         $orderId = $this->createOrder([
             'reservation_id' => $reservationId,
             'order_type' => 'OnSpot',
@@ -446,5 +422,42 @@ class StaffTableOrderIdempotencyReplayServiceTest extends TestCase
                 ->where('item_id', $itemId)
                 ->count()
         );
+    }
+
+    /**
+     * @return array{0:int,1:int,2:int}
+     */
+    private function createBranchScopedOrderContext(int $staffId): array
+    {
+        $branchId = $this->createBranch([
+            'branch_name' => 'Order Replay Branch',
+        ]);
+        $this->assignStaffBranch($staffId, $branchId);
+
+        $tableId = $this->createRestaurantTable([
+            'branch_id' => $branchId,
+            'status' => 'Occupied',
+        ]);
+        $reservationId = $this->createReservation([
+            'branch_id' => $branchId,
+            'status' => 'Reserved',
+        ]);
+        $this->attachReservationTable($reservationId, $tableId);
+
+        return [$branchId, $tableId, $reservationId];
+    }
+
+    private function assignStaffBranch(int $staffId, int $branchId): void
+    {
+        DB::table('staff_branch_assignments')->updateOrInsert([
+            'user_id' => $staffId,
+            'branch_id' => $branchId,
+        ], [
+            'is_primary' => true,
+            'assigned_at' => now('UTC'),
+            'revoked_at' => null,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]);
     }
 }
