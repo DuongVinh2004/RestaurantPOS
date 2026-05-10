@@ -1,73 +1,33 @@
-# Local environment and secrets
+﻿# Local environment and secrets
 .env
-.env.testing
-.env.backup
-.env.production
-/auth.json
-/storage/*.key
+.env.*
+!.env.example
+!.env.testing.example
 
-# Editor, OS, and tool-local metadata
-.DS_Store
-.phpactor.json
-/.fleet
-/.idea
-/.nova
-/.vscode
-/.zed
-/.codex/config.toml
-Homestead.json
-Homestead.yaml
-Thumbs.db
+# Dependencies
+/vendor/
+/node_modules/
+/staff-web/node_modules/
+/customer-web/node_modules/
 
-# Dependency directories
-/node_modules
-/staff-web/node_modules
-/vendor
-
-# Build outputs and generated local bundles
-/app.zip
-/public/build
+# Laravel generated files
+/public/build/
 /public/hot
 /public/storage
-/staff-web/dist
-/build/booking-ci
-/build/booking-release
+/storage/*.key
+/storage/logs/
+/storage/framework/cache/*
+!/storage/framework/cache/.gitignore
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+/storage/framework/testing/*
+!/storage/framework/testing/.gitignore
+/storage/framework/views/*
+!/storage/framework/views/.gitignore
 
-# Intentional generated contract artifacts stay tracked unless reviewed:
-# /build/api-consumer
-# /storage/app/booking_release
-
-# Runtime, cache, and smoke-test output
-*.log
+# Tool/cache artifacts
 .phpunit.result.cache
-/.phpunit.cache
-/bootstrap/cache/*.php
-/staff-web/test-results
-/staff-web/tmp-smoke
-/staff-web/staff-web/tmp-smoke
-/storage/framework/cache/data
-/storage/framework/sessions
-/storage/framework/testing
-/storage/framework/views
-/storage/logs
-/storage/mysql-local
-/storage/phpstan/cache
-/storage/pail
-/storage/redis
-/test-logs
-/tmp/phar-debug
-/tmp/
-
-# Local scratch files
-*.pyc
-__pycache__/
-/dynamic-cutoff-phase1-prompt.txt
-/init-staff-web.bat
-/lenh_chay_project.md
-/README.txt
-/reservation-inbox.json
-
-# PHPStan cache
+/.phpunit.cache/
 /storage/phpstan/
 /storage/phpstan/resultCache.php
 
@@ -82,3 +42,12 @@ __pycache__/
 
 # Local go-live generated evidence
 /build/booking-go-live/
+
+# IDE / OS
+/.idea/
+/.vscode/
+.DS_Store
+Thumbs.db
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
