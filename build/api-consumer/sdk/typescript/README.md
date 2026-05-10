@@ -265,3 +265,4 @@ Limitations:
 - No package manifest is emitted in this phase; consumers can vendor the generated file or wrap it in their own workspace.
 
 For the full immutable release path, use `php artisan booking:release-build`.
+
