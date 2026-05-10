@@ -66,3 +66,19 @@ __pycache__/
 /lenh_chay_project.md
 /README.txt
 /reservation-inbox.json
+
+# PHPStan cache
+/storage/phpstan/
+/storage/phpstan/resultCache.php
+
+# Codex temporary files
+/.codex/tmp-*
+/.codex/*.patch
+
+# UAT generated credentials / local runtime pack
+/storage/app/uat/*.json
+!/storage/app/uat/scenario-pack.example.json
+
+# Local go-live generated evidence
+/build/booking-go-live/
+/storage/app/uat/scenario-pack.json
