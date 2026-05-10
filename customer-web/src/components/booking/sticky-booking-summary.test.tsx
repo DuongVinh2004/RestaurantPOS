@@ -1,9 +1,9 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { StickyBookingSummary } from "./sticky-booking-summary";
 
 describe("StickyBookingSummary", () => {
-  it("keeps long summary values and hold actions inside the card", () => {
+  it("keeps long summary values inside the card without manual hold actions", () => {
     const holdCode = "974ea6b3-da54-4b96-8478-123456789abc";
 
     render(
@@ -17,15 +17,17 @@ describe("StickyBookingSummary", () => {
         holdExpiresAt={new Date(Date.now() + 5 * 60_000).toISOString()}
         holdStatusLabel="Đang giữ bàn"
         primaryActionLabel="Xác nhận đặt bàn"
-        onPrimaryAction={vi.fn()}
-        onRefreshHold={vi.fn()}
       />,
     );
 
     const holdValue = screen.getByText(holdCode);
     expect(holdValue).toHaveClass("min-w-0", "truncate");
     expect(holdValue).toHaveAttribute("title", holdCode);
-    expect(holdValue.closest("div")).toHaveClass("grid", "min-w-0");
-    expect(screen.getByRole("button", { name: "Gia hạn giữ bàn" })).toHaveClass("w-full");
+    expect(holdValue.closest("div")).toHaveClass("min-w-0");
+    const summary = screen.getByRole("complementary");
+    expect(summary.className).not.toContain("bottom-3");
+    expect(summary.className).toContain("xl:sticky");
+    expect(screen.queryByRole("button", { name: "Gia hạn giữ bàn" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Hủy giữ bàn" })).not.toBeInTheDocument();
   });
 });

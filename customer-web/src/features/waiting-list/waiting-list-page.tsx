@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { CalendarDays, ListChecks, ReceiptText } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
 import { StatusBadge } from "@/components/status/status-badge";
+import { AppButton, AppCard, ConfirmDialog, StatusPill } from "@/components/customer/ui";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +19,9 @@ import { isConflictLikeApiError, normalizeApiError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query-keys";
 import { customerWebRollout } from "@/lib/config/feature-flags";
 import { formatDateTime } from "@/lib/contracts/format";
+import { useAuth } from "@/providers/auth-provider";
+import { SelectedBranchEntry } from "@/features/branch/branch-selector";
+import { useBranchSelection } from "@/features/branch/hooks";
 import type { CustomerWaitingListEntry } from "@/lib/contracts/generated/restaurantpos-sdk";
 import { cn } from "@/lib/utils";
 import {
@@ -45,21 +50,56 @@ export function WaitingListPage() {
 
   if (!waitingListRollout.enabled) {
     return (
-      <main className="mx-auto w-full max-w-3xl px-4 py-6">
-        <EmptyState
-          title={waitingListRollout.disabledTitle}
-          description={waitingListRollout.disabledDescription}
-          action={
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-              <Button asChild className="rounded-lg">
-                <Link href="/booking">Tìm bàn</Link>
-              </Button>
-              <Button asChild variant="outline" className="rounded-lg">
-                <Link href="/reservations">Xem lịch đặt</Link>
-              </Button>
-            </div>
-          }
-        />
+      <main className="mx-auto w-full max-w-5xl px-4 py-7 pb-28 lg:pb-10">
+        <AppCard className="overflow-hidden">
+          <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <section className="space-y-5 p-5 sm:p-6">
+              <StatusPill label="Chưa khả dụng" tone="neutral" />
+              <div className="space-y-3">
+                <h1 className="text-3xl font-bold tracking-normal sm:text-4xl">Danh sách chờ chưa khả dụng</h1>
+                <p className="max-w-2xl text-base leading-7 text-muted-foreground">
+                  Nhà hàng chưa bật ghi danh chờ bàn trực tuyến cho phiên bản này. Bạn vẫn có thể tìm bàn trống, tạo lịch đặt hoặc xem thực đơn trước khi đến.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <BlockedFeatureOption
+                  icon={CalendarDays}
+                  title="Tìm bàn"
+                  description="Chọn ngày, giờ và số khách."
+                />
+                <BlockedFeatureOption
+                  icon={ListChecks}
+                  title="Theo dõi lịch đặt"
+                  description="Xem trạng thái các lượt ghé hiện có."
+                />
+                <BlockedFeatureOption
+                  icon={ReceiptText}
+                  title="Xem thực đơn"
+                  description="Chuẩn bị lựa chọn trước khi đến."
+                />
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <AppButton asChild>
+                  <Link href="/booking">Tìm bàn</Link>
+                </AppButton>
+                <AppButton asChild variant="outline">
+                  <Link href="/reservations">Xem lịch đặt</Link>
+                </AppButton>
+                <AppButton asChild variant="outline">
+                  <Link href="/menu">Xem thực đơn</Link>
+                </AppButton>
+              </div>
+            </section>
+            <aside className="border-t bg-secondary/35 p-5 sm:p-6 lg:border-l lg:border-t-0">
+              <div className="space-y-3">
+                <p className="text-sm font-semibold">Khi cần chờ bàn tại nhà hàng</p>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Hãy hỏi nhân viên để được ghi nhận trực tiếp. Màn hình này sẽ chỉ mở thao tác online khi nhà hàng bật cho khách hàng.
+                </p>
+              </div>
+            </aside>
+          </div>
+        </AppCard>
       </main>
     );
   }
@@ -67,12 +107,38 @@ export function WaitingListPage() {
   return <WaitingListWorkspace />;
 }
 
+function BlockedFeatureOption({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: typeof CalendarDays;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex min-h-24 items-start gap-3 rounded-lg border bg-background p-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0">
+        <span className="block font-semibold">{title}</span>
+        <span className="mt-1 block text-sm text-muted-foreground">{description}</span>
+      </span>
+    </div>
+  );
+}
+
 function WaitingListWorkspace() {
   const queryClient = useQueryClient();
+  const { profile } = useAuth();
+  const branchSelection = useBranchSelection();
   const [selectedIdOverride, setSelectedIdOverride] = useState<number | null>(null);
+  const [pendingCancel, setPendingCancel] = useState<{ id: number; rowVersion: number } | null>(null);
   const form = useForm<WaitingListCreateValues>({
     resolver: zodResolver(waitingListCreateSchema),
     defaultValues: {
+      branch_id: branchSelection.selectedBranch?.branchId ?? undefined,
       guest_count: 2,
       guest_name: "",
       phone: "",
@@ -100,6 +166,46 @@ function WaitingListWorkspace() {
   const journeyState = activeEntry ? getWaitingListJourneyState(activeEntry) : null;
   const actionPolicy = activeEntry ? getWaitingListOwnerActionPolicy(activeEntry) : null;
   const seatResultState = activeEntry ? getWaitingListSeatResultState(activeEntry) : null;
+
+  useEffect(() => {
+    const selectedBranchId = branchSelection.selectedBranch?.branchId;
+
+    if (!selectedBranchId || form.getValues("branch_id") === selectedBranchId) {
+      return;
+    }
+
+    form.setValue("branch_id", selectedBranchId, {
+      shouldDirty: false,
+      shouldValidate: true,
+    });
+  }, [branchSelection.selectedBranch?.branchId, form]);
+
+  useEffect(() => {
+    if (!profile) {
+      return;
+    }
+
+    const fillField = (
+      field: "guest_name" | "phone",
+      value: string | null | undefined,
+    ) => {
+      const nextValue = value?.trim() ?? "";
+      const currentValue = (form.getValues(field) ?? "").trim();
+      const fieldState = form.getFieldState(field);
+
+      if (nextValue === "" || (fieldState.isDirty && currentValue !== "")) {
+        return;
+      }
+
+      form.setValue(field, nextValue, {
+        shouldDirty: false,
+        shouldValidate: false,
+      });
+    };
+
+    fillField("guest_name", profile.name);
+    fillField("phone", profile.phone);
+  }, [form, profile]);
 
   const refreshCurrentView = async (detailId = selectedId) => {
     await queryClient.invalidateQueries({ queryKey: queryKeys.waitingList.list });
@@ -130,7 +236,13 @@ function WaitingListWorkspace() {
       const entry = result.entry;
 
       toast.success("Đã đăng ký danh sách chờ. Hãy cập nhật khi nhân viên yêu cầu phản hồi.");
-      form.reset();
+      form.reset({
+        branch_id: branchSelection.selectedBranch?.branchId ?? undefined,
+        guest_count: 2,
+        guest_name: profile?.name ?? "",
+        phone: profile?.phone ?? "",
+        notes: "",
+      });
       syncWaitingListEntry(entry);
     },
     onError(error) {
@@ -179,6 +291,7 @@ function WaitingListWorkspace() {
 
   const createError = createMutation.error;
   const actionError = actionMutation.error;
+  const actionPending = actionMutation.isPending;
   const detailError = detailQuery.error ? normalizeApiError(detailQuery.error) : null;
   const waitingListLoading = waitingListQuery.isLoading;
   const detailLoading = detailQuery.isLoading && selectedId !== null;
@@ -204,9 +317,14 @@ function WaitingListWorkspace() {
                 Nhà hàng sẽ cập nhật trạng thái tại đây. Hãy bấm cập nhật khi nhân viên yêu cầu kiểm tra hoặc sau khi bạn phản hồi lời mời.
               </p>
             </div>
+            <SelectedBranchEntry className="w-full" />
             <form
               className="space-y-4"
               onSubmit={form.handleSubmit((values) => {
+                if (createMutation.isPending) {
+                  return;
+                }
+
                 form.clearErrors();
                 createMutation.mutate(values);
               })}
@@ -295,6 +413,7 @@ function WaitingListWorkspace() {
                       "w-full rounded-lg border p-4 text-left transition-colors",
                       selected ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 hover:bg-secondary/30",
                     )}
+                    disabled={actionPending}
                     onClick={() => setSelectedIdOverride(entry.waiting_id)}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -468,9 +587,17 @@ function WaitingListWorkspace() {
                             type="button"
                             variant="outline"
                             className="rounded-lg"
-                            disabled={actionMutation.isPending || !detailQuery.data}
+                            disabled={actionPending || !detailQuery.data}
                             onClick={() => {
-                              if (!detailQuery.data) {
+                              if (actionPending || !detailQuery.data) {
+                                return;
+                              }
+
+                              if (action === "cancel") {
+                                setPendingCancel({
+                                  id: detailQuery.data.waiting_id,
+                                  rowVersion: detailQuery.data.row_version,
+                                });
                                 return;
                               }
 
@@ -504,13 +631,37 @@ function WaitingListWorkspace() {
           </Card>
         </section>
       </div>
+      <ConfirmDialog
+        open={pendingCancel !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingCancel(null);
+          }
+        }}
+        title="Hủy yêu cầu chờ bàn?"
+        description="Thao tác này xóa yêu cầu chờ bàn hiện tại. Bạn có thể đăng ký lại sau nếu nhà hàng vẫn nhận yêu cầu."
+        confirmLabel="Hủy yêu cầu"
+        destructive
+        onConfirm={() => {
+          if (!pendingCancel) {
+            return;
+          }
+
+          actionMutation.mutate({
+            action: "cancel",
+            id: pendingCancel.id,
+            rowVersion: pendingCancel.rowVersion,
+          });
+          setPendingCancel(null);
+        }}
+      />
     </main>
   );
 }
 
 function applyWaitingListValidationErrors(error: unknown, form: UseFormReturn<WaitingListCreateValues>) {
   const normalized = normalizeApiError(error);
-  const fields: Array<keyof WaitingListCreateValues> = ["guest_name", "guest_count", "phone", "notes"];
+  const fields: Array<keyof WaitingListCreateValues> = ["branch_id", "guest_name", "guest_count", "phone", "notes"];
 
   for (const field of fields) {
     const message = normalized.validationErrors?.[field]?.[0];

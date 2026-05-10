@@ -29,6 +29,25 @@ class ApiContractMetadataRegistry
                 ],
                 'contract_grade' => 'full',
             ],
+            'POST api/v1/auth/customer/register' => [
+                'summary' => 'Customer registration',
+                'description' => 'Create a customer account using the configured customer role and issue an opaque customer access session token.',
+                'tags' => ['Auth'],
+                'responses' => [
+                    200 => ['schema' => 'CustomerAuthSessionEnvelope'],
+                    422 => ['schema' => 'ValidationError'],
+                    503 => ['schema' => 'ApiError'],
+                ],
+                'request_example' => [
+                    'full_name' => 'Demo Customer',
+                    'email' => 'demo.customer@example.test',
+                    'phone' => '0901000000',
+                    'password' => 'secret-123',
+                    'password_confirmation' => 'secret-123',
+                    'session_label' => 'web',
+                ],
+                'contract_grade' => 'full',
+            ],
             'GET api/v1/auth/customer/me' => [
                 'summary' => 'Get current customer session',
                 'description' => 'Return the currently authenticated customer access session and user profile.',
@@ -1104,6 +1123,86 @@ class ApiContractMetadataRegistry
                 ],
                 'contract_grade' => 'full',
             ],
+            'POST api/v1/staff/reservations/{id}/assign-table' => [
+                'summary' => 'Assign reservation to selected table',
+                'description' => 'Assign an unseated reservation to the selected board table using row_version protection and current board-window conflict checks.',
+                'tags' => ['Staff Tables'],
+                'responses' => [
+                    200 => ['schema' => 'ReservationEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'StaleRowVersionError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'table_id' => 12,
+                    'row_version' => 2,
+                    'board_from' => '2026-04-05T11:00:00Z',
+                    'board_to' => '2026-04-05T16:00:00Z',
+                    'zone' => 'Main',
+                ],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/staff/reservations/{id}/assign-best-fit' => [
+                'summary' => 'Assign reservation to best-fit table',
+                'description' => 'Ask the floor assignment service to choose and assign the best currently available table for an unseated reservation.',
+                'tags' => ['Staff Tables'],
+                'responses' => [
+                    200 => ['schema' => 'ReservationEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'StaleRowVersionError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'row_version' => 2,
+                    'board_from' => '2026-04-05T11:00:00Z',
+                    'board_to' => '2026-04-05T16:00:00Z',
+                    'zone' => 'Main',
+                ],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/staff/reservations/{id}/move-table' => [
+                'summary' => 'Move in-service reservation to another table',
+                'description' => 'Move an in-service reservation from one table to another while preserving stale-write and floor-conflict guards.',
+                'tags' => ['Staff Tables'],
+                'responses' => [
+                    200 => ['schema' => 'ReservationEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'StaleRowVersionError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'from_table_id' => 12,
+                    'to_table_id' => 18,
+                    'moved_at' => '2026-04-05T12:45:00Z',
+                    'row_version' => 3,
+                ],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/staff/tables/{table_id}/release' => [
+                'summary' => 'Release a staff table',
+                'description' => 'Release an occupied table back into allocatable floor state with row_version protection and force guard metadata.',
+                'tags' => ['Staff Tables'],
+                'responses' => [
+                    200 => ['schema' => 'RestaurantTableEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'StaleRowVersionError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'row_version' => 7,
+                    'force' => false,
+                    'notes' => 'Service completed and table reset.',
+                ],
+                'contract_grade' => 'full',
+            ],
             'POST api/v1/staff/tables/{table_id}/orders' => [
                 'summary' => 'Create table order',
                 'description' => 'Create or resume the active in-service order for a table and optionally append the first line items in the same idempotent request.',
@@ -1356,6 +1455,18 @@ class ApiContractMetadataRegistry
                 ],
                 'contract_grade' => 'full',
             ],
+            'GET api/v1/staff/tables/{table_id}/active-order' => [
+                'summary' => 'Show active order by table',
+                'description' => 'Return the active staff order currently attached to the requested table, or a not-found error when no active order exists.',
+                'tags' => ['Staff Checkout'],
+                'responses' => [
+                    200 => ['schema' => 'StaffOrderReadEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                ],
+                'contract_grade' => 'full',
+            ],
             'POST api/v1/staff/orders/{order_id}/bill-snapshot' => [
                 'summary' => 'Lock bill snapshot',
                 'description' => 'Capture and lock the current bill snapshot for settlement without completing payment.',
@@ -1441,6 +1552,27 @@ class ApiContractMetadataRegistry
                 ],
                 'contract_grade' => 'full',
             ],
+            'POST api/v1/staff/waiting-list' => [
+                'summary' => 'Create staff waiting list entry',
+                'description' => 'Create a staff-managed waiting-list entry for walk-up or phone guests with branch scope and idempotency protection.',
+                'tags' => ['Waiting List'],
+                'responses' => [
+                    201 => ['schema' => 'StaffWaitingListEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'branch_id' => 1,
+                    'guest_name' => 'Walk-up Guest',
+                    'phone' => '0901234567',
+                    'guest_count' => 2,
+                    'priority' => 10,
+                    'notes' => 'Prefers window seat',
+                ],
+                'contract_grade' => 'full',
+            ],
             'POST api/v1/staff/waiting-list/{id}/notify' => [
                 'summary' => 'Notify waiting list party',
                 'description' => 'Notify the next waiting list party, attach the operational hold context, and advance the entry row version.',
@@ -1477,6 +1609,42 @@ class ApiContractMetadataRegistry
                     'service_minutes' => 90,
                     'notes' => 'Escort to reserved table',
                     'row_version' => 2,
+                ],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/staff/waiting-list/{id}/cancel' => [
+                'summary' => 'Cancel staff waiting list entry',
+                'description' => 'Cancel an active staff waiting-list entry using row_version protection.',
+                'tags' => ['Waiting List'],
+                'responses' => [
+                    200 => ['schema' => 'StaffWaitingListEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'StaleRowVersionError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'row_version' => 2,
+                    'cancel_reason' => 'Guest left before notification',
+                ],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/staff/waiting-list/{id}/advance' => [
+                'summary' => 'Advance staff waiting list queue',
+                'description' => 'Advance the queue after a declined or expired invite and optionally notify the next candidate using the semi-automation guardrails.',
+                'tags' => ['Waiting List'],
+                'responses' => [
+                    200 => ['schema' => 'StaffWaitingListAdvanceEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'StaleRowVersionError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'row_version' => 3,
+                    'hold_minutes' => 10,
                 ],
                 'contract_grade' => 'full',
             ],
@@ -1606,6 +1774,60 @@ class ApiContractMetadataRegistry
                     'reason' => 'Service issue',
                     'cancel_reason' => 'Cancelled after refund',
                     'row_version' => 3,
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/staff/finance/reconciliation' => [
+                'summary' => 'List financial reconciliation rows',
+                'description' => 'Return paged staff financial reconciliation rows with reservation, payment, discrepancy, and settlement summary fields for finance review.',
+                'tags' => ['Staff Finance'],
+                'responses' => [
+                    200 => ['schema' => 'FinancialReconciliationCollectionEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/staff/finance/reconciliation/{reservation_id}' => [
+                'summary' => 'Show financial reconciliation detail',
+                'description' => 'Return the reconciliation detail for one reservation including payment rows and method breakdown.',
+                'tags' => ['Staff Finance'],
+                'responses' => [
+                    200 => ['schema' => 'FinancialReconciliationDetailEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/staff/finance/invoices/{reservation_id}' => [
+                'summary' => 'Show finance invoice',
+                'description' => 'Return the invoice projection or persisted billing invoice for a reservation, including reconciliation and payment method breakdown context.',
+                'tags' => ['Staff Finance'],
+                'responses' => [
+                    200 => ['schema' => 'FinanceInvoiceEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/staff/finance/invoices/{reservation_id}/issue' => [
+                'summary' => 'Issue finance invoice',
+                'description' => 'Create or replay the guarded reservation invoice issuance operation and return the canonical invoice read model.',
+                'tags' => ['Staff Finance'],
+                'responses' => [
+                    200 => ['schema' => 'FinanceInvoiceEnvelope'],
+                    201 => ['schema' => 'FinanceInvoiceEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
                 ],
                 'contract_grade' => 'full',
             ],
@@ -1957,6 +2179,207 @@ class ApiContractMetadataRegistry
                 ],
                 'contract_grade' => 'full',
             ],
+            'GET api/v1/admin/benefits/vouchers' => [
+                'summary' => 'List admin vouchers',
+                'description' => 'Return paged voucher master data for admin benefits management.',
+                'tags' => ['Admin Benefits'],
+                'responses' => [
+                    200 => ['schema' => 'AdminVoucherCollectionEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/benefits/vouchers/{id}' => [
+                'summary' => 'Show admin voucher',
+                'description' => 'Return one voucher master-data record with row_version for guarded updates.',
+                'tags' => ['Admin Benefits'],
+                'responses' => [
+                    200 => ['schema' => 'AdminVoucherEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/admin/benefits/vouchers' => [
+                'summary' => 'Create admin voucher',
+                'description' => 'Create a voucher master-data record under the admin benefits capability.',
+                'tags' => ['Admin Benefits'],
+                'responses' => [
+                    201 => ['schema' => 'AdminVoucherEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'code' => 'WELCOME50',
+                    'discount_type' => 'Fixed',
+                    'discount_value' => 50000,
+                    'description' => 'Welcome discount',
+                    'is_active' => true,
+                ],
+                'contract_grade' => 'full',
+            ],
+            'PATCH api/v1/admin/benefits/vouchers/{id}' => [
+                'summary' => 'Update admin voucher',
+                'description' => 'Update a voucher master-data record using row_version stale-write protection.',
+                'tags' => ['Admin Benefits'],
+                'responses' => [
+                    200 => ['schema' => 'AdminVoucherEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'StaleRowVersionError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'row_version' => 2,
+                    'description' => 'Updated welcome discount',
+                    'discount_value' => 60000,
+                    'is_active' => true,
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/benefits/loyalty-tiers' => [
+                'summary' => 'List admin loyalty tiers',
+                'description' => 'Return paged loyalty tier master data for admin benefits management.',
+                'tags' => ['Admin Benefits'],
+                'responses' => [
+                    200 => ['schema' => 'AdminLoyaltyTierCollectionEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/benefits/loyalty-tiers/{id}' => [
+                'summary' => 'Show admin loyalty tier',
+                'description' => 'Return one loyalty tier master-data record with row_version for guarded updates.',
+                'tags' => ['Admin Benefits'],
+                'responses' => [
+                    200 => ['schema' => 'AdminLoyaltyTierEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/admin/benefits/loyalty-tiers' => [
+                'summary' => 'Create admin loyalty tier',
+                'description' => 'Create a loyalty tier master-data record under the admin benefits capability.',
+                'tags' => ['Admin Benefits'],
+                'responses' => [
+                    201 => ['schema' => 'AdminLoyaltyTierEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'tier_code' => 'GOLD',
+                    'tier_name' => 'Gold',
+                    'min_points' => 1000,
+                    'benefits_json' => [],
+                    'is_active' => true,
+                ],
+                'contract_grade' => 'full',
+            ],
+            'PATCH api/v1/admin/benefits/loyalty-tiers/{id}' => [
+                'summary' => 'Update admin loyalty tier',
+                'description' => 'Update a loyalty tier master-data record using row_version stale-write protection.',
+                'tags' => ['Admin Benefits'],
+                'responses' => [
+                    200 => ['schema' => 'AdminLoyaltyTierEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'StaleRowVersionError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'row_version' => 3,
+                    'tier_name' => 'Gold Plus',
+                    'min_points' => 1200,
+                    'is_active' => true,
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/settings/benefits' => [
+                'summary' => 'List admin benefit settings',
+                'description' => 'Return runtime benefit settings used by voucher and loyalty operations.',
+                'tags' => ['Admin Benefits'],
+                'responses' => [
+                    200 => ['schema' => 'AdminBenefitSettingCollectionEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/admin/settings/benefits' => [
+                'summary' => 'Upsert admin benefit setting',
+                'description' => 'Upsert one benefit runtime setting with idempotency and optional expected timestamp guard.',
+                'tags' => ['Admin Benefits'],
+                'responses' => [
+                    200 => ['schema' => 'AdminBenefitSettingEnvelope'],
+                    201 => ['schema' => 'AdminBenefitSettingEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'setting_key' => 'loyalty.enabled',
+                    'value' => 'true',
+                    'expected_updated_at' => '2026-04-05T10:00:00Z',
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/privacy/requests' => [
+                'summary' => 'List admin privacy requests',
+                'description' => 'Return paged customer privacy requests for admin review with stable request identifiers and status fields.',
+                'tags' => ['Admin Privacy'],
+                'responses' => [
+                    200 => ['schema' => 'AdminPrivacyRequestCollectionEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/privacy/customers/{user_id}/data-export' => [
+                'summary' => 'Export admin customer data',
+                'description' => 'Return the admin-visible customer data export payload while preserving finance and audit lineage.',
+                'tags' => ['Admin Privacy'],
+                'responses' => [
+                    200 => ['schema' => 'AdminCustomerDataExportEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/admin/privacy/requests/{request_id}/review' => [
+                'summary' => 'Review admin privacy request',
+                'description' => 'Dry-run or commit an admin privacy request review decision while keeping anonymization side effects explicit.',
+                'tags' => ['Admin Privacy'],
+                'responses' => [
+                    200 => ['schema' => 'AdminPrivacyReviewEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'decision' => 'approve',
+                    'mode' => 'dry_run',
+                    'notes' => 'Reviewed by data protection owner.',
+                ],
+                'contract_grade' => 'full',
+            ],
             'GET api/v1/admin/inventory/ingredients' => [
                 'summary' => 'List ingredients',
                 'description' => 'Return paged inventory ingredients with stock-on-hand and recipe usage counts for the current inventory uplift rollout.',
@@ -1990,6 +2413,84 @@ class ApiContractMetadataRegistry
                     401 => ['schema' => 'UnauthorizedError'],
                     403 => ['schema' => 'ForbiddenError'],
                     422 => ['schema' => 'ValidationError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/inventory/ingredients/{id}/movements' => [
+                'summary' => 'List ingredient stock movements',
+                'description' => 'Return paged stock movement ledger rows for one ingredient, scoped by staff branch access and optional branch filter.',
+                'tags' => ['Admin Inventory'],
+                'responses' => [
+                    200 => ['schema' => 'AdminIngredientMovementCollectionEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/admin/inventory/ingredients/{id}/movements' => [
+                'summary' => 'Create ingredient stock movement',
+                'description' => 'Create a guarded stock movement for one ingredient and return the posted ledger row with updated stock-on-hand metadata.',
+                'tags' => ['Admin Inventory'],
+                'responses' => [
+                    201 => ['schema' => 'AdminIngredientMovementEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'movement_type' => 'AdjustmentDecrease',
+                    'branch_id' => 1,
+                    'quantity' => 2.5,
+                    'unit_code' => 'kg',
+                    'reference_type' => 'manual_adjustment',
+                    'reference_id' => 'ADJ-20260405-01',
+                    'notes' => 'Spoilage recorded during prep',
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/inventory/purchase-orders/{id}/receipts' => [
+                'summary' => 'List purchase order receipts',
+                'description' => 'Return posted receiving records for one purchase order, including purchase-order context and receipt line summaries.',
+                'tags' => ['Admin Inventory'],
+                'responses' => [
+                    200 => ['schema' => 'AdminPurchaseOrderReceiptCollectionEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'POST api/v1/admin/inventory/purchase-orders/{id}/receipts' => [
+                'summary' => 'Receive purchase order stock',
+                'description' => 'Post a purchase-order receiving transaction, update stock ledger rows, and return the posted receipt plus refreshed purchase-order context.',
+                'tags' => ['Admin Inventory'],
+                'responses' => [
+                    201 => ['schema' => 'AdminPurchaseOrderReceiptEnvelope'],
+                    401 => ['schema' => 'UnauthorizedError'],
+                    403 => ['schema' => 'ForbiddenError'],
+                    404 => ['schema' => 'NotFoundError'],
+                    409 => ['schema' => 'ConflictError'],
+                    422 => ['schema' => 'ValidationError'],
+                ],
+                'request_example' => [
+                    'receipt_code' => 'RCV-20260405-001',
+                    'received_at' => '2026-04-05T09:30:00Z',
+                    'supplier_document_no' => 'SUP-DOC-7788',
+                    'notes' => 'Partial morning delivery',
+                    'lines' => [
+                        [
+                            'purchase_order_line_id' => 701,
+                            'received_quantity' => 5,
+                            'unit_code' => 'kg',
+                            'unit_cost' => 120000,
+                            'notes' => 'Checked by receiving staff',
+                        ],
+                    ],
                 ],
                 'contract_grade' => 'full',
             ],
@@ -4573,6 +5074,107 @@ class ApiContractMetadataRegistry
             'additionalProperties' => false,
         ];
 
+        $adminIngredientMovementSchema = [
+            'type' => 'object',
+            'required' => ['movement_id', 'branch_id', 'ingredient_id', 'movement_type', 'quantity_delta', 'unit_code', 'reference', 'notes', 'created_by', 'created_at'],
+            'properties' => [
+                'movement_id' => ['type' => 'integer'],
+                'branch_id' => ['type' => 'integer', 'nullable' => true],
+                'ingredient_id' => ['type' => 'integer'],
+                'movement_type' => ['type' => 'string'],
+                'quantity_delta' => ['type' => 'string'],
+                'unit_code' => ['type' => 'string'],
+                'reference' => [
+                    'type' => 'object',
+                    'required' => ['type', 'id'],
+                    'properties' => [
+                        'type' => ['type' => 'string', 'nullable' => true],
+                        'id' => ['type' => 'string', 'nullable' => true],
+                    ],
+                    'additionalProperties' => false,
+                ],
+                'notes' => ['type' => 'string', 'nullable' => true],
+                'created_by' => ['type' => 'integer', 'nullable' => true],
+                'created_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+            ],
+            'additionalProperties' => false,
+        ];
+
+        $adminPurchaseOrderLineSchema = [
+            'type' => 'object',
+            'required' => ['po_line_id', 'ingredient_id', 'ordered_quantity', 'received_quantity', 'remaining_quantity', 'unit_code', 'unit_cost', 'notes', 'sort_order'],
+            'properties' => [
+                'po_line_id' => ['type' => 'integer'],
+                'ingredient_id' => ['type' => 'integer'],
+                'ingredient' => [
+                    'anyOf' => [
+                        $ingredientReferenceSchema,
+                        ['type' => 'null'],
+                    ],
+                ],
+                'ordered_quantity' => ['type' => 'string'],
+                'received_quantity' => ['type' => 'string'],
+                'remaining_quantity' => ['type' => 'string'],
+                'unit_code' => ['type' => 'string'],
+                'unit_cost' => ['type' => 'string', 'nullable' => true],
+                'notes' => ['type' => 'string', 'nullable' => true],
+                'sort_order' => ['type' => 'integer'],
+            ],
+            'additionalProperties' => false,
+        ];
+
+        $adminPurchaseOrderReceiptLineSchema = [
+            'type' => 'object',
+            'required' => ['receipt_line_id', 'purchase_order_line_id', 'ingredient_id', 'received_quantity', 'unit_code', 'unit_cost', 'notes'],
+            'properties' => [
+                'receipt_line_id' => ['type' => 'integer'],
+                'purchase_order_line_id' => ['type' => 'integer'],
+                'ingredient_id' => ['type' => 'integer'],
+                'ingredient' => [
+                    'anyOf' => [
+                        $ingredientReferenceSchema,
+                        ['type' => 'null'],
+                    ],
+                ],
+                'received_quantity' => ['type' => 'string'],
+                'unit_code' => ['type' => 'string'],
+                'unit_cost' => ['type' => 'string', 'nullable' => true],
+                'notes' => ['type' => 'string', 'nullable' => true],
+            ],
+            'additionalProperties' => true,
+        ];
+
+        $adminPurchaseOrderReceiptSchema = [
+            'type' => 'object',
+            'required' => ['receipt_id', 'branch_id', 'purchase_order_id', 'receipt_code', 'receipt_status', 'received_at', 'supplier_document_no', 'notes', 'summary', 'created_by', 'created_at'],
+            'properties' => [
+                'receipt_id' => ['type' => 'integer'],
+                'branch_id' => ['type' => 'integer', 'nullable' => true],
+                'purchase_order_id' => ['type' => 'integer'],
+                'receipt_code' => ['type' => 'string'],
+                'receipt_status' => ['type' => 'string'],
+                'received_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'supplier_document_no' => ['type' => 'string', 'nullable' => true],
+                'notes' => ['type' => 'string', 'nullable' => true],
+                'summary' => [
+                    'type' => 'object',
+                    'required' => ['line_count', 'received_total_quantity'],
+                    'properties' => [
+                        'line_count' => ['type' => 'integer'],
+                        'received_total_quantity' => ['type' => 'string'],
+                    ],
+                    'additionalProperties' => false,
+                ],
+                'lines' => [
+                    'type' => 'array',
+                    'items' => ['$ref' => '#/components/schemas/AdminPurchaseOrderReceiptLine'],
+                ],
+                'created_by' => ['type' => 'integer', 'nullable' => true],
+                'created_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+            ],
+            'additionalProperties' => false,
+        ];
+
         $adminPurchaseOrderSchema = [
             'type' => 'object',
             'required' => ['purchase_order_id', 'branch_id', 'order_code', 'purchase_order_status', 'supplier_id', 'row_version', 'summary', 'created_at', 'updated_at'],
@@ -4611,12 +5213,156 @@ class ApiContractMetadataRegistry
                 'notes' => ['type' => 'string', 'nullable' => true],
                 'row_version' => ['type' => 'integer'],
                 'summary' => $adminPurchaseOrderSummarySchema,
+                'lines' => [
+                    'type' => 'array',
+                    'items' => ['$ref' => '#/components/schemas/AdminPurchaseOrderLine'],
+                ],
+                'receipts' => [
+                    'type' => 'array',
+                    'items' => ['$ref' => '#/components/schemas/AdminPurchaseOrderReceipt'],
+                ],
                 'created_by' => ['type' => 'integer', 'nullable' => true],
                 'updated_by' => ['type' => 'integer', 'nullable' => true],
                 'created_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
                 'updated_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
             ],
             'additionalProperties' => false,
+        ];
+
+        $adminVoucherSchema = [
+            'type' => 'object',
+            'required' => ['voucher_id', 'code', 'discount_type', 'discount_value', 'is_active', 'row_version'],
+            'properties' => [
+                'voucher_id' => ['type' => 'integer'],
+                'code' => ['type' => 'string'],
+                'description' => ['type' => 'string', 'nullable' => true],
+                'discount_type' => ['type' => 'string'],
+                'discount_value' => ['type' => 'number', 'nullable' => true],
+                'free_item_id' => ['type' => 'integer', 'nullable' => true],
+                'free_item_qty' => ['type' => 'integer', 'nullable' => true],
+                'max_usage' => ['type' => 'integer', 'nullable' => true],
+                'max_usage_per_user' => ['type' => 'integer', 'nullable' => true],
+                'min_spend' => ['type' => 'number', 'nullable' => true],
+                'start_date' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'expiry_date' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'is_active' => ['type' => 'boolean'],
+                'row_version' => ['type' => 'integer'],
+                'created_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'updated_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+            ],
+            'additionalProperties' => true,
+        ];
+
+        $adminLoyaltyTierSchema = [
+            'type' => 'object',
+            'required' => ['tier_id', 'tier_code', 'tier_name', 'min_points', 'is_active', 'row_version'],
+            'properties' => [
+                'tier_id' => ['type' => 'integer'],
+                'tier_code' => ['type' => 'string'],
+                'tier_name' => ['type' => 'string'],
+                'min_points' => ['type' => 'integer'],
+                'benefits_json' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => true], 'nullable' => true],
+                'is_active' => ['type' => 'boolean'],
+                'row_version' => ['type' => 'integer'],
+                'created_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'updated_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+            ],
+            'additionalProperties' => true,
+        ];
+
+        $adminBenefitSettingSchema = [
+            'type' => 'object',
+            'required' => ['setting_key', 'value'],
+            'properties' => [
+                'setting_key' => ['type' => 'string'],
+                'value' => ['type' => 'string'],
+                'updated_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+            ],
+            'additionalProperties' => true,
+        ];
+
+        $adminPrivacyRequestSchema = [
+            'type' => 'object',
+            'required' => ['request_id', 'user_id', 'request_type', 'status'],
+            'properties' => [
+                'request_id' => ['type' => 'integer'],
+                'privacy_request_id' => ['type' => 'integer'],
+                'customer_privacy_request_id' => ['type' => 'integer'],
+                'user_id' => ['type' => 'integer', 'nullable' => true],
+                'customer_user_id' => ['type' => 'integer', 'nullable' => true],
+                'request_type' => ['type' => 'string'],
+                'status' => ['type' => 'string'],
+                'decision' => ['type' => 'string', 'nullable' => true],
+                'requested_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'created_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'reviewed_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'processed_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'notes' => ['type' => 'string', 'nullable' => true],
+                'resolution_notes' => ['type' => 'string', 'nullable' => true],
+                'result_summary' => ['type' => 'string', 'nullable' => true],
+            ],
+            'additionalProperties' => true,
+        ];
+
+        $financialReservationSummarySchema = [
+            'type' => 'object',
+            'required' => ['reservation_id', 'reservation_code', 'status', 'deposit_status', 'customer'],
+            'properties' => [
+                'reservation_id' => ['type' => 'integer'],
+                'reservation_code' => ['type' => 'string'],
+                'row_version' => ['type' => 'integer', 'nullable' => true],
+                'status' => ['type' => 'string'],
+                'deposit_status' => ['type' => 'string'],
+                'start_time' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'end_time' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'billed_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'updated_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                'bill_currency' => ['type' => 'string', 'nullable' => true],
+                'customer' => ['type' => 'object', 'additionalProperties' => true],
+            ],
+            'additionalProperties' => true,
+        ];
+
+        $financialReconciliationRowSchema = [
+            'type' => 'object',
+            'required' => ['reservation', 'payment_summary', 'reconciliation', 'flags'],
+            'properties' => [
+                'reservation' => ['$ref' => '#/components/schemas/FinancialReservationSummary'],
+                'payment_summary' => ['type' => 'object', 'additionalProperties' => true],
+                'reconciliation' => ['type' => 'object', 'additionalProperties' => true],
+                'flags' => ['type' => 'object', 'additionalProperties' => true],
+            ],
+            'additionalProperties' => true,
+        ];
+
+        $financeInvoicePayloadSchema = [
+            'type' => 'object',
+            'required' => ['invoice', 'reservation', 'reconciliation', 'method_breakdown'],
+            'properties' => [
+                'invoice' => [
+                    'type' => 'object',
+                    'required' => ['billing_invoice_id', 'reservation_id', 'invoice_number', 'invoice_status', 'currency', 'row_version'],
+                    'properties' => [
+                        'billing_invoice_id' => ['type' => 'integer'],
+                        'reservation_id' => ['type' => 'integer'],
+                        'invoice_number' => ['type' => 'string'],
+                        'invoice_status' => ['type' => 'string'],
+                        'currency' => ['type' => 'string'],
+                        'bill_amounts' => ['type' => 'object', 'additionalProperties' => true],
+                        'tax' => ['type' => 'object', 'additionalProperties' => true],
+                        'seller' => ['type' => 'object', 'additionalProperties' => true],
+                        'issued_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                        'issued_by' => ['type' => 'object', 'additionalProperties' => true],
+                        'row_version' => ['type' => 'integer'],
+                        'metadata' => ['type' => 'object', 'additionalProperties' => true],
+                    ],
+                    'additionalProperties' => true,
+                ],
+                'reservation' => ['$ref' => '#/components/schemas/FinancialReservationSummary'],
+                'reconciliation' => ['$ref' => '#/components/schemas/FinancialReconciliationRow'],
+                'method_breakdown' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => true]],
+            ],
+            'additionalProperties' => true,
         ];
 
         $reportingSnapshotHealthSchema = [
@@ -5135,13 +5881,14 @@ class ApiContractMetadataRegistry
 
         $staffTableBoardRowSchema = [
             'type' => 'object',
-            'required' => ['table_id', 'table_code', 'zone', 'pos_x', 'pos_y', 'realtime_status', 'board_state', 'reservations', 'holds', 'reservation', 'hold', 'capacity', 'availability', 'operational_hints', 'actions', 'candidate_reservations', 'current_fit', 'active_order'],
+            'required' => ['table_id', 'table_code', 'zone', 'pos_x', 'pos_y', 'row_version', 'realtime_status', 'board_state', 'reservations', 'holds', 'reservation', 'hold', 'capacity', 'availability', 'operational_hints', 'actions', 'candidate_reservations', 'current_fit', 'active_order'],
             'properties' => [
                 'table_id' => ['type' => 'integer'],
                 'table_code' => ['type' => 'string'],
                 'zone' => ['type' => 'string', 'nullable' => true],
                 'pos_x' => ['type' => 'integer', 'nullable' => true],
                 'pos_y' => ['type' => 'integer', 'nullable' => true],
+                'row_version' => ['type' => 'integer'],
                 'realtime_status' => ['type' => 'string'],
                 'board_state' => ['type' => 'string'],
                 'reservations' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/StaffTableBoardAssignedReservation']],
@@ -5718,6 +6465,16 @@ class ApiContractMetadataRegistry
             'AdminIngredient' => $adminIngredientSchema,
             'AdminSupplier' => $adminSupplierSchema,
             'AdminPurchaseOrder' => $adminPurchaseOrderSchema,
+            'AdminIngredientMovement' => $adminIngredientMovementSchema,
+            'AdminPurchaseOrderLine' => $adminPurchaseOrderLineSchema,
+            'AdminPurchaseOrderReceiptLine' => $adminPurchaseOrderReceiptLineSchema,
+            'AdminPurchaseOrderReceipt' => $adminPurchaseOrderReceiptSchema,
+            'AdminVoucher' => $adminVoucherSchema,
+            'AdminLoyaltyTier' => $adminLoyaltyTierSchema,
+            'AdminBenefitSetting' => $adminBenefitSettingSchema,
+            'AdminPrivacyRequest' => $adminPrivacyRequestSchema,
+            'FinancialReservationSummary' => $financialReservationSummarySchema,
+            'FinancialReconciliationRow' => $financialReconciliationRowSchema,
             'ReportingSnapshotHealth' => $reportingSnapshotHealthSchema,
             'ReportingDailySalesSnapshot' => $reportingDailySalesSnapshotSchema,
             'ReportingDailyOperationSnapshot' => $reportingDailyOperationsSnapshotSchema,
@@ -5735,6 +6492,9 @@ class ApiContractMetadataRegistry
             'AdminSupplierCollectionMeta' => $adminSupplierCollectionMetaSchema,
             'AdminPurchaseOrderCollectionMeta' => $adminPurchaseOrderCollectionMetaSchema,
             'RestaurantTable' => $restaurantTableSchema,
+            'RestaurantTableEnvelope' => $this->dataEnvelope([
+                '$ref' => '#/components/schemas/RestaurantTable',
+            ]),
             'StaffAuthUser' => $staffAuthUserSchema,
             'ApiUserCustomerProfile' => $apiUserCustomerProfileSchema,
             'ApiUserStaffProfile' => $apiUserStaffProfileSchema,
@@ -6339,6 +7099,21 @@ class ApiContractMetadataRegistry
                 ],
                 'additionalProperties' => false,
             ]),
+            'StaffWaitingListAdvanceEnvelope' => $this->dataEnvelope([
+                'type' => 'object',
+                'required' => ['source_waiting_list', 'advanced_waiting_list', 'automation'],
+                'properties' => [
+                    'source_waiting_list' => ['$ref' => '#/components/schemas/StaffWaitingListEntry'],
+                    'advanced_waiting_list' => [
+                        'anyOf' => [
+                            ['$ref' => '#/components/schemas/StaffWaitingListEntry'],
+                            ['type' => 'null'],
+                        ],
+                    ],
+                    'automation' => ['type' => 'object', 'additionalProperties' => true],
+                ],
+                'additionalProperties' => false,
+            ]),
             'CashierShiftEnvelope' => $this->dataEnvelope($cashierShiftSchema, [
                 'type' => 'object',
                 'properties' => [
@@ -6398,6 +7173,159 @@ class ApiContractMetadataRegistry
                 '$ref' => '#/components/schemas/AdminPurchaseOrder',
             ], [
                 '$ref' => '#/components/schemas/AdminPurchaseOrderCollectionMeta',
+            ]),
+            'AdminIngredientMovementCollectionEnvelope' => $this->collectionEnvelope([
+                '$ref' => '#/components/schemas/AdminIngredientMovement',
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'ingredient' => ['type' => 'object', 'additionalProperties' => true],
+                    'current_page' => ['type' => 'integer'],
+                    'per_page' => ['type' => 'integer'],
+                    'total' => ['type' => 'integer'],
+                    'last_page' => ['type' => 'integer'],
+                    'filters' => ['type' => 'object', 'additionalProperties' => true],
+                    'sort' => $listingSortSchema,
+                    'query_contract' => ['$ref' => '#/components/schemas/ListingQueryContract'],
+                ],
+                'additionalProperties' => true,
+            ]),
+            'AdminIngredientMovementEnvelope' => $this->dataEnvelope([
+                '$ref' => '#/components/schemas/AdminIngredientMovement',
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'stock_on_hand' => ['type' => 'string'],
+                ],
+                'additionalProperties' => true,
+            ]),
+            'AdminPurchaseOrderReceiptCollectionEnvelope' => $this->collectionEnvelope([
+                '$ref' => '#/components/schemas/AdminPurchaseOrderReceipt',
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'purchase_order' => ['$ref' => '#/components/schemas/AdminPurchaseOrder'],
+                    'count' => ['type' => 'integer'],
+                ],
+                'required' => ['purchase_order', 'count'],
+                'additionalProperties' => false,
+            ]),
+            'AdminPurchaseOrderReceiptEnvelope' => $this->dataEnvelope([
+                '$ref' => '#/components/schemas/AdminPurchaseOrderReceipt',
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'purchase_order' => ['$ref' => '#/components/schemas/AdminPurchaseOrder'],
+                ],
+                'required' => ['purchase_order'],
+                'additionalProperties' => false,
+            ]),
+            'AdminVoucherCollectionEnvelope' => $this->collectionEnvelope([
+                '$ref' => '#/components/schemas/AdminVoucher',
+            ], [
+                'type' => 'object',
+                'additionalProperties' => true,
+            ]),
+            'AdminVoucherEnvelope' => $this->dataEnvelope([
+                '$ref' => '#/components/schemas/AdminVoucher',
+            ]),
+            'AdminLoyaltyTierCollectionEnvelope' => $this->collectionEnvelope([
+                '$ref' => '#/components/schemas/AdminLoyaltyTier',
+            ], [
+                'type' => 'object',
+                'additionalProperties' => true,
+            ]),
+            'AdminLoyaltyTierEnvelope' => $this->dataEnvelope([
+                '$ref' => '#/components/schemas/AdminLoyaltyTier',
+            ]),
+            'AdminBenefitSettingCollectionEnvelope' => $this->collectionEnvelope([
+                '$ref' => '#/components/schemas/AdminBenefitSetting',
+            ], [
+                'type' => 'object',
+                'additionalProperties' => true,
+            ]),
+            'AdminBenefitSettingEnvelope' => $this->dataEnvelope([
+                '$ref' => '#/components/schemas/AdminBenefitSetting',
+            ], [
+                'type' => 'object',
+                'additionalProperties' => true,
+            ]),
+            'AdminPrivacyRequestCollectionEnvelope' => $this->collectionEnvelope([
+                '$ref' => '#/components/schemas/AdminPrivacyRequest',
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'action' => ['type' => 'string'],
+                    'current_page' => ['type' => 'integer'],
+                    'per_page' => ['type' => 'integer'],
+                    'total' => ['type' => 'integer'],
+                    'last_page' => ['type' => 'integer'],
+                ],
+                'additionalProperties' => true,
+            ]),
+            'AdminCustomerDataExportEnvelope' => $this->dataEnvelope([
+                'type' => 'object',
+                'additionalProperties' => true,
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'action' => ['type' => 'string'],
+                ],
+                'additionalProperties' => true,
+            ]),
+            'AdminPrivacyReviewEnvelope' => $this->dataEnvelope([
+                'type' => 'object',
+                'additionalProperties' => true,
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'action' => ['type' => 'string'],
+                    'mode' => ['type' => 'string'],
+                    'committed' => ['type' => 'boolean'],
+                ],
+                'additionalProperties' => true,
+            ]),
+            'FinancialReconciliationCollectionEnvelope' => $this->collectionEnvelope([
+                '$ref' => '#/components/schemas/FinancialReconciliationRow',
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'action' => ['type' => 'string'],
+                    'filters' => ['type' => 'object', 'additionalProperties' => true],
+                    'current_page' => ['type' => 'integer'],
+                    'per_page' => ['type' => 'integer'],
+                    'total' => ['type' => 'integer'],
+                    'last_page' => ['type' => 'integer'],
+                    'query_contract' => ['$ref' => '#/components/schemas/ListingQueryContract'],
+                ],
+                'additionalProperties' => true,
+            ]),
+            'FinancialReconciliationDetailEnvelope' => $this->dataEnvelope([
+                'type' => 'object',
+                'required' => ['reservation', 'summary', 'payments', 'method_breakdown'],
+                'properties' => [
+                    'reservation' => ['$ref' => '#/components/schemas/FinancialReservationSummary'],
+                    'summary' => ['$ref' => '#/components/schemas/FinancialReconciliationRow'],
+                    'payments' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => true]],
+                    'method_breakdown' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => true]],
+                ],
+                'additionalProperties' => true,
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'action' => ['type' => 'string'],
+                    'branch_id' => ['type' => 'integer', 'nullable' => true],
+                ],
+                'additionalProperties' => true,
+            ]),
+            'FinanceInvoiceEnvelope' => $this->dataEnvelope($financeInvoicePayloadSchema, [
+                'type' => 'object',
+                'properties' => [
+                    'action' => ['type' => 'string'],
+                    'created' => ['type' => 'boolean'],
+                    'branch_id' => ['type' => 'integer', 'nullable' => true],
+                ],
+                'additionalProperties' => true,
             ]),
             'StaffReportingDailySalesCollectionEnvelope' => $this->collectionEnvelope([
                 '$ref' => '#/components/schemas/ReportingDailySalesSnapshot',

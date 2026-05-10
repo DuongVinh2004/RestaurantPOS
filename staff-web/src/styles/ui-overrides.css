@@ -3096,8 +3096,8 @@ body {
   }
 }
 
-/* Production dark operational surface. Keep this layer last so older warm
-   bundle styles cannot override DESIGN.md tokens. */
+/* Legacy dark operational surface retained for older bundled selectors.
+   The readable light surface at the end of this file is the active palette. */
 .staff-shell-layout,
 .staff-shell-layout > .ant-layout,
 .staff-shell-content,
@@ -3510,4 +3510,587 @@ body {
 .staff-form-field-error {
   color: #fecaca;
   font-size: 12px;
+}
+
+/* Readable light surface. Keep this final so older dark and warm bundles cannot
+   leave low-contrast text on dark cards. */
+:root {
+  --staff-bg-page: #f6f8fb;
+  --staff-bg-page-accent: #eef4f9;
+  --staff-bg-elevated: #ffffff;
+  --staff-bg-muted: #f1f5f9;
+  --staff-bg-contrast: #e6edf5;
+  --staff-surface-warning: rgba(217, 119, 6, 0.1);
+  --staff-surface-critical: rgba(220, 38, 38, 0.1);
+  --staff-surface-success: rgba(22, 163, 74, 0.1);
+  --staff-surface-info: rgba(37, 99, 235, 0.1);
+  --staff-border-default: #d8e2ee;
+  --staff-border-strong: #b8c6d8;
+  --staff-border-active: #2563eb;
+  --staff-border-warning: rgba(217, 119, 6, 0.48);
+  --staff-border-critical: rgba(220, 38, 38, 0.46);
+  --staff-text-primary: #172033;
+  --staff-text-secondary: #506176;
+  --staff-text-tertiary: #74839a;
+  --staff-accent-primary: #2563eb;
+  --staff-accent-warning: #d97706;
+  --staff-accent-danger: #dc2626;
+  --staff-accent-success: #16a34a;
+  --staff-accent-info: #2563eb;
+  --staff-shadow-card: 0 8px 22px rgba(31, 41, 55, 0.08);
+  --staff-shadow-hover: 0 14px 32px rgba(31, 41, 55, 0.12);
+  --staff-shadow-selected: 0 0 0 1px rgba(37, 99, 235, 0.34), 0 12px 28px rgba(37, 99, 235, 0.12);
+  color-scheme: light;
+}
+
+html,
+body,
+#root,
+.staff-shell-layout,
+.staff-shell-layout > .ant-layout,
+.staff-shell-content,
+.staff-shell-content-dashboard,
+.staff-dashboard-page,
+.staff-conversation-page,
+.staff-kitchen-workspace,
+.staff-kitchen-board-page,
+.staff-admin-workspace,
+.staff-admin-domain-section {
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.1), transparent 24%),
+    linear-gradient(180deg, #f8fbff 0%, var(--staff-bg-page) 100%) !important;
+  color: var(--staff-text-primary) !important;
+}
+
+.staff-shell-sider,
+.staff-shell-layout-kitchen .staff-shell-sider,
+.staff-shell-layout-admin .staff-shell-sider,
+.staff-shell-nav-drawer .ant-drawer-content,
+.staff-shell-nav-drawer .ant-drawer-header {
+  background: linear-gradient(180deg, #ffffff 0%, #edf3fa 100%) !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  box-shadow: 8px 0 24px rgba(31, 41, 55, 0.08) !important;
+  color: var(--staff-text-primary) !important;
+  scrollbar-color: rgba(37, 99, 235, 0.42) rgba(148, 163, 184, 0.16);
+}
+
+.staff-shell-header,
+.staff-shell-layout-kitchen .staff-shell-header,
+.staff-shell-layout-admin .staff-shell-header {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22) !important;
+  box-shadow: 0 10px 28px rgba(31, 41, 55, 0.08) !important;
+  color: var(--staff-text-primary) !important;
+}
+
+.staff-sider-brand,
+.staff-shell-nav-drawer .ant-drawer-header {
+  border-color: rgba(148, 163, 184, 0.2) !important;
+}
+
+.staff-sider-brand-title,
+.staff-nav-item-title,
+.staff-shell-header-title,
+.staff-shell-command-title,
+.staff-shell-nav-empty {
+  color: var(--staff-text-primary) !important;
+}
+
+.staff-sider-brand-copy,
+.staff-nav-group-label,
+.staff-shell-command-subtitle {
+  color: var(--staff-text-tertiary) !important;
+}
+
+.staff-shell-nav-item,
+.staff-shell-layout-kitchen .staff-shell-nav-item,
+.staff-shell-layout-admin .staff-shell-nav-item {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #334155 !important;
+}
+
+.staff-shell-nav-item:hover,
+.staff-shell-layout-kitchen .staff-shell-nav-item:hover,
+.staff-shell-layout-admin .staff-shell-nav-item:hover {
+  background: rgba(37, 99, 235, 0.08) !important;
+  border-color: rgba(37, 99, 235, 0.18) !important;
+  color: var(--staff-text-primary) !important;
+}
+
+.staff-shell-nav-item-selected,
+.staff-shell-layout-kitchen .staff-shell-nav-item-selected,
+.staff-shell-layout-admin .staff-shell-nav-item-selected {
+  background: rgba(37, 99, 235, 0.12) !important;
+  border-color: rgba(37, 99, 235, 0.34) !important;
+  box-shadow: inset 3px 0 0 var(--staff-accent-success) !important;
+  color: var(--staff-text-primary) !important;
+}
+
+.staff-nav-item-icon {
+  color: var(--staff-accent-primary) !important;
+}
+
+.staff-nav-item-badge {
+  background: rgba(22, 163, 74, 0.1) !important;
+  border-color: rgba(22, 163, 74, 0.22) !important;
+  color: #15803d !important;
+}
+
+.staff-shell-workspace-kicker,
+.staff-dashboard-context-chip {
+  background: rgba(37, 99, 235, 0.1) !important;
+  border-color: rgba(37, 99, 235, 0.22) !important;
+  color: #1d4ed8 !important;
+}
+
+.staff-shell-freshness-chip-success {
+  background: rgba(22, 163, 74, 0.1) !important;
+  border-color: rgba(22, 163, 74, 0.22) !important;
+  color: #15803d !important;
+}
+
+.staff-shell-freshness-chip-warning {
+  background: rgba(217, 119, 6, 0.12) !important;
+  border-color: rgba(217, 119, 6, 0.24) !important;
+  color: #92400e !important;
+}
+
+.staff-shell-branch-select,
+.staff-shell-control-button,
+.staff-shell-button-subtle,
+.staff-shell-button-quiet,
+.staff-shell-button-ghost,
+.staff-dashboard-refresh-button,
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-input-number,
+.ant-input-number .ant-input-number-input,
+.ant-select-single:not(.ant-select-customize-input) .ant-select-selector,
+.ant-select-multiple .ant-select-selector,
+.ant-picker,
+.ant-btn-default,
+.ant-btn-color-default,
+.ant-input-search-button,
+.staff-table-board-zone-select,
+.staff-toolbar-select {
+  background: #ffffff !important;
+  border-color: var(--staff-border-default) !important;
+  color: var(--staff-text-primary) !important;
+}
+
+.staff-shell-control-button:hover,
+.staff-shell-branch-select:hover,
+.ant-input:hover,
+.ant-input-affix-wrapper:hover,
+.ant-input-number:hover,
+.ant-select-single:not(.ant-select-customize-input) .ant-select-selector:hover,
+.ant-select-multiple .ant-select-selector:hover,
+.ant-picker:hover,
+.ant-btn-default:hover,
+.ant-btn-color-default:hover,
+.ant-input-search-button:hover,
+.staff-table-board-zone-select:hover,
+.staff-toolbar-select:hover {
+  background: #f8fbff !important;
+  border-color: rgba(37, 99, 235, 0.36) !important;
+  box-shadow: none !important;
+}
+
+.ant-input:focus,
+.ant-input-focused,
+.ant-input-affix-wrapper-focused,
+.ant-input-number-focused,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused,
+.staff-shell-branch-select:focus-visible,
+.staff-shell-control-button:focus-visible {
+  border-color: var(--staff-accent-primary) !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.14) !important;
+  outline: none;
+}
+
+.ant-card,
+.ant-alert,
+.ant-modal-content,
+.ant-drawer-content,
+.ant-popover-inner,
+.ant-dropdown .ant-dropdown-menu,
+.ant-select-dropdown,
+.ant-picker-panel-container,
+.ant-table-container,
+.ant-descriptions-bordered .ant-descriptions-view,
+.staff-page-header,
+.staff-state-surface,
+.staff-facing-alert,
+.staff-shell-command-item,
+.staff-dashboard-topbar,
+.staff-dashboard-priority-panel,
+.staff-dashboard-activity-strip,
+.staff-dashboard-alert-card,
+.staff-dashboard-kpi-card,
+.staff-dashboard-main-zone,
+.staff-dashboard-card,
+.staff-dashboard-health-card,
+.staff-dashboard-list-item,
+.staff-dashboard-note-item,
+.staff-dashboard-metric-card,
+.staff-dashboard-board-cell,
+.staff-dashboard-topbar-metric,
+.staff-dashboard-alert-band,
+.staff-table-board-ops-panel,
+.staff-table-board-unassigned-card,
+.staff-table-board-inspector,
+.staff-table-board-inspector-section,
+.staff-table-board-sync-card,
+.staff-table-board-action-panel,
+.staff-order-current-card,
+.staff-order-menu-panel,
+.staff-order-selected-item-card,
+.staff-order-next-step-card,
+.staff-order-line-card,
+.staff-order-menu-item,
+.staff-conversation-page-header,
+.staff-conversation-preset-card,
+.staff-conversation-inbox-card,
+.staff-conversation-detail-card,
+.staff-conversation-summary-card,
+.staff-conversation-message,
+.staff-conversation-ai-summary,
+.staff-conversation-ops-panel,
+.staff-conversation-composer,
+.staff-conversation-ai-action-item,
+.staff-conversation-timeline-item,
+.staff-admin-chart-panel,
+.staff-admin-flow-panel,
+.staff-admin-domain-card,
+.staff-admin-switch-row,
+.staff-admin-branch-row,
+.staff-admin-detail-item,
+.staff-admin-surface-item,
+.staff-kitchen-hero,
+.staff-kitchen-board-head,
+.staff-kitchen-panel,
+.staff-kitchen-subpanel,
+.staff-kitchen-ticket-lane,
+.staff-kitchen-ticket-card,
+.staff-kitchen-station-card,
+.staff-summary-card,
+.staff-form-section,
+.staff-mini-list-item {
+  background: var(--staff-bg-elevated) !important;
+  border-color: var(--staff-border-default) !important;
+  box-shadow: var(--staff-shadow-card) !important;
+  color: var(--staff-text-primary) !important;
+}
+
+.staff-dashboard-topbar {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(241, 245, 249, 0.96)) !important;
+  border-radius: 8px !important;
+}
+
+.staff-dashboard-topbar::before {
+  background: var(--staff-accent-primary) !important;
+}
+
+.staff-dashboard-topbar-metric,
+.staff-dashboard-priority-panel,
+.staff-dashboard-activity-strip,
+.staff-table-board-summary-item,
+.staff-table-board-reservation-summary div,
+.staff-kitchen-metric,
+.staff-kitchen-sync-metric,
+.staff-kitchen-ticket-facts span {
+  background: var(--staff-bg-muted) !important;
+  border-color: var(--staff-border-default) !important;
+}
+
+.ant-card-head,
+.ant-card-body,
+.ant-modal-content,
+.ant-drawer-content,
+.ant-drawer-header,
+.ant-table-wrapper,
+.ant-table,
+.ant-table-container,
+.ant-table-content,
+.ant-table-body,
+.ant-descriptions-item-label,
+.ant-descriptions-item-content,
+.ant-tabs-content-holder {
+  background: transparent !important;
+  border-color: var(--staff-border-default) !important;
+  color: var(--staff-text-primary) !important;
+}
+
+.ant-table-wrapper .ant-table-thead > tr > th {
+  background: #eef3f8 !important;
+  border-bottom-color: var(--staff-border-default) !important;
+  color: var(--staff-text-secondary) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+
+.ant-table-wrapper .ant-table-tbody > tr > td,
+.ant-table-wrapper .ant-table-tbody > tr > th {
+  background: #ffffff !important;
+  border-bottom-color: var(--staff-border-default) !important;
+  color: var(--staff-text-primary) !important;
+}
+
+.ant-table-wrapper .ant-table-tbody > tr.ant-table-row:hover > td,
+.ant-table-wrapper .ant-table-tbody > tr.ant-table-row:hover > th,
+.ant-table-wrapper .ant-table-tbody > tr > td.ant-table-cell-row-hover,
+.ant-table-wrapper .ant-table-tbody > tr > th.ant-table-cell-row-hover {
+  background: #f5f9fd !important;
+}
+
+.ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > td,
+.ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > th,
+.staff-row-selected > td {
+  background: rgba(37, 99, 235, 0.1) !important;
+  border-bottom-color: rgba(37, 99, 235, 0.22) !important;
+}
+
+.ant-btn-primary {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.2) !important;
+  color: #ffffff !important;
+}
+
+.ant-btn-primary:hover,
+.ant-btn-primary:focus {
+  background: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+}
+
+.ant-typography,
+.ant-typography strong,
+.ant-statistic-content,
+.ant-form-item-label > label,
+.staff-dashboard-topbar-title,
+.staff-dashboard-context-chip,
+.staff-dashboard-topbar-metric-value,
+.staff-dashboard-priority-title,
+.staff-dashboard-alert-title,
+.staff-dashboard-kpi-value,
+.staff-dashboard-board-cell-label,
+.staff-dashboard-metric-value,
+.staff-shell-command-title,
+.staff-table-board-card-identity h4,
+.staff-table-board-context-value,
+.staff-order-menu-title-row,
+.staff-kitchen-section-head h3,
+.staff-kitchen-lane-head h4,
+.staff-kitchen-ticket-card-title,
+.staff-kitchen-ticket-copy,
+.staff-kitchen-metric strong,
+.staff-kitchen-sync-metric strong,
+.staff-admin-chart-label strong,
+.staff-admin-flow-step strong,
+.staff-summary-card-value,
+.staff-form-section-title {
+  color: var(--staff-text-primary) !important;
+}
+
+.ant-typography.ant-typography-secondary,
+.ant-typography-secondary,
+.ant-empty-description,
+.ant-form-item-extra,
+.ant-descriptions-item-label,
+.staff-page-header-description,
+.staff-state-surface-description,
+.staff-state-surface-meta,
+.staff-dashboard-alert-description,
+.staff-dashboard-kpi-hint,
+.staff-dashboard-card-description,
+.staff-dashboard-card-priority-hint,
+.staff-dashboard-board-cell-meta,
+.staff-dashboard-priority-description,
+.staff-dashboard-topbar-description,
+.staff-dashboard-main-zone-head p,
+.staff-dashboard-metric-hint,
+.staff-order-menu-hint,
+.staff-order-menu-description,
+.staff-order-line-meta,
+.staff-kitchen-muted,
+.staff-kitchen-station-summary,
+.staff-table-board-zone,
+.staff-table-board-card-identity span,
+.staff-table-board-context-meta,
+.staff-summary-card-label,
+.staff-summary-card-hint,
+.staff-form-section-description,
+.staff-form-field-help,
+.staff-form-field-label {
+  color: var(--staff-text-secondary) !important;
+}
+
+.staff-eyebrow,
+.staff-shell-context-label,
+.staff-shell-command-group,
+.staff-dashboard-topbar-metric-label,
+.staff-dashboard-kpi-label,
+.staff-dashboard-metric-label,
+.staff-table-board-inspector-label,
+.staff-kitchen-station-code {
+  color: #1d4ed8 !important;
+}
+
+.staff-status-chip-default {
+  --staff-chip-bg: rgba(100, 116, 139, 0.1);
+  --staff-chip-border: rgba(100, 116, 139, 0.2);
+  --staff-chip-fg: #475569;
+  --staff-chip-fill: #64748b;
+}
+
+.staff-status-chip-processing {
+  --staff-chip-bg: rgba(37, 99, 235, 0.1);
+  --staff-chip-border: rgba(37, 99, 235, 0.22);
+  --staff-chip-fg: #1d4ed8;
+  --staff-chip-fill: #2563eb;
+}
+
+.staff-status-chip-success {
+  --staff-chip-bg: rgba(22, 163, 74, 0.1);
+  --staff-chip-border: rgba(22, 163, 74, 0.22);
+  --staff-chip-fg: #15803d;
+  --staff-chip-fill: #16a34a;
+}
+
+.staff-status-chip-warning {
+  --staff-chip-bg: rgba(217, 119, 6, 0.12);
+  --staff-chip-border: rgba(217, 119, 6, 0.24);
+  --staff-chip-fg: #92400e;
+  --staff-chip-fill: #d97706;
+}
+
+.staff-status-chip-error {
+  --staff-chip-bg: rgba(220, 38, 38, 0.1);
+  --staff-chip-border: rgba(220, 38, 38, 0.22);
+  --staff-chip-fg: #b91c1c;
+  --staff-chip-fill: #dc2626;
+}
+
+.staff-state-surface-warning,
+.staff-dashboard-topbar-metric-warning,
+.staff-dashboard-alert-card-warning,
+.staff-dashboard-kpi-card-warning,
+.staff-dashboard-priority-panel-warning,
+.staff-kitchen-ticket-lane-queued,
+.staff-kitchen-metric-warning {
+  background: rgba(217, 119, 6, 0.08) !important;
+  border-color: rgba(217, 119, 6, 0.22) !important;
+}
+
+.staff-state-surface-success,
+.staff-dashboard-topbar-metric-success,
+.staff-dashboard-alert-card-success,
+.staff-dashboard-kpi-card-success,
+.staff-dashboard-priority-panel-success,
+.staff-kitchen-ticket-lane-ready,
+.staff-kitchen-metric-success {
+  background: rgba(22, 163, 74, 0.08) !important;
+  border-color: rgba(22, 163, 74, 0.2) !important;
+}
+
+.staff-state-surface-error,
+.staff-dashboard-alert-card-error,
+.staff-dashboard-kpi-card-error,
+.staff-dashboard-priority-panel-error,
+.staff-conversation-message-internal {
+  background: rgba(220, 38, 38, 0.08) !important;
+  border-color: rgba(220, 38, 38, 0.2) !important;
+}
+
+.staff-state-surface-info,
+.staff-dashboard-card-queue,
+.staff-dashboard-kpi-card-processing,
+.staff-conversation-message-staff,
+.staff-kitchen-ticket-lane-fired,
+.staff-kitchen-metric-processing {
+  background: rgba(37, 99, 235, 0.08) !important;
+  border-color: rgba(37, 99, 235, 0.2) !important;
+}
+
+.staff-state-surface-icon,
+.staff-dashboard-kpi-icon,
+.staff-dashboard-topbar-metric-icon,
+.staff-dashboard-alert-icon {
+  background: rgba(37, 99, 235, 0.1) !important;
+  color: var(--staff-accent-primary) !important;
+}
+
+.staff-table-board-card {
+  background: #ffffff !important;
+  border: 1px solid var(--staff-border-default) !important;
+  border-radius: 8px !important;
+  box-shadow: var(--staff-shadow-card) !important;
+  min-height: 112px !important;
+}
+
+.staff-table-board-card:hover,
+.staff-dashboard-board-cell:hover,
+.staff-dashboard-alert-card:hover,
+.staff-dashboard-kpi-card:hover,
+.staff-dashboard-card:hover,
+.staff-shell-command-item:hover,
+.staff-mini-list-item:hover {
+  background: #f8fbff !important;
+  border-color: rgba(37, 99, 235, 0.32) !important;
+  box-shadow: var(--staff-shadow-hover) !important;
+}
+
+.staff-table-board-card.staff-card-selected {
+  background: #eff6ff !important;
+  border-color: rgba(37, 99, 235, 0.55) !important;
+  box-shadow: var(--staff-shadow-selected) !important;
+}
+
+.staff-table-board-next-action {
+  background: rgba(37, 99, 235, 0.08) !important;
+  border: 1px solid rgba(37, 99, 235, 0.18) !important;
+  color: #1e40af !important;
+}
+
+.staff-table-board-card-success {
+  border-color: rgba(22, 163, 74, 0.32) !important;
+  box-shadow: inset 3px 0 0 var(--staff-accent-success) !important;
+}
+
+.staff-table-board-card-processing {
+  border-color: rgba(37, 99, 235, 0.34) !important;
+  box-shadow: inset 3px 0 0 var(--staff-accent-info) !important;
+}
+
+.staff-table-board-card-warning {
+  border-color: rgba(217, 119, 6, 0.34) !important;
+  box-shadow: inset 3px 0 0 var(--staff-accent-warning) !important;
+}
+
+.staff-table-board-card-error {
+  border-color: rgba(220, 38, 38, 0.34) !important;
+  box-shadow: inset 3px 0 0 var(--staff-accent-danger) !important;
+}
+
+.staff-workspace-tabs .ant-tabs-tab,
+.ant-tabs-tab {
+  background: #ffffff !important;
+  border-color: var(--staff-border-default) !important;
+}
+
+.staff-workspace-tabs .ant-tabs-tab.ant-tabs-tab-active,
+.ant-tabs-tab.ant-tabs-tab-active {
+  background: rgba(37, 99, 235, 0.1) !important;
+  border-color: rgba(37, 99, 235, 0.3) !important;
+}
+
+.ant-tabs-ink-bar {
+  background: var(--staff-accent-primary) !important;
+}
+
+.staff-form-field-error {
+  color: #b91c1c;
 }

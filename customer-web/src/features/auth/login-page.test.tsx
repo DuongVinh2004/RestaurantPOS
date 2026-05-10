@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LoginPage } from "./login-page";
@@ -96,6 +96,31 @@ describe("LoginPage", () => {
     expect(mocks.markAuthenticated).toHaveBeenCalledWith(session);
     expect(mocks.toastSuccess).toHaveBeenCalledWith("Đã đăng nhập.");
     expect(mocks.push).toHaveBeenCalledWith("/reservations");
+  });
+
+  it("links to registration with the requested next route", () => {
+    renderPage();
+
+    expect(screen.getByRole("link", { name: "Tạo tài khoản" })).toHaveAttribute("href", "/register?next=%2Freservations");
+  });
+
+  it("ignores duplicate form submits while sign-in is pending", async () => {
+    const user = userEvent.setup();
+
+    mocks.loginCustomer.mockReturnValue(new Promise(() => {}));
+
+    renderPage();
+
+    await user.type(screen.getByLabelText("Email, số điện thoại hoặc mã khách hàng"), "demo@example.test");
+    await user.type(screen.getByLabelText("Mật khẩu"), "password123");
+    const submitButton = screen.getByRole("button", { name: "Đăng nhập" });
+    await user.click(submitButton);
+
+    const form = submitButton.closest("form");
+    expect(form).not.toBeNull();
+    fireEvent.submit(form as HTMLFormElement);
+
+    expect(mocks.loginCustomer).toHaveBeenCalledTimes(1);
   });
 
   it("falls back to the default post-login route when next is unsafe", async () => {

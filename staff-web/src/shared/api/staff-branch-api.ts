@@ -1,6 +1,6 @@
 import type { BranchCollectionEnvelope } from './sdk';
-import { apiRequest } from './http';
+import { staffClient } from './client';
 
 export async function listBranches(): Promise<BranchCollectionEnvelope> {
-  return apiRequest<BranchCollectionEnvelope>('/staff/branches');
+  return staffClient.getV1StaffBranches();
 }

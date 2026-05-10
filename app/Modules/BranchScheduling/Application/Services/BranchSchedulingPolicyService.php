@@ -10,6 +10,10 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Gom toan bo scheduling policy cua branch:
+ * gio mo cua, closure window, timezone, lead time, va cac gate cho dat cho.
+ */
 class BranchSchedulingPolicyService
 {
     /** @var array<int, Branch> */
@@ -56,6 +60,8 @@ class BranchSchedulingPolicyService
      */
     public function resolveContext(mixed $branchId = null, bool $activeOnly = true): array
     {
+        // Day la "anh chup policy" da normalize de cac flow khac tai dung nhat quan.
+        // Context cache nay la "snapshot policy" da normalize de nhieu flow tai su dung ma khong parse lai.
         $branch = $this->resolveBranch($branchId, $activeOnly);
         $resolvedBranchId = (int) $branch->branch_id;
 
@@ -150,6 +156,7 @@ class BranchSchedulingPolicyService
             $this->throwValidation('closure_windows', 'Closure windows payload must be an array.');
         }
 
+        // Moi closure window duoc normalize ve local datetime hop le trong timezone cua branch.
         $normalized = [];
         foreach ($value as $index => $window) {
             if (! is_array($window)) {
@@ -216,6 +223,7 @@ class BranchSchedulingPolicyService
 
     public function branchTimezone(mixed $branchId = null, bool $activeOnly = true): string
     {
+        // currentOpenStatus tra ve ket qua giai thich duoc: dang mo hay dong va dong vi ly do nao.
         $context = $this->resolveContext($branchId, $activeOnly);
 
         return (string) $context['timezone'];
@@ -267,6 +275,7 @@ class BranchSchedulingPolicyService
      */
     public function schedulingReadiness(mixed $branchId = null, bool $activeOnly = true): array
     {
+        // schedulingReadiness dung de gate booking/ops UI truoc khi nguoi dung gap loi sau.
         $branch = $this->resolveBranch($branchId, $activeOnly);
         $reasons = [];
         $timezone = $this->defaultTimezone();
@@ -359,6 +368,7 @@ class BranchSchedulingPolicyService
         string $useCase = 'reservation',
         bool $activeOnly = true,
     ): array {
+        // Cong tam chinh de quyet dinh khung gio nay co duoc dat/doi lich hay khong.
         $readiness = $this->schedulingReadiness($branchId, $activeOnly);
         if (($readiness['bookable'] ?? false) !== true) {
             return [
@@ -550,6 +560,7 @@ class BranchSchedulingPolicyService
         string $field = 'branch_id',
         bool $activeOnly = true,
     ): void {
+        // Walk-in, service session, check-in tai cho deu di qua gate van hanh nay.
         $readiness = $this->schedulingReadiness($branchId, $activeOnly);
         if (($readiness['bookable'] ?? false) !== true) {
             throw ValidationException::withMessages([

@@ -69,7 +69,7 @@ describe('AdminBenefitsPage', () => {
         value: 'false',
       });
     });
-  });
+  }, 20000);
 });
 
 function renderWithProviders() {

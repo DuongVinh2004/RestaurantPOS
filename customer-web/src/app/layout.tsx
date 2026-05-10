@@ -21,8 +21,9 @@ export const metadata: Metadata = {
     default: "RestaurantPOS Khách hàng",
     template: "%s | RestaurantPOS Khách hàng",
   },
-  description: "Xem thực đơn, đặt bàn, quản lý lịch đặt, đặt cọc và hóa đơn trong một giao diện dành cho khách hàng.",
+  description: "Xem thực đơn, chọn chi nhánh, đặt bàn và quản lý phiên khách hàng trong một ứng dụng.",
   applicationName: "RestaurantPOS Khách hàng",
+  manifest: "/manifest.webmanifest",
   formatDetection: {
     telephone: false,
     email: false,

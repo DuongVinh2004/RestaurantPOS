@@ -1,723 +1,286 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useCallback } from 'react';
+import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { Button, Card, Descriptions, Input, Select, Space, Statistic, Table, Tag, Typography } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { buildJourneySearch, type JourneyContext } from '../../../../app/router/journey';
+import { staffRoutePaths } from '../../../../app/router/workspace-paths';
+import { useJourneyContext } from '../../../../app/router/useJourneyContext';
+import { useAuthStore } from '../../../../app/store/auth-store';
+import { useFlowStore } from '../../../../app/store/flow-store';
 import {
-  Alert,
-  Button,
-  Card,
-  Col,
-  Descriptions,
-  Input,
-  Row,
-  Select,
-  Space,
-  Statistic,
-  Table,
-  Typography,
-} from 'antd';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+  canIssueInvoiceForRow,
+  buildFinanceQuery,
+  buildFinanceReviewSearch,
+  financeDateRangeError,
+  financeFlagLabels,
+  readFinanceMetric,
+  readFinanceReviewUrlState,
+  summarizeFinance,
+  type FinanceReviewUrlState,
+} from '../../../../domains/finance/finance-review';
+import type { StaffSession } from '../../../../shared/auth/storage';
 import type {
   FinanceInvoiceEnvelope,
-  FinancialMethodBreakdownRow,
-  FinancialPaymentRow,
+  FinancialReconciliationDetailEnvelope,
   FinancialReconciliationRow,
 } from '../../../../shared/api/staff-api';
 import {
-  adjustStaffUserLoyalty,
-  applyStaffReservationVoucher,
-  getStaffReservationLoyalty,
-  getStaffUserLoyalty,
   getFinanceInvoice,
   getFinancialReconciliationDetail,
   issueFinanceInvoice,
   listFinancialReconciliation,
-  listStaffReservationVouchers,
-  redeemStaffReservationLoyalty,
-  releaseStaffReservationLoyalty,
-  releaseStaffReservationVoucher,
-  removeStaffReservationVoucher,
 } from '../../../../shared/api/staff-api';
-import { formatApiError, isApiStatus } from '../../../../shared/api/errors';
+import { formatApiError } from '../../../../shared/api/errors';
 import { can } from '../../../../shared/auth/capabilities';
-import type { StaffSession } from '../../../../shared/auth/storage';
 import { formatDateTime, formatMoney } from '../../../../shared/utils/format';
-import { buildJourneySearch, stripJourneySearch } from '../../../../app/router/journey';
-import { staffRoutePaths } from '../../../../app/router/workspace-paths';
-import { buildReservationContextLabel } from '../../../journey-labels';
-import { paymentTone, reservationTone } from '../../../../shared/status/status';
 import { PageHeader } from '../../../../shared/ui/layout/PageHeader';
 import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
 import { toast } from '../../../../shared/ui/feedback/toast';
-import { ApiStateBlock, EmptyBlock, InlineLoading } from '../../../../shared/ui/states/StateBlocks';
+import { ApiStateBlock, ConflictState, EmptyBlock, InlineLoading } from '../../../../shared/ui/states/StateBlocks';
 import { StatusChip } from '../../../../shared/ui/status/StatusChip';
-import { useAuthStore } from '../../../../app/store/auth-store';
-import { useFlowStore } from '../../../../app/store/flow-store';
-import { useJourneyContext } from '../../../../app/router/useJourneyContext';
-import { useConfirmAction } from '../../../../shared/hooks/useConfirmAction';
-import {
-  buildFinanceReviewSearch,
-  buildFinanceQuery,
-  canIssueInvoiceForRow,
-  financeDateRangeError,
-  financeFlagLabels,
-  readFinanceReviewUrlState,
-  summarizeFinance,
-  type FinanceFilterState,
-} from '../../../../domains/finance/finance-review';
+import { buildReservationContextLabel } from '../../../journey-labels';
 
-const pageSize = 15;
-const initialFilters: FinanceFilterState = {
-  reservationCode: '',
-  status: '',
-  depositStatus: '',
-  paymentCurrency: '',
-  cashierUserId: '',
-  hasDiscrepancy: 'all',
-  activityFrom: '',
-  activityTo: '',
-};
+const perPage = 12;
 
-const reservationStatusOptions = [
-  { value: '', label: 'Tất cả trạng thái đặt bàn' },
-  { value: 'Reserved', label: 'Đã giữ chỗ' },
-  { value: 'Confirmed', label: 'Đã xác nhận' },
-  { value: 'CheckedIn', label: 'Đã nhận bàn' },
-  { value: 'Completed', label: 'Hoàn tất' },
-  { value: 'Cancelled', label: 'Đã hủy' },
-  { value: 'NoShow', label: 'Không đến' },
-];
-
-const depositStatusOptions = [
-  { value: '', label: 'Tất cả trạng thái cọc' },
-  { value: 'NotRequired', label: 'Không bắt buộc' },
-  { value: 'Pending', label: 'Đang chờ' },
-  { value: 'Paid', label: 'Đã thu' },
-  { value: 'Refunded', label: 'Đã hoàn' },
-  { value: 'PartiallyRefunded', label: 'Hoàn một phần' },
-  { value: 'Forfeited', label: 'Mất cọc' },
-];
-
-const discrepancyOptions = [
-  { value: 'all', label: 'Tất cả dòng' },
-  { value: 'yes', label: 'Chỉ dòng có chênh lệch' },
-  { value: 'no', label: 'Chỉ dòng đã khớp' },
-];
+const blockedBenefitsRoutes = [
+  'GET /api/v1/staff/reservations/{reservation_id}/vouchers',
+  'GET /api/v1/staff/reservations/{reservation_id}/loyalty',
+  'GET /api/v1/staff/users/{user_id}/loyalty',
+  'POST /api/v1/staff/reservations/{reservation_id}/voucher/apply',
+  'POST /api/v1/staff/reservations/{reservation_id}/voucher/remove',
+  'POST /api/v1/staff/reservations/{reservation_id}/loyalty/redeem',
+  'POST /api/v1/staff/reservations/{reservation_id}/loyalty/redeem/release',
+  'POST /api/v1/staff/users/{user_id}/loyalty/adjust',
+] as const;
 
 export function FinanceReviewPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const message = toast;
-  const confirmAction = useConfirmAction();
   const journey = useJourneyContext();
   const session = useAuthStore((state) => state.session);
   const branchId = useFlowStore((state) => state.branchId);
   const setReservationContext = useFlowStore((state) => state.setReservationContext);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const urlState = useMemo(() => readFinanceReviewUrlState(searchParams), [searchParams]);
-  const { page, selectedReservationId, ...filters } = urlState;
-  const contextReservationId = journey.reservationId ?? null;
-  const selectedReservationRowId = contextReservationId ?? selectedReservationId;
-  const dateRangeError = financeDateRangeError(filters);
+  const dateRangeError = financeDateRangeError(urlState);
+  const scopedReservationId = journey.reservationId ?? null;
 
-  const updateUrlState = useCallback((
-    patch: Partial<typeof urlState>,
-    options?: { replace?: boolean },
-  ) => {
-    const nextSearch = buildFinanceReviewSearch(searchParams, patch);
-    setSearchParams(new URLSearchParams(nextSearch), { replace: options?.replace });
-  }, [searchParams, setSearchParams]);
-
-  const query = useMemo(
-    () => buildFinanceQuery(filters, page, pageSize, contextReservationId, branchId),
-    [branchId, contextReservationId, filters, page],
-  );
-  const financeListQuery = useQuery({
-    queryKey: ['finance-reconciliation', query],
-    queryFn: () => listFinancialReconciliation(query),
+  const reconciliationQuery = useQuery({
+    queryKey: ['finance-reconciliation', branchId, scopedReservationId, urlState],
+    queryFn: () => listFinancialReconciliation(buildFinanceQuery(urlState, urlState.page, perPage, scopedReservationId, branchId)),
     enabled: !!session && !dateRangeError,
   });
 
-  useEffect(() => {
-    const rows = financeListQuery.data?.data ?? [];
-    if (rows.length === 0) {
-      if (selectedReservationRowId !== null) {
-        updateUrlState({ selectedReservationId: null }, { replace: true });
-      }
-      return;
-    }
+  const rows = reconciliationQuery.data?.data ?? [];
+  const selectedReservationId = urlState.selectedReservationId
+    ?? scopedReservationId
+    ?? rows[0]?.reservation.reservation_id
+    ?? null;
+  const selectedRow = rows.find((row) => row.reservation.reservation_id === selectedReservationId) ?? null;
 
-    if (!selectedReservationRowId || !rows.some((row) => row.reservation.reservation_id === selectedReservationRowId)) {
-      if (contextReservationId === null) {
-        updateUrlState({ selectedReservationId: rows[0].reservation.reservation_id }, { replace: true });
-      }
-    }
-  }, [contextReservationId, financeListQuery.data?.data, selectedReservationRowId, updateUrlState]);
-
-  const selectedRow = useMemo(
-    () => financeListQuery.data?.data.find((row) => row.reservation.reservation_id === selectedReservationRowId) ?? null,
-    [financeListQuery.data?.data, selectedReservationRowId],
-  );
-  const financeDetailQuery = useQuery({
-    queryKey: ['finance-reconciliation-detail', branchId, selectedReservationRowId],
-    queryFn: () => getFinancialReconciliationDetail(selectedReservationRowId as number, {
-      branch_id: branchId ?? undefined,
-    }),
-    enabled: !!selectedReservationRowId,
-  });
-  const financeInvoiceQuery = useQuery({
-    queryKey: ['finance-invoice', branchId, selectedReservationRowId],
-    queryFn: () => getFinanceInvoice(selectedReservationRowId as number, {
-      branch_id: branchId ?? undefined,
-    }),
-    enabled: !!selectedReservationRowId,
-    retry: (failureCount, error) => !isApiStatus(error, 404) && failureCount < 1,
+  const detailQuery = useQuery({
+    queryKey: ['finance-reconciliation-detail', branchId, selectedReservationId],
+    queryFn: () => getFinancialReconciliationDetail(selectedReservationId as number, { branch_id: branchId ?? undefined }),
+    enabled: !!session && !!selectedReservationId,
   });
 
-  const currentDetail = financeDetailQuery.data?.data ?? null;
-  const currentInvoice = isApiStatus(financeInvoiceQuery.error, 404)
-    ? null
-    : financeInvoiceQuery.data ?? null;
-  const selectedReservationRowVersion = currentDetail?.reservation.row_version
-    ?? selectedRow?.reservation.row_version
-    ?? journey.reservationRowVersion;
-  const summary = useMemo(() => summarizeFinance(financeListQuery.data?.data ?? []), [financeListQuery.data?.data]);
-  const activeFilterCount = useMemo(
-    () => Object.entries(filters).reduce((count, [key, value]) => {
-      const initialValue = initialFilters[key as keyof FinanceFilterState];
-      return value !== initialValue ? count + 1 : count;
-    }, 0),
-    [filters],
-  );
-
-  useEffect(() => {
-    const reservation = currentDetail?.reservation ?? selectedRow?.reservation ?? null;
-    if (!reservation) {
-      return;
-    }
-
-    setReservationContext({
-      reservationId: reservation.reservation_id,
-      reservationRowVersion: reservation.row_version,
-      label: buildReservationContextLabel(reservation.reservation_code, reservation.reservation_id),
-      source: journey.source ?? 'checkout',
-    });
-  }, [currentDetail?.reservation, journey.source, selectedRow?.reservation, setReservationContext]);
+  const invoiceQuery = useQuery({
+    queryKey: ['finance-invoice', branchId, selectedReservationId],
+    queryFn: () => getFinanceInvoice(selectedReservationId as number, { branch_id: branchId ?? undefined }),
+    enabled: !!session && !!selectedReservationId,
+  });
 
   const issueInvoiceMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedReservationRowId) {
-        throw new Error('Chọn một dòng đối soát trước khi phát hành hóa đơn.');
-      }
-
-      return issueFinanceInvoice(selectedReservationRowId, {
-        branch_id: branchId ?? undefined,
-      });
-    },
-    onSuccess: async (envelope) => {
+    mutationFn: () => issueFinanceInvoice(selectedReservationId as number, { branch_id: branchId ?? undefined }),
+    onSuccess: async () => {
+      toast.success('Invoice issued.');
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['finance-invoice', branchId, selectedReservationId] }),
+        queryClient.invalidateQueries({ queryKey: ['finance-reconciliation-detail', branchId, selectedReservationId] }),
         queryClient.invalidateQueries({ queryKey: ['finance-reconciliation'] }),
-        queryClient.invalidateQueries({ queryKey: ['finance-reconciliation-detail', branchId, selectedReservationRowId] }),
-        queryClient.invalidateQueries({ queryKey: ['finance-invoice', branchId, selectedReservationRowId] }),
-        queryClient.invalidateQueries({ queryKey: ['reporting-sales'] }),
       ]);
-      message.success(`Đã phát hành hóa đơn ${envelope.data.invoice.invoice_number}.`);
     },
     onError: (error) => {
-      message.error(formatApiError(error, 'Không thể phát hành hóa đơn tài chính.'));
+      toast.error(formatApiError(error, 'Unable to issue invoice.'));
     },
   });
 
-  function updateFilter<K extends keyof FinanceFilterState>(key: K, value: FinanceFilterState[K]) {
-    updateUrlState({
-      [key]: value,
-      page: 1,
-      selectedReservationId: null,
-    } as Partial<typeof urlState>, { replace: true });
-  }
-
-  function refreshFinanceDetailWorkspace() {
-    void financeDetailQuery.refetch();
-    void financeInvoiceQuery.refetch();
-  }
-
-  async function handleIssueInvoice() {
-    if (!selectedReservationRowId || !canIssueInvoiceForRow(currentDetail?.summary ?? selectedRow)) {
-      return;
-    }
-
-    const confirmed = await confirmAction({
-      title: `Phát hành hóa đơn cho đặt bàn #${selectedReservationRowId}`,
-      content: 'Thao tác này sẽ tạo hoặc tái sử dụng hóa đơn tài chính chính thức từ dữ liệu đặt bàn đã chốt tiền. Chỉ tiếp tục sau khi đã kiểm tra quyết toán và thông tin thuế.',
-      okText: 'Phát hành hóa đơn',
+  useEffect(() => {
+    setReservationContext({
+      reservationId: selectedReservationId,
+      reservationRowVersion: selectedRow?.reservation.row_version ?? journey.reservationRowVersion ?? null,
+      label: buildReservationContextLabel(null, selectedReservationId),
+      source: 'audit',
     });
+  }, [
+    journey.reservationRowVersion,
+    selectedReservationId,
+    selectedRow?.reservation.row_version,
+    setReservationContext,
+  ]);
 
-    if (confirmed) {
-      await issueInvoiceMutation.mutateAsync();
-    }
-  }
+  const summary = useMemo(() => summarizeFinance(rows), [rows]);
+  const canOpenRefund = Boolean(session && can(session, 'payment.refund') && selectedReservationId);
+  const canOpenCashierShift = Boolean(session && can(session, 'cashier.shift.manage'));
+  const canOpenCheckout = Boolean(session && can(session, 'settlement.manage') && journey.orderId);
+  const canIssueInvoice = Boolean(session && can(session, 'settlement.manage') && canIssueInvoiceForRow(detailQuery.data?.data.summary ?? selectedRow));
 
-  function openReservationFlow() {
-    if (!selectedReservationRowId) {
-      return;
-    }
+  const selectReservation = (reservationId: number) => {
+    setSearchParams(
+      buildFinanceReviewSearch(searchParams, {
+        ...urlState,
+        selectedReservationId: reservationId,
+      }),
+      { replace: false },
+    );
+  };
 
-        navigate(`${staffRoutePaths.ops.reservations}?${buildJourneySearch({
-      source: 'reservation',
-      reservationId: selectedReservationRowId,
-      reservationRowVersion: selectedReservationRowVersion ?? undefined,
-    })}`);
-  }
-
-  function openRefundFlow() {
-    if (!selectedReservationRowId) {
-      return;
-    }
-
-        navigate(`${staffRoutePaths.ops.refunds}?${buildJourneySearch({
-      source: 'refund',
-      tableId: journey.tableId,
-      tableIds: journey.tableIds,
-      reservationId: selectedReservationRowId,
-      reservationRowVersion: selectedReservationRowVersion ?? undefined,
-      orderId: journey.orderId,
-      orderRowVersion: journey.orderRowVersion,
-      stationId: journey.stationId,
-    })}`);
-  }
+  const updateFilters = (patch: Partial<FinanceReviewUrlState>) => {
+    setSearchParams(
+      buildFinanceReviewSearch(searchParams, {
+        ...urlState,
+        ...patch,
+        page: 1,
+        selectedReservationId: null,
+      }),
+      { replace: true },
+    );
+  };
 
   const main = (
-    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <PageHeader
-        eyebrow="Đối soát tài chính"
-        title="Rà soát quyết toán và hóa đơn"
-        description="Soát chênh lệch, hoàn tiền và phát hành hóa đơn sau khi bill đã được chốt."
+        eyebrow="Finance review"
+        title="Reconciliation and invoices"
+        description="Review reservation settlement state, drill into payment evidence, and issue finance invoices through the canonical staff SDK contract."
         context={(
           <>
-            <StatusChip label={selectedReservationRowId ? `Đặt bàn #${selectedReservationRowId}` : 'Chưa chọn dòng'} tone={selectedReservationRowId ? 'processing' : 'warning'} />
-            <StatusChip label={branchId ? `Chi nhánh #${branchId}` : 'Theo branch mặc định'} tone="processing" variant="severity" />
-            <StatusChip label={`${summary.discrepancyCount} dòng có chênh`} tone={summary.discrepancyCount > 0 ? 'warning' : 'success'} />
-          </>
-        )}
-        extra={(
-          <>
-            <Button onClick={() => financeListQuery.refetch()} loading={financeListQuery.isFetching}>
-              Làm mới danh sách
-            </Button>
-            <Button
-              onClick={() => {
-                void financeDetailQuery.refetch();
-                void financeInvoiceQuery.refetch();
-              }}
-              disabled={!selectedReservationRowId}
-              loading={financeDetailQuery.isFetching || financeInvoiceQuery.isFetching}
-            >
-              Làm mới chi tiết
-            </Button>
+            <StatusChip label={branchId ? `Branch #${branchId}` : 'Default branch'} tone="processing" variant="severity" />
+            <StatusChip label={selectedReservationId ? `Reservation #${selectedReservationId}` : 'No reservation selected'} tone={selectedReservationId ? 'processing' : 'warning'} />
+            <StatusChip label={journey.orderId ? `Order #${journey.orderId}` : 'No order context'} tone={journey.orderId ? 'processing' : 'warning'} />
           </>
         )}
       />
 
-      {contextReservationId ? (
-        <Alert
-          type="info"
-          showIcon
-          title={`Đang khóa ngữ cảnh tài chính theo đặt bàn #${contextReservationId}`}
-          description={(
-            <Space wrap>
-              <Typography.Text>
-                Màn hình này nhận ngữ cảnh đặt bàn từ luồng vận hành trước đó để thu ngân hoặc quản lý soát từng trường hợp cụ thể.
-              </Typography.Text>
-              <Button
-                onClick={() => {
-                  const nextSearch = stripJourneySearch(searchParams);
-                  navigate(
-                    nextSearch ? `${staffRoutePaths.ops.financeReview}?${nextSearch}` : staffRoutePaths.ops.financeReview,
-                    { replace: true },
-                  );
-                }}
-              >
-                Bỏ khóa ngữ cảnh đặt bàn
-              </Button>
-            </Space>
-          )}
-        />
-      ) : null}
-
-      {selectedRow && (selectedRow.flags.has_discrepancy || selectedRow.flags.has_bill_outstanding) ? (
-        <Alert
-          type={selectedRow.flags.has_discrepancy ? 'warning' : 'info'}
-          showIcon
-          title="Dòng đang chọn cần xem kỹ trước khi phát hành hóa đơn"
-          description={`Còn thiếu ${formatMoney(selectedRow.reconciliation.bill_outstanding_amount, selectedRow.reservation.bill_currency ?? 'VND')}. Hãy kiểm tra chênh lệch, giao dịch và trạng thái hóa đơn ở khung chi tiết trước khi đi tiếp.`}
-        />
-      ) : null}
-
-      <Row gutter={[16, 16]}>
-        <Col xs={24} md={6}>
-          <Card className="staff-workspace-summary-card"><Statistic title="Số dòng trang hiện tại" value={financeListQuery.data?.data.length ?? 0} /></Card>
-        </Col>
-        <Col xs={24} md={6}>
-          <Card className={`staff-workspace-summary-card ${summary.discrepancyCount > 0 ? 'staff-workspace-summary-card-active' : ''}`}><Statistic title="Ca có chênh lệch" value={summary.discrepancyCount} /></Card>
-        </Col>
-        <Col xs={24} md={6}>
-          <Card className={`staff-workspace-summary-card ${summary.outstandingAmount > 0 ? 'staff-workspace-summary-card-active' : ''}`}><Statistic title="Còn thiếu" value={formatMoney(summary.outstandingAmount)} /></Card>
-        </Col>
-        <Col xs={24} md={6}>
-          <Card className="staff-workspace-summary-card"><Statistic title="Đã quyết toán" value={summary.fullySettledCount} /></Card>
-        </Col>
-      </Row>
-
-      <Card
-        className="staff-workspace-filter-card"
-        title="Bộ lọc"
-        extra={(
-          <Space wrap>
-            <Button type={showAdvancedFilters ? 'primary' : 'default'} onClick={() => setShowAdvancedFilters((value) => !value)}>
-              {showAdvancedFilters ? 'Ẩn bộ lọc nâng cao' : 'Mở bộ lọc nâng cao'}
-            </Button>
-            <Button
-              disabled={activeFilterCount === 0}
-              onClick={() => updateUrlState({ ...initialFilters, page: 1, selectedReservationId: null }, { replace: true })}
-            >
-              Xóa bộ lọc
-            </Button>
-          </Space>
-        )}
-      >
-        <Row gutter={[12, 12]}>
-          <Col xs={24} md={7}>
-            <Input
-              aria-label="Lọc theo mã đặt bàn"
-              autoComplete="off"
-              name="reservationCode"
-              placeholder="Mã đặt bàn…"
-              spellCheck={false}
-              value={filters.reservationCode}
-              onChange={(event) => updateFilter('reservationCode', event.target.value)}
-            />
-          </Col>
-          <Col xs={24} md={5}>
-            <Select
-              aria-label="Lọc theo trạng thái đặt bàn"
-              style={{ width: '100%' }}
-              value={filters.status}
-              options={reservationStatusOptions}
-              onChange={(value) => updateFilter('status', value)}
-            />
-          </Col>
-          <Col xs={24} md={5}>
-            <Select
-              aria-label="Lọc theo trạng thái cọc"
-              style={{ width: '100%' }}
-              value={filters.depositStatus}
-              options={depositStatusOptions}
-              onChange={(value) => updateFilter('depositStatus', value)}
-            />
-          </Col>
-          <Col xs={24} md={4}>
-            <Select
-              aria-label="Lọc theo trạng thái chênh lệch"
-              style={{ width: '100%' }}
-              value={filters.hasDiscrepancy}
-              options={discrepancyOptions}
-              onChange={(value) => updateFilter('hasDiscrepancy', value)}
-            />
-          </Col>
-          {showAdvancedFilters ? (
-            <>
-              <Col xs={24} md={3}>
-                <Input
-                  aria-label="Lọc theo loại tiền thanh toán"
-                  autoComplete="off"
-                  name="paymentCurrency"
-                  placeholder="Ví dụ: VND…"
-                  spellCheck={false}
-                  value={filters.paymentCurrency}
-                  onChange={(event) => updateFilter('paymentCurrency', event.target.value)}
-                />
-              </Col>
-              <Col xs={24} md={6}>
-                <Input
-                  aria-label="Lọc theo mã thu ngân"
-                  autoComplete="off"
-                  name="cashierUserId"
-                  placeholder="Mã thu ngân…"
-                  value={filters.cashierUserId}
-                  inputMode="numeric"
-                  onChange={(event) => updateFilter('cashierUserId', event.target.value)}
-                />
-              </Col>
-              <Col xs={24} md={6}>
-                <Input aria-label="Từ ngày hoạt động thanh toán" type="date" value={filters.activityFrom} onChange={(event) => updateFilter('activityFrom', event.target.value)} />
-              </Col>
-              <Col xs={24} md={6}>
-                <Input aria-label="Đến ngày hoạt động thanh toán" type="date" value={filters.activityTo} onChange={(event) => updateFilter('activityTo', event.target.value)} />
-              </Col>
-            </>
-          ) : null}
-        </Row>
+      <Card size="small">
+        <Space wrap>
+          <Input.Search
+            aria-label="Reservation code"
+            allowClear
+            placeholder="Reservation code"
+            defaultValue={urlState.reservationCode}
+            onSearch={(value) => updateFilters({ reservationCode: value })}
+            style={{ width: 220 }}
+          />
+          <Select
+            aria-label="Discrepancy filter"
+            value={urlState.hasDiscrepancy}
+            onChange={(value) => updateFilters({ hasDiscrepancy: value })}
+            options={[
+              { value: 'all', label: 'All rows' },
+              { value: 'yes', label: 'Discrepancy only' },
+              { value: 'no', label: 'No discrepancy' },
+            ]}
+            style={{ width: 180 }}
+          />
+          <Button onClick={() => void reconciliationQuery.refetch()}>Refresh</Button>
+        </Space>
       </Card>
 
       {dateRangeError ? (
-        <Alert
-          type="warning"
-          showIcon
-          title="Khoảng ngày hoạt động thanh toán không hợp lệ"
+        <ConflictState
+          title="Invalid finance date range"
           description={dateRangeError}
         />
       ) : null}
 
-      <Card title="Dòng đối soát" className="staff-workspace-table-card">
-        {financeListQuery.isLoading ? <InlineLoading tip="Đang tải dữ liệu đối soát..." /> : null}
-        {financeListQuery.error ? (
-          <ApiStateBlock
-            error={financeListQuery.error}
-            fallback="Không thể tải dữ liệu đối soát."
-            onRetry={() => void financeListQuery.refetch()}
-            retryLabel="Tải lại dữ liệu đối soát"
-          />
-        ) : null}
-        {!financeListQuery.isLoading && !financeListQuery.error && (financeListQuery.data?.data.length ?? 0) === 0 ? (
-          <EmptyBlock title="Không có dòng đối soát" description="Bộ lọc hiện tại không trả về dữ liệu tài chính nào." />
-        ) : null}
-        {(financeListQuery.data?.data.length ?? 0) > 0 ? (
-          <Table<FinancialReconciliationRow>
-            rowKey={(row) => row.reservation.reservation_id}
-            dataSource={financeListQuery.data?.data ?? []}
-            rowClassName={(row) => (row.reservation.reservation_id === selectedReservationRowId ? 'staff-row-selected' : '')}
-            onRow={(row) => ({
-              onClick: () => updateUrlState({ selectedReservationId: row.reservation.reservation_id }),
-            })}
-            pagination={{
-              current: financeListQuery.data?.meta?.page ?? page,
-              pageSize: financeListQuery.data?.meta?.per_page ?? pageSize,
-              total: financeListQuery.data?.meta?.total ?? 0,
-              showSizeChanger: false,
-              onChange: (nextPage) => updateUrlState({ page: nextPage }),
-            }}
-            columns={[
-              {
-                title: 'Đặt bàn',
-                render: (_, row) => (
-                  <Space orientation="vertical" size={2}>
-                    <Typography.Text strong>{row.reservation.reservation_code}</Typography.Text>
-                    <Typography.Text type="secondary">
-                      {row.reservation.customer.full_name ?? row.reservation.customer.phone ?? 'Khách vãng lai / chưa rõ'}
-                    </Typography.Text>
-                  </Space>
-                ),
-              },
-              {
-                title: 'Trạng thái',
-                render: (_, row) => (
-                  <Space wrap size={6}>
-                    <StatusChip label={row.reservation.status} tone={reservationTone(row.reservation.status)} />
-                    <StatusChip label={row.reservation.deposit_status} tone={paymentTone(row.reservation.deposit_status)} />
-                  </Space>
-                ),
-              },
-              {
-                title: 'Quyết toán',
-                render: (_, row) => (
-                  <Space orientation="vertical" size={2}>
-                    <Typography.Text>
-                      Tổng bill: {formatMoney(row.reconciliation.final_bill_amount, row.reservation.bill_currency ?? 'VND')}
-                    </Typography.Text>
-                    <Typography.Text type="secondary">
-                      Thực thu: {formatMoney(row.payment_summary.net_paid_amount, row.payment_summary.currency.currency ?? row.reservation.bill_currency ?? 'VND')}
-                    </Typography.Text>
-                    <Typography.Text type={row.flags.has_bill_outstanding ? 'warning' : undefined}>
-                      Còn thiếu: {formatMoney(row.reconciliation.bill_outstanding_amount, row.reservation.bill_currency ?? 'VND')}
-                    </Typography.Text>
-                  </Space>
-                ),
-              },
-              {
-                title: 'Cờ cảnh báo',
-                render: (_, row) => (
-                  <Space wrap size={6}>
-                    {financeFlagLabels(row).map((label) => (
-                      <StatusChip
-                        key={`${row.reservation.reservation_id}-${label}`}
-                        label={label}
-                        tone={flagTone(label)}
-                      />
-                    ))}
-                  </Space>
-                ),
-              },
-              {
-                title: 'Hoạt động gần nhất',
-                width: 180,
-                render: (_, row) => formatDateTime(row.payment_summary.last_payment_activity_at),
-              },
-            ]}
-          />
-        ) : null}
-      </Card>
+      <Space wrap size={12}>
+        <Statistic title="Rows" value={rows.length} />
+        <Statistic title="Discrepancies" value={summary.discrepancyCount} />
+        <Statistic title="Outstanding" value={formatMoney(summary.outstandingAmount, currencyForRow(selectedRow))} />
+        <Statistic title="Over-refund" value={formatMoney(summary.overRefundAmount, currencyForRow(selectedRow))} />
+        <Statistic title="Fully settled" value={summary.fullySettledCount} />
+      </Space>
+
+      {reconciliationQuery.isLoading ? <InlineLoading tip="Loading finance reconciliation..." /> : null}
+      {reconciliationQuery.error ? (
+        <ApiStateBlock
+          error={reconciliationQuery.error}
+          fallback="Unable to load finance reconciliation."
+          onRetry={() => void reconciliationQuery.refetch()}
+        />
+      ) : null}
+
+      {!reconciliationQuery.isLoading && !reconciliationQuery.error ? (
+        <Table
+          rowKey={(row) => row.reservation.reservation_id}
+          columns={financeColumns(selectReservation)}
+          dataSource={rows}
+          pagination={{
+            current: urlState.page,
+            pageSize: perPage,
+            total: reconciliationQuery.data?.meta?.total ?? rows.length,
+            onChange: (page) => setSearchParams(buildFinanceReviewSearch(searchParams, { ...urlState, page }), { replace: false }),
+          }}
+          onRow={(row) => ({
+            onClick: () => selectReservation(row.reservation.reservation_id),
+          })}
+          rowClassName={(row) => (row.reservation.reservation_id === selectedReservationId ? 'staff-table-row-selected' : '')}
+          locale={{ emptyText: <EmptyBlock title="No finance rows" description="No reservation matched the current finance filters." /> }}
+        />
+      ) : null}
+
+      <Space wrap>
+        <Button
+          disabled={!selectedReservationId}
+          onClick={() => navigate(`${staffRoutePaths.ops.reservations}?${buildOperatorJourneySearch(journey, {
+            source: 'reservation',
+            reservationId: selectedReservationId ?? undefined,
+            reservationRowVersion: selectedRow?.reservation.row_version ?? journey.reservationRowVersion ?? undefined,
+          })}`)}
+        >
+          Open reservation
+        </Button>
+        <Button
+          disabled={!canOpenCheckout}
+          onClick={() => navigate(`${staffRoutePaths.ops.checkout}?${buildOperatorJourneySearch(journey, {
+            source: 'checkout',
+          })}`)}
+        >
+          Open checkout
+        </Button>
+        <Button
+          disabled={!canOpenRefund}
+          onClick={() => navigate(`${staffRoutePaths.ops.refunds}?${buildOperatorJourneySearch(journey, {
+            source: 'refund',
+            reservationId: selectedReservationId ?? undefined,
+          })}`)}
+        >
+          Open refund
+        </Button>
+        <Button
+          disabled={!canOpenCashierShift}
+          onClick={() => navigate(`${staffRoutePaths.ops.cashierShift}?${buildOperatorJourneySearch(journey, {
+            source: journey.source ?? 'audit',
+          })}`)}
+        >
+          Open cashier shift
+        </Button>
+      </Space>
     </Space>
   );
 
   const side = (
-    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-      <Card title="Chi tiết đặt bàn" className="staff-workspace-detail-card">
-        {!selectedReservationRowId ? (
-          <EmptyBlock title="Chưa chọn đặt bàn" description="Chọn một dòng để xem lịch sử thanh toán, trạng thái hóa đơn và cờ đối soát." />
-        ) : financeDetailQuery.isLoading ? (
-          <InlineLoading tip="Đang tải chi tiết tài chính..." />
-        ) : financeDetailQuery.error ? (
-          <ApiStateBlock
-            error={financeDetailQuery.error}
-            fallback="Không thể tải chi tiết tài chính."
-            onRetry={refreshFinanceDetailWorkspace}
-            retryLabel="Tải lại khung chi tiết"
-          />
-        ) : currentDetail ? (
-          <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-            <Descriptions bordered size="small" column={1}>
-              <Descriptions.Item label="Đặt bàn">
-                <Space wrap size={6}>
-                  <Typography.Text strong>{currentDetail.reservation.reservation_code}</Typography.Text>
-                  <StatusChip label={currentDetail.reservation.status} tone={reservationTone(currentDetail.reservation.status)} />
-                  <StatusChip label={currentDetail.reservation.deposit_status} tone={paymentTone(currentDetail.reservation.deposit_status)} />
-                </Space>
-              </Descriptions.Item>
-              <Descriptions.Item label="Khách">
-                {currentDetail.reservation.customer.full_name ?? currentDetail.reservation.customer.email ?? currentDetail.reservation.customer.phone ?? 'Không rõ'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Lệch cọc">
-                {formatMoney(currentDetail.summary.reconciliation.deposit_sync_gap_amount, currentDetail.reservation.bill_currency ?? 'VND')}
-              </Descriptions.Item>
-              <Descriptions.Item label="Hoàn quá tiền">
-                {formatMoney(currentDetail.summary.payment_summary.over_refunded_amount, currentDetail.reservation.bill_currency ?? 'VND')}
-              </Descriptions.Item>
-              <Descriptions.Item label="Hoạt động thanh toán gần nhất">
-                {formatDateTime(currentDetail.summary.payment_summary.last_payment_activity_at)}
-              </Descriptions.Item>
-            </Descriptions>
-
-            <StaffBenefitsOpsPanel
-              reservationId={currentDetail.reservation.reservation_id}
-              reservationRowVersion={selectedReservationRowVersion ?? null}
-              customerUserId={currentDetail.reservation.customer.user_id ?? null}
-              session={session}
-              onMutationSettled={() => {
-                void queryClient.invalidateQueries({ queryKey: ['finance-reconciliation'] });
-                void queryClient.invalidateQueries({ queryKey: ['finance-reconciliation-detail', branchId, selectedReservationRowId] });
-              }}
-            />
-
-            {financeFlagLabels(currentDetail.summary).length > 0 ? (
-              <Card size="small" title="Cờ cảnh báo" className="staff-workspace-detail-subcard">
-                <Space wrap size={6}>
-                  {financeFlagLabels(currentDetail.summary).map((label) => (
-                    <StatusChip key={label} label={label} tone={flagTone(label)} />
-                  ))}
-                </Space>
-              </Card>
-            ) : null}
-
-            <Card size="small" title="Hóa đơn" className="staff-workspace-detail-subcard">
-              {financeInvoiceQuery.isLoading ? (
-                <InlineLoading tip="Đang tải trạng thái hóa đơn..." />
-              ) : currentInvoice ? (
-                <InvoiceBlock envelope={currentInvoice} />
-              ) : isApiStatus(financeInvoiceQuery.error, 404) ? (
-                <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-                  <Typography.Text type="secondary">
-                    Đặt bàn này chưa có hóa đơn tài chính được phát hành.
-                  </Typography.Text>
-                  <Button
-                    type="primary"
-                    onClick={() => void handleIssueInvoice()}
-                    disabled={!canIssueInvoiceForRow(currentDetail.summary)}
-                    loading={issueInvoiceMutation.isPending}
-                  >
-                    Phát hành hóa đơn
-                  </Button>
-                </Space>
-              ) : financeInvoiceQuery.error ? (
-                <ApiStateBlock
-                  error={financeInvoiceQuery.error}
-                  fallback="Không thể tải trạng thái hóa đơn."
-                  onRetry={() => void financeInvoiceQuery.refetch()}
-                  retryLabel="Tải lại trạng thái hóa đơn"
-                />
-              ) : (
-                <EmptyBlock title="Chưa đọc được trạng thái hóa đơn" description="Làm mới khung chi tiết rồi thử lại." />
-              )}
-            </Card>
-
-            <Card size="small" title="Phương thức thanh toán" className="staff-workspace-detail-subcard">
-              {currentDetail.method_breakdown.length === 0 ? (
-                <EmptyBlock title="Chưa có phương thức thanh toán" description="Đặt bàn này chưa có giao dịch thanh toán nào được ghi nhận." />
-              ) : (
-                <MethodBreakdownTable rows={currentDetail.method_breakdown} />
-              )}
-            </Card>
-
-            <Card size="small" title="Giao dịch thanh toán" className="staff-workspace-detail-subcard">
-              {currentDetail.payments.length === 0 ? (
-                <EmptyBlock title="Chưa có giao dịch" description="Đặt bàn này chưa có dòng cọc, thanh toán cuối hoặc hoàn tiền." />
-              ) : (
-                <PaymentsTable rows={currentDetail.payments} />
-              )}
-            </Card>
-          </Space>
-        ) : null}
-      </Card>
-
-      <Card title="Bước tiếp theo" className="staff-workspace-next-card">
-        <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-          <Typography.Text type="secondary">
-            Dùng màn hình này sau thanh toán để soát chênh lệch và phát hành hóa đơn mà không cần rời khỏi không gian làm việc của nhân viên.
-          </Typography.Text>
-          {selectedReservationRowId && can(session, 'payment.refund') ? (
-            <Button type="primary" onClick={openRefundFlow}>
-              Mở bàn hoàn tiền
-            </Button>
-          ) : null}
-          {selectedReservationRowId && can(session, 'reservation.manage') ? (
-            <Button onClick={openReservationFlow}>
-              Mở đặt bàn
-            </Button>
-          ) : null}
-          <Button
-            onClick={() =>
-                      navigate(`${staffRoutePaths.ops.checkout}?${buildJourneySearch({
-                source: journey.source ?? 'checkout',
-                tableId: journey.tableId,
-                tableIds: journey.tableIds,
-                reservationId: journey.reservationId,
-                reservationRowVersion: journey.reservationRowVersion,
-                orderId: journey.orderId,
-                orderRowVersion: journey.orderRowVersion,
-                stationId: journey.stationId,
-              })}`)
-            }
-          >
-            Quay lại thanh toán
-          </Button>
-          <Button
-            onClick={() =>
-              navigate(`${staffRoutePaths.ops.cashierShift}?${buildJourneySearch({
-                source: journey.source ?? 'checkout',
-                tableId: journey.tableId,
-                tableIds: journey.tableIds,
-                reservationId: journey.reservationId,
-                reservationRowVersion: journey.reservationRowVersion,
-                orderId: journey.orderId,
-                orderRowVersion: journey.orderRowVersion,
-                stationId: journey.stationId,
-              })}`)
-            }
-          >
-            Quay lại ca thu ngân
-          </Button>
-        </Space>
-      </Card>
-    </Space>
+    <FinanceDetailPanel
+      selectedReservationId={selectedReservationId}
+      selectedRow={selectedRow}
+      detailQuery={detailQuery}
+      invoiceQuery={invoiceQuery}
+      canIssueInvoice={canIssueInvoice}
+      isIssuing={issueInvoiceMutation.isPending}
+      onIssueInvoice={() => issueInvoiceMutation.mutate()}
+    />
   );
 
   return (
@@ -740,464 +303,232 @@ export function StaffBenefitsOpsPanel({
   session: StaffSession | null;
   onMutationSettled: () => void;
 }) {
-  const queryClient = useQueryClient();
-  const canManageVoucher = can(session, 'voucher.manage');
-  const canViewLoyalty = can(session, 'loyalty.view');
-  const canRedeemLoyalty = can(session, 'loyalty.redeem');
-  const canAdjustLoyalty = can(session, 'loyalty.adjust');
-  const [voucherCode, setVoucherCode] = useState('');
-  const [redeemPoints, setRedeemPoints] = useState('');
-  const [redeemReason, setRedeemReason] = useState('');
-  const [releaseReason, setReleaseReason] = useState('');
-  const [adjustPoints, setAdjustPoints] = useState('');
-  const [adjustReason, setAdjustReason] = useState('');
-  const hasRowVersion = typeof reservationRowVersion === 'number' && reservationRowVersion > 0;
+  void reservationId;
+  void reservationRowVersion;
+  void customerUserId;
+  void onMutationSettled;
 
-  const vouchersQuery = useQuery({
-    queryKey: ['staff-reservation-vouchers', reservationId],
-    queryFn: () => listStaffReservationVouchers(reservationId),
-    enabled: canManageVoucher,
-  });
-  const reservationLoyaltyQuery = useQuery({
-    queryKey: ['staff-reservation-loyalty', reservationId],
-    queryFn: () => getStaffReservationLoyalty(reservationId),
-    enabled: canViewLoyalty,
-  });
-  const userLoyaltyQuery = useQuery({
-    queryKey: ['staff-user-loyalty', customerUserId],
-    queryFn: () => getStaffUserLoyalty(customerUserId as number),
-    enabled: canViewLoyalty && customerUserId !== null,
-  });
-
-  const vouchers = useMemo(() => recordsFromGenericPayload(vouchersQuery.data?.data), [vouchersQuery.data?.data]);
-  const reservationLoyalty = useMemo(() => firstRecordFromGenericPayload(reservationLoyaltyQuery.data?.data), [reservationLoyaltyQuery.data?.data]);
-  const userLoyalty = useMemo(() => firstRecordFromGenericPayload(userLoyaltyQuery.data?.data), [userLoyaltyQuery.data?.data]);
-
-  async function invalidateBenefits() {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['staff-reservation-vouchers', reservationId] }),
-      queryClient.invalidateQueries({ queryKey: ['staff-reservation-loyalty', reservationId] }),
-      customerUserId
-        ? queryClient.invalidateQueries({ queryKey: ['staff-user-loyalty', customerUserId] })
-        : Promise.resolve(),
-    ]);
-    onMutationSettled();
-  }
-
-  function guardRowVersion() {
-    if (typeof reservationRowVersion !== 'number' || reservationRowVersion <= 0) {
-      throw new Error('Đặt bàn hiện tại chưa có row_version để ghi ưu đãi an toàn.');
-    }
-
-    return reservationRowVersion;
-  }
-
-  function handleBenefitError(error: unknown, fallback: string) {
-    toast.error(formatApiError(error, fallback));
-    if (isApiStatus(error, 409) || isApiStatus(error, 422)) {
-      void invalidateBenefits();
-    }
-  }
-
-  const applyVoucherMutation = useMutation({
-    mutationFn: () => {
-      const rowVersion = guardRowVersion();
-      const code = voucherCode.trim();
-      if (code === '') {
-        throw new Error('Hãy nhập mã voucher.');
-      }
-
-      return applyStaffReservationVoucher(reservationId, {
-        row_version: rowVersion,
-        voucher_code: code,
-      });
-    },
-    onSuccess: async () => {
-      setVoucherCode('');
-      await invalidateBenefits();
-      toast.success('Đã áp dụng voucher cho đặt bàn.');
-    },
-    onError: (error) => handleBenefitError(error, 'Chưa áp dụng được voucher.'),
-  });
-
-  const removeVoucherMutation = useMutation({
-    mutationFn: () => removeStaffReservationVoucher(reservationId, { row_version: guardRowVersion() }),
-    onSuccess: async () => {
-      await invalidateBenefits();
-      toast.success('Đã gỡ voucher khỏi đặt bàn.');
-    },
-    onError: (error) => handleBenefitError(error, 'Chưa gỡ được voucher.'),
-  });
-
-  const releaseVoucherMutation = useMutation({
-    mutationFn: () => releaseStaffReservationVoucher(reservationId, { row_version: guardRowVersion() }),
-    onSuccess: async () => {
-      await invalidateBenefits();
-      toast.success('Đã giải phóng voucher đang giữ cho đặt bàn.');
-    },
-    onError: (error) => handleBenefitError(error, 'Chưa giải phóng được voucher.'),
-  });
-
-  const redeemLoyaltyMutation = useMutation({
-    mutationFn: () => {
-      const points = Number(redeemPoints);
-      if (!Number.isFinite(points) || points <= 0) {
-        throw new Error('Số điểm sử dụng phải lớn hơn 0.');
-      }
-
-      return redeemStaffReservationLoyalty(reservationId, {
-        row_version: guardRowVersion(),
-        points,
-        reason: emptyToNull(redeemReason),
-      });
-    },
-    onSuccess: async () => {
-      setRedeemPoints('');
-      setRedeemReason('');
-      await invalidateBenefits();
-      toast.success('Đã sử dụng điểm cho đặt bàn.');
-    },
-    onError: (error) => handleBenefitError(error, 'Chưa sử dụng được điểm.'),
-  });
-
-  const releaseLoyaltyMutation = useMutation({
-    mutationFn: () => releaseStaffReservationLoyalty(reservationId, {
-      row_version: guardRowVersion(),
-      reason: emptyToNull(releaseReason),
-    }),
-    onSuccess: async () => {
-      setReleaseReason('');
-      await invalidateBenefits();
-      toast.success('Đã giải phóng điểm đã giữ.');
-    },
-    onError: (error) => handleBenefitError(error, 'Chưa giải phóng được điểm.'),
-  });
-
-  const adjustLoyaltyMutation = useMutation({
-    mutationFn: () => {
-      if (!customerUserId) {
-        throw new Error('Đặt bàn này chưa có mã người dùng khách hàng để điều chỉnh điểm.');
-      }
-
-      const points = Number(adjustPoints);
-      if (!Number.isFinite(points) || points === 0 || adjustReason.trim() === '') {
-        throw new Error('Hãy nhập số điểm khác 0 và lý do điều chỉnh.');
-      }
-
-      return adjustStaffUserLoyalty(customerUserId, {
-        points,
-        reason: adjustReason.trim(),
-      });
-    },
-    onSuccess: async () => {
-      setAdjustPoints('');
-      setAdjustReason('');
-      await invalidateBenefits();
-      toast.success('Đã điều chỉnh điểm khách hàng.');
-    },
-    onError: (error) => handleBenefitError(error, 'Chưa điều chỉnh được điểm khách hàng.'),
-  });
+  const canManageVoucher = Boolean(session && can(session, 'voucher.manage'));
+  const canViewLoyalty = Boolean(session && can(session, 'loyalty.view'));
+  const canRedeemLoyalty = Boolean(session && can(session, 'loyalty.redeem'));
+  const canAdjustLoyalty = Boolean(session && can(session, 'loyalty.adjust'));
 
   if (!canManageVoucher && !canViewLoyalty && !canRedeemLoyalty && !canAdjustLoyalty) {
     return (
-      <Card size="small" title="Voucher / điểm thưởng" className="staff-workspace-detail-subcard">
-        <EmptyBlock title="Chưa có quyền ưu đãi" description="Phiên nhân viên hiện tại không có capability voucher.manage, loyalty.view, loyalty.redeem hoặc loyalty.adjust." />
+      <Card size="small" title="Voucher / loyalty" className="staff-workspace-detail-subcard">
+        <EmptyBlock title="No benefits capability" description="This staff session does not have voucher or loyalty capabilities." />
       </Card>
     );
   }
 
   return (
-    <Card size="small" title="Voucher / điểm thưởng" className="staff-workspace-detail-subcard">
-      <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-        {!hasRowVersion ? (
-          <Alert
-            type="warning"
-            showIcon
-            title="Thiếu row_version đặt bàn"
-            description="Các mutation voucher và điểm thưởng đang bị khóa để tránh ghi đè trạng thái đặt bàn đã cũ."
-          />
-        ) : null}
-
-        {canManageVoucher ? (
-          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
-            <Typography.Text strong>Voucher đặt bàn</Typography.Text>
-            {vouchersQuery.isLoading ? <InlineLoading tip="Đang tải voucher khả dụng..." /> : null}
-            {vouchersQuery.error ? (
-              <ApiStateBlock
-                error={vouchersQuery.error}
-                fallback="Không thể tải voucher đặt bàn."
-                onRetry={() => void vouchersQuery.refetch()}
-                retryLabel="Tải lại voucher"
-              />
-            ) : null}
-            {!vouchersQuery.isLoading && !vouchersQuery.error && vouchers.length === 0 ? (
-              <EmptyBlock title="Chưa có voucher" description="Backend không trả về voucher khả dụng hoặc đang áp dụng cho đặt bàn này." />
-            ) : null}
-            {vouchers.length > 0 ? (
-              <div className="staff-admin-surface-list">
-                {vouchers.slice(0, 4).map((voucher, index) => (
-                  <div key={`${recordString(voucher, 'code') ?? index}`} className="staff-admin-surface-item">
-                    <strong>{recordString(voucher, 'code') ?? `Voucher #${index + 1}`}</strong>
-                    <Typography.Text type="secondary">{recordString(voucher, 'description') ?? recordString(voucher, 'status') ?? 'Không có mô tả'}</Typography.Text>
-                  </div>
-                ))}
+    <Card size="small" title="Voucher / loyalty" className="staff-workspace-detail-subcard">
+      <ConflictState
+        title="Staff voucher and loyalty remain outside the operator contract lane"
+        description="Staff-web does not execute these staff-only voucher or loyalty routes because they are still fallback-only and are not part of the frozen operator SDK promise."
+        meta="Exact blocker: no official staff benefits read/write lane in frozen OpenAPI + generated SDK for these staff-prefixed routes."
+        body={(
+          <div className="staff-mini-list">
+            {blockedBenefitsRoutes.map((route) => (
+              <div key={route} className="staff-mini-list-item">
+                <Typography.Text code>{route}</Typography.Text>
               </div>
-            ) : null}
-            <Space wrap>
-              <Input
-                aria-label="Mã voucher staff áp dụng"
-                value={voucherCode}
-                placeholder="Mã voucher"
-                onChange={(event) => setVoucherCode(event.target.value)}
-                style={{ width: 180 }}
-              />
-              <Button type="primary" onClick={() => applyVoucherMutation.mutate()} loading={applyVoucherMutation.isPending} disabled={!hasRowVersion || voucherCode.trim() === ''}>
-                Áp dụng voucher
-              </Button>
-              <Button danger onClick={() => removeVoucherMutation.mutate()} loading={removeVoucherMutation.isPending} disabled={!hasRowVersion}>
-                Gỡ voucher
-              </Button>
-              <Button onClick={() => releaseVoucherMutation.mutate()} loading={releaseVoucherMutation.isPending} disabled={!hasRowVersion}>
-                Giải phóng voucher
-              </Button>
-            </Space>
-          </Space>
-        ) : null}
-
-        {canViewLoyalty ? (
-          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
-            <Typography.Text strong>Điểm thưởng</Typography.Text>
-            {reservationLoyaltyQuery.isLoading || userLoyaltyQuery.isLoading ? <InlineLoading tip="Đang tải điểm thưởng..." /> : null}
-            {reservationLoyaltyQuery.error ? (
-              <ApiStateBlock
-                error={reservationLoyaltyQuery.error}
-                fallback="Không thể tải điểm thưởng của đặt bàn."
-                onRetry={() => void reservationLoyaltyQuery.refetch()}
-                retryLabel="Tải lại điểm thưởng của đặt bàn"
-              />
-            ) : null}
-            {userLoyaltyQuery.error ? (
-              <ApiStateBlock
-                error={userLoyaltyQuery.error}
-                fallback="Không thể tải điểm thưởng của khách."
-                onRetry={() => void userLoyaltyQuery.refetch()}
-                retryLabel="Tải lại điểm thưởng của khách"
-              />
-            ) : null}
-            <Descriptions bordered size="small" column={1}>
-              <Descriptions.Item label="Khách">
-                {customerUserId ? `Khách #${customerUserId}` : 'Đặt bàn chưa có mã người dùng khách hàng'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Điểm khách">
-                {recordNumber(userLoyalty, 'points_balance') ?? recordNumber(userLoyalty, 'available_points') ?? 'Không có dữ liệu'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Điểm đã sử dụng">
-                {recordNumber(reservationLoyalty, 'redeemed_points') ?? recordNumber(reservationLoyalty, 'points') ?? 'Không có dữ liệu'}
-              </Descriptions.Item>
-            </Descriptions>
-          </Space>
-        ) : null}
-
-        {canRedeemLoyalty ? (
-          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
-            <Typography.Text strong>Sử dụng / giải phóng điểm</Typography.Text>
-            <Space wrap>
-              <Input aria-label="Số điểm staff sử dụng" inputMode="numeric" placeholder="Điểm" value={redeemPoints} onChange={(event) => setRedeemPoints(event.target.value)} style={{ width: 120 }} />
-              <Input aria-label="Lý do staff sử dụng điểm" placeholder="Lý do" value={redeemReason} onChange={(event) => setRedeemReason(event.target.value)} style={{ width: 220 }} />
-              <Button type="primary" onClick={() => redeemLoyaltyMutation.mutate()} loading={redeemLoyaltyMutation.isPending} disabled={!hasRowVersion || Number(redeemPoints) <= 0}>
-                Sử dụng điểm
-              </Button>
-            </Space>
-            <Space wrap>
-              <Input aria-label="Lý do giải phóng điểm" placeholder="Lý do giải phóng" value={releaseReason} onChange={(event) => setReleaseReason(event.target.value)} style={{ width: 220 }} />
-              <Button onClick={() => releaseLoyaltyMutation.mutate()} loading={releaseLoyaltyMutation.isPending} disabled={!hasRowVersion}>
-                Giải phóng điểm
-              </Button>
-            </Space>
-          </Space>
-        ) : null}
-
-        {canAdjustLoyalty ? (
-          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
-            <Typography.Text strong>Điều chỉnh điểm khách</Typography.Text>
-            <Space wrap>
-              <Input aria-label="Số điểm staff điều chỉnh" inputMode="numeric" placeholder="+/- điểm" value={adjustPoints} onChange={(event) => setAdjustPoints(event.target.value)} style={{ width: 120 }} />
-              <Input aria-label="Lý do staff điều chỉnh điểm" placeholder="Lý do bắt buộc" value={adjustReason} onChange={(event) => setAdjustReason(event.target.value)} style={{ width: 240 }} />
-              <Button onClick={() => adjustLoyaltyMutation.mutate()} loading={adjustLoyaltyMutation.isPending} disabled={!customerUserId || Number(adjustPoints) === 0 || adjustReason.trim() === ''}>
-                Điều chỉnh điểm
-              </Button>
-            </Space>
-          </Space>
-        ) : null}
-      </Space>
+            ))}
+          </div>
+        )}
+        className="staff-inline-note"
+      />
     </Card>
   );
 }
 
-function InvoiceBlock({ envelope }: { envelope: FinanceInvoiceEnvelope }) {
+function FinanceDetailPanel({
+  selectedReservationId,
+  selectedRow,
+  detailQuery,
+  invoiceQuery,
+  canIssueInvoice,
+  isIssuing,
+  onIssueInvoice,
+}: {
+  selectedReservationId: number | null;
+  selectedRow: FinancialReconciliationRow | null;
+  detailQuery: UseQueryResult<FinancialReconciliationDetailEnvelope, Error>;
+  invoiceQuery: UseQueryResult<FinanceInvoiceEnvelope, Error>;
+  canIssueInvoice: boolean;
+  isIssuing: boolean;
+  onIssueInvoice: () => void;
+}) {
+  if (!selectedReservationId) {
+    return (
+      <EmptyBlock
+        title="Select a reservation"
+        description="Choose a finance row to load reconciliation detail and invoice state."
+      />
+    );
+  }
+
+  const detail = detailQuery.data?.data;
+  const invoice = invoiceQuery.data?.data.invoice;
+  const row = detail?.summary ?? selectedRow;
+  const currency = currencyForRow(row);
+
   return (
-    <Descriptions bordered size="small" column={1}>
-      <Descriptions.Item label="Số hóa đơn">
-        <Space wrap size={6}>
-          <Typography.Text strong>{envelope.data.invoice.invoice_number}</Typography.Text>
-          <StatusChip label={envelope.data.invoice.invoice_status} tone="success" />
+    <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      <Card size="small" title={`Reservation #${selectedReservationId}`}>
+        {detailQuery.isLoading ? <InlineLoading tip="Loading reconciliation detail..." /> : null}
+        {detailQuery.error ? (
+          <ApiStateBlock
+            error={detailQuery.error}
+            fallback="Unable to load reconciliation detail."
+            onRetry={() => void detailQuery.refetch()}
+          />
+        ) : null}
+        {row ? (
+          <Descriptions bordered size="small" column={1}>
+            <Descriptions.Item label="Reservation code">{row.reservation.reservation_code}</Descriptions.Item>
+            <Descriptions.Item label="Status">{row.reservation.status}</Descriptions.Item>
+            <Descriptions.Item label="Deposit status">{row.reservation.deposit_status}</Descriptions.Item>
+            <Descriptions.Item label="Net paid">{formatMoney(readFinanceMetric(row.payment_summary, 'net_paid_amount'), currency)}</Descriptions.Item>
+            <Descriptions.Item label="Final bill">{formatMoney(readFinanceMetric(row.reconciliation, 'final_bill_amount'), currency)}</Descriptions.Item>
+            <Descriptions.Item label="Outstanding">{formatMoney(readFinanceMetric(row.reconciliation, 'bill_outstanding_amount'), currency)}</Descriptions.Item>
+            <Descriptions.Item label="Flags">
+              <Space wrap>{financeFlagLabels(row).map((flag) => <Tag key={flag}>{flag}</Tag>)}</Space>
+            </Descriptions.Item>
+          </Descriptions>
+        ) : null}
+      </Card>
+
+      <Card
+        size="small"
+        title="Invoice"
+        extra={(
+          <Button
+            type="primary"
+            disabled={!canIssueInvoice}
+            loading={isIssuing}
+            onClick={onIssueInvoice}
+          >
+            Issue invoice
+          </Button>
+        )}
+      >
+        {invoiceQuery.isLoading ? <InlineLoading tip="Loading invoice..." /> : null}
+        {invoiceQuery.error ? (
+          <ApiStateBlock
+            error={invoiceQuery.error}
+            fallback="Unable to load invoice."
+            onRetry={() => void invoiceQuery.refetch()}
+          />
+        ) : null}
+        {invoice ? (
+          <Descriptions bordered size="small" column={1}>
+            <Descriptions.Item label="Invoice number">{readString(invoice, 'invoice_number') || 'Not issued'}</Descriptions.Item>
+            <Descriptions.Item label="Status">{readString(invoice, 'invoice_status') || 'draft'}</Descriptions.Item>
+            <Descriptions.Item label="Currency">{readString(invoice, 'currency') || currency}</Descriptions.Item>
+            <Descriptions.Item label="Total">{formatMoney(readFinanceMetric(readRecord(invoice, 'bill_amounts'), 'total_amount'), readString(invoice, 'currency') || currency)}</Descriptions.Item>
+            <Descriptions.Item label="Issued at">{formatDateTime(readNullableString(invoice, 'issued_at'))}</Descriptions.Item>
+          </Descriptions>
+        ) : null}
+        {!invoiceQuery.isLoading && !invoiceQuery.error && !invoice ? (
+          <EmptyBlock title="No invoice payload" description="The backend returned no invoice object for this reservation." />
+        ) : null}
+      </Card>
+    </Space>
+  );
+}
+
+function financeColumns(onSelect: (reservationId: number) => void): ColumnsType<FinancialReconciliationRow> {
+  return [
+    {
+      title: 'Reservation',
+      dataIndex: ['reservation', 'reservation_code'],
+      render: (_value, row) => (
+        <Button type="link" onClick={(event) => {
+          event.stopPropagation();
+          onSelect(row.reservation.reservation_id);
+        }}>
+          {row.reservation.reservation_code}
+        </Button>
+      ),
+    },
+    {
+      title: 'Customer',
+      render: (_value, row) => readString(row.reservation.customer, 'full_name') || readString(row.reservation.customer, 'phone') || 'Walk-in',
+    },
+    {
+      title: 'Status',
+      render: (_value, row) => (
+        <Space wrap>
+          <Tag>{row.reservation.status}</Tag>
+          <Tag>{row.reservation.deposit_status}</Tag>
         </Space>
-      </Descriptions.Item>
-      <Descriptions.Item label="Tổng tiền">
-        {formatMoney(envelope.data.invoice.bill_amounts.total_amount, envelope.data.invoice.currency)}
-      </Descriptions.Item>
-      <Descriptions.Item label="Tiền thuế">
-        {formatMoney(envelope.data.invoice.tax.tax_amount, envelope.data.invoice.currency)}
-      </Descriptions.Item>
-      <Descriptions.Item label="Phát hành lúc">
-        {formatDateTime(envelope.data.invoice.issued_at)}
-      </Descriptions.Item>
-      <Descriptions.Item label="Người phát hành">
-        {envelope.data.invoice.issued_by.full_name ?? envelope.data.invoice.issued_by.email ?? envelope.data.invoice.issued_by.user_id ?? 'Không rõ'}
-      </Descriptions.Item>
-    </Descriptions>
-  );
+      ),
+    },
+    {
+      title: 'Net paid',
+      render: (_value, row) => formatMoney(readFinanceMetric(row.payment_summary, 'net_paid_amount'), currencyForRow(row)),
+    },
+    {
+      title: 'Outstanding',
+      render: (_value, row) => formatMoney(readFinanceMetric(row.reconciliation, 'bill_outstanding_amount'), currencyForRow(row)),
+    },
+    {
+      title: 'Flags',
+      render: (_value, row) => (
+        <Space wrap>
+          {financeFlagLabels(row).map((flag) => <Tag key={flag}>{flag}</Tag>)}
+        </Space>
+      ),
+    },
+  ];
 }
 
-function MethodBreakdownTable({ rows }: { rows: Array<FinancialMethodBreakdownRow> }) {
-  return (
-    <Table<FinancialMethodBreakdownRow>
-      rowKey={(row) => `${row.payment_method}-${row.currency}`}
-      pagination={false}
-      size="small"
-      dataSource={rows}
-      columns={[
-        {
-          title: 'Phương thức',
-          render: (_, row) => `${row.payment_method} • ${row.currency}`,
-        },
-        {
-          title: 'Đã thu',
-          render: (_, row) => formatMoney(row.captured_amount, row.currency),
-        },
-        {
-          title: 'Đã hoàn',
-          render: (_, row) => formatMoney(row.refunded_amount, row.currency),
-        },
-        {
-          title: 'Ròng',
-          render: (_, row) => formatMoney(row.net_amount, row.currency),
-        },
-      ]}
-    />
-  );
+function currencyForRow(row: FinancialReconciliationRow | null | undefined): string {
+  const currencyRecord = readRecord(row?.payment_summary, 'currency');
+  return readString(currencyRecord, 'currency') || row?.reservation.bill_currency || 'VND';
 }
 
-function PaymentsTable({ rows }: { rows: Array<FinancialPaymentRow> }) {
-  return (
-    <Table<FinancialPaymentRow>
-      rowKey="payment_id"
-      pagination={false}
-      size="small"
-      dataSource={rows}
-      columns={[
-        {
-          title: 'Loại giao dịch',
-          render: (_, row) => (
-            <Space orientation="vertical" size={2}>
-              <Typography.Text strong>{row.payment_type}</Typography.Text>
-              <Typography.Text type="secondary">{row.payment_method}</Typography.Text>
-            </Space>
-          ),
-        },
-        {
-          title: 'Trạng thái',
-          render: (_, row) => <StatusChip label={row.status} tone={paymentTone(row.status)} />,
-        },
-        {
-          title: 'Số tiền',
-          render: (_, row) => formatMoney(row.amount, row.currency),
-        },
-        {
-          title: 'Nguồn gốc',
-          render: (_, row) => row.refund_source_payment
-            ? `${row.refund_target_payment_type ?? 'Hoàn tiền'} của giao dịch #${row.refund_source_payment.payment_id}`
-            : row.transaction_code ?? 'Thanh toán trực tiếp',
-        },
-        {
-          title: 'Thời điểm',
-          render: (_, row) => formatDateTime(row.paid_at ?? row.created_at),
-        },
-      ]}
-    />
-  );
-}
-
-type GenericRecord = Record<string, unknown>;
-
-function recordsFromGenericPayload(payload: unknown): Array<GenericRecord> {
-  if (Array.isArray(payload)) {
-    return payload.filter(isGenericRecord);
+function readRecord(value: unknown, key: string): Record<string, unknown> | undefined {
+  if (!isRecord(value)) {
+    return undefined;
   }
 
-  if (!isGenericRecord(payload)) {
-    return [];
-  }
-
-  for (const key of ['data', 'items', 'rows', 'vouchers', 'loyalty']) {
-    const value = payload[key];
-    if (Array.isArray(value)) {
-      return value.filter(isGenericRecord);
-    }
-  }
-
-  return Object.values(payload).every((value) => isGenericRecord(value))
-    ? Object.values(payload).filter(isGenericRecord)
-    : [];
+  const child = value[key];
+  return isRecord(child) ? child : undefined;
 }
 
-function firstRecordFromGenericPayload(payload: unknown): GenericRecord | null {
-  if (isGenericRecord(payload)) {
-    return payload;
+function readString(value: unknown, key: string): string | null {
+  if (!isRecord(value)) {
+    return null;
   }
 
-  return recordsFromGenericPayload(payload)[0] ?? null;
+  const raw = value[key];
+  return typeof raw === 'string' && raw.trim() !== '' ? raw : null;
 }
 
-function recordString(row: GenericRecord | null, key: string): string | null {
-  const value = row?.[key];
-  return typeof value === 'string' && value.trim() !== '' ? value : null;
-}
-
-function recordNumber(row: GenericRecord | null, key: string): number | null {
-  const value = row?.[key];
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
+function readNullableString(value: unknown, key: string): string | null {
+  if (!isRecord(value)) {
+    return null;
   }
 
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-
-  return null;
+  const raw = value[key];
+  return typeof raw === 'string' ? raw : null;
 }
 
-function emptyToNull(value: string): string | null {
-  const trimmed = value.trim();
-  return trimmed === '' ? null : trimmed;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isGenericRecord(value: unknown): value is GenericRecord {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function flagTone(label: string): 'default' | 'processing' | 'success' | 'warning' | 'error' {
-  switch (label) {
-    case 'Có chênh lệch':
-    case 'Hoàn quá tiền':
-      return 'error';
-    case 'Còn thiếu':
-    case 'Lệch loại tiền':
-      return 'warning';
-    case 'Đã quyết toán':
-      return 'success';
-    default:
-      return 'default';
-  }
+function buildOperatorJourneySearch(journey: JourneyContext, overrides: Partial<JourneyContext> = {}): string {
+  return buildJourneySearch({
+    source: overrides.source ?? journey.source ?? 'audit',
+    tableId: overrides.tableId ?? journey.tableId ?? undefined,
+    tableIds: overrides.tableIds ?? journey.tableIds ?? undefined,
+    reservationId: overrides.reservationId ?? journey.reservationId ?? undefined,
+    reservationRowVersion: overrides.reservationRowVersion ?? journey.reservationRowVersion ?? undefined,
+    orderId: overrides.orderId ?? journey.orderId ?? undefined,
+    orderRowVersion: overrides.orderRowVersion ?? journey.orderRowVersion ?? undefined,
+    stationId: overrides.stationId ?? journey.stationId ?? undefined,
+  });
 }

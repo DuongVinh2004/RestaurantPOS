@@ -11,3 +11,4 @@ parameters:
         - tools/phpstan/bootstrap.php
     parallel:
         maximumNumberOfProcesses: 1
+        processTimeout: 2400.0

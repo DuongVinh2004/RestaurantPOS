@@ -59,12 +59,14 @@ When a task affects release bootstrap, also review `db_all.sql` and release arti
 
 - Use `.codex/agents/*` roles for focused exploration, review, and documentation verification.
 - For larger parallel hardening passes, align with `docs/codex-parallel-agent-prompts.md`.
-- Project-local skills live under `.agents/skills/`; use them explicitly when the task maps cleanly to auth/RBAC, split web auth/session contract, FOH reservations, order lifecycle, customer self-service, checkout/finance, kitchen/KDS, inventory/purchasing, web-client contract and DX, API contract gates, ops/release contract, data lifecycle, notification platform, conversation inbox, branch scheduling, multi-branch reporting, or workstream orchestration.
+- Project-local skills live under `.agents/skills/`; use them explicitly when the task maps cleanly to auth/RBAC, split web auth/session contract, FOH reservations, order lifecycle, customer self-service, checkout/finance, kitchen/KDS, inventory/purchasing, staff-web/customer-web UI, web-client contract and DX, API contract gates, ops/release contract, data lifecycle, notification platform, conversation inbox, branch scheduling, multi-branch reporting, or workstream orchestration.
 - Use the process skills to keep context lean:
-  - `restaurantpos-web-client-contracts`
-  - `restaurantpos-web-auth-session-contract`
   - `restaurantpos-context-router`
   - `restaurantpos-prompt-router`
+  - `restaurantpos-web-client-contracts`
+  - `restaurantpos-web-auth-session-contract`
+  - `restaurantpos-staff-web-react`
+  - `restaurantpos-ui-design-system-guardian`
   - `restaurantpos-targeted-verification`
   - `restaurantpos-git-aware-verify`
   - `restaurantpos-skill-pack-quality`

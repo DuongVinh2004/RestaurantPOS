@@ -10,13 +10,15 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:journeys": "vitest run src/features/auth/login-page.test.tsx src/providers/auth-provider.test.tsx src/components/layout/protected-route.test.tsx src/features/table-booking/table-booking-page.test.tsx src/features/table-booking/state.test.ts src/features/reservations/reservation-create-page.test.tsx src/features/reservations/reservation-detail-page.test.tsx src/features/reservations/state.test.ts src/components/layout/backend-status-banner.test.tsx",
+    "test:journeys": "vitest run src/features/auth/login-page.test.tsx src/providers/auth-provider.test.tsx src/components/layout/protected-route.test.tsx src/features/menu/menu-page.test.tsx src/features/table-booking/table-booking-page.test.tsx src/features/table-booking/state.test.ts src/features/reservations/reservations-page.test.tsx src/features/reservations/reservation-create-page.test.tsx src/features/reservations/reservation-detail-page.test.tsx src/features/reservations/state.test.ts src/components/layout/backend-status-banner.test.tsx",
     "test:e2e:smoke": "playwright test e2e/customer-smoke.spec.ts --project=chromium",
     "test:e2e:live": "node scripts/verify-live-runtime.mjs && playwright test --config=playwright.live.config.ts --project=chromium",
+    "test:e2e:preorder-live": "node scripts/verify-live-runtime.mjs && playwright test --config=playwright.preorder.live.config.ts --project=chromium",
     "verify:wave-1": "npm run lint && npm run typecheck && npm run test:journeys",
     "verify:contracts": "node scripts/check-contract-governance.mjs",
     "verify:release": "npm run lint && npm run typecheck && npm run test && npm run build && npm run test:e2e:smoke",
     "verify:release:live": "npm run lint && npm run typecheck && npm run test:journeys && npm run test:e2e:live",
+    "verify:preorder:live": "npm run lint && npm run typecheck && npm run test:journeys && npm run test:e2e:preorder-live",
     "sync:contracts": "node scripts/sync-contracts.mjs"
   },
   "dependencies": {

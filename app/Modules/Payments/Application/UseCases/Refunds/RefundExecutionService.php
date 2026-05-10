@@ -20,6 +20,10 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Dieu phoi refund tren reservation:
+ * lap ke hoach hoan tien, tao payment refund, va neu can thi huy reservation sau refund.
+ */
 class RefundExecutionService
 {
     private readonly BranchContextService $branchContextService;
@@ -86,6 +90,7 @@ class RefundExecutionService
         ?string $requestFingerprint = null,
         ?int $cashierShiftId = null,
     ): array {
+        // Caller da lock reservation/orders/payments; ham nay xu ly logic refund tren snapshot da khoa.
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
         $reservationId = (int) $reservation->reservation_id;
@@ -107,6 +112,7 @@ class RefundExecutionService
             ]);
         }
 
+        // Pha 1: chup payment summary hien tai de biet so du refund theo deposit/final.
         $summaryBefore = PaymentSummary::fromPayments($payments);
         $reservationBranchId = $this->resolveReservationBranchId($reservation, $payments);
         $reservation->branch_id = $reservationBranchId;
@@ -121,6 +127,7 @@ class RefundExecutionService
             ]);
         }
 
+        // Refund plan chia ro deposit/final de xu ly dung nguon tien va dung gioi han.
         $refundPlan = $this->refundPlannerService->buildRefundPlan(
             refundScope: $refundScope,
             requestedRefundAmount: $refundAmount,
@@ -138,6 +145,7 @@ class RefundExecutionService
 
         /** @var array<int,Payment> $refundPayments */
         $refundPayments = [];
+        // Pha 2: chia refund thanh cac allocation theo tung payment goc de audit/doi soat minh bach.
         foreach (['deposit' => 'Deposit', 'final' => 'Final'] as $scopeKey => $targetType) {
             $amountMinor = Money::minorUnits($refundPlan[$scopeKey] ?? 0, true);
             if ($amountMinor <= 0) {
@@ -189,6 +197,7 @@ class RefundExecutionService
                     'source_transaction_code' => $sourcePayment->transaction_code,
                 ];
 
+                // Moi allocation tao ra mot payment refund rieng de audit va doi soat duoc tung nguon.
                 try {
                     $refundPayment->save();
                 } catch (QueryException $e) {
@@ -204,6 +213,7 @@ class RefundExecutionService
             }
         }
 
+        // Pha 3: tinh summary moi tren payments cu + refund payments vua tao.
         $paymentsAfter = $refundPayments === []
             ? $payments
             : $payments->concat(collect($refundPayments));
@@ -211,11 +221,13 @@ class RefundExecutionService
 
         $syncDepositSnapshot($reservation, $summaryAfter, $cancelAfterPayment);
 
+        // cancel-after-payment la flow refund xong roi don sach reservation/order/table ngay trong cung transaction.
         if ($cancelAfterPayment) {
             $releaseAppliedVoucherLocked($reservation, $orders, $staffUserId, true);
             $cancelReservationLocked($reservation, $orders, $tableIds, $staffUserId, $cancelReason);
         }
 
+        // Loyalty impact va reservation updated_by duoc xu ly sau khi summary refund da ro rang.
         $this->loyaltyPointsService->syncReservationRefundImpactLocked(
             reservation: $reservation,
             payments: $paymentsAfter,

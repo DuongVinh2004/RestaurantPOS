@@ -41,7 +41,7 @@ export function customerProfileFromSession(envelope: CustomerAuthSessionEnvelope
   const record = user as Record<string, unknown>;
   const name =
     stringFromRecord(record, ["name", "full_name", "display_name", "username"]) ??
-    "Customer";
+    "Khách hàng";
 
   return {
     userId: numberFromRecord(record, ["user_id", "id"]),

@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
+import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { BellRing, CalendarDays, Heart, ReceiptText, ShieldCheck, Sparkles, UserRound, WalletCards, type LucideIcon } from "lucide-react";
+import { AppBadge, AppButton, AppCard, EmptyState, ErrorState, SectionHeader, StatusPill } from "@/components/customer/ui";
+import { ResponsivePageShell } from "@/components/customer/layout";
+import { LoadingBlock } from "@/components/states/state-blocks";
 import { StatusBadge } from "@/components/status/status-badge";
+import { FeedbackPanel } from "@/features/feedback/feedback-panel";
+import { NotificationPreferencesPanel } from "@/features/notifications/notification-preferences-panel";
 import { PrivacyPanel } from "@/features/privacy/privacy-panel";
 import { listReservations } from "@/features/reservations/api";
 import { listVouchers } from "@/features/vouchers/api";
@@ -16,6 +18,7 @@ import { queryKeys } from "@/lib/api/query-keys";
 import { customerWebRollout } from "@/lib/config/feature-flags";
 import { formatDateTime } from "@/lib/contracts/format";
 import { getLoyalty } from "./api";
+import { ProfilePreferencesPanel } from "./profile-preferences-panel";
 
 export function AccountPage() {
   const { profile } = useAuth();
@@ -25,6 +28,7 @@ export function AccountPage() {
   const benefitsVisibility = getBenefitsVisibilityState(accountBenefitsRollout);
   const privacyEnabled = privacyRollout.enabled;
   const dataExportEnabled = privacyEnabled && dataExportRollout.enabled;
+
   const loyaltyQuery = useQuery({
     queryKey: queryKeys.account.loyalty,
     queryFn: getLoyalty,
@@ -39,255 +43,453 @@ export function AccountPage() {
     queryFn: () => listVouchers({ bucket: "all", per_page: 24 }),
     enabled: accountBenefitsRollout.enabled,
   });
+
   const loyaltyState = loyaltyQuery.data ? getLoyaltyAccountState(loyaltyQuery.data) : null;
   const voucherWallet = vouchersQuery.data ? getVoucherWalletState(vouchersQuery.data) : null;
-  const shellCards = [
+  const displayName = loyaltyQuery.data?.user.full_name ?? profile?.name ?? "Khách hàng";
+
+  return (
+    <ResponsivePageShell className="space-y-6">
+      <section className="space-y-2">
+        <AppBadge>Tài khoản</AppBadge>
+        <h1 className="text-4xl font-semibold tracking-normal">Tài khoản khách hàng của bạn</h1>
+        <p className="max-w-3xl text-muted-foreground">
+          {displayName} có thể xem lịch đặt, ưu đãi, công cụ dữ liệu cá nhân và các phần cài đặt đang chờ API tại một nơi.
+        </p>
+      </section>
+
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <UpcomingReservationsCard query={upcomingReservationsQuery} />
+        <AccountSummaryCard
+          name={displayName}
+          email={profile?.email ?? loyaltyQuery.data?.user.email ?? null}
+          phone={profile?.phone ?? loyaltyQuery.data?.user.phone ?? null}
+          benefitsEnabled={accountBenefitsRollout.enabled}
+          privacyEnabled={privacyEnabled}
+          dataExportEnabled={dataExportEnabled}
+        />
+      </div>
+
+      <ProfilePreferencesPanel profile={profile} />
+
+      <ExperienceHub
+        name={displayName}
+        email={profile?.email ?? loyaltyQuery.data?.user.email ?? null}
+        phone={profile?.phone ?? loyaltyQuery.data?.user.phone ?? null}
+        benefitsEnabled={accountBenefitsRollout.enabled}
+        privacyEnabled={privacyEnabled}
+        dataExportEnabled={dataExportEnabled}
+      />
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <LoyaltyCard
+          enabled={accountBenefitsRollout.enabled}
+          visibilityTitle={benefitsVisibility.title}
+          visibilityDescription={benefitsVisibility.description}
+          query={loyaltyQuery}
+          state={loyaltyState}
+        />
+        <VoucherWalletCard
+          enabled={accountBenefitsRollout.enabled}
+          visibilityTitle={benefitsVisibility.title}
+          visibilityDescription={benefitsVisibility.description}
+          query={vouchersQuery}
+          wallet={voucherWallet}
+        />
+      </section>
+
+      <NotificationPreferencesPanel />
+      <FeedbackPanel />
+      <PrivacyPanel />
+    </ResponsivePageShell>
+  );
+}
+
+function AccountSummaryCard({
+  name,
+  email,
+  phone,
+  benefitsEnabled,
+  privacyEnabled,
+  dataExportEnabled,
+}: {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  benefitsEnabled: boolean;
+  privacyEnabled: boolean;
+  dataExportEnabled: boolean;
+}) {
+  return (
+    <AppCard className="p-4">
+      <div className="space-y-4">
+        <SectionHeader
+          eyebrow="Hồ sơ đã đăng nhập"
+          title={name}
+          description="Trang này chỉ hiển thị dữ liệu thuộc phạm vi tài khoản khách hàng."
+        />
+        <div className="grid gap-2 text-sm">
+          <SummaryRow label="Email" value={email ?? "Chưa cung cấp"} />
+          <SummaryRow label="Điện thoại" value={phone ?? "Chưa cung cấp"} />
+        </div>
+        <div className="grid gap-2">
+          <FeatureState label="Ưu đãi" enabled={benefitsEnabled} />
+          <FeatureState label="Yêu cầu dữ liệu cá nhân" enabled={privacyEnabled} />
+          <FeatureState label="Xuất dữ liệu" enabled={dataExportEnabled} />
+        </div>
+      </div>
+    </AppCard>
+  );
+}
+
+function ExperienceHub({
+  name,
+  email,
+  phone,
+  benefitsEnabled,
+  privacyEnabled,
+  dataExportEnabled,
+}: {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  benefitsEnabled: boolean;
+  privacyEnabled: boolean;
+  dataExportEnabled: boolean;
+}) {
+  const readiness = [
     {
-      title: "Điểm thưởng",
-      badge: accountBenefitsRollout.enabled ? "Đã bật" : "Chưa bật",
-      summary: loyaltyState?.title ?? benefitsVisibility.title,
-      description: loyaltyState?.description ?? benefitsVisibility.description,
+      label: "Thông báo",
+      value: "Có thể cài đặt",
+      icon: BellRing,
+      tone: "info" as const,
     },
     {
-      title: "Voucher",
-      badge: accountBenefitsRollout.enabled ? "Đã bật" : "Chưa bật",
-      summary: voucherWallet?.title ?? benefitsVisibility.title,
-      description: voucherWallet?.description ?? benefitsVisibility.description,
+      label: "Ưu đãi",
+      value: benefitsEnabled ? "Đã bật" : "Chưa bật",
+      icon: WalletCards,
+      tone: benefitsEnabled ? "success" as const : "neutral" as const,
     },
     {
-      title: "Yêu cầu dữ liệu cá nhân",
-      badge: privacyEnabled ? "Đã bật" : "Chưa bật",
-      summary: privacyEnabled ? "Có thể gửi yêu cầu" : privacyRollout.disabledTitle,
-      description: privacyEnabled ? "Bạn có thể gửi yêu cầu về dữ liệu cá nhân khi nhà hàng bật tính năng này." : privacyRollout.disabledDescription,
+      label: "Quyền riêng tư",
+      value: privacyEnabled ? "Đã bật" : "Chưa bật",
+      icon: ShieldCheck,
+      tone: privacyEnabled ? "success" as const : "neutral" as const,
     },
     {
-      title: "Xuất dữ liệu",
-      badge: dataExportEnabled ? "Đã bật" : "Chưa bật",
-      summary: dataExportEnabled ? "Có thể xem dữ liệu xuất" : dataExportRollout.disabledTitle,
-      description: dataExportEnabled
-        ? "Bản xuất dữ liệu tài khoản sẽ hiển thị tại đây."
-        : privacyEnabled
-          ? dataExportRollout.disabledDescription
-          : "Xuất dữ liệu chỉ mở sau khi công cụ dữ liệu cá nhân được bật.",
+      label: "Xuất dữ liệu",
+      value: dataExportEnabled ? "Đã bật" : "Chưa bật",
+      icon: UserRound,
+      tone: dataExportEnabled ? "success" as const : "neutral" as const,
     },
   ];
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-6">
-      <section className="mb-5 space-y-2">
-        <h1 className="text-4xl font-semibold tracking-normal">Tài khoản</h1>
-        <p className="text-muted-foreground">
-          {profile?.name ?? "Khách hàng"} có thể xem điểm thưởng, voucher và các công cụ dữ liệu cá nhân khi nhà hàng bật cho tài khoản.
-        </p>
-      </section>
-
-      <Card className="mb-5 rounded-lg">
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle>Lịch đặt sắp tới</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">Theo dõi nhanh các lượt ghé đã đặt với nhà hàng.</p>
-          </div>
-          <Button asChild variant="outline" className="rounded-lg">
-            <Link href="/reservations">Xem tất cả</Link>
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {upcomingReservationsQuery.isLoading ? <LoadingBlock label="Đang tải lịch đặt sắp tới" /> : null}
-          {upcomingReservationsQuery.error ? (
-            <ErrorState
-              error={upcomingReservationsQuery.error}
-              title="Chưa tải được lịch đặt sắp tới"
-              onRetry={() => upcomingReservationsQuery.refetch()}
-            />
-          ) : null}
-          {!upcomingReservationsQuery.isLoading && !upcomingReservationsQuery.error && (upcomingReservationsQuery.data?.length ?? 0) === 0 ? (
-            <EmptyState
-              title="Chưa có lịch đặt sắp tới"
-              description="Bạn có thể tìm bàn trống và tạo lịch đặt mới khi cần."
-              action={(
-                <Button asChild className="rounded-lg">
-                  <Link href="/booking">Đặt bàn</Link>
-                </Button>
-              )}
-            />
-          ) : null}
-          <div className="grid gap-3">
-            {(upcomingReservationsQuery.data ?? []).slice(0, 3).map((reservation) => (
-              <Link
-                key={reservation.reservation_id}
-                href={`/reservations/${reservation.reservation_id}`}
-                className="flex flex-col gap-3 rounded-lg border p-4 transition hover:border-primary/50 hover:bg-secondary/30 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="font-semibold">{reservation.reservation_code}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {formatDateTime(reservation.start_time ?? reservation.booking_time ?? null)} • {reservation.guest_count ?? "Chưa rõ"} khách
-                  </p>
-                </div>
-                <StatusBadge status={reservation.status} />
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="mb-5 rounded-lg">
-        <CardHeader>
-          <CardTitle>Công cụ tài khoản</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-lg border border-dashed bg-secondary/20 p-4 text-sm">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]" aria-label="Không gian cá nhân hóa">
+      <AppCard className="overflow-hidden p-0">
+        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_17rem]">
+          <div className="space-y-5 p-5">
+            <div className="flex items-start gap-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground">
+                <Sparkles className="h-5 w-5" />
+              </span>
               <div>
-                <p className="font-medium">{benefitsVisibility.title}</p>
-                <p className="mt-1 text-muted-foreground">{benefitsVisibility.description}</p>
+                <h2 className="text-2xl font-semibold tracking-normal">Hồ sơ trải nghiệm</h2>
+                <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+                  Dùng thông tin đã có để giảm số lần nhập lại khi đặt bàn, theo dõi lịch và nhận thông báo.
+                </p>
               </div>
-              <Badge variant="outline" className="rounded-md">
-                {benefitsVisibility.badgeLabel}
-              </Badge>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <ProfileSignal icon={UserRound} label="Khách hàng" value={name} />
+              <ProfileSignal icon={BellRing} label="Liên hệ" value={email ?? phone ?? "Chưa cung cấp"} />
+              <ProfileSignal icon={Heart} label="Sở thích" value="Lưu tại thiết bị" />
             </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {shellCards.map((card) => (
-              <div key={card.title} className="rounded-lg border p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="font-medium">{card.title}</p>
-                  <Badge variant="outline" className="rounded-md">
-                    {card.badge}
-                  </Badge>
-                </div>
-                <p className="mt-3 text-sm font-medium">{card.summary}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{card.description}</p>
-              </div>
-            ))}
+          <div className="border-t bg-secondary/35 p-5 lg:border-l lg:border-t-0">
+            <p className="font-semibold">Lối tắt thuận tiện</p>
+            <div className="mt-3 grid gap-2">
+              <ShortcutLink href="/booking" icon={CalendarDays} label="Đặt bàn mới" />
+              <ShortcutLink href="/menu" icon={ReceiptText} label="Xem thực đơn" />
+              <ShortcutLink href="/reservations" icon={CalendarDays} label="Theo dõi lịch đặt" />
+            </div>
           </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle>Điểm thưởng</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!accountBenefitsRollout.enabled ? <EmptyState title={benefitsVisibility.title} description={benefitsVisibility.description} /> : null}
-            {loyaltyQuery.isLoading ? <LoadingBlock label="Đang tải điểm thưởng" /> : null}
-            {loyaltyQuery.error ? <ErrorState error={loyaltyQuery.error} title="Chưa tải được điểm thưởng" onRetry={() => loyaltyQuery.refetch()} /> : null}
-            {loyaltyState ? (
-              <>
-                <div className="rounded-lg bg-secondary p-4">
-                  <p className="text-sm text-muted-foreground">Điểm</p>
-                  <p className="text-3xl font-semibold">{loyaltyState.totalPoints}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">{loyaltyState.description}</p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm text-muted-foreground">Hạng hiện tại</p>
-                    <p className="mt-1 font-medium">{loyaltyState.tierLabel ?? "Chưa có hạng"}</p>
-                  </div>
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm text-muted-foreground">Mốc tiếp theo</p>
-                    <p className="mt-1 font-medium">{loyaltyState.nextTierLabel ?? "Chưa có mốc nâng hạng"}</p>
-                  </div>
-                </div>
-                {loyaltyState.state === "empty" ? (
-                  <EmptyState title={loyaltyState.title} description={loyaltyState.transactionDescription} />
-                ) : (
-                  <div className="space-y-2">
-                    <div>
-                      <p className="font-medium">{loyaltyState.transactionTitle}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{loyaltyState.transactionDescription}</p>
-                    </div>
-                    <div className="grid gap-2 text-sm">
-                      {loyaltyQuery.data?.transactions.slice(0, 5).map((transaction) => (
-                        <div key={`${transaction.txn_id}-${transaction.created_at}`} className="rounded-lg border p-3">
-                          <div className="flex justify-between gap-3">
-                            <span>{transaction.txn_type ?? "Giao dịch"}</span>
-                            <span className="font-medium">{transaction.points} pts</span>
-                          </div>
-                          <p className="mt-1 text-muted-foreground">{formatDateTime(transaction.created_at)}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle>Voucher</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!accountBenefitsRollout.enabled ? <EmptyState title={benefitsVisibility.title} description={benefitsVisibility.description} /> : null}
-            {vouchersQuery.isLoading ? <LoadingBlock label="Đang tải voucher" /> : null}
-            {vouchersQuery.error ? <ErrorState error={vouchersQuery.error} title="Chưa tải được ví voucher" onRetry={() => vouchersQuery.refetch()} /> : null}
-            {voucherWallet ? (
-              <>
-                <div className="rounded-lg bg-secondary p-4">
-                  <p className="text-sm text-muted-foreground">Trạng thái ví</p>
-                  <p className="text-lg font-semibold">{voucherWallet.title}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">{voucherWallet.description}</p>
-                </div>
-                {voucherWallet.state === "empty" ? (
-                  <EmptyState title={voucherWallet.title} description={voucherWallet.description} />
-                ) : (
-                  <>
-                    <div className="grid gap-3 sm:grid-cols-4">
-                      <AccountMetricCard label="Có thể dùng" value={voucherWallet.counts.available} />
-                      <AccountMetricCard label="Chưa đủ điều kiện" value={voucherWallet.counts.notEligible} />
-                      <AccountMetricCard label="Hết hạn" value={voucherWallet.counts.expired} />
-                      <AccountMetricCard label="Không khả dụng" value={voucherWallet.counts.unavailable} />
-                    </div>
-                    <div className="rounded-lg border border-dashed bg-secondary/20 p-4 text-sm text-muted-foreground">
-                      <p className="font-medium text-foreground">Ví chỉ để xem</p>
-                      <p className="mt-1">
-                        Voucher sẽ hiển thị tại đây. Thao tác áp dụng hoặc gỡ voucher nằm trong chi tiết lịch đặt khi nhà hàng bật tính năng.
-                      </p>
-                      <p className="mt-2">{voucherWallet.summary}</p>
-                    </div>
-                    <div className="space-y-3">
-                      {voucherWallet.items.map((item) => (
-                        <div key={item.voucher.user_voucher_id} className="rounded-lg border p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="font-semibold">{item.voucher.voucher_code}</p>
-                              <p className="text-sm text-muted-foreground">{item.voucher.description}</p>
-                            </div>
-                            <Badge variant="outline" className="rounded-md">
-                              {item.badgeLabel}
-                            </Badge>
-                          </div>
-                          <p className="mt-3 text-sm font-medium">{item.title}</p>
-                          <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
-                          {item.detailLines.length > 0 ? (
-                            <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-                              {item.detailLines.map((line, index) => (
-                                <p key={`${item.voucher.user_voucher_id}-${index}`}>{line}</p>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </>
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <div className="lg:col-span-2">
-          <PrivacyPanel />
         </div>
-      </div>
-    </main>
+      </AppCard>
+
+      <AppCard className="p-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">Mức sẵn sàng</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Tính năng cá nhân hóa theo rollout hiện tại.</p>
+          </div>
+          <StatusPill label="An toàn" tone="success" />
+        </div>
+        <div className="grid gap-2">
+          {readiness.map((item) => (
+            <ReadinessRow key={item.label} {...item} />
+          ))}
+        </div>
+      </AppCard>
+    </section>
   );
 }
 
-function AccountMetricCard({ label, value }: { label: string; value: number }) {
+function ProfileSignal({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+  return (
+    <div className="min-h-24 rounded-lg border bg-background p-3">
+      <Icon className="h-4 w-4 text-teal-700" />
+      <p className="mt-3 text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function ShortcutLink({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) {
+  return (
+    <Link href={href} className="flex min-h-11 items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2 text-sm font-semibold transition hover:border-primary/35">
+      <span className="flex items-center gap-2">
+        <Icon className="h-4 w-4 text-teal-700" />
+        {label}
+      </span>
+      <span className="text-muted-foreground">Mở</span>
+    </Link>
+  );
+}
+
+function ReadinessRow({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  tone: "neutral" | "success" | "warning" | "danger" | "info";
+}) {
+  return (
+    <div className="flex min-h-12 items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2">
+      <span className="flex min-w-0 items-center gap-2">
+        <Icon className="h-4 w-4 text-teal-700" />
+        <span className="truncate text-sm font-medium">{label}</span>
+      </span>
+      <StatusPill label={value} tone={tone} />
+    </div>
+  );
+}
+
+function UpcomingReservationsCard({
+  query,
+}: {
+  query: UseQueryResult<Awaited<ReturnType<typeof listReservations>>, Error>;
+}) {
+  return (
+    <AppCard className="p-4">
+      <div className="space-y-4">
+        <SectionHeader
+          eyebrow="Lịch đặt"
+          title="Lịch đặt sắp tới"
+          description="Chỉ hiển thị lịch đặt mà token khách hàng hoặc phiên khách này được phép xem."
+          action={
+            <AppButton asChild variant="outline">
+              <Link href="/reservations">Xem tất cả</Link>
+            </AppButton>
+          }
+        />
+        {query.isLoading ? <LoadingBlock label="Đang tải lịch đặt sắp tới" /> : null}
+        {query.error ? (
+          <ErrorState error={query.error} title="Chưa tải được lịch đặt sắp tới" onRetry={() => query.refetch()} />
+        ) : null}
+        {!query.isLoading && !query.error && (query.data?.length ?? 0) === 0 ? (
+          <EmptyState
+            title="Chưa có lịch đặt sắp tới"
+            description="Tạo lịch đặt mới khi bạn sẵn sàng đến nhà hàng."
+            action={
+              <AppButton asChild>
+                <Link href="/booking">Đặt bàn</Link>
+              </AppButton>
+            }
+          />
+        ) : null}
+        <div className="grid gap-3">
+          {(query.data ?? []).slice(0, 3).map((reservation) => (
+            <Link
+              key={reservation.reservation_id}
+              href={`/reservations/${reservation.reservation_id}`}
+              className="flex flex-col gap-3 rounded-lg border p-4 transition hover:border-primary/50 hover:bg-secondary/30 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div>
+                <p className="font-semibold">{reservation.reservation_code}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {formatDateTime(reservation.start_time ?? reservation.booking_time ?? null)} - {reservation.guest_count ?? "Chưa rõ"} khách
+                </p>
+              </div>
+              <StatusBadge status={reservation.status} />
+            </Link>
+          ))}
+        </div>
+      </div>
+    </AppCard>
+  );
+}
+
+function LoyaltyCard({
+  enabled,
+  visibilityTitle,
+  visibilityDescription,
+  query,
+  state,
+}: {
+  enabled: boolean;
+  visibilityTitle: string;
+  visibilityDescription: string;
+  query: UseQueryResult<Awaited<ReturnType<typeof getLoyalty>>, Error>;
+  state: ReturnType<typeof getLoyaltyAccountState> | null;
+}) {
+  return (
+    <AppCard className="p-4">
+      <div className="space-y-4">
+        <SectionHeader eyebrow="Điểm thưởng" title="Tóm tắt thành viên" description={visibilityDescription} />
+        {!enabled ? <EmptyState title={visibilityTitle} description={visibilityDescription} /> : null}
+        {query.isLoading ? <LoadingBlock label="Đang tải điểm thưởng" /> : null}
+        {query.error ? <ErrorState error={query.error} title="Chưa tải được điểm thưởng" onRetry={() => query.refetch()} /> : null}
+        {state ? (
+          <>
+            <div className="rounded-lg bg-secondary p-4">
+              <p className="text-sm text-muted-foreground">Điểm hiện có</p>
+              <p className="text-3xl font-semibold">{state.totalPoints}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{state.description}</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <MetricCard label="Hạng hiện tại" value={state.tierLabel ?? "Chưa có hạng"} />
+              <MetricCard label="Hạng tiếp theo" value={state.nextTierLabel ?? "Chưa có hạng tiếp theo"} />
+            </div>
+            {state.state === "empty" ? (
+              <EmptyState title={state.title} description={state.transactionDescription} />
+            ) : (
+              <div className="space-y-2">
+                <div>
+                  <p className="font-medium">{state.transactionTitle}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{state.transactionDescription}</p>
+                </div>
+                <div className="grid gap-2 text-sm">
+                  {query.data?.transactions.slice(0, 5).map((transaction) => (
+                    <div key={`${transaction.txn_id}-${transaction.created_at}`} className="rounded-lg border p-3">
+                      <div className="flex justify-between gap-3">
+                        <span>{transaction.txn_type ?? "Thay đổi điểm"}</span>
+                        <span className="font-medium">{transaction.points} điểm</span>
+                      </div>
+                      <p className="mt-1 text-muted-foreground">{formatDateTime(transaction.created_at)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="rounded-lg border border-dashed bg-secondary/25 p-4 text-sm text-muted-foreground">
+              Danh sách quyền lợi và quà sinh nhật sẽ hiển thị khi API điểm thưởng cung cấp dữ liệu. Trang này không tự tạo quyền lợi hạng.
+            </div>
+          </>
+        ) : null}
+      </div>
+    </AppCard>
+  );
+}
+
+function VoucherWalletCard({
+  enabled,
+  visibilityTitle,
+  visibilityDescription,
+  query,
+  wallet,
+}: {
+  enabled: boolean;
+  visibilityTitle: string;
+  visibilityDescription: string;
+  query: UseQueryResult<Awaited<ReturnType<typeof listVouchers>>, Error>;
+  wallet: ReturnType<typeof getVoucherWalletState> | null;
+}) {
+  return (
+    <AppCard className="p-4">
+      <div className="space-y-4">
+        <SectionHeader eyebrow="Voucher" title="Ví voucher" description={visibilityDescription} />
+        {!enabled ? <EmptyState title={visibilityTitle} description={visibilityDescription} /> : null}
+        {query.isLoading ? <LoadingBlock label="Đang tải ví voucher" /> : null}
+        {query.error ? <ErrorState error={query.error} title="Chưa tải được ví voucher" onRetry={() => query.refetch()} /> : null}
+        {wallet ? (
+          <>
+            <div className="rounded-lg bg-secondary p-4">
+              <p className="text-sm text-muted-foreground">Trạng thái ví</p>
+              <p className="text-lg font-semibold">{wallet.title}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{wallet.description}</p>
+            </div>
+            {wallet.state === "empty" ? (
+              <EmptyState title={wallet.title} description={wallet.description} />
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-4">
+                  <MetricCard label="Dùng được" value={wallet.counts.available} />
+                  <MetricCard label="Chưa đủ điều kiện" value={wallet.counts.notEligible} />
+                  <MetricCard label="Hết hạn" value={wallet.counts.expired} />
+                  <MetricCard label="Chưa khả dụng" value={wallet.counts.unavailable} />
+                </div>
+                <div className="rounded-lg border border-dashed bg-secondary/20 p-4 text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground">Chỉ áp dụng ở lịch đặt</p>
+                  <p className="mt-1">
+                    Áp dụng hoặc gỡ voucher sẽ thực hiện tại chi tiết lịch đặt khi contract ưu đãi của lịch đặt cho phép.
+                  </p>
+                  <p className="mt-2">{wallet.summary}</p>
+                </div>
+                <div className="space-y-3">
+                  {wallet.items.map((item) => (
+                    <div key={item.voucher.user_voucher_id} className="rounded-lg border p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold">{item.voucher.voucher_code}</p>
+                          <p className="text-sm text-muted-foreground">{item.voucher.description}</p>
+                        </div>
+                        <AppBadge>{item.badgeLabel}</AppBadge>
+                      </div>
+                      <p className="mt-3 text-sm font-medium">{item.title}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
+                      {item.detailLines.length > 0 ? (
+                        <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+                          {item.detailLines.map((line, index) => (
+                            <p key={`${item.voucher.user_voucher_id}-${index}`}>{line}</p>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        ) : null}
+      </div>
+    </AppCard>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg bg-secondary/40 px-3 py-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="min-w-0 truncate font-medium">{value}</span>
+    </div>
+  );
+}
+
+function FeatureState({ label, enabled }: { label: string; enabled: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-3 text-sm">
+      <span>{label}</span>
+      <AppBadge>{enabled ? "Đã bật" : "Chưa bật"}</AppBadge>
+    </div>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="rounded-lg border p-4">
       <p className="text-sm text-muted-foreground">{label}</p>

@@ -9,10 +9,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Tap trung cac rule session-based access cho customer:
+ * session nao duoc dung hold nao,
+ * va session nao duoc di tu hold/link vao reservation nao.
+ */
 class ReservationSessionAccessWorkflow
 {
     public function authenticatedCustomerCanUseHold(string $holdId, string $sessionId, int $userId): bool
     {
+        // Rule ngan gon: hold phai thuoc session hien tai, va neu hold da gan user thi user do phai khop.
         if ($userId <= 0) {
             return false;
         }
@@ -31,6 +37,7 @@ class ReservationSessionAccessWorkflow
 
     public function extractSessionIdFromRequest(Request $request, ?array $validatedPayload = null): string
     {
+        // Session id co the di qua nhieu kenh; uu tien payload da validate roi moi den input/query/header.
         $candidates = [];
 
         if (is_array($validatedPayload)) {
@@ -53,6 +60,7 @@ class ReservationSessionAccessWorkflow
 
     public function resolveUserIdFromOwnedHold(string $holdId, string $sessionId): ?int
     {
+        // Dung cho flow nang cap anonymous hold thanh hold cua customer sau khi dang nhap.
         $hold = $this->findOwnedHoldForReservationCreationAuthorization($holdId, $sessionId);
 
         if (! $hold || $hold->user_id === null) {
@@ -64,6 +72,7 @@ class ReservationSessionAccessWorkflow
 
     private function findOwnedHoldForReservationCreationAuthorization(string $holdId, string $sessionId): ?object
     {
+        // Truy van toi gian chi lay thong tin "hold nay co thuoc session/user nay khong".
         return DB::table('table_holds')
             ->where('hold_id', $holdId)
             ->where('session_id', $sessionId)
@@ -73,6 +82,7 @@ class ReservationSessionAccessWorkflow
 
     public function canAccessReservationBySession(Reservation $reservation, string $sessionId): bool
     {
+        // Buoc 1: exact-link access la duong chuan, uu tien vi hold da lien ket truc tiep voi reservation.
         if ($sessionId === '') {
             return false;
         }
@@ -86,10 +96,12 @@ class ReservationSessionAccessWorkflow
 
         $this->applyReservationUserMatch($linkedHoldQuery, $reservationUserId);
 
+        // Exact-link hop le trong cua so thoi gian can reservation de tranh session cu truy cap mai mai.
         if ($this->isWithinExactLinkAccessWindow($reservation) && $linkedHoldQuery->exists()) {
             return true;
         }
 
+        // Buoc 2: legacy fallback chi bat khi config cho phep, de bao toan compatibility voi flow cu.
         if (! $this->isLegacyFallbackEnabled()) {
             return false;
         }
@@ -97,6 +109,7 @@ class ReservationSessionAccessWorkflow
         [$windowStart, $windowEnd] = $this->resolveLegacyAccessWindow();
         $now = Carbon::now('UTC');
 
+        // Lay bo table cua reservation de ve sau so tung hold candidate theo dung tap ban da dat.
         $reservationTableIds = DB::table('reservation_tables')
             ->where('reservation_id', $reservationId)
             ->orderBy('table_id')
@@ -108,6 +121,7 @@ class ReservationSessionAccessWorkflow
             return false;
         }
 
+        // Tim hold candidate cua cung session, cung slot, va van con hop le trong cua so fallback.
         $candidateHoldQuery = DB::table('table_holds')
             ->where('session_id', $sessionId);
 
@@ -137,6 +151,7 @@ class ReservationSessionAccessWorkflow
         }
 
         foreach ($candidateHoldIds as $holdId) {
+            // Match cuoi cung duoc xac nhan bang tap table, tranh nham giua hai hold cung khung gio.
             $holdTableIds = DB::table('table_hold_details')
                 ->where('hold_id', $holdId)
                 ->orderBy('table_id')
@@ -154,6 +169,7 @@ class ReservationSessionAccessWorkflow
 
     private function isWithinExactLinkAccessWindow(Reservation $reservation): bool
     {
+        // Exact-link van co cua so truy cap ro rang de giam rui ro token/session cu.
         [$windowStart, $windowEnd] = $this->resolveExactLinkAccessWindow($reservation);
         $now = Carbon::now('UTC');
 
@@ -179,6 +195,7 @@ class ReservationSessionAccessWorkflow
             return;
         }
 
+        // Reservation co user thi chi chap nhan hold vo danh hoac hold cua dung user do.
         $query->where(function ($innerQuery) use ($reservationUserId): void {
             $innerQuery->whereNull('user_id')
                 ->orWhere('user_id', $reservationUserId);

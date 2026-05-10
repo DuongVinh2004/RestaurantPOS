@@ -19,6 +19,9 @@ use App\Support\Auth\StaffActorGuard;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Nha ban ve Available khi no khong con bi reservation/order dang hoat dong chan lai.
+ */
 class StaffTableReleaseService
 {
     private readonly ReservationBranchScopeService $reservationBranchScopeService;
@@ -37,6 +40,8 @@ class StaffTableReleaseService
 
     public function release(int $tableId, ?int $staffUserId = null, bool $force = false, ?string $notes = null, ?int $expectedRowVersion = null): RestaurantTable
     {
+        // Release can lock table va check blockers de tranh nha nham ban dang co nguoi/mon dang song.
+        // Pha 1: validate actor roi lock table de quyet dinh release tren mot snapshot nhat quan.
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
         /** @var RestaurantTable $table */
@@ -44,6 +49,7 @@ class StaffTableReleaseService
             return DB::transaction(function () use ($tableId, $staffUserId, $force, $notes, $expectedRowVersion) {
                 /** @var RestaurantTable $table */
                 $table = RestaurantTable::query()->where('table_id', $tableId)->lockForUpdate()->firstOrFail();
+                // Branch scope duoc xac minh som de staff khong release nham table ngoai quyen.
                 $tableBranchId = $this->reservationBranchScopeService->resolveTableBranchId(
                     [$table->branch_id],
                     'Table release target must belong to a single branch.',
@@ -54,6 +60,7 @@ class StaffTableReleaseService
                 StaffReservationOperationGuard::assertExpectedTableRowVersion($table, $expectedRowVersion);
                 StaffReservationOperationGuard::assertTableReleaseAllowed($table, $this->tableStateService, $force);
 
+                // Pha 2: lock cac reservation active tren table de biet ban co dang trong mot service context hay khong.
                 $activeReservations = DB::table('reservation_tables as rt')
                     ->join('reservations as r', 'r.reservation_id', '=', 'rt.reservation_id')
                     ->where('rt.table_id', $tableId)
@@ -71,6 +78,7 @@ class StaffTableReleaseService
                     );
                 }
 
+                // Guard nay tach logic "reservation nao thuc su chan release" khoi service de tai su dung duoc.
                 $blockingReservationIds = TableReleaseGuard::blockingReservationIds($activeReservations, now('UTC'));
 
                 $activeOrderExists = DB::table('reservation_orders as ro')
@@ -80,6 +88,7 @@ class StaffTableReleaseService
                     ->lockForUpdate()
                     ->exists();
 
+                // Chi cho release khi khong con reservation active va khong con order active treo tren ban.
                 if ($blockingReservationIds !== []) {
                     throw ValidationException::withMessages([
                         'table_id' => [
@@ -96,6 +105,7 @@ class StaffTableReleaseService
                     ]);
                 }
 
+                // Pha 3: chi khi khong con blocker moi mutate table state ve Available.
                 $table = $this->tableStateService->releaseModelSafely(
                     $table,
                     null,
@@ -120,6 +130,7 @@ class StaffTableReleaseService
             });
         });
 
+        // Publish sau commit de board/timeline cap nhat dung ket qua cuoi cung.
         app(OperationalRealtimeService::class)->publishBoardEvent(
             'table.released',
             [

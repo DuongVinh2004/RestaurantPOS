@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const waitingListCreateSchema = z.object({
+  branch_id: z.number().int().positive().optional(),
   guest_count: z.number().min(1).max(20),
   guest_name: z.string().min(1, "Nhập tên khách."),
   phone: z.string().min(6, "Nhập số điện thoại có thể liên hệ."),

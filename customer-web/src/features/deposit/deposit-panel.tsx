@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PaymentBreakdown } from "@/features/payments/payment-breakdown";
 import { PaymentSessionCard } from "@/features/payments/payment-session-card";
 import {
   clearStoredCustomerPaymentSession,
@@ -23,6 +24,7 @@ import {
   isConflictLikeApiError,
   normalizeApiError,
 } from "@/lib/api/errors";
+import { trackCustomerEvent } from "@/lib/analytics/events";
 import { queryKeys } from "@/lib/api/query-keys";
 import { formatMoney } from "@/lib/contracts/format";
 import type { ReservationSummary } from "@/lib/contracts/generated/restaurantpos-sdk";
@@ -105,7 +107,8 @@ export function DepositPanel({
     onReservationChanged?.(refreshed.data?.reservation);
   };
 
-  const currentRowVersion = depositQuery.data?.reservation.row_version ?? reservation.row_version;
+  const currentRowVersion =
+    depositQuery.data?.reservation?.row_version ?? reservation.row_version;
   const currentPaymentSession = paymentSession ?? paymentSessionQuery.data ?? null;
 
   const syncDepositPreview = async (result: DepositPreview) => {
@@ -150,7 +153,10 @@ export function DepositPanel({
   });
   const createSessionMutation = useMutation({
     mutationFn: () => createDepositPaymentSession(reservationId, currentRowVersion),
-    onMutate: () => setPaymentSessionRestoreError(null),
+    onMutate: () => {
+      trackCustomerEvent("payment_attempted", { reservation_id: reservationId, surface: "deposit" });
+      setPaymentSessionRestoreError(null);
+    },
     onSuccess: syncPaymentSession,
     onError: handleConflict,
   });
@@ -190,6 +196,7 @@ export function DepositPanel({
     reservation: depositReservation,
     deposit: depositState,
   });
+  const depositSummaryCopy = getDepositSummaryCopy(depositSummary.state);
   const session = currentPaymentSession?.payment_session;
   const sessionPolicy = session ? getPaymentSessionPolicy(session, { surface: "deposit" }) : null;
   const paymentSupport = getDepositPaymentSupportState({
@@ -199,6 +206,16 @@ export function DepositPanel({
   const previewActionError = acknowledgeMutation.error ?? intentMutation.error ?? revokeMutation.error;
   const sessionActionError =
     paymentSessionRestoreError ?? createSessionMutation.error ?? refreshSessionMutation.error ?? confirmSessionMutation.error;
+  const previewActionPending =
+    acknowledgeMutation.isPending ||
+    intentMutation.isPending ||
+    revokeMutation.isPending;
+  const sessionActionPending =
+    createSessionMutation.isPending ||
+    refreshSessionMutation.isPending ||
+    confirmSessionMutation.isPending ||
+    paymentSessionQuery.isLoading;
+  const anyActionPending = previewActionPending || sessionActionPending;
   const actionError = previewActionError ?? sessionActionError;
   const loadBoundary = depositQuery.error
     ? getSelfServiceBlockedState("deposit", depositQuery.error, "Chưa tải được đặt cọc")
@@ -210,18 +227,24 @@ export function DepositPanel({
         isConflictLikeApiError(actionError)
           ? "Thông tin đặt cọc đã thay đổi"
           : sessionActionError
-            ? "Chưa mở được thanh toán"
+            ? "Chưa xử lý được phiên thanh toán đặt cọc"
             : "Chưa xử lý được đặt cọc",
       )
     : null;
-  const noActionTitle =
-    depositSummary.state === "not_required"
-      ? "Không cần đặt cọc"
-      : depositSummary.state === "paid"
-        ? "Đặt cọc đã xử lý"
-        : depositSummary.state === "refunded"
-          ? "Đặt cọc đã hoàn tiền"
-          : "Không cần thao tác đặt cọc";
+  const noDepositActionTitle = getDepositNoActionTitle(depositSummary.state);
+  const depositBreakdownLines = [
+    {
+      label: "Đặt cọc cần trả",
+      amount: depositPolicy.amount,
+      currency: depositPolicy.currency,
+    },
+    {
+      label: "Đặt cọc còn lại",
+      amount: depositPolicy.outstandingAmount ?? depositPolicy.amount,
+      currency: depositPolicy.currency,
+      emphasis: true,
+    },
+  ];
 
   useEffect(() => {
     if (!session || !sessionPolicy || sessionPolicy.refreshMode !== "auto" || !sessionPolicy.autoRefreshMs) {
@@ -277,9 +300,9 @@ export function DepositPanel({
               </div>
               <div className="rounded-lg bg-secondary p-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Trạng thái đặt cọc</p>
-                  <p className="text-lg font-semibold">{depositSummary.title}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{depositSummary.description}</p>
+                  <p className="text-lg font-semibold">{depositSummaryCopy.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{depositSummaryCopy.description}</p>
                 </div>
                 <div className="mt-4">
                   <p className="text-sm text-muted-foreground">Số tiền cần trả</p>
@@ -288,6 +311,11 @@ export function DepositPanel({
                   </p>
                 </div>
               </div>
+              <PaymentBreakdown
+                title="Chi tiết đặt cọc"
+                description="Chỉ hiển thị các trường đặt cọc mà API lịch đặt trả về."
+                lines={depositBreakdownLines}
+              />
               {depositPolicy.canAcknowledge || depositPolicy.canSubmitIntent || depositPolicy.canRevokeIntent ? (
                 <div className="grid gap-2 sm:grid-cols-2">
                   {depositPolicy.canAcknowledge ? (
@@ -295,7 +323,7 @@ export function DepositPanel({
                       type="button"
                       variant="outline"
                       className="rounded-lg"
-                      disabled={acknowledgeMutation.isPending}
+                      disabled={anyActionPending}
                       onClick={() => acknowledgeMutation.mutate()}
                     >
                       Tôi đã hiểu yêu cầu đặt cọc
@@ -306,7 +334,7 @@ export function DepositPanel({
                       type="button"
                       variant="outline"
                       className="rounded-lg"
-                      disabled={intentMutation.isPending}
+                      disabled={anyActionPending}
                       onClick={() => intentMutation.mutate()}
                     >
                       Tôi sẽ tự thanh toán
@@ -317,7 +345,7 @@ export function DepositPanel({
                       type="button"
                       variant="outline"
                       className="rounded-lg"
-                      disabled={revokeMutation.isPending}
+                      disabled={anyActionPending}
                       onClick={() => revokeMutation.mutate()}
                     >
                       Hủy tự thanh toán
@@ -326,7 +354,7 @@ export function DepositPanel({
                 </div>
               ) : (
                 <EmptyState
-                  title={noActionTitle}
+                  title={noDepositActionTitle}
                   description={depositPolicy.noActionMessage ?? "Hiện không cần thao tác thêm với đặt cọc."}
                 />
               )}
@@ -358,7 +386,7 @@ export function DepositPanel({
                       <Button
                         type="button"
                         className="rounded-lg"
-                        disabled={createSessionMutation.isPending}
+                        disabled={anyActionPending}
                         onClick={() => createSessionMutation.mutate()}
                       >
                         {createSessionMutation.isPending ? "Đang mở thanh toán" : "Thanh toán đặt cọc"}
@@ -393,4 +421,44 @@ export function DepositPanel({
       </CardContent>
     </Card>
   );
+}
+
+function getDepositSummaryCopy(state: "pending" | "paid" | "refunded" | "not_required") {
+  switch (state) {
+    case "not_required":
+      return {
+        title: "Không cần đặt cọc",
+        description: "Lịch đặt này không cần đặt cọc trước lượt ghé.",
+      };
+    case "paid":
+      return {
+        title: "Đặt cọc đã xử lý",
+        description: "Khoản đặt cọc đã được ghi nhận cho lịch đặt này.",
+      };
+    case "refunded":
+      return {
+        title: "Đặt cọc đã hoàn",
+        description: "Khoản hoàn đặt cọc đã được ghi nhận cho lịch đặt này.",
+      };
+    case "pending":
+    default:
+      return {
+        title: "Cần xử lý đặt cọc",
+        description: "Lịch đặt này còn bước đặt cọc cần kiểm tra.",
+      };
+  }
+}
+
+function getDepositNoActionTitle(state: "pending" | "paid" | "refunded" | "not_required"): string {
+  switch (state) {
+    case "not_required":
+      return "Không cần đặt cọc";
+    case "paid":
+      return "Đặt cọc đã xử lý";
+    case "refunded":
+      return "Đặt cọc đã hoàn";
+    case "pending":
+    default:
+      return "Chưa có thao tác đặt cọc";
+  }
 }

@@ -7,6 +7,9 @@ namespace App\Modules\BranchScheduling\Application\Services;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Giu reservation va cac ban duoc gan cho no luon nam trong cung mot branch hop le.
+ */
 class ReservationBranchScopeService
 {
     public function __construct(
@@ -21,6 +24,7 @@ class ReservationBranchScopeService
         string $singleBranchMessage = 'Assigned tables must belong to a single branch.',
         string $field = 'reservation_id',
     ): int {
+        // Nhieu ban cung phuc vu mot reservation, nhung chi duoc thuoc mot chi nhanh duy nhat.
         return $this->branchContextService->assertSingleBranch(
             $tableBranchIds,
             $singleBranchMessage,
@@ -31,6 +35,7 @@ class ReservationBranchScopeService
 
     public function resolveEffectiveReservationBranchId(mixed $reservationBranchId = null, ?int $tableBranchId = null): int
     {
+        // Neu reservation da co branch ro rang thi uu tien dung no; neu chua co moi fallback sang branch cua table/default.
         if ($reservationBranchId !== null && $reservationBranchId !== '') {
             return $this->branchContextService->resolveBranchId($reservationBranchId, false);
         }
@@ -67,6 +72,7 @@ class ReservationBranchScopeService
         string $mismatchMessage = 'Reservation branch does not match the assigned table branch.',
         string $field = 'reservation_id',
     ): int {
+        // Materialize iterable mot lan de co the vua normalize vua kiem tra "co nhieu branch hay khong".
         $tableBranchIds = array_values(iterator_to_array((function () use ($tableBranchIds) {
             foreach ($tableBranchIds as $tableBranchId) {
                 yield $tableBranchId;
@@ -152,8 +158,10 @@ class ReservationBranchScopeService
         string $mismatchMessage = 'Reservation branch does not match the assigned table branch.',
         string $field = 'reservation_id',
     ): int {
+        // Neu reservation chua co branch thi dong bo tu ban; neu da co thi bat buoc phai khop.
         $tableBranchId = $this->resolveTableBranchId($tableBranchIds, $singleBranchMessage, $field);
 
+        // Reservation branch chi duoc "day tu table" khi no con rong; neu da co thi bat buoc phai match.
         if ($reservation->branch_id === null || $reservation->branch_id === '') {
             $reservation->branch_id = $tableBranchId;
             $reservation->updated_by = $updatedBy;

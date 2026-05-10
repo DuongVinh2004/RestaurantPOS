@@ -125,12 +125,42 @@ export type ApiBaseUrlRuntimeDiagnostics = {
 
 type EnvSource = Record<string, string | undefined>;
 
-export function readPublicEnv(source: EnvSource = process.env): PublicEnv {
+function currentRuntimeEnvSource(): EnvSource {
+  return {
+    NODE_ENV: process.env.NODE_ENV,
+    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
+    NEXT_PUBLIC_ENABLE_DEV_MOCKS: process.env.NEXT_PUBLIC_ENABLE_DEV_MOCKS,
+    NEXT_PUBLIC_SHOW_DEV_BACKEND_STATUS:
+      process.env.NEXT_PUBLIC_SHOW_DEV_BACKEND_STATUS,
+    NEXT_PUBLIC_FEATURE_PREORDER: process.env.NEXT_PUBLIC_FEATURE_PREORDER,
+    NEXT_PUBLIC_FEATURE_MENU_CATEGORIES:
+      process.env.NEXT_PUBLIC_FEATURE_MENU_CATEGORIES,
+    NEXT_PUBLIC_FEATURE_MENU_ITEM_DETAIL:
+      process.env.NEXT_PUBLIC_FEATURE_MENU_ITEM_DETAIL,
+    NEXT_PUBLIC_FEATURE_TABLE_AVAILABILITY:
+      process.env.NEXT_PUBLIC_FEATURE_TABLE_AVAILABILITY,
+    NEXT_PUBLIC_FEATURE_TABLE_HOLDS: process.env.NEXT_PUBLIC_FEATURE_TABLE_HOLDS,
+    NEXT_PUBLIC_FEATURE_WAITING_LIST: process.env.NEXT_PUBLIC_FEATURE_WAITING_LIST,
+    NEXT_PUBLIC_ENABLE_WAITING_LIST: process.env.NEXT_PUBLIC_ENABLE_WAITING_LIST,
+    NEXT_PUBLIC_FEATURE_ACCOUNT_BENEFITS:
+      process.env.NEXT_PUBLIC_FEATURE_ACCOUNT_BENEFITS,
+    NEXT_PUBLIC_FEATURE_VOUCHERS: process.env.NEXT_PUBLIC_FEATURE_VOUCHERS,
+    NEXT_PUBLIC_FEATURE_PRIVACY_TOOLS:
+      process.env.NEXT_PUBLIC_FEATURE_PRIVACY_TOOLS,
+    NEXT_PUBLIC_ENABLE_PRIVACY_TOOLS:
+      process.env.NEXT_PUBLIC_ENABLE_PRIVACY_TOOLS,
+    NEXT_PUBLIC_FEATURE_PRIVACY_REQUESTS:
+      process.env.NEXT_PUBLIC_FEATURE_PRIVACY_REQUESTS,
+    NEXT_PUBLIC_FEATURE_DATA_EXPORT: process.env.NEXT_PUBLIC_FEATURE_DATA_EXPORT,
+  };
+}
+
+export function readPublicEnv(source: EnvSource = currentRuntimeEnvSource()): PublicEnv {
   const isProduction = (source.NODE_ENV ?? process.env.NODE_ENV) === "production";
   const apiBaseUrl = readStringSetting(source, ["NEXT_PUBLIC_API_BASE_URL"], "http://127.0.0.1:8000");
   const enableDevMocks = readBoolSetting(source, ["NEXT_PUBLIC_ENABLE_DEV_MOCKS"], false);
   const showDevBackendStatus = readBoolSetting(source, ["NEXT_PUBLIC_SHOW_DEV_BACKEND_STATUS"], true);
-  const enablePreorder = readBoolSetting(source, ["NEXT_PUBLIC_FEATURE_PREORDER"], false);
+  const enablePreorder = readBoolSetting(source, ["NEXT_PUBLIC_FEATURE_PREORDER"], !isProduction);
   const enableMenuCategories = readBoolSetting(source, ["NEXT_PUBLIC_FEATURE_MENU_CATEGORIES"], true);
   const enableMenuItemDetail = readBoolSetting(source, ["NEXT_PUBLIC_FEATURE_MENU_ITEM_DETAIL"], true);
   const enableTableAvailability = readBoolSetting(source, ["NEXT_PUBLIC_FEATURE_TABLE_AVAILABILITY"], true);
@@ -168,7 +198,10 @@ export function readPublicEnv(source: EnvSource = process.env): PublicEnv {
   });
 }
 
-export function readPublicEnvDiagnostics(source: EnvSource = process.env): PublicEnvDiagnostics {
+export function readPublicEnvDiagnostics(
+  source: EnvSource = currentRuntimeEnvSource(),
+): PublicEnvDiagnostics {
+  const isProduction = (source.NODE_ENV ?? process.env.NODE_ENV) === "production";
   const apiBaseUrl = readStringSetting(source, ["NEXT_PUBLIC_API_BASE_URL"], "http://127.0.0.1:8000");
   const waitingList = buildFlagDiagnostic(
     source,
@@ -189,7 +222,7 @@ export function readPublicEnvDiagnostics(source: EnvSource = process.env): Publi
     false,
   );
   const dataExport = buildFlagDiagnostic(source, "NEXT_PUBLIC_FEATURE_DATA_EXPORT", [], false);
-  const preorder = buildFlagDiagnostic(source, "NEXT_PUBLIC_FEATURE_PREORDER", [], false);
+  const preorder = buildFlagDiagnostic(source, "NEXT_PUBLIC_FEATURE_PREORDER", [], !isProduction);
   const rolloutFlagsUsingAliases = [preorder, waitingList, accountBenefits, privacyTools, dataExport]
     .filter((diagnostic) => diagnostic.usedAlias && diagnostic.sourceKey !== "default")
     .map((diagnostic) => diagnostic.sourceKey);
@@ -227,8 +260,8 @@ export function getApiBaseUrlRuntimeDiagnostics(
   };
 }
 
-export const publicEnv = readPublicEnv();
-export const publicEnvDiagnostics = readPublicEnvDiagnostics();
+export const publicEnv = readPublicEnv(currentRuntimeEnvSource());
+export const publicEnvDiagnostics = readPublicEnvDiagnostics(currentRuntimeEnvSource());
 
 function buildFlagDiagnostic(
   source: EnvSource,

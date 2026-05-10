@@ -16,6 +16,9 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Tinh va thuc thi bo quy tac "co san sang de check-in hay khong" cho reservation tai FOH.
+ */
 class StaffCheckInReadinessService
 {
     private readonly ReservationBranchScopeService $reservationBranchScopeService;
@@ -49,6 +52,8 @@ class StaffCheckInReadinessService
         bool $syncReservationBranch = false,
         ?int $updatedBy = null,
     ): array {
+        // describe tra ve mot ban tong hop cac check de UI va write flow co the dung chung.
+        // Pha 1: normalize table ids + loaded table rows de toan bo cac gate sau dung cung mot snapshot.
         $assignedTableIds = $this->normalizeIds($assignedTableIds);
         $tables = Collection::make($tables)->values();
         $loadedTableIds = $tables
@@ -58,6 +63,7 @@ class StaffCheckInReadinessService
             ->sort()
             ->values()
             ->all();
+        // Missing table ids nghia la mapping reservation co table nhung write flow chua lock/load du row can thiet.
         $missingAssignedTableIds = array_values(array_diff($assignedTableIds, $loadedTableIds));
         $status = (string) ($reservation->status?->value ?? $reservation->status ?? '');
         $isTerminal = in_array($status, [
@@ -71,6 +77,7 @@ class StaffCheckInReadinessService
 
         $branchConsistent = false;
         $branchValidation = null;
+        // Branch consistency la gate quan trong vi check-in khong duoc phep keo reservation lech chi nhanh.
         if ($assignedTableIds !== [] && $missingAssignedTableIds === []) {
             try {
                 $tableBranchIds = $tables
@@ -102,6 +109,7 @@ class StaffCheckInReadinessService
             }
         }
 
+        // Ban dang Occupied hoac dang bi operationally blocked deu khong duoc check-in them reservation moi.
         $nonServiceReadyTableIds = $tables
             ->filter(function (mixed $table): bool {
                 $status = $this->resolveTableStatus($table);
@@ -116,6 +124,7 @@ class StaffCheckInReadinessService
             ->values()
             ->all();
 
+        // Reservation conflict va hold conflict duoc lazily tinh neu caller chua precompute.
         $reservationConflictTableIds = $reservationConflictTableIds !== null
             ? $this->normalizeIds($reservationConflictTableIds)
             : $this->tableTimeConflictService->findReservationConflictTableIds(
@@ -136,6 +145,7 @@ class StaffCheckInReadinessService
                 lock: $lock,
             );
 
+        // available chi true khi tat ca gate business/state/time/branch/dependency deu xanh cung luc.
         $available = ! $isTerminal
             && $status === ReservationStatus::Confirmed->value
             && ! $alreadyCheckedIn
@@ -147,6 +157,7 @@ class StaffCheckInReadinessService
             && $holdConflictTableIds === []
             && $window['within_window'];
 
+        // Ket qua cuoi cung duoc doi ra thanh ma blocked reason de board/check-in flow hien thi ngan gon.
         return [
             'available' => $available,
             'blocked_reason_code' => $available ? null : $this->resolveBlockedReason(
@@ -201,6 +212,8 @@ class StaffCheckInReadinessService
         bool $lock = false,
         ?int $updatedBy = null,
     ): array {
+        // Write flow goi vao day de bien ban readiness thanh validation error cu the neu co blocker.
+        // assertReadyForWrite bien snapshot readiness thanh loi validation cu the cho write flow.
         $readiness = $this->describe(
             reservation: $reservation,
             checkInAt: $checkedInAt,
@@ -214,6 +227,7 @@ class StaffCheckInReadinessService
             updatedBy: $updatedBy,
         );
 
+        // Thu tu throw uu tien nhung blocker "bao loi cho nguoi dung" ro nhat truoc.
         if ($readiness['checks']['within_check_in_window'] !== true) {
             throw ValidationException::withMessages([
                 'checked_in_at' => [
@@ -278,6 +292,7 @@ class StaffCheckInReadinessService
      */
     private function buildCheckInWindow(Reservation $reservation, Carbon $checkInAt): array
     {
+        // Cua so check-in duoc canh quanh start_time; den qua muon thi dong, den som thi van bi danh dau early.
         $graceMinutes = $this->resolveCheckInGraceMinutes();
         $startUtc = Carbon::instance(\DateTimeImmutable::createFromInterface($reservation->start_time))->utc();
         $windowStartUtc = $startUtc->copy()->subMinutes($graceMinutes);

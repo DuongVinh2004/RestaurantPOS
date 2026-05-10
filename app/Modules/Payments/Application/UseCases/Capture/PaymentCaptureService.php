@@ -23,6 +23,9 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Ghi nhan payment cuoi cho order dang phuc vu va quyet dinh da du dieu kien chot settlement hay chua.
+ */
 class PaymentCaptureService
 {
     private readonly BranchContextService $branchContextService;
@@ -76,8 +79,10 @@ class PaymentCaptureService
         ?string $requestFingerprint = null,
         ?int $cashierShiftId = null,
     ): ReservationOrder {
+        // Caller da lock ngoai; ham nay tap trung vao rule payment + side-effect sau khi thu tien.
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
+        // Chi cho phep thu tien tren reservation dang phuc vu va order OnSpot con active.
         if (($reservation->status?->value ?? (string) $reservation->status) !== ReservationStatus::Reserved->value) {
             throw ValidationException::withMessages(['reservation' => 'Reservation must be in service (Reserved) to pay.']);
         }
@@ -90,6 +95,7 @@ class PaymentCaptureService
 
         $this->assertIdempotencyKeyFitsStorage($idempotencyKey);
 
+        // Pha 1: doc snapshot bill + currency da lock, vi toan bo settlement duoc suy ra tu day.
         [$subtotal, $discount, $totalDue, $currencyCode] = $computeReservationBillSnapshot(
             (int) $reservation->reservation_id,
             (float) ($reservation->discount_amount ?? 0.0)
@@ -102,6 +108,7 @@ class PaymentCaptureService
             ]);
         }
 
+        // Pha 2: lock toan bo payments cua reservation de tinh settlement truoc/sau khi capture.
         $lockedPayments = Payment::query()
             ->where('reservation_id', $reservation->reservation_id)
             ->lockForUpdate()
@@ -115,6 +122,7 @@ class PaymentCaptureService
         $paidAmountMinor = Money::minorUnits($paidAmount, true);
         $remainingDue = Money::minorToFloat($remainingDueMinor);
 
+        // Neu bill da du tu truoc thi chot settlement ngay, khong tao them payment moi.
         if ($remainingDueMinor <= 0) {
             $completeReservationSettlement($reservation, $staffUserId);
             $order = $order->fresh() ?? $order;
@@ -131,6 +139,7 @@ class PaymentCaptureService
             throw ValidationException::withMessages(['paid_amount' => 'paid_amount must be greater than 0 when there is remaining balance.']);
         }
 
+        // Pha 3: tao ban ghi payment final thuc te, kem fingerprint/idempotency de retry an toan.
         $payment = new Payment;
         $payment->branch_id = $reservationBranchId;
         $payment->cashier_shift_id = $cashierShiftId !== null && $cashierShiftId > 0 ? $cashierShiftId : null;
@@ -157,6 +166,7 @@ class PaymentCaptureService
             'cashier_shift_id' => $cashierShiftId !== null && $cashierShiftId > 0 ? $cashierShiftId : null,
         ];
 
+        // Day la ban ghi payment thuc te; idempotency giup retry an toan khi POS/gui request lap.
         try {
             $payment->save();
         } catch (QueryException $e) {
@@ -193,11 +203,13 @@ class PaymentCaptureService
             $paymentReplayCachePut((int) $order->order_id, $idempotencyKey, (string) $order->order_id, 3600);
         }
 
+        // Pha 4: re-read payment snapshot sau save de quyet dinh complete settlement hay chi bump version.
         $paymentsAfterSave = Payment::query()
             ->where('reservation_id', $reservation->reservation_id)
             ->lockForUpdate()
             ->get(['payment_id', 'amount', 'payment_type', 'status', 'provider_response_json', 'currency', 'refund_of_payment_id']);
         $settlementAfter = $this->amountCalculator->buildSettlementAmounts($paymentsAfterSave, $totalDue);
+        // Sau khi save, quyet dinh reservation da du dieu kien complete hay chi can bump financial version.
         if ($this->isSettled((float) $settlementAfter['settled_amount'], $totalDue)) {
             $completeReservationSettlement($reservation, $staffUserId);
             $order = $order->fresh() ?? $order;

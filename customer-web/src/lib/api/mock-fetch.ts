@@ -47,7 +47,7 @@ const reservation = {
   bill_currency: "USD",
   row_version: 1,
   table_ids: [7],
-  guest: { full_name: "Demo Customer", phone: "5550100", email: "demo@example.test", is_snapshot_only: false },
+    guest: { full_name: "Khách Demo", phone: "5550100", email: "demo@example.test", is_snapshot_only: false },
 };
 
 function json(data: unknown, status = 200): Response {
@@ -58,6 +58,22 @@ function json(data: unknown, status = 200): Response {
       "X-Request-Id": `mock-${Date.now().toString(36)}`,
     },
   });
+}
+
+async function requestJson(init?: RequestInit): Promise<Record<string, unknown>> {
+  const body = init?.body;
+
+  if (typeof body !== "string" || body.trim() === "") {
+    return {};
+  }
+
+  try {
+    const payload: unknown = JSON.parse(body);
+
+    return payload && typeof payload === "object" && !Array.isArray(payload) ? (payload as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
 }
 
 function withRowVersion<T extends { row_version?: number }>(record: T): T {
@@ -112,7 +128,29 @@ export function createMockFetch(): typeof fetch {
           access_session_id: 9001,
           session_id: "dev-session",
           expires_at_utc: inOneHour,
-          user: { user_id: 77, full_name: "Demo Customer", email: "demo@example.test", phone: "5550100" },
+            user: { user_id: 77, full_name: "Khách Demo", email: "demo@example.test", phone: "5550100" },
+        },
+      });
+    }
+
+    if (path === "/api/v1/auth/customer/register" && method === "POST") {
+      const body = await requestJson(init);
+
+      return json({
+        data: {
+          auth_mode: "customer_access_session",
+          token_type: "opaque",
+          auth_header: "X-Customer-Token",
+          access_token: "dev-customer-token",
+          access_session_id: 9002,
+          session_id: typeof body.session_id === "string" && body.session_id ? body.session_id : "dev-session",
+          expires_at_utc: inOneHour,
+          user: {
+            user_id: 78,
+              full_name: typeof body.full_name === "string" && body.full_name ? body.full_name : "Khách Demo",
+            email: typeof body.email === "string" && body.email ? body.email : null,
+            phone: typeof body.phone === "string" && body.phone ? body.phone : null,
+          },
         },
       });
     }
@@ -127,7 +165,7 @@ export function createMockFetch(): typeof fetch {
           access_session_id: 9001,
           session_id: "dev-session",
           expires_at_utc: inOneHour,
-          user: { user_id: 77, full_name: "Demo Customer", email: "demo@example.test", phone: "5550100" },
+            user: { user_id: 77, full_name: "Khách Demo", email: "demo@example.test", phone: "5550100" },
         },
       });
     }
@@ -265,7 +303,7 @@ export function createMockFetch(): typeof fetch {
     }
 
     if (path === "/api/v1/me/loyalty") {
-      return json({ data: { user: { user_id: 77, full_name: "Demo Customer", email: "demo@example.test", phone: "5550100", total_points: 120, current_tier: null, next_tier: null }, transactions: [] } });
+        return json({ data: { user: { user_id: 77, full_name: "Khách Demo", email: "demo@example.test", phone: "5550100", total_points: 120, current_tier: null, next_tier: null }, transactions: [] } });
     }
 
     if (path === "/api/v1/me/vouchers") {

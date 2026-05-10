@@ -151,6 +151,7 @@ describe("ReservationDetailPage", () => {
 
     await screen.findByRole("button", { name: "Hủy lịch đặt" });
     await user.click(screen.getByRole("button", { name: "Hủy lịch đặt" }));
+    await user.click(await screen.findByRole("button", { name: "Hủy lịch đặt" }));
 
     await waitFor(() => {
       expect(mocks.cancelReservation).toHaveBeenCalledWith(7, 4, "");
@@ -161,6 +162,20 @@ describe("ReservationDetailPage", () => {
 
     expect(await screen.findByText("Thông tin lịch đặt đã thay đổi")).toBeInTheDocument();
     expect(screen.getByText(/Thông tin đã thay đổi trong lúc bạn thao tác/i)).toBeInTheDocument();
+  });
+
+  it("prevents cancel and reschedule from running at the same time", async () => {
+    const user = userEvent.setup();
+
+    mocks.getReservation.mockResolvedValue(createReservation());
+    mocks.rescheduleReservation.mockReturnValue(new Promise(() => {}));
+
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Yêu cầu đổi giờ" }));
+
+    expect(screen.getByRole("button", { name: "Hủy lịch đặt" })).toBeDisabled();
+    expect(mocks.cancelReservation).not.toHaveBeenCalled();
   });
 
   it("labels reservation access errors as unavailable to the signed-in account", async () => {

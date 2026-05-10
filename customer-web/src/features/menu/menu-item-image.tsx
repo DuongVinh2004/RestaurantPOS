@@ -11,34 +11,34 @@ type MenuImageProfile = {
 const menuImageProfiles: MenuImageProfile[] = [
   {
     keywords: ["phở", "pho", "bún", "mì", "noodle", "soup"],
-    src: "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?auto=format&fit=crop&w=900&q=80",
+    src: "/customer-web/fallback-noodle.jpg",
     label: "Món nước",
   },
   {
     keywords: ["cơm", "rice", "curry", "gà", "chicken"],
-    src: "https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=900&q=80",
+    src: "/customer-web/fallback-rice.jpg",
     label: "Món chính",
   },
   {
     keywords: ["salad", "rau", "chay", "vegetable"],
-    src: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80",
+    src: "/customer-web/fallback-salad.jpg",
     label: "Món rau",
   },
   {
     keywords: ["tráng miệng", "dessert", "cake", "bánh", "kem"],
-    src: "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=900&q=80",
+    src: "/customer-web/fallback-dessert.jpg",
     label: "Tráng miệng",
   },
   {
     keywords: ["drink", "nước", "tea", "coffee", "cà phê", "trà"],
-    src: "https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=900&q=80",
+    src: "/customer-web/fallback-drink.jpg",
     label: "Đồ uống",
   },
 ];
 
 const defaultMenuImage: MenuImageProfile = {
   keywords: [],
-  src: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80",
+  src: "/customer-web/fallback-default.jpg",
   label: "Món ăn",
 };
 

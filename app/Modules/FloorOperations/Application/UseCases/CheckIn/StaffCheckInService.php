@@ -28,6 +28,10 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Xử lý check-in cho reservation đã có bàn:
+ * khóa tài nguyên, xác nhận sẵn sàng, rồi mở service tại bàn.
+ */
 class StaffCheckInService
 {
     private readonly StaffCheckInReadinessService $checkInReadinessService;
@@ -65,6 +69,8 @@ class StaffCheckInService
 
     public function checkIn(int $reservationId, ?array $tableIds, \DateTimeInterface $checkedInAt, ?int $staffUserId = null, array $ignoredHoldIds = [], bool $skipLocking = false, ?int $expectedRowVersion = null): Reservation
     {
+        // Chuẩn hóa scope check-in để lock đúng reservation, đúng bàn, đúng hold.
+        // Pha 1: chuan hoa actor, table ids va trusted hold ids truoc khi vao lock/transaction.
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $requestedTableIds = $tableIds === null ? [] : array_values(array_unique(array_map('intval', $tableIds)));
         sort($requestedTableIds);
@@ -72,7 +78,9 @@ class StaffCheckInService
 
         $runner = function () use ($reservationId, $requestedTableIds, $checkedInAt, $staffUserId, $ignoredHoldIds, $expectedRowVersion) {
             return DB::transaction(function () use ($reservationId, $requestedTableIds, $checkedInAt, $staffUserId, $ignoredHoldIds, $expectedRowVersion) {
+                // Khóa reservation và các bàn liên quan để tránh check-in đúp hoặc đổi bàn giữa chừng.
                 /** @var Reservation $reservation */
+                // Pha 2: lock reservation, mapping reservation_tables va table rows de chot mot snapshot write duy nhat.
                 $reservation = Reservation::query()->where('reservation_id', $reservationId)->lockForUpdate()->first();
                 if (! $reservation) {
                     throw new ModelNotFoundException('Reservation not found');
@@ -90,12 +98,14 @@ class StaffCheckInService
                     ->notDeleted()
                     ->lockForUpdate()
                     ->get();
+                // Branch access duoc chan ngay tai lop write de staff khong check-in lech chi nhanh.
                 $this->assertOperationalBranchAccessible(
                     $this->resolveOperationalBranchId($reservation, $tables),
                     $staffUserId,
                 );
 
                 if (StaffReservationOperationGuard::isCheckedInReservation($reservation)) {
+                    // Idempotent noop: reservation da checked-in roi thi tra ve snapshot hien tai.
                     return [
                         'reservation' => $reservation,
                         'mutated' => false,
@@ -103,6 +113,7 @@ class StaffCheckInService
                     ];
                 }
 
+                // Gate nghiep vu cuoi truoc mutate: status hop le va row_version chua stale.
                 StaffReservationOperationGuard::assertCheckInAllowed($reservation, $expectedRowVersion);
                 $checked = Carbon::instance(\DateTimeImmutable::createFromInterface($checkedInAt));
 
@@ -110,6 +121,7 @@ class StaffCheckInService
                     throw ValidationException::withMessages(['reservation_id' => 'Reservation has no assigned tables to check in.']);
                 }
 
+                // Check-in khong duoc doi ban; neu can doi ban phai di qua move-table flow.
                 if ($requestedTableIds !== []) {
                     $sortedAssignedTableIds = $assignedTableIds;
                     sort($sortedAssignedTableIds);
@@ -123,6 +135,8 @@ class StaffCheckInService
                     $ignoredHoldIds,
                     $this->resolveConfirmedHoldIdsForReservation($reservation, $tableIds, true),
                 )));
+                // Chỉ cho check-in khi reservation, hold và trạng thái bàn đều sẵn sàng.
+                // Pha 3: readiness service gom du check status, table state, hold va reservation overlap.
                 $this->checkInReadinessService->assertReadyForWrite(
                     $reservation,
                     $checked,
@@ -133,11 +147,14 @@ class StaffCheckInService
                     updatedBy: $staffUserId,
                 );
 
+                // Pha 4: mutate reservation thanh checked-in va ghi actor/thoi diem check-in.
                 $reservation->status = ReservationStatus::checkedIn();
                 $reservation->checked_in_at = $checkedInAt;
                 $reservation->updated_by = $staffUserId;
                 $reservation->save();
 
+                // Check-in thành công thì đẩy bàn sang Occupied và phát tín hiệu cho vận hành.
+                // Pha 5: dong bo board state, outbox va audit sau khi write reservation thanh cong.
                 $this->tableStateService->occupyTables(
                     $tableIds,
                     Carbon::instance(\DateTimeImmutable::createFromInterface($checkedInAt))->utc(),
@@ -182,6 +199,7 @@ class StaffCheckInService
                 }
                 sort($lockTableIds);
 
+                // Ngoai DB lock con co distributed lock theo reservation/table de tranh double-submit giua node/process.
                 $lockKeys = array_merge([
                     config('booking.reservation_lock_reservation_prefix', 'booking:lock:reservation').':'.$reservationId,
                 ], array_map(fn (int $id) => config('booking.reservation_lock_prefix', 'booking:lock:table').':'.$id, $lockTableIds));
@@ -191,6 +209,8 @@ class StaffCheckInService
 
             /** @var Reservation $reservation */
             $reservation = $result['reservation'];
+            // Chỉ phát realtime khi có thay đổi thực sự, tránh làm nóng board vô ích.
+            // Realtime chi ban khi co mutate thuc su de board khong bi nong vi check-in noop.
             if (($result['mutated'] ?? false) === true) {
                 app(OperationalRealtimeService::class)->publishBoardEvent(
                     'reservation.checked_in',
@@ -220,6 +240,7 @@ class StaffCheckInService
      */
     private function resolveConfirmedHoldIdsForReservation(Reservation $reservation, array $tableIds, bool $lock = false): array
     {
+        // Hold confirmed cua reservation nay duoc ignore trong readiness, neu khong no se tu xung dot voi chinh no.
         $tableIds = array_values(array_unique(array_map('intval', $tableIds)));
         sort($tableIds);
 

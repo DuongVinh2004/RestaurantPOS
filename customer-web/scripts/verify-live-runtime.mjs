@@ -61,6 +61,14 @@ function classifyBillPaymentProof({ requested, hasData }) {
   return requested ? "enabled-runtime-support" : "runtime-prerequisites-present";
 }
 
+function classifyPreorderProof({ requested, enabled }) {
+  if (!enabled) {
+    return requested ? "enabled-missing-flag" : "flag-disabled";
+  }
+
+  return requested ? "enabled-runtime-prerequisites-present" : "runtime-prerequisites-present";
+}
+
 export function resolveManifestStatus({
   manifestPath = path.resolve(scriptDirectory, "..", "..", "storage", "app", "uat", "scenario-pack.json"),
 } = {}) {
@@ -104,13 +112,23 @@ export function createLiveRuntimeConfig({
     "http://127.0.0.1:8000";
   const issues = [];
   const manifestData = isManifestReadable(manifestStatus) ? manifestStatus.data : null;
+  const manifestIdentifier = typeof manifestData?.auth?.customer_primary?.username === "string"
+    ? manifestData.auth.customer_primary.username.trim()
+    : "";
+  const manifestPassword = typeof manifestData?.auth?.customer_primary?.password === "string"
+    ? manifestData.auth.customer_primary.password.trim()
+    : "";
+  const identifier = env.CUSTOMER_WEB_LIVE_IDENTIFIER?.trim() || manifestIdentifier;
+  const password = env.CUSTOMER_WEB_LIVE_PASSWORD?.trim() || manifestPassword;
   const maxManifestAgeMinutes = readMaxManifestAgeMinutes(env);
   const exerciseDepositPaymentSession = boolEnv(env, "CUSTOMER_WEB_LIVE_EXERCISE_DEPOSIT_PAYMENT_SESSION");
   const exerciseBillPaymentSession = boolEnv(env, "CUSTOMER_WEB_LIVE_EXERCISE_BILL_PAYMENT_SESSION");
+  const exercisePreorder = boolEnv(env, "CUSTOMER_WEB_LIVE_EXERCISE_PREORDER");
   const exerciseWaitingList = boolEnv(env, "CUSTOMER_WEB_LIVE_EXERCISE_WAITING_LIST");
   const exerciseAccountBenefits = boolEnv(env, "CUSTOMER_WEB_LIVE_EXERCISE_ACCOUNT_BENEFITS");
   const exercisePrivacyTools = boolEnv(env, "CUSTOMER_WEB_LIVE_EXERCISE_PRIVACY_TOOLS");
   const exerciseDataExport = boolEnv(env, "CUSTOMER_WEB_LIVE_EXERCISE_DATA_EXPORT");
+  const preorderEnabled = boolEnv(env, "NEXT_PUBLIC_FEATURE_PREORDER");
 
   if (!manifestStatus.exists) {
     issues.push(`Canonical UAT manifest not found at ${manifestStatus.path}. Run npm run dev:all or powershell -ExecutionPolicy Bypass -File ..\\scripts\\uat\\Bootstrap-UatPack.ps1 first.`);
@@ -240,6 +258,10 @@ export function createLiveRuntimeConfig({
     issues.push("Account benefits diagnostics were requested, but the canonical UAT manifest is missing benefits reservation, voucher, or loyalty prerequisites.");
   }
 
+  if (exercisePreorder && !preorderEnabled) {
+    issues.push("Preorder live proof was requested, but NEXT_PUBLIC_FEATURE_PREORDER is not enabled for the customer-web runtime.");
+  }
+
   if (exerciseWaitingList && !boolEnv(env, "NEXT_PUBLIC_FEATURE_WAITING_LIST")) {
     issues.push("Waiting-list live proof was requested, but NEXT_PUBLIC_FEATURE_WAITING_LIST is not enabled for the customer-web runtime.");
   }
@@ -257,6 +279,13 @@ export function createLiveRuntimeConfig({
   }
 
   const proof = {
+    preorder: {
+      requested: exercisePreorder,
+      status: classifyPreorderProof({
+        requested: exercisePreorder,
+        enabled: preorderEnabled,
+      }),
+    },
     depositPaymentSession: {
       requested: exerciseDepositPaymentSession,
       status: classifyDepositPaymentProof({
@@ -303,12 +332,12 @@ export function createLiveRuntimeConfig({
     },
   };
 
-  if (!env.CUSTOMER_WEB_LIVE_IDENTIFIER) {
-    issues.push("CUSTOMER_WEB_LIVE_IDENTIFIER is required for live verification.");
+  if (!identifier) {
+    issues.push("CUSTOMER_WEB_LIVE_IDENTIFIER or auth.customer_primary.username is required for live verification.");
   }
 
-  if (!env.CUSTOMER_WEB_LIVE_PASSWORD) {
-    issues.push("CUSTOMER_WEB_LIVE_PASSWORD is required for live verification.");
+  if (!password) {
+    issues.push("CUSTOMER_WEB_LIVE_PASSWORD or auth.customer_primary.password is required for live verification.");
   }
 
   if ((env.NEXT_PUBLIC_ENABLE_DEV_MOCKS ?? "").toLowerCase() === "true") {
@@ -324,8 +353,8 @@ export function createLiveRuntimeConfig({
     apiBaseUrl,
     healthUrl: `${apiBaseUrl.replace(/\/+$/, "")}/api/v1/health`,
     appHealthUrl: `${appBaseUrl.replace(/\/+$/, "")}/login`,
-    identifier: env.CUSTOMER_WEB_LIVE_IDENTIFIER ?? "",
-    password: env.CUSTOMER_WEB_LIVE_PASSWORD ?? "",
+    identifier,
+    password,
     manifestStatus,
     proof,
     issues,
@@ -446,7 +475,7 @@ async function runCli() {
   }
 
   process.stdout.write(
-    `Live proof preflight summary: deposit-payment=${config.proof.depositPaymentSession.status}; bill-payment=${config.proof.billPaymentSession.status}; waiting-list=${config.proof.waitingList.status}; account-benefits=${config.proof.accountBenefits.status}; privacy-tools=${config.proof.privacyTools.status}; data-export=${config.proof.dataExport.status}\n`,
+    `Live proof preflight summary: preorder=${config.proof.preorder.status}; deposit-payment=${config.proof.depositPaymentSession.status}; bill-payment=${config.proof.billPaymentSession.status}; waiting-list=${config.proof.waitingList.status}; account-benefits=${config.proof.accountBenefits.status}; privacy-tools=${config.proof.privacyTools.status}; data-export=${config.proof.dataExport.status}\n`,
   );
   process.stdout.write(`Live runtime preflight passed for ${config.healthUrl} and ${config.appHealthUrl}\n`);
 }

@@ -8,6 +8,10 @@ use App\Modules\IdentityAccess\Domain\Models\StaffApiKey;
 use App\Modules\IdentityAccess\Infrastructure\Persistence\StaffApiKeyStore;
 use Carbon\CarbonInterface;
 
+/**
+ * Wrapper mong quanh store de moi flow login/refresh/browser
+ * cung issue staff API key qua mot duong va nhan cung mot shape ket qua.
+ */
 class IssueStaffApiKeyHandler
 {
     public function __construct(
@@ -19,6 +23,7 @@ class IssueStaffApiKeyHandler
      */
     public function handle(int $userId, string $label, ?CarbonInterface $expiresAt = null): array
     {
+        // Khong them rule nghiep vu tai day; muc tieu la giu call-site dong nhat va de mock/test.
         return $this->staffApiKeyStore->issueKey($userId, $label, $expiresAt);
     }
 }

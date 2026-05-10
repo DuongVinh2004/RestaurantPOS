@@ -97,7 +97,7 @@ export function TableBoardDialogs({
   return (
     <>
       <Modal
-        title={`Khách vãng lai cho ${selectedTableCode ?? 'bàn'}`}
+        title={`Khach vang lai cho ${selectedTableCode ?? 'ban'}`}
         open={walkInOpen}
         onCancel={() => {
           onWalkInValuesChange(walkInForm.getFieldsValue());
@@ -114,20 +114,20 @@ export function TableBoardDialogs({
           onValuesChange={(_, values) => onWalkInValuesChange(values)}
           onFinish={onWalkInSubmit}
         >
-          <Form.Item name="guest_name" label="Tên khách" rules={[{ required: true, message: 'Nhập tên khách.' }]}>
-            <Input placeholder="Khách vãng lai" />
+          <Form.Item name="guest_name" label="Ten khach" rules={[{ required: true, message: 'Nhap ten khach.' }]}>
+            <Input placeholder="Khach vang lai" />
           </Form.Item>
-          <Form.Item name="phone" label="Số điện thoại">
-            <Input placeholder="Không bắt buộc" />
+          <Form.Item name="phone" label="So dien thoai">
+            <Input placeholder="Khong bat buoc" />
           </Form.Item>
-          <Form.Item name="guest_count" label="Số khách" rules={[{ required: true, message: 'Nhập số khách.' }]}>
+          <Form.Item name="guest_count" label="So khach" rules={[{ required: true, message: 'Nhap so khach.' }]}>
             <InputNumber min={1} max={30} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="service_minutes" label="Số phút phục vụ">
+          <Form.Item name="service_minutes" label="So phut phuc vu">
             <InputNumber min={30} max={480} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="notes" label="Ghi chú">
-            <Input.TextArea rows={3} placeholder="Ghi chú phục vụ nếu cần" />
+          <Form.Item name="notes" label="Ghi chu">
+            <Input.TextArea rows={3} placeholder="Ghi chu phuc vu neu can" />
           </Form.Item>
           <div className="staff-modal-footer">
             <Button
@@ -137,10 +137,10 @@ export function TableBoardDialogs({
               }}
               disabled={walkInSubmitting}
             >
-              Lưu nháp và đóng
+              Luu nhap va dong
             </Button>
             <Button type="primary" htmlType="submit" loading={walkInSubmitting}>
-              Xếp khách vào bàn
+              Xep khach vao ban
             </Button>
           </div>
         </Form>
@@ -148,12 +148,12 @@ export function TableBoardDialogs({
 
       <ReservationCreateModal
         open={phoneReservationOpen}
-        title={`Đặt bàn hộ cho ${selectedTableCode ?? 'bàn'}`}
-        description={`Đặt bàn mới sẽ được gắn trực tiếp vào ${selectedTableCode ?? 'bàn đang chọn'} và lưu guest snapshot cho khách gọi điện.`}
+        title={`Dat ban ho cho ${selectedTableCode ?? 'ban'}`}
+        description={`Dat ban moi se duoc gan truc tiep vao ${selectedTableCode ?? 'ban dang chon'} va luu guest snapshot cho khach goi dien.`}
         form={phoneReservationForm}
         lockedTableLabel={selectedTableCode}
         submitting={phoneReservationSubmitting}
-        submitLabel="Tạo đặt bàn hộ"
+        submitLabel="Tao dat ban ho"
         onCancel={onPhoneReservationCancel}
         onSubmit={onPhoneReservationSubmit}
       />

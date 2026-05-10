@@ -2,18 +2,36 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ErrorState, LoadingBlock } from "@/components/states/state-blocks";
+import { ArrowLeft, CalendarDays, ShoppingBag } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import {
+  AppBadge,
+  AppButton,
+  AppCard,
+  AppTextarea,
+  EmptyState,
+  ErrorState,
+  PriceText,
+  QuantityStepper,
+  SectionHeader,
+  StatusPill,
+} from "@/components/customer/ui";
+import { useBranchSelection } from "@/features/branch/hooks";
+import { PreorderCartPanel } from "@/features/preorder/cart-panel";
+import { useLocalPreorderCart } from "@/features/preorder/local-cart";
 import { queryKeys } from "@/lib/api/query-keys";
-import { formatMoney } from "@/lib/contracts/format";
+import { featureFlags } from "@/lib/config/feature-flags";
 import { displayMenuText } from "@/lib/i18n/customer-display";
 import { getMenuItem } from "./api";
 import { MenuItemImage } from "./menu-item-image";
 
 export function MenuDetailPage({ id }: { id: number }) {
+  const [quantity, setQuantity] = useState(1);
+  const [note, setNote] = useState("");
+  const branchSelection = useBranchSelection();
+  const selectedBranch = branchSelection.selectedBranch;
+  const cart = useLocalPreorderCart(selectedBranch?.branchId ?? null);
   const itemQuery = useQuery({
     queryKey: queryKeys.menu.item(id),
     queryFn: () => getMenuItem(id),
@@ -21,71 +39,147 @@ export function MenuDetailPage({ id }: { id: number }) {
 
   if (itemQuery.isLoading) {
     return (
-      <main className="mx-auto w-full max-w-4xl px-4 py-6">
-        <LoadingBlock label="Đang tải món ăn" />
+      <main className="mx-auto w-full max-w-5xl px-4 py-6">
+        <AppCard className="h-96 animate-pulse bg-secondary/50" />
       </main>
     );
   }
 
   if (itemQuery.error || !itemQuery.data) {
     return (
-      <main className="mx-auto w-full max-w-4xl px-4 py-6">
-        <ErrorState error={itemQuery.error} title="Chưa tải được món ăn" onRetry={() => itemQuery.refetch()} />
+      <main className="mx-auto w-full max-w-5xl px-4 py-6">
+        <ErrorState error={itemQuery.error} title="Chưa tải được món" onRetry={() => itemQuery.refetch()} />
       </main>
     );
   }
 
   const item = itemQuery.data;
-  const itemName = displayMenuText(item.name, "Món ăn");
+  const itemName = displayMenuText(item.name, "Món");
   const categoryName = displayMenuText(item.category_name, "Thực đơn");
-  const description = displayMenuText(item.description, "Nhân viên nhà hàng sẽ tư vấn thêm khi bạn gọi món.");
+  const description = displayMenuText(item.description, "Nhà hàng sẽ bổ sung mô tả khi bạn gọi món.");
+  const canPreorder = featureFlags.preorder && item.is_available && item.preorder.enabled;
+
+  const addToCart = () => {
+    if (!selectedBranch) {
+      toast.error("Chọn chi nhánh trước khi thêm món đặt trước.");
+      return;
+    }
+
+    if (!canPreorder) {
+      toast.error("Món này hiện chưa thể đặt trước.");
+      return;
+    }
+
+    cart.addItem(item, quantity, note);
+    toast.success(`Đã thêm ${itemName} vào giỏ đặt trước.`);
+  };
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-6">
-      <Button asChild variant="ghost" className="mb-4 rounded-lg">
-        <Link href="/">
-          <ArrowLeft className="mr-2 h-4 w-4" />
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-28 lg:pb-8">
+      <AppButton asChild variant="ghost" className="mb-4">
+        <Link href="/menu">
+          <ArrowLeft className="h-4 w-4" />
           Quay lại thực đơn
         </Link>
-      </Button>
+      </AppButton>
 
-      <div className="grid gap-5 md:grid-cols-[1fr_320px]">
-        <section className="group overflow-hidden rounded-lg border bg-card shadow-sm">
-          <MenuItemImage item={item} className="h-72" />
-          <div className="space-y-4 p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h1 className="text-3xl font-semibold tracking-normal">{itemName}</h1>
-                <p className="mt-2 text-muted-foreground">{description}</p>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="space-y-5">
+          <AppCard className="group overflow-hidden">
+            <MenuItemImage item={item} className="h-80" />
+            <div className="space-y-5 p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-2">
+                  <AppBadge>{categoryName}</AppBadge>
+                  <h1 className="text-3xl font-semibold tracking-normal">{itemName}</h1>
+                  <p className="max-w-2xl text-muted-foreground">{description}</p>
+                </div>
+                <PriceText amount={item.price.amount} currency={item.price.currency} className="text-2xl" />
               </div>
-              <span className="text-xl font-semibold">{formatMoney(item.price.amount, item.price.currency ?? "VND")}</span>
+
+              <div className="flex flex-wrap gap-2">
+                <StatusPill label={item.is_available ? "Còn phục vụ" : "Tạm hết"} tone={item.is_available ? "success" : "warning"} />
+                <StatusPill
+                  label={item.preorder.enabled ? "Có thể đặt trước" : "Chỉ dùng tại bàn"}
+                  tone={item.preorder.enabled ? "info" : "neutral"}
+                />
+                {item.preorder.requires_preview_validation ? <StatusPill label="Kiểm tra lại trước khi gửi" tone="info" /> : null}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="rounded-md">{categoryName}</Badge>
-              <Badge variant={item.is_available ? "outline" : "secondary"} className="rounded-md">
-                {item.is_available ? "Còn phục vụ" : "Tạm hết"}
-              </Badge>
-              <Badge variant="outline" className="rounded-md">
-                {item.preorder.enabled ? "Có thể đặt trước" : "Dùng tại bàn"}
-              </Badge>
-            </div>
-          </div>
+          </AppCard>
+
+          <AppCard className="p-5">
+            <SectionHeader
+              title="Thông tin món"
+              description="Contract thực đơn hiện cung cấp thông tin cơ bản và chính sách đặt trước."
+            />
+            <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+              <DetailItem label="Thành phần" value="API thực đơn cho khách chưa cung cấp thông tin này" />
+              <DetailItem label="Dị ứng" value="API thực đơn cho khách chưa cung cấp thông tin này" />
+              <DetailItem label="Tùy chọn và topping" value="API món đặt trước chưa cung cấp thông tin này" />
+              <DetailItem
+                label="Hạn chót đặt trước"
+                value={
+                  item.preorder.enabled
+                    ? `${item.preorder.cutoff_minutes} phút trước lượt ghé`
+                    : "Món này chưa mở đặt trước"
+                }
+              />
+            </dl>
+          </AppCard>
         </section>
 
-        <Card className="h-fit rounded-lg">
-          <CardHeader>
-            <CardTitle>Thông tin đặt trước</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>Nhận đặt trước đến {item.preorder.cutoff_minutes} phút trước giờ đến.</p>
-            <p>Giới hạn mỗi ngày: {item.preorder.quota_per_day ?? "Nhà hàng chưa công bố"}.</p>
-            <p>{item.preorder.requires_preview_validation ? "Nhà hàng sẽ kiểm tra lại trước khi nhận món đặt trước." : "Món này không cần bước kiểm tra riêng."}</p>
-            <Button asChild className="mt-2 w-full rounded-lg">
-              <Link href="/booking">Đặt bàn</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <aside className="space-y-4 lg:sticky lg:top-[5.25rem] lg:h-fit">
+          <AppCard className="p-5">
+            <SectionHeader
+              eyebrow="Thêm vào đặt trước"
+              title={canPreorder ? "Lưu cho lịch đặt" : "Chưa khả dụng"}
+              description={
+                canPreorder
+                  ? "Món đã lưu nằm trong phiên này và có thể đính kèm khi bạn tạo lịch đặt."
+                  : "Hiện chưa thể thêm món này vào món đặt trước."
+              }
+            />
+            <div className="mt-4 space-y-4">
+              {selectedBranch ? (
+                <p className="rounded-lg border bg-secondary/30 p-3 text-sm">
+                  Chi nhánh: <span className="font-medium">{selectedBranch.branchName}</span>
+                </p>
+              ) : (
+                <EmptyState title="Đang tải chi nhánh" description="Chọn chi nhánh trước khi thêm món đặt trước." />
+              )}
+              <QuantityStepper value={quantity} min={1} max={20} label={itemName} onChange={setQuantity} />
+              <AppTextarea
+                label="Ghi chú món"
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                helperText="Đang lưu trên trình duyệt. API món đặt trước hiện chưa gửi ghi chú món."
+              />
+              <AppButton type="button" className="w-full" disabled={!canPreorder || !selectedBranch} onClick={addToCart}>
+                <ShoppingBag className="h-4 w-4" />
+                Thêm vào giỏ
+              </AppButton>
+              <AppButton asChild variant="outline" className="w-full">
+                <Link href="/booking">
+                  <CalendarDays className="h-4 w-4" />
+                  Đặt bàn
+                </Link>
+              </AppButton>
+            </div>
+          </AppCard>
+
+          <PreorderCartPanel branchId={selectedBranch?.branchId ?? null} branchName={selectedBranch?.branchName ?? null} compact />
+        </aside>
       </div>
     </main>
+  );
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border p-3">
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="mt-1 font-medium">{value}</dd>
+    </div>
   );
 }

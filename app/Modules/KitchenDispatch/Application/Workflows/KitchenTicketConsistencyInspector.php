@@ -35,6 +35,7 @@ class KitchenTicketConsistencyInspector
      */
     public function describe(KitchenOrderItemTicket $ticket): array
     {
+        // Snapshot nay giai thich dong thoi 2 mat: ticket dang o stage nao va routing/order item co bi lech khong.
         $ticketStatus = $this->normalizeTicketStatus($ticket);
         $orderItem = $ticket->relationLoaded('orderItem') ? $ticket->orderItem : null;
         $routeLoaded = $ticket->relationLoaded('route');
@@ -50,6 +51,7 @@ class KitchenTicketConsistencyInspector
             ? ((int) $route->station_id === (int) $station->station_id)
             : null;
 
+        // Danh gia drift routing tach rieng khoi drift trang thai de caller biet can sua route hay can dong bo order item.
         if (! $routePresent) {
             $routingStatus = 'route_missing';
         } elseif ($routeLoaded && $routeActive === false) {
@@ -65,6 +67,7 @@ class KitchenTicketConsistencyInspector
             ? $this->orderItemStatusAcceptsTicket($this->normalizeOrderItemStatus($orderItem), $ticketStatus)
             : null;
 
+        // Ticket co the dung route nhung van lech lifecycle so voi order item, vi vay sync_status duoc tinh doc lap.
         $syncStatus = 'in_sync';
         if (! $orderItem instanceof ReservationOrderItem) {
             $syncStatus = 'order_item_missing';
@@ -83,6 +86,7 @@ class KitchenTicketConsistencyInspector
             $driftReasons[] = $routingStatus;
         }
 
+        // Caller nhan ve mot mo ta trung tinh, khong mutate du lieu, de reuse cho UI, audit va reconcile batch.
         return [
             'lifecycle' => [
                 'status' => $ticketStatus->value,
@@ -107,6 +111,7 @@ class KitchenTicketConsistencyInspector
 
     public function canRedispatchActiveTicket(KitchenOrderItemTicket $ticket): bool
     {
+        // Redispatch chi an toan khi ticket dang sach ca ve lifecycle lan routing.
         $description = $this->describe($ticket);
 
         return ($description['reconciliation']['sync_status'] ?? 'drift_detected') === 'in_sync'
@@ -115,6 +120,7 @@ class KitchenTicketConsistencyInspector
 
     public function expectedTicketStatus(?ReservationOrderItem $orderItem): ?KitchenTicketStatus
     {
+        // Helper nay bien order item status thanh trang thai ticket du kien de detect drift.
         if (! $orderItem instanceof ReservationOrderItem) {
             return null;
         }
@@ -145,6 +151,7 @@ class KitchenTicketConsistencyInspector
         ReservationOrderItemStatus $orderItemStatus,
         KitchenTicketStatus $ticketStatus,
     ): bool {
+        // Cho phep mot vai cap hop le nhu InProgress <-> Fired/Ready de kitchen khong bi coi la drift gia.
         $acceptable = match ($orderItemStatus) {
             ReservationOrderItemStatus::Ordered => [KitchenTicketStatus::Queued],
             ReservationOrderItemStatus::InProgress => [KitchenTicketStatus::Fired, KitchenTicketStatus::Ready],
@@ -160,6 +167,7 @@ class KitchenTicketConsistencyInspector
      */
     private function nextActionsFor(string $syncStatus, string $routingStatus): array
     {
+        // Reconciliation chi tra ve goi y hanh dong tiep theo, khong tu sua state o day.
         $actions = [];
 
         if ($syncStatus === 'order_item_missing') {

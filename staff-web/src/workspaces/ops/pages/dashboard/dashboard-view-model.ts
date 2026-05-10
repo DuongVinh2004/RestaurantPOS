@@ -31,7 +31,7 @@ import {
 } from '../../../../shared/status/status';
 import { translateUiCode } from '../../../../shared/utils/translation';
 import { conversationSummaryStats, conversationTitle } from '../../../../domains/conversations/conversation-inbox';
-import { financeFlagLabels, summarizeFinance } from '../../../../domains/finance/finance-review';
+import { financeFlagLabels, readFinanceFlag, readFinanceMetric, summarizeFinance } from '../../../../domains/finance/finance-review';
 import {
   snapshotHealthDescription,
   snapshotHealthLabel,
@@ -307,7 +307,7 @@ export function buildUrgentAlerts(args: {
   const readyToSeat = waitingSummary?.ready_to_seat_count ?? 0;
   const oldestWaitingAge = oldestAgeLabel((args.waitingList?.data ?? []).map((row) => row.requested_at));
   const oldestConversationAge = oldestAgeLabel((args.conversations?.data ?? []).map((row) => row.latest_activity_at ?? row.created_at));
-  const oldestFinanceAge = oldestAgeLabel(args.financeRows.map((row) => row.payment_summary.last_payment_activity_at ?? row.reservation.updated_at));
+  const oldestFinanceAge = oldestAgeLabel(args.financeRows.map((row) => readFinanceString(row.payment_summary, 'last_payment_activity_at') ?? row.reservation.updated_at));
   const kitchenAgeLabel = oldestAgeLabel((args.kitchenStations?.data ?? []).map((row) => row.updated_at));
   const reportingNeedsAttention = [args.salesMeta, args.operationsMeta, args.inventoryMeta].some((meta) => meta?.snapshot_health?.status === 'degraded');
 
@@ -701,7 +701,7 @@ export function buildKitchenSnapshot(stations: StaffKitchenStationCollectionEnve
 
 export function buildCheckoutSnapshot(financeRows: Array<FinancialReconciliationRow>): DashboardSnapshotModel {
   const summary = summarizeFinance(financeRows);
-  const oldestFinanceAge = oldestAgeLabel(financeRows.map((row) => row.payment_summary.last_payment_activity_at ?? row.reservation.updated_at));
+  const oldestFinanceAge = oldestAgeLabel(financeRows.map((row) => readFinanceString(row.payment_summary, 'last_payment_activity_at') ?? row.reservation.updated_at));
   const urgency = buildUrgencyLabel((summary.discrepancyCount * 4) + (summary.outstandingCount * 2) + (oldestFinanceAge ? 2 : 0));
 
   return {
@@ -725,8 +725,8 @@ export function buildCheckoutSnapshot(financeRows: Array<FinancialReconciliation
     items: financeRows.slice(0, 4).map((row) => ({
       key: `finance-${row.reservation.reservation_id}`,
       title: row.reservation.reservation_code,
-      subtitle: row.reservation.customer.full_name ?? row.reservation.customer.phone ?? 'Khách chưa rõ',
-      meta: `Còn thiếu ${formatMoney(row.reconciliation.bill_outstanding_amount, row.reservation.bill_currency ?? 'VND')}`,
+      subtitle: financeCustomerLabel(row.reservation.customer),
+      meta: `Còn thiếu ${formatMoney(readFinanceMetric(row.reconciliation, 'bill_outstanding_amount'), row.reservation.bill_currency ?? 'VND')}`,
       statusLabel: financeFlagLabels(row)[0] ?? row.reservation.status,
       statusTone: financeTone(row),
       path: `${staffRoutePaths.ops.financeReview}?focus=${row.reservation.reservation_id}`,
@@ -917,19 +917,30 @@ function buildTableListItem(row: TableRow): DashboardListItemModel {
 }
 
 function financeTone(row: FinancialReconciliationRow): StatusTone {
-  if (row.flags.has_discrepancy || row.flags.has_over_refund) {
+  if (readFinanceFlag(row, 'has_discrepancy') || readFinanceFlag(row, 'has_over_refund')) {
     return 'error';
   }
 
-  if (row.flags.has_bill_outstanding) {
+  if (readFinanceFlag(row, 'has_bill_outstanding')) {
     return 'warning';
   }
 
-  if (row.flags.is_fully_settled) {
+  if (readFinanceFlag(row, 'is_fully_settled')) {
     return 'success';
   }
 
   return 'default';
+}
+
+function financeCustomerLabel(customer: Record<string, unknown>): string {
+  return readFinanceString(customer, 'full_name')
+    ?? readFinanceString(customer, 'phone')
+    ?? 'Khách chưa rõ';
+}
+
+function readFinanceString(value: Record<string, unknown>, field: string): string | null {
+  const raw = value[field];
+  return typeof raw === 'string' && raw.trim() !== '' ? raw : null;
 }
 
 function tablePriority(row: TableRow): number {
@@ -1001,5 +1012,3 @@ function buildUrgencyLabel(score: number): {
     tone: 'default',
   };
 }
-
-

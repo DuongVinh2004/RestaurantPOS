@@ -17,6 +17,9 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
+/**
+ * Dong bo vong doi bill payment session va ap ket qua thanh toan bill vao reservation khi can.
+ */
 class ReservationBillPaymentSessionLifecycleWorkflow
 {
     public function __construct(
@@ -28,6 +31,7 @@ class ReservationBillPaymentSessionLifecycleWorkflow
      */
     public function applyProviderResult(ReservationBillPaymentSession $session, array $providerResult, ?int $actorUserId = null): bool
     {
+        // Chi apply khi event moi thuc su tien len state machine, tranh regression/stale webhook.
         $currentStatus = (string) ($session->session_status?->value ?? $session->session_status ?? ReservationBillPaymentSessionStatus::Created->value);
         $incomingStatusValue = (string) ($providerResult['session_status'] ?? $currentStatus);
 
@@ -35,6 +39,7 @@ class ReservationBillPaymentSessionLifecycleWorkflow
             return false;
         }
 
+        // Pha 1: map provider status vao enum noi bo va cap nhat metadata session lien quan.
         $status = ReservationBillPaymentSessionStatus::from($incomingStatusValue);
         $now = Carbon::now('UTC');
 
@@ -73,6 +78,7 @@ class ReservationBillPaymentSessionLifecycleWorkflow
      */
     public function applySucceededSessionIfNeeded(Reservation $reservation, ReservationBillPaymentSession $session, Collection $lockedPayments, ?int $actorUserId = null): void
     {
+        // Session succeeded chi duoc apply mot lan; nhung duplicate webhook van phai replay an toan.
         $status = $session->session_status instanceof ReservationBillPaymentSessionStatus
             ? $session->session_status
             : ReservationBillPaymentSessionStatus::from((string) $session->session_status);
@@ -87,6 +93,7 @@ class ReservationBillPaymentSessionLifecycleWorkflow
             return;
         }
 
+        // Pha 2: thu replay payment da tao truoc do truoc khi can nhac capture moi.
         $existingPayment = $this->billPaymentService->replaySucceededCustomerSession(
             reservation: $reservation,
             session: $session,
@@ -103,6 +110,7 @@ class ReservationBillPaymentSessionLifecycleWorkflow
         }
 
         $bill = $this->billPaymentService->summarizeLockedBill($reservation, $lockedPayments, (string) ($session->currency ?? ''));
+        // Neu bill da duoc thanh toan boi luong khac thi skip, khong tao them payment.
         if (Money::minorUnits($bill['outstanding_amount'] ?? 0, true) <= 0) {
             $payload = (array) ($session->provider_payload_json ?? []);
             $payload['settlement_skip_reason'] = 'bill_already_satisfied';
@@ -114,6 +122,7 @@ class ReservationBillPaymentSessionLifecycleWorkflow
             return;
         }
 
+        // Pha 3: chi khi bill van con outstanding moi capture final payment tu session succeeded nay.
         $payment = $this->billPaymentService->captureSucceededCustomerSession(
             reservation: $reservation,
             session: $session,

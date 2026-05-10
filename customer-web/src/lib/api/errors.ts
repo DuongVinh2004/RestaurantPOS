@@ -16,6 +16,11 @@ export type NormalizedApiError = {
   categoryCode: string | null;
   requestId: string | null;
   validationErrors: Record<string, string[]> | null;
+  conflictType: string | null;
+  replayState: string | null;
+  stateReason: string | null;
+  nextActions: string[];
+  raw: unknown;
   cause?: unknown;
 };
 
@@ -44,7 +49,7 @@ export type SessionRestoreDisplay = ApiErrorDisplay & {
 };
 
 export const ACTIVE_TABLE_HOLD_SESSION_MESSAGE =
-  "Phiên này đang có một lượt giữ bàn khác. Vui lòng tiếp tục đặt bàn với lượt giữ hiện tại, gia hạn, hủy lượt giữ cũ hoặc tải lại trang.";
+  "Phiên này đang có một lượt giữ bàn khác. Vui lòng tải lại phiên đặt bàn để đồng bộ lượt giữ hiện tại.";
 
 type ErrorPayload = {
   message?: unknown;
@@ -53,6 +58,10 @@ type ErrorPayload = {
   request_id?: unknown;
   errors?: unknown;
   details?: unknown;
+  conflict_type?: unknown;
+  replay_state?: unknown;
+  state_reason?: unknown;
+  next_actions?: unknown;
 };
 
 function payloadRecord(payload: unknown): ErrorPayload {
@@ -90,6 +99,22 @@ function collectValidationErrors(payload: ErrorPayload): Record<string, string[]
     ...(nested ?? {}),
     ...(direct ?? {}),
   };
+}
+
+function stringField(value: unknown): string | null {
+  return typeof value === "string" && value.trim() !== "" ? value : null;
+}
+
+function stringListField(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === "string" && entry.trim() !== "");
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
+    return [value];
+  }
+
+  return [];
 }
 
 function firstValidationMessage(errors: Record<string, string[]> | null): string | null {
@@ -132,10 +157,15 @@ export function normalizeApiError(error: unknown): NormalizedApiError {
       kind: kindForStatus(error.status),
       status: error.status,
       message,
-      errorCode: typeof payload.error_code === "string" ? payload.error_code : null,
-      categoryCode: typeof payload.category_code === "string" ? payload.category_code : null,
-      requestId: typeof payload.request_id === "string" ? payload.request_id : null,
+      errorCode: stringField(payload.error_code),
+      categoryCode: stringField(payload.category_code),
+      requestId: stringField(payload.request_id),
       validationErrors,
+      conflictType: stringField(payload.conflict_type),
+      replayState: stringField(payload.replay_state),
+      stateReason: stringField(payload.state_reason),
+      nextActions: stringListField(payload.next_actions),
+      raw: error.payload,
       cause: error,
     };
   }
@@ -149,12 +179,27 @@ export function normalizeApiError(error: unknown): NormalizedApiError {
       categoryCode: "backend_unavailable",
       requestId: null,
       validationErrors: null,
+      conflictType: null,
+      replayState: null,
+      stateReason: null,
+      nextActions: [],
+      raw: null,
       cause: error,
     };
   }
 
   if (error && typeof error === "object" && "kind" in error && "message" in error) {
-    return error as NormalizedApiError;
+    const candidate = error as Partial<NormalizedApiError>;
+    const { nextActions, raw, ...rest } = candidate;
+
+    return {
+      conflictType: null,
+      replayState: null,
+      stateReason: null,
+      ...rest,
+      nextActions: nextActions ?? [],
+      raw: raw ?? error,
+    } as NormalizedApiError;
   }
 
   return {
@@ -165,6 +210,11 @@ export function normalizeApiError(error: unknown): NormalizedApiError {
     categoryCode: null,
     requestId: null,
     validationErrors: null,
+    conflictType: null,
+    replayState: null,
+    stateReason: null,
+    nextActions: [],
+    raw: null,
     cause: error,
   };
 }
@@ -175,9 +225,9 @@ export function userFacingApiMessage(error: unknown): string {
 
 export function getApiErrorDisplay(error: unknown): ApiErrorDisplay {
   const normalized = normalizeApiError(error);
-  const statusLabel = normalized.status === null ? null : `Trạng thái ${normalized.status}`;
   const requestIdLabel = normalized.requestId ? `Mã hỗ trợ: ${normalized.requestId}` : null;
   const errorCodeLabel = normalized.errorCode ? `Mã lỗi ${normalized.errorCode}` : null;
+  const statusLabel = normalized.status ? `Trạng thái ${normalized.status}` : null;
 
   if (normalized.errorCode === "api_base_url_misconfigured") {
     return {
@@ -201,7 +251,7 @@ export function getApiErrorDisplay(error: unknown): ApiErrorDisplay {
 
   if (normalized.kind === "unauthorized") {
     return {
-      message: "Vui lòng đăng nhập lại để tiếp tục.",
+      message: "Phiên đăng nhập đã hết hạn.",
       retryHint: "Đăng nhập lại, sau đó thử lại thao tác.",
       statusLabel,
       requestIdLabel,
@@ -251,7 +301,9 @@ export function getApiErrorDisplay(error: unknown): ApiErrorDisplay {
 
   if (isRecoverableMutationApiError(normalized)) {
     return {
-      message: "Thông tin đã thay đổi trong lúc bạn thao tác.",
+      message: isConflictLikeApiError(normalized)
+        ? "Thông tin đã thay đổi trong lúc bạn thao tác."
+        : normalized.message,
       retryHint: "Tải lại trang để lấy thông tin mới nhất rồi thử lại.",
       statusLabel,
       requestIdLabel,
@@ -341,9 +393,9 @@ export function getSessionRestoreDisplay(error: unknown): SessionRestoreDisplay 
       ? (error as SessionRestoreError)
       : classifySessionRestoreError(error);
 
-  const statusLabel = normalized.status === null ? null : `Trạng thái ${normalized.status}`;
   const requestIdLabel = normalized.requestId ? `Mã hỗ trợ: ${normalized.requestId}` : null;
   const errorCodeLabel = normalized.errorCode ? `Mã lỗi ${normalized.errorCode}` : null;
+  const statusLabel = normalized.status ? `Trạng thái ${normalized.status}` : null;
 
   if (normalized.errorCode === "api_base_url_misconfigured") {
     return {
@@ -371,7 +423,7 @@ export function getSessionRestoreDisplay(error: unknown): SessionRestoreDisplay 
 
   if (normalized.restoreKind === "invalid_session") {
     return {
-      title: "Phiên đăng nhập không còn hợp lệ",
+      title: "Phiên không còn hợp lệ",
       message: "Phiên trên trình duyệt này không còn hợp lệ. Vui lòng đăng nhập lại.",
       retryHint: null,
       statusLabel,
@@ -383,7 +435,7 @@ export function getSessionRestoreDisplay(error: unknown): SessionRestoreDisplay 
 
   if (normalized.restoreKind === "unauthorized_owner_access") {
     return {
-      title: "Trang này không thuộc tài khoản hiện tại",
+      title: "Không thể mở lượt đặt này",
       message: "Tài khoản đang đăng nhập không khớp với lượt đặt hoặc phiên ghé nhà hàng của trang này.",
       retryHint: null,
       statusLabel,
@@ -416,6 +468,27 @@ export function isConflictLikeApiError(error: unknown): boolean {
   const normalized = normalizeApiError(error);
 
   if (normalized.kind === "conflict") {
+    return true;
+  }
+
+  if (
+    normalized.categoryCode === "resource_conflict" ||
+    normalized.categoryCode === "stale_write" ||
+    normalized.categoryCode === "idempotency_conflict"
+  ) {
+    return true;
+  }
+
+  if (
+    normalized.errorCode === "stale_row_version" ||
+    normalized.errorCode === "idempotency_conflict" ||
+    normalized.conflictType === "stale_write" ||
+    normalized.conflictType === "state_conflict" ||
+    normalized.conflictType === "idempotency_payload_mismatch" ||
+    normalized.replayState === "payload_mismatch" ||
+    normalized.nextActions?.includes("reload_resource") ||
+    normalized.nextActions?.includes("retry_with_latest_row_version")
+  ) {
     return true;
   }
 
@@ -527,6 +600,10 @@ function searchableErrorText(error: NormalizedApiError): string {
     error.message,
     error.errorCode,
     error.categoryCode,
+    error.conflictType,
+    error.replayState,
+    error.stateReason,
+    ...(error.nextActions ?? []),
     ...Object.values(error.validationErrors ?? {}).flat(),
   ]
     .filter((value): value is string => typeof value === "string" && value.trim() !== "")

@@ -29,6 +29,10 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Động cơ cốt lõi xử lý nghiệp vụ Dời lịch / Đổi bàn cho một phiên Đặt bàn.
+ * Service này phục vụ cho cả luồng Staff (Nhân viên đổi) và Customer (Khách tự dời).
+ */
 class ReservationRescheduleService
 {
     public function __construct(
@@ -41,13 +45,17 @@ class ReservationRescheduleService
     ) {}
 
     /**
+     * --- BƯỚC 1: TIỀN XỬ LÝ VÀ THU THẬP TÀI NGUYÊN ĐỂ KHÓA ---
+     *
      * @param  array<string,mixed>  $payload
      * @param  array<string,mixed>  $actorContext
      */
     public function reschedule(int $reservationId, array $payload, array $actorContext = []): Reservation
     {
+        // 1.1 Chuẩn hóa ID các Bàn mục tiêu (Bàn khách muốn chuyển tới)
         $requestedTableIds = $this->normalizeTableIds($payload['table_ids'] ?? null);
 
+        // 1.2 Lấy ID các Bàn hiện tại (Bàn khách đang giữ)
         $currentTableIds = ReservationTable::query()
             ->where('reservation_id', $reservationId)
             ->orderBy('table_id')
@@ -55,13 +63,20 @@ class ReservationRescheduleService
             ->map(fn ($value) => (int) $value)
             ->all();
 
+        // 1.3 KIẾN TRÚC PHÂN TÁN (DEADLOCK PREVENTION):
+        // Tại sao phải gộp cả Bàn cũ và Bàn mới để đem đi Lock?
+        // Vì trong lúc ta đang nhả bàn cũ để dọn sang bàn mới, một người khác có thể đang đặt đúng cái bàn cũ đó,
+        // hoặc ai đó đang nhắm tới bàn mới của ta. Nếu không Lock toàn bộ, sẽ xảy ra tranh chấp.
+        // Hàm sort() là cực kỳ quan trọng để đảm bảo tất cả các server đều xin Lock theo một thứ tự từ điển, chống Deadlock.
         $lockTableIds = array_values(array_unique(array_merge($currentTableIds, $requestedTableIds)));
         sort($lockTableIds);
 
+        // Gộp Khóa Đơn Hàng + Khóa Tập hợp Bàn
         $lockKeys = array_merge([
             config('booking.reservation_lock_reservation_prefix', 'booking:lock:reservation').':'.$reservationId,
         ], array_map(fn (int $id) => config('booking.reservation_lock_prefix', 'booking:lock:table').':'.$id, $lockTableIds));
 
+        // 1.4 Xác định định danh Audit (Nhân viên làm, hay Khách tự làm)
         $resolvedActor = $this->resolveActorContext($actorContext);
         $actorUserId = $resolvedActor['user_id'];
         $actorType = $resolvedActor['type'];
@@ -69,8 +84,11 @@ class ReservationRescheduleService
         $auditContext = $resolvedActor['audit_context'];
 
         try {
+            // --- BƯỚC 2: KHÓA REDIS & BẮT ĐẦU TRANSACTION DB ---
             return $this->locks->withLockKeys($lockKeys, function () use ($reservationId, $payload, $actorUserId, $actorType, $auditEvent, $auditContext) {
                 return DB::transaction(function () use ($reservationId, $payload, $actorUserId, $actorType, $auditEvent, $auditContext) {
+
+                    // 2.1 Load kèm Lock DB
                     /** @var Reservation|null $reservation */
                     $reservation = Reservation::query()
                         ->where('reservation_id', $reservationId)
@@ -81,22 +99,27 @@ class ReservationRescheduleService
                         throw new ModelNotFoundException('Reservation not found');
                     }
 
+                    // --- BƯỚC 3: THẨM ĐỊNH MÁY TRẠNG THÁI (STATE MACHINE) ---
                     $status = $reservation->status instanceof ReservationStatus
                         ? $reservation->status
                         : ReservationStatus::from((string) $reservation->getRawOriginal('status'));
 
+                    // Domain Logic: Đã Hủy, Đã Ăn Xong, hoặc Bị Bom Bàn (No-show) thì cấm dời lịch.
                     if ($status !== ReservationStatus::Confirmed) {
                         throw ValidationException::withMessages([
                             'status' => ['Only Confirmed reservations can be rescheduled.'],
                         ]);
                     }
 
+                    // Domain Logic: Nếu khách ĐÃ BƯỚC VÀO QUÁN VÀ NGỒI XUỐNG (Checked-in) thì không gọi là "Dời lịch" (Reschedule) nữa.
+                    // Hành động lúc này phải dùng luồng "Chuyển Bàn" (Move Table) của Module FloorOperations.
                     if ($reservation->checked_in_at !== null) {
                         throw ValidationException::withMessages([
                             'status' => ['Checked-in reservations cannot be rescheduled. Use move-table/runtime flows instead.'],
                         ]);
                     }
 
+                    // 3.1 Chống ghi đè đồng thời (Optimistic Locking)
                     $beforeVersion = (int) ($reservation->row_version ?? 1);
                     $expectedRowVersion = (int) ($payload['row_version'] ?? 0);
                     if ($expectedRowVersion !== $beforeVersion) {
@@ -105,23 +128,29 @@ class ReservationRescheduleService
                         ]);
                     }
 
+                    // --- BƯỚC 4: THẨM ĐỊNH TÀI CHÍNH (FINANCIAL CHECKS) ---
                     $payments = Payment::query()
                         ->where('reservation_id', $reservationId)
                         ->lockForUpdate()
                         ->get();
                     $paymentSummary = PaymentSummary::fromPayments($payments);
+
+                    // Domain Logic: Nếu đơn đã có giao dịch loại "Final Payment" (Thanh toán chốt bill cuối cùng)
+                    // thì tuyệt đối cấm dời, vì doanh thu đã được chốt sổ kế toán.
                     if (Money::isPositive($paymentSummary['final_net_amount'] ?? 0)) {
                         throw ValidationException::withMessages([
                             'reservation_id' => ['Reservation already has final payments. Reschedule after payment is not allowed.'],
                         ]);
                     }
 
+                    // Bill đã in ra đưa cho khách xem cũng cấm dời.
                     if ($reservation->billed_at !== null || $reservation->final_bill_amount !== null) {
                         throw ValidationException::withMessages([
                             'reservation_id' => ['Reservation bill has already been closed. Reschedule is not allowed.'],
                         ]);
                     }
 
+                    // --- BƯỚC 5: XỬ LÝ THỜI GIAN VÀ BÀN MỚI ---
                     $currentTableIds = ReservationTable::query()
                         ->where('reservation_id', $reservationId)
                         ->lockForUpdate()
@@ -143,6 +172,9 @@ class ReservationRescheduleService
                         ? Carbon::parse((string) $payload['start_time'])->utc()
                         : $oldStart->copy();
 
+                    // Logic nội suy thời gian kết thúc:
+                    // Nếu truyền lên giờ kết thúc -> Xài luôn.
+                    // Nếu chỉ truyền giờ bắt đầu -> Cộng thêm khoảng thời gian phục vụ (Duration) cũ.
                     if (array_key_exists('end_time', $payload) && $payload['end_time'] !== null) {
                         $newEnd = Carbon::parse((string) $payload['end_time'])->utc();
                     } elseif (array_key_exists('start_time', $payload) && $payload['start_time'] !== null) {
@@ -164,6 +196,10 @@ class ReservationRescheduleService
                     }
 
                     $timeChanged = ! $newStart->equalTo($oldStart) || ! $newEnd->equalTo($oldEnd);
+
+                    // --- BƯỚC 6: RÀ SOÁT CÁC MÓN GỌI TRƯỚC (PRE-ORDER RE-VALIDATION) ---
+                    // CỰC KỲ QUAN TRỌNG: Khách dời lịch sang ngày mai. Món "Tôm hùm" khách gọi trước
+                    // liệu ngày mai quán còn bán không? Hoặc khách dời từ 19:00 sang 18:00, liệu bếp có kịp rã đông tôm không?
                     if ($timeChanged) {
                         $this->assertExistingPreOrdersStillValidForNewTime(
                             reservationId: $reservationId,
@@ -180,6 +216,7 @@ class ReservationRescheduleService
                         : $oldNotes;
 
                     $newTableIds = $this->normalizeTableIds($payload['table_ids'] ?? null);
+                    // Nếu Payload không cung cấp danh sách bàn mới, hệ thống tự động giữ nguyên mảng bàn cũ
                     if ($newTableIds === []) {
                         $newTableIds = $oldTableIds;
                     }
@@ -187,6 +224,7 @@ class ReservationRescheduleService
                     $tableChanged = $newTableIds !== $oldTableIds;
                     $reservationBranchId = $this->reservationBranchScopeService->resolveEffectiveReservationBranchId($reservation->branch_id);
 
+                    // --- BƯỚC 7: THẨM ĐỊNH TÀI NGUYÊN BÀN MỚI ---
                     $tables = RestaurantTable::query()
                         ->whereIn('table_id', $newTableIds)
                         ->lockForUpdate()
@@ -205,6 +243,7 @@ class ReservationRescheduleService
                         ]);
                     }
 
+                    // Chặn việc dời 1 nửa đơn sang chi nhánh khác (Split Branch)
                     if ($newTableIds !== []) {
                         $reservationBranchId = $this->reservationBranchScopeService->syncReservationBranchOrAssert(
                             $reservation,
@@ -216,6 +255,7 @@ class ReservationRescheduleService
                         );
                     }
 
+                    // Bàn mới có đang bị dọn dẹp/sửa chữa không?
                     $blocked = $tables->filter(function (RestaurantTable $table): bool {
                         $status = $table->status?->value ?? (string) $table->status;
 
@@ -240,14 +280,16 @@ class ReservationRescheduleService
                         }
                     }
 
+                    // --- BƯỚC 8: KIỂM TRA ĐỤNG ĐỘ THỜI GIAN ---
                     if ($newTableIds !== []) {
                         $this->assertCapacityEnough($tables, $newGuestCount);
 
+                        // Có cái bàn nào trong danh sách mới trùng lịch với đơn của người khác không?
                         $reservationConflictIds = $this->tableTimeConflictService->findReservationConflictTableIds(
                             tableIds: $newTableIds,
                             start: $newStart,
                             end: $newEnd,
-                            ignoreReservationId: $reservationId,
+                            ignoreReservationId: $reservationId, // TẤT NHIÊN PHẢI BỎ QUA ID CỦA CHÍNH MÌNH KHI CHECK
                             lock: true,
                         );
                         if ($reservationConflictIds !== []) {
@@ -256,6 +298,7 @@ class ReservationRescheduleService
                             ]);
                         }
 
+                        // Có bàn nào đang bị khách online khác giữ tạm (Hold) không?
                         $holdConflictIds = $this->tableTimeConflictService->findHoldConflictTableIds(
                             tableIds: $newTableIds,
                             start: $newStart,
@@ -282,12 +325,14 @@ class ReservationRescheduleService
                     $guestChanged = $newGuestCount !== $oldGuestCount;
                     $notesChanged = $newNotes !== $oldNotes;
 
+                    // Tối ưu hóa Database: Nếu request gửi lên y chang hiện tại thì không làm gì cả, return luôn.
                     if (! $timeChanged && ! $guestChanged && ! $notesChanged && ! $tableChanged) {
                         return Reservation::query()
                             ->with(['user', 'tables', 'orders.items.item', 'payments'])
                             ->findOrFail($reservationId);
                     }
 
+                    // --- BƯỚC 9: LƯU SỰ THAY ĐỔI VÀO CSDL ---
                     if ($tableChanged) {
                         DB::table('reservation_tables')
                             ->where('reservation_id', $reservationId)
@@ -307,6 +352,7 @@ class ReservationRescheduleService
                     $reservation->updated_by = $actorUserId;
                     $reservation->save();
 
+                    // --- BƯỚC 10: XUẤT BẢN THÔNG BÁO (AUDIT & NOTIFICATION) ---
                     $changeSet = [
                         'actor_type' => $actorType,
                         'previous_start_time_utc' => $oldStart->toIso8601String(),
@@ -332,11 +378,14 @@ class ReservationRescheduleService
 
                     $reservation->loadMissing('user', 'tables', 'payments');
 
+                    // Chỉ báo Notification (Email/SMS) nếu Khách bị ảnh hưởng trực tiếp bởi thay đổi
+                    // (Ví dụ: Nhân viên chỉ vào sửa lại Note ghi chú thì không nên làm phiền khách)
                     $customerVisibleChange = $timeChanged || $guestChanged || $tableChanged;
                     if ($customerVisibleChange) {
                         if ($timeChanged) {
                             $this->notificationOutboxService->enqueueReservationRescheduled($reservation, $changeSet);
                         } else {
+                            // Nếu đổi bàn nhưng giữ nguyên giờ, chỉ báo là "Updated" chứ không phải "Rescheduled"
                             $this->notificationOutboxService->enqueueReservationUpdated($reservation, $changeSet);
                         }
                     }
@@ -418,6 +467,8 @@ class ReservationRescheduleService
     }
 
     /**
+     * Tẩy rửa ID truyền lên từ Frontend (Xóa trùng lặp, lọc số âm, sắp xếp)
+     *
      * @return array<int,int>
      */
     private function normalizeTableIds(mixed $tableIds): array
@@ -463,8 +514,13 @@ class ReservationRescheduleService
         return $notes === '' ? null : $notes;
     }
 
+    /**
+     * --- LOGIC KIỂM SOÁT TỒN KHO & LUẬT BÁN (PREORDER RE-VALIDATION) ---
+     * Được gọi khi khách thay đổi GIỜ hoặc NGÀY đặt bàn.
+     */
     private function assertExistingPreOrdersStillValidForNewTime(int $reservationId, Carbon $newStart): void
     {
+        // 1. Quét tìm tất cả các món ăn đang nằm trong Hóa đơn Đặt Trước của đơn này
         $preOrderRows = DB::table('reservation_order_items as roi')
             ->join('reservation_orders as ro', 'ro.order_id', '=', 'roi.order_id')
             ->where('ro.reservation_id', $reservationId)
@@ -494,6 +550,7 @@ class ReservationRescheduleService
             ]);
         }
 
+        // 2. Tải thông tin luật lệ của từng món ăn từ kho
         $menuItems = MenuItem::query()
             ->whereIn('item_id', $itemIds)
             ->get(['item_id', 'name', 'is_preorder_enabled', 'preorder_quota_per_day', 'preorder_cutoff_minutes'])
@@ -517,12 +574,14 @@ class ReservationRescheduleService
                 ]);
             }
 
+            // Luật 1: Món này có còn được phép bán không? (Nhà hàng mới cập nhật menu xóa món này)
             if ((int) ($menuItem->is_preorder_enabled ?? 0) !== 1) {
                 throw ValidationException::withMessages([
                     'start_time' => [sprintf('Cannot reschedule because pre-order item %s no longer supports pre-order.', (string) $menuItem->name)],
                 ]);
             }
 
+            // Luật 2: Cut-off time. Dời lịch lên sớm hơn dự kiến. Bếp có kịp làm không?
             $cutoffMinutes = (int) ($menuItem->preorder_cutoff_minutes ?? 0);
             if ($cutoffMinutes > 0 && Carbon::now('UTC')->addMinutes($cutoffMinutes)->gt($newStart)) {
                 throw ValidationException::withMessages([
@@ -530,11 +589,14 @@ class ReservationRescheduleService
                 ]);
             }
 
+            // Luật 3: Quota (Hạn mức trong ngày). Khách dời lịch sang ngày mai.
+            // Ngày mai nhà hàng đã chốt đủ đơn "Cua hoàng đế" cho khách khác rồi thì sao?
             $quotaPerDay = (int) ($menuItem->preorder_quota_per_day ?? 0);
             if ($quotaPerDay <= 0) {
-                continue;
+                continue; // Món không có hạn mức
             }
 
+            // Đếm số lượng món này đã bán TẠI NGÀY MỚI (Bỏ qua số lượng của chính đơn hiện tại)
             $existingQty = (int) DB::table('reservation_order_items as roi')
                 ->join('reservation_orders as ro', 'ro.order_id', '=', 'roi.order_id')
                 ->join('reservations as r', 'r.reservation_id', '=', 'ro.reservation_id')
@@ -546,10 +608,11 @@ class ReservationRescheduleService
                     ReservationStatus::checkedInDbValue(),
                     ReservationStatus::Completed->value,
                 ])
-                ->where('r.reservation_id', '!=', $reservationId)
+                ->where('r.reservation_id', '!=', $reservationId) // BỎ QUA MÌNH
                 ->where('roi.status', '!=', ReservationOrderItemStatus::Cancelled->value)
                 ->sum('roi.quantity');
 
+            // Quăng lỗi nếu phá vỡ giới hạn
             if ($existingQty + (int) $row->quantity > $quotaPerDay) {
                 throw ValidationException::withMessages([
                     'start_time' => [sprintf('Cannot reschedule because pre-order item %s would exceed daily quota on %s.', (string) $menuItem->name, $reservationDate)],
@@ -559,6 +622,8 @@ class ReservationRescheduleService
     }
 
     /**
+     * Bộ máy định danh nhân vật (Actor). Rất hữu ích cho Audit Trail.
+     *
      * @param  array<string,mixed>  $actorContext
      * @return array{type:string,user_id:int|null,audit_event:string,audit_actor_key:string}
      */

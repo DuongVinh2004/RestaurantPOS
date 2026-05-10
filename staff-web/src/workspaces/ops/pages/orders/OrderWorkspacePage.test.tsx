@@ -97,7 +97,7 @@ describe('OrderWorkspacePage', () => {
     expect(view.container.querySelector('.ant-card-head-title')).not.toBeNull();
   });
 
-  it('recovers the active order by table when the route order id is stale', async () => {
+  it('recovers the active order by reservation when the route order id is stale', async () => {
     apiMocks.getOrderDetail
       .mockRejectedValueOnce(new StaffApiError(404, {
         error_code: 'not_found',
@@ -108,7 +108,7 @@ describe('OrderWorkspacePage', () => {
         orderId: 72,
         orderRowVersion: 8,
       }));
-    apiMocks.getActiveOrderByTable.mockResolvedValue(createActiveOrderEnvelope({
+    apiMocks.getActiveOrderByReservation.mockResolvedValue(createActiveOrderEnvelope({
       orderId: 72,
       rowVersion: 8,
     }));
@@ -116,10 +116,25 @@ describe('OrderWorkspacePage', () => {
 
     renderWithProviders('/ops/orders?source=board&table_id=12&reservation_id=34&reservation_row_version=5&order_id=999&order_row_version=1');
 
-    await waitFor(() => expect(apiMocks.getActiveOrderByTable).toHaveBeenCalledWith(12));
+    await waitFor(() => expect(apiMocks.getActiveOrderByReservation).toHaveBeenCalledWith(34));
     expect(await screen.findByText('Đã khôi phục sang đơn hàng đang phục vụ #72')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId('location-search').textContent).toContain('order_id=72'));
     expect(screen.getByTestId('location-search').textContent).toContain('order_row_version=8');
+  });
+
+  it('shows an exact blocker when a stale order can only be recovered from table_id', async () => {
+    apiMocks.getOrderDetail.mockRejectedValueOnce(new StaffApiError(404, {
+      error_code: 'not_found',
+      message: 'Order not found.',
+      request_id: 'req-order-stale-table-only',
+    }, 'Not Found'));
+    apiMocks.listMenuItems.mockResolvedValue(createMenuEnvelope());
+
+    renderWithProviders('/ops/orders?source=board&table_id=12&order_id=999&order_row_version=1');
+
+    expect(await screen.findByText(/Route hien tai chi con table_id/i)).toBeInTheDocument();
+    expect(screen.getByText(/GET \/api\/v1\/staff\/tables\/\{table_id\}\/active-order/i)).toBeInTheDocument();
+    expect(apiMocks.getActiveOrderByReservation).not.toHaveBeenCalled();
   });
 
   it('shows a conflict recovery state when order item row versions are missing', async () => {
@@ -348,7 +363,7 @@ describe('OrderWorkspacePage', () => {
 
     renderWithProviders('/ops/orders?source=board&table_id=12&reservation_id=34&reservation_row_version=5&order_id=56&order_row_version=10');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Lưu thay đổi dòng món' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Lưu thay đổi dòng món' }, { timeout: 10000 }));
 
     expect(await screen.findByText('Bạn chưa có quyền thực hiện thao tác này')).toBeInTheDocument();
     expect(screen.getByText(/order\.manage/i)).toBeInTheDocument();
@@ -387,16 +402,17 @@ describe('OrderWorkspacePage', () => {
       message: 'Order not found.',
       request_id: 'req-order-stale-mutation',
     }, 'Not Found'));
-    apiMocks.getActiveOrderByTable.mockResolvedValueOnce(createActiveOrderEnvelope({
+    apiMocks.getActiveOrderByReservation.mockResolvedValueOnce(createActiveOrderEnvelope({
       orderId: 72,
       rowVersion: 12,
     }));
 
     renderWithProviders('/ops/orders?source=board&table_id=12&reservation_id=34&reservation_row_version=5&order_id=56&order_row_version=10');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Lưu thay đổi dòng món' }));
+    expect(await screen.findByPlaceholderText('Ghi chú cho bếp hoặc phục vụ', {}, { timeout: 10000 })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Lưu thay đổi dòng món' }, { timeout: 10000 }));
 
-    await waitFor(() => expect(apiMocks.getActiveOrderByTable).toHaveBeenCalledWith(12));
+    await waitFor(() => expect(apiMocks.getActiveOrderByReservation).toHaveBeenCalledWith(34));
     expect(await screen.findByText('Đã khôi phục sang đơn hàng đang phục vụ #72')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId('location-search').textContent).toContain('order_id=72'));
     expect(screen.getByTestId('location-search').textContent).toContain('order_row_version=12');

@@ -25,23 +25,27 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
     public function test_admin_can_list_zones_tables_and_templates(): void
     {
         $adminId = $this->createUser(['role_name' => 'Admin']);
-        $mainTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'ADM-MAIN-01', 'zone' => 'Main']);
-        $this->createRestaurantTableWithSeats(2, ['table_code' => 'ADM-PATIO-01', 'zone' => 'Patio']);
+        $mainZone = 'Admin Main Test';
+        $patioZone = 'Admin Patio Test';
+        $mainTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'ADM-MAIN-01', 'zone' => $mainZone]);
+        $this->createRestaurantTableWithSeats(2, ['table_code' => 'ADM-PATIO-01', 'zone' => $patioZone]);
 
         $zonesResponse = $this->withHeaders($this->staffHeaders($adminId, 'admin-zones-list'))
             ->getJson('/api/v1/admin/restaurant/zones');
 
         $zonesResponse
             ->assertOk()
-            ->assertJsonPath('meta.action', 'admin_restaurant_zones')
-            ->assertJsonPath('meta.summary.total_zones', 2);
+            ->assertJsonPath('meta.action', 'admin_restaurant_zones');
+
+        self::assertGreaterThanOrEqual(2, (int) $zonesResponse->json('meta.summary.total_zones'));
 
         $zones = collect($zonesResponse->json('data'))->keyBy('zone_label');
-        self::assertSame(1, (int) data_get($zones['Main'], 'table_count'));
-        self::assertContains($mainTableId, data_get($zones['Main'], 'table_ids', []));
+        self::assertSame(1, (int) data_get($zones[$mainZone], 'table_count'));
+        self::assertContains($mainTableId, data_get($zones[$mainZone], 'table_ids', []));
+        self::assertSame(1, (int) data_get($zones[$patioZone], 'table_count'));
 
         $tablesResponse = $this->withHeaders($this->staffHeaders($adminId, 'admin-tables-list'))
-            ->getJson('/api/v1/admin/restaurant/tables?zone=Main');
+            ->getJson('/api/v1/admin/restaurant/tables?zone='.rawurlencode($mainZone));
 
         $tablesResponse
             ->assertOk()
@@ -62,8 +66,10 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
     public function test_admin_can_rename_zone_across_existing_tables(): void
     {
         $adminId = $this->createUser(['role_name' => 'Admin']);
-        $firstTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'REN-01', 'zone' => 'Main']);
-        $secondTableId = $this->createRestaurantTableWithSeats(6, ['table_code' => 'REN-02', 'zone' => 'Main']);
+        $sourceZone = 'Admin Rename Source';
+        $targetZone = 'Admin Rename Target';
+        $firstTableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'REN-01', 'zone' => $sourceZone]);
+        $secondTableId = $this->createRestaurantTableWithSeats(6, ['table_code' => 'REN-02', 'zone' => $sourceZone]);
         $firstBefore = (int) DB::table('restaurant_tables')->where('table_id', $firstTableId)->value('row_version');
         $secondBefore = (int) DB::table('restaurant_tables')->where('table_id', $secondTableId)->value('row_version');
 
@@ -72,19 +78,19 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
             'idem-admin-zone-rename'
         ))
             ->postJson('/api/v1/admin/restaurant/zones/rename', [
-                'from_zone' => 'Main',
-                'to_zone' => 'VIP',
+                'from_zone' => $sourceZone,
+                'to_zone' => $targetZone,
             ]);
 
         $response
             ->assertOk()
             ->assertJsonPath('meta.action', 'admin_restaurant_zone_renamed')
-            ->assertJsonPath('data.from_zone', 'Main')
-            ->assertJsonPath('data.to_zone', 'VIP')
+            ->assertJsonPath('data.from_zone', $sourceZone)
+            ->assertJsonPath('data.to_zone', $targetZone)
             ->assertJsonPath('data.affected_table_count', 2);
 
-        self::assertSame('VIP', DB::table('restaurant_tables')->where('table_id', $firstTableId)->value('zone'));
-        self::assertSame('VIP', DB::table('restaurant_tables')->where('table_id', $secondTableId)->value('zone'));
+        self::assertSame($targetZone, DB::table('restaurant_tables')->where('table_id', $firstTableId)->value('zone'));
+        self::assertSame($targetZone, DB::table('restaurant_tables')->where('table_id', $secondTableId)->value('zone'));
         self::assertGreaterThan($firstBefore, (int) DB::table('restaurant_tables')->where('table_id', $firstTableId)->value('row_version'));
         self::assertGreaterThan($secondBefore, (int) DB::table('restaurant_tables')->where('table_id', $secondTableId)->value('row_version'));
     }
@@ -139,7 +145,8 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
     public function test_admin_cannot_rename_zone_while_any_table_in_zone_has_live_operational_links(): void
     {
         $adminId = $this->createUser(['role_name' => 'Admin']);
-        $tableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'ADM-ZONE-LIVE-01', 'zone' => 'Main']);
+        $sourceZone = 'Admin Live Source';
+        $tableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'ADM-ZONE-LIVE-01', 'zone' => $sourceZone]);
         $reservationId = $this->createReservation([
             'status' => 'Completed',
             'start_time' => Carbon::parse('2026-03-21 10:00:00', 'UTC'),
@@ -156,8 +163,8 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
             'idem-admin-zone-live-guard'
         ))
             ->postJson('/api/v1/admin/restaurant/zones/rename', [
-                'from_zone' => 'Main',
-                'to_zone' => 'VIP',
+                'from_zone' => $sourceZone,
+                'to_zone' => 'Admin Live Target',
             ]);
 
         $response

@@ -9,10 +9,16 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Chuan hoa branch context cho cac flow nghiep vu:
+ * tim branch mac dinh, resolve branch id, va chan scope sai chi nhanh.
+ */
 class BranchContextService
 {
     public function defaultBranch(): Branch
     {
+        // Uu tien branch default; neu chua cau hinh thi roi xuong active branch dau tien.
+        // Pha 1: uu tien branch duoc danh dau default de giu compatibility cho flow single-site.
         /** @var Branch|null $branch */
         $branch = Branch::query()
             ->where('is_default', true)
@@ -23,6 +29,7 @@ class BranchContextService
             return $branch;
         }
 
+        // Neu chua co default thi fallback ve active branch dau tien de he thong van boot duoc.
         /** @var Branch|null $active */
         $active = Branch::query()->where('is_active', true)->orderBy('branch_id')->first();
         if ($active instanceof Branch) {
@@ -34,10 +41,12 @@ class BranchContextService
 
     public function resolveBranchId(mixed $branchId = null, bool $activeOnly = true): int
     {
+        // Null branch duoc hieu la "lay branch van hanh mac dinh".
         if ($branchId === null || $branchId === '') {
             return (int) $this->defaultBranch()->branch_id;
         }
 
+        // resolveBranchId la diem normalize chung cho moi branch input tu request/config/model.
         /** @var Branch|null $branch */
         $branch = Branch::query()
             ->when($activeOnly, static fn ($query) => $query->where('is_active', true))
@@ -61,8 +70,10 @@ class BranchContextService
         string $field = 'branch_id',
         bool $activeOnly = false
     ): int {
+        // Dung khi request gom nhieu resource; tat ca phai quy ve cung mot branch.
         $resolved = [];
 
+        // Tat ca id di qua resolveBranchId de active/default semantics duoc ap dung dong nhat.
         foreach ($branchIds as $branchId) {
             $resolved[] = $this->resolveBranchId($branchId, $activeOnly);
         }
@@ -88,6 +99,7 @@ class BranchContextService
         string $field = 'branch_id',
         bool $activeOnly = false
     ): int {
+        // Chot chan cuoi de reservation, table, hold, payment... khong bi drift branch.
         $expected = $this->resolveBranchId($expectedBranchId, $activeOnly);
         $actual = $this->resolveBranchId($actualBranchId, $activeOnly);
 
@@ -102,6 +114,7 @@ class BranchContextService
 
     public function ensureDefaultBranchExists(): void
     {
+        // Helper bootstrap nay giup code da branch-aware van chay tren moi truong chua setup branch day du.
         if (! DB::getSchemaBuilder()->hasTable('branches')) {
             return;
         }

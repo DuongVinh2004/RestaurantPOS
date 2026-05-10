@@ -13,6 +13,9 @@ Use this file to choose the smallest correct context before reading code.
 | --- | --- | --- |
 | customer-web or staff-web contract, sdk, error shape, enum or state exposure, frontend DX | `restaurantpos-web-client-contracts` | `docs/runbooks/api-consumer-artifacts.md`, `docs/runbooks/booking-api-contract.md`, `config/api_artifacts.php`, `app/Support/ApiErrorResponse.php`, `config/cors.php` |
 | customer or staff web login, refresh or logout, auth headers, session propagation, CORS auth | `restaurantpos-web-auth-session-contract` | `config/customer_auth.php`, `config/staff_auth.php`, `config/cors.php`, `app/Http/Middleware/CustomerOrStaffMiddleware.php`, `app/Http/Controllers/Api/Auth/*` |
+| staff-web operator UI, React route, Ant Design table/form/modal, POS/KDS/cashier/admin screen | `restaurantpos-staff-web-react` | `staff-web/package.json`, `staff-web/src/app/router/*`, owning `staff-web/src/domains/*` or `staff-web/src/workspaces/*` feature, adjacent `*.test.tsx` |
+| customer-web page, form, async state, booking/menu/reservation/payment UI | `restaurantpos-customer-web-ui-flow` | `customer-web/package.json`, owning `customer-web/src/features/*` route or component, `customer-web/src/lib/*` API adapter, adjacent tests |
+| visible UI consistency, table/form/modal/status badge, responsive or accessibility polish | `restaurantpos-ui-design-system-guardian` | affected app `package.json`, owning component, existing sibling pattern, adjacent UI test |
 | staff auth, customer auth, RBAC, capability, deny-path | `restaurantpos-auth-rbac` | `config/staff_auth.php`, `config/customer_auth.php`, `config/staff_capabilities.php`, `app/Http/Middleware/*`, `routes/api.php` |
 | reservation board, hold, check-in, move-table, release | `restaurantpos-foh-reservations` | `app/Services/ReservationService.php`, `app/Services/TableAvailabilityService.php`, `app/Services/TableHoldService.php`, `app/Services/Staff/StaffTableBoardService.php`, matching feature tests |
 | table order, item status, active order, order reads | `restaurantpos-order-lifecycle` | `app/Services/Staff/StaffTableOrderService.php`, `app/Services/Staff/StaffOrderItemLifecycleService.php`, `app/Services/Staff/StaffOrderReadService.php`, matching staff tests |
@@ -32,6 +35,7 @@ Use this file to choose the smallest correct context before reading code.
 
 - Need FE contract, SDK, error envelope, enum or state exposure, or browser DX coverage: `restaurantpos-web-client-contracts`
 - Need split web auth headers, access sessions, or browser auth delivery coverage: `restaurantpos-web-auth-session-contract`
+- Visible frontend UI changed: `restaurantpos-ui-design-system-guardian`
 - Shared seam touched: `restaurantpos-shared-file-discipline`
 - DB contract moved: `restaurantpos-sql-first-schema-sync`
 - Need smallest safe tests: `restaurantpos-targeted-verification`
@@ -49,3 +53,7 @@ Use this file to choose the smallest correct context before reading code.
 - If the first-pass files clearly isolate the fix, do not broaden the scan
 - If a task reads as multi-domain, switch to `restaurantpos-workstream-orchestrator` before patching
 - If a task affects both schema and runtime ops, combine `restaurantpos-sql-first-schema-sync` and `restaurantpos-ops-release-contract`
+
+## Context budget
+
+Use `context-budget.md` before reading beyond the first-pass set. Prefer exact symbols and path-limited searches over broad module dumps.

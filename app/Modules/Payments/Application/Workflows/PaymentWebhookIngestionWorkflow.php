@@ -26,6 +26,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Cua vao webhook thanh toan:
+ * xac minh chu ky, dedupe receipt, route theo scope, va dong bo session/payment vao he thong.
+ */
 class PaymentWebhookIngestionWorkflow
 {
     public function __construct(
@@ -43,6 +47,7 @@ class PaymentWebhookIngestionWorkflow
      */
     public function ingest(string $providerCode, string $rawBody, array $headers): array
     {
+        // Webhook bi chan ngay neu signature khong hop le de tranh fake event di sau vao finance flow.
         $provider = $this->providers->resolve($providerCode);
         if (! $provider->verifyWebhookSignature($rawBody, $headers)) {
             $this->recordWebhookOutcome('failed', [
@@ -57,9 +62,11 @@ class PaymentWebhookIngestionWorkflow
             ]);
         }
 
+        // Pha 1: parse raw webhook thanh event chuan hoa de he thong route theo scope/session.
         $event = $provider->parseWebhook($rawBody, $headers);
         $receipt = $this->createReceipt($provider->code(), $event, $headers, $rawBody);
         $isDuplicateDelivery = ($receipt['duplicate'] ?? false) === true;
+        // Receipt la "so nhan event" de webhook duplicate/retry co the duoc xu ly idempotent.
         if (($receipt['duplicate'] ?? false) === true) {
             /** @var PaymentProviderWebhookReceipt $existing */
             $existing = $receipt['receipt'];
@@ -77,6 +84,7 @@ class PaymentWebhookIngestionWorkflow
         $storedReceipt = $receipt['receipt'];
 
         try {
+            // Pha 2: resolve scope va event type truoc khi route vao lifecycle workflow tuong ung.
             $scope = $this->resolveScope($provider->code(), (string) $event['provider_session_code'], $event['payment_scope'] ?? null);
             $eventType = trim((string) ($event['event_type'] ?? 'payment.session.updated')) ?: 'payment.session.updated';
 
@@ -98,6 +106,7 @@ class PaymentWebhookIngestionWorkflow
                 PaymentSessionScope::Bill => $this->handleBillWebhook($provider->code(), $event, $storedReceipt),
             };
 
+            // Duplicate delivery hop le van tra ket qua hien tai, nhung danh dau de audit/ops doc duoc.
             if ($isDuplicateDelivery) {
                 $result['duplicate'] = true;
                 $result['resumed_incomplete_delivery'] = true;
@@ -127,6 +136,7 @@ class PaymentWebhookIngestionWorkflow
      */
     private function createReceipt(string $providerCode, array $event, array $headers, string $rawBody): array
     {
+        // Moi event duoc persist receipt truoc khi xu ly business logic de co dau vet retries/failures.
         try {
             $receipt = new PaymentProviderWebhookReceipt;
             $receipt->provider_code = $providerCode;
@@ -228,6 +238,7 @@ class PaymentWebhookIngestionWorkflow
      */
     private function handleDepositWebhook(string $providerCode, array $event, PaymentProviderWebhookReceipt $receipt): array
     {
+        // Deposit webhook tim session truoc; neu session mat thi fail receipt thay vi silently skip.
         $session = ReservationDepositPaymentSession::query()
             ->where('provider_code', $providerCode)
             ->where('provider_session_code', (string) $event['provider_session_code'])
@@ -239,6 +250,7 @@ class PaymentWebhookIngestionWorkflow
 
         $depositPaidRealtimeContext = null;
 
+        // Pha 3: lock reservation scope de apply session/payment idempotent tren cung reservation.
         $result = $this->locks->withReservationLock((int) $session->reservation_id, function () use ($providerCode, $event, $receipt, $session, &$depositPaidRealtimeContext) {
             return DB::transaction(function () use ($providerCode, $event, $receipt, $session, &$depositPaidRealtimeContext) {
                 $lockedSession = ReservationDepositPaymentSession::query()
@@ -275,6 +287,7 @@ class PaymentWebhookIngestionWorkflow
                 }
 
                 $currentStatus = (string) ($lockedSession->session_status?->value ?? $lockedSession->session_status ?? '');
+                // applyProviderResult cap nhat state machine cua session; applySucceeded... moi quyet dinh tao payment.
                 $applied = $this->depositLifecycle->applyProviderResult($lockedSession, $event, null);
                 $lockedPayments = Payment::query()
                     ->where('reservation_id', (int) $reservation->reservation_id)
@@ -317,6 +330,7 @@ class PaymentWebhookIngestionWorkflow
      */
     private function handleBillWebhook(string $providerCode, array $event, PaymentProviderWebhookReceipt $receipt): array
     {
+        // Bill webhook follow cung mau nhu deposit nhung apply vao bill payment lifecycle.
         $session = ReservationBillPaymentSession::query()
             ->where('provider_code', $providerCode)
             ->where('provider_session_code', (string) $event['provider_session_code'])

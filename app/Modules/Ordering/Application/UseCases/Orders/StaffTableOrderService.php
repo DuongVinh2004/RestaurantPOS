@@ -26,6 +26,9 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Quản lý order OnSpot tại bàn: mở order phục vụ và thêm món trong lúc session đang chạy.
+ */
 class StaffTableOrderService
 {
     private const STALE_ROW_VERSION_MESSAGE = 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.';
@@ -43,9 +46,8 @@ class StaffTableOrderService
     }
 
     /**
-     * Táº¡o (hoáº·c reuse) order OnSpot cho bÃ n Ä‘ang phá»¥c vá»¥.
-     * - reservationId optional: náº¿u 0, server tá»± resolve reservation Reserved cá»§a bÃ n
-     * - items optional: cÃ³ thá»ƒ táº¡o order rá»—ng rá»“i addItems sau
+     * Tạo hoặc dùng lại order OnSpot cho bàn đang phục vụ.
+     * Nếu chưa có reservation/order phù hợp, service sẽ tự khóa và dựng đúng ngữ cảnh.
      */
     public function createOnSpotOrder(
         int $tableId,
@@ -56,10 +58,12 @@ class StaffTableOrderService
         string $notes = '',
         ?int $expectedRowVersion = null,
     ): ReservationOrder {
+        // Pha 1: normalize actor va request fingerprint de support retry an toan tu POS.
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $idempotencyKey = trim($idempotencyKey);
         $createReplayPayload = $this->buildCreateOnSpotReplayPayload($items, $notes);
 
+        // Idempotency cho phép POS retry mà không tạo trùng order hoặc trùng món.
         if ($idempotencyKey !== '' && $reservationId > 0) {
             $this->assertCreateReplayScopeAccessible($tableId, $reservationId, $staffUserId);
 
@@ -79,6 +83,7 @@ class StaffTableOrderService
         }
 
         try {
+            // Lock theo table vi create/reuse on-spot order luon gan voi mot ban dang phuc vu cu the.
             return $this->locks->withTableLocks([$tableId], function () use ($tableId, $reservationId, $items, $staffUserId, $idempotencyKey, $notes, $expectedRowVersion, $createReplayPayload) {
                 return DB::transaction(function () use ($tableId, $reservationId, $items, $staffUserId, $idempotencyKey, $notes, $expectedRowVersion, $createReplayPayload) {
                     /** @var RestaurantTable $table */
@@ -90,6 +95,7 @@ class StaffTableOrderService
                     }
 
                     // Resolve active reservation if not provided
+                    // Neu client chua truyen reservationId thi resolve tu active session tren ban dang Occupied.
                     if ($reservationId <= 0) {
                         $reservationId = $this->resolveActiveReservationIdForTable($tableId);
                     }
@@ -118,6 +124,7 @@ class StaffTableOrderService
                     $this->assertOperationalBranchAccessible($tableBranchId, $staffUserId);
                     $branchId = $this->ensureReservationBranchAligned($reservation, $tableBranchId, $staffUserId);
 
+                    // Sau khi lock xong van replay-check lan nua de tranh race giua 2 request retry song song.
                     if ($idempotencyKey !== '') {
                         $existing = $this->loadReplayedOrder(
                             cachePrefix: 'booking:idem:staff_order',
@@ -134,7 +141,8 @@ class StaffTableOrderService
                         }
                     }
 
-                    // Reuse active order if exists
+                    // Nếu đã có order OnSpot đang mở thì tiếp tục dùng lại, không tạo bản ghi mới.
+                    // Reservation chi co 1 OnSpot order active lam "neo" cho item lifecycle va settlement.
                     $existing = ReservationOrder::query()
                         ->where('reservation_id', $reservationId)
                         ->where('order_type', ReservationOrderType::OnSpot)
@@ -177,6 +185,7 @@ class StaffTableOrderService
                         return $existing;
                     }
 
+                    // Pha 2: reuse order active neu co, neu khong moi tao order moi.
                     if (! $existing) {
                         $order->reservation_id = $reservationId;
                         $order->setAttribute('order_type', ReservationOrderType::OnSpot);
@@ -188,7 +197,8 @@ class StaffTableOrderService
                     $order->save();
 
                     $createdItems = [];
-                    // Append items if provided
+                    // Chỉ append món sau khi order hợp lệ và bill của reservation vẫn còn mở.
+                    // Pha 3: item chi duoc append sau khi order/reservation da qua het gate editable bill state.
                     if ($hasItems) {
                         $createdItems = $this->appendItems($order->order_id, $items, $staffUserId);
                     }
@@ -207,6 +217,7 @@ class StaffTableOrderService
                         );
                     }
 
+                    // Pha 4: audit sau khi order va item da ton tai day du de log co ngu canh hoan chinh.
                     $this->recordOrderCreatedAudit(
                         $order,
                         (int) $reservationId,
@@ -237,9 +248,11 @@ class StaffTableOrderService
         string $idempotencyKey = '',
         ?int $expectedRowVersion = null,
     ): ReservationOrder {
+        // addItems co replay scope rieng vi day la mutation tren order da ton tai.
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $idempotencyKey = trim($idempotencyKey);
         $addItemsReplayPayload = $this->buildAddItemsReplayPayload($items);
+        // addItems khóa reservation và các bàn liên quan để bill không bị lệch khi thao tác song song.
         if ($idempotencyKey !== '') {
             $this->assertOrderReplayScopeAccessible($orderId, $staffUserId);
 
@@ -262,6 +275,7 @@ class StaffTableOrderService
             throw ValidationException::withMessages(['order_id' => 'Order not found.']);
         }
 
+        // Lock scope duoc mo rong ra reservation + tat ca table dang gan voi reservation do.
         $tableIds = DB::table('reservation_tables')
             ->where('reservation_id', $reservationId)
             ->orderBy('table_id')
@@ -278,6 +292,7 @@ class StaffTableOrderService
                 function () use ($orderId, $items, $staffUserId, $idempotencyKey, $reservationId, $tableIds, $expectedRowVersion, $addItemsReplayPayload) {
                     return DB::transaction(function () use ($orderId, $items, $staffUserId, $idempotencyKey, $reservationId, $tableIds, $expectedRowVersion, $addItemsReplayPayload) {
                         /** @var ReservationOrder $order */
+                        // Pha 1: lock order, reservation va assigned tables tren cung mot snapshot write.
                         $order = ReservationOrder::query()->where('order_id', $orderId)->lockForUpdate()->firstOrFail();
                         $this->assertExpectedOrderRowVersion($order, $expectedRowVersion);
 
@@ -323,6 +338,7 @@ class StaffTableOrderService
                             $this->assertOperationalBranchAccessible($branchId, $staffUserId);
                         }
 
+                        // Pha 2: append items sau khi xac minh order active, reservation in-service va tables Occupied.
                         $createdItems = $this->appendItems($order->order_id, $items, $staffUserId);
 
                         $order->updated_by = $staffUserId;

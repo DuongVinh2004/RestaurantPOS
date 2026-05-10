@@ -28,6 +28,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Mở service session tại chỗ cho khách walk-in và tra cứu session đang phục vụ theo bàn.
+ */
 class StaffServiceSessionService
 {
     public function __construct(
@@ -44,6 +47,8 @@ class StaffServiceSessionService
 
     public function createWalkInSession(array $payload, ?int $staffUserId = null): Reservation
     {
+        // Walk-in được tạo thành reservation đã check-in ngay để POS dùng cùng một mô hình dữ liệu.
+        // Pha 1: chuan hoa actor va input de walk-in session di theo mot payload viet ro.
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $tableIds = $this->normalizeTableIds((array) ($payload['table_ids'] ?? []));
         $guestCount = (int) ($payload['guest_count'] ?? 0);
@@ -51,11 +56,14 @@ class StaffServiceSessionService
             ? Carbon::parse((string) $payload['started_at'])->utc()
             : Carbon::now('UTC');
 
+        // Lock theo table ids de khong co hai luong cung mo walk-in tren cung mot ban.
         return $this->locks->withTableLocks($tableIds, function () use ($payload, $tableIds, $guestCount, $startedAt, $staffUserId) {
             return DB::transaction(function () use ($payload, $tableIds, $guestCount, $startedAt, $staffUserId) {
+                // Pha 2: lock table rows va gate capacity/allocatable truoc khi tao reservation.
                 $tables = $this->conflictValidator->lockAndLoadTables($tableIds);
                 $this->conflictValidator->assertTablesAllocatableAndCapacity($tables, $tableIds, $guestCount);
 
+                // Suy ra chi nhánh vận hành từ bàn và kiểm tra staff có quyền thao tác tại đó.
                 $tableBranchId = $this->reservationBranchScopeService->resolveTableBranchId(
                     $tables->pluck('branch_id')->all(),
                     'Selected tables must belong to a single branch.',
@@ -74,6 +82,7 @@ class StaffServiceSessionService
                     );
                 }
 
+                // Service window cua walk-in duoc suy ra tu payload hoac branch policy waiting list.
                 $serviceMinutes = isset($payload['service_minutes'])
                     ? (int) $payload['service_minutes']
                     : $this->branchSchedulingPolicyService->waitingListServiceMinutes($tableBranchId, true);
@@ -88,11 +97,15 @@ class StaffServiceSessionService
                     true,
                 );
 
+                // Conflict gate nay bao ve ca overlap reservation va cac rang buoc create khac.
                 $this->conflictValidator->assertNoCreateConflicts($tableIds, $startedAt, $endAt);
 
+                // Nếu là khách vãng lai, hệ thống tạo hồ sơ tối thiểu để reservation và billing bám vào.
+                // Pha 3: xac dinh customer hien huu hay auto-tao profile toi thieu cho khach vang lai.
                 [$customer, $customerCreated] = $this->resolveWalkInCustomer($payload);
                 $branch = $this->branchSchedulingPolicyService->resolveBranch($tableBranchId, true);
 
+                // Pha 4: tao reservation nguon WalkIn va mark checked-in ngay de POS dung chung model reservation.
                 $reservation = new Reservation;
                 $reservation->branch_id = $tableBranchId;
                 $reservation->user_id = (int) $customer->user_id;
@@ -111,6 +124,8 @@ class StaffServiceSessionService
                 $reservation->save();
                 $reservation->tables()->attach($tableIds);
 
+                // Từ thời điểm này bàn đã có khách, outbox và realtime sẽ báo cho các màn hình liên quan.
+                // Pha 5: board state, outbox va realtime duoc day ngay sau khi reservation/table mapping da ton tai.
                 $this->tableStateService->occupyTables(
                     $tableIds,
                     $startedAt,
@@ -195,8 +210,10 @@ class StaffServiceSessionService
 
     public function findActiveSessionByTable(int $tableId, ?int $staffUserId = null): ?Reservation
     {
+        // Doc active session theo table cung phai di qua branch scope va realtime table state.
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
+        // Chỉ trả session khi bàn đang Occupied và staff có quyền xem đúng chi nhánh.
         /** @var RestaurantTable|null $table */
         $table = RestaurantTable::query()
             ->where('table_id', $tableId)
@@ -217,6 +234,7 @@ class StaffServiceSessionService
             return null;
         }
 
+        // Query nay tim reservation dang phuc vu gan nhat tren table, uu tien checked_in_at moi nhat.
         $reservationId = DB::table('reservation_tables as rt')
             ->join('reservations as r', 'r.reservation_id', '=', 'rt.reservation_id')
             ->where('rt.table_id', $tableId)
@@ -252,6 +270,7 @@ class StaffServiceSessionService
             return null;
         }
 
+        // Sau khi load reservation day du, branch scope duoc kiem lai lan cuoi de tranh drift data.
         $this->reservationBranchScopeService->assertReservationMatchesTableBranches(
             $reservation->branch_id,
             $reservation->tables->pluck('branch_id')->all(),
@@ -276,6 +295,7 @@ class StaffServiceSessionService
      */
     private function resolveWalkInCustomer(array $payload): array
     {
+        // Walk-in uu tien gan vao customer co san; neu khong co moi roi xuong guest profile toi thieu.
         $userId = isset($payload['user_id']) ? (int) $payload['user_id'] : 0;
         if ($userId > 0) {
             return [$this->resolveExistingWalkInCustomer($userId), false];
@@ -288,6 +308,7 @@ class StaffServiceSessionService
             ]);
         }
 
+        // Phone la diem noi lai customer cu neu khach da tung ton tai trong he thong.
         $phone = $this->normalizeNullableString($payload['phone'] ?? null);
         if ($phone !== null) {
             /** @var User|null $existingCustomer */

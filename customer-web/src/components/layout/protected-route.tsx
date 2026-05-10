@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AppButton } from "@/components/customer/ui";
+import { useCustomerSession } from "@/features/auth/hooks";
 import { buildCustomerAuthNext, buildCustomerLoginHref } from "@/lib/auth/navigation";
 import { allowsCustomerSessionAccess, getCustomerRouteAccess } from "@/lib/auth/route-access";
-import { getCustomerSessionId } from "@/lib/auth/storage";
+import { storeCustomerReturnToAction } from "@/lib/auth/return-to-action";
 import { getSessionRestoreDisplay } from "@/lib/api/errors";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -15,12 +16,23 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { authError, isAuthenticated, isBootstrapping, logout, retryBootstrap } = useAuth();
+  const { isSessionReady, sessionId, continueAsGuest } = useCustomerSession();
   const nextPath = buildCustomerAuthNext(pathname, searchParams);
   const routeAccess = getCustomerRouteAccess(pathname);
-  const hasCustomerSession = Boolean(getCustomerSessionId());
-  const canUseCustomerSession = allowsCustomerSessionAccess(routeAccess) && hasCustomerSession;
+  const routeAllowsCustomerSession = allowsCustomerSessionAccess(routeAccess);
+  const canUseCustomerSession = routeAllowsCustomerSession && Boolean(sessionId);
 
   if (isBootstrapping) {
+    return (
+      <main className="mx-auto flex min-h-[70svh] w-full max-w-4xl flex-col gap-4 px-4 py-8">
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </main>
+    );
+  }
+
+  if (!isAuthenticated && routeAllowsCustomerSession && !isSessionReady) {
     return (
       <main className="mx-auto flex min-h-[70svh] w-full max-w-4xl flex-col gap-4 px-4 py-8">
         <Skeleton className="h-8 w-40" />
@@ -40,21 +52,19 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
             <CardTitle>{restoreDisplay.title}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {restoreDisplay.message}
-            </p>
+            <p className="text-sm text-muted-foreground">{restoreDisplay.message}</p>
             {restoreDisplay.retryHint ? <p className="text-sm text-muted-foreground">{restoreDisplay.retryHint}</p> : null}
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Button
+              <AppButton
                 type="button"
-                className="flex-1 rounded-lg"
+                className="flex-1"
                 onClick={restoreDisplay.primaryAction === "retry" ? retryBootstrap : () => void logout({ nextPath })}
               >
-                {restoreDisplay.primaryAction === "retry" ? "Kiểm tra lại phiên" : "Đến trang đăng nhập"}
-              </Button>
-              <Button type="button" variant="outline" className="flex-1 rounded-lg" onClick={() => void logout()}>
+                {restoreDisplay.primaryAction === "retry" ? "Kiểm tra lại" : "Đăng nhập"}
+              </AppButton>
+              <AppButton type="button" variant="outline" className="flex-1" onClick={() => void logout()}>
                 Đặt lại phiên
-              </Button>
+              </AppButton>
             </div>
           </CardContent>
         </Card>
@@ -77,12 +87,17 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">{routeAccess.description}</p>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Button asChild className="flex-1 rounded-lg">
-                  <Link href="/booking">Tìm bàn</Link>
-                </Button>
-                <Button asChild variant="outline" className="flex-1 rounded-lg">
-                  <Link href={buildCustomerLoginHref(nextPath)}>Đăng nhập</Link>
-                </Button>
+                <AppButton type="button" className="flex-1" onClick={continueAsGuest}>
+                  Tiếp tục với tư cách khách
+                </AppButton>
+                <AppButton asChild variant="outline" className="flex-1">
+                  <Link
+                    href={buildCustomerLoginHref(nextPath)}
+                    onClick={() => storeCustomerReturnToAction({ href: nextPath, label: routeAccess.title })}
+                  >
+                    Đăng nhập
+                  </Link>
+                </AppButton>
               </div>
             </CardContent>
           </Card>
@@ -98,9 +113,14 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">{routeAccess.description}</p>
-            <Button asChild className="w-full rounded-lg">
-              <Link href={buildCustomerLoginHref(nextPath)}>Đăng nhập</Link>
-            </Button>
+            <AppButton asChild className="w-full">
+              <Link
+                href={buildCustomerLoginHref(nextPath)}
+                onClick={() => storeCustomerReturnToAction({ href: nextPath, label: routeAccess.title })}
+              >
+                Đăng nhập
+              </Link>
+            </AppButton>
           </CardContent>
         </Card>
       </main>

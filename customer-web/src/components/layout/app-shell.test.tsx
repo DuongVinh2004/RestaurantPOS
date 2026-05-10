@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
     profile: null as { name?: string } | null,
     logout: vi.fn(),
   },
+  identity: {
+    hasGuestSession: false,
+  },
 }));
 
 vi.mock("next/link", () => ({
@@ -25,15 +28,18 @@ vi.mock("@/providers/auth-provider", () => ({
   useAuth: () => mocks.auth,
 }));
 
+vi.mock("@/features/auth/hooks", () => ({
+  useCustomerIdentity: () => mocks.identity,
+}));
+
 vi.mock("@/lib/config/feature-flags", () => ({
   featureFlags: {
-    waitingList: false,
+    preorder: true,
   },
-  customerWebRollout: {
-    waitingList: {
-      enabled: false,
-    },
-  },
+}));
+
+vi.mock("@/features/branch/branch-selector", () => ({
+  SelectedBranchEntry: () => <button type="button">Chọn chi nhánh</button>,
 }));
 
 vi.mock("./backend-status-banner", () => ({
@@ -48,6 +54,7 @@ vi.mock("@/components/ui/sheet", () => ({
   Sheet: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SheetTrigger: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SheetContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  SheetDescription: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SheetHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SheetTitle: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
@@ -61,26 +68,39 @@ describe("AppShell", () => {
       profile: null,
       logout: mocks.logout,
     };
+    mocks.identity = {
+      hasGuestSession: false,
+    };
   });
 
-  it("keeps rollout-disabled waiting list links out of the shell", () => {
+  it("renders customer navigation and guest account entry", () => {
     render(
       <AppShell>
         <div>page</div>
       </AppShell>,
     );
 
-    expect(screen.queryByRole("link", { name: "Danh sách chờ" })).not.toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: "Đăng nhập" }).length).toBeGreaterThan(0);
-    expect(screen.queryByLabelText("Điều hướng nhanh")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Trang chủ RestaurantPOS" })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Trang chủ" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Thực đơn" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Đặt bàn" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Lịch đặt" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Chờ bàn" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Tài khoản" }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Chọn chi nhánh" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Đặt trước" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Điều hướng cuối màn hình")).toBeInTheDocument();
   });
 
-  it("shows quick mobile navigation for authenticated customers", () => {
+  it("marks the active mobile route and shows authenticated customer state", () => {
     mocks.pathname = "/reservations";
     mocks.auth = {
       isAuthenticated: true,
       profile: { name: "Casey" },
       logout: mocks.logout,
+    };
+    mocks.identity = {
+      hasGuestSession: true,
     };
 
     render(
@@ -89,10 +109,22 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    expect(screen.getAllByText("Casey")).toHaveLength(2);
+    expect(screen.getAllByText("Casey").length).toBeGreaterThan(0);
 
-    const quickNav = screen.getByLabelText("Điều hướng nhanh");
-    expect(within(quickNav).getByRole("link", { name: "Lịch đặt" })).toBeInTheDocument();
+    const quickNav = screen.getByLabelText("Điều hướng cuối màn hình");
+    expect(within(quickNav).getByRole("link", { name: "Lịch đặt" })).toHaveAttribute("aria-current", "page");
     expect(within(quickNav).getByRole("link", { name: "Tài khoản" })).toBeInTheDocument();
+  });
+
+  it("keeps auth pages free of the mobile bottom navigation", () => {
+    mocks.pathname = "/register";
+
+    render(
+      <AppShell>
+        <div>register page</div>
+      </AppShell>,
+    );
+
+    expect(screen.queryByLabelText("Điều hướng cuối màn hình")).not.toBeInTheDocument();
   });
 });

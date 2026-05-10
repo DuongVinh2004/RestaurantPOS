@@ -13,11 +13,15 @@ function formatLocalDateTimeInput(date: Date): string {
 }
 
 function futureLocalDateTime(hoursFromNow: number): string {
-  return formatLocalDateTimeInput(new Date(Date.now() + hoursFromNow * 60 * 60 * 1000));
+  return formatLocalDateTimeInput(
+    new Date(Date.now() + hoursFromNow * 60 * 60 * 1000),
+  );
 }
 
 function futureIso(hoursFromNow: number): string {
-  return new Date(Date.now() + hoursFromNow * 60 * 60 * 1000).toISOString();
+  return new Date(
+    Date.now() + hoursFromNow * 60 * 60 * 1000,
+  ).toISOString();
 }
 
 function createHoldSearchParams(): URLSearchParams {
@@ -32,17 +36,57 @@ function createHoldSearchParams(): URLSearchParams {
   });
 }
 
+function createMenuItem(overrides: Record<string, unknown> = {}) {
+  return {
+    item_id: 101,
+    category_id: 1,
+    category_name: "Khai vị",
+    code: "GOI-CUON",
+    name: "Gỏi cuốn",
+    description: null,
+    img_url: null,
+    is_available: true,
+    price: {
+      price_id: 3,
+      amount: "120000.00",
+      currency: "VND",
+      effective_from: null,
+      effective_to: null,
+    },
+    preorder: {
+      enabled: true,
+      cutoff_minutes: 30,
+      quota_per_day: 20,
+      requires_preview_validation: true,
+    },
+    created_at: null,
+    updated_at: null,
+    ...overrides,
+  };
+}
+
 const mocks = vi.hoisted(() => ({
   cancelTableHold: vi.fn(),
-  createReservation: vi.fn(),
+  createReservationWithPreorderDraft: vi.fn(),
   getTableHold: vi.fn(),
+  isReservationPreorderPersistenceError: vi.fn().mockReturnValue(false),
+  listMenuItems: vi.fn(),
   logout: vi.fn(),
   pathname: "/reservations/new",
+  previewMenuPreorder: vi.fn(),
   push: vi.fn(),
   refreshTableHold: vi.fn(),
   retryBootstrap: vi.fn(),
   searchParams: createHoldSearchParams(),
+  toastError: vi.fn(),
   toastSuccess: vi.fn(),
+  customerWebRollout: {
+    preorder: {
+      enabled: true,
+      disabledTitle: "Món đặt trước chưa được bật",
+      disabledDescription: "Nhà hàng chưa bật món đặt trước cho khách hàng.",
+    },
+  },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -68,12 +112,24 @@ vi.mock("@/providers/auth-provider", () => ({
 
 vi.mock("sonner", () => ({
   toast: {
+    error: mocks.toastError,
     success: mocks.toastSuccess,
   },
 }));
 
-vi.mock("./api", () => ({
-  createReservation: mocks.createReservation,
+vi.mock("@/features/preorder/reservation-create-flow", () => ({
+  createReservationWithPreorderDraft: mocks.createReservationWithPreorderDraft,
+  isReservationPreorderPersistenceError:
+    mocks.isReservationPreorderPersistenceError,
+}));
+
+vi.mock("@/features/menu/api", () => ({
+  listMenuItems: mocks.listMenuItems,
+  previewMenuPreorder: mocks.previewMenuPreorder,
+}));
+
+vi.mock("@/lib/config/feature-flags", () => ({
+  customerWebRollout: mocks.customerWebRollout,
 }));
 
 vi.mock("@/features/table-booking/api", () => ({
@@ -110,14 +166,20 @@ describe("guest hold to reservation session flow", () => {
     window.sessionStorage.clear();
     ensureCustomerSessionId();
     mocks.cancelTableHold.mockReset();
-    mocks.createReservation.mockReset();
+    mocks.createReservationWithPreorderDraft.mockReset();
     mocks.getTableHold.mockReset();
+    mocks.isReservationPreorderPersistenceError.mockReset();
+    mocks.isReservationPreorderPersistenceError.mockReturnValue(false);
+    mocks.listMenuItems.mockReset();
     mocks.logout.mockReset();
+    mocks.previewMenuPreorder.mockReset();
     mocks.push.mockReset();
     mocks.refreshTableHold.mockReset();
     mocks.retryBootstrap.mockReset();
     mocks.searchParams = createHoldSearchParams();
+    mocks.toastError.mockReset();
     mocks.toastSuccess.mockReset();
+    mocks.customerWebRollout.preorder.enabled = true;
     mocks.getTableHold.mockResolvedValue({
       hold_id: "hold-guest-123",
       expire_at: futureIso(2),
@@ -128,14 +190,29 @@ describe("guest hold to reservation session flow", () => {
       duration_minutes: 90,
       tables: [{ table_id: 7 }, { table_id: 8 }],
     });
-    mocks.createReservation.mockResolvedValue({
-      reservation_id: 501,
-      row_version: 1,
-      status: "Confirmed",
+    mocks.listMenuItems.mockResolvedValue([createMenuItem()]);
+    mocks.previewMenuPreorder.mockResolvedValue({
+      totals: {
+        quantity: 2,
+        subtotal: "240000.00",
+        currency: "VND",
+      },
+      warnings: [],
+      policy: {
+        message: "Nhà hàng sẽ xác nhận lại số lượng trước khi lưu.",
+      },
+    });
+    mocks.createReservationWithPreorderDraft.mockResolvedValue({
+      reservation: {
+        reservation_id: 501,
+        row_version: 1,
+        status: "Confirmed",
+      },
+      preorder: null,
     });
   });
 
-  it("lets an unauthenticated held session open reservation create and submit the held reservation", async () => {
+  it("lets an unauthenticated held session open reservation create and submit the held reservation with preorder draft", async () => {
     const user = userEvent.setup();
 
     renderFlow();
@@ -148,11 +225,15 @@ describe("guest hold to reservation session flow", () => {
     await user.type(screen.getByLabelText("Số điện thoại"), "5550100");
     await user.type(screen.getByLabelText("Email"), "guest@example.test");
     await user.type(screen.getByLabelText("Ghi chú"), "Window seat");
+    await user.clear(await screen.findByLabelText("Số lượng Gỏi cuốn"));
+    await user.type(screen.getByLabelText("Số lượng Gỏi cuốn"), "2");
+    await user.click(screen.getByRole("button", { name: "Xem trước món" }));
+    await screen.findByText("Bản xem trước món đặt trước");
     await user.click(screen.getByRole("button", { name: "Tạo lịch đặt" }));
 
     await waitFor(() => {
-      expect(mocks.createReservation).toHaveBeenCalledWith(
-        expect.objectContaining({
+      expect(mocks.createReservationWithPreorderDraft).toHaveBeenCalledWith({
+        reservationInput: expect.objectContaining({
           guest_name: "Guest Booker",
           guest_phone: "5550100",
           guest_email: "guest@example.test",
@@ -162,8 +243,9 @@ describe("guest hold to reservation session flow", () => {
           duration_minutes: 90,
           notes: "Window seat",
         }),
-      );
+        preorderItems: [{ item_id: 101, quantity: 2 }],
+      });
     });
     expect(mocks.push).toHaveBeenCalledWith("/reservations/501");
-  });
+  }, 15_000);
 });

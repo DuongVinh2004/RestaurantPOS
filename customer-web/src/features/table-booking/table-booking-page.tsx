@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { BookingProgress } from "@/components/booking/booking-progress";
 import { StickyBookingSummary } from "@/components/booking/sticky-booking-summary";
 import { TimeSlotGrid, selectedDateFromLocalDateTime } from "@/components/booking/time-slot-grid";
+import { SelectedBranchEntry } from "@/features/branch/branch-selector";
+import { useBranchSelection } from "@/features/branch/hooks";
 import { ErrorState, EmptyState, LoadingBlock } from "@/components/states/state-blocks";
 import type { RestaurantTable, TableHold } from "@/lib/contracts/generated/restaurantpos-sdk";
 import { createRoundedFutureLocalDateTimeInput, formatLocalDateTimeInput, parseLocalDateTimeInput } from "@/lib/contracts/datetime";
@@ -57,6 +59,8 @@ type HoldSelection = {
   tableIds: number[];
 };
 
+type QuickDateKey = "today" | "tomorrow" | "weekend";
+
 const guestQuickOptions = [
   { label: "1 khách", value: 1 },
   { label: "2 khách", value: 2 },
@@ -69,6 +73,16 @@ const durationQuickOptions = [
   { label: "60 phút", value: 60 },
   { label: "90 phút", value: 90 },
   { label: "120 phút", value: 120 },
+];
+
+const quickDateOptions: Array<{
+  key: QuickDateKey;
+  label: string;
+  getValue: (currentValue: string) => string;
+}> = [
+  { key: "today", label: "Hôm nay", getValue: (currentValue) => localVisitTimeForDayOffset(currentValue, 0) },
+  { key: "tomorrow", label: "Ngày mai", getValue: (currentValue) => localVisitTimeForDayOffset(currentValue, 1) },
+  { key: "weekend", label: "Cuối tuần", getValue: localVisitTimeForWeekend },
 ];
 
 // Trích xuất thông báo lỗi Validation (422) từ Backend Laravel (Type-Safe)
@@ -123,6 +137,41 @@ function localVisitTimeForWeekend(currentValue: string): string {
   date.setHours(current?.getHours() ?? 19, current?.getMinutes() ?? 0, 0, 0);
 
   return formatLocalDateTimeInput(date);
+}
+
+function localDateStamp(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function selectedQuickDateKey(currentValue: string): QuickDateKey | null {
+  const selected = parseLocalDateTimeInput(currentValue);
+
+  if (!selected) {
+    return null;
+  }
+
+  const selectedStamp = localDateStamp(selected);
+  const today = parseLocalDateTimeInput(localVisitTimeForDayOffset(currentValue, 0));
+  const tomorrow = parseLocalDateTimeInput(localVisitTimeForDayOffset(currentValue, 1));
+  const weekend = parseLocalDateTimeInput(localVisitTimeForWeekend(currentValue));
+
+  if (today && selectedStamp === localDateStamp(today)) {
+    return "today";
+  }
+
+  if (tomorrow && selectedStamp === localDateStamp(tomorrow)) {
+    return "tomorrow";
+  }
+
+  if (weekend && selectedStamp === localDateStamp(weekend)) {
+    return "weekend";
+  }
+
+  return null;
 }
 
 function getTableIdsFromHold(hold: TableHold): number[] {
@@ -234,8 +283,17 @@ function holdMatchesSelection(
   );
 }
 
+function isHoldResolutionError(error: unknown): boolean {
+  const err = (error ?? {}) as Record<string, unknown>;
+  const response = (err.response ?? {}) as Record<string, unknown>;
+  const status = err.status ?? response.status;
+
+  return status === 422 || status === 404 || status === 409;
+}
+
 export function TableBookingPage() {
   const queryClient = useQueryClient();
+  const branchSelection = useBranchSelection();
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -261,7 +319,6 @@ export function TableBookingPage() {
   const [heldVisitDetails, setHeldVisitDetails] = useState<AvailabilitySearchValues | null>(restoredVisitDetails);
   const [heldTableIds, setHeldTableIds] = useState<number[]>(() => initialSession.snapshot?.table_ids ?? []);
   const [selectedTableIds, setSelectedTableIds] = useState<number[]>(() => initialSession.snapshot?.table_ids ?? []);
-  const [activeHoldGuardVisible, setActiveHoldGuardVisible] = useState(false);
 
   const form = useForm<AvailabilitySearchValues>({
     resolver: zodResolver(availabilitySearchSchema),
@@ -269,6 +326,7 @@ export function TableBookingPage() {
       start_time: createRoundedFutureLocalDateTimeInput(),
       duration_minutes: 90,
       guest_count: 2,
+      branch_id: branchSelection.selectedBranch?.branchId ?? undefined,
     },
   });
   const startTimeValue = useWatch({ control: form.control, name: "start_time" });
@@ -276,6 +334,19 @@ export function TableBookingPage() {
   const durationMinutesValue = useWatch({ control: form.control, name: "duration_minutes" });
 
   const holdState = hold ? parseTableHoldState(hold) : null;
+
+  useEffect(() => {
+    const selectedBranchId = branchSelection.selectedBranch?.branchId;
+
+    if (!selectedBranchId || form.getValues("branch_id") === selectedBranchId) {
+      return;
+    }
+
+    form.setValue("branch_id", selectedBranchId, {
+      shouldDirty: false,
+      shouldValidate: true,
+    });
+  }, [branchSelection.selectedBranch?.branchId, form]);
 
   function applyActiveHold(
     result: TableHold,
@@ -290,7 +361,6 @@ export function TableBookingPage() {
     setHeldVisitDetails(visitDetails);
     setHeldTableIds(effectiveTableIds);
     setSelectedTableIds(effectiveTableIds);
-    setActiveHoldGuardVisible(false);
     queryClient.setQueryData(queryKeys.tableBooking.hold(result.hold_id), result);
 
     const snapshot = createActiveTableHoldSnapshot(result, {
@@ -316,7 +386,6 @@ export function TableBookingPage() {
       setHeldVisitDetails(null);
       setHeldTableIds([]);
       setSelectedTableIds([]);
-      setActiveHoldGuardVisible(false);
       clearStoredActiveTableHoldSnapshot(customerSessionId);
     },
     onError(error: unknown) {
@@ -328,7 +397,6 @@ export function TableBookingPage() {
         setHold(null);
         setHeldVisitDetails(null);
         setHeldTableIds([]);
-        setActiveHoldGuardVisible(false);
         clearStoredActiveTableHoldSnapshot(customerSessionId);
         if (!holdCreateInFlightKeyRef.current) {
           setSelectedTableIds([]);
@@ -411,7 +479,6 @@ export function TableBookingPage() {
         setHeldVisitDetails(null);
         setHeldTableIds([]);
         setSelectedTableIds([]);
-        setActiveHoldGuardVisible(false);
         clearStoredActiveTableHoldSnapshot(customerSessionId);
         toast.error("Bàn đang giữ đã mất hiệu lực. Vui lòng chọn lại.");
       }
@@ -433,6 +500,7 @@ export function TableBookingPage() {
     : (cancelHoldMutation.isPending ? selectedKey : "");
 
   const selectedDate = selectedDateFromLocalDateTime(startTimeValue);
+  const activeQuickDate = selectedQuickDateKey(startTimeValue);
   const currentStep = holdState?.isActive || availability ? "table" : "time";
   const activeVisitDetails = heldVisitDetails ?? availabilitySearchValues ?? form.getValues();
   const bookingSummaryItems = [
@@ -448,8 +516,10 @@ export function TableBookingPage() {
   ];
 
   const isoStartTime = heldVisitDetails?.start_time ? new Date(heldVisitDetails.start_time).toISOString() : "";
-  const reservationCreateHref = holdState?.isActive && heldVisitDetails
-    ? `/reservations/new?hold_id=${encodeURIComponent(holdState.holdId)}&hold_status=${encodeURIComponent(holdState.status)}&hold_expires_at=${encodeURIComponent(holdState.expiresAt ?? "")}&tables=${heldTableIds.join(",")}&start_time=${encodeURIComponent(isoStartTime)}&duration_minutes=${heldVisitDetails.duration_minutes}&guest_count=${heldVisitDetails.guest_count}`
+  const isHoldTransitionPending = holdSelectionMutation.isPending || cancelHoldMutation.isPending;
+  const searchPending = searchMutation.isPending || isHoldTransitionPending;
+  const reservationCreateHref = holdState?.isActive && heldVisitDetails && !isHoldTransitionPending
+    ? `/reservations/new?hold_id=${encodeURIComponent(holdState.holdId)}&hold_status=${encodeURIComponent(holdState.status)}&hold_expires_at=${encodeURIComponent(holdState.expiresAt ?? "")}&tables=${heldTableIds.join(",")}&start_time=${encodeURIComponent(isoStartTime)}&duration_minutes=${heldVisitDetails.duration_minutes}&guest_count=${heldVisitDetails.guest_count}&branch_id=${heldVisitDetails.branch_id ?? branchSelection.selectedBranch?.branchId ?? ""}`
     : null;
   const activeHoldSessionError = Boolean(holdSelectionMutation.error && isActiveTableHoldSessionError(holdSelectionMutation.error));
 
@@ -510,21 +580,24 @@ export function TableBookingPage() {
     const values = availabilitySearchValues ?? form.getValues();
     const selectionKey = tableIdKey(tableIds);
     const storedActiveHold = readStoredActiveTableHoldSnapshot(customerSessionId);
+    const restoredVisitDetailsFromStorage = storedActiveHold ? visitDetailsFromSnapshot(storedActiveHold) : null;
+    const restoredHold = storedActiveHold ? tableHoldFromSnapshot(storedActiveHold) : null;
+    const activeHold = storedActiveHold && (!holdState?.isActive || holdState.holdId !== storedActiveHold.hold_id)
+      ? restoredHold
+      : hold;
+    const activeHoldState = activeHold ? parseTableHoldState(activeHold) : null;
+    const activeHeldVisitDetails = restoredHold ? restoredVisitDetailsFromStorage : heldVisitDetails;
+    const activeHeldTableIds = restoredHold ? storedActiveHold?.table_ids ?? [] : heldTableIds;
 
-    if (storedActiveHold && (!holdState?.isActive || holdState.holdId !== storedActiveHold.hold_id)) {
-      const restoredVisitDetailsFromStorage = visitDetailsFromSnapshot(storedActiveHold);
-
-      setHold(tableHoldFromSnapshot(storedActiveHold));
+    if (restoredHold && storedActiveHold && (!holdState?.isActive || holdState.holdId !== storedActiveHold.hold_id)) {
+      setHold(restoredHold);
       setHeldVisitDetails(restoredVisitDetailsFromStorage);
       setHeldTableIds(storedActiveHold.table_ids);
       setSelectedTableIds(storedActiveHold.table_ids);
-      setActiveHoldGuardVisible(true);
-      return;
     }
 
-    if (holdMatchesSelection(holdState, heldVisitDetails, heldTableIds, values, tableIds)) {
+    if (holdMatchesSelection(activeHoldState, activeHeldVisitDetails, activeHeldTableIds, values, tableIds)) {
       setSelectedTableIds(tableIds);
-      setActiveHoldGuardVisible(false);
       return;
     }
 
@@ -532,19 +605,34 @@ export function TableBookingPage() {
       return;
     }
 
-    if (holdState?.isActive) {
-      setSelectedTableIds(heldTableIds);
-      setActiveHoldGuardVisible(true);
-      return;
+    if (activeHoldState?.isActive) {
+      setSelectedTableIds(tableIds);
+
+      try {
+        await cancelHoldMutation.mutateAsync({ holdId: activeHoldState.holdId, rowVersion: activeHoldState.rowVersion });
+      } catch (error) {
+        if (!isHoldResolutionError(error)) {
+          setSelectedTableIds(activeHeldTableIds);
+          toast.error("Chưa thể đổi bàn lúc này. Vui lòng thử lại.");
+          return;
+        }
+      }
     }
 
     holdCreateInFlightKeyRef.current = selectionKey;
     setSelectedTableIds(tableIds);
-    setActiveHoldGuardVisible(false);
     holdSelectionMutation.mutate({
       values,
       tableIds,
     });
+  }
+
+  function submitAvailabilitySearch(values: AvailabilitySearchValues) {
+    if (searchPending) {
+      return;
+    }
+
+    searchMutation.mutate(values);
   }
 
   if (!isMounted) {
@@ -557,6 +645,9 @@ export function TableBookingPage() {
             Chọn số khách, ngày giờ và thời lượng. Khi bạn chọn bàn, hệ thống sẽ giữ tạm để bạn hoàn tất lịch đặt.
           </p>
           <BookingProgress currentStep="time" />
+          <div className="max-w-sm">
+            <SelectedBranchEntry />
+          </div>
         </section>
         <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)_320px]">
           <Card className="h-fit rounded-lg">
@@ -581,6 +672,9 @@ export function TableBookingPage() {
           Chọn số khách, ngày giờ và thời lượng. Khi bạn chọn bàn, hệ thống sẽ giữ tạm để bạn hoàn tất lịch đặt.
         </p>
         <BookingProgress currentStep={currentStep} />
+        <div className="max-w-sm">
+          <SelectedBranchEntry />
+        </div>
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)_320px]">
@@ -589,7 +683,7 @@ export function TableBookingPage() {
             <CardTitle>Thông tin lượt ghé</CardTitle>
           </CardHeader>
           <CardContent>
-            <form className="space-y-4" onSubmit={form.handleSubmit((values) => searchMutation.mutate(values))}>
+            <form className="space-y-4" onSubmit={form.handleSubmit(submitAvailabilitySearch)}>
               <section className="rounded-lg border bg-background/70 p-3">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
@@ -625,15 +719,22 @@ export function TableBookingPage() {
                   <p className="text-xs text-muted-foreground">Giữ nguyên giờ đang chọn khi đổi ngày nhanh.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" className="min-h-10 rounded-lg" onClick={() => form.setValue("start_time", localVisitTimeForDayOffset(startTimeValue, 0), { shouldDirty: true, shouldValidate: true })}>
-                    Hôm nay
-                  </Button>
-                  <Button type="button" variant="outline" className="min-h-10 rounded-lg" onClick={() => form.setValue("start_time", localVisitTimeForDayOffset(startTimeValue, 1), { shouldDirty: true, shouldValidate: true })}>
-                    Ngày mai
-                  </Button>
-                  <Button type="button" variant="outline" className="min-h-10 rounded-lg" onClick={() => form.setValue("start_time", localVisitTimeForWeekend(startTimeValue), { shouldDirty: true, shouldValidate: true })}>
-                    Cuối tuần
-                  </Button>
+                  {quickDateOptions.map((option) => {
+                    const selected = activeQuickDate === option.key;
+
+                    return (
+                      <Button
+                        key={option.key}
+                        type="button"
+                        variant={selected ? "default" : "outline"}
+                        className="min-h-10 rounded-lg"
+                        aria-pressed={selected}
+                        onClick={() => form.setValue("start_time", option.getValue(startTimeValue), { shouldDirty: true, shouldValidate: true })}
+                      >
+                        {option.label}
+                      </Button>
+                    );
+                  })}
                 </div>
               </section>
 
@@ -684,7 +785,7 @@ export function TableBookingPage() {
                   {form.formState.errors.duration_minutes ? <p className="text-sm text-destructive">{form.formState.errors.duration_minutes.message}</p> : null}
                 </div>
               </section>
-              <Button type="submit" className="min-h-11 w-full rounded-lg" disabled={searchMutation.isPending || holdSelectionMutation.isPending || cancelHoldMutation.isPending}>
+              <Button type="submit" className="min-h-11 w-full rounded-lg" disabled={searchPending}>
                 <Search className="mr-2 h-4 w-4" />
                 {searchMutation.isPending ? "Đang tìm bàn" : "Tìm bàn"}
               </Button>
@@ -699,6 +800,19 @@ export function TableBookingPage() {
               error={searchMutation.error}
               title={getErrorMessage(searchMutation.error, "Chưa tìm được bàn trống")}
               onRetry={() => searchMutation.mutate(form.getValues())}
+            />
+          ) : null}
+
+          {!searchMutation.isPending && !searchMutation.error && !availability ? (
+            <EmptyState
+              title="Sẵn sàng tìm bàn"
+              description="Chọn số khách, ngày giờ và thời lượng ở bên trái. Kết quả bàn phù hợp sẽ hiện tại đây để bạn giữ bàn."
+              action={
+                <Button type="button" className="rounded-lg" onClick={() => submitAvailabilitySearch(form.getValues())}>
+                  <Search className="mr-2 h-4 w-4" />
+                  Tìm bàn trống
+                </Button>
+              }
             />
           ) : null}
 
@@ -774,16 +888,6 @@ export function TableBookingPage() {
             </div>
           ) : null}
 
-          {activeHoldGuardVisible && holdState?.isActive ? (
-            <Alert className="rounded-lg border-amber-200 bg-amber-50 text-amber-900">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Đang có lượt giữ bàn</AlertTitle>
-              <AlertDescription className="mt-2 space-y-3">
-                <p>{ACTIVE_TABLE_HOLD_SESSION_MESSAGE}</p>
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
           {activeHoldSessionError && !holdState?.isActive ? (
             <Alert variant="destructive" className="rounded-lg border-destructive/30 bg-destructive/5">
               <AlertTriangle className="h-4 w-4" />
@@ -840,26 +944,14 @@ export function TableBookingPage() {
           holdStatusLabel={holdState?.statusLabel}
           primaryAction={
             reservationCreateHref ? (
-              <Button asChild className="min-h-11 w-full rounded-lg">
+              <Button asChild className="min-h-10 w-full rounded-lg">
                 <Link href={reservationCreateHref}>Tiếp tục đặt chỗ</Link>
               </Button>
             ) : undefined
           }
-          primaryActionDisabled={!availability || selectedTableIds.length === 0 || holdSelectionMutation.isPending || cancelHoldMutation.isPending}
+          primaryActionDisabled={!availability || selectedTableIds.length === 0 || isHoldTransitionPending}
           primaryActionLabel={selectedTableIds.length > 0 ? "Tiếp tục đặt chỗ" : "Chọn bàn để tiếp tục đặt chỗ"}
-          onPrimaryAction={() => searchMutation.mutate(form.getValues())}
-          onRefreshHold={
-            holdState?.isActive
-              ? () => refreshHoldMutation.mutate({ holdId: holdState.holdId, rowVersion: holdState.rowVersion })
-              : undefined
-          }
-          refreshPending={refreshHoldMutation.isPending}
-          onCancelHold={
-            holdState?.isActive
-              ? () => cancelHoldMutation.mutate({ holdId: holdState.holdId, rowVersion: holdState.rowVersion })
-              : undefined
-          }
-          cancelPending={cancelHoldMutation.isPending}
+          onPrimaryAction={() => submitAvailabilitySearch(form.getValues())}
         />
       </div>
     </main>

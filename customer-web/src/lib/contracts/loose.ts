@@ -44,6 +44,26 @@ export function numberValue(record: UnknownRecord | null | undefined, keys: stri
   return null;
 }
 
+export function stringValue(record: UnknownRecord | null | undefined, keys: string[]): string | null {
+  if (!record) {
+    return null;
+  }
+
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "string" && value.trim() !== "") {
+      return value;
+    }
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+
+  return null;
+}
+
 export function recordValue(record: UnknownRecord | null | undefined, keys: string[]): UnknownRecord | null {
   if (!record) {
     return null;

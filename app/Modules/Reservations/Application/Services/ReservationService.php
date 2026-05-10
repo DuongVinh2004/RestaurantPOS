@@ -39,6 +39,10 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Service reservation tổng hợp theo kiểu legacy:
+ * ôm các luồng create, đổi trạng thái, và vài helper nghiệp vụ dùng chung.
+ */
 class ReservationService
 {
     private TableHoldService $tableHoldService;
@@ -79,6 +83,7 @@ class ReservationService
         ?MenuPreorderPolicyService $menuPreorderPolicyService = null,
         ?StaffBranchContextService $staffBranchContextService = null,
     ) {
+        // Xử lý fallback để tương thích ngược khi inject các dependency mới
         if ($branchContextService instanceof BranchSchedulingPolicyService && $branchSchedulingPolicyService === null) {
             $branchSchedulingPolicyService = $branchContextService;
             $branchContextService = null;
@@ -108,11 +113,17 @@ class ReservationService
         $this->staffBranchContextService = $staffBranchContextService ?? app(StaffBranchContextService::class);
     }
 
+    /**
+     * --- HÀM CHÍNH: TẠO MỚI ĐƠN ĐẶT BÀN ---
+     * Điều phối toàn bộ quy trình: Chọn bàn, kiểm tra chỗ, giữ bàn, đặt món trước, ghi log.
+     */
     public function createReservation(array $payload, ?int $actorUserId = null, array $options = []): Reservation
     {
+        // 1. Chuẩn hóa thời gian về UTC để tránh lệch múi giờ
         $startUtc = Carbon::parse((string) $payload['start_time'])->utc();
         $endUtc = Carbon::parse((string) $payload['end_time'])->utc();
 
+        // Lấy các tham số cấu hình tùy chọn
         $holdId = isset($payload['hold_id']) ? (string) $payload['hold_id'] : null;
         $sessionId = isset($payload['session_id']) ? (string) $payload['session_id'] : null;
         $skipLocking = (bool) ($options['skip_locking'] ?? false);
@@ -120,11 +131,14 @@ class ReservationService
         $policyUseCase = isset($options['policy_use_case']) && is_string($options['policy_use_case']) && $options['policy_use_case'] !== ''
             ? $options['policy_use_case']
             : 'reservation';
+
+        // Mảng chứa các ID giữ bàn an toàn
         $trustedHoldIds = array_values(array_unique(array_filter(
             array_map('strval', (array) ($options['trusted_hold_ids'] ?? [])),
             static fn (string $value) => $value !== ''
         )));
 
+        // Lấy danh sách ID bàn từ Request truyền lên, hoặc chiết xuất từ `hold_id`
         $tableIds = $this->resolveTableIdsFromPayloadOrHold($payload, $holdId, $sessionId, $startUtc, $endUtc);
         $tableIds = array_values(array_unique(array_map('intval', $tableIds)));
         sort($tableIds);
@@ -134,12 +148,17 @@ class ReservationService
             $trustedHoldIds = array_values(array_unique($trustedHoldIds));
         }
 
+        // 2. Định nghĩa Transaction Runner (Đảm bảo an toàn dữ liệu All-or-Nothing)
         $runner = function () use ($payload, $actorUserId, $startUtc, $endUtc, $tableIds, $holdId, $sessionId, $trustedHoldIds, $policyNowUtc, $policyUseCase) {
             return DB::transaction(function () use ($payload, $actorUserId, $startUtc, $endUtc, $tableIds, $holdId, $sessionId, $trustedHoldIds, $policyNowUtc, $policyUseCase) {
+
+                // Dọn dẹp các yêu cầu giữ bàn cũ rác
                 $this->tableHoldService->expireStaleHolds();
 
+                // Xác định danh tính khách hàng (User hay Guest)
                 $userId = $this->resolveReservationUserId($payload, $actorUserId);
                 $guestSnapshot = $this->resolveGuestSnapshot($payload, $userId);
+
                 $user = User::query()
                     ->where('user_id', $userId)
                     ->where('is_deleted', 0)
@@ -150,12 +169,16 @@ class ReservationService
                     ]);
                 }
 
+                // Lock record giữ chỗ lại để không ai khác cướp được
                 $holdBranchId = null;
                 if (is_string($holdId) && $holdId !== '' && is_string($sessionId) && $sessionId !== '') {
                     $holdBranchId = $this->lockAndAssertActiveHoldForReservation($holdId, $sessionId, $startUtc, $endUtc);
                 }
 
+                // 3. THẨM ĐỊNH BÀN (Table Validation)
                 $guestCount = (int) $payload['guest_count'];
+
+                // Trích xuất bàn vật lý và khóa DB (Pessimistic Lock)
                 $tables = RestaurantTable::query()
                     ->whereIn('table_id', $tableIds)
                     ->lockForUpdate()
@@ -174,6 +197,7 @@ class ReservationService
                     ]);
                 }
 
+                // Bàn có sẵn sàng để đặt không?
                 $nonAllocatable = $tables->filter(fn ($t) => ! $this->tableStateService->isAllocatableForBooking((string) ($t->status?->value ?? $t->status)))
                     ->pluck('table_id')->values()->all();
                 if (! empty($nonAllocatable)) {
@@ -182,12 +206,14 @@ class ReservationService
                     ]);
                 }
 
+                // Đảm bảo tất cả các bàn được chọn thuộc CÙNG 1 chi nhánh
                 $tableBranchId = $this->branchContextService->assertSingleBranch(
                     $tables->pluck('branch_id')->all(),
                     'Selected tables must belong to a single branch.',
                     'table_ids',
                     false
                 );
+
                 if (array_key_exists('branch_id', $payload) && $payload['branch_id'] !== null && $payload['branch_id'] !== '') {
                     $this->branchContextService->assertSameBranch(
                         $payload['branch_id'],
@@ -197,6 +223,7 @@ class ReservationService
                         false
                     );
                 }
+
                 if ($holdBranchId !== null) {
                     $this->branchContextService->assertSameBranch(
                         $holdBranchId,
@@ -207,6 +234,7 @@ class ReservationService
                     );
                 }
 
+                // 4. THẨM ĐỊNH NGHIỆP VỤ NHÀ HÀNG (Giờ mở cửa, Sức chứa, Đụng độ)
                 $this->branchSchedulingPolicyService->assertReservationWindowAllowed(
                     $tableBranchId,
                     $startUtc,
@@ -219,6 +247,7 @@ class ReservationService
 
                 $this->assertCapacityEnough($tables, $guestCount);
 
+                // Kiểm tra xem bàn có đang bị Hold bởi người khác không
                 $holdConflicts = $this->tableTimeConflictService->findHoldConflictTableIds($tableIds, $startUtc, $endUtc, $trustedHoldIds, null, true);
                 if (! empty($holdConflicts)) {
                     throw ValidationException::withMessages([
@@ -226,6 +255,7 @@ class ReservationService
                     ]);
                 }
 
+                // Kiểm tra xem bàn có bị trùng giờ với booking của khách khác không
                 $conflictTableIds = $this->tableTimeConflictService->findReservationConflictTableIds($tableIds, $startUtc, $endUtc, null, true);
                 if (! empty($conflictTableIds)) {
                     throw ValidationException::withMessages([
@@ -233,6 +263,7 @@ class ReservationService
                     ]);
                 }
 
+                // 5. KHỞI TẠO ĐƠN ĐẶT BÀN VÀ LƯU VÀO DATABASE
                 $reservation = new Reservation;
                 $reservation->branch_id = $tableBranchId;
                 $reservation->user_id = $userId;
@@ -249,13 +280,14 @@ class ReservationService
                 $reservation->source = $actorUserId !== null
                     && $actorUserId > 0
                     && ($userId === null || $actorUserId !== $userId)
-                    ? 'Offline'
-                    : 'Online';
+                    ? 'Offline' // Nhân viên tạo giúp
+                    : 'Online'; // Khách tự tạo
                 $reservation->notes = $payload['notes'] ?? null;
                 $reservation->created_by = $actorUserId;
                 $reservation->updated_by = $actorUserId;
                 $reservation->save();
 
+                // Cập nhật trạng thái Hold thành Đã xác nhận (Confirmed)
                 if (is_string($holdId) && $holdId !== '' && is_string($sessionId) && $sessionId !== '') {
                     $hold = TableHold::query()
                         ->whereKey($holdId)
@@ -281,8 +313,10 @@ class ReservationService
                     $hold->save();
                 }
 
+                // Liên kết Bàn với Phiên đặt chỗ
                 $reservation->tables()->attach($tableIds);
 
+                // 6. XỬ LÝ GỌI MÓN TRƯỚC (PRE-ORDER)
                 $preOrderItems = $payload['pre_order_items'] ?? null;
                 if (is_array($preOrderItems) && count($preOrderItems) > 0) {
                     if (! MenuItem::supportsPreorderColumns()) {
@@ -296,6 +330,7 @@ class ReservationService
                     $menuItems = $preparedPreorder['menu_items'];
                     $priceRows = $preparedPreorder['price_rows'];
 
+                    // Tạo hóa đơn loại PreOrder
                     $order = new ReservationOrder;
                     $order->reservation_id = $reservation->reservation_id;
                     $order->setAttribute('order_type', ReservationOrderType::PreOrder);
@@ -305,6 +340,7 @@ class ReservationService
                     $order->notes = null;
                     $order->save();
 
+                    // Thêm các món ăn vào hóa đơn
                     foreach ($normalizedPreOrderItems as $row) {
                         $menuItem = $menuItems->get((int) $row['item_id']);
                         $priceRow = $priceRows->get((int) $row['item_id']);
@@ -327,6 +363,7 @@ class ReservationService
                     }
                 }
 
+                // 7. GHI LOG & GỬI THÔNG BÁO
                 AuditEvent::info('reservation_created', [
                     'reservation_id' => (int) $reservation->reservation_id,
                     'reservation_code' => (string) $reservation->reservation_code,
@@ -342,12 +379,14 @@ class ReservationService
                     'hold_id' => $holdId ?: null,
                 ]);
 
+                // Bắn event vào hàng đợi (Queue)
                 $this->notificationOutboxService->enqueueReservationCreated($reservation);
 
                 return (int) $reservation->reservation_id;
             });
         };
 
+        // 8. BỌC LUỒNG RUNNER TRONG HỆ THỐNG LOCK BÀN
         try {
             $reservationId = (int) ($skipLocking
                 ? $runner()
@@ -361,6 +400,7 @@ class ReservationService
             throw $e;
         }
 
+        // Đánh dấu cho cache hệ thống biết dữ liệu đặt bàn đã thay đổi
         AvailabilityCacheVersion::bump();
 
         return Reservation::query()
@@ -371,14 +411,20 @@ class ReservationService
 
     public function updateStatus(int $reservationId, string $newStatus): Reservation
     {
+        // Entry ngắn cho các caller cũ; toàn bộ side-effect vẫn đi qua hàm lõi bên dưới.
         return $this->updateReservationStatus($reservationId, $newStatus, null, null, []);
     }
 
+    /**
+     * --- CHẠY TỰ ĐỘNG: QUÉT ĐÁNH DẤU KHÁCH KHÔNG ĐẾN (NO-SHOW) ---
+     */
     public function markNoShows(int $graceMinutes = 15): int
     {
+        // Pha 1: xac dinh moc qua han no-show theo grace window ma scheduler/trusted caller truyen vao.
         $graceMinutes = max(0, $graceMinutes);
         $threshold = Carbon::now('UTC')->subMinutes($graceMinutes);
 
+        // Chỉ quét các reservation Confirmed đã quá giờ nhưng chưa check-in.
         $reservationIds = Reservation::query()
             ->where('status', ReservationStatus::Confirmed->value)
             ->whereNull('checked_in_at')
@@ -388,9 +434,11 @@ class ReservationService
             ->map(fn ($id) => (int) $id)
             ->all();
 
+        // Batch no-show xu ly tung reservation rieng de mot ca loi khong lam hong ca dot quet.
         $count = 0;
         foreach ($reservationIds as $reservationId) {
             try {
+                // Mỗi reservation được xử lý độc lập để một ca lỗi không chặn cả đợt quét.
                 $this->updateReservationStatus(
                     reservationId: $reservationId,
                     newStatus: ReservationStatus::NoShow->value,
@@ -412,6 +460,10 @@ class ReservationService
         return $count;
     }
 
+    /**
+     * --- BẢO VỆ STATE MACHINE ---
+     * Kiểm tra logic việc chuyển đổi trạng thái
+     */
     private function assertStatusTransitionAllowed(string $current, string $target, bool $force = false): void
     {
         if ($current === $target) {
@@ -448,6 +500,9 @@ class ReservationService
         }
     }
 
+    /**
+     * --- HÀM LÕI: THAY ĐỔI TRẠNG THÁI RESERVATION ---
+     */
     public function updateReservationStatus(
         int $reservationId,
         string $newStatus,
@@ -455,6 +510,7 @@ class ReservationService
         ?int $actorUserId = null,
         array $options = []
     ): Reservation {
+        // Pha 1: normalize target status va actor options cho generic status endpoint.
         $newStatus = trim($newStatus);
         if ($newStatus === '') {
             throw ValidationException::withMessages(['status' => ['status là bắt buộc.']]);
@@ -479,7 +535,9 @@ class ReservationService
             ]);
         }
 
+        // Mọi đổi trạng thái đều dồn qua một lock point để giữ state machine và side-effect nhất quán.
         return $this->lockService->withReservationLock($reservationId, function () use ($reservationId, $targetEnum, $expectedRowVersion, $actorUserId, $force, $cancelReason, $enforceStaffBranchScope) {
+            // Pha 2: lock reservation truoc, roi lock them tables/orders/payments lien quan trong transaction ben trong.
             $tableIds = ReservationTable::query()
                 ->where('reservation_id', $reservationId)
                 ->orderBy('table_id')
@@ -490,8 +548,11 @@ class ReservationService
 
             $work = function () use ($reservationId, $targetEnum, $expectedRowVersion, $actorUserId, $force, $cancelReason, $tableIds, $enforceStaffBranchScope) {
                 DB::transaction(function () use ($reservationId, $targetEnum, $expectedRowVersion, $actorUserId, $force, $cancelReason, $tableIds, $enforceStaffBranchScope) {
+
                     /** @var Reservation $reservation */
                     $reservation = Reservation::query()->lockForUpdate()->findOrFail($reservationId);
+
+                    // Phân quyền chi nhánh
                     if ($enforceStaffBranchScope) {
                         $this->assertStaffCanMutateReservationBranch($reservation, $actorUserId);
                     }
@@ -502,6 +563,7 @@ class ReservationService
                     $current = $currentEnum->value;
                     $target = $targetEnum->value;
 
+                    // Nếu request lặp lại trạng thái hiện tại thì chỉ ghi audit, không làm lại side-effect.
                     if ($current === $target) {
                         AuditEvent::info('reservation_status_noop', [
                             'reservation_id' => (int) $reservation->reservation_id,
@@ -517,6 +579,7 @@ class ReservationService
 
                     ReservationStatusTransitionPolicy::assertTransitionAllowed($current, $target, $force);
 
+                    // Sau điểm này là vùng nhạy cảm: lock orders/payments/tables trước khi chạm side-effect.
                     $beforeVersion = (int) ($reservation->row_version ?? 1);
 
                     $orders = ReservationOrder::query()
@@ -529,6 +592,7 @@ class ReservationService
                         ->lockForUpdate()
                         ->get();
 
+                    // Optimistic Locking Check
                     if ($expectedRowVersion !== null && $beforeVersion !== (int) $expectedRowVersion) {
                         throw ValidationException::withMessages([
                             'row_version' => ['Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.'],
@@ -541,6 +605,7 @@ class ReservationService
 
                     $now = Carbon::now('UTC');
 
+                    // Hủy bàn khách đang ngồi (Checked-In -> Cancelled)
                     if ($current === ReservationStatus::checkedInDbValue() && $target === ReservationStatus::Cancelled->value) {
                         if (! $force) {
                             throw ValidationException::withMessages([
@@ -565,6 +630,7 @@ class ReservationService
 
                     }
 
+                    // Trả mã Voucher và Điểm thưởng khi booking bị Hủy
                     if ($target === ReservationStatus::Cancelled->value && in_array($current, ReservationStatus::activeDbValues(), true)) {
                         $this->releaseReservationVoucherForStatusLocked($reservation, $actorUserId);
                         $this->loyaltyPointsService->releaseReservationRedemptionForStatusLocked(
@@ -574,6 +640,7 @@ class ReservationService
                         );
                     }
 
+                    // Hủy booking do quá hạn hoặc bom bàn (NoShow)
                     if ($target === ReservationStatus::Expired->value || $target === ReservationStatus::NoShow->value) {
                         $this->releaseReservationVoucherForStatusLocked($reservation, $actorUserId);
                         $this->loyaltyPointsService->releaseReservationRedemptionForStatusLocked(
@@ -601,6 +668,7 @@ class ReservationService
                         }
                     }
 
+                    // Hủy bàn bình thường
                     if ($target === ReservationStatus::Cancelled->value && $current === ReservationStatus::Confirmed->value) {
                         $paymentSummary = PaymentSummary::fromPayments($payments);
                         if (Money::isPositive($paymentSummary['final_net_amount'] ?? 0)) {
@@ -621,6 +689,8 @@ class ReservationService
                     $reservation->status = $targetEnum;
                     $reservation->updated_by = $actorUserId;
                     $reservation->save();
+
+                    // Outbox Events
                     if ($current !== $target && $target === ReservationStatus::Cancelled->value) {
                         $this->notificationOutboxService->enqueueReservationCancelled($reservation);
                     }
@@ -672,6 +742,10 @@ class ReservationService
         $this->staffBranchContextService->assertAccessibleBranch($actorUserId, $branchId);
     }
 
+    /**
+     * --- HOÀN VOUCHER ---
+     * Khách áp mã giảm giá mà booking bị hủy -> Trả mã lại cho khách.
+     */
     private function releaseReservationVoucherForStatusLocked(Reservation $reservation, ?int $actorUserId = null): void
     {
         $userVoucherId = (int) ($reservation->applied_user_voucher_id ?? 0);
@@ -723,6 +797,10 @@ class ReservationService
         }
     }
 
+    /**
+     * --- HỦY ORDER ACTIVE ---
+     * Hủy danh sách món ăn đang nấu/đang chờ thuộc về một Order
+     */
     private function cancelActiveOrders($orders, ?int $actorUserId, Carbon $now): void
     {
         foreach ($orders as $order) {
@@ -750,11 +828,18 @@ class ReservationService
         }
     }
 
+    /**
+     * --- GIẢI PHÓNG BÀN ---
+     * Đổi lại trạng thái bàn thành "Trống" trên sơ đồ
+     */
     private function releaseTables(array $tableIds): void
     {
         $this->tableStateService->releaseTablesSafely($tableIds, null, null, ['source' => 'reservation_service', 'reason' => 'reservation_release']);
     }
 
+    /**
+     * Lấy mảng ID Bàn. Nếu Request truyền Hold ID thì tra từ DB, nếu không thì dùng Table ID truyền lên.
+     */
     private function resolveTableIdsFromPayloadOrHold(array $payload, ?string $holdId, ?string $sessionId, Carbon $start, Carbon $end): array
     {
         if (! is_string($holdId) || $holdId === '') {
@@ -832,6 +917,9 @@ class ReservationService
         return $tableIds;
     }
 
+    /**
+     * Lock cái Hold record lại trước để đảm bảo không ai cướp được
+     */
     private function lockAndAssertActiveHoldForReservation(string $holdId, string $sessionId, Carbon $start, Carbon $end): int
     {
         $hold = DB::table('table_holds')
@@ -872,6 +960,9 @@ class ReservationService
         return $this->branchContextService->resolveBranchId($hold->branch_id ?? null, false);
     }
 
+    /**
+     * Tính toán xem N cái bàn gộp lại có chứa đủ số người không
+     */
     private function assertCapacityEnough($tables, int $guestCount): void
     {
         $nullTemplate = $tables->whereNull('template_id')->pluck('table_id')->values()->all();
@@ -912,6 +1003,9 @@ class ReservationService
         }
     }
 
+    /**
+     * --- UTILS: LÀM SẠCH VÀ ĐỊNH DANH DỮ LIỆU ---
+     */
     private function resolveReservationUserId(array $payload, ?int $actorUserId): ?int
     {
         $userId = isset($payload['user_id']) && $payload['user_id'] !== null

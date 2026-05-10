@@ -1,0 +1,5 @@
+interface:
+  display_name: "RestaurantPOS UI Guardian"
+  short_description: "Keep staff and customer UI consistent"
+  default_prompt: "Use $restaurantpos-ui-design-system-guardian to review RestaurantPOS UI changes for consistency, states, responsiveness, and accessibility."
+

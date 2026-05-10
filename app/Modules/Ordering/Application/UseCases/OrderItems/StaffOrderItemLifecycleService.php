@@ -26,6 +26,10 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Điều khiển vòng đời của từng món trong order:
+ * sửa thông tin món, đổi trạng thái, và đồng bộ tồn kho/KDS.
+ */
 class StaffOrderItemLifecycleService
 {
     private const STALE_ROW_VERSION_MESSAGE = 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.';
@@ -53,14 +57,17 @@ class StaffOrderItemLifecycleService
         ?int $expectedOrderRowVersion = null,
         ?int $expectedItemRowVersion = null,
     ): ReservationOrder {
+        // Pha 1: resolve lock context tu order de item update va bill state khong lech nhau.
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         [$reservationId, $tableIds] = $this->resolveLockContext($orderId);
 
+        // Khóa cùng lúc reservation, order và bàn để sửa item nhất quán với bill hiện tại.
         try {
             return $this->locks->withLockKeys(
                 $this->buildLockKeys($reservationId, $tableIds),
                 function () use ($orderId, $orderItemId, $attributes, $staffUserId, $expectedOrderRowVersion, $expectedItemRowVersion) {
                     return DB::transaction(function () use ($orderId, $orderItemId, $attributes, $staffUserId, $expectedOrderRowVersion, $expectedItemRowVersion) {
+                        // Pha 2: lock order, item, reservation va assigned tables trong mot writable context.
                         [$order, $item, $branchId] = $this->loadWritableContext(
                             orderId: $orderId,
                             orderItemId: $orderItemId,
@@ -70,6 +77,7 @@ class StaffOrderItemLifecycleService
                         );
 
                         $currentStatus = $this->normalizeItemStatus($item);
+                        // Món đã served/cancelled thì khóa lại để giữ lịch sử và tổng tiền ổn định.
                         if (in_array($currentStatus, [ReservationOrderItemStatus::Served->value, ReservationOrderItemStatus::Cancelled->value], true)) {
                             throw ValidationException::withMessages([
                                 'order_item_id' => 'Served or cancelled items can no longer be edited.',
@@ -91,6 +99,7 @@ class StaffOrderItemLifecycleService
                             : $this->normalizeNote((string) ($item->notes ?? ''));
 
                         $currentNote = $this->normalizeNote((string) ($item->notes ?? ''));
+                        // Noop branch nay giu idempotent semantics cho UI edit form save lai ma khong doi du lieu.
                         if ($newQuantity === (int) $item->quantity && $newNote === $currentNote) {
                             AuditEvent::info('staff.order_item.update_noop', [
                                 'order_id' => $orderId,
@@ -102,6 +111,7 @@ class StaffOrderItemLifecycleService
                         }
 
                         $newLineTotal = $oldLineTotal;
+                        // line_total chi tinh lai khi quantity doi; note edit khong duoc cham vao tong tien.
                         if ($newQuantity !== $oldQuantity) {
                             $newLineTotal = $this->lineTotalForQuantity($unitPrice, $newQuantity);
                             $item->line_total = $newLineTotal;
@@ -112,9 +122,11 @@ class StaffOrderItemLifecycleService
                         $item->updated_by = $staffUserId;
                         $item->save();
 
+                        // Chạm vào order để row_version và audit của order phản ánh lần sửa item này.
                         $order->updated_by = $staffUserId;
                         $order->save();
 
+                        // Audit after luu before/after quantity-line_total de doi soat bill mutation.
                         AuditEvent::info('staff.order_item.updated', [
                             'order_id' => $orderId,
                             'order_item_id' => $orderItemId,
@@ -198,12 +210,14 @@ class StaffOrderItemLifecycleService
         ?int $expectedOrderRowVersion = null,
         ?int $expectedItemRowVersion = null,
     ): ReservationOrder {
+        // Status transition can cung lock scope voi updateItem vi no co side-effect ton kho/KDS.
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         [$reservationId, $tableIds] = $this->resolveLockContext($orderId);
         $target = $targetStatus instanceof ReservationOrderItemStatus
             ? $targetStatus
             : ReservationOrderItemStatus::from((string) $targetStatus);
 
+        // Mọi đổi trạng thái đều đi qua lock + policy trước khi chạm tồn kho và ticket bếp.
         try {
             return $this->locks->withLockKeys(
                 $this->buildLockKeys($reservationId, $tableIds),
@@ -232,6 +246,7 @@ class StaffOrderItemLifecycleService
                             return $this->freshOrder($orderId);
                         }
 
+                        // Policy la state machine duy nhat quy dinh item duoc di tu trang thai nao sang nao.
                         ReservationOrderItemStatusTransitionPolicy::assertTransitionAllowed($current, $target);
 
                         $item->status = $target;
@@ -249,6 +264,7 @@ class StaffOrderItemLifecycleService
                             'to_status' => $target->value,
                         ]);
 
+                        // Side-effect ton kho chi xay ra sau khi DB status da duoc ghi trong transaction hien tai.
                         $this->orderItemInventoryConsumptionService->consumeIfServed(
                             reservation: $order->reservation,
                             order: $order,
@@ -257,6 +273,7 @@ class StaffOrderItemLifecycleService
                             targetStatus: $target,
                             actorUserId: $staffUserId,
                         );
+                        // Đồng bộ KDS sau cùng để màn hình bếp phản ánh đúng trạng thái mới.
                         $this->kitchenRoutingService->syncTicketForOrderItem((int) $item->order_item_id, $staffUserId);
 
                         return $this->freshOrder($orderId);
@@ -278,6 +295,7 @@ class StaffOrderItemLifecycleService
      */
     private function resolveLockContext(int $orderId): array
     {
+        // Lock context duoc resolve mot lan de build distributed lock keys cho moi mutation item.
         $reservationId = (int) ReservationOrder::query()->where('order_id', $orderId)->value('reservation_id');
         if ($reservationId <= 0) {
             throw ValidationException::withMessages(['order_id' => 'Order not found.']);

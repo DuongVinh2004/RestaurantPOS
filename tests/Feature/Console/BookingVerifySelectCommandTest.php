@@ -70,6 +70,27 @@ class BookingVerifySelectCommandTest extends TestCase
         $this->assertContains('php artisan booking:harness:web-auth --json', $commands);
     }
 
+    public function test_booking_verify_select_matches_staff_web_frontend_domain(): void
+    {
+        $exitCode = Artisan::call('booking:verify-select', [
+            '--json' => true,
+            '--path' => [
+                'staff-web/src/app/layout/StaffAppShell.tsx',
+            ],
+        ]);
+
+        $payload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+        $domainKeys = array_map(static fn (array $domain): string => (string) $domain['key'], $payload['domains']);
+        $commands = array_map(static fn (array $command): string => (string) $command['command'], $payload['commands']);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertTrue($payload['ok']);
+        $this->assertContains('staff_web_frontend', $domainKeys);
+        $this->assertContains('restaurantpos-staff-web-react', $payload['skills']);
+        $this->assertContains('npm --prefix staff-web run test', $commands);
+        $this->assertContains('npm --prefix staff-web run build', $commands);
+    }
+
     public function test_booking_verify_select_matches_release_control_plane_domain(): void
     {
         $exitCode = Artisan::call('booking:verify-select', [

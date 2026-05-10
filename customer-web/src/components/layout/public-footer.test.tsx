@@ -62,18 +62,18 @@ describe("PublicFooter", () => {
     mocks.getRestaurantProfile.mockResolvedValue(profile());
   });
 
-  it("renders professional restaurant contact, map, social links, and backend hours", async () => {
+  it("renders restaurant contact, map, social links, and backend hours", async () => {
     renderFooter();
 
     expect(screen.getAllByText("RestaurantPOS").length).toBeGreaterThan(0);
-    expect(screen.getByText("Trường Đại học Xây dựng Hà Nội")).toBeInTheDocument();
+    expect(screen.getByText("Truong Dai hoc Xay dung Ha Noi")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /0961 702 575/ })).toHaveAttribute("href", "tel:0961702575");
     expect(screen.getByRole("link", { name: /duongvinhdxv@gmail\.com/ })).toHaveAttribute("href", "mailto:duongvinhdxv@gmail.com");
     expect(screen.getByRole("link", { name: /Facebook/ })).toHaveAttribute("href", "https://www.facebook.com/duong.vinh.339875");
     expect(screen.getByTitle("Bản đồ RestaurantPOS")).toHaveAttribute("src", expect.stringContaining("google.com/maps"));
 
     expect(await screen.findByText("Đang mở cửa")).toBeInTheDocument();
-    expect(screen.getAllByText("09:00-22:00").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("09:00 - 22:00").length).toBeGreaterThan(0);
     expect(screen.getByText("Giờ Việt Nam")).toBeInTheDocument();
 
     const mapSection = screen.getByLabelText("Bản đồ và liên kết");

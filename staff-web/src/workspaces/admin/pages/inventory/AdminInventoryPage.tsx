@@ -1,5 +1,5 @@
 import { Button, Card, Col, Input, InputNumber, Row, Select, Space, Statistic, Switch, Typography } from 'antd';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFlowStore } from '../../../../app/store/flow-store';
 import {
@@ -24,6 +24,7 @@ import {
 } from '../../../../domains/inventory/admin-inventory';
 import {
   createAdminIngredientMovement,
+  createAdminPurchaseOrderReceipt,
   listAdminIngredients,
   listAdminIngredientMovements,
   listAdminPurchaseOrders,

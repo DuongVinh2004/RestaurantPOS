@@ -253,6 +253,11 @@ function hasMeaningfulWalkInDraft(values: Partial<WalkInFormValues>): boolean {
   );
 }
 
+function readTableRowVersion(row: StaffTableBoardRow): number | null {
+  const value = (row as StaffTableBoardRow & { row_version?: number | null }).row_version;
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}
+
 export function TableBoardPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -907,7 +912,7 @@ export function TableBoardPage() {
         'Chuyển bàn',
         `Đã chuyển ${selectedTable.reservation.reservation_code} sang ${nextTableDisplayName}.`,
       );
-                    navigate(`${staffRoutePaths.ops.orders}?${buildJourneySearch({
+      navigate(`${staffRoutePaths.ops.orders}?${buildJourneySearch({
         source: 'board',
         tableId: values.to_table_id,
         tableIds: reservation.table_ids,
@@ -932,7 +937,14 @@ export function TableBoardPage() {
         `Đang trả ${formatBoardTableName(table.table_code, table.zone, table.table_id)} về trạng thái sẵn sàng nhận khách.`,
       );
     },
-    mutationFn: async (table: StaffTableBoardRow) => releaseStaffTable(table.table_id),
+    mutationFn: async (table: StaffTableBoardRow) => {
+      const rowVersion = readTableRowVersion(table);
+      if (!rowVersion) {
+        throw new Error('Board chưa trả về row_version của bàn. Hãy tải lại sơ đồ trước khi trả bàn.');
+      }
+
+      return releaseStaffTable(table.table_id, { row_version: rowVersion });
+    },
     onSuccess: async (response, table) => {
       await refreshBoardWorkspace({
         tableIds: [table.table_id],
@@ -1031,6 +1043,10 @@ export function TableBoardPage() {
             <div className="staff-mini-list-item">
               <Typography.Text strong>Đơn đang chạy</Typography.Text>
               <Typography.Text type="secondary">{table.active_order?.order_id ? `#${table.active_order.order_id}` : 'Không có'}</Typography.Text>
+            </div>
+            <div className="staff-mini-list-item">
+              <Typography.Text strong>Phiên bản bàn</Typography.Text>
+              <Typography.Text type="secondary">RV {readTableRowVersion(table) ?? 'n/a'}</Typography.Text>
             </div>
           </div>
         </Space>
@@ -1434,11 +1450,11 @@ export function TableBoardPage() {
                 {session && can(session, 'table.release') && selectedTable.board_state === 'occupied_now' ? (
                   <Button
                     danger
-                    onClick={() => handleReleaseTable(selectedTable)}
+                    onClick={() => void handleReleaseTable(selectedTable)}
                     loading={releaseTableMutation.isPending}
-                    disabled={selectedTable.reservation !== null || selectedTable.active_order !== null}
+                    disabled={!readTableRowVersion(selectedTable)}
                   >
-                    Trả bàn về sẵn bàn
+                    Trả bàn về sẵn sàng
                   </Button>
                 ) : null}
                 {selectedTableHasWalkInDraft ? (
@@ -1460,11 +1476,17 @@ export function TableBoardPage() {
                   <TableBoardCandidateReservationsTable
                     candidates={selectedTable.candidate_reservations}
                     assignCurrentPending={assignCurrentTableMutation.isPending}
-                    onUseCurrentTable={(candidate) =>
-                      assignCurrentTableMutation.mutate({
+                    onUseCurrentTable={(candidate) => assignCurrentTableMutation.mutate({
+                      reservationId: candidate.reservation_id,
+                      rowVersion: candidate.row_version,
+                    })}
+                    onOpenReservation={(candidate) =>
+                      navigate(`${staffRoutePaths.ops.reservations}?${buildJourneySearch({
+                        source: 'board',
+                        tableId: selectedTable.table_id,
                         reservationId: candidate.reservation_id,
-                        rowVersion: candidate.row_version,
-                      })}
+                        reservationRowVersion: candidate.row_version,
+                      })}`)}
                   />
                 </Suspense>
               )}
@@ -1507,24 +1529,24 @@ export function TableBoardPage() {
       {walkInOpen || phoneReservationOpen || moveTableOpen ? (
         <Suspense fallback={null}>
           <TableBoardDialogs
+            moveTableOpen={moveTableOpen}
+            moveTableReservationCode={selectedTable?.reservation?.reservation_code ?? null}
+            moveTableSourceCode={selectedTableDisplayName}
+            moveTableSubmitting={moveTableMutation.isPending}
+            moveTableTargetOptions={moveTableTargetOptions}
             walkInOpen={walkInOpen}
             walkInDraft={selectedTable ? walkInDrafts[selectedTable.table_id] ?? {} : {}}
             walkInSubmitting={walkInMutation.isPending}
             phoneReservationOpen={phoneReservationOpen}
             phoneReservationSubmitting={createPhoneReservationMutation.isPending}
-            moveTableOpen={moveTableOpen}
-            moveTableSubmitting={moveTableMutation.isPending}
             selectedTableCode={selectedTableDisplayName}
-            moveTableReservationCode={selectedTable?.reservation?.reservation_code ?? null}
-            moveTableSourceCode={selectedTableDisplayName}
-            moveTableTargetOptions={moveTableTargetOptions}
+            onMoveTableCancel={closeMoveTableForm}
+            onMoveTableSubmit={(values) => moveTableMutation.mutate(values)}
             onWalkInCancel={closeWalkInForm}
             onWalkInSubmit={(values) => walkInMutation.mutate(values)}
             onWalkInValuesChange={saveWalkInDraftForSelectedTable}
             onPhoneReservationCancel={closePhoneReservationForm}
             onPhoneReservationSubmit={(values) => createPhoneReservationMutation.mutate(values)}
-            onMoveTableCancel={closeMoveTableForm}
-            onMoveTableSubmit={(values) => moveTableMutation.mutate(values)}
           />
         </Suspense>
       ) : null}

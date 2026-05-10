@@ -17,7 +17,7 @@ export function TableBoardUnassignedReservationsTable({
   reservations,
 }: {
   assignBestFitPending: boolean;
-  onAssignBestFit: (reservation: StaffTableBoardUnassignedReservation) => void;
+  onAssignBestFit?: (reservation: StaffTableBoardUnassignedReservation) => void;
   onOpenDetail: (reservation: StaffTableBoardUnassignedReservation) => void;
   reservations: Array<StaffTableBoardUnassignedReservation>;
 }) {
@@ -29,7 +29,7 @@ export function TableBoardUnassignedReservationsTable({
             <div className="staff-table-board-assignment-head">
               <Typography.Text strong>{reservation.reservation_code}</Typography.Text>
               <span className="staff-table-board-assignment-caption">
-                {reservation.guest_count} khách
+                {reservation.guest_count} khach
               </span>
             </div>
 
@@ -41,17 +41,19 @@ export function TableBoardUnassignedReservationsTable({
             </Space>
 
             <div className="staff-table-board-assignment-summary">
-              <span>Bắt đầu: {formatDateTime(reservation.start_time)}</span>
-              <span>Bàn gợi ý: {reservation.orchestration.best_fit_table?.table_code ?? 'Chưa có gợi ý'}</span>
+              <span>Bat dau: {formatDateTime(reservation.start_time)}</span>
+              <span>Ban goi y: {reservation.orchestration.best_fit_table?.table_code ?? 'Chua co goi y'}</span>
             </div>
           </div>
 
           <div className="staff-table-board-assignment-actions">
-            <Button onClick={() => onAssignBestFit(reservation)} loading={assignBestFitPending}>
-              Gán phù hợp nhất
-            </Button>
+            {onAssignBestFit ? (
+              <Button onClick={() => onAssignBestFit(reservation)} loading={assignBestFitPending}>
+                Gan phu hop nhat
+              </Button>
+            ) : null}
             <Button onClick={() => onOpenDetail(reservation)}>
-              Mở chi tiết
+              Mo chi tiet
             </Button>
           </div>
         </article>
@@ -63,11 +65,13 @@ export function TableBoardUnassignedReservationsTable({
 export function TableBoardCandidateReservationsTable({
   assignCurrentPending,
   candidates,
+  onOpenReservation,
   onUseCurrentTable,
 }: {
   assignCurrentPending: boolean;
   candidates: Array<CandidateReservation>;
-  onUseCurrentTable: (candidate: CandidateReservation) => void;
+  onOpenReservation?: (candidate: CandidateReservation) => void;
+  onUseCurrentTable?: (candidate: CandidateReservation) => void;
 }) {
   return (
     <div className="staff-table-board-assignment-list staff-table-board-assignment-list-compact" role="list">
@@ -77,7 +81,7 @@ export function TableBoardCandidateReservationsTable({
             <div className="staff-table-board-assignment-head">
               <Typography.Text strong>{candidate.reservation_code}</Typography.Text>
               <span className="staff-table-board-assignment-caption">
-                {candidate.guest_count} khách
+                {candidate.guest_count} khach
               </span>
             </div>
 
@@ -89,22 +93,29 @@ export function TableBoardCandidateReservationsTable({
             </Space>
 
             <div className="staff-table-board-assignment-flags">
-              {candidate.flags.due_soon ? <StatusChip label="Sắp đến" tone="warning" /> : null}
-              {candidate.flags.overdue ? <StatusChip label="Quá giờ" tone="error" /> : null}
+              {candidate.flags.due_soon ? <StatusChip label="Sap den" tone="warning" /> : null}
+              {candidate.flags.overdue ? <StatusChip label="Qua gio" tone="error" /> : null}
               {!candidate.flags.due_soon && !candidate.flags.overdue ? (
-                <span className="staff-table-board-assignment-caption">Không có cờ cảnh báo</span>
+                <span className="staff-table-board-assignment-caption">Khong co co canh bao</span>
               ) : null}
             </div>
           </div>
 
           <div className="staff-table-board-assignment-actions">
-            <Button
-              size="small"
-              onClick={() => onUseCurrentTable(candidate)}
-              loading={assignCurrentPending}
-            >
-              Dùng bàn này
-            </Button>
+            {onUseCurrentTable ? (
+              <Button
+                size="small"
+                onClick={() => onUseCurrentTable(candidate)}
+                loading={assignCurrentPending}
+              >
+                Dung ban nay
+              </Button>
+            ) : null}
+            {onOpenReservation ? (
+              <Button size="small" onClick={() => onOpenReservation(candidate)}>
+                Mo dat ban
+              </Button>
+            ) : null}
           </div>
         </article>
       ))}

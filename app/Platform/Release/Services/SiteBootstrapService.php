@@ -229,14 +229,72 @@ class SiteBootstrapService
             [
                 'category' => ['name' => 'Đồ uống', 'description' => 'Đồ uống khởi tạo', 'sort_order' => 10, 'aliases' => ['Do uong']],
                 'items' => [
-                    ['code' => 'BOOT-WATER', 'name' => 'Trà đá', 'description' => 'Trà đá mát lạnh dùng kèm bữa ăn.', 'price' => 10000],
+                    ['code' => 'BOOT-WATER', 'name' => 'Trà đá', 'description' => 'Trà đá mát lạnh dùng kèm bữa ăn.', 'price' => 10000, 'preorder_quota_per_day' => 200],
+                    ['code' => 'BOOT-PEACH-TEA', 'name' => 'Trà đào cam sả', 'description' => 'Trà đào thơm nhẹ, dùng cùng cam vàng và sả tươi.', 'price' => 45000, 'preorder_quota_per_day' => 120],
+                    ['code' => 'BOOT-LEMONGRASS-LIME', 'name' => 'Nước chanh sả', 'description' => 'Nước chanh tươi pha sả, vị chua ngọt cân bằng.', 'price' => 39000, 'preorder_quota_per_day' => 120],
+                    ['code' => 'BOOT-SALTED-PLUM-SODA', 'name' => 'Soda xí muội', 'description' => 'Soda mát lạnh cùng xí muội và lát chanh tươi.', 'price' => 42000, 'preorder_quota_per_day' => 100],
+                    ['code' => 'BOOT-FRESH-ORANGE', 'name' => 'Cam ép tươi', 'description' => 'Cam ép nguyên chất, phục vụ lạnh.', 'price' => 55000, 'preorder_quota_per_day' => 80],
+                    ['code' => 'BOOT-MINERAL-WATER', 'name' => 'Nước suối', 'description' => 'Nước suối đóng chai dùng kèm bữa ăn.', 'price' => 15000, 'preorder_quota_per_day' => 240],
                 ],
             ],
             [
                 'category' => ['name' => 'Món chính', 'description' => 'Các món chính khởi tạo', 'sort_order' => 20, 'aliases' => ['Mon chinh']],
                 'items' => [
-                    ['code' => 'BOOT-FRIED-RICE', 'name' => 'Cơm chiên hải sản', 'description' => 'Cơm chiên cùng tôm, mực, trứng và rau củ.', 'price' => 89000],
-                    ['code' => 'BOOT-NOODLE-BOWL', 'name' => 'Bún xào bò', 'description' => 'Bún xào bò mềm với rau cải và nước sốt đậm vị.', 'price' => 79000],
+                    ['code' => 'BOOT-FRIED-RICE', 'name' => 'Cơm chiên hải sản', 'description' => 'Cơm chiên cùng tôm, mực, trứng và rau củ.', 'price' => 89000, 'preorder_quota_per_day' => 80],
+                    ['code' => 'BOOT-NOODLE-BOWL', 'name' => 'Bún xào bò', 'description' => 'Bún xào bò mềm với rau cải và nước sốt đậm vị.', 'price' => 79000, 'preorder_quota_per_day' => 80],
+                    ['code' => 'BOOT-SHAKING-BEEF', 'name' => 'Bò lúc lắc', 'description' => 'Bò áp chảo sốt tiêu đen, dùng cùng khoai tây và salad.', 'price' => 129000, 'preorder_quota_per_day' => 70],
+                    ['code' => 'BOOT-GRILLED-CHICKEN', 'name' => 'Gà nướng mật ong', 'description' => 'Đùi gà nướng mật ong, da giòn nhẹ và sốt cay ngọt.', 'price' => 98000, 'preorder_quota_per_day' => 70],
+                    ['code' => 'BOOT-CARAMEL-PORK', 'name' => 'Thịt kho tiêu', 'description' => 'Thịt ba chỉ kho tiêu đậm vị, dùng cùng cơm trắng.', 'price' => 86000, 'preorder_quota_per_day' => 60],
+                    ['code' => 'BOOT-SEAFOOD-NOODLES', 'name' => 'Mì xào hải sản', 'description' => 'Mì xào cùng tôm, mực, rau cải và sốt dầu hào.', 'price' => 92000, 'preorder_quota_per_day' => 70],
+                    ['code' => 'BOOT-BASIL-BEEF', 'name' => 'Bò xào húng quế', 'description' => 'Bò xào nhanh với húng quế, ớt chuông và hành tây.', 'price' => 99000, 'preorder_quota_per_day' => 60],
+                ],
+            ],
+            [
+                'category' => ['name' => 'Khai vị', 'description' => 'Món khai vị dễ chia sẻ', 'sort_order' => 30, 'aliases' => ['Khai vi']],
+                'items' => [
+                    ['code' => 'BOOT-SPRING-ROLLS', 'name' => 'Gỏi cuốn tôm thịt', 'description' => 'Gỏi cuốn tôm thịt, rau thơm và nước chấm đậu phộng.', 'price' => 69000, 'preorder_quota_per_day' => 90],
+                    ['code' => 'BOOT-FRIED-CALAMARI', 'name' => 'Mực chiên giòn', 'description' => 'Mực vòng chiên giòn, dùng cùng sốt tartar.', 'price' => 89000, 'preorder_quota_per_day' => 70],
+                    ['code' => 'BOOT-CHICKEN-SALAD', 'name' => 'Gỏi gà hoa chuối', 'description' => 'Gà xé trộn hoa chuối, rau răm và nước mắm chua ngọt.', 'price' => 76000, 'preorder_quota_per_day' => 70],
+                    ['code' => 'BOOT-SALTED-EGG-CORN', 'name' => 'Bắp xào trứng muối', 'description' => 'Bắp Mỹ xào bơ, trứng muối và hành lá.', 'price' => 59000, 'preorder_quota_per_day' => 80],
+                    ['code' => 'BOOT-SHRIMP-TOAST', 'name' => 'Bánh mì tôm chiên', 'description' => 'Bánh mì phủ tôm quết, chiên giòn và dùng cùng sốt cay.', 'price' => 72000, 'preorder_quota_per_day' => 70],
+                ],
+            ],
+            [
+                'category' => ['name' => 'Cơm và mì', 'description' => 'Các món cơm, mì và phần ăn nhanh', 'sort_order' => 40, 'aliases' => ['Com va mi']],
+                'items' => [
+                    ['code' => 'BOOT-BEEF-RICE-BOWL', 'name' => 'Cơm bò sốt nấm', 'description' => 'Cơm trắng dùng cùng bò xào nấm và sốt nâu.', 'price' => 95000, 'preorder_quota_per_day' => 80],
+                    ['code' => 'BOOT-CHICKEN-RICE', 'name' => 'Cơm gà xối mỡ', 'description' => 'Gà xối mỡ da giòn, cơm thơm và đồ chua.', 'price' => 88000, 'preorder_quota_per_day' => 80],
+                    ['code' => 'BOOT-VEG-FRIED-NOODLES', 'name' => 'Mì xào rau củ', 'description' => 'Mì xào cùng cải thìa, nấm, cà rốt và sốt mè.', 'price' => 69000, 'preorder_quota_per_day' => 70],
+                    ['code' => 'BOOT-SEAFOOD-UDON', 'name' => 'Udon hải sản áp chảo', 'description' => 'Udon áp chảo cùng tôm, mực và sốt tương Nhật.', 'price' => 105000, 'preorder_quota_per_day' => 60],
+                    ['code' => 'BOOT-PORK-RIB-RICE', 'name' => 'Cơm sườn nướng', 'description' => 'Sườn nướng mật ong, cơm tấm, trứng ốp và nước mắm.', 'price' => 94000, 'preorder_quota_per_day' => 80],
+                ],
+            ],
+            [
+                'category' => ['name' => 'Lẩu và món chia sẻ', 'description' => 'Món phần lớn dành cho nhóm', 'sort_order' => 50, 'aliases' => ['Lau va mon chia se']],
+                'items' => [
+                    ['code' => 'BOOT-THAI-HOTPOT', 'name' => 'Lẩu Thái hải sản', 'description' => 'Nước lẩu Thái chua cay, tôm, mực, nghêu và rau nấm.', 'price' => 329000, 'preorder_quota_per_day' => 35, 'preorder_cutoff_minutes' => 30],
+                    ['code' => 'BOOT-SEAFOOD-HOTPOT', 'name' => 'Lẩu nấm hải sản', 'description' => 'Nước dùng thanh, hải sản tươi và các loại nấm.', 'price' => 349000, 'preorder_quota_per_day' => 30, 'preorder_cutoff_minutes' => 30],
+                    ['code' => 'BOOT-BEEF-HOTPOT', 'name' => 'Lẩu bò sa tế', 'description' => 'Lẩu bò sa tế cay nhẹ, dùng cùng rau xanh và mì trứng.', 'price' => 319000, 'preorder_quota_per_day' => 35, 'preorder_cutoff_minutes' => 30],
+                    ['code' => 'BOOT-GRILLED-SEAFOOD-PLATTER', 'name' => 'Hải sản nướng tổng hợp', 'description' => 'Tôm, mực, sò điệp và cá nướng cho nhóm 3-4 khách.', 'price' => 389000, 'preorder_quota_per_day' => 25, 'preorder_cutoff_minutes' => 45],
+                    ['code' => 'BOOT-FAMILY-COMBO', 'name' => 'Mâm gia đình', 'description' => 'Combo 4 món mặn, canh và rau cho nhóm gia đình.', 'price' => 459000, 'preorder_quota_per_day' => 25, 'preorder_cutoff_minutes' => 45],
+                ],
+            ],
+            [
+                'category' => ['name' => 'Tráng miệng', 'description' => 'Món ngọt sau bữa ăn', 'sort_order' => 60, 'aliases' => ['Trang mieng']],
+                'items' => [
+                    ['code' => 'BOOT-FLAN', 'name' => 'Bánh flan caramel', 'description' => 'Flan trứng sữa mềm mịn cùng caramel đậm vị.', 'price' => 39000, 'preorder_quota_per_day' => 90],
+                    ['code' => 'BOOT-PANNA-COTTA', 'name' => 'Panna cotta dâu', 'description' => 'Panna cotta kem sữa dùng cùng sốt dâu tươi.', 'price' => 52000, 'preorder_quota_per_day' => 70],
+                    ['code' => 'BOOT-FRUIT-PLATE', 'name' => 'Đĩa trái cây theo mùa', 'description' => 'Trái cây tươi cắt sẵn, phù hợp chia sẻ sau bữa ăn.', 'price' => 69000, 'preorder_quota_per_day' => 70],
+                    ['code' => 'BOOT-CHOCOLATE-MOUSSE', 'name' => 'Mousse chocolate', 'description' => 'Mousse chocolate đen, kem tươi và vụn hạnh nhân.', 'price' => 59000, 'preorder_quota_per_day' => 60],
+                ],
+            ],
+            [
+                'category' => ['name' => 'Combo đặt trước', 'description' => 'Combo chuẩn bị sẵn cho bàn đặt trước', 'sort_order' => 70, 'aliases' => ['Combo dat truoc']],
+                'items' => [
+                    ['code' => 'BOOT-COUPLE-COMBO', 'name' => 'Combo hẹn hò 2 người', 'description' => 'Set khai vị, hai món chính, hai đồ uống và tráng miệng.', 'price' => 399000, 'preorder_quota_per_day' => 30, 'preorder_cutoff_minutes' => 30],
+                    ['code' => 'BOOT-GROUP-COMBO-4', 'name' => 'Combo nhóm 4 người', 'description' => 'Set chia sẻ gồm khai vị, món chính, lẩu nhỏ và đồ uống.', 'price' => 799000, 'preorder_quota_per_day' => 25, 'preorder_cutoff_minutes' => 45],
+                    ['code' => 'BOOT-BIRTHDAY-SET', 'name' => 'Set sinh nhật', 'description' => 'Combo món ăn nhóm kèm bánh flan và trang trí bàn cơ bản.', 'price' => 959000, 'preorder_quota_per_day' => 18, 'preorder_cutoff_minutes' => 60],
+                    ['code' => 'BOOT-KIDS-SET', 'name' => 'Set trẻ em', 'description' => 'Phần ăn nhẹ cho trẻ gồm gà, khoai, nước ép và bánh ngọt.', 'price' => 149000, 'preorder_quota_per_day' => 40, 'preorder_cutoff_minutes' => 30],
                 ],
             ],
         ];
@@ -261,7 +319,7 @@ class SiteBootstrapService
                 ->first();
 
             if (! $category instanceof MenuCategory) {
-                $category = new MenuCategory();
+                $category = new MenuCategory;
             }
 
             $category->fill([
@@ -283,9 +341,9 @@ class SiteBootstrapService
                         'description' => $itemDefinition['description'],
                         'img_url' => null,
                         'is_available' => true,
-                        'is_preorder_enabled' => false,
-                        'preorder_quota_per_day' => null,
-                        'preorder_cutoff_minutes' => 0,
+                        'is_preorder_enabled' => (bool) ($itemDefinition['is_preorder_enabled'] ?? true),
+                        'preorder_quota_per_day' => $itemDefinition['preorder_quota_per_day'] ?? null,
+                        'preorder_cutoff_minutes' => (int) ($itemDefinition['preorder_cutoff_minutes'] ?? 0),
                     ]
                 );
                 $itemCount++;

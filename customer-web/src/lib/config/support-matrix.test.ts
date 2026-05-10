@@ -39,7 +39,7 @@ describe("customer-web support matrix", () => {
     ]);
   });
 
-  it("keeps payment-backed customer surfaces contract-visible but out of the wave 1 launch promise", () => {
+  it("keeps deferred customer surfaces contract-visible but out of the wave 1 launch promise", () => {
     const deferred = getSupportMatrixByReleaseWave("deferred");
 
     expect(deferred.map((entry) => entry.feature)).toEqual([
@@ -47,10 +47,11 @@ describe("customer-web support matrix", () => {
       "Deposit self-pay",
       "Bill and active order",
     ]);
+    expect(getSupportMatrixEntryById("preorder")?.status).toBe("live-ready");
     expect(getSupportMatrixEntryById("deposit-self-pay")?.status).toBe("live-conditional");
     expect(getSupportMatrixEntryById("bill-and-active-order")?.status).toBe("live-conditional");
-    expect(getSupportMatrixEntryById("deposit-self-pay")?.liveProofSummary).toMatch(/day-1 launch promise/i);
-    expect(getSupportMatrixEntryById("bill-and-active-order")?.liveProofSummary).toMatch(/customer bill self-pay remains off/i);
+    expect(getSupportMatrixEntryById("deposit-self-pay")?.liveProofSummary).toMatch(/cam kết ngày ra mắt/i);
+    expect(getSupportMatrixEntryById("bill-and-active-order")?.liveProofSummary).toMatch(/tự thanh toán hóa đơn của khách vẫn tắt/i);
   });
 
   it("keeps every wave 2 feature explicitly flag-gated and disabled by default", () => {
@@ -73,20 +74,23 @@ describe("customer-web support matrix", () => {
     expect(decisions["data-export"].enabled).toBe(false);
     expect(waitingList?.requiredHeaders).toEqual(["X-Customer-Token", "Idempotency-Key"]);
     expect(waitingList?.requiredHeaders).not.toContain("X-Session-Id");
-    expect(waitingList?.frontendDecision).toMatch(/manual refresh/i);
+    expect(waitingList?.frontendDecision).toMatch(/cập nhật thủ công/i);
     expect(accountBenefits?.requiredHeaders).toEqual(["X-Customer-Token", "Idempotency-Key"]);
-    expect(accountBenefits?.frontendDecision).toMatch(/latest row_version/i);
+    expect(accountBenefits?.frontendDecision).toMatch(/row_version mới nhất/i);
     expect(accountBenefits?.liveProofSummary).toMatch(/điểm thưởng và voucher/i);
   });
 
-  it("keeps preorder outside live launch proof and dev mocks outside production rollout", () => {
+  it("keeps preorder ready for controlled rollout and keeps dev mocks outside production rollout", () => {
     const preorder = getSupportMatrixEntry("Preorder");
     const devMockAdapter = getSupportMatrixEntryById("dev-mock-adapter");
 
     expect(preorder?.releaseWave).toBe("deferred");
-    expect(preorder?.status).toBe("ci-safe-only");
+    expect(preorder?.status).toBe("live-ready");
     expect(preorder?.exposure).toBe("env-flag");
+    expect(preorder?.frontendDecision).toMatch(/kiểm chứng Laravel live/i);
     expect(resolveSupportMatrixDecisions({}).preorder.enabled).toBe(false);
+    expect(resolveSupportMatrixDecisions({ enablePreorder: true }).preorder.enabled).toBe(true);
+    expect(resolveSupportMatrixDecisions({ enablePreorder: true }).preorder.liveReady).toBe(true);
     expect(devMockAdapter?.status).toBe("local-uat-only");
     expect(devMockAdapter?.exposure).toBe("local-only");
   });

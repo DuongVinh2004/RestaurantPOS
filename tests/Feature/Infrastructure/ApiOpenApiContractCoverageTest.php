@@ -133,6 +133,7 @@ final class ApiOpenApiContractCoverageTest extends TestCase
         $curatedSignatures = $this->curatedApiConsumerSignatures();
 
         $minimumSurface = [
+            'POST api/v1/auth/customer/register',
             'POST api/v1/auth/customer/login',
             'GET api/v1/auth/customer/me',
             'POST api/v1/auth/customer/refresh',
@@ -204,6 +205,11 @@ final class ApiOpenApiContractCoverageTest extends TestCase
             '#/components/schemas/CustomerLoginRequest',
             data_get($operations['POST api/v1/auth/customer/login'], 'requestBody.content.application/json.schema.$ref')
         );
+        $this->assertSame(
+            '#/components/schemas/RegisterRequest',
+            data_get($operations['POST api/v1/auth/customer/register'], 'requestBody.content.application/json.schema.$ref')
+        );
+        $this->assertArrayHasKey('password_confirmation', data_get($spec, 'components.schemas.RegisterRequest.properties', []));
         $this->assertSame(
             '#/components/schemas/StaffLoginRequest',
             data_get($operations['POST api/v1/auth/staff/login'], 'requestBody.content.application/json.schema.$ref')

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -134,8 +134,8 @@ describe("TableBookingPage", () => {
     expect(continueLink).toHaveAttribute("href", expect.stringContaining("hold_status=Holding"));
     expect(continueLink).toHaveAttribute("href", expect.stringContaining("hold_expires_at="));
     expect(continueLink).toHaveAttribute("href", expect.stringContaining("tables=7"));
-    expect(screen.getByRole("button", { name: "Gia hạn giữ bàn" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Hủy giữ bàn" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Gia hạn giữ bàn" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Hủy giữ bàn" })).not.toBeInTheDocument();
   });
 
   it("holds the searched visit snapshot even if form values change after results render", async () => {
@@ -183,7 +183,19 @@ describe("TableBookingPage", () => {
     });
   });
 
-  it("does not create another hold while the current session already has an active hold", async () => {
+  it("marks the selected quick date option", async () => {
+    const user = userEvent.setup();
+
+    renderPage();
+
+    const tomorrowButton = await screen.findByRole("button", { name: "Ngày mai" });
+    await user.click(tomorrowButton);
+
+    expect(tomorrowButton).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Hôm nay" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("automatically replaces the current hold when the customer chooses another table", async () => {
     const user = userEvent.setup();
 
     mocks.searchAvailableTables.mockResolvedValue({
@@ -239,17 +251,9 @@ describe("TableBookingPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Chọn Bàn 8" }));
 
-    expect(mocks.cancelTableHold).not.toHaveBeenCalled();
-    expect(mocks.createTableHold).toHaveBeenCalledTimes(1);
-    expect(await screen.findByText("Đang có lượt giữ bàn")).toBeInTheDocument();
-    expect(screen.getByText("Phiên này đang có một lượt giữ bàn khác. Vui lòng tiếp tục đặt bàn với lượt giữ hiện tại, gia hạn, hủy lượt giữ cũ hoặc tải lại trang.")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Hủy giữ bàn" }));
     await waitFor(() => {
       expect(mocks.cancelTableHold).toHaveBeenCalledWith("hold-123", 2);
     });
-
-    await user.click(screen.getByRole("button", { name: "Chọn Bàn 8" }));
 
     await waitFor(() => {
       expect(mocks.createTableHold).toHaveBeenCalledTimes(2);
@@ -260,6 +264,144 @@ describe("TableBookingPage", () => {
     });
 
     expect(await screen.findByRole("link", { name: "Tiếp tục đặt chỗ" })).toHaveAttribute("href", expect.stringContaining("hold_id=hold-456"));
+    expect(screen.queryByText("Đang có lượt giữ bàn")).not.toBeInTheDocument();
+  });
+
+  it("hides the stale reservation link while replacing a hold", async () => {
+    const user = userEvent.setup();
+    let resolveCancel: (value: unknown) => void = () => {};
+    let resolveSecondHold: (value: unknown) => void = () => {};
+
+    mocks.searchAvailableTables.mockResolvedValue({
+      tables: [
+        {
+          table_id: 7,
+          branch_id: 1,
+          table_code: "T7",
+          seats: 4,
+          zone: "A",
+          status: "Available",
+          description: null,
+        },
+        {
+          table_id: 8,
+          branch_id: 1,
+          table_code: "T8",
+          seats: 4,
+          zone: "A",
+          status: "Available",
+          description: null,
+        },
+      ],
+      meta: null,
+    });
+    mocks.cancelTableHold.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCancel = resolve;
+      }),
+    );
+    mocks.createTableHold
+      .mockResolvedValueOnce({
+        hold_id: "hold-123",
+        expire_at: futureIso(90),
+        hold_status: "Holding",
+        row_version: 2,
+        tables: [{ table_id: 7, table_code: "T7", zone: "A" }],
+      })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSecondHold = resolve;
+        }),
+      );
+
+    renderPage();
+
+    await clickSearchButton(user);
+    await user.click(await screen.findByRole("button", { name: "Chọn Bàn 7" }));
+    expect(await screen.findByRole("link")).toHaveAttribute("href", expect.stringContaining("hold_id=hold-123"));
+
+    await user.click(screen.getByRole("button", { name: "Chọn Bàn 8" }));
+
+    await waitFor(() => {
+      expect(mocks.cancelTableHold).toHaveBeenCalledWith("hold-123", 2);
+    });
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+
+    resolveCancel({
+      hold_id: "hold-123",
+      hold_status: "Cancelled",
+      row_version: 3,
+      tables: [{ table_id: 7 }],
+    });
+
+    await waitFor(() => {
+      expect(mocks.createTableHold).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+
+    resolveSecondHold({
+      hold_id: "hold-456",
+      expire_at: futureIso(90),
+      hold_status: "Holding",
+      row_version: 1,
+      tables: [{ table_id: 8, table_code: "T8", zone: "A" }],
+    });
+
+    expect(await screen.findByRole("link")).toHaveAttribute("href", expect.stringContaining("hold_id=hold-456"));
+  });
+
+  it("ignores availability form submits while a hold replacement is pending", async () => {
+    const user = userEvent.setup();
+
+    mocks.searchAvailableTables.mockResolvedValue({
+      tables: [
+        {
+          table_id: 7,
+          branch_id: 1,
+          table_code: "T7",
+          seats: 4,
+          zone: "A",
+          status: "Available",
+          description: null,
+        },
+        {
+          table_id: 8,
+          branch_id: 1,
+          table_code: "T8",
+          seats: 4,
+          zone: "A",
+          status: "Available",
+          description: null,
+        },
+      ],
+      meta: null,
+    });
+    mocks.cancelTableHold.mockReturnValue(new Promise(() => {}));
+    mocks.createTableHold.mockResolvedValueOnce({
+      hold_id: "hold-123",
+      expire_at: futureIso(90),
+      hold_status: "Holding",
+      row_version: 2,
+      tables: [{ table_id: 7, table_code: "T7", zone: "A" }],
+    });
+
+    renderPage();
+
+    const searchButton = await screen.findByRole("button", { name: "Tìm bàn" });
+    await user.click(searchButton);
+    await user.click(await screen.findByRole("button", { name: "Chọn Bàn 7" }));
+    await screen.findByRole("link");
+    await user.click(screen.getByRole("button", { name: "Chọn Bàn 8" }));
+
+    await waitFor(() => {
+      expect(mocks.cancelTableHold).toHaveBeenCalledWith("hold-123", 2);
+    });
+
+    const form = searchButton.closest("form");
+    expect(form).not.toBeNull();
+    fireEvent.submit(form as HTMLFormElement);
+
+    expect(mocks.searchAvailableTables).toHaveBeenCalledTimes(1);
   });
 
   it("duplicate table clicks send only one create hold request", async () => {
@@ -304,7 +446,7 @@ describe("TableBookingPage", () => {
     expect(await screen.findByRole("link", { name: "Tiếp tục đặt chỗ" })).toHaveAttribute("href", expect.stringContaining("hold_id=hold-123"));
   });
 
-  it("restores an active local hold and blocks a new create until the hold is resolved", async () => {
+  it("restores an active local hold and automatically replaces it when choosing a new table", async () => {
     const user = userEvent.setup();
     const sessionId = ensureCustomerSessionId();
 
@@ -335,6 +477,19 @@ describe("TableBookingPage", () => {
       ],
       meta: null,
     });
+    mocks.cancelTableHold.mockResolvedValue({
+      hold_id: "hold-local-1",
+      hold_status: "Cancelled",
+      row_version: 8,
+      tables: [{ table_id: 9 }],
+    });
+    mocks.createTableHold.mockResolvedValue({
+      hold_id: "hold-new-7",
+      expire_at: futureIso(90),
+      hold_status: "Holding",
+      row_version: 1,
+      tables: [{ table_id: 7, table_code: "T7", zone: "A" }],
+    });
 
     renderPage();
 
@@ -345,8 +500,14 @@ describe("TableBookingPage", () => {
     await clickSearchButton(user);
     await user.click(await screen.findByRole("button", { name: "Chọn Bàn 7" }));
 
-    expect(mocks.createTableHold).not.toHaveBeenCalled();
-    expect(screen.getByText("Đang có lượt giữ bàn")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mocks.cancelTableHold).toHaveBeenCalledWith("hold-local-1", 7);
+      expect(mocks.createTableHold).toHaveBeenCalledWith(
+        expect.objectContaining({ guest_count: 2, duration_minutes: 90 }),
+        [7],
+      );
+    });
+    expect(await screen.findByRole("link", { name: "Tiếp tục đặt chỗ" })).toHaveAttribute("href", expect.stringContaining("hold_id=hold-new-7"));
   });
 
   it("shows a friendly Vietnamese message when Laravel rejects another active session hold", async () => {
@@ -386,11 +547,11 @@ describe("TableBookingPage", () => {
     await user.click(await screen.findByRole("button", { name: "Chọn Bàn 7" }));
 
     expect(await screen.findByText("Phiên đặt bàn đang có lượt giữ khác")).toBeInTheDocument();
-    expect(screen.getByText("Phiên này đang có một lượt giữ bàn khác. Vui lòng tiếp tục đặt bàn với lượt giữ hiện tại, gia hạn, hủy lượt giữ cũ hoặc tải lại trang.")).toBeInTheDocument();
+    expect(screen.getByText("Phiên này đang có một lượt giữ bàn khác. Vui lòng tải lại phiên đặt bàn để đồng bộ lượt giữ hiện tại.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Tải lại phiên đặt bàn" })).toBeInTheDocument();
   });
 
-  it("refreshes and cancels the active hold with hold id and row version", async () => {
+  it("hides manual hold refresh and cancel actions because the hold lifecycle is automatic", async () => {
     const user = userEvent.setup();
 
     mocks.searchAvailableTables.mockResolvedValue({
@@ -414,35 +575,14 @@ describe("TableBookingPage", () => {
       row_version: 2,
       tables: [{ table_id: 7, table_code: "T7", zone: "A" }],
     });
-    mocks.refreshTableHold.mockResolvedValue({
-      hold_id: "hold-123",
-      expire_at: futureIso(120),
-      hold_status: "Holding",
-      row_version: 3,
-      tables: [{ table_id: 7, table_code: "T7", zone: "A" }],
-    });
-    mocks.cancelTableHold.mockResolvedValue({
-      hold_id: "hold-123",
-      hold_status: "Cancelled",
-      row_version: 4,
-      tables: [{ table_id: 7 }],
-    });
-
     renderPage();
 
     await clickSearchButton(user);
     await user.click(await screen.findByRole("button", { name: "Chọn Bàn 7" }));
     await screen.findByRole("link", { name: "Tiếp tục đặt chỗ" });
 
-    await user.click(screen.getByRole("button", { name: "Gia hạn giữ bàn" }));
-    await waitFor(() => {
-      expect(mocks.refreshTableHold).toHaveBeenCalledWith("hold-123", 2);
-    });
-
-    await user.click(await screen.findByRole("button", { name: "Hủy giữ bàn" }));
-    await waitFor(() => {
-      expect(mocks.cancelTableHold).toHaveBeenCalledWith("hold-123", 3);
-    });
+    expect(screen.queryByRole("button", { name: "Gia hạn giữ bàn" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Hủy giữ bàn" })).not.toBeInTheDocument();
   });
 
   it("uses backend suggestions for larger parties and holds the suggested table set", async () => {

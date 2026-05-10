@@ -10,5 +10,5 @@ export function shouldLookupActiveOrder(reservation: StaffReservationLookupEntry
   }
 
   const normalizedStatus = reservation.status.trim().toLowerCase();
-  return normalizedStatus === 'checkedin' || normalizedStatus === 'checked_in';
+  return normalizedStatus === 'checkedin' || normalizedStatus === 'checked_in' || normalizedStatus === 'reserved';
 }

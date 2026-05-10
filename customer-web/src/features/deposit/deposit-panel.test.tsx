@@ -170,9 +170,86 @@ describe("DepositPanel", () => {
     await waitFor(() => {
       expect(mocks.confirmDepositPaymentSession).toHaveBeenCalledWith(7, 301, 12);
     });
-    expect(await screen.findByText("Đã ghi nhận thanh toán")).toBeInTheDocument();
+    expect((await screen.findAllByText("Đã ghi nhận thanh toán")).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Đã ghi nhận")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Xác nhận thanh toán" })).not.toBeInTheDocument();
+  });
+
+  it("does not allow creating a second deposit payment session while restoring one", async () => {
+    window.sessionStorage.setItem("restaurantpos.customer.session-id.v1", "browser-session-1");
+    window.sessionStorage.setItem(
+      "restaurantpos.customer.payment-session.v1.deposit.7",
+      JSON.stringify({
+        surface: "deposit",
+        reservation_id: 7,
+        session_id: 301,
+        browser_session_id: "browser-session-1",
+      }),
+    );
+    mocks.getDepositPaymentSession.mockReturnValue(new Promise(() => {}));
+
+    renderPanel();
+
+    expect(await screen.findByRole("button", { name: "Thanh toán đặt cọc" })).toBeDisabled();
+    expect(mocks.createDepositPaymentSession).not.toHaveBeenCalled();
+  });
+
+  it("prevents deposit preview actions from running at the same time", async () => {
+    const user = userEvent.setup();
+
+    mocks.getDepositPreview.mockResolvedValue({
+      reservation: createReservation(),
+      deposit: {
+        status: "Pending",
+        outstanding_amount: "25.00",
+        currency: "USD",
+        self_service: {
+          can_acknowledge: true,
+          can_submit_intent: true,
+          can_revoke_intent: false,
+          can_create_payment_session: false,
+        },
+      },
+    });
+    mocks.acknowledgeDeposit.mockReturnValue(new Promise(() => {}));
+
+    renderPanel();
+
+    await user.click(await screen.findByRole("button", { name: "Tôi đã hiểu yêu cầu đặt cọc" }));
+
+    expect(screen.getByRole("button", { name: "Tôi sẽ tự thanh toán" })).toBeDisabled();
+    expect(mocks.submitDepositIntent).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the reservation prop row version when deposit preview omits reservation data", async () => {
+    const user = userEvent.setup();
+
+    mocks.getDepositPreview.mockResolvedValue({
+      deposit: {
+        status: "Pending",
+        outstanding_amount: "25.00",
+        currency: "USD",
+        self_service: {
+          can_acknowledge: false,
+          can_submit_intent: false,
+          can_revoke_intent: false,
+          can_create_payment_session: true,
+        },
+      },
+    });
+    mocks.createDepositPaymentSession.mockResolvedValue(
+      createPaymentSessionEnvelope(11),
+    );
+
+    renderPanel();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Thanh toán đặt cọc" }),
+    );
+
+    await waitFor(() => {
+      expect(mocks.createDepositPaymentSession).toHaveBeenCalledWith(7, 4);
+    });
   });
 
   it("shows refresh guidance when a deposit mutation hits a stale row version", async () => {
@@ -194,8 +271,8 @@ describe("DepositPanel", () => {
 
     await user.click(await screen.findByRole("button", { name: "Thanh toán đặt cọc" }));
 
-    expect(await screen.findByText("Thông tin đặt cọc đã thay đổi")).toBeInTheDocument();
-    expect(screen.getByText("Thông tin đã thay đổi trong lúc bạn thao tác.")).toBeInTheDocument();
+    expect(screen.getByText("Tải lại trang để lấy thông tin mới nhất rồi thử lại.")).toBeInTheDocument();
+    expect(screen.getByText("Thông tin đặt cọc đã thay đổi")).toBeInTheDocument();
     expect(screen.getByText("Tải lại trang để lấy thông tin mới nhất rồi thử lại.")).toBeInTheDocument();
   });
 
@@ -221,6 +298,6 @@ describe("DepositPanel", () => {
     renderPanel();
 
     expect(await screen.findAllByText("Đặt cọc đã xử lý")).toHaveLength(2);
-    expect(screen.getByText("Khoản đặt cọc đã được xử lý cho lịch đặt này.")).toBeInTheDocument();
+    expect(screen.getByText("Khoản đặt cọc đã được ghi nhận cho lịch đặt này.")).toBeInTheDocument();
   });
 });

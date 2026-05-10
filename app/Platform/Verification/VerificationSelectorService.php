@@ -117,6 +117,59 @@ class VerificationSelectorService
             ],
         ],
         [
+            'key' => 'staff_web_frontend',
+            'label' => 'Staff web frontend',
+            'skills' => [
+                'restaurantpos-staff-web-react',
+                'restaurantpos-ui-design-system-guardian',
+                'restaurantpos-web-client-contracts',
+            ],
+            'fragments' => [
+                'staff-web/package.json',
+                'staff-web/src/',
+                'staff-web/scripts/',
+            ],
+            'commands' => [
+                [
+                    'tier' => 'frontend-tests',
+                    'command' => 'npm --prefix staff-web run test',
+                    'reason' => 'Run the staff-web Vitest and local harness checks for operator UI changes.',
+                ],
+                [
+                    'tier' => 'frontend-build',
+                    'command' => 'npm --prefix staff-web run build',
+                    'reason' => 'Build staff-web after React, routing, API usage, or UI state changes.',
+                ],
+            ],
+        ],
+        [
+            'key' => 'customer_web_frontend',
+            'label' => 'Customer web frontend',
+            'skills' => [
+                'restaurantpos-customer-web-ui-flow',
+                'restaurantpos-customer-web-api-client',
+                'restaurantpos-ui-design-system-guardian',
+            ],
+            'fragments' => [
+                'customer-web/package.json',
+                'customer-web/src/',
+                'customer-web/e2e/',
+                'customer-web/scripts/',
+            ],
+            'commands' => [
+                [
+                    'tier' => 'frontend-typecheck',
+                    'command' => 'npm --prefix customer-web run typecheck',
+                    'reason' => 'Typecheck customer-web after Next.js, contract, form, or UI state changes.',
+                ],
+                [
+                    'tier' => 'frontend-tests',
+                    'command' => 'npm --prefix customer-web run test:journeys',
+                    'reason' => 'Run focused customer journey tests for booking, auth, menu, and reservation UI changes.',
+                ],
+            ],
+        ],
+        [
             'key' => 'auth_rbac',
             'label' => 'Auth / Identity / RBAC',
             'skills' => ['restaurantpos-auth-rbac'],

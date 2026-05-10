@@ -12,6 +12,10 @@ use App\SharedKernel\Money\Money;
 use App\Support\ValidationExceptionFactory;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Dong bo cac snapshot tai chinh cua reservation:
+ * subtotal, discount, total_due, deposit state, va dau vet mutation.
+ */
 class ReservationFinancialSyncService
 {
     /**
@@ -19,6 +23,7 @@ class ReservationFinancialSyncService
      */
     public function computeReservationBillSnapshot(int $reservationId, float $discountAmount, bool $lockOrders = true): array
     {
+        // Snapshot bill duoc tinh tu order item chua bi cancel va chi chap nhan mot loai currency.
         $query = DB::table('reservation_orders as ro')
             ->join('reservation_order_items as roi', 'roi.order_id', '=', 'ro.order_id')
             ->where('ro.reservation_id', $reservationId)
@@ -34,6 +39,7 @@ class ReservationFinancialSyncService
         $currency = null;
 
         foreach ($items as $item) {
+            // Cancelled items khong con dong gop vao subtotal, nhung van duoc giu trong lich su order.
             if ((string) ($item->status ?? '') === ReservationOrderItemStatus::Cancelled->value) {
                 continue;
             }
@@ -51,6 +57,7 @@ class ReservationFinancialSyncService
             }
         }
 
+        // Snapshot luon doi ve minor units truoc de tranh sai so khi cong/tru bill.
         $discountMinor = Money::minorUnits($discountAmount, true);
         $totalDueMinor = max(0, $subtotalMinor - $discountMinor);
 
@@ -64,8 +71,10 @@ class ReservationFinancialSyncService
 
     public function syncReservationDiscountSnapshot(Reservation $reservation, float $totalDiscount, bool $lockOrders = true): void
     {
+        // Khi bill da duoc lock, doi discount phai keo theo final_bill_amount va bill_currency.
         $reservation->discount_amount = Money::format($totalDiscount, true);
 
+        // Neu bill chua lock thi chi can cap nhat discount_amount; final snapshot se duoc tinh sau.
         if ($reservation->billed_at === null && $reservation->final_bill_amount === null) {
             return;
         }
@@ -84,6 +93,7 @@ class ReservationFinancialSyncService
      */
     public function syncDepositSnapshot(Reservation $reservation, array $paymentSummary, bool $terminalForfeit = false): void
     {
+        // Deposit snapshot giup reservation biet dang no, da du, hay da hoan mot phan.
         if (PaymentSummary::hasOverRefund($paymentSummary)) {
             throw ValidationExceptionFactory::make([
                 'payments' => ['Payment state is inconsistent: refunded amount exceeds captured amount.'],
@@ -95,6 +105,7 @@ class ReservationFinancialSyncService
         $depositRefundedMinor = Money::minorUnits($paymentSummary['deposit_refunded_amount'] ?? 0, true);
         $depositNetMinor = Money::minorUnits($paymentSummary['deposit_net_amount'] ?? 0, true);
 
+        // deposit_paid_amount va deposit_status luon di cung nhau de UI khong phai tu suy lai.
         $reservation->deposit_paid_amount = Money::formatMinor($depositNetMinor);
         $reservation->deposit_status = $this->resolveDepositStatus(
             depositRequiredMinor: $depositRequiredMinor,
@@ -107,6 +118,7 @@ class ReservationFinancialSyncService
 
     public function touchFinancialMutation(Reservation $reservation, ?int $actorUserId = null): void
     {
+        // Cham vao reservation de cac client/documents biet bill state vua thay doi.
         $currentVersion = (int) ($reservation->row_version ?? 0);
         $reservation->row_version = $currentVersion > 0 ? $currentVersion + 1 : 1;
 
@@ -123,6 +135,7 @@ class ReservationFinancialSyncService
 
     private function resolveDepositStatus(int $depositRequiredMinor, int $depositCapturedMinor, int $depositRefundedMinor, int $depositNetMinor, bool $terminalForfeit): string
     {
+        // State machine nay quy doi snapshot payment thanh status de reservation doc/loc nhanh.
         if ($depositRequiredMinor <= 0 && $depositCapturedMinor <= 0 && $depositNetMinor <= 0) {
             return 'NotRequired';
         }

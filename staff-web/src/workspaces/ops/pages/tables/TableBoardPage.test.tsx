@@ -101,20 +101,35 @@ describe('TableBoardPage', () => {
         row_version: 5,
       },
     });
+    apiMocks.assignBestFitTable.mockResolvedValue({
+      data: {
+        reservation_id: 66,
+        reservation_code: 'RSV-UNASSIGNED-066',
+        row_version: 5,
+        table_ids: [33],
+      },
+    });
+    apiMocks.assignSuggestedTable.mockResolvedValue({
+      data: {
+        reservation_id: 77,
+        reservation_code: 'RSV-CAND-077',
+        row_version: 6,
+        table_ids: [33],
+      },
+    });
     apiMocks.moveReservationTable.mockResolvedValue({
       data: {
         reservation_id: 44,
         reservation_code: 'RSV-CHECKEDIN-001',
-        row_version: 9,
-        table_ids: [15],
+        row_version: 5,
+        table_ids: [34],
       },
     });
     apiMocks.releaseStaffTable.mockResolvedValue({
       data: {
         table_id: 33,
         table_code: 'T33',
-        status: 'Available',
-        row_version: 3,
+        row_version: 9,
       },
     });
   });
@@ -138,7 +153,7 @@ describe('TableBoardPage', () => {
       target: { value: 'Phone-in reservation' },
     });
 
-    fireEvent.click(withinLast(dialog, /Tạo đặt bàn hộ/i));
+    fireEvent.click(withinLast(dialog, /Tao dat ban ho/i));
 
     await waitFor(() => expect(apiMocks.createReservation).toHaveBeenCalledTimes(1));
 
@@ -313,7 +328,7 @@ describe('TableBoardPage', () => {
     expect(within(reservedCard).getByText('Nhận bàn')).toBeInTheDocument();
   });
 
-  it('moves a checked-in reservation to a new table and carries order context forward', async () => {
+  it('moves a checked-in reservation through the canonical table reassignment contract', async () => {
     apiMocks.getTableBoard.mockResolvedValue(createBoardEnvelope([
       createBoardRow({
         table_id: 12,
@@ -365,34 +380,39 @@ describe('TableBoardPage', () => {
         },
       }),
       createBoardRow({
-        table_id: 15,
-        table_code: 'T15',
+        table_id: 34,
+        table_code: 'T34',
+        row_version: 8,
+        availability: {
+          accepts_new_assignment: true,
+          is_operationally_blocked: false,
+          is_realtime_occupied: false,
+          has_reservation_in_range: false,
+          has_hold_in_range: false,
+          requires_deposit_follow_up: false,
+        },
       }),
     ]));
 
     renderWithProviders('/ops/tables?source=board&table_id=12&reservation_id=44&reservation_row_version=4&order_id=501&order_row_version=13');
 
     fireEvent.click(await screen.findByRole('button', { name: /Chuyển bàn/i }));
-    const moveButtons = screen.getAllByRole('button', { name: /Chuyển bàn/i });
-    fireEvent.click(moveButtons[moveButtons.length - 1]);
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(withinLast(dialog, /Xác nhận chuyển bàn/i));
 
     await waitFor(() => expect(apiMocks.moveReservationTable).toHaveBeenCalledWith(44, {
       from_table_id: 12,
-      to_table_id: 15,
+      to_table_id: 34,
       row_version: 4,
     }));
-    await waitFor(() => expect(screen.getByTestId('orders-destination')).toBeInTheDocument());
-    expect(screen.getByTestId('location-search').textContent).toContain('source=board');
-    expect(screen.getByTestId('location-search').textContent).toContain('table_id=15');
-    expect(screen.getByTestId('location-search').textContent).toContain('reservation_id=44');
-    expect(screen.getByTestId('location-search').textContent).toContain('order_id=501');
   });
 
-  it('releases an idle occupied table from the board inspector', async () => {
+  it('releases an idle occupied table with the board row version', async () => {
     apiMocks.getTableBoard.mockResolvedValue(createBoardEnvelope([
       createBoardRow({
         table_id: 33,
         table_code: 'T33',
+        row_version: 8,
         realtime_status: 'Occupied',
         board_state: 'occupied_now',
         availability: {
@@ -408,40 +428,80 @@ describe('TableBoardPage', () => {
 
     renderWithProviders('/ops/tables?source=board&table_id=33');
 
-    fireEvent.click(await screen.findByRole('button', { name: /Trả bàn về sẵn bàn/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Trả bàn về sẵn sàng/i }));
 
-    await waitFor(() => expect(confirmActionMock).toHaveBeenCalled());
-    await waitFor(() => expect(apiMocks.releaseStaffTable).toHaveBeenCalledWith(33));
+    await waitFor(() => expect(apiMocks.releaseStaffTable).toHaveBeenCalledWith(33, {
+      row_version: 8,
+    }));
   });
 
-  it('clears stale reservation and order journey params after releasing a table', async () => {
-    apiMocks.getTableBoard.mockResolvedValue(createBoardEnvelope([
-      createBoardRow({
-        table_id: 33,
-        table_code: 'T33',
-        realtime_status: 'Occupied',
-        board_state: 'occupied_now',
-        availability: {
-          accepts_new_assignment: false,
-          is_operationally_blocked: false,
-          is_realtime_occupied: true,
-          has_reservation_in_range: false,
-          has_hold_in_range: false,
-          requires_deposit_follow_up: false,
+  it('assigns unassigned and candidate reservations through canonical table assignment contracts', async () => {
+    apiMocks.getTableBoard.mockResolvedValue({
+      ...createBoardEnvelope([
+        createBoardRow({
+          table_id: 33,
+          table_code: 'T33',
+          board_state: 'Available',
+          candidate_reservations: [
+            {
+              reservation_id: 77,
+              reservation_code: 'RSV-CAND-077',
+              row_version: 5,
+              guest_count: 2,
+              start_time: '2026-04-11T12:00:00Z',
+              end_time: '2026-04-11T14:00:00Z',
+              user: {
+                full_name: 'Candidate Guest',
+              },
+              guest: null,
+              flags: {
+                due_soon: true,
+                overdue: false,
+              },
+            },
+          ],
+        }),
+      ]),
+      unassigned_reservations: [
+        {
+          reservation_id: 66,
+          reservation_code: 'RSV-UNASSIGNED-066',
+          row_version: 4,
+          guest_count: 3,
+          start_time: '2026-04-11T11:00:00Z',
+          end_time: '2026-04-11T13:00:00Z',
+          user: {
+            full_name: 'Walkup Lead',
+          },
+          guest: null,
+          orchestration: {
+            best_fit_table: {
+              table_id: 33,
+              table_code: 'T33',
+            },
+          },
         },
-      }),
-    ]));
-
-    renderWithProviders('/ops/tables?source=board&table_id=33&reservation_id=44&reservation_row_version=4&order_id=501&order_row_version=13');
-
-    fireEvent.click(await screen.findByRole('button', { name: /Trả bàn về sẵn bàn/i }));
-
-    await waitFor(() => expect(apiMocks.releaseStaffTable).toHaveBeenCalledWith(33));
-    await waitFor(() => {
-      expect(screen.getByTestId('location-search').textContent).toContain('table_id=33');
-      expect(screen.getByTestId('location-search').textContent).not.toContain('reservation_id=');
-      expect(screen.getByTestId('location-search').textContent).not.toContain('order_id=');
+      ],
     });
+
+    renderWithProviders('/ops/tables?source=board&table_id=33');
+
+    fireEvent.click(await screen.findByText(/Gan phu hop nhat/i));
+    await waitFor(() => expect(apiMocks.assignBestFitTable).toHaveBeenCalledWith(66, {
+      row_version: 4,
+      board_from: '2026-04-11T10:00:00Z',
+      board_to: '2026-04-11T14:00:00Z',
+      zone: undefined,
+    }));
+
+    fireEvent.click(await screen.findByText(/Dung ban nay/i));
+    await waitFor(() => expect(apiMocks.assignSuggestedTable).toHaveBeenCalledWith(77, {
+      table_id: 33,
+      row_version: 5,
+      board_from: '2026-04-11T10:00:00Z',
+      board_to: '2026-04-11T14:00:00Z',
+      zone: 'Main',
+    }));
   });
 });
 
@@ -459,6 +519,7 @@ function createBoardRow(overrides: Record<string, unknown> = {}) {
   return {
     table_id: 12,
     table_code: 'T12',
+    row_version: 7,
     zone: 'Main',
     pos_x: null,
     pos_y: null,

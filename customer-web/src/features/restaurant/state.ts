@@ -2,15 +2,15 @@ import type { RestaurantProfile } from "./api";
 
 export const customerFooterContact = {
   name: "RestaurantPOS",
-  tagline: "Bữa ăn gọn gàng, thân thiện và đúng hẹn.",
-  address: "Trường Đại học Xây dựng Hà Nội",
+  tagline: "Trải nghiệm đặt bàn và dùng bữa rõ ràng, nhanh gọn.",
+  address: "Truong Dai hoc Xay dung Ha Noi",
   phone: "0961702575",
   phoneDisplay: "0961 702 575",
   email: "duongvinhdxv@gmail.com",
   facebookUrl: "https://www.facebook.com/duong.vinh.339875",
 };
 
-const dayLabels = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+const dayLabels = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
 
 export function googleMapsUrl(address = customerFooterContact.address): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
@@ -35,7 +35,7 @@ export function formatPeriods(periods: RestaurantProfile["today_hours"]["periods
         return "Mở cả ngày";
       }
 
-      return `${period.start_time}-${period.end_time}`;
+      return `${period.start_time} - ${period.end_time}`;
     })
     .join(", ");
 }

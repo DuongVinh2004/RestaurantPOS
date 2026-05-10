@@ -12,8 +12,16 @@
     ],
     "tags": [
         {
+            "name": "Admin Benefits",
+            "description": "Admin Benefits"
+        },
+        {
             "name": "Admin Inventory",
             "description": "Admin Inventory"
+        },
+        {
+            "name": "Admin Privacy",
+            "description": "Admin Privacy"
         },
         {
             "name": "Admin Settings",
@@ -82,6 +90,10 @@
         {
             "name": "Staff Conversations",
             "description": "Operational inbox flows for conversation triage, assignment, linkage, internal notes, and queue-backed outbound replies."
+        },
+        {
+            "name": "Staff Finance",
+            "description": "Staff Finance"
         },
         {
             "name": "Staff Kitchen",
@@ -157,10 +169,10 @@
         "/api/v1/admin/benefits/loyalty-tiers": {
             "get": {
                 "operationId": "get_v1_admin_benefits_loyalty_tiers",
-                "summary": "GET Benefits Loyalty Tiers",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "List admin loyalty tiers",
+                "description": "Return paged loyalty tier master data for admin benefits management.",
                 "tags": [
-                    "Legacy"
+                    "Admin Benefits"
                 ],
                 "parameters": [],
                 "responses": {
@@ -169,7 +181,37 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminLoyaltyTierCollectionEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
                                 }
                             }
                         }
@@ -184,7 +226,7 @@
                 "x-route-key": "get_v1_admin_benefits_loyalty_tiers",
                 "x-action": "App\\Modules\\Loyalty\\Http\\Controllers\\Admin\\LoyaltyTierController@index",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -199,10 +241,10 @@
             },
             "post": {
                 "operationId": "post_v1_admin_benefits_loyalty_tiers",
-                "summary": "POST Benefits Loyalty Tiers",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Create admin loyalty tier",
+                "description": "Create a loyalty tier master-data record under the admin benefits capability.",
                 "tags": [
-                    "Legacy"
+                    "Admin Benefits"
                 ],
                 "parameters": [
                     {
@@ -216,12 +258,12 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "Successful response.",
+                    "201": {
+                        "description": "Resource created successfully.",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminLoyaltyTierEnvelope"
                                 }
                             }
                         },
@@ -237,6 +279,46 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConflictError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -248,7 +330,7 @@
                 "x-route-key": "post_v1_admin_benefits_loyalty_tiers",
                 "x-action": "App\\Modules\\Loyalty\\Http\\Controllers\\Admin\\LoyaltyTierController@store",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -269,9 +351,9 @@
                                 "$ref": "#/components/schemas/StoreLoyaltyTierRequest"
                             },
                             "example": {
-                                "tier_code": "example",
-                                "tier_name": "Demo Customer",
-                                "min_points": 101,
+                                "tier_code": "GOLD",
+                                "tier_name": "Gold",
+                                "min_points": 1000,
                                 "benefits_json": [],
                                 "is_active": true
                             }
@@ -430,10 +512,10 @@
         "/api/v1/admin/benefits/loyalty-tiers/{id}": {
             "get": {
                 "operationId": "get_v1_admin_benefits_loyalty_tiers_id",
-                "summary": "GET Loyalty Tiers Id",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Show admin loyalty tier",
+                "description": "Return one loyalty tier master-data record with row_version for guarded updates.",
                 "tags": [
-                    "Legacy"
+                    "Admin Benefits"
                 ],
                 "parameters": [
                     {
@@ -451,7 +533,37 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminLoyaltyTierEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
                                 }
                             }
                         }
@@ -466,7 +578,7 @@
                 "x-route-key": "get_v1_admin_benefits_loyalty_tiers_id",
                 "x-action": "App\\Modules\\Loyalty\\Http\\Controllers\\Admin\\LoyaltyTierController@show",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -481,10 +593,10 @@
             },
             "patch": {
                 "operationId": "patch_v1_admin_benefits_loyalty_tiers_id",
-                "summary": "PATCH Loyalty Tiers Id",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Update admin loyalty tier",
+                "description": "Update a loyalty tier master-data record using row_version stale-write protection.",
                 "tags": [
-                    "Legacy"
+                    "Admin Benefits"
                 ],
                 "parameters": [
                     {
@@ -511,7 +623,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminLoyaltyTierEnvelope"
                                 }
                             }
                         },
@@ -527,6 +639,56 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StaleRowVersionError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -538,7 +700,7 @@
                 "x-route-key": "patch_v1_admin_benefits_loyalty_tiers_id",
                 "x-action": "App\\Modules\\Loyalty\\Http\\Controllers\\Admin\\LoyaltyTierController@update",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -559,11 +721,9 @@
                                 "$ref": "#/components/schemas/UpdateLoyaltyTierRequest"
                             },
                             "example": {
-                                "row_version": 1,
-                                "tier_code": "example",
-                                "tier_name": "Demo Customer",
-                                "min_points": 101,
-                                "benefits_json": [],
+                                "row_version": 3,
+                                "tier_name": "Gold Plus",
+                                "min_points": 1200,
                                 "is_active": true
                             }
                         }
@@ -574,10 +734,10 @@
         "/api/v1/admin/benefits/vouchers": {
             "get": {
                 "operationId": "get_v1_admin_benefits_vouchers",
-                "summary": "GET Benefits Vouchers",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "List admin vouchers",
+                "description": "Return paged voucher master data for admin benefits management.",
                 "tags": [
-                    "Legacy"
+                    "Admin Benefits"
                 ],
                 "parameters": [],
                 "responses": {
@@ -586,7 +746,37 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminVoucherCollectionEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
                                 }
                             }
                         }
@@ -601,7 +791,7 @@
                 "x-route-key": "get_v1_admin_benefits_vouchers",
                 "x-action": "App\\Modules\\Promotions\\Http\\Controllers\\Admin\\VoucherController@index",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -616,10 +806,10 @@
             },
             "post": {
                 "operationId": "post_v1_admin_benefits_vouchers",
-                "summary": "POST Benefits Vouchers",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Create admin voucher",
+                "description": "Create a voucher master-data record under the admin benefits capability.",
                 "tags": [
-                    "Legacy"
+                    "Admin Benefits"
                 ],
                 "parameters": [
                     {
@@ -633,12 +823,12 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "Successful response.",
+                    "201": {
+                        "description": "Resource created successfully.",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminVoucherEnvelope"
                                 }
                             }
                         },
@@ -654,6 +844,46 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConflictError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -665,7 +895,7 @@
                 "x-route-key": "post_v1_admin_benefits_vouchers",
                 "x-action": "App\\Modules\\Promotions\\Http\\Controllers\\Admin\\VoucherController@store",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -686,17 +916,10 @@
                                 "$ref": "#/components/schemas/StoreVoucherRequest"
                             },
                             "example": {
-                                "code": "example",
-                                "description": "example",
+                                "code": "WELCOME50",
                                 "discount_type": "Fixed",
-                                "discount_value": 1.5,
-                                "free_item_id": 101,
-                                "free_item_qty": 101,
-                                "max_usage": 101,
-                                "max_usage_per_user": 101,
-                                "min_spend": 1.5,
-                                "start_date": "2026-04-05",
-                                "expiry_date": "2026-04-05",
+                                "discount_value": 50000,
+                                "description": "Welcome discount",
                                 "is_active": true
                             }
                         }
@@ -854,10 +1077,10 @@
         "/api/v1/admin/benefits/vouchers/{id}": {
             "get": {
                 "operationId": "get_v1_admin_benefits_vouchers_id",
-                "summary": "GET Vouchers Id",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Show admin voucher",
+                "description": "Return one voucher master-data record with row_version for guarded updates.",
                 "tags": [
-                    "Legacy"
+                    "Admin Benefits"
                 ],
                 "parameters": [
                     {
@@ -875,7 +1098,37 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminVoucherEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
                                 }
                             }
                         }
@@ -890,7 +1143,7 @@
                 "x-route-key": "get_v1_admin_benefits_vouchers_id",
                 "x-action": "App\\Modules\\Promotions\\Http\\Controllers\\Admin\\VoucherController@show",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -905,10 +1158,10 @@
             },
             "patch": {
                 "operationId": "patch_v1_admin_benefits_vouchers_id",
-                "summary": "PATCH Vouchers Id",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Update admin voucher",
+                "description": "Update a voucher master-data record using row_version stale-write protection.",
                 "tags": [
-                    "Legacy"
+                    "Admin Benefits"
                 ],
                 "parameters": [
                     {
@@ -935,7 +1188,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminVoucherEnvelope"
                                 }
                             }
                         },
@@ -951,6 +1204,56 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StaleRowVersionError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -962,7 +1265,7 @@
                 "x-route-key": "patch_v1_admin_benefits_vouchers_id",
                 "x-action": "App\\Modules\\Promotions\\Http\\Controllers\\Admin\\VoucherController@update",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -983,18 +1286,9 @@
                                 "$ref": "#/components/schemas/UpdateVoucherRequest"
                             },
                             "example": {
-                                "row_version": 1,
-                                "code": "example",
-                                "description": "example",
-                                "discount_type": "Fixed",
-                                "discount_value": 1.5,
-                                "free_item_id": 101,
-                                "free_item_qty": 101,
-                                "max_usage": 101,
-                                "max_usage_per_user": 101,
-                                "min_spend": 1.5,
-                                "start_date": "2026-04-05",
-                                "expiry_date": "2026-04-05",
+                                "row_version": 2,
+                                "description": "Updated welcome discount",
+                                "discount_value": 60000,
                                 "is_active": true
                             }
                         }
@@ -1628,10 +1922,10 @@
         "/api/v1/admin/inventory/ingredients/{id}/movements": {
             "get": {
                 "operationId": "get_v1_admin_inventory_ingredients_id_movements",
-                "summary": "GET Id Movements",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "List ingredient stock movements",
+                "description": "Return paged stock movement ledger rows for one ingredient, scoped by staff branch access and optional branch filter.",
                 "tags": [
-                    "Legacy"
+                    "Admin Inventory"
                 ],
                 "parameters": [
                     {
@@ -1813,7 +2107,47 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminIngredientMovementCollectionEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
                                 }
                             }
                         }
@@ -1828,7 +2162,7 @@
                 "x-route-key": "get_v1_admin_inventory_ingredients_id_movements",
                 "x-action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\InventoryAdjustmentController@listIngredientMovements",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -1843,10 +2177,10 @@
             },
             "post": {
                 "operationId": "post_v1_admin_inventory_ingredients_id_movements",
-                "summary": "POST Id Movements",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Create ingredient stock movement",
+                "description": "Create a guarded stock movement for one ingredient and return the posted ledger row with updated stock-on-hand metadata.",
                 "tags": [
-                    "Legacy"
+                    "Admin Inventory"
                 ],
                 "parameters": [
                     {
@@ -1868,12 +2202,12 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "Successful response.",
+                    "201": {
+                        "description": "Resource created successfully.",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminIngredientMovementEnvelope"
                                 }
                             }
                         },
@@ -1889,6 +2223,56 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConflictError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -1900,7 +2284,7 @@
                 "x-route-key": "post_v1_admin_inventory_ingredients_id_movements",
                 "x-action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\InventoryAdjustmentController@createIngredientMovement",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -1921,13 +2305,13 @@
                                 "$ref": "#/components/schemas/CreateIngredientStockMovementRequest"
                             },
                             "example": {
-                                "movement_type": "StockIn",
-                                "branch_id": 101,
-                                "quantity": 1.5,
-                                "unit_code": "example",
-                                "reference_type": "example",
-                                "reference_id": "example",
-                                "notes": "Contract example payload"
+                                "movement_type": "AdjustmentDecrease",
+                                "branch_id": 1,
+                                "quantity": 2.5,
+                                "unit_code": "kg",
+                                "reference_type": "manual_adjustment",
+                                "reference_id": "ADJ-20260405-01",
+                                "notes": "Spoilage recorded during prep"
                             }
                         }
                     }
@@ -2957,10 +3341,10 @@
         "/api/v1/admin/inventory/purchase-orders/{id}/receipts": {
             "get": {
                 "operationId": "get_v1_admin_inventory_purchase_orders_id_receipts",
-                "summary": "GET Id Receipts",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "List purchase order receipts",
+                "description": "Return posted receiving records for one purchase order, including purchase-order context and receipt line summaries.",
                 "tags": [
-                    "Legacy"
+                    "Admin Inventory"
                 ],
                 "parameters": [
                     {
@@ -3183,7 +3567,47 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminPurchaseOrderReceiptCollectionEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
                                 }
                             }
                         }
@@ -3198,7 +3622,7 @@
                 "x-route-key": "get_v1_admin_inventory_purchase_orders_id_receipts",
                 "x-action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\ProcurementController@listPurchaseOrderReceipts",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -3213,10 +3637,10 @@
             },
             "post": {
                 "operationId": "post_v1_admin_inventory_purchase_orders_id_receipts",
-                "summary": "POST Id Receipts",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Receive purchase order stock",
+                "description": "Post a purchase-order receiving transaction, update stock ledger rows, and return the posted receipt plus refreshed purchase-order context.",
                 "tags": [
-                    "Legacy"
+                    "Admin Inventory"
                 ],
                 "parameters": [
                     {
@@ -3238,12 +3662,12 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "Successful response.",
+                    "201": {
+                        "description": "Resource created successfully.",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminPurchaseOrderReceiptEnvelope"
                                 }
                             }
                         },
@@ -3259,6 +3683,56 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConflictError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -3270,7 +3744,7 @@
                 "x-route-key": "post_v1_admin_inventory_purchase_orders_id_receipts",
                 "x-action": "App\\Modules\\InventoryProcurement\\Http\\Controllers\\Admin\\ProcurementController@createPurchaseOrderReceipt",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -3291,11 +3765,19 @@
                                 "$ref": "#/components/schemas/CreatePurchaseOrderReceiptRequest"
                             },
                             "example": {
-                                "receipt_code": "example",
-                                "received_at": "2026-04-05T10:00:00Z",
-                                "supplier_document_no": "example",
-                                "notes": "Contract example payload",
-                                "lines": []
+                                "receipt_code": "RCV-20260405-001",
+                                "received_at": "2026-04-05T09:30:00Z",
+                                "supplier_document_no": "SUP-DOC-7788",
+                                "notes": "Partial morning delivery",
+                                "lines": [
+                                    {
+                                        "purchase_order_line_id": 701,
+                                        "received_quantity": 5,
+                                        "unit_code": "kg",
+                                        "unit_cost": 120000,
+                                        "notes": "Checked by receiving staff"
+                                    }
+                                ]
                             }
                         }
                     }
@@ -6054,10 +6536,10 @@
         "/api/v1/admin/privacy/customers/{user_id}/data-export": {
             "get": {
                 "operationId": "get_v1_admin_privacy_customers_user_id_data_export",
-                "summary": "GET User Id Data Export",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Export admin customer data",
+                "description": "Return the admin-visible customer data export payload while preserving finance and audit lineage.",
                 "tags": [
-                    "Legacy"
+                    "Admin Privacy"
                 ],
                 "parameters": [
                     {
@@ -6075,7 +6557,37 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminCustomerDataExportEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
                                 }
                             }
                         }
@@ -6090,7 +6602,7 @@
                 "x-route-key": "get_v1_admin_privacy_customers_user_id_data_export",
                 "x-action": "App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Admin\\PrivacyController@exportCustomerData",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -6107,10 +6619,10 @@
         "/api/v1/admin/privacy/requests": {
             "get": {
                 "operationId": "get_v1_admin_privacy_requests",
-                "summary": "GET Privacy Requests",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "List admin privacy requests",
+                "description": "Return paged customer privacy requests for admin review with stable request identifiers and status fields.",
                 "tags": [
-                    "Legacy"
+                    "Admin Privacy"
                 ],
                 "parameters": [
                     {
@@ -6175,7 +6687,37 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminPrivacyRequestCollectionEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
                                 }
                             }
                         }
@@ -6190,7 +6732,7 @@
                 "x-route-key": "get_v1_admin_privacy_requests",
                 "x-action": "App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Admin\\PrivacyController@index",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -6207,10 +6749,10 @@
         "/api/v1/admin/privacy/requests/{request_id}/review": {
             "post": {
                 "operationId": "post_v1_admin_privacy_requests_request_id_review",
-                "summary": "POST Request Id Review",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Review admin privacy request",
+                "description": "Dry-run or commit an admin privacy request review decision while keeping anonymization side effects explicit.",
                 "tags": [
-                    "Legacy"
+                    "Admin Privacy"
                 ],
                 "parameters": [
                     {
@@ -6237,7 +6779,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminPrivacyReviewEnvelope"
                                 }
                             }
                         },
@@ -6253,6 +6795,56 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConflictError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -6264,7 +6856,7 @@
                 "x-route-key": "post_v1_admin_privacy_requests_request_id_review",
                 "x-action": "App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Admin\\PrivacyController@review",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -6287,7 +6879,7 @@
                             "example": {
                                 "decision": "approve",
                                 "mode": "dry_run",
-                                "notes": "Contract example payload"
+                                "notes": "Reviewed by data protection owner."
                             }
                         }
                     }
@@ -7113,10 +7705,10 @@
         "/api/v1/admin/settings/benefits": {
             "get": {
                 "operationId": "get_v1_admin_settings_benefits",
-                "summary": "GET Settings Benefits",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "List admin benefit settings",
+                "description": "Return runtime benefit settings used by voucher and loyalty operations.",
                 "tags": [
-                    "Admin Settings"
+                    "Admin Benefits"
                 ],
                 "parameters": [],
                 "responses": {
@@ -7125,7 +7717,27 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminBenefitSettingCollectionEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
                                 }
                             }
                         }
@@ -7140,7 +7752,7 @@
                 "x-route-key": "get_v1_admin_settings_benefits",
                 "x-action": "App\\Modules\\Promotions\\Http\\Controllers\\Admin\\BenefitSettingController@index",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -7155,10 +7767,10 @@
             },
             "post": {
                 "operationId": "post_v1_admin_settings_benefits",
-                "summary": "POST Settings Benefits",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Upsert admin benefit setting",
+                "description": "Upsert one benefit runtime setting with idempotency and optional expected timestamp guard.",
                 "tags": [
-                    "Admin Settings"
+                    "Admin Benefits"
                 ],
                 "parameters": [
                     {
@@ -7177,7 +7789,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/AdminBenefitSettingEnvelope"
                                 }
                             }
                         },
@@ -7193,6 +7805,68 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "201": {
+                        "description": "Resource created successfully.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AdminBenefitSettingEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConflictError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -7204,7 +7878,7 @@
                 "x-route-key": "post_v1_admin_settings_benefits",
                 "x-action": "App\\Modules\\Promotions\\Http\\Controllers\\Admin\\BenefitSettingController@upsert",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -7226,7 +7900,7 @@
                             },
                             "example": {
                                 "setting_key": "loyalty.enabled",
-                                "value": "example",
+                                "value": "true",
                                 "expected_updated_at": "2026-04-05T10:00:00Z"
                             }
                         }
@@ -8225,6 +8899,79 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/RefreshSessionRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/customer/register": {
+            "post": {
+                "operationId": "post_v1_auth_customer_register",
+                "summary": "Customer registration",
+                "description": "Create a customer account using the configured customer role and issue an opaque customer access session token.",
+                "tags": [
+                    "Auth"
+                ],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomerAuthSessionEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Operational dependency check failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "deprecated": false,
+                "x-route-key": "post_v1_auth_customer_register",
+                "x-action": "App\\Modules\\IdentityAccess\\Http\\Controllers\\Customer\\AuthController@register",
+                "x-auth-mode": "public",
+                "x-contract-grade": "full",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "throttle:5,5"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterRequest"
+                            },
+                            "example": {
+                                "full_name": "Demo Customer",
+                                "email": "demo.customer@example.test",
+                                "phone": "0901000000",
+                                "password": "secret-123",
+                                "password_confirmation": "secret-123",
+                                "session_label": "web"
                             }
                         }
                     }
@@ -17168,10 +17915,10 @@
         "/api/v1/staff/finance/invoices/{reservation_id}": {
             "get": {
                 "operationId": "get_v1_staff_finance_invoices_reservation_id",
-                "summary": "GET Invoices Reservation Id",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Show finance invoice",
+                "description": "Return the invoice projection or persisted billing invoice for a reservation, including reconciliation and payment method breakdown context.",
                 "tags": [
-                    "Legacy"
+                    "Staff Finance"
                 ],
                 "parameters": [
                     {
@@ -17206,7 +17953,47 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/FinanceInvoiceEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
                                 }
                             }
                         }
@@ -17221,7 +18008,7 @@
                 "x-route-key": "get_v1_staff_finance_invoices_reservation_id",
                 "x-action": "App\\Modules\\Billing\\Http\\Controllers\\Staff\\InvoiceController@show",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -17238,10 +18025,10 @@
         "/api/v1/staff/finance/invoices/{reservation_id}/issue": {
             "post": {
                 "operationId": "post_v1_staff_finance_invoices_reservation_id_issue",
-                "summary": "POST Reservation Id Issue",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Issue finance invoice",
+                "description": "Create or replay the guarded reservation invoice issuance operation and return the canonical invoice read model.",
                 "tags": [
-                    "Legacy"
+                    "Staff Finance"
                 ],
                 "parameters": [
                     {
@@ -17268,7 +18055,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/FinanceInvoiceEnvelope"
                                 }
                             }
                         },
@@ -17284,6 +18071,78 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "201": {
+                        "description": "Resource created successfully.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FinanceInvoiceEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConflictError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -17295,7 +18154,7 @@
                 "x-route-key": "post_v1_staff_finance_invoices_reservation_id_issue",
                 "x-action": "App\\Modules\\Billing\\Http\\Controllers\\Staff\\InvoiceController@issue",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -17326,10 +18185,10 @@
         "/api/v1/staff/finance/reconciliation": {
             "get": {
                 "operationId": "get_v1_staff_finance_reconciliation",
-                "summary": "GET Finance Reconciliation",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "List financial reconciliation rows",
+                "description": "Return paged staff financial reconciliation rows with reservation, payment, discrepancy, and settlement summary fields for finance review.",
                 "tags": [
-                    "Legacy"
+                    "Staff Finance"
                 ],
                 "parameters": [
                     {
@@ -17701,7 +18560,47 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/FinancialReconciliationCollectionEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
                                 }
                             }
                         }
@@ -17716,7 +18615,7 @@
                 "x-route-key": "get_v1_staff_finance_reconciliation",
                 "x-action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\SettlementReconciliationController@index",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -18140,10 +19039,10 @@
         "/api/v1/staff/finance/reconciliation/{reservation_id}": {
             "get": {
                 "operationId": "get_v1_staff_finance_reconciliation_reservation_id",
-                "summary": "GET Reconciliation Reservation Id",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Show financial reconciliation detail",
+                "description": "Return the reconciliation detail for one reservation including payment rows and method breakdown.",
                 "tags": [
-                    "Legacy"
+                    "Staff Finance"
                 ],
                 "parameters": [
                     {
@@ -18178,7 +19077,47 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/FinancialReconciliationDetailEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
                                 }
                             }
                         }
@@ -18193,7 +19132,7 @@
                 "x-route-key": "get_v1_staff_finance_reconciliation_reservation_id",
                 "x-action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\SettlementReconciliationController@show",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -22160,10 +23099,10 @@
         "/api/v1/staff/reservations/{id}/assign-best-fit": {
             "post": {
                 "operationId": "post_v1_staff_reservations_id_assign_best_fit",
-                "summary": "POST Id Assign Best Fit",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Assign reservation to best-fit table",
+                "description": "Ask the floor assignment service to choose and assign the best currently available table for an unseated reservation.",
                 "tags": [
-                    "Legacy"
+                    "Staff Tables"
                 ],
                 "parameters": [
                     {
@@ -22190,7 +23129,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/ReservationEnvelope"
                                 }
                             }
                         },
@@ -22206,6 +23145,56 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StaleRowVersionError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -22217,7 +23206,7 @@
                 "x-route-key": "post_v1_staff_reservations_id_assign_best_fit",
                 "x-action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\ReservationBoardAssignmentController@assignBestFit",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -22238,11 +23227,10 @@
                                 "$ref": "#/components/schemas/StaffAssignBestFitTableRequest"
                             },
                             "example": {
-                                "row_version": 1,
-                                "board_from": "2026-04-05T10:00:00Z",
-                                "board_to": "2026-04-05T10:00:00Z",
-                                "zone": "example",
-                                "staff_user_id": 101
+                                "row_version": 2,
+                                "board_from": "2026-04-05T11:00:00Z",
+                                "board_to": "2026-04-05T16:00:00Z",
+                                "zone": "Main"
                             }
                         }
                     }
@@ -22252,10 +23240,10 @@
         "/api/v1/staff/reservations/{id}/assign-table": {
             "post": {
                 "operationId": "post_v1_staff_reservations_id_assign_table",
-                "summary": "POST Id Assign Table",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Assign reservation to selected table",
+                "description": "Assign an unseated reservation to the selected board table using row_version protection and current board-window conflict checks.",
                 "tags": [
-                    "Legacy"
+                    "Staff Tables"
                 ],
                 "parameters": [
                     {
@@ -22282,7 +23270,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/ReservationEnvelope"
                                 }
                             }
                         },
@@ -22298,6 +23286,56 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StaleRowVersionError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -22309,7 +23347,7 @@
                 "x-route-key": "post_v1_staff_reservations_id_assign_table",
                 "x-action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\ReservationBoardAssignmentController@assignSuggested",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -22330,12 +23368,11 @@
                                 "$ref": "#/components/schemas/StaffAssignSuggestedTableRequest"
                             },
                             "example": {
-                                "table_id": 101,
-                                "row_version": 1,
-                                "board_from": "2026-04-05T10:00:00Z",
-                                "board_to": "2026-04-05T10:00:00Z",
-                                "zone": "example",
-                                "staff_user_id": 101
+                                "table_id": 12,
+                                "row_version": 2,
+                                "board_from": "2026-04-05T11:00:00Z",
+                                "board_to": "2026-04-05T16:00:00Z",
+                                "zone": "Main"
                             }
                         }
                     }
@@ -22487,10 +23524,10 @@
         "/api/v1/staff/reservations/{id}/move-table": {
             "post": {
                 "operationId": "post_v1_staff_reservations_id_move_table",
-                "summary": "POST Id Move Table",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Move in-service reservation to another table",
+                "description": "Move an in-service reservation from one table to another while preserving stale-write and floor-conflict guards.",
                 "tags": [
-                    "Legacy"
+                    "Staff Tables"
                 ],
                 "parameters": [
                     {
@@ -22517,7 +23554,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/ReservationEnvelope"
                                 }
                             }
                         },
@@ -22533,6 +23570,56 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StaleRowVersionError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -22544,7 +23631,7 @@
                 "x-route-key": "post_v1_staff_reservations_id_move_table",
                 "x-action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\ReservationMoveTableController@store",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -22565,11 +23652,10 @@
                                 "$ref": "#/components/schemas/MoveTableRequest"
                             },
                             "example": {
-                                "from_table_id": 101,
-                                "to_table_id": 101,
-                                "moved_at": "2026-04-05T10:00:00Z",
-                                "row_version": 1,
-                                "staff_user_id": 101
+                                "from_table_id": 12,
+                                "to_table_id": 18,
+                                "moved_at": "2026-04-05T12:45:00Z",
+                                "row_version": 3
                             }
                         }
                     }
@@ -25050,10 +26136,10 @@
         "/api/v1/staff/tables/{table_id}/active-order": {
             "get": {
                 "operationId": "get_v1_staff_tables_table_id_active_order",
-                "summary": "GET Table Id Active Order",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Show active order by table",
+                "description": "Return the active staff order currently attached to the requested table, or a not-found error when no active order exists.",
                 "tags": [
-                    "Staff Tables"
+                    "Staff Checkout"
                 ],
                 "parameters": [
                     {
@@ -25071,7 +26157,37 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/StaffOrderReadEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
                                 }
                             }
                         }
@@ -25086,7 +26202,7 @@
                 "x-route-key": "get_v1_staff_tables_table_id_active_order",
                 "x-action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\OrderReadController@showActiveByTable",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -25323,8 +26439,8 @@
         "/api/v1/staff/tables/{table_id}/release": {
             "post": {
                 "operationId": "post_v1_staff_tables_table_id_release",
-                "summary": "POST Table Id Release",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Release a staff table",
+                "description": "Release an occupied table back into allocatable floor state with row_version protection and force guard metadata.",
                 "tags": [
                     "Staff Tables"
                 ],
@@ -25353,7 +26469,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/RestaurantTableEnvelope"
                                 }
                             }
                         },
@@ -25369,6 +26485,56 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StaleRowVersionError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -25380,7 +26546,7 @@
                 "x-route-key": "post_v1_staff_tables_table_id_release",
                 "x-action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\TableReleaseController@store",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -25401,10 +26567,9 @@
                                 "$ref": "#/components/schemas/ReleaseTableRequest"
                             },
                             "example": {
-                                "force": true,
-                                "notes": "Contract example payload",
-                                "row_version": 1,
-                                "staff_user_id": 101
+                                "row_version": 7,
+                                "force": false,
+                                "notes": "Service completed and table reset."
                             }
                         }
                     }
@@ -25844,10 +27009,10 @@
             },
             "post": {
                 "operationId": "post_v1_staff_waiting_list",
-                "summary": "POST Staff Waiting List",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Create staff waiting list entry",
+                "description": "Create a staff-managed waiting-list entry for walk-up or phone guests with branch scope and idempotency protection.",
                 "tags": [
-                    "Legacy"
+                    "Waiting List"
                 ],
                 "parameters": [
                     {
@@ -25861,12 +27026,12 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "Successful response.",
+                    "201": {
+                        "description": "Resource created successfully.",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/StaffWaitingListEnvelope"
                                 }
                             }
                         },
@@ -25882,6 +27047,46 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConflictError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -25893,7 +27098,7 @@
                 "x-route-key": "post_v1_staff_waiting_list",
                 "x-action": "App\\Modules\\Waitlist\\Http\\Controllers\\Staff\\WaitlistController@store",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -25914,13 +27119,12 @@
                                 "$ref": "#/components/schemas/CreateWaitlistEntryRequest"
                             },
                             "example": {
-                                "branch_id": 101,
-                                "user_id": 101,
-                                "guest_name": "Demo Customer",
-                                "phone": "0901000000",
-                                "guest_count": 1,
-                                "priority": 101,
-                                "notes": "Contract example payload"
+                                "branch_id": 1,
+                                "guest_name": "Walk-up Guest",
+                                "phone": "0901234567",
+                                "guest_count": 2,
+                                "priority": 10,
+                                "notes": "Prefers window seat"
                             }
                         }
                     }
@@ -26056,10 +27260,10 @@
         "/api/v1/staff/waiting-list/{id}/advance": {
             "post": {
                 "operationId": "post_v1_staff_waiting_list_id_advance",
-                "summary": "POST Id Advance",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Advance staff waiting list queue",
+                "description": "Advance the queue after a declined or expired invite and optionally notify the next candidate using the semi-automation guardrails.",
                 "tags": [
-                    "Legacy"
+                    "Waiting List"
                 ],
                 "parameters": [
                     {
@@ -26086,7 +27290,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/StaffWaitingListAdvanceEnvelope"
                                 }
                             }
                         },
@@ -26102,6 +27306,56 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StaleRowVersionError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -26113,7 +27367,7 @@
                 "x-route-key": "post_v1_staff_waiting_list_id_advance",
                 "x-action": "App\\Modules\\Waitlist\\Http\\Controllers\\Staff\\WaitlistController@advance",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -26134,8 +27388,8 @@
                                 "$ref": "#/components/schemas/AdvanceWaitlistRequest"
                             },
                             "example": {
-                                "hold_minutes": 1,
-                                "row_version": 1
+                                "row_version": 3,
+                                "hold_minutes": 10
                             }
                         }
                     }
@@ -26145,10 +27399,10 @@
         "/api/v1/staff/waiting-list/{id}/cancel": {
             "post": {
                 "operationId": "post_v1_staff_waiting_list_id_cancel",
-                "summary": "POST Id Cancel",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Cancel staff waiting list entry",
+                "description": "Cancel an active staff waiting-list entry using row_version protection.",
                 "tags": [
-                    "Legacy"
+                    "Waiting List"
                 ],
                 "parameters": [
                     {
@@ -26175,7 +27429,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                    "$ref": "#/components/schemas/StaffWaitingListEnvelope"
                                 }
                             }
                         },
@@ -26191,6 +27445,56 @@
                                 "description": "Indicates whether the successful response was replayed from the idempotency cache."
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication failed or required credentials were missing.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnauthorizedError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Authenticated caller is not allowed to perform this operation.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForbiddenError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Concurrency or state conflict detected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StaleRowVersionError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -26202,7 +27506,7 @@
                 "x-route-key": "post_v1_staff_waiting_list_id_cancel",
                 "x-action": "App\\Modules\\Waitlist\\Http\\Controllers\\Staff\\WaitlistController@cancel",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -26223,8 +27527,8 @@
                                 "$ref": "#/components/schemas/CancelWaitlistRequest"
                             },
                             "example": {
-                                "cancel_reason": "Contract example payload",
-                                "row_version": 1
+                                "row_version": 2,
+                                "cancel_reason": "Guest left before notification"
                             }
                         }
                     }
@@ -28269,6 +29573,84 @@
                     ]
                 }
             },
+            "AdminBenefitSetting": {
+                "type": "object",
+                "required": [
+                    "setting_key",
+                    "value"
+                ],
+                "properties": {
+                    "setting_key": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": true
+            },
+            "AdminBenefitSettingCollectionEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AdminBenefitSetting"
+                        }
+                    },
+                    "meta": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "AdminBenefitSettingEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/AdminBenefitSetting"
+                    },
+                    "meta": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "AdminCustomerDataExportEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "object",
+                        "additionalProperties": true
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "action": {
+                                "type": "string"
+                            }
+                        },
+                        "additionalProperties": true
+                    }
+                },
+                "additionalProperties": false
+            },
             "AdminImportMasterDataRequest": {
                 "type": "object",
                 "properties": {
@@ -28590,6 +29972,382 @@
                 },
                 "additionalProperties": false
             },
+            "AdminIngredientMovement": {
+                "type": "object",
+                "required": [
+                    "movement_id",
+                    "branch_id",
+                    "ingredient_id",
+                    "movement_type",
+                    "quantity_delta",
+                    "unit_code",
+                    "reference",
+                    "notes",
+                    "created_by",
+                    "created_at"
+                ],
+                "properties": {
+                    "movement_id": {
+                        "type": "integer"
+                    },
+                    "branch_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "ingredient_id": {
+                        "type": "integer"
+                    },
+                    "movement_type": {
+                        "type": "string"
+                    },
+                    "quantity_delta": {
+                        "type": "string"
+                    },
+                    "unit_code": {
+                        "type": "string"
+                    },
+                    "reference": {
+                        "type": "object",
+                        "required": [
+                            "type",
+                            "id"
+                        ],
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "id": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "additionalProperties": false
+                    },
+                    "notes": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "AdminIngredientMovementCollectionEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AdminIngredientMovement"
+                        }
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "ingredient": {
+                                "type": "object",
+                                "additionalProperties": true
+                            },
+                            "current_page": {
+                                "type": "integer"
+                            },
+                            "per_page": {
+                                "type": "integer"
+                            },
+                            "total": {
+                                "type": "integer"
+                            },
+                            "last_page": {
+                                "type": "integer"
+                            },
+                            "filters": {
+                                "type": "object",
+                                "additionalProperties": true
+                            },
+                            "sort": {
+                                "type": "object",
+                                "required": [
+                                    "supported",
+                                    "value",
+                                    "by",
+                                    "dir"
+                                ],
+                                "properties": {
+                                    "supported": {
+                                        "type": "boolean"
+                                    },
+                                    "value": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "by": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "dir": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "additionalProperties": false
+                            },
+                            "query_contract": {
+                                "$ref": "#/components/schemas/ListingQueryContract"
+                            }
+                        },
+                        "additionalProperties": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "AdminIngredientMovementEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/AdminIngredientMovement"
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "stock_on_hand": {
+                                "type": "string"
+                            }
+                        },
+                        "additionalProperties": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "AdminLoyaltyTier": {
+                "type": "object",
+                "required": [
+                    "tier_id",
+                    "tier_code",
+                    "tier_name",
+                    "min_points",
+                    "is_active",
+                    "row_version"
+                ],
+                "properties": {
+                    "tier_id": {
+                        "type": "integer"
+                    },
+                    "tier_code": {
+                        "type": "string"
+                    },
+                    "tier_name": {
+                        "type": "string"
+                    },
+                    "min_points": {
+                        "type": "integer"
+                    },
+                    "benefits_json": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        },
+                        "nullable": true
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    },
+                    "row_version": {
+                        "type": "integer"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": true
+            },
+            "AdminLoyaltyTierCollectionEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AdminLoyaltyTier"
+                        }
+                    },
+                    "meta": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "AdminLoyaltyTierEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/AdminLoyaltyTier"
+                    }
+                },
+                "additionalProperties": false
+            },
+            "AdminPrivacyRequest": {
+                "type": "object",
+                "required": [
+                    "request_id",
+                    "user_id",
+                    "request_type",
+                    "status"
+                ],
+                "properties": {
+                    "request_id": {
+                        "type": "integer"
+                    },
+                    "privacy_request_id": {
+                        "type": "integer"
+                    },
+                    "customer_privacy_request_id": {
+                        "type": "integer"
+                    },
+                    "user_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "customer_user_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "request_type": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "decision": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requested_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "reviewed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "processed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "notes": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "resolution_notes": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "result_summary": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": true
+            },
+            "AdminPrivacyRequestCollectionEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AdminPrivacyRequest"
+                        }
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "action": {
+                                "type": "string"
+                            },
+                            "current_page": {
+                                "type": "integer"
+                            },
+                            "per_page": {
+                                "type": "integer"
+                            },
+                            "total": {
+                                "type": "integer"
+                            },
+                            "last_page": {
+                                "type": "integer"
+                            }
+                        },
+                        "additionalProperties": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "AdminPrivacyReviewEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "object",
+                        "additionalProperties": true
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "action": {
+                                "type": "string"
+                            },
+                            "mode": {
+                                "type": "string"
+                            },
+                            "committed": {
+                                "type": "boolean"
+                            }
+                        },
+                        "additionalProperties": true
+                    }
+                },
+                "additionalProperties": false
+            },
             "AdminPurchaseOrder": {
                 "type": "object",
                 "required": [
@@ -28736,6 +30494,18 @@
                             }
                         },
                         "additionalProperties": false
+                    },
+                    "lines": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AdminPurchaseOrderLine"
+                        }
+                    },
+                    "receipts": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AdminPurchaseOrderReceipt"
+                        }
                     },
                     "created_by": {
                         "type": "integer",
@@ -28921,6 +30691,294 @@
                     }
                 },
                 "additionalProperties": false
+            },
+            "AdminPurchaseOrderLine": {
+                "type": "object",
+                "required": [
+                    "po_line_id",
+                    "ingredient_id",
+                    "ordered_quantity",
+                    "received_quantity",
+                    "remaining_quantity",
+                    "unit_code",
+                    "unit_cost",
+                    "notes",
+                    "sort_order"
+                ],
+                "properties": {
+                    "po_line_id": {
+                        "type": "integer"
+                    },
+                    "ingredient_id": {
+                        "type": "integer"
+                    },
+                    "ingredient": {
+                        "anyOf": [
+                            {
+                                "type": "object",
+                                "required": [
+                                    "ingredient_id",
+                                    "code",
+                                    "name",
+                                    "unit_code",
+                                    "is_active"
+                                ],
+                                "properties": {
+                                    "ingredient_id": {
+                                        "type": "integer"
+                                    },
+                                    "code": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "unit_code": {
+                                        "type": "string"
+                                    },
+                                    "is_active": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "additionalProperties": false
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "ordered_quantity": {
+                        "type": "string"
+                    },
+                    "received_quantity": {
+                        "type": "string"
+                    },
+                    "remaining_quantity": {
+                        "type": "string"
+                    },
+                    "unit_code": {
+                        "type": "string"
+                    },
+                    "unit_cost": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "notes": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "sort_order": {
+                        "type": "integer"
+                    }
+                },
+                "additionalProperties": false
+            },
+            "AdminPurchaseOrderReceipt": {
+                "type": "object",
+                "required": [
+                    "receipt_id",
+                    "branch_id",
+                    "purchase_order_id",
+                    "receipt_code",
+                    "receipt_status",
+                    "received_at",
+                    "supplier_document_no",
+                    "notes",
+                    "summary",
+                    "created_by",
+                    "created_at"
+                ],
+                "properties": {
+                    "receipt_id": {
+                        "type": "integer"
+                    },
+                    "branch_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "purchase_order_id": {
+                        "type": "integer"
+                    },
+                    "receipt_code": {
+                        "type": "string"
+                    },
+                    "receipt_status": {
+                        "type": "string"
+                    },
+                    "received_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "supplier_document_no": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "notes": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "summary": {
+                        "type": "object",
+                        "required": [
+                            "line_count",
+                            "received_total_quantity"
+                        ],
+                        "properties": {
+                            "line_count": {
+                                "type": "integer"
+                            },
+                            "received_total_quantity": {
+                                "type": "string"
+                            }
+                        },
+                        "additionalProperties": false
+                    },
+                    "lines": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AdminPurchaseOrderReceiptLine"
+                        }
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "AdminPurchaseOrderReceiptCollectionEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AdminPurchaseOrderReceipt"
+                        }
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "purchase_order": {
+                                "$ref": "#/components/schemas/AdminPurchaseOrder"
+                            },
+                            "count": {
+                                "type": "integer"
+                            }
+                        },
+                        "required": [
+                            "purchase_order",
+                            "count"
+                        ],
+                        "additionalProperties": false
+                    }
+                },
+                "additionalProperties": false
+            },
+            "AdminPurchaseOrderReceiptEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/AdminPurchaseOrderReceipt"
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "purchase_order": {
+                                "$ref": "#/components/schemas/AdminPurchaseOrder"
+                            }
+                        },
+                        "required": [
+                            "purchase_order"
+                        ],
+                        "additionalProperties": false
+                    }
+                },
+                "additionalProperties": false
+            },
+            "AdminPurchaseOrderReceiptLine": {
+                "type": "object",
+                "required": [
+                    "receipt_line_id",
+                    "purchase_order_line_id",
+                    "ingredient_id",
+                    "received_quantity",
+                    "unit_code",
+                    "unit_cost",
+                    "notes"
+                ],
+                "properties": {
+                    "receipt_line_id": {
+                        "type": "integer"
+                    },
+                    "purchase_order_line_id": {
+                        "type": "integer"
+                    },
+                    "ingredient_id": {
+                        "type": "integer"
+                    },
+                    "ingredient": {
+                        "anyOf": [
+                            {
+                                "type": "object",
+                                "required": [
+                                    "ingredient_id",
+                                    "code",
+                                    "name",
+                                    "unit_code",
+                                    "is_active"
+                                ],
+                                "properties": {
+                                    "ingredient_id": {
+                                        "type": "integer"
+                                    },
+                                    "code": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "unit_code": {
+                                        "type": "string"
+                                    },
+                                    "is_active": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "additionalProperties": false
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "received_quantity": {
+                        "type": "string"
+                    },
+                    "unit_code": {
+                        "type": "string"
+                    },
+                    "unit_cost": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "notes": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": true
             },
             "AdminSupplier": {
                 "type": "object",
@@ -29133,6 +31191,114 @@
                     },
                     "query_contract": {
                         "$ref": "#/components/schemas/ListingQueryContract"
+                    }
+                },
+                "additionalProperties": false
+            },
+            "AdminVoucher": {
+                "type": "object",
+                "required": [
+                    "voucher_id",
+                    "code",
+                    "discount_type",
+                    "discount_value",
+                    "is_active",
+                    "row_version"
+                ],
+                "properties": {
+                    "voucher_id": {
+                        "type": "integer"
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "discount_type": {
+                        "type": "string"
+                    },
+                    "discount_value": {
+                        "type": "number",
+                        "nullable": true
+                    },
+                    "free_item_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "free_item_qty": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "max_usage": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "max_usage_per_user": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "min_spend": {
+                        "type": "number",
+                        "nullable": true
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "expiry_date": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    },
+                    "row_version": {
+                        "type": "integer"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": true
+            },
+            "AdminVoucherCollectionEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AdminVoucher"
+                        }
+                    },
+                    "meta": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "AdminVoucherEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/AdminVoucher"
                     }
                 },
                 "additionalProperties": false
@@ -36898,6 +39064,294 @@
                     ]
                 }
             },
+            "FinanceInvoiceEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "object",
+                        "required": [
+                            "invoice",
+                            "reservation",
+                            "reconciliation",
+                            "method_breakdown"
+                        ],
+                        "properties": {
+                            "invoice": {
+                                "type": "object",
+                                "required": [
+                                    "billing_invoice_id",
+                                    "reservation_id",
+                                    "invoice_number",
+                                    "invoice_status",
+                                    "currency",
+                                    "row_version"
+                                ],
+                                "properties": {
+                                    "billing_invoice_id": {
+                                        "type": "integer"
+                                    },
+                                    "reservation_id": {
+                                        "type": "integer"
+                                    },
+                                    "invoice_number": {
+                                        "type": "string"
+                                    },
+                                    "invoice_status": {
+                                        "type": "string"
+                                    },
+                                    "currency": {
+                                        "type": "string"
+                                    },
+                                    "bill_amounts": {
+                                        "type": "object",
+                                        "additionalProperties": true
+                                    },
+                                    "tax": {
+                                        "type": "object",
+                                        "additionalProperties": true
+                                    },
+                                    "seller": {
+                                        "type": "object",
+                                        "additionalProperties": true
+                                    },
+                                    "issued_at": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "nullable": true
+                                    },
+                                    "issued_by": {
+                                        "type": "object",
+                                        "additionalProperties": true
+                                    },
+                                    "row_version": {
+                                        "type": "integer"
+                                    },
+                                    "metadata": {
+                                        "type": "object",
+                                        "additionalProperties": true
+                                    }
+                                },
+                                "additionalProperties": true
+                            },
+                            "reservation": {
+                                "$ref": "#/components/schemas/FinancialReservationSummary"
+                            },
+                            "reconciliation": {
+                                "$ref": "#/components/schemas/FinancialReconciliationRow"
+                            },
+                            "method_breakdown": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                }
+                            }
+                        },
+                        "additionalProperties": true
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "action": {
+                                "type": "string"
+                            },
+                            "created": {
+                                "type": "boolean"
+                            },
+                            "branch_id": {
+                                "type": "integer",
+                                "nullable": true
+                            }
+                        },
+                        "additionalProperties": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "FinancialReconciliationCollectionEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/FinancialReconciliationRow"
+                        }
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "action": {
+                                "type": "string"
+                            },
+                            "filters": {
+                                "type": "object",
+                                "additionalProperties": true
+                            },
+                            "current_page": {
+                                "type": "integer"
+                            },
+                            "per_page": {
+                                "type": "integer"
+                            },
+                            "total": {
+                                "type": "integer"
+                            },
+                            "last_page": {
+                                "type": "integer"
+                            },
+                            "query_contract": {
+                                "$ref": "#/components/schemas/ListingQueryContract"
+                            }
+                        },
+                        "additionalProperties": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "FinancialReconciliationDetailEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "object",
+                        "required": [
+                            "reservation",
+                            "summary",
+                            "payments",
+                            "method_breakdown"
+                        ],
+                        "properties": {
+                            "reservation": {
+                                "$ref": "#/components/schemas/FinancialReservationSummary"
+                            },
+                            "summary": {
+                                "$ref": "#/components/schemas/FinancialReconciliationRow"
+                            },
+                            "payments": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                }
+                            },
+                            "method_breakdown": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                }
+                            }
+                        },
+                        "additionalProperties": true
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "action": {
+                                "type": "string"
+                            },
+                            "branch_id": {
+                                "type": "integer",
+                                "nullable": true
+                            }
+                        },
+                        "additionalProperties": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "FinancialReconciliationRow": {
+                "type": "object",
+                "required": [
+                    "reservation",
+                    "payment_summary",
+                    "reconciliation",
+                    "flags"
+                ],
+                "properties": {
+                    "reservation": {
+                        "$ref": "#/components/schemas/FinancialReservationSummary"
+                    },
+                    "payment_summary": {
+                        "type": "object",
+                        "additionalProperties": true
+                    },
+                    "reconciliation": {
+                        "type": "object",
+                        "additionalProperties": true
+                    },
+                    "flags": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
+                },
+                "additionalProperties": true
+            },
+            "FinancialReservationSummary": {
+                "type": "object",
+                "required": [
+                    "reservation_id",
+                    "reservation_code",
+                    "status",
+                    "deposit_status",
+                    "customer"
+                ],
+                "properties": {
+                    "reservation_id": {
+                        "type": "integer"
+                    },
+                    "reservation_code": {
+                        "type": "string"
+                    },
+                    "row_version": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "deposit_status": {
+                        "type": "string"
+                    },
+                    "start_time": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "end_time": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "billed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "bill_currency": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "customer": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
+                },
+                "additionalProperties": true
+            },
             "ForbiddenError": {
                 "type": "object",
                 "required": [
@@ -42928,6 +45382,150 @@
                     ]
                 }
             },
+            "RegisterRequest": {
+                "type": "object",
+                "properties": {
+                    "full_name": {
+                        "type": "string",
+                        "x-laravel-rules": [
+                            "required",
+                            "string",
+                            "max:200"
+                        ],
+                        "maxLength": 200
+                    },
+                    "email": {
+                        "type": "string",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "required_without:phone",
+                            "email",
+                            "max:200",
+                            "unique:users,email,NULL,id"
+                        ],
+                        "format": "email",
+                        "maxLength": 200
+                    },
+                    "phone": {
+                        "type": "string",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "required_without:email",
+                            "string",
+                            "max:30",
+                            "unique:users,phone,NULL,id"
+                        ],
+                        "maxLength": 30
+                    },
+                    "password": {
+                        "type": "string",
+                        "x-laravel-rules": [
+                            "required",
+                            "string",
+                            "min:8",
+                            "max:255",
+                            "confirmed"
+                        ],
+                        "minLength": 8,
+                        "maxLength": 255
+                    },
+                    "password_confirmation": {
+                        "type": "string",
+                        "x-laravel-rules": [
+                            "required",
+                            "string",
+                            "max:255"
+                        ],
+                        "maxLength": 255
+                    },
+                    "session_id": {
+                        "type": "string",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "string",
+                            "max:100"
+                        ],
+                        "maxLength": 100
+                    },
+                    "session_label": {
+                        "type": "string",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "string",
+                            "max:120"
+                        ],
+                        "maxLength": 120
+                    },
+                    "device_id": {
+                        "type": "string",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "string",
+                            "max:120"
+                        ],
+                        "maxLength": 120
+                    }
+                },
+                "required": [
+                    "full_name",
+                    "password",
+                    "password_confirmation"
+                ],
+                "additionalProperties": false,
+                "x-laravel-rules": {
+                    "full_name": [
+                        "required",
+                        "string",
+                        "max:200"
+                    ],
+                    "email": [
+                        "nullable",
+                        "required_without:phone",
+                        "email",
+                        "max:200",
+                        "unique:users,email,NULL,id"
+                    ],
+                    "phone": [
+                        "nullable",
+                        "required_without:email",
+                        "string",
+                        "max:30",
+                        "unique:users,phone,NULL,id"
+                    ],
+                    "password": [
+                        "required",
+                        "string",
+                        "min:8",
+                        "max:255",
+                        "confirmed"
+                    ],
+                    "password_confirmation": [
+                        "required",
+                        "string",
+                        "max:255"
+                    ],
+                    "session_id": [
+                        "nullable",
+                        "string",
+                        "max:100"
+                    ],
+                    "session_label": [
+                        "nullable",
+                        "string",
+                        "max:120"
+                    ],
+                    "device_id": [
+                        "nullable",
+                        "string",
+                        "max:120"
+                    ]
+                }
+            },
             "ReleaseTableRequest": {
                 "type": "object",
                 "properties": {
@@ -45363,6 +47961,18 @@
                         "type": "string",
                         "format": "date-time",
                         "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "RestaurantTableEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/RestaurantTable"
                     }
                 },
                 "additionalProperties": false
@@ -51413,6 +54023,7 @@
                     "zone",
                     "pos_x",
                     "pos_y",
+                    "row_version",
                     "realtime_status",
                     "board_state",
                     "reservations",
@@ -51445,6 +54056,9 @@
                     "pos_y": {
                         "type": "integer",
                         "nullable": true
+                    },
+                    "row_version": {
+                        "type": "integer"
                     },
                     "realtime_status": {
                         "type": "string"
@@ -51788,6 +54402,43 @@
                             },
                             "held_in_range_count": {
                                 "type": "integer"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                },
+                "additionalProperties": false
+            },
+            "StaffWaitingListAdvanceEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "object",
+                        "required": [
+                            "source_waiting_list",
+                            "advanced_waiting_list",
+                            "automation"
+                        ],
+                        "properties": {
+                            "source_waiting_list": {
+                                "$ref": "#/components/schemas/StaffWaitingListEntry"
+                            },
+                            "advanced_waiting_list": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/StaffWaitingListEntry"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ]
+                            },
+                            "automation": {
+                                "type": "object",
+                                "additionalProperties": true
                             }
                         },
                         "additionalProperties": false

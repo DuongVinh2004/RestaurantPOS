@@ -14,6 +14,8 @@ Use this file when the script output needs manual adjustment.
 
 ## Escalate when any of these are true
 
+- `staff-web/src/*` changed: prefer `npm --prefix staff-web run test`, then `npm --prefix staff-web run build`
+- `customer-web/src/*` changed: prefer `npm --prefix customer-web run typecheck`, then targeted journey or component tests
 - `database/schema/mysql-schema.sql`, `database/patches/*`, `db_all.sql`, or `tools/mysql/*` changed
 - `routes/api.php`, `app/Http/Requests/*`, or `app/Http/Resources/*` changed
 - runtime services changed: booking doctor, deploy safety, outbox, ops heartbeat, reporting snapshots, payment webhooks

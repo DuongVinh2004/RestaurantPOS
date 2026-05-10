@@ -4,17 +4,15 @@ import { Button, Card, Form, Input, Select, Space, Table, Typography } from 'ant
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReservationEnvelope, StaffReservationLookupEntry } from '../../../../shared/api/sdk';
 import {
-  assignBestFitTable,
-  assignSuggestedTable,
+  cancelReservation,
   checkInReservation,
   createReservation,
   getActiveOrderByReservation,
   getReservationDetail,
   getTableBoard,
   listReservations,
-  updateReservationStatus,
 } from '../../../../shared/api/staff-api';
-import { formatApiError, formatStaffFacingApiError, isApiStatus } from '../../../../shared/api/errors';
+import { formatApiError, formatStaffFacingApiError } from '../../../../shared/api/errors';
 import { formatDateTime } from '../../../../shared/utils/format';
 import { buildJourneySearch } from '../../../../app/router/journey';
 import { staffRoutePaths } from '../../../../app/router/workspace-paths';
@@ -30,6 +28,7 @@ import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
 import { MutationStatusNotice } from '../../../../shared/ui/feedback/MutationStatusNotice';
 import {
   ApiStateBlock,
+  ConflictState,
   EmptyBlock,
   InlineLoading,
 } from '../../../../shared/ui/states/StateBlocks';
@@ -254,16 +253,16 @@ export function ReservationsPage() {
     queryKey: ['active-order-by-reservation', activeReservationId],
     queryFn: () => getActiveOrderByReservation(activeReservationId as number),
     enabled: !!activeReservationId && canLookupActiveOrder,
-    retry: (failureCount, error) => !isApiStatus(error, 404) && failureCount < 1,
+    retry: false,
   });
 
   const detailReservation = reservationDetailQuery.data?.data ?? null;
-  const activeOrderEnvelope = isApiStatus(activeOrderQuery.error, 404) ? null : activeOrderQuery.data ?? null;
+  const activeOrderEnvelope = activeOrderQuery.data ?? null;
   const activeOrder = activeOrderEnvelope?.data.order ?? null;
   const canCancelReservation = Boolean(
     detailReservation
-    && detailReservation.status === 'Confirmed'
-    && !activeOrderEnvelope,
+    && (detailReservation.status === 'Confirmed' || detailReservation.status === 'Reserved')
+    && !activeOrder,
   );
 
   const refreshReservationWorkspace = useCallback(() => {
@@ -369,72 +368,6 @@ export function ReservationsPage() {
     updateUrlState({ reservationId: reservation.reservation_id });
   }
 
-  const assignBestFitMutation = useMutation({
-    onMutate: () => {
-      mutationFeedback.setSubmitting(
-        'Gán bàn tốt nhất',
-        'Đang xin backend chọn bàn phù hợp nhất cho reservation hiện tại.',
-      );
-    },
-    mutationFn: async (reservation: ReservationEnvelope['data']) =>
-      assignBestFitTable(reservation.reservation_id, {
-        row_version: reservation.row_version,
-      }),
-    onSuccess: async (reservationEnvelope) => {
-      await queryClient.invalidateQueries({ queryKey: ['reservations'] });
-      await queryClient.invalidateQueries({ queryKey: ['table-board'] });
-      await queryClient.invalidateQueries({ queryKey: ['reservation-detail', reservationEnvelope.data.reservation_id] });
-      syncSelectedReservation(reservationEnvelope.data);
-      setDetailOpen(true);
-      mutationFeedback.setSuccess(
-        'Gán bàn tốt nhất',
-        `Đã cập nhật ${reservationEnvelope.data.reservation_code} với gợi ý bàn tốt nhất hiện có.`,
-      );
-    },
-    onError: (error) => {
-      mutationFeedback.setFailure(error, {
-        actionLabel: 'Gán bàn tốt nhất',
-        fallbackMessage: formatApiError(error, 'Không thể gán bàn phù hợp nhất.'),
-      });
-    },
-  });
-
-  const assignCurrentTableMutation = useMutation({
-    onMutate: () => {
-      mutationFeedback.setSubmitting(
-        'Gán vào bàn đang chọn',
-        'Đang gửi yêu cầu gán reservation vào bàn đang neo ở shell.',
-      );
-    },
-    mutationFn: async (reservation: ReservationEnvelope['data']) => {
-      if (!selectedTableId) {
-        throw new Error('Mở một bàn trước nếu bạn muốn gán vào bàn hiện tại.');
-      }
-
-      return assignSuggestedTable(reservation.reservation_id, {
-        table_id: selectedTableId,
-        row_version: reservation.row_version,
-      });
-    },
-    onSuccess: async (reservationEnvelope) => {
-      await queryClient.invalidateQueries({ queryKey: ['reservations'] });
-      await queryClient.invalidateQueries({ queryKey: ['table-board'] });
-      await queryClient.invalidateQueries({ queryKey: ['reservation-detail', reservationEnvelope.data.reservation_id] });
-      syncSelectedReservation(reservationEnvelope.data);
-      setDetailOpen(true);
-      mutationFeedback.setSuccess(
-        'Gán vào bàn đang chọn',
-        `Đã gán ${reservationEnvelope.data.reservation_code} vào bàn đang neo.`,
-      );
-    },
-    onError: (error) => {
-      mutationFeedback.setFailure(error, {
-        actionLabel: 'Gán vào bàn đang chọn',
-        fallbackMessage: formatApiError(error, 'Không thể gán bàn hiện tại.'),
-      });
-    },
-  });
-
   const checkInMutation = useMutation({
     onMutate: () => {
       mutationFeedback.setSubmitting(
@@ -475,8 +408,7 @@ export function ReservationsPage() {
       );
     },
     mutationFn: async (reservation: ReservationEnvelope['data']) =>
-      updateReservationStatus(reservation.reservation_id, {
-        status: 'Cancelled',
+      cancelReservation(reservation.reservation_id, {
         row_version: reservation.row_version,
       }),
     onSuccess: async (reservationEnvelope) => {
@@ -739,6 +671,23 @@ export function ReservationsPage() {
         <Typography.Text type="secondary">
           Khi đã chọn một đặt bàn, đường dẫn hiện tại sẽ luôn khôi phục lại đúng dòng đang xử lý thay vì phụ thuộc vào store tạm thời của shell.
         </Typography.Text>
+        {activeOrderQuery.error ? (
+          <ApiStateBlock
+            error={activeOrderQuery.error}
+            fallback="Khong the khoa active order canonical cho dat ban dang mo."
+            onRetry={() => {
+              void activeOrderQuery.refetch();
+            }}
+          />
+        ) : null}
+        {selectedReservation ? (
+          <ConflictState
+            title="Gan ban tu workspace dat ban dang bi khoa"
+            description="Staff-web khong con cho gan best-fit hoac gan vao ban dang neo tu man nay vi frozen operator contract chua co mutation canon cho table assignment."
+            meta="Blocked routes: POST /api/v1/staff/reservations/{id}/assign-best-fit, POST /api/v1/staff/reservations/{id}/assign-table. Missing invariant: full-contract table-assignment write in frozen OpenAPI + generated SDK."
+            className="staff-inline-note"
+          />
+        ) : null}
         <Button disabled={!selectedReservation} onClick={openOrderWorkspace}>
           Tiếp tục sang màn hình đơn hàng
         </Button>
@@ -767,18 +716,11 @@ export function ReservationsPage() {
           open={detailOpen && !!selectedReservation}
           reservation={detailReservation}
           activeOrder={activeOrderEnvelope}
-          busy={
-            assignBestFitMutation.isPending
-            || assignCurrentTableMutation.isPending
-            || checkInMutation.isPending
-            || cancelReservationMutation.isPending
-          }
+          busy={checkInMutation.isPending || cancelReservationMutation.isPending}
           onClose={() => {
             setDetailOpen(false);
             syncSelectedReservation(null);
           }}
-          onAssignBestFit={detailReservation ? () => assignBestFitMutation.mutate(detailReservation) : undefined}
-          onAssignCurrentTable={detailReservation && selectedTableId ? () => assignCurrentTableMutation.mutate(detailReservation) : undefined}
           onCheckIn={detailReservation ? () => checkInMutation.mutate(detailReservation) : undefined}
           onCancelReservation={canCancelReservation && detailReservation ? () => void handleCancelReservation(detailReservation) : undefined}
           onOpenOrder={openOrderWorkspace}
@@ -806,3 +748,4 @@ export function ReservationsPage() {
     </>
   );
 }
+

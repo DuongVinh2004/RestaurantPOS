@@ -94,7 +94,7 @@ describe('finance review helpers', () => {
       finalBillAmount: 240000,
     });
 
-    expect(financeFlagLabels(row)).toEqual(['Có chênh lệch', 'Còn thiếu', 'Lệch loại tiền']);
+    expect(financeFlagLabels(row)).toEqual(['Discrepancy', 'Outstanding', 'Mixed currency']);
     expect(canIssueInvoiceForRow(row)).toBe(false);
     expect(canIssueInvoiceForRow(makeRow({
       reservationId: 7,

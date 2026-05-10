@@ -9,6 +9,12 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
     Route::prefix('customer')->group(function () {
+        Route::post('register', [CustomerAuthController::class, 'register'])
+            ->middleware('throttle:'.
+                max(1, (int) config('customer_auth.register_throttle_limit', 5)).','.
+                max(1, (int) ceil(((int) config('customer_auth.register_throttle_window_seconds', 300)) / 60))
+            );
+
         Route::post('login', [CustomerAuthController::class, 'login'])
             ->middleware('throttle:'.
                 max(1, (int) config('customer_auth.login_throttle_limit', 10)).','.
