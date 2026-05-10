@@ -1,4 +1,4 @@
-# RestaurantPOS TypeScript SDK Foundation
+﻿# RestaurantPOS TypeScript SDK Foundation
 
 Generated from `storage/app/booking_release/openapi-v1.json` by:
 
@@ -250,7 +250,7 @@ const client = new RestaurantPosClient({
 
 const login = await client.postV1AuthCustomerLogin({
   identifier: 'uat.customer.primary',
-  password: 'UatDemo!123',
+  password: 'CHANGE_ME_LOCAL_ONLY',
   session_label: 'web',
 });
 ```

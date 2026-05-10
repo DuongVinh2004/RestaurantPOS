@@ -1,4 +1,4 @@
-*
+﻿*
 !private/
 !public/
 !booking_release/
@@ -9,5 +9,6 @@ booking_release/*
 !booking_release/release_manifest_snapshot.json
 !uat/
 uat/*
-!uat/scenario-pack.json
+!uat/scenario-pack.example.json
 !.gitignore
+
