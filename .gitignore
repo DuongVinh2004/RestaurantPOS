@@ -1,4 +1,4 @@
-﻿# Local environment and secrets
+# Local environment and secrets
 .env
 .env.*
 !.env.example
@@ -24,14 +24,26 @@
 !/storage/framework/testing/.gitignore
 /storage/framework/views/*
 !/storage/framework/views/.gitignore
+/storage/mysql-local/
+
+# Build outputs and local CI artifacts
+/staff-web/dist/
+/customer-web/.next/
+/customer-web/out/
+/build/booking-ci/
+/build/booking-go-live/
 
 # Tool/cache artifacts
 .phpunit.result.cache
 /.phpunit.cache/
 /storage/phpstan/
 /storage/phpstan/resultCache.php
+__pycache__/
+*.pyc
+*.pyo
 
-# Codex temporary files
+# Codex temporary/local files
+/.codex/config.toml
 /.codex/tmp-*
 /.codex/*.patch
 
@@ -40,14 +52,12 @@
 !/storage/app/uat/scenario-pack.example.json
 /storage/app/uat/scenario-pack.json
 
-# Local go-live generated evidence
-/build/booking-go-live/
-
-# IDE / OS
+# IDE / OS / logs
 /.idea/
 /.vscode/
 .DS_Store
 Thumbs.db
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

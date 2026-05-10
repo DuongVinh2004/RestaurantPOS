@@ -1,4 +1,4 @@
-﻿SET NAMES utf8mb4;
+SET NAMES utf8mb4;
 
 DROP PROCEDURE IF EXISTS `sp_inventory_stock_movement_reference_uniqueness`;
 
