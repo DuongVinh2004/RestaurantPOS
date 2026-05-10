@@ -95,7 +95,7 @@
         "admin": {
             "user_id": 3,
             "username": "uat.admin",
-            "password": "UatDemo!123",
+            "password": "CHANGE_ME_LOCAL_ONLY",
             "full_name": "UAT Admin",
             "email": "uat.admin@example.test",
             "phone": "0900001001",
@@ -105,7 +105,7 @@
         "staff": {
             "user_id": 4,
             "username": "uat.staff",
-            "password": "UatDemo!123",
+            "password": "CHANGE_ME_LOCAL_ONLY",
             "full_name": "UAT Staff",
             "email": "uat.staff@example.test",
             "phone": "0900001002",
@@ -115,7 +115,7 @@
         "customer_primary": {
             "user_id": 5,
             "username": "uat.customer.primary",
-            "password": "UatDemo!123",
+            "password": "CHANGE_ME_LOCAL_ONLY",
             "full_name": "UAT Customer Primary",
             "email": "uat.customer.primary@example.test",
             "phone": "0900001003",
@@ -125,7 +125,7 @@
         "customer_secondary": {
             "user_id": 6,
             "username": "uat.customer.secondary",
-            "password": "UatDemo!123",
+            "password": "CHANGE_ME_LOCAL_ONLY",
             "full_name": "UAT Customer Secondary",
             "email": "uat.customer.secondary@example.test",
             "phone": "0900001004",
@@ -473,3 +473,5 @@
         }
     }
 }
+
+
