@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
+// Vai trò: Xử lý nghiệp vụ đăng ký tài khoản khách hàng mới, bao gồm tạo record trong database, tự động cấp token đăng nhập (auto-login) và xử lý an toàn các lỗi tranh chấp dữ liệu (trùng email/phone).
+
 class RegisterCustomerHandler
 {
     public function __construct(
@@ -30,11 +32,21 @@ class RegisterCustomerHandler
      */
     public function handle(array $data, array $context = []): array
     {
+        // --- BƯỚC 1: Lấy thông tin Role ID của Khách hàng ---
+        // Nghiệp vụ: Xác định chính xác Role ID dành cho Customer từ cấu hình để gán cho user mới, tránh việc user tự truyền role_id lên để leo thang đặc quyền thành Admin.
         $roleId = $this->customerRoleId();
 
         try {
+            // --- BƯỚC 2: Mở Database Transaction ---
+            // Best Practice: Đảm bảo tính All-or-Nothing (ACID). Nếu tạo User thành công nhưng tạo Session thất bại (do Redis sập hoặc lỗi logic), toàn bộ tiến trình sẽ bị rollback, không để lại dữ liệu rác trong bảng users.
+
             return DB::transaction(function () use ($data, $context, $roleId): array {
+
+                // --- BƯỚC 3: Tạo User mới ---
                 $user = $this->createCustomerUser($data, $roleId);
+
+                // --- BƯỚC 4: Tự động cấp Token (Auto-login) ---
+                // Nghiệp vụ: Đăng ký xong thì cho khách đăng nhập luôn để tăng trải nghiệm (UX), không bắt họ gõ lại mật khẩu.
                 $issued = $this->customerAccessSessionStore->issueForUser(
                     $user,
                     $this->customerSessionExpiry(),
@@ -46,14 +58,17 @@ class RegisterCustomerHandler
                     'access_session_id' => (int) $issued['access_session']->getKey(),
                 ]);
 
+                // --- BƯỚC 5: Đóng gói Payload trả về cho Frontend ---
                 return $this->customerAccessSessionPayloadBuilder->build(
                     $issued['access_session'],
                     (string) $issued['plain_text_token'],
                 );
             });
         } catch (QueryException $exception) {
+            // --- BƯỚC 6: Xử lý ngoại lệ tranh chấp dữ liệu (Race Condition / Unique Constraint) ---
+            // Best Practice: Thay vì query `SELECT count(*) WHERE email = ?` trước khi insert (rất dễ dính Race Condition nếu 2 người cùng submit 1 mili-giây), hệ thống cứ insert thẳng. Nếu DB báo lỗi Unique Constraint Violation (trùng email/phone), catch lỗi đó và báo lại cho user. Kỹ thuật này gọi là "Let the Database do the validation".
             if (! $this->isUniqueConstraintViolation($exception)) {
-                throw $exception;
+                throw $exception; // Lỗi khác (rớt mạng, sai cú pháp SQL) thì ném ra ngoài để log bug.
             }
 
             AuditEvent::warning('customer_registration_failed', [
@@ -67,6 +82,7 @@ class RegisterCustomerHandler
 
     private function customerRoleId(): int
     {
+        // Kiểm tra xem hệ thống có đang cho phép khách tự đăng ký không (Feature Toggle)
         if (! (bool) config('customer_auth.enabled', false)) {
             AuditEvent::warning('customer_registration_configuration_blocked', [
                 'error_code' => 'customer_auth_disabled',
@@ -97,6 +113,7 @@ class RegisterCustomerHandler
         }
 
         $roleId = (int) $allowedRoleIds[0];
+        // Đảm bảo Role này thực sự tồn tại trong Database
         if (! Role::query()->whereKey($roleId)->exists()) {
             AuditEvent::warning('customer_registration_configuration_blocked', [
                 'error_code' => 'customer_role_not_found',
@@ -135,10 +152,12 @@ class RegisterCustomerHandler
             'updated_at' => $now,
         ];
 
+        // Best Practice: Hỗ trợ Optimistic Locking nếu bảng users có cột row_version
         if (Schema::hasColumn('users', 'row_version')) {
             $payload['row_version'] = 1;
         }
 
+        // Dùng Query Builder insert thay vì Eloquent Create để tối ưu tốc độ và kiểm soát chính xác payload
         $userId = DB::table('users')->insertGetId($payload);
 
         /** @var User $user */
@@ -174,6 +193,7 @@ class RegisterCustomerHandler
      */
     private function registrationConflictMessages(array $data): array
     {
+        // Chuyển đổi lỗi của DB thành tin nhắn Validation để Frontend render đỏ ô input tương ứng
         if ($this->nullableString($data['email'] ?? null) !== null) {
             return ['email' => ['The email has already been taken.']];
         }
@@ -194,6 +214,7 @@ class RegisterCustomerHandler
 
     private function isUniqueConstraintViolation(QueryException $exception): bool
     {
+        // Nhận diện lỗi trùng lặp (Duplicate Key) của MySQL/MariaDB
         $sqlState = (string) ($exception->errorInfo[0] ?? '');
         $driverCode = (string) ($exception->errorInfo[1] ?? '');
 

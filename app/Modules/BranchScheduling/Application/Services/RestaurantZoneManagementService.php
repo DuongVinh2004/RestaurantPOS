@@ -14,6 +14,9 @@ use Illuminate\Validation\ValidationException;
 
 class RestaurantZoneManagementService
 {
+    // --- BƯỚC 1: LIỆT KÊ VÀ TỔNG HỢP KHU VỰC BÀN (LIST ZONES) ---
+    // Nghiệp vụ: Chuyển đổi danh sách các bàn riêng lẻ thành một bản báo cáo tổng hợp theo từng Khu vực (Zone).
+    // Phục vụ cho màn hình quản trị Sơ đồ nhà hàng (Ví dụ: Tầng 1 có bao nhiêu bàn trống, Sân vườn có bao nhiêu bàn bận).
     /**
      * @param  array<string,mixed>  $filters
      * @return array{zones: array<int, array<string,mixed>>, meta: array<string,mixed>}
@@ -25,6 +28,8 @@ class RestaurantZoneManagementService
             ? (bool) $filters['include_unzoned']
             : true;
 
+        // [BEST PRACTICE]: Optimized Query for Aggregation
+        // Thay vì truy vấn SELECT * tốn bộ nhớ, chỉ SELECT đúng 4 cột cần thiết để tổng hợp.
         $query = DB::table('restaurant_tables')
             ->select([
                 'zone',
@@ -42,12 +47,15 @@ class RestaurantZoneManagementService
         $rows = $query->get();
 
         $zones = [];
+
+        // --- BƯỚC 2: PHÂN NHÓM VÀ KHỞI TẠO CẤU TRÚC (GROUPING & STRUCTURING) ---
         foreach ($rows as $row) {
             $zone = $this->normalizeZoneInput($row->zone);
             if ($zone === null && ! $includeUnzoned) {
                 continue;
             }
 
+            // Gộp các bàn chưa được gán khu vực vào chung một nhóm '__UNZONED__'
             $key = $zone ?? '__UNZONED__';
             if (! isset($zones[$key])) {
                 $zones[$key] = [
@@ -76,6 +84,7 @@ class RestaurantZoneManagementService
                 ];
             }
 
+            // Đếm số lượng bàn và thống kê trạng thái
             $zones[$key]['table_count']++;
             $zones[$key]['table_ids'][] = (int) $row->table_id;
             $zones[$key]['table_codes'][] = (string) $row->table_code;
@@ -95,6 +104,10 @@ class RestaurantZoneManagementService
             }
         }
 
+        // --- BƯỚC 3: ĐÍNH KÈM THỐNG KÊ SỬ DỤNG (ATTACH USAGE SNAPSHOT) ---
+        // [BEST PRACTICE]: N+1 Query Prevention (Chống lỗi N+1 Query)
+        // Gom toàn bộ ID của TẤT CẢ các bàn trong mọi khu vực thành 1 mảng duy nhất ($allTableIds).
+        // Sau đó gọi hàm loadUsageSnapshot() đúng MỘT lần để lấy thống kê đặt chỗ/đang ăn.
         $allTableIds = [];
         foreach ($zones as $zoneRow) {
             foreach ((array) ($zoneRow['table_ids'] ?? []) as $tableId) {
@@ -111,6 +124,8 @@ class RestaurantZoneManagementService
                 $zoneRow['usage']['active_order_count'] += (int) ($usage['active_order_count'] ?? 0);
             }
 
+            // Nếu trong nguyên một khu vực (ví dụ Tầng 1) có ÍT NHẤT 1 bàn đang có khách ngồi / đang đặt trước,
+            // Khu vực đó sẽ bị khóa (has_active_operational_links = true) để ngăn Admin đổi tên bừa bãi.
             $zoneRow['usage']['has_active_operational_links'] =
                 $zoneRow['usage']['active_reservation_count'] > 0
                 || $zoneRow['usage']['active_hold_count'] > 0
@@ -136,6 +151,7 @@ class RestaurantZoneManagementService
         ];
     }
 
+    // --- BƯỚC 4: ĐỔI TÊN KHU VỰC HÀNG LOẠT (BULK RENAME ZONE) ---
     /**
      * @return array{from_zone:?string,to_zone:?string,affected_table_count:int}
      */
@@ -160,6 +176,9 @@ class RestaurantZoneManagementService
                 $query->where('zone', $fromZone);
             }
 
+            // [BEST PRACTICE]: Bulk Pessimistic Locking
+            // Khóa toàn bộ các bàn thuộc khu vực cũ lại để không ai có thể xếp thêm khách vào
+            // trong quá trình Admin đang đổi tên khu vực.
             $tables = $query->lockForUpdate()->get();
             $tableIds = $tables->modelKeys();
             $usageByTable = $this->loadUsageSnapshot($tableIds);
@@ -169,6 +188,9 @@ class RestaurantZoneManagementService
                 $currentStatus = (string) ($table->status?->value ?? $table->status);
                 $runtimeOwnedStatus = in_array($currentStatus, [RestaurantTableStatus::Occupied->value, RestaurantTableStatus::Reserved->value], true);
 
+                // [BEST PRACTICE]: Pre-flight Dependency Check (Kiểm tra phụ thuộc trước khi chạy)
+                // Nghiệp vụ: Cấm đổi tên "Tầng 1" thành "Sảnh ngoài" nếu ở Tầng 1 đang có bàn có khách ngồi,
+                // hoặc đang có đơn gọi món chưa tính tiền. Điều này tránh làm hỏng các báo cáo doanh thu theo khu vực.
                 if ($runtimeOwnedStatus || (bool) ($usage['has_active_operational_links'] ?? false)) {
                     throw ValidationException::withMessages([
                         'from_zone' => ['Cannot rename a zone while any table in that zone is operationally linked.'],
@@ -176,6 +198,7 @@ class RestaurantZoneManagementService
                 }
             }
 
+            // Đổi tên hàng loạt
             foreach ($tables as $table) {
                 $table->zone = $toZone;
                 $table->save();
@@ -189,6 +212,7 @@ class RestaurantZoneManagementService
         });
     }
 
+    // --- BƯỚC 5: TIỆN ÍCH KIỂM TRA TRẠNG THÁI (USAGE SNAPSHOT) ---
     /**
      * @param  list<int>  $tableIds
      * @return array<int, array{active_reservation_count:int,active_hold_count:int,active_order_count:int,has_active_operational_links:bool}>

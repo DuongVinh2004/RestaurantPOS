@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  */
 class RestaurantTableStateService
 {
+    // --- BƯỚC 1: KIỂM TRA ĐIỀU KIỆN TRẠNG THÁI (STATE GUARDS) ---
     public function isOperationallyBlocked(string $status): bool
     {
         return in_array($status, [
@@ -28,6 +29,10 @@ class RestaurantTableStateService
         return $status === RestaurantTableStatus::Available->value;
     }
 
+    // --- BƯỚC 2: CHUYỂN TRẠNG THÁI "ĐANG SỬ DỤNG" (OCCUPY TABLES) ---
+    // Nghiệp vụ: Khi khách hàng bước vào quán và ngồi xuống bàn (Check-in),
+    // hoặc khi nhân viên bắt đầu mở bill gọi món, hệ thống cần đánh dấu bàn đó
+    // chuyển sang màu đỏ (Occupied) trên sơ đồ để không ai được phép xếp thêm khách vào nữa.
     public function occupyTables(array $tableIds, ?Carbon $now = null, ?int $actorUserId = null, array $context = []): void
     {
         // Occupy chi danh dau nhung ban thuc su co the nhan khach tai thoi diem hien tai.
@@ -38,7 +43,11 @@ class RestaurantTableStateService
 
         $now ??= Carbon::now('UTC');
 
+        // [BEST PRACTICE]: Batch Pessimistic Locking (Khóa bi quan theo lô)
         // Pha 1: lock tap table hien tai, chup before-snapshot roi moi mutate tung row.
+        // Ngăn chặn Race Condition: Giả sử 2 nhân viên (Lễ tân ở cửa và Phục vụ ở trong)
+        // cùng lúc bấm xếp khách vào Bàn số 5. Lệnh lockForUpdate() sẽ bắt 1 người phải đứng đợi
+        // cho đến khi người kia hoàn tất quá trình lưu dữ liệu.
         $tables = RestaurantTable::query()
             ->whereIn('table_id', $tableIds)
             ->lockForUpdate()
@@ -46,11 +55,14 @@ class RestaurantTableStateService
             ->sortBy('table_id')
             ->values();
 
+        // [BEST PRACTICE]: Audit Trail (Truy vết thay đổi)
+        // Chụp lại bức ảnh (snapshot) của toàn bộ các bàn TRƯỚC KHI chúng bị đổi trạng thái.
         $beforeRows = $tables->map(fn (RestaurantTable $table): array => $this->tableSnapshot($table))->all();
 
         $updated = 0;
         foreach ($tables as $table) {
             // Ban dang blocked/maintenance/occupied thi bo qua, tranh overwrite state van hanh dac biet.
+            // Domain Invariant: Nếu bàn đang hỏng (Maintenance) thì không được phép đè trạng thái thành Có khách (Occupied).
             $status = (string) ($table->status?->value ?? $table->status);
             if ($this->isOperationallyBlocked($status) || $status === RestaurantTableStatus::Occupied->value) {
                 continue;
@@ -64,6 +76,7 @@ class RestaurantTableStateService
 
         // Audit va bump cache chi can khi co row thuc su doi state.
         if ($updated > 0) {
+            // Chụp lại bức ảnh SAU KHI đã đổi trạng thái thành công
             $afterRows = RestaurantTable::query()
                 ->whereIn('table_id', $tableIds)
                 ->get()
@@ -72,6 +85,7 @@ class RestaurantTableStateService
                 ->map(fn (RestaurantTable $table): array => $this->tableSnapshot($table))
                 ->all();
 
+            // Lưu cả "Before" và "After" vào sổ nhật ký hệ thống.
             TableStateAuditLogger::insertTransitions(
                 beforeRows: $beforeRows,
                 afterRows: $afterRows,
@@ -80,10 +94,18 @@ class RestaurantTableStateService
                 context: $context,
                 occurredAt: $now,
             );
+
+            // [BEST PRACTICE]: Cache Invalidation (Xóa cache diện rộng)
+            // AvailabilityCacheVersion::bump() đóng vai trò như việc "kéo còi báo động".
+            // Nó báo cho tất cả các luồng tính toán (như luồng check xem khách hàng có đặt được bàn online hay không)
+            // rằng "Sơ đồ bàn vừa thay đổi, hãy xóa hết kết quả tính toán cũ đi và tính lại từ đầu!".
             AvailabilityCacheVersion::bump();
         }
     }
 
+    // --- BƯỚC 3: GIẢI PHÓNG BÀN (RELEASE TABLES) ---
+    // Nghiệp vụ: Khi khách thanh toán xong và rời đi, hoặc khi khách hủy đặt chỗ,
+    // bàn cần được làm sạch (chuyển về màu xanh - Available) để đón lượt khách tiếp theo.
     public function releaseTablesSafely(array $tableIds, ?Carbon $now = null, ?int $actorUserId = null, array $context = []): void
     {
         // Release khong "bat" cac ban dang blocked/maintenance ve Available mot cach mu quang.
@@ -107,6 +129,8 @@ class RestaurantTableStateService
         $updated = 0;
         foreach ($tables as $table) {
             // Ban dang blocked/maintenance/available thi giu nguyen, khong "ep" state quay ve available.
+            // Rất quan trọng: Nếu một bàn bị hỏng chân ghế (Maintenance), nhưng trên hệ thống vẫn đang kẹt 1 cái bill chưa đóng.
+            // Khi thu ngân đóng bill (Release), hệ thống KHÔNG ĐƯỢC biến cái bàn hỏng đó thành Bàn Trống (Available) để xếp khách vào.
             $status = (string) ($table->status?->value ?? $table->status);
             if ($this->isOperationallyBlocked($status) || $status === RestaurantTableStatus::Available->value) {
                 continue;
@@ -199,6 +223,10 @@ class RestaurantTableStateService
      */
     private function normalizeTableIds(array $tableIds): array
     {
+        // [BEST PRACTICE]: Deadlock Prevention via Sorting (Chống Deadlock bằng cách sắp xếp)
+        // BẮT BUỘC phải sắp xếp ID của các bàn từ nhỏ đến lớn trước khi gọi khóa DB (lockForUpdate).
+        // Nếu không sort, nhân viên A đang xử lý [Bàn 1, Bàn 2], nhân viên B đang xử lý [Bàn 2, Bàn 1]
+        // sẽ tạo ra vòng lặp chết (Deadlock), làm treo cứng cơ sở dữ liệu.
         $normalized = array_values(array_unique(array_map('intval', $tableIds)));
         sort($normalized);
 

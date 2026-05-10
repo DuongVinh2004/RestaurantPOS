@@ -14,18 +14,22 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
+// Vai trò: Trình kiểm duyệt chính sách Đặt món trước (Pre-order).
+// Đảm bảo khách hàng không gọi những món đã hết hạn đặt, vượt quá số lượng cho phép trong ngày, hoặc những món không cho phép mang về.
 class MenuPreorderPolicyService
 {
+    // --- BƯỚC 1: KIỂM DUYỆT DANH SÁCH MÓN ĐẶT TRƯỚC ---
     /**
      * @param  array<int, array{item_id:int, quantity:int}>  $requestedItems
      * @return array{
-     *   rows: array<int, array{item_id:int, quantity:int}>,
-     *   menu_items: Collection<int, MenuItem>,
-     *   price_rows: Collection<int, MenuItemPrice>
+     * rows: array<int, array{item_id:int, quantity:int}>,
+     * menu_items: Collection<int, MenuItem>,
+     * price_rows: Collection<int, MenuItemPrice>
      * }
      */
     public function prepareRequestedItems(array $requestedItems, Carbon $serviceStart, ?int $ignoreReservationId = null): array
     {
+        // 1.1 Chuẩn hóa dữ liệu đầu vào (loại bỏ món rác, số lượng âm)
         $rows = $this->normalizeRequestedItems($requestedItems);
         if ($rows === []) {
             throw ValidationException::withMessages([
@@ -38,6 +42,7 @@ class MenuPreorderPolicyService
             $rows,
         )));
 
+        // 1.2 Lấy thông tin các món ăn từ Database
         /** @var Collection<int, MenuItem> $menuItems */
         $menuItems = MenuItem::query()
             ->whereIn('item_id', $itemIds)
@@ -60,18 +65,24 @@ class MenuPreorderPolicyService
         }
 
         $nowUtc = Carbon::now('UTC');
+
+        // Gộp số lượng nếu khách cố tình gửi 2 dòng trùng ID món ăn
         $requestedQuantityByItemId = [];
         foreach ($rows as $row) {
             $itemId = (int) $row['item_id'];
             $requestedQuantityByItemId[$itemId] = ($requestedQuantityByItemId[$itemId] ?? 0) + (int) $row['quantity'];
         }
 
+        // [BEST PRACTICE]: Inventory Quota Check (Kiểm tra giới hạn tồn kho/năng lực)
+        // Nghiệp vụ: Bếp chỉ có thể quay tối đa 20 con vịt mỗi ngày. Cần truy vấn xem hôm nay
+        // đã có bao nhiêu người đặt vịt quay rồi, để biết đường từ chối nếu khách này đặt quá số lượng còn lại.
         $existingQuantityByItemId = $this->existingDailyPreorderQuantities(
             itemIds: array_keys($requestedQuantityByItemId),
             serviceStart: $serviceStart,
             ignoreReservationId: $ignoreReservationId,
         );
 
+        // 1.3 Rào chắn kiểm duyệt từng món một (Validation Gates)
         foreach ($requestedQuantityByItemId as $itemId => $requestedQuantity) {
             /** @var MenuItem|null $menuItem */
             $menuItem = $menuItems->get($itemId);
@@ -81,12 +92,16 @@ class MenuPreorderPolicyService
                 ]);
             }
 
+            // Guard 1: Món này có cho phép đặt trước không? (Ví dụ Kem dễ chảy nên không cho đặt trước mang về)
             if (! (bool) $menuItem->is_preorder_enabled) {
                 throw ValidationException::withMessages([
                     'pre_order_items' => [sprintf('Món "%s" hiện không cho phép pre-order.', (string) $menuItem->name)],
                 ]);
             }
 
+            // Guard 2: Cut-off Time (Thời gian chốt sổ)
+            // Ví dụ: Món súp bào ngư cần hầm 4 tiếng. Khách đặt ăn lúc 19h00 thì hạn chót (cutoff) phải đặt trước 15h00.
+            // Nếu bây giờ là 16h00 thì hệ thống sẽ từ chối.
             $cutoffMinutes = max(0, (int) ($menuItem->preorder_cutoff_minutes ?? 0));
             if ($cutoffMinutes > 0 && $nowUtc->copy()->addMinutes($cutoffMinutes)->greaterThan($serviceStart)) {
                 throw ValidationException::withMessages([
@@ -94,6 +109,7 @@ class MenuPreorderPolicyService
                 ]);
             }
 
+            // Guard 3: Daily Quota (Giới hạn bán trong ngày)
             $quotaPerDay = $menuItem->preorder_quota_per_day;
             if ($quotaPerDay !== null) {
                 $quotaPerDay = (int) $quotaPerDay;
@@ -111,10 +127,11 @@ class MenuPreorderPolicyService
             }
         }
 
+        // 1.4 Lấy giá tiền áp dụng đúng vào thời điểm khách sẽ đến ăn
         /** @var Collection<int, MenuItemPrice> $priceRows */
         $priceRows = MenuItemPrice::query()
             ->whereIn('item_id', $itemIds)
-            ->effectiveAt($serviceStart)
+            ->effectiveAt($serviceStart) // Hàm lấy giá theo thời gian thực (Temporal Pricing)
             ->orderBy('item_id')
             ->orderByDesc('effective_from')
             ->orderByDesc('price_id')
@@ -135,8 +152,13 @@ class MenuPreorderPolicyService
         ];
     }
 
+    // --- BƯỚC 2: RÀ SOÁT LẠI KHI KHÁCH ĐỔI LỊCH (RESCHEDULE RE-EVALUATION) ---
     public function assertReservationPreordersRemainValid(int $reservationId, Carbon $serviceStart): void
     {
+        // Nghiệp vụ: Khách đã đặt bàn và đặt món thành công cho Thứ Sáu.
+        // Sau đó khách gọi điện xin dời lịch sang Thứ Bảy.
+        // Hệ thống BẮT BUỘC phải chạy lại bộ kiểm duyệt (Cutoff, Quota, Giá cả) cho ngày Thứ Bảy.
+        // Nhỡ đâu Thứ Bảy món đó bị giới hạn bán, hoặc nhà hàng không phục vụ món đó nữa thì sao?
         $rows = ReservationOrderItem::query()
             ->join('reservation_orders as ro', 'ro.order_id', '=', 'reservation_order_items.order_id')
             ->where('ro.reservation_id', $reservationId)
@@ -161,6 +183,7 @@ class MenuPreorderPolicyService
         }
 
         try {
+            // Chạy lại bộ kiểm duyệt, nhớ bỏ qua ID của chính Đơn đặt bàn này để không bị tính trùng (Double-counting quota)
             $this->prepareRequestedItems($rows, $serviceStart, $reservationId);
         } catch (ValidationException $e) {
             throw ValidationException::withMessages([
@@ -169,12 +192,14 @@ class MenuPreorderPolicyService
         }
     }
 
+    // --- BƯỚC 3: CÁC TIỆN ÍCH CHUẨN HÓA VÀ GOM NHÓM DỮ LIỆU ---
     /**
      * @param  array<int, array<string, mixed>>  $requestedItems
      * @return array<int, array{item_id:int, quantity:int}>
      */
     public function normalizeRequestedItems(array $requestedItems): array
     {
+        // Lọc bỏ những dữ liệu rác (ID món ăn bằng 0, số lượng âm)
         $normalized = [];
 
         foreach ($requestedItems as $row) {
@@ -199,6 +224,7 @@ class MenuPreorderPolicyService
      */
     private function existingDailyPreorderQuantities(array $itemIds, Carbon $serviceStart, ?int $ignoreReservationId = null): array
     {
+        // Câu truy vấn tính tổng số lượng món ăn ĐÃ ĐƯỢC ĐẶT TRONG NGÀY (Từ 0h00 đến 23h59 của ngày khách chọn)
         if ($itemIds === []) {
             return [];
         }
@@ -210,7 +236,7 @@ class MenuPreorderPolicyService
             ->join('reservation_orders as ro', 'ro.order_id', '=', 'reservation_order_items.order_id')
             ->join('reservations as r', 'r.reservation_id', '=', 'ro.reservation_id')
             ->whereIn('reservation_order_items.item_id', $itemIds)
-            ->where('ro.order_type', ReservationOrderType::PreOrder->value)
+            ->where('ro.order_type', ReservationOrderType::PreOrder->value) // Chỉ đếm những đơn đặt trước, không đếm khách gọi tại bàn
             ->whereIn('ro.status', [
                 ReservationOrderStatus::Active->value,
                 ReservationOrderStatus::Completed->value,

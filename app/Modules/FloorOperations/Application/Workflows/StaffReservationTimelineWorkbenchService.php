@@ -24,83 +24,117 @@ class StaffReservationTimelineWorkbenchService
      */
     public function build(Reservation $reservation, array $context = []): array
     {
+        // --- BƯỚC 1: TRÍCH XUẤT VÀ CHUẨN HÓA NGỮ CẢNH (CONTEXT EXTRACTION) ---
+        // Lấy tất cả thông tin hiện tại của Reservation từ DB hoặc từ các Service khác truyền vào
         $reservationId = (int) ($reservation->reservation_id ?? 0);
-        $rowVersion = (int) ($reservation->row_version ?? 1);
+        $rowVersion = (int) ($reservation->row_version ?? 1); // Rất quan trọng cho Optimistic Locking
         $status = (string) ($reservation->status?->value ?? $reservation->status ?? '');
         $isCheckedIn = (bool) ($context['is_checked_in'] ?? false);
-        $isTerminal = (bool) ($context['is_terminal'] ?? false);
+        $isTerminal = (bool) ($context['is_terminal'] ?? false); // Đã Hủy, Đã Hoàn Thành, hoặc Bùng bàn (No-show)
         $hasAssignedTables = (bool) ($context['has_assigned_tables'] ?? false);
+
         $assignedTables = array_values(array_filter((array) ($context['assigned_tables'] ?? []), static fn (mixed $row): bool => is_array($row)));
         $assignedTableIds = array_values(array_map(static fn (array $table): int => (int) ($table['table_id'] ?? 0), $assignedTables));
+
         $candidateTables = array_values(array_filter((array) ($context['candidate_tables'] ?? []), static fn (mixed $row): bool => is_array($row)));
         $candidatePreviewLoaded = (bool) ($context['candidate_table_preview_loaded'] ?? false);
+
         $checkInReadiness = is_array($context['check_in_readiness'] ?? null)
             ? (array) $context['check_in_readiness']
             : null;
+
         $assignmentRequestContext = is_array($context['assignment_request_context'] ?? null)
             ? array_filter((array) $context['assignment_request_context'], static fn (mixed $value): bool => $value !== null && $value !== '')
             : [];
+
+        // Bàn gợi ý tốt nhất (nếu có)
         $bestFitTable = $candidatePreviewLoaded ? ($candidateTables[0] ?? null) : null;
+        // Có cần hối thúc khách đóng tiền cọc không?
         $depositFollowUp = (bool) ($context['deposit_follow_up'] ?? false);
+        // Khách đã bắt đầu gọi món chưa?
         $hasActiveOrder = (bool) ($context['has_active_order'] ?? false);
         $primaryTable = is_array($context['primary_table'] ?? null) ? (array) $context['primary_table'] : null;
 
+        // --- BƯỚC 2: TÍNH TOÁN CỬA SỔ THỜI GIAN (TIME WINDOW CALCULATION) ---
         $nowUtc = $this->asCarbon($context['now_utc'] ?? null) ?? Carbon::now('UTC');
         $startUtc = $this->asCarbon($reservation->start_time) ?? $nowUtc->copy();
+
+        // Thời gian được phép Check-in (ví dụ: Được check-in sớm 15 phút và trễ 15 phút)
         $checkInWindowStartUtc = $this->asCarbon(data_get($checkInReadiness, 'window.start_utc'));
         $checkInWindowEndUtc = $this->asCarbon(data_get($checkInReadiness, 'window.end_utc'));
+
         if (! $checkInWindowStartUtc instanceof Carbon || ! $checkInWindowEndUtc instanceof Carbon) {
+            // Fallback nếu không có cấu hình sẵn: Dùng cài đặt chung của nhà hàng
             $checkInGraceMinutes = $this->resolveCheckInGraceMinutes();
             $checkInWindowStartUtc = $startUtc->copy()->subMinutes($checkInGraceMinutes);
             $checkInWindowEndUtc = $startUtc->copy()->addMinutes($checkInGraceMinutes);
         }
+
         $checkInWindowOpen = (bool) ($checkInReadiness['available'] ?? (! $isTerminal
             && ! $isCheckedIn
             && $hasAssignedTables
             && $status === ReservationStatus::Confirmed->value
             && $nowUtc->lessThanOrEqualTo($checkInWindowEndUtc)));
+
         $checkInBlockedReason = $checkInReadiness !== null
             ? (is_string($checkInReadiness['blocked_reason_code'] ?? null) ? $checkInReadiness['blocked_reason_code'] : null)
             : null;
+
         $checkInChecks = is_array($checkInReadiness['checks'] ?? null)
             ? (array) $checkInReadiness['checks']
             : [];
 
+        // --- BƯỚC 3: ĐÁNH GIÁ QUYỀN HÀNH ĐỘNG (ACTION GATEKEEPING) ---
+        // Nghiệp vụ: Lễ tân ĐƯỢC PHÉP bấm nút gì tiếp theo?
+
+        // Cần xếp bàn nếu: Chưa kết thúc, Chưa vào quán, Chưa có bàn nào, Đã Xác nhận.
         $canAssign = ! $isTerminal
             && ! $isCheckedIn
             && ! $hasAssignedTables
             && $status === ReservationStatus::Confirmed->value;
+
         $canAssignBestFit = $canAssign;
-        $canAssignSuggested = $canAssign && $bestFitTable !== null;
+        $canAssignSuggested = $canAssign && $bestFitTable !== null; // Chỉ gợi ý nếu có bàn trống phù hợp
+
+        // Cần dời lịch nếu: Chưa kết thúc, Chưa vào quán, Đã Xác nhận.
         $canReschedule = ! $isTerminal && ! $isCheckedIn && $status === ReservationStatus::Confirmed->value;
+
+        // Cần chuyển bàn nếu: Đang ở trong quán (Checked In) và Có bàn.
         $canMoveTable = ! $isTerminal && $isCheckedIn && $hasAssignedTables;
 
+        // --- BƯỚC 4: ĐỊNH TUYẾN GIAO DIỆN (UI ROUTING / NEXT RECOMMENDED ACTION) ---
+        // Xác định Đâu là NÚT BẤM CHÍNH (Sáng màu lên) mà Lễ tân nên bấm nhất lúc này?
         $nextRecommendedAction = null;
         if ($canAssignSuggested) {
-            $nextRecommendedAction = 'assign_suggested';
+            $nextRecommendedAction = 'assign_suggested'; // Nút Xếp bàn Gợi ý
         } elseif ($canAssignBestFit) {
-            $nextRecommendedAction = 'assign_best_fit';
+            $nextRecommendedAction = 'assign_best_fit'; // Nút Tự động Xếp bàn
         } elseif ($checkInWindowOpen) {
-            $nextRecommendedAction = 'check_in';
+            $nextRecommendedAction = 'check_in'; // Nút Đón khách (Check-in)
         } elseif ($canMoveTable) {
-            $nextRecommendedAction = 'move_table';
+            $nextRecommendedAction = 'move_table'; // Nút Chuyển bàn
         } elseif ($depositFollowUp) {
-            $nextRecommendedAction = 'deposit_preview';
+            $nextRecommendedAction = 'deposit_preview'; // Nút Nhắc nợ Tiền cọc
         } elseif ($canReschedule) {
-            $nextRecommendedAction = 'reschedule';
+            $nextRecommendedAction = 'reschedule'; // Nút Dời giờ
         }
 
+        // --- BƯỚC 5: XÂY DỰNG DANH SÁCH API CHOP FRONTEND (HATEOAS CONSTRUCTION) ---
+        // Best Practice: HATEOAS (Hypermedia As The Engine Of Application State)
+        // Backend không chỉ trả về dữ liệu, mà trả về MỘT MENU CÁC NÚT BẤM.
+        // Frontend React chỉ việc map vòng lặp mảng $actions này ra và render nút, KHÔNG CẦN CODE LUẬT NGHIỆP VỤ.
         $actions = [];
 
+        // Nút Xếp Bàn Tự Động (Auto-Assign)
         $actions[] = $this->makeAction(
             key: 'assign_best_fit',
             uri: sprintf('/api/v1/staff/reservations/%d/timeline/actions/assign-best-fit', $reservationId),
-            available: $canAssignBestFit,
-            recommended: $nextRecommendedAction === 'assign_best_fit',
-            blockedReasonCode: $canAssignBestFit ? null : $this->resolveAssignmentBlockedReason($isTerminal, $isCheckedIn, $hasAssignedTables, $status),
+            available: $canAssignBestFit, // Nút bị xám (disabled) hay sáng lên?
+            recommended: $nextRecommendedAction === 'assign_best_fit', // Nút có được đổi màu nổi bật không?
+            blockedReasonCode: $canAssignBestFit ? null : $this->resolveAssignmentBlockedReason($isTerminal, $isCheckedIn, $hasAssignedTables, $status), // Tooltip giải thích vì sao nút bị xám
             hint: 'Assign the best-fit table using the current board orchestration rules.',
-            requiredFields: ['row_version'],
-            payloadDefaults: array_merge(['row_version' => $rowVersion], $assignmentRequestContext),
+            requiredFields: ['row_version'], // Ép UI phải gửi kèm version để chống ghi đè
+            payloadDefaults: array_merge(['row_version' => $rowVersion], $assignmentRequestContext), // UI lấy y nguyên cụm này gửi xuống POST API
             context: [
                 'candidate_table_preview_loaded' => $candidatePreviewLoaded,
                 'candidate_table_count' => $candidatePreviewLoaded ? count($candidateTables) : null,
@@ -108,6 +142,7 @@ class StaffReservationTimelineWorkbenchService
             ],
         );
 
+        // Nút Xếp Bàn Theo Gợi Ý (Manual Assign)
         $actions[] = $this->makeAction(
             key: 'assign_suggested',
             uri: sprintf('/api/v1/staff/reservations/%d/timeline/actions/assign-suggested', $reservationId),
@@ -131,6 +166,7 @@ class StaffReservationTimelineWorkbenchService
             ],
         );
 
+        // Nút Đón Khách (Check-In)
         $actions[] = $this->makeAction(
             key: 'check_in',
             uri: sprintf('/api/v1/staff/reservations/%d/timeline/actions/check-in', $reservationId),
@@ -154,6 +190,7 @@ class StaffReservationTimelineWorkbenchService
             ],
         );
 
+        // Nút Chuyển Bàn (Move Table)
         $actions[] = $this->makeAction(
             key: 'move_table',
             uri: sprintf('/api/v1/staff/reservations/%d/move-table', $reservationId),
@@ -169,6 +206,7 @@ class StaffReservationTimelineWorkbenchService
             ],
         );
 
+        // Nút Dời Lịch (Reschedule)
         $actions[] = $this->makeAction(
             key: 'reschedule',
             uri: sprintf('/api/v1/staff/reservations/%d/reschedule', $reservationId),
@@ -180,9 +218,10 @@ class StaffReservationTimelineWorkbenchService
             payloadDefaults: ['row_version' => $rowVersion],
         );
 
+        // Nút Kiểm Tra Cọc (Deposit Preview)
         $actions[] = $this->makeAction(
             key: 'deposit_preview',
-            method: 'GET',
+            method: 'GET', // Đây là hành động dạng Đọc (Read), không làm thay đổi DB
             uri: sprintf('/api/v1/staff/reservations/%d/deposit-preview', $reservationId),
             available: $depositFollowUp,
             recommended: $nextRecommendedAction === 'deposit_preview',
@@ -190,12 +229,17 @@ class StaffReservationTimelineWorkbenchService
             hint: 'Open the reservation deposit preview for staff follow-up.',
         );
 
+        // --- BƯỚC 6: XUẤT RA GÓI WORKBENCH HOÀN CHỈNH (WORKBENCH DELIVERY) ---
         return [
             'summary' => [
                 'service_phase' => $isCheckedIn ? 'in_service' : 'pre_service',
                 'assignment_state' => $hasAssignedTables ? 'assigned' : 'unassigned',
+
+                // Tiện ích cho UI: Có nút nào sáng lên để bấm không?
                 'actionable_now' => collect($actions)->contains(static fn (array $action): bool => (bool) ($action['available'] ?? false)),
+                // Có nút nào DẠNG GHI (POST/PUT/PATCH) đang sáng lên không? (Phân biệt với nút GET chỉ xem)
                 'mutating_actionable_now' => collect($actions)->contains(static fn (array $action): bool => (bool) ($action['available'] ?? false) && strtoupper((string) ($action['method'] ?? 'GET')) !== 'GET'),
+
                 'next_recommended_action' => $nextRecommendedAction,
                 'candidate_table_preview_loaded' => $candidatePreviewLoaded,
                 'candidate_table_count' => $candidatePreviewLoaded ? count($candidateTables) : null,
@@ -214,20 +258,21 @@ class StaffReservationTimelineWorkbenchService
 
     private function resolveAssignmentBlockedReason(bool $isTerminal, bool $isCheckedIn, bool $hasAssignedTables, string $status): string
     {
+        // Tại sao Lễ tân không bấm được nút "Xếp bàn"?
         if ($isTerminal) {
-            return 'terminal_status';
+            return 'terminal_status'; // Khách hủy cmnr
         }
 
         if ($isCheckedIn) {
-            return 'checked_in_requires_move_table';
+            return 'checked_in_requires_move_table'; // Khách vào quán rồi, muốn đổi chỗ phải dùng hàm Move Table
         }
 
         if ($hasAssignedTables) {
-            return 'already_assigned';
+            return 'already_assigned'; // Đã gán bàn rồi
         }
 
         if ($status !== ReservationStatus::Confirmed->value) {
-            return 'status_not_confirmed';
+            return 'status_not_confirmed'; // Booking còn đang chốt chưa confirm
         }
 
         return 'assignment_not_available';
@@ -241,6 +286,7 @@ class StaffReservationTimelineWorkbenchService
         Carbon $nowUtc,
         Carbon $checkInWindowEndUtc,
     ): string {
+        // Tại sao Lễ tân không bấm được nút "Đón khách"?
         if ($isTerminal) {
             return 'terminal_status';
         }
@@ -250,7 +296,7 @@ class StaffReservationTimelineWorkbenchService
         }
 
         if (! $hasAssignedTables) {
-            return 'assignment_required';
+            return 'assignment_required'; // Chưa gán bàn lấy chỗ đâu mà đón
         }
 
         if ($status !== ReservationStatus::Confirmed->value) {
@@ -258,7 +304,7 @@ class StaffReservationTimelineWorkbenchService
         }
 
         if ($nowUtc->gt($checkInWindowEndUtc)) {
-            return 'check_in_window_closed';
+            return 'check_in_window_closed'; // Quá trễ, mất phiên
         }
 
         return 'check_in_not_available';
@@ -284,6 +330,7 @@ class StaffReservationTimelineWorkbenchService
         array $context = [],
         string $method = 'POST',
     ): array {
+        // Cỗ máy sản xuất Nút bấm UI. Bơm ra Endpoint, Body JSON, và các yêu cầu bắt buộc.
         return [
             'key' => $key,
             'method' => strtoupper($method),

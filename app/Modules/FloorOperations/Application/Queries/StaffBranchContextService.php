@@ -29,11 +29,16 @@ class StaffBranchContextService
         ?int $staffActorRoleId = null,
         ?string $staffActorRoleName = null,
     ): array {
+        // --- BƯỚC 1: PHÂN GIẢI QUYỀN TRUY CẬP CHI NHÁNH (RESOLUTION STRATEGY) ---
+        // Nghiệp vụ: Đầu tiên, luôn kiểm tra xem nhân viên này có được gán ĐÍCH DANH vào chi nhánh nào không (Assigned Branches).
+        // Ví dụ: Nhân viên thời vụ được điều động gấp sang hỗ trợ chi nhánh B trong 1 ngày.
         $assignedBranchIds = $this->assignedBranchIds($staffActorUserId);
         if ($assignedBranchIds !== null) {
             return $assignedBranchIds;
         }
 
+        // Nếu không có gán đích danh, tiếp tục rà soát dựa trên chức vụ (Role) và Quyền (Capabilities).
+        // Ví dụ: Role "Giám đốc" mặc định có token là `*` (All branches).
         return $this->resolveConfiguredBranchScope(
             $this->configuredBranchScopeTokens($staffActorUserId, $staffActorRoleId, $staffActorRoleName),
         );
@@ -52,6 +57,7 @@ class StaffBranchContextService
             return new Collection;
         }
 
+        // Lấy thông tin chi tiết các chi nhánh, ưu tiên Chi nhánh Mặc định (is_default) xếp lên đầu danh sách.
         return Branch::query()
             ->where('is_active', true)
             ->whereIn('branch_id', $branchIds)
@@ -63,14 +69,14 @@ class StaffBranchContextService
 
     /**
      * @return array{
-     *   accessible_branch_ids:list<int>,
-     *   default_branch_id:int|null,
-     *   current_branch_id:int|null,
-     *   has_default_branch_access:bool,
-     *   has_multi_branch_access:bool,
-     *   branch_selector_enabled:bool,
-     *   access_source:string,
-     *   branches_uri:string
+     * accessible_branch_ids:list<int>,
+     * default_branch_id:int|null,
+     * current_branch_id:int|null,
+     * has_default_branch_access:bool,
+     * has_multi_branch_access:bool,
+     * branch_selector_enabled:bool,
+     * access_source:string,
+     * branches_uri:string
      * }
      */
     public function branchAccessContext(
@@ -78,6 +84,10 @@ class StaffBranchContextService
         ?int $staffActorRoleId = null,
         ?string $staffActorRoleName = null,
     ): array {
+        // --- BƯỚC 2: XÂY DỰNG NGỮ CẢNH (CONTEXT) CHO FRONTEND ---
+        // Nghiệp vụ: Cung cấp đầy đủ Dữ liệu Ngữ cảnh để Frontend (Staff Web) quyết định UI.
+        // VD: Nếu `branch_selector_enabled` = false, thì Frontend sẽ ẨN cái menu thả xuống chọn Chi nhánh đi,
+        // không cho nhân viên có cơ hội tò mò ngó sang chi nhánh khác.
         $branchIds = $this->accessibleBranchIds($staffActorUserId, $staffActorRoleId, $staffActorRoleName);
         $defaultBranchId = null;
 
@@ -89,6 +99,8 @@ class StaffBranchContextService
 
         $hasDefaultBranchAccess = $defaultBranchId !== null && in_array($defaultBranchId, $branchIds, true);
         $accessSource = $this->branchAccessSource($staffActorUserId, $staffActorRoleId, $staffActorRoleName);
+
+        // Cố gắng tìm ra chi nhánh hiện tại (Current Branch) hợp lý nhất cho nhân viên ngay khi họ vừa đăng nhập
         $assignedPrimaryBranchId = $accessSource === 'staff_branch_assignments'
             ? $this->primaryAssignedBranchId($staffActorUserId)
             : null;
@@ -103,7 +115,7 @@ class StaffBranchContextService
             'has_default_branch_access' => $hasDefaultBranchAccess,
             'has_multi_branch_access' => count($branchIds) > 1,
             'branch_selector_enabled' => count($branchIds) > 1,
-            'access_source' => $accessSource,
+            'access_source' => $accessSource, // Rất hữu ích cho việc Debug xem quyền này được thừa kế từ đâu
             'branches_uri' => '/api/v1/staff/branches',
         ];
     }
@@ -117,6 +129,7 @@ class StaffBranchContextService
         ?int $staffActorRoleId = null,
         ?string $staffActorRoleName = null,
     ): array {
+        // Nếu Request API có truyền lên ID chi nhánh cụ thể, kiểm tra nghiêm ngặt xem user có quyền với chi nhánh đó không.
         if ($requestedBranchId !== null && $requestedBranchId > 0) {
             return [$this->assertAccessibleBranch($staffActorUserId, $requestedBranchId)];
         }
@@ -131,11 +144,17 @@ class StaffBranchContextService
             return $branchId;
         }
 
+        // Best Practice: Ném thẳng ModelNotFound thay vì AccessDenied (403)
+        // để tránh lộ thông tin (Information Disclosure) rằng chi nhánh này CÓ TỒN TẠI nhưng user không có quyền.
+        // Hacker quét API sẽ chỉ nhận được lỗi 404 Not Found.
         throw (new ModelNotFoundException)->setModel(Branch::class, $branchId !== null ? [$branchId] : []);
     }
 
     public function assertCashierShiftBranchEligible(?int $staffActorUserId = null, mixed $branchId = null): int
     {
+        // --- BƯỚC 3: KIỂM SOÁT BẢO MẬT GIAO DỊCH (FINANCIAL GUARD) ---
+        // Nghiệp vụ: Chặn đứng hành vi mở ca (Shift) hoặc thanh toán hộ chi nhánh khác.
+        // Tránh tình trạng Thu ngân ở HN lại xuất hóa đơn lấy tiền cho khách ở HCM.
         $resolvedBranchId = $this->branchContextService->resolveBranchId($branchId);
         if (in_array($resolvedBranchId, $this->accessibleBranchIds($staffActorUserId), true)) {
             return $resolvedBranchId;
@@ -172,6 +191,9 @@ class StaffBranchContextService
             return $this->fallbackBranchScopeTokens();
         }
 
+        // CẢNH BÁO: Ràng buộc Vận hành Cứng (Hard Operational Constraint)
+        // Nếu role này bắt buộc phải gán chi nhánh rõ ràng (như Bếp, Phục vụ) nhưng lại không có,
+        // thì trả về mảng rỗng -> Coi như không có quyền vào bất kỳ chi nhánh nào, không cho làm việc!
         if ($this->operationalRoleRequiresExplicitBranchAssignment($roleId, $roleName)) {
             return [];
         }
@@ -181,6 +203,7 @@ class StaffBranchContextService
             return $explicitScopes;
         }
 
+        // Kiểm tra quyền "Thiên thần" (Wildcard '*')
         $capabilities = (array) ($this->staffCapabilityResolver->resolveForActor($roleId, $roleName)['capabilities'] ?? []);
         if (in_array('*', $capabilities, true)) {
             return ['*'];
@@ -194,6 +217,8 @@ class StaffBranchContextService
         ?int $staffActorRoleId = null,
         ?string $staffActorRoleName = null,
     ): string {
+        // Hàm này có cấu trúc giống hệt configuredBranchScopeTokens,
+        // nhưng mục đích là trả về "Tên định danh" của nguồn cấp quyền (dùng cho Audit Log và Debug).
         if ($staffActorUserId === null || $staffActorUserId <= 0) {
             return 'fallback_branch_scopes';
         }
@@ -245,6 +270,7 @@ class StaffBranchContextService
         );
     }
 
+    // --- BƯỚC 4: RÀNG BUỘC MÔI TRƯỜNG & CHỨC VỤ (OPERATIONAL SAFETY) ---
     private function operationalRoleRequiresExplicitBranchAssignment(int $roleId, string $roleName): bool
     {
         if ($roleId <= 0 || ! $this->deniesOperationalRoleBranchFallback()) {
@@ -256,6 +282,8 @@ class StaffBranchContextService
             return false;
         }
 
+        // Nghiệp vụ: Những Role trực tiếp tạo ra sai lệch số liệu vật lý (Phục vụ bưng nhầm mâm, Thu ngân thu nhầm tiền, Bếp nấu nhầm món)
+        // thì tuyệt đối phải được ấn định làm việc ở 1 chi nhánh cụ thể. Không có chuyện "Fallback" hay "Wildcard" ở đây.
         return in_array($normalizedRoleName, $this->operationalBranchAssignmentRoleNames(), true);
     }
 
@@ -293,6 +321,8 @@ class StaffBranchContextService
 
     private function deniesOperationalRoleBranchFallback(): bool
     {
+        // Tính năng an toàn: Chỉ kích hoạt khóa bảo vệ này ở môi trường Production/Staging.
+        // Ở môi trường Dev, có thể cho phép Fallback để Lập trình viên dễ dàng Test giao diện mà không cần setup Database phức tạp.
         if (! (bool) config('staff_capabilities.deny_operational_role_branch_fallback_in_production_like', true)) {
             return false;
         }
@@ -325,7 +355,7 @@ class StaffBranchContextService
      */
     private function operationalBranchAssignmentRoleNames(): array
     {
-        $roles = config('staff_capabilities.operational_branch_assignment_roles', [
+        return config('staff_capabilities.operational_branch_assignment_roles', [
             'Staff',
             'Server',
             'Waiter',
@@ -350,6 +380,10 @@ class StaffBranchContextService
             return null;
         }
 
+        // --- BƯỚC 5: TRUY VẤN DỮ LIỆU TẦNG THẤP (RAW QUERY OPTIMIZATION) ---
+        // Best Practice: Thay vì dùng Eloquent Relationship (User->branches) gây tốn RAM để tạo các PHP Objects,
+        // sử dụng Query Builder (DB::table) để Query trực tiếp bảng trung gian `staff_branch_assignments`.
+        // Việc này tối ưu hoá Tốc độ cực tốt vì hàm này được gọi trong RẤT NHIỀU middleware và API.
         try {
             $assignmentQuery = DB::table('staff_branch_assignments')
                 ->where('user_id', $staffActorUserId);
@@ -362,8 +396,8 @@ class StaffBranchContextService
                 ->join('branches as b', 'b.branch_id', '=', 'sba.branch_id')
                 ->where('sba.user_id', $staffActorUserId)
                 ->where('b.is_active', true)
-                ->whereNull('sba.revoked_at')
-                ->orderByDesc('sba.is_primary')
+                ->whereNull('sba.revoked_at') // Không lấy các lịch sử gán quyền đã bị thu hồi
+                ->orderByDesc('sba.is_primary') // Đưa chi nhánh Primary lên đầu
                 ->orderBy('sba.branch_id')
                 ->pluck('sba.branch_id')
                 ->map(static fn ($value): int => (int) $value)
@@ -384,6 +418,7 @@ class StaffBranchContextService
             return null;
         }
 
+        // Do đã order by sba.is_primary giảm dần ở trên, nên phần tử [0] chắc chắn là chi nhánh chính.
         return $branchIds[0];
     }
 
@@ -419,6 +454,8 @@ class StaffBranchContextService
      */
     private function resolveConfiguredBranchScope(array $scopeTokens): array
     {
+        // --- BƯỚC 6: PHÂN GIẢI TOKEN THÀNH ID (TOKEN PARSING) ---
+        // Biến các chuỗi cấu hình như `*`, `default`, `HN-01` thành các con số ID thực tế trong Database.
         if ($scopeTokens === []) {
             return [];
         }
@@ -471,6 +508,7 @@ class StaffBranchContextService
             );
         }
 
+        // Lọc lại một lần cuối: Chỉ trả về những chi nhánh nào đang CÒN HOẠT ĐỘNG (is_active)
         $activeBranchIds = Branch::query()
             ->where('is_active', true)
             ->whereIn('branch_id', array_values(array_unique($candidateIds)))

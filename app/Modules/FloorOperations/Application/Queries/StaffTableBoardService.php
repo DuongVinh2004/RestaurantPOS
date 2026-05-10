@@ -25,6 +25,13 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Dung snapshot table board cho staff:
+ * gom ban, reservation, hold, conflict, va goi y thao tac tai cho trong cung mot view model.
+ * * Best Practice (BFF - Backend For Frontend):
+ * Gom toàn bộ dữ liệu phức tạp từ nhiều bảng (Bàn, Khách đặt, Đơn hàng, Giữ bàn) thành MỘT View Model duy nhất.
+ * Giúp Frontend (React) nhẹ gánh, không phải gọi nhiều API và tự ghép nối dữ liệu gây giật lag.
+ */
 class StaffTableBoardService
 {
     public function __construct(
@@ -59,6 +66,7 @@ class StaffTableBoardService
         bool $includeHolds = true,
         ?array $accessibleBranchIds = null,
     ): array {
+        // Wrapper gon cho UI chi can danh sach data, khong can metadata cua snapshot.
         return $this->buildBoardSnapshot($from, $to, $branchId, $zone, $includeHolds, $accessibleBranchIds)['data'];
     }
 
@@ -73,20 +81,32 @@ class StaffTableBoardService
         bool $includeHolds = true,
         ?array $accessibleBranchIds = null,
     ): array {
+        // Day la ham tong hop lon: dung khung gio board, load table/hold/reservation, va suy ra action staff co the lam.
+
+        // --- BƯỚC 1: KHỞI TẠO BỐI CẢNH (TIME & THRESHOLDS) ---
+        // Pha 1: normalize board window, branch scope va cac threshold UI de moi truy van phia sau dung chung mot moc.
         $fromUtc = Carbon::instance(\DateTimeImmutable::createFromInterface($from))->utc();
         $toUtc = Carbon::instance(\DateTimeImmutable::createFromInterface($to))->utc();
         $resolvedBranchId = $this->resolveBranchId($branchId);
         $accessibleBranchIds = $accessibleBranchIds !== null ? $this->normalizeBranchIds($accessibleBranchIds) : null;
         $zone = $this->normalizeZone($zone);
         $nowUtc = Carbon::now('UTC');
+
+        // Lấy cấu hình độ trễ cho phép (Grace Period) từ Runtime Settings (có thể thay đổi nóng không cần deploy)
         $checkInGraceMinutes = $this->resolveCheckInGraceMinutes();
         $noShowGraceMinutes = $this->resolveNoShowGraceMinutes();
         $dueSoonCutoffUtc = $nowUtc->copy()->addMinutes($checkInGraceMinutes);
         $overdueCutoffUtc = $nowUtc->copy()->subMinutes($noShowGraceMinutes);
+
+        // Bảo mật thông tin (PII): Cấu hình các trường thông tin khách hàng được phép hiển thị trên màn hình Sơ đồ bàn
         $visibleUserFields = array_values(array_filter(array_map('strval', (array) Config::get('booking.staff_table_board_user_fields', ['user_id', 'full_name', 'phone']))));
         $closeFitMaxExtraSeats = max(0, (int) config('booking.staff_table_board_close_fit_max_extra_seats', 2));
         $candidatePreviewLimit = max(1, (int) config('booking.staff_table_board_candidate_preview_limit', 5));
 
+        // --- BƯỚC 2: TẢI DỮ LIỆU HÀNG LOẠT (BULK DATA LOADING) ---
+        // Best Practice: Load trước toàn bộ dữ liệu cần thiết thay vì truy vấn trong vòng lặp (Chống lỗi N+1 Query)
+
+        // Lay danh sach table nen cua board theo branch/zone truoc, vi day la tap row goc de map reservation/hold vao.
         $tablesQuery = RestaurantTable::query()
             ->notDeleted();
         $this->applyBranchScope($tablesQuery, $resolvedBranchId, $accessibleBranchIds);
@@ -97,14 +117,17 @@ class StaffTableBoardService
             ->orderBy('table_code')
             ->get();
 
+        // Reservation active trong khung gio board duoc load rieng de map theo table va sinh action.
         $reservationsQuery = Reservation::query()
             ->inTimeRange($fromUtc, $toUtc);
         $this->applyBranchScope($reservationsQuery, $resolvedBranchId, $accessibleBranchIds);
         $activeReservations = $reservationsQuery
             ->whereIn('status', ReservationStatus::activeDbValues())
-            ->with(['user', 'tables', 'payments'])
+            ->with(['user', 'tables', 'payments']) // Eager Load relations
             ->get();
 
+        // Order active duoc map theo reservation de board co the hien thi muc "dang phuc vu" va thao tac lien quan.
+        // Nghiệp vụ: Giúp Lễ tân biết bàn nào khách mới vào ngồi và bàn nào đã bắt đầu gọi món (Active Order)
         $reservationIds = $activeReservations->pluck('reservation_id')->map(static fn ($id): int => (int) $id)->all();
         $activeOrdersByReservationId = $reservationIds === []
             ? collect()
@@ -116,18 +139,22 @@ class StaffTableBoardService
                 ->groupBy(static fn (ReservationOrder $order): int => (int) $order->reservation_id)
                 ->map(static fn (Collection $orders): ?ReservationOrder => $orders->first());
 
+        // --- BƯỚC 3: PHÂN LOẠI KHÁCH HÀNG (ASSIGNED VS UNASSIGNED) ---
         $reservationsByTable = [];
         $assignedReservations = collect();
         $unassignedReservations = collect();
         $assignedTableIdsByReservation = [];
 
+        // Tach reservation da gan ban va reservation chua gan ban de board xu ly 2 loai card khac nhau.
         foreach ($activeReservations as $reservation) {
             if ($reservation->tables->isEmpty()) {
+                // Nhóm khách chưa được xếp chỗ (Waiting to be seated)
                 $unassignedReservations->push($reservation);
 
                 continue;
             }
 
+            // Nhóm khách đã được xếp chỗ vào bàn cụ thể (Pre-assigned / Seated)
             $assignedReservations->push($reservation);
             $assignedTableIdsByReservation[(int) $reservation->reservation_id] = $reservation->tables
                 ->pluck('table_id')
@@ -138,7 +165,10 @@ class StaffTableBoardService
             }
         }
 
+        // --- BƯỚC 4: XỬ LÝ BLOCK BÀN (TABLE HOLDS) ---
         $holdsByTable = [];
+        // Hold duoc load rieng va chi giu lai nhung hold con "co nghia" tren table hien tai.
+        // Nghiệp vụ: Bàn đang bị Khóa do Dọn dẹp, Bảo trì thiết bị, hoặc dành riêng cho Khách VIP.
         if ($includeHolds) {
             $holds = TableHold::query()
                 ->where('start_time', '<', $toUtc)
@@ -147,6 +177,7 @@ class StaffTableBoardService
                     $query
                         ->where('hold_status', 'Confirmed')
                         ->orWhere(function ($subQuery) use ($nowUtc) {
+                            // Lọc bỏ những TableHold nháp (Pending/Holding) đã quá hạn (Expired)
                             $subQuery->whereIn('hold_status', ['Holding', 'Pending'])
                                 ->where('expire_at', '>', $nowUtc);
                         });
@@ -156,6 +187,7 @@ class StaffTableBoardService
 
             foreach ($holds as $hold) {
                 foreach ($hold->tables as $table) {
+                    // Nếu Hold này được sinh ra bởi chính Reservation đang ngồi tại bàn đó thì không cần hiển thị đè lên nhau
                     if (! $this->holdShouldRemainVisibleOnTable(
                         $hold,
                         (int) $table->table_id,
@@ -169,23 +201,30 @@ class StaffTableBoardService
             }
         }
 
+        // --- BƯỚC 5: THUẬT TOÁN GỢI Ý CHỖ NGỒI (SMART SEATING ENGINE) ---
         $unassignedReservationFlags = [];
         $unassignedReservationDeposits = [];
         $candidateSourceReservations = collect();
 
+        // Reservation chua gan ban duoc tinh flag timing, deposit va candidate set de board goi y.
         foreach ($unassignedReservations as $reservation) {
             $reservationId = (int) $reservation->reservation_id;
+
+            // Tính toán Khách đến trễ, Đến sớm, hay Quá hạn No-show
             $flags = $this->reservationTimingFlags($reservation, $nowUtc, $dueSoonCutoffUtc, $overdueCutoffUtc);
+            // Kiểm tra trạng thái Thanh toán cọc (Deposit)
             $deposit = $this->depositRead($reservation);
 
             $unassignedReservationFlags[$reservationId] = $flags;
             $unassignedReservationDeposits[$reservationId] = $deposit;
 
+            // Nếu chưa quá hạn No-show thì mới tìm bàn gợi ý
             if (($flags['overdue'] ?? false) !== true) {
                 $candidateSourceReservations->push($reservation);
             }
         }
 
+        // Chạy Engine tìm bàn tối ưu cho nhóm khách đang chờ
         $candidateTablesByReservation = $candidateSourceReservations->isEmpty()
             ? []
             : $this->getCandidateTablesForReservations(
@@ -195,11 +234,12 @@ class StaffTableBoardService
                 includeSlotOnly: true,
                 boardFrom: $fromUtc,
                 boardTo: $toUtc,
-                preloadedTables: $tables,
+                preloadedTables: $tables, // Truyền tables đã load ở trên vào để tái sử dụng
             );
         $candidateReservationsByTable = [];
         $boardVisibleUnassigned = [];
 
+        // Map nguoc candidate reservation theo table de row tung ban biet dang la ung vien cho booking nao.
         foreach ($unassignedReservations as $reservation) {
             $reservationId = (int) $reservation->reservation_id;
             $flags = $unassignedReservationFlags[$reservationId] ?? [];
@@ -223,7 +263,9 @@ class StaffTableBoardService
             }
         }
 
+        // --- BƯỚC 6: RÁP VIEW MODEL CHO TỪNG BÀN TREN BẢN ĐỒ (MAP ASSEMBLY) ---
         $tableRows = [];
+        // Pha 2: dung tung row ban tu table + reservation + hold + order + action suggestion.
         foreach ($tables as $table) {
             $tableId = (int) $table->table_id;
             $realtimeStatus = $table->status?->value ?? (string) $table->status;
@@ -236,17 +278,20 @@ class StaffTableBoardService
             $hold = $holdList[0] ?? null;
             $capacitySeats = $table->template?->seats !== null ? (int) $table->template->seats : null;
 
+            // Quyết định Trạng thái màu sắc (UI State) của bàn
             $boardState = 'available';
             if (in_array($realtimeStatus, [RestaurantTableStatus::Blocked->value, RestaurantTableStatus::Maintenance->value], true)) {
                 $boardState = strtolower($realtimeStatus);
             } elseif ($realtimeStatus === RestaurantTableStatus::Occupied->value) {
-                $boardState = 'occupied_now';
+                $boardState = 'occupied_now'; // Đang có khách ngồi thật
             } elseif ($reservationList !== []) {
-                $boardState = 'reserved_in_range';
+                $boardState = 'reserved_in_range'; // Trống nhưng đã có người đặt trước trong khung giờ
             } elseif ($holdList !== []) {
-                $boardState = 'held_in_range';
+                $boardState = 'held_in_range'; // Trống nhưng đang bị quản lý Hold
             }
 
+            // Action duoc suy ra tu state hien tai cua table va reservation gan voi no.
+            // Best Practice (Action-Driven UI): Backend tự quyết định Nút bấm nào được hiện và Payload gửi đi là gì
             $checkInAction = $this->buildCheckInAction(
                 $reservation,
                 $realtimeStatus,
@@ -262,6 +307,8 @@ class StaffTableBoardService
                 : null;
             $activeOrder = $reservation ? $activeOrdersByReservationId->get((int) $reservation->reservation_id) : null;
             $candidateReservations = array_values(array_slice($candidateReservationsByTable[$tableId] ?? [], 0, $candidatePreviewLimit));
+
+            // Cờ cảnh báo: Nhắc Lễ tân ra thu tiền cọc của khách
             $requiresDepositFollowUp = (bool) data_get($reservationDeposit, 'follow_up.needs_staff_follow_up', false)
                 || collect($candidateReservations)->contains(static fn (array $row): bool => (bool) data_get($row, 'deposit.follow_up.needs_staff_follow_up', false));
 
@@ -269,9 +316,8 @@ class StaffTableBoardService
                 'table_id' => $tableId,
                 'table_code' => $table->table_code,
                 'zone' => $table->zone,
-                'pos_x' => $table->pos_x,
-                'pos_y' => $table->pos_y,
-                'row_version' => (int) ($table->row_version ?? 1),
+                'pos_x' => $table->pos_x, // Tọa độ X để Frontend vẽ sơ đồ 2D
+                'pos_y' => $table->pos_y, // Tọa độ Y để Frontend vẽ sơ đồ 2D
                 'realtime_status' => $realtimeStatus,
                 'board_state' => $boardState,
                 'reservations' => array_map(fn (Reservation $row): array => $this->presentAssignedReservation($row, $visibleUserFields), $reservationList),
@@ -304,6 +350,7 @@ class StaffTableBoardService
             ];
         }
 
+        // Lọc theo Khu vực (Zone Filter)
         if ($zone !== null) {
             $tableRows = array_values(array_filter(
                 $tableRows,
@@ -311,6 +358,7 @@ class StaffTableBoardService
             ));
         }
 
+        // Sắp xếp mặc định của Board
         $tableRows = array_values(collect($tableRows)
             ->keyBy(static fn (array $row): int => (int) ($row['table_id'] ?? 0))
             ->sortBy([
@@ -320,7 +368,9 @@ class StaffTableBoardService
             ->values()
             ->all());
 
+        // --- BƯỚC 7: TỔNG HỢP SUMMARY & KPI CHO DASHBOARD ---
         $zoneRows = [];
+        // Zone summary de UI co so lieu tong hop khong can tu dem lai tung row.
         foreach (collect($tableRows)->groupBy(static fn (array $row): string => (string) ($row['zone'] ?? 'Unzoned')) as $zoneName => $rows) {
             /** @var Collection<int, array<string, mixed>> $zoneTableRows */
             $zoneTableRows = $rows instanceof Collection ? $rows : collect($rows);
@@ -338,6 +388,7 @@ class StaffTableBoardService
         }
         usort($zoneRows, static fn (array $left, array $right): int => strcmp((string) $left['zone'], (string) $right['zone']));
 
+        // Unassigned reservation rows mang them request context de UI goi assignment flow dung board window hien tai.
         $unassignedRows = array_map(function (array $row) use ($fromUtc, $toUtc, $resolvedBranchId, $zone): array {
             /** @var Reservation $reservation */
             $reservation = $row['reservation'];
@@ -468,6 +519,7 @@ class StaffTableBoardService
                 ->map(static fn (Reservation $reservation): int => Carbon::instance(\DateTimeImmutable::createFromInterface($reservation->end_time))->utc()->getTimestamp())
                 ->max());
 
+        // Best Practice (In-Memory Pre-computation): Xây dựng Context, load toàn bộ Lịch Đặt & Lịch Khóa Bàn của CẢ NHÀ HÀNG vào RAM 1 lần duy nhất
         $context = $this->buildCandidateSearchContext(
             branchId: $resolvedBranchId,
             zone: $zone,
@@ -481,6 +533,7 @@ class StaffTableBoardService
             $reservationBoardFromUtc = $sharedBoardFromUtc ?? Carbon::instance(\DateTimeImmutable::createFromInterface($reservation->start_time))->utc();
             $reservationBoardToUtc = $sharedBoardToUtc ?? Carbon::instance(\DateTimeImmutable::createFromInterface($reservation->end_time))->utc();
 
+            // Gọi Engine tính toán tìm bàn (In-memory, không query Database)
             $candidatesByReservation[(int) $reservation->reservation_id] = $this->buildCandidateTablesForReservationUsingContext(
                 reservation: $reservation,
                 context: $context,
@@ -589,9 +642,10 @@ class StaffTableBoardService
      */
     private function fitSummary(int $guestCount, int $seats, int $closeFitMaxExtraSeats): array
     {
+        // Nghiệp vụ (Capacity Matching Rule): Quy định các mức độ tối ưu chỗ ngồi nhằm tránh lãng phí (Wide Fit)
         if ($seats < $guestCount) {
             return [
-                'status' => 'insufficient_capacity',
+                'status' => 'insufficient_capacity', // Bàn quá nhỏ
                 'extra_seats' => $seats - $guestCount,
                 'assignable' => false,
                 'reason_code' => 'insufficient_capacity',
@@ -600,7 +654,7 @@ class StaffTableBoardService
 
         if ($seats === $guestCount) {
             return [
-                'status' => 'exact_fit',
+                'status' => 'exact_fit', // Khớp chính xác hoàn hảo
                 'extra_seats' => 0,
                 'assignable' => true,
                 'reason_code' => 'exact_capacity_match',
@@ -610,7 +664,7 @@ class StaffTableBoardService
         $extraSeats = $seats - $guestCount;
         if ($extraSeats <= $closeFitMaxExtraSeats) {
             return [
-                'status' => 'close_fit',
+                'status' => 'close_fit', // Rộng 1 chút nhưng trong mức cho phép (VD: 2 khách ngồi bàn 4)
                 'extra_seats' => $extraSeats,
                 'assignable' => true,
                 'reason_code' => 'close_capacity_match',
@@ -618,7 +672,7 @@ class StaffTableBoardService
         }
 
         return [
-            'status' => 'wide_fit',
+            'status' => 'wide_fit', // Bàn quá rộng (VD: 2 khách ngồi bàn 10 người), gây thất thoát doanh thu (RevPASH)
             'extra_seats' => $extraSeats,
             'assignable' => true,
             'reason_code' => 'capacity_available',
@@ -639,8 +693,12 @@ class StaffTableBoardService
             ReservationStatus::Expired->value,
             ReservationStatus::NoShow->value,
         ], true);
+
+        // Khách sắp đến (sáng màu để nhắc nhở)
         $dueSoon = ! $isTerminal && ! $isCheckedIn && $startUtc->greaterThanOrEqualTo($nowUtc) && $startUtc->lessThanOrEqualTo($dueSoonCutoffUtc);
+        // Quá hạn Grace Period, có thể chuyển thành No-show
         $overdue = ! $isTerminal && ! $isCheckedIn && $startUtc->lessThanOrEqualTo($overdueCutoffUtc);
+        // Đã trễ giờ nhưng vẫn trong Grace Period
         $late = ! $isTerminal && ! $isCheckedIn && $startUtc->lessThan($nowUtc) && ! $overdue;
 
         return [
@@ -668,6 +726,7 @@ class StaffTableBoardService
             return null;
         }
 
+        // Tái sử dụng Người Gác Cổng CheckInReadinessService để kiểm tra tính hợp lệ
         $assignedTableIds = $reservation->relationLoaded('tables')
             ? $reservation->tables->pluck('table_id')->map(fn ($id) => (int) $id)->values()->all()
             : [];
@@ -690,12 +749,13 @@ class StaffTableBoardService
             holdConflictTableIds: $holdConflictTableIds,
         );
 
+        // Trả về lệnh điều khiển Backend-driven UI (HATEOAS): Cung cấp Endpoint, Method, Payload
         return [
             'available' => (bool) ($readiness['available'] ?? false),
             'blocked_reason_code' => $readiness['blocked_reason_code'] ?? null,
             'method' => 'POST',
             'endpoint' => '/api/v1/staff/reservations/'.(int) $reservation->reservation_id.'/check-in',
-            'required_payload' => ['row_version'],
+            'required_payload' => ['row_version'], // Yêu cầu truyền row_version để đảm bảo Optimistic Locking
             'preferred_payload' => [
                 'row_version' => (int) ($reservation->row_version ?? 1),
                 'table_ids' => $reservation->relationLoaded('tables')
@@ -727,6 +787,7 @@ class StaffTableBoardService
                     continue;
                 }
 
+                // Phát hiện Override Time (Trùng lịch khách cũ chưa đi, khách mới đã tới)
                 if ($candidate->start_time->lt($reservation->end_time) && $candidate->end_time->gt($reservation->start_time)) {
                     $conflictTableIds[] = $tableId;
                     break;
@@ -758,6 +819,7 @@ class StaffTableBoardService
                     continue;
                 }
 
+                // Phát hiện Trùng lịch Khóa bàn
                 if ($hold->start_time->lt($reservation->end_time) && $hold->end_time->gt($reservation->start_time)) {
                     $conflictTableIds[] = $tableId;
                     break;
@@ -781,6 +843,7 @@ class StaffTableBoardService
         }
 
         $status = $reservation->status?->value ?? (string) $reservation->status;
+        // Chỉ hiện nút "Chuyển bàn" nếu Khách đã Check-in và bàn đang có người ngồi (Occupied)
         $available = (ReservationStatus::isCheckedInDbValue($status) || $reservation->checked_in_at !== null)
             && $realtimeStatus === RestaurantTableStatus::Occupied->value;
 
@@ -798,6 +861,7 @@ class StaffTableBoardService
 
     private function resolvePreferredAction(bool $assignmentCandidate, bool $canCheckIn, bool $canMoveTable): string
     {
+        // Điều hướng Action Chính trên thẻ Table UI
         if ($canCheckIn) {
             return 'check_in';
         }
@@ -867,6 +931,7 @@ class StaffTableBoardService
             return;
         }
 
+        // Tình huống cực đoan: User không có quyền ở nhánh nào cả -> Ràng buộc false ngay từ SQL (1 = 0)
         if ($accessibleBranchIds === []) {
             $query->whereRaw('1 = 0');
 
@@ -908,9 +973,9 @@ class StaffTableBoardService
 
     /**
      * @return array{
-     *     tables: Collection<int,RestaurantTable>,
-     *     reservation_conflicts_by_table: array<int,list<array<string,int>>>,
-     *     hold_conflicts_by_table: array<int,list<array<string,int|null|string>>>
+     * tables: Collection<int,RestaurantTable>,
+     * reservation_conflicts_by_table: array<int,list<array<string,int>>>,
+     * hold_conflicts_by_table: array<int,list<array<string,int|null|string>>>
      * }
      */
     private function buildCandidateSearchContext(
@@ -920,6 +985,8 @@ class StaffTableBoardService
         Carbon $contextToUtc,
         ?Collection $preloadedTables = null,
     ): array {
+        // Tối ưu Hiệu Năng Cực Đoan (In-Memory Indexing):
+        // Thay vì mỗi bàn gửi 1 câu query SQL để check trùng lịch, ta Pre-load tất cả bàn và lịch vào RAM một lần duy nhất.
         $tables = $preloadedTables instanceof Collection
             ? $preloadedTables
                 ->when($branchId !== null, static fn (Collection $collection): Collection => $collection
@@ -956,9 +1023,9 @@ class StaffTableBoardService
 
     /**
      * @param array{
-     *     tables: Collection<int,RestaurantTable>,
-     *     reservation_conflicts_by_table: array<int,list<array<string,int>>>,
-     *     hold_conflicts_by_table: array<int,list<array<string,int|null|string>>>
+     * tables: Collection<int,RestaurantTable>,
+     * reservation_conflicts_by_table: array<int,list<array<string,int>>>,
+     * hold_conflicts_by_table: array<int,list<array<string,int|null|string>>>
      * } $context
      * @return list<array<string,mixed>>
      */
@@ -970,6 +1037,7 @@ class StaffTableBoardService
         Carbon $boardFromUtc,
         Carbon $boardToUtc,
     ): array {
+        // Core Engine tìm bàn trống dựa trên Context in-memory
         $startUtc = Carbon::instance(\DateTimeImmutable::createFromInterface($reservation->start_time))->utc();
         $endUtc = Carbon::instance(\DateTimeImmutable::createFromInterface($reservation->end_time))->utc();
         $startTimestamp = $startUtc->getTimestamp();
@@ -985,30 +1053,31 @@ class StaffTableBoardService
         foreach ($tables as $table) {
             $status = (string) ($table->status?->value ?? $table->status);
             if ($status !== RestaurantTableStatus::Available->value) {
-                continue;
+                continue; // Bàn đang hỏng, sửa chữa -> Bỏ qua
             }
 
             if (! $this->reservationBranchScopeService->reservationMatchesTableBranchInMemory(
                 $reservation->branch_id,
                 $table->branch_id,
             )) {
-                continue;
+                continue; // Sai chi nhánh -> Bỏ qua
             }
 
             $seats = (int) ($table->template->seats ?? 0);
             $fit = $this->fitSummary((int) $reservation->guest_count, $seats, $closeFitMaxExtraSeats);
             if (($fit['assignable'] ?? false) !== true) {
-                continue;
+                continue; // Khách 10 người, bàn 2 người -> Bỏ qua
             }
 
             $tableId = (int) $table->table_id;
+
             if ($this->tableHasReservationConflict(
                 $context['reservation_conflicts_by_table'][$tableId] ?? [],
                 $startTimestamp,
                 $endTimestamp,
                 $reservationId,
             )) {
-                continue;
+                continue; // Khung giờ khách đến, bàn đang kẹt Booking khác -> Bỏ qua
             }
 
             if ($this->tableHasHoldConflict(
@@ -1017,9 +1086,10 @@ class StaffTableBoardService
                 $endTimestamp,
                 $reservationId,
             )) {
-                continue;
+                continue; // Bàn đang bị Hold -> Bỏ qua
             }
 
+            // Kiểm tra trạng thái rảnh rỗi "cục bộ" trong khoảng thời gian Board đang render
             $busyElsewhereInBoardWindow = false;
             if ($boardFromTimestamp < $boardToTimestamp) {
                 $busyElsewhereInBoardWindow = $this->tableHasReservationConflict(
@@ -1075,6 +1145,7 @@ class StaffTableBoardService
             ];
         }
 
+        // Chấm điểm thuật toán (Scoring) - Ưu tiên những bàn Phù hợp sức chứa, trống suốt ca, và cùng mã Zone
         usort($candidates, function (array $left, array $right): int {
             $leftOpen = (bool) data_get($left, 'policy_flags.board_window_open', false) ? 0 : 1;
             $rightOpen = (bool) data_get($right, 'policy_flags.board_window_open', false) ? 0 : 1;
@@ -1088,11 +1159,11 @@ class StaffTableBoardService
 
         foreach ($candidates as $index => &$candidate) {
             $candidate['rank'] = $index + 1;
-            $candidate['score'] = max(0, 100 - ($index * 10));
+            $candidate['score'] = max(0, 100 - ($index * 10)); // Cho điểm Top 1 là 100, Top 2 là 90...
             if ($index === 0) {
                 $candidate['reason_codes'] = array_values(array_unique(array_merge(
                     (array) ($candidate['reason_codes'] ?? []),
-                    ['primary_recommendation'],
+                    ['primary_recommendation'], // Gắn mác Bàn Gợi Ý Tốt Nhất
                 )));
             }
         }
@@ -1111,6 +1182,7 @@ class StaffTableBoardService
             return [];
         }
 
+        // Bulk load bằng Raw DB để tiết kiệm RAM so với Eloquent Model
         $rows = DB::table('reservation_tables as rt')
             ->join('reservations as r', 'r.reservation_id', '=', 'rt.reservation_id')
             ->whereIn('rt.table_id', $tableIds)
@@ -1143,6 +1215,7 @@ class StaffTableBoardService
             return [];
         }
 
+        // Tương tự, load Hold Blocks bằng SQL Native thuần
         $query = DB::table('table_hold_details as thd')
             ->join('table_holds as th', 'th.hold_id', '=', 'thd.hold_id')
             ->whereIn('thd.table_id', $tableIds)
@@ -1179,6 +1252,7 @@ class StaffTableBoardService
                 continue;
             }
 
+            // Thuật toán phát hiện Overlap 2 khoảng thời gian
             if ((int) ($conflict['start_at'] ?? 0) < $rangeEndAt && (int) ($conflict['end_at'] ?? 0) > $rangeStartAt) {
                 return true;
             }

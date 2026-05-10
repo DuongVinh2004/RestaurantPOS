@@ -15,8 +15,10 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
+// Vai trò: Trung tâm quản lý dữ liệu Thực đơn (Menu) dành riêng cho quyền Admin.
 class MenuCatalogManagementService
 {
+    // --- BƯỚC 1: QUẢN LÝ DANH MỤC (CATEGORIES) ---
     /**
      * @return EloquentCollection<int, MenuCategory>
      */
@@ -55,6 +57,8 @@ class MenuCatalogManagementService
 
             $fresh = $category->fresh() ?? $category;
 
+            // [BEST PRACTICE]: Audit Trail
+            // Lưu lại dấu vết nhân viên nào đã tạo danh mục này để dễ dàng quy trách nhiệm (Accountability).
             AuditEvent::info('admin.menu_category.created', [
                 'category_id' => (int) $fresh->category_id,
                 'name' => (string) $fresh->name,
@@ -100,7 +104,7 @@ class MenuCatalogManagementService
                     'action' => 'master_data.menu_category.updated',
                     'entity_type' => 'menu_category',
                     'entity_id' => (string) $fresh->category_id,
-                    'before' => $before,
+                    'before' => $before, // Lưu cả bản cũ để so sánh diff
                     'after' => $this->categorySnapshot($fresh),
                     'summary' => [
                         'name' => (string) $fresh->name,
@@ -114,6 +118,7 @@ class MenuCatalogManagementService
         });
     }
 
+    // --- BƯỚC 2: QUẢN LÝ MÓN ĂN (MENU ITEMS) ---
     /**
      * @return EloquentCollection<int, MenuItem>
      */
@@ -216,6 +221,7 @@ class MenuCatalogManagementService
         });
     }
 
+    // --- BƯỚC 3: QUẢN LÝ LỊCH SỬ GIÁ THEO THỜI GIAN (PRICE TEMPORAL MANAGEMENT) ---
     /**
      * @return EloquentCollection<int, MenuItemPrice>
      */
@@ -242,6 +248,7 @@ class MenuCatalogManagementService
 
     /**
      * @param  array<string,mixed>  $attributes
+     * @return array{price: MenuItemPrice}
      */
     public function createPriceRow(int $itemId, array $attributes, ?int $actorUserId = null): MenuItemPrice
     {
@@ -253,6 +260,7 @@ class MenuCatalogManagementService
                 ? Carbon::parse((string) $attributes['effective_to'])->utc()
                 : null;
 
+            // Đảm bảo không có 2 dòng giá nào của cùng 1 món bị chồng lấn lên nhau (Overlap)
             $this->reconcileFuturePriceWindow($itemId, $effectiveFrom, $effectiveTo);
 
             /** @var MenuItemPrice $price */
@@ -346,12 +354,19 @@ class MenuCatalogManagementService
         });
     }
 
+    // --- BƯỚC 4: XỬ LÝ CHỒNG LẤN THỜI GIAN GIÁ BÁN (TEMPORAL RECONCILIATION) ---
     private function reconcileFuturePriceWindow(int $itemId, Carbon $effectiveFrom, ?Carbon &$effectiveTo, ?int $excludePriceId = null): void
     {
+        // [BEST PRACTICE]: Non-Overlapping Temporal Interval Constraint
+        // Nghiệp vụ: Admin set Giá A cho "Bia Heineken" từ 01/01 đến vô thời hạn (null).
+        // Sau đó Admin set Giá B từ 01/06.
+        // Hệ thống sẽ tự động chặt Giá A lại, ép nó phải kết thúc vào đúng ngày 01/06 (ngay trước khi Giá B bắt đầu).
+        // Nếu không làm bước này, từ ngày 01/06 trở đi, "Bia Heineken" sẽ có 2 giá cùng lúc, làm sập thuật toán tính tiền.
         if (! $effectiveFrom->isFuture()) {
-            return;
+            return; // Chỉ điều chỉnh với các mốc giá trong tương lai
         }
 
+        // Tìm mốc giá liền kề trước đó
         $previousPrice = MenuItemPrice::query()
             ->where('item_id', $itemId)
             ->when($excludePriceId !== null, static fn ($query) => $query->whereKeyNot($excludePriceId))
@@ -360,6 +375,7 @@ class MenuCatalogManagementService
             ->orderByDesc('price_id')
             ->first();
 
+        // Ép mốc giá trước đó phải kết thúc ngay khi mốc giá mới bắt đầu
         if ($previousPrice instanceof MenuItemPrice) {
             $previousEffectiveTo = $previousPrice->effective_to instanceof Carbon
                 ? $previousPrice->effective_to->copy()->utc()
@@ -378,6 +394,8 @@ class MenuCatalogManagementService
             return;
         }
 
+        // Nếu Admin tạo mốc giá mới không có ngày kết thúc (vô thời hạn),
+        // hệ thống sẽ tự động khép nó lại nếu trong tương lai đã có sẵn một mốc giá khác chặn đầu.
         $nextPrice = MenuItemPrice::query()
             ->where('item_id', $itemId)
             ->when($excludePriceId !== null, static fn ($query) => $query->whereKeyNot($excludePriceId))
@@ -393,6 +411,7 @@ class MenuCatalogManagementService
         }
     }
 
+    // --- CÁC HÀM TIỆN ÍCH CHUẨN HÓA VÀ BUILD CÂU QUERY ---
     /**
      * @param  array<string,mixed>  $attributes
      * @return array<string,mixed>

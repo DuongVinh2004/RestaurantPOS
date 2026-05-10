@@ -36,18 +36,29 @@ class StaffReservationTimelineService
      */
     public function buildTimeline(array $filters): array
     {
+        // --- BƯỚC 1: KHỞI TẠO BỐI CẢNH (CONTEXT & TIME WINDOW) ---
+        // Nghiệp vụ: Lấy múi giờ của chi nhánh để hiển thị Timeline chính xác.
+        // Tính toán khoảng thời gian (Window) cần xem (ví dụ: ca sáng từ 08:00 đến 14:00).
         $timezone = (string) config('booking.multi_branch.default_branch_timezone', 'Asia/Ho_Chi_Minh');
         $window = $this->resolveWindow($filters, $timezone);
-        $slotMinutes = (int) ($filters['slot_minutes'] ?? 30);
+        $slotMinutes = (int) ($filters['slot_minutes'] ?? 30); // Độ rộng mỗi cột trên UI (thường 30 phút/slot)
         $laneBy = $this->resolveLaneMode((string) ($filters['lane_by'] ?? 'slot'));
+
         $includeCandidateTables = (bool) ($filters['include_candidate_tables'] ?? false);
+        // Nghiệp vụ: Cờ báo hiệu có cần xử lý những khách "Đã đặt bàn nhưng chưa xếp bàn (Unassigned)" hay không.
         $includeUnassignedReservations = $laneBy === 'table' && $includeCandidateTables;
+
         $resolvedBranchId = $this->resolveBranchId($filters['branch_id'] ?? null);
         $zoneFilter = ! empty($filters['zone']) ? trim((string) $filters['zone']) : null;
         $nowUtc = Carbon::now('UTC');
+
+        // Thời gian châm chước cho khách đến sớm (checkInGrace) và đến muộn (noShowGrace)
         $checkInGrace = $this->resolveCheckInGraceMinutes();
         $noShowGrace = $this->resolveNoShowGraceMinutes();
 
+        // --- BƯỚC 2: TRUY VẤN DỮ LIỆU ĐẶT BÀN GỐC ---
+        // Best Practice: Tái sử dụng query từ InboxService để giữ chuẩn chung về scope và filter
+        // Eager Loading 'orders' để lấy trạng thái gọi món (Active) nhằm tránh N+1 Query.
         $query = $this->inboxService->newQuery(false)
             ->with([
                 'orders' => static function ($builder): void {
@@ -72,6 +83,7 @@ class StaffReservationTimelineService
             });
         }
 
+        // Lọc bỏ các trạng thái không còn hiệu lực trên Timeline (nếu không yêu cầu xem lịch sử)
         if (empty($filters['status'])) {
             $query->whereNotIn('status', [
                 ReservationStatus::Cancelled->value,
@@ -81,6 +93,7 @@ class StaffReservationTimelineService
             ]);
         }
 
+        // Giới hạn trong khoảng thời gian Window đang xem
         $query
             ->where('start_time', '<', $window['range_end_utc'])
             ->where('end_time', '>', $window['range_start_utc'])
@@ -92,6 +105,9 @@ class StaffReservationTimelineService
             ->unique(static fn (Reservation $reservation): int => (int) $reservation->reservation_id)
             ->values();
 
+        // --- BƯỚC 3: DỰ BÁO BÀN TRỐNG (CANDIDATE TABLES) ---
+        // Nghiệp vụ: Đối với những khách sắp đến nơi (trong vòng checkInGrace) nhưng Lễ tân chưa xếp bàn cho họ,
+        // hệ thống tự động chạy thuật toán (TableBoardService) để quét và "gợi ý" 3 bàn phù hợp nhất hiện tại.
         $dueSoonCutoffUtc = $nowUtc->copy()->addMinutes($checkInGrace);
         $candidateTablesByReservation = $includeCandidateTables
             ? $this->buildCandidateTablePreviewMap(
@@ -102,10 +118,13 @@ class StaffReservationTimelineService
                 $window['range_end_utc'],
                 $nowUtc,
                 $dueSoonCutoffUtc,
-                $nowUtc->copy()->subMinutes($noShowGrace),
+                $nowUtc->copy()->subMinutes($noShowGrace), // Quá giờ no-show thì không gợi ý nữa
             )
             : [];
 
+        // --- BƯỚC 4: LỌC TRONG BỘ NHỚ (IN-MEMORY FILTERING) ---
+        // Best Practice: Lọc ở mức Collection để xử lý các logic phức tạp về Zone và Unassigned
+        // thay vì viết Raw SQL phức tạp (giúp test dễ hơn và decouple logic).
         $reservations = $reservations
             ->filter(function (Reservation $reservation) use ($includeUnassignedReservations, $candidateTablesByReservation, $zoneFilter): bool {
                 if ($reservation->tables->isNotEmpty()) {
@@ -126,8 +145,13 @@ class StaffReservationTimelineService
             })
             ->values();
 
+        // --- BƯỚC 5: ĐÁNH GIÁ MỨC ĐỘ SẴN SÀNG ĐÓN KHÁCH (CHECK-IN READINESS) ---
+        // Nghiệp vụ: Kiểm tra xem cái bàn mà khách được xếp có đang bị "Kẹt" không.
+        // Kẹt có thể do: Khách ca trước chưa chịu về, hoặc bàn đang bị Khóa (Hold) để dọn dẹp/sửa chữa.
         $checkInReadinessByReservation = $this->buildCheckInReadinessMap($reservations, $nowUtc);
 
+        // --- BƯỚC 6: CHIA KHUNG GIỜ (SLOTTING) ĐỂ RENDER UI ---
+        // Nhóm các booking vào từng cục thời gian (ví dụ: cục 18:00, cục 18:30) để UI vẽ lên Timeline.
         $slots = [];
         foreach ($reservations as $reservation) {
             $startLocal = Carbon::instance($reservation->start_time)->setTimezone($timezone);
@@ -148,6 +172,7 @@ class StaffReservationTimelineService
 
         ksort($slots);
 
+        // Trả về toàn bộ "Bức tranh toàn cảnh" cho Frontend
         return [
             'timezone' => $timezone,
             'slot_minutes' => $slotMinutes,
@@ -235,6 +260,12 @@ class StaffReservationTimelineService
         Carbon $overdueCutoffUtc,
     ): array {
         $zone = ! empty($filters['zone']) ? trim((string) $filters['zone']) : null;
+
+        // --- BƯỚC 3.1: TÌM ỨNG VIÊN CẦN XẾP BÀN ---
+        // Chỉ tìm gợi ý bàn cho những khách:
+        // 1. Chưa có bàn ($reservation->tables->isNotEmpty() == false)
+        // 2. Booking đã xác nhận (Confirmed)
+        // 3. Trong khung thời gian vàng: Chưa quá giờ No-show và sắp đến giờ Check-in.
         $candidateReservations = $reservations
             ->filter(function (Reservation $reservation) use ($dueSoonCutoffUtc, $overdueCutoffUtc): bool {
                 if ($reservation->tables->isNotEmpty()) {
@@ -268,6 +299,7 @@ class StaffReservationTimelineService
         );
 
         foreach ($candidateReservations as $reservation) {
+            // Lấy ra Top 3 bàn gợi ý ngon nhất cho khách này
             $candidates = array_slice(
                 $this->sortCandidateTables($candidateMap[(int) $reservation->reservation_id] ?? []),
                 0,
@@ -288,6 +320,7 @@ class StaffReservationTimelineService
      */
     private function sortCandidateTables(array $candidates): array
     {
+        // Thuật toán chấm điểm bàn: Ưu tiên bàn fit số lượng người (exact_fit), điểm số, và độ chênh lệch số ghế
         usort($candidates, function (array $left, array $right): int {
             $leftRank = (int) data_get($left, 'rank', PHP_INT_MAX);
             $rightRank = (int) data_get($right, 'rank', PHP_INT_MAX);
@@ -301,6 +334,7 @@ class StaffReservationTimelineService
             $leftDelta = $this->candidateSeatDelta($left);
             $rightDelta = $this->candidateSeatDelta($right);
 
+            // Best Practice: Spaceship operator (<=>) để sort đa điều kiện cực kỳ thanh lịch
             return [
                 $leftRank,
                 $leftFit,
@@ -356,6 +390,8 @@ class StaffReservationTimelineService
             return [];
         }
 
+        // --- BƯỚC 5.1: BÓC TÁCH BÀN ĐANG SỬ DỤNG ---
+        // Lấy tất cả các bàn đã được gán cho các Reservation đang Active
         $activeReservationsByTable = [];
         $assignedReservations = $reservations->filter(static fn (Reservation $reservation): bool => $reservation->tables->isNotEmpty())->values();
 
@@ -378,9 +414,11 @@ class StaffReservationTimelineService
             ->values()
             ->all();
 
+        // Lấy thông tin các bàn đang bị Khóa (VD: Khóa để setup tiệc, dọn vệ sinh)
         $holdsByTable = $this->loadActiveHoldsByTable($assignedReservations, $assignedTableIds);
         $readinessByReservation = [];
 
+        // --- BƯỚC 5.2: TÌM XUNG ĐỘT (CONFLICT DETECTION) ---
         foreach ($reservations as $reservation) {
             $tableIds = $reservation->tables
                 ->pluck('table_id')
@@ -396,6 +434,7 @@ class StaffReservationTimelineService
                         continue;
                     }
 
+                    // Phát hiện trùng lịch (Overlap): Start của người này chen vào giữa giờ của người kia
                     if ($candidate->start_time->lt($reservation->end_time) && $candidate->end_time->gt($reservation->start_time)) {
                         $reservationConflictTableIds[] = $tableId;
                         break;

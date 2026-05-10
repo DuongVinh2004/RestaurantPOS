@@ -31,6 +31,8 @@ use Illuminate\Validation\ValidationException;
 /**
  * Xử lý check-in cho reservation đã có bàn:
  * khóa tài nguyên, xác nhận sẵn sàng, rồi mở service tại bàn.
+ * Nghiệp vụ: Chuyển đổi trạng thái khách từ "Đã đặt chỗ" sang "Đang sử dụng dịch vụ tại quán".
+ * Mở khóa để khách có thể bắt đầu gọi món (Active Orders).
  */
 class StaffCheckInService
 {
@@ -71,23 +73,34 @@ class StaffCheckInService
     {
         // Chuẩn hóa scope check-in để lock đúng reservation, đúng bàn, đúng hold.
         // Pha 1: chuan hoa actor, table ids va trusted hold ids truoc khi vao lock/transaction.
+
+        // --- BƯỚC 1: XÁC THỰC NGƯỜI DÙNG & CHUẨN HÓA ĐẦU VÀO ---
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
+
+        // Loại bỏ ID trùng lặp, sắp xếp tăng dần để chuẩn bị cho việc Lock CSDL an toàn (Tránh Deadlock)
         $requestedTableIds = $tableIds === null ? [] : array_values(array_unique(array_map('intval', $tableIds)));
         sort($requestedTableIds);
+
+        // Lọc sạch ID rác
         $ignoredHoldIds = array_values(array_unique(array_filter(array_map('strval', $ignoredHoldIds), static fn (string $value) => $value !== '')));
 
+        // Closure bọc toàn bộ logic để tái sử dụng (Tùy chọn chạy qua Redis Lock hoặc chạy thẳng)
         $runner = function () use ($reservationId, $requestedTableIds, $checkedInAt, $staffUserId, $ignoredHoldIds, $expectedRowVersion) {
             return DB::transaction(function () use ($reservationId, $requestedTableIds, $checkedInAt, $staffUserId, $ignoredHoldIds, $expectedRowVersion) {
+
                 // Khóa reservation và các bàn liên quan để tránh check-in đúp hoặc đổi bàn giữa chừng.
                 /** @var Reservation $reservation */
                 // Pha 2: lock reservation, mapping reservation_tables va table rows de chot mot snapshot write duy nhat.
+                // --- BƯỚC 2: KHÓA TÀI NGUYÊN BẰNG PESSIMISTIC LOCK (MỨC CSDL) ---
                 $reservation = Reservation::query()->where('reservation_id', $reservationId)->lockForUpdate()->first();
                 if (! $reservation) {
                     throw new ModelNotFoundException('Reservation not found');
                 }
+
+                // Lấy ra danh sách các bàn ĐÃ ĐƯỢC GÁN cho khách này
                 $assignedTableIds = DB::table('reservation_tables')
                     ->where('reservation_id', $reservationId)
-                    ->lockForUpdate()
+                    ->lockForUpdate() // Khóa luôn bảng mapping (Tránh ông nhân viên khác dùng hàm gán bàn đè vào lúc này)
                     ->orderBy('reservation_table_id')
                     ->pluck('table_id')
                     ->map(fn ($id) => (int) $id)
@@ -96,32 +109,43 @@ class StaffCheckInService
                 $tables = RestaurantTable::query()
                     ->whereIn('table_id', $assignedTableIds)
                     ->notDeleted()
-                    ->lockForUpdate()
+                    ->lockForUpdate() // Khóa luôn thông tin từng cái Bàn một
                     ->get();
+
                 // Branch access duoc chan ngay tai lop write de staff khong check-in lech chi nhanh.
+                // Nghiệp vụ: Chống IDOR (Sửa đổi tham số API). Không cho phép nhân viên Quận 1 check-in hộ khách ở Quận 3.
                 $this->assertOperationalBranchAccessible(
                     $this->resolveOperationalBranchId($reservation, $tables),
                     $staffUserId,
                 );
 
+                // --- BƯỚC 3: KIỂM TRA LŨY ĐẲNG (IDEMPOTENCY GUARD) ---
                 if (StaffReservationOperationGuard::isCheckedInReservation($reservation)) {
                     // Idempotent noop: reservation da checked-in roi thi tra ve snapshot hien tai.
+                    // Nghiệp vụ: Nếu Lễ tân mạng lag, bấm nút Check-in 2 lần liên tục. Request đầu thành công,
+                    // Request sau sẽ lọt vào đây và tự động trả về "Thành công" luôn mà không gây lỗi đỏ loét (500 Server Error)
+                    // hay làm hỏng dữ liệu báo cáo (No Operation - NOOP).
                     return [
                         'reservation' => $reservation,
-                        'mutated' => false,
+                        'mutated' => false, // Báo cho logic bên dưới biết là KHÔNG CÓ THAY ĐỔI
                         'table_ids' => [],
                     ];
                 }
 
+                // --- BƯỚC 4: RÀNG BUỘC NGHIỆP VỤ BẢO VỆ CHÉO (BUSINESS GUARDS) ---
                 // Gate nghiep vu cuoi truoc mutate: status hop le va row_version chua stale.
                 StaffReservationOperationGuard::assertCheckInAllowed($reservation, $expectedRowVersion);
                 $checked = Carbon::instance(\DateTimeImmutable::createFromInterface($checkedInAt));
 
+                // Bắt buộc phải được gán bàn trước thì mới được Check-in.
                 if (count($assignedTableIds) === 0) {
                     throw ValidationException::withMessages(['reservation_id' => 'Reservation has no assigned tables to check in.']);
                 }
 
                 // Check-in khong duoc doi ban; neu can doi ban phai di qua move-table flow.
+                // Nghiệp vụ: Nếu API truyền lên table_id KHÁC với table_id đã gán trong DB, hệ thống sẽ BÁO LỖI.
+                // Điều này ép nhân viên phải làm đúng quy trình: Đổi bàn trước (hàm MoveTable) rồi mới Check-in.
+                // Tránh tình trạng "Tiền trảm hậu tấu" làm rối tung Sơ đồ bàn.
                 if ($requestedTableIds !== []) {
                     $sortedAssignedTableIds = $assignedTableIds;
                     sort($sortedAssignedTableIds);
@@ -131,12 +155,17 @@ class StaffCheckInService
                 }
 
                 $tableIds = $assignedTableIds;
+
+                // Mẹo nhỏ tinh tế: Nếu bàn này ĐANG BỊ KHÓA (Hold) nhưng mã khóa đó LÀ CỦA CHÍNH KHÁCH NÀY đặt từ trước,
+                // thì nhét vào danh sách Bỏ qua (Ignored) để không bị tự báo lỗi "Xung đột với chính mình".
                 $ignoredHoldIdsForReservation = array_values(array_unique(array_merge(
                     $ignoredHoldIds,
                     $this->resolveConfirmedHoldIdsForReservation($reservation, $tableIds, true),
                 )));
+
                 // Chỉ cho check-in khi reservation, hold và trạng thái bàn đều sẵn sàng.
                 // Pha 3: readiness service gom du check status, table state, hold va reservation overlap.
+                // Gọi tới "Người Gác Cổng Khó Tính" để xét duyệt một lần cuối mọi vấn đề (Trùng lịch, quá giờ...)
                 $this->checkInReadinessService->assertReadyForWrite(
                     $reservation,
                     $checked,
@@ -147,14 +176,16 @@ class StaffCheckInService
                     updatedBy: $staffUserId,
                 );
 
+                // --- BƯỚC 5: GHI NHẬN TRẠNG THÁI VÀ BÁO CÁO (MUTATION & EVENT DISPATCHING) ---
                 // Pha 4: mutate reservation thanh checked-in va ghi actor/thoi diem check-in.
                 $reservation->status = ReservationStatus::checkedIn();
                 $reservation->checked_in_at = $checkedInAt;
                 $reservation->updated_by = $staffUserId;
-                $reservation->save();
+                $reservation->save(); // Save() sẽ tự động tăng row_version (Version bump)
 
                 // Check-in thành công thì đẩy bàn sang Occupied và phát tín hiệu cho vận hành.
                 // Pha 5: dong bo board state, outbox va audit sau khi write reservation thanh cong.
+                // Nghiệp vụ: Cập nhật Bàn Vật Lý thành Đang Có Người Ngồi (Occupied).
                 $this->tableStateService->occupyTables(
                     $tableIds,
                     Carbon::instance(\DateTimeImmutable::createFromInterface($checkedInAt))->utc(),
@@ -166,9 +197,14 @@ class StaffCheckInService
                     ]
                 );
 
+                // Best Practice (Outbox Pattern & EDA):
+                // Sau khi check-in, nhét 1 tin nhắn vào Outbox. Một Background Worker sẽ chạy ngầm để đọc Outbox
+                // và gửi tin nhắn Zalo/SMS cho Khách Hàng: "Chào mừng quý khách đã đến nhà hàng..."
+                // Mà KHÔNG làm chậm quá trình bấm nút Check-in của Lễ tân.
                 $reservation->loadMissing('user', 'tables', 'payments');
                 $this->notificationOutboxService->enqueueReservationCheckedIn($reservation);
 
+                // Lưu vết kiểm toán
                 AuditEvent::info('staff.reservation.checked_in', [
                     'reservation_id' => (int) $reservationId,
                     'table_ids' => $tableIds,
@@ -178,17 +214,20 @@ class StaffCheckInService
 
                 return [
                     'reservation' => $reservation,
-                    'mutated' => true,
+                    'mutated' => true, // Đánh dấu là CÓ SỰ THAY ĐỔI
                     'table_ids' => $tableIds,
                 ];
             });
         };
 
         try {
+            // --- BƯỚC 6: XỬ LÝ KHÓA PHÂN TÁN (DISTRIBUTED LOCK EXECUTION) ---
             if ($skipLocking) {
+                // Nếu một Process cấp cao hơn (Parent Job) đã ôm sô việc Lock rồi thì ta có thể bỏ qua để tối ưu tốc độ.
                 $result = $runner();
             } else {
                 $lockTableIds = $requestedTableIds;
+                // Nếu gọi API mà không truyền TableID lên, ta phải chui vào DB đọc xem khách này đang được gán bàn nào
                 if ($lockTableIds === []) {
                     $lockTableIds = DB::table('reservation_tables')
                         ->where('reservation_id', $reservationId)
@@ -197,9 +236,12 @@ class StaffCheckInService
                         ->map(fn ($id) => (int) $id)
                         ->all();
                 }
+
+                // LUẬT SẮP XẾP ID: Chống Deadlock kinh điển! Luôn khóa bàn theo số ID từ nhỏ đến lớn.
                 sort($lockTableIds);
 
                 // Ngoai DB lock con co distributed lock theo reservation/table de tranh double-submit giua node/process.
+                // Sinh ra chùm chìa khóa cho Redis Mutex
                 $lockKeys = array_merge([
                     config('booking.reservation_lock_reservation_prefix', 'booking:lock:reservation').':'.$reservationId,
                 ], array_map(fn (int $id) => config('booking.reservation_lock_prefix', 'booking:lock:table').':'.$id, $lockTableIds));
@@ -209,6 +251,8 @@ class StaffCheckInService
 
             /** @var Reservation $reservation */
             $reservation = $result['reservation'];
+
+            // --- BƯỚC 7: CẬP NHẬT GIAO DIỆN REAL-TIME ---
             // Chỉ phát realtime khi có thay đổi thực sự, tránh làm nóng board vô ích.
             // Realtime chi ban khi co mutate thuc su de board khong bi nong vi check-in noop.
             if (($result['mutated'] ?? false) === true) {
@@ -241,6 +285,8 @@ class StaffCheckInService
     private function resolveConfirmedHoldIdsForReservation(Reservation $reservation, array $tableIds, bool $lock = false): array
     {
         // Hold confirmed cua reservation nay duoc ignore trong readiness, neu khong no se tu xung dot voi chinh no.
+        // Giải quyết nghịch lý: Khách đặt bàn sinh ra lệnh KHÓA BÀN (để dành cho khách). Khi khách đến Check-in,
+        // chính cái lệnh KHÓA đó lại TỪ CHỐI khách vào bàn. Phải bỏ qua lệnh khóa "của nhà làm" này.
         $tableIds = array_values(array_unique(array_map('intval', $tableIds)));
         sort($tableIds);
 
@@ -287,6 +333,7 @@ class StaffCheckInService
             ->unique()
             ->values();
 
+        // Cảnh báo: Bàn bị gán rải rác ở nhiều chi nhánh khác nhau -> Trả về null (Lỗi dữ liệu)
         if ($tableBranchIds->count() !== 1) {
             return null;
         }

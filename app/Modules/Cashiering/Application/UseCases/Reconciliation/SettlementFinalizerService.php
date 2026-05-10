@@ -28,6 +28,7 @@ class SettlementFinalizerService
         private readonly RestaurantTableStateService $tableStateService,
     ) {}
 
+    // --- BƯỚC 1: XÁC MINH TRẠNG THÁI VÀ KHÓA TÀI NGUYÊN (PRE-FLIGHT CHECKS & LOCKS) ---
     /**
      * @param  callable(Reservation,Collection<int,ReservationOrder>,?int):void  $consumeAppliedVoucherLocked
      */
@@ -38,9 +39,14 @@ class SettlementFinalizerService
     ): void {
         // Ham nay duoc goi khi bill da du tien; phan con lai la dong trang thai va don side-effect.
         // Pha 1: xac minh reservation du dieu kien complete va lock tat ca tai nguyen lien quan.
+        // Nghiệp vụ: Chuyến đi nào rồi cũng phải kết thúc. Sau khi khách đã trả đủ 100% tiền,
+        // hệ thống bắt đầu quy trình "tiễn khách": Chốt đơn, chốt bàn, trừ voucher, cộng điểm thưởng.
         $reservationId = (int) $reservation->reservation_id;
         $now = Carbon::now('UTC');
 
+        // [BEST PRACTICE]: State Machine Validation (Máy trạng thái)
+        // Kiểm tra xem trạng thái hiện tại của bàn có được phép chuyển sang "Completed" hay không.
+        // Ví dụ: Bàn đang ở trạng thái "Cancelled" (Đã hủy) thì không thể "Completed" (Hoàn thành) được nữa.
         ReservationStatusTransitionPolicy::assertTransitionAllowed(
             (string) ($reservation->status?->value ?? $reservation->status),
             ReservationStatus::Completed,
@@ -49,7 +55,10 @@ class SettlementFinalizerService
         );
         $this->assertPaidServiceReservationHasBillSnapshot($reservation);
 
+        // [BEST PRACTICE]: Deterministic Deadlock Prevention (Ngăn chặn khóa chéo)
         // Table ids duoc lock cung reservation de release table sau settlement khong bi race.
+        // Phải gom toàn bộ Bàn và Đơn hàng lại, SẮP XẾP theo ID rồi mới tiến hành Khóa Bi Quan (lockForUpdate).
+        // Nếu không sắp xếp, 2 luồng thanh toán cùng lúc chạm vào 2 bàn chéo nhau sẽ gây sập DB.
         $tableIds = DB::table('reservation_tables')
             ->where('reservation_id', $reservationId)
             ->orderBy('table_id')
@@ -65,8 +74,11 @@ class SettlementFinalizerService
                 ->get();
         }
 
+        // --- BƯỚC 2: ĐÓNG CÁC ĐƠN HÀNG ĐANG MỞ (CLOSE ACTIVE ORDERS) ---
         /** @var Collection<int,ReservationOrder> $activeOrders */
         // Pha 2: moi order active phai duoc chuyen Completed truoc khi reservation dong lai.
+        // Nghiệp vụ: Khách có thể gọi món nhiều lần (nhiều orders).
+        // Khi thanh toán, mọi order đang mở (Active) sẽ bị khóa vĩnh viễn thành Completed.
         $activeOrders = ReservationOrder::query()
             ->where('reservation_id', $reservationId)
             ->where('status', ReservationOrderStatus::Active->value)
@@ -81,12 +93,14 @@ class SettlementFinalizerService
             $activeOrder->save();
         }
 
+        // --- BƯỚC 3: KẾT THÚC PHIÊN PHỤC VỤ (MARK RESERVATION COMPLETED) ---
         // Reservation chot thanh Completed chi sau khi active orders da duoc dong.
         $reservation->status = ReservationStatus::Completed;
         $reservation->checked_out_at = $now;
         $reservation->updated_by = $staffUserId;
         $reservation->save();
 
+        // --- BƯỚC 4: THỰC THI QUYỀN LỢI VÀ GIẢI PHÓNG TÀI NGUYÊN (SIDE-EFFECTS) ---
         /** @var Collection<int,ReservationOrder> $orders */
         // Reload lai tap order active/completed de voucher/loyalty nhin dung snapshot cuoi cung.
         $orders = ReservationOrder::query()
@@ -96,9 +110,16 @@ class SettlementFinalizerService
             ->lockForUpdate()
             ->get();
 
+        // [BEST PRACTICE]: Inversion of Control (IoC) bằng Callable
+        // Thay vì gọi trực tiếp class xử lý Voucher, class này nhận vào một hàm Callable để thực thi.
+        // Giúp nới lỏng sự phụ thuộc (Decoupling) giữa module Cashiering và module Promotions.
         // Sau khi chot reservation, moi xu ly quyen loi va nha ban de van hanh nhin thay ngay.
         $consumeAppliedVoucherLocked($reservation, $orders, $staffUserId);
+
+        // Cộng điểm thưởng Loyalty cho khách hàng sau khi thanh toán thành công
         $this->loyaltyPointsService->syncReservationCompletionLocked($reservation, $staffUserId);
+
+        // Trả lại các bàn vật lý về trạng thái Available (Xanh lá) để đón khách mới
         $this->tableStateService->releaseTablesSafely($tableIds, $now, $staffUserId, [
             'reservation_id' => $reservationId,
             'source' => 'staff_settlement_finalize',
@@ -106,9 +127,14 @@ class SettlementFinalizerService
         ]);
     }
 
+    // --- BƯỚC 5: RÀO CHẮN NGHIỆP VỤ CUỐI CÙNG (FINAL GUARDS) ---
     private function assertPaidServiceReservationHasBillSnapshot(Reservation $reservation): void
     {
+        // [BEST PRACTICE]: Financial Snapshot Integrity (Toàn vẹn bản sao tài chính)
         // Reservation da co payment dich vu thi bat buoc phai co bill snapshot day du truoc khi complete.
+        // Nghiệp vụ: Chặn đứng tình huống khách đã đóng tiền xong xuôi, nhưng nhân viên lỡ tay F5
+        // hoặc mạng rớt khiến hóa đơn chưa kịp "đóng băng" (billed_at = null).
+        // Phải chắc chắn hóa đơn đã chốt số liệu thì mới cho phép kết thúc phiên giao dịch.
         $reservationId = (int) $reservation->reservation_id;
         if ($reservationId <= 0) {
             throw ValidationException::withMessages([

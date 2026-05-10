@@ -12,6 +12,11 @@ class FinanceTaxProfileWorkflow
 {
     private const SETTING_KEY = 'finance.tax_invoice_profile';
 
+    // --- BƯỚC 1: TRUY XUẤT VÀ TỔNG HỢP TRẠNG THÁI (DESCRIBE) ---
+    // Nghiệp vụ: Cung cấp bức tranh toàn cảnh về cấu hình thuế hiện tại của nhà hàng.
+    // Hệ thống ưu tiên lấy cấu hình đang chạy (runtime_profile) từ Database.
+    // Nếu nhà hàng mới thành lập, chưa từng thiết lập thuế, nó sẽ tự động fallback về
+    // cấu hình mặc định (default_profile) trong mã nguồn để đảm bảo luồng thanh toán không bị sập.
     /**
      * @return array<string,mixed>
      */
@@ -33,6 +38,10 @@ class FinanceTaxProfileWorkflow
         ];
     }
 
+    // --- BƯỚC 2: TRẢ VỀ CẤU HÌNH CÓ HIỆU LỰC (EFFECTIVE PROFILE) ---
+    // Nghiệp vụ: Bất kỳ module nào cần tính tiền (Cashier, Order, Refund) chỉ cần gọi hàm này
+    // là biết ngay nhà hàng đang áp dụng VAT 8% hay 10%, và giá món ăn đã bao gồm thuế chưa
+    // (prices_include_tax) để bóc tách chính xác.
     /**
      * @return array<string,mixed>
      */
@@ -44,6 +53,8 @@ class FinanceTaxProfileWorkflow
         return $profile;
     }
 
+    // --- BƯỚC 3: LƯU CẤU HÌNH VỚI CƠ CHẾ KHÓA KÉP (UPSERT) ---
+    // Nghiệp vụ: Kế toán trưởng hoặc Quản lý cập nhật thông tin xuất hóa đơn tài chính.
     /**
      * @param  array<string,mixed>  $payload
      * @return array<string,mixed>
@@ -53,6 +64,8 @@ class FinanceTaxProfileWorkflow
         $profile = $this->normalizeProfile($payload);
 
         DB::transaction(function () use ($payload, $profile, $actorUserId): void {
+            // [BEST PRACTICE]: Pessimistic Locking (Khóa bi quan)
+            // Ngăn chặn các tiến trình khác đụng vào dòng settings này trong lúc đang kiểm tra.
             $existing = DB::table('settings')
                 ->where('setting_key', self::SETTING_KEY)
                 ->lockForUpdate()
@@ -60,6 +73,12 @@ class FinanceTaxProfileWorkflow
 
             $expectedUpdatedAt = $payload['expected_updated_at'] ?? null;
             if ($existing !== null) {
+                // [BEST PRACTICE]: Optimistic Locking (Khóa lạc quan chống Blind Overwrite)
+                // Kịch bản thực tế: Kế toán A và Quản lý B cùng mở giao diện đổi VAT.
+                // A đổi VAT thành 8% và bấm Lưu. Sau đó B (vẫn đang nhìn màn hình cũ với VAT 10%)
+                // sửa tên hóa đơn rồi bấm Lưu. Nếu không có cơ chế này, B sẽ vô tình đè VAT lại thành 10%.
+                // Đoạn code dưới đây bắt buộc B phải truyền lên timestamp lúc B mở form,
+                // nếu timestamp đó cũ hơn thời điểm A vừa lưu, B sẽ bị từ chối và phải tải lại trang!
                 if ($expectedUpdatedAt === null || trim((string) $expectedUpdatedAt) === '') {
                     throw ValidationException::withMessages([
                         'expected_updated_at' => ['expected_updated_at is required when updating an existing finance tax profile.'],
@@ -85,6 +104,7 @@ class FinanceTaxProfileWorkflow
                 return;
             }
 
+            // Nếu chưa có, tiến hành Insert (Lần thiết lập đầu tiên)
             DB::table('settings')->insert([
                 'setting_key' => self::SETTING_KEY,
                 'value_json' => json_encode($profile, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
@@ -96,6 +116,7 @@ class FinanceTaxProfileWorkflow
         return $this->describe();
     }
 
+    // --- BƯỚC 4: TIỆN ÍCH CHUẨN HÓA VÀ BẢO VỆ TOÀN VẸN DỮ LIỆU ---
     /**
      * @return array<string,mixed>
      */
@@ -135,6 +156,11 @@ class FinanceTaxProfileWorkflow
      */
     private function normalizeProfile(array $profile): array
     {
+        // [BEST PRACTICE]: Data Sanitization & Domain Invariants (Làm sạch & Bất biến nghiệp vụ)
+        // 1. Ép kiểu an toàn (Safe Casting) để chống lại JSON payload độc hại hoặc sai chuẩn.
+        // 2. Chặn lỗi logic kế toán nguy hiểm: VAT ($rate) bị ép buộc phải nằm trong giới hạn
+        //    từ 0.0% đến 100.0% (hàm max() và min()), đồng thời được làm tròn tới 3 chữ số thập phân,
+        //    ngăn chặn triệt để lỗi làm tròn dấu phẩy động (Floating point precision) trong tính toán tài chính.
         $taxCode = strtoupper(trim((string) ($profile['tax_code'] ?? 'VAT10')));
         $taxName = trim((string) ($profile['tax_name'] ?? 'VAT 10%'));
         $rate = round(max(0.0, min(100.0, (float) ($profile['tax_rate_percentage'] ?? 0.0))), 3);

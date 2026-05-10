@@ -16,6 +16,11 @@ use Illuminate\Validation\ValidationException;
  */
 class BranchSchedulingPolicyService
 {
+    // [BEST PRACTICE]: In-Memory Data Caching (Cache bộ nhớ tạm)
+    // Hệ thống sẽ lưu sẵn thông tin chi nhánh (branchCache) và các cấu hình nghiệp vụ (contextCache)
+    // ngay trên RAM của một chu kỳ Request (Request Lifecycle).
+    // Giúp hàm resolveContext() có thể được gọi đi gọi lại hàng trăm lần bởi các module khác nhau
+    // mà không hề phát sinh thêm bất kỳ câu truy vấn (query) nào xuống Database, tối ưu tối đa hiệu năng.
     /** @var array<int, Branch> */
     private array $branchCache = [];
 
@@ -26,6 +31,7 @@ class BranchSchedulingPolicyService
         private readonly BranchContextService $branchContextService,
     ) {}
 
+    // --- BƯỚC 1: TRUY XUẤT VÀ LƯU TRỮ CHI NHÁNH VÀO CACHE ---
     public function resolveBranch(mixed $branchId = null, bool $activeOnly = true): Branch
     {
         $resolvedBranchId = $this->branchContextService->resolveBranchId($branchId, $activeOnly);
@@ -48,20 +54,23 @@ class BranchSchedulingPolicyService
         return (int) $this->resolveBranch($branchId, $activeOnly)->branch_id;
     }
 
+    // --- BƯỚC 2: CHUẨN HÓA VÀ ĐÓNG GÓI MỌI CẤU HÌNH CỦA CHI NHÁNH ---
     /**
      * @return array{
-     *   branch: Branch,
-     *   branch_id: int,
-     *   timezone: string,
-     *   business_hours: array<int, array{day_of_week:int,periods:array<int, array{start_time:string,end_time:string}>>>,
-     *   closure_windows: array<int, array{start_local:string,end_local:string,type:string,reason:?string}>,
-     *   booking_policy: array<string,mixed>
+     * branch: Branch,
+     * branch_id: int,
+     * timezone: string,
+     * business_hours: array<int, array{day_of_week:int,periods:array<int, array{start_time:string,end_time:string}>>>,
+     * closure_windows: array<int, array{start_local:string,end_local:string,type:string,reason:?string}>,
+     * booking_policy: array<string,mixed>
      * }
      */
     public function resolveContext(mixed $branchId = null, bool $activeOnly = true): array
     {
         // Day la "anh chup policy" da normalize de cac flow khac tai dung nhat quan.
         // Context cache nay la "snapshot policy" da normalize de nhieu flow tai su dung ma khong parse lai.
+        // Nghiệp vụ: Chuyển toàn bộ dữ liệu cấu hình JSON thô từ Database thành một bộ "Luật nhà hàng" cực kỳ chuẩn xác,
+        // xử lý sẵn mọi ngóc ngách về múi giờ, giờ đóng/mở cửa, và các rào cản đặt bàn.
         $branch = $this->resolveBranch($branchId, $activeOnly);
         $resolvedBranchId = (int) $branch->branch_id;
 
@@ -72,6 +81,10 @@ class BranchSchedulingPolicyService
                 'branch' => $branch,
                 'branch_id' => $resolvedBranchId,
                 'timezone' => $timezone,
+                // [BEST PRACTICE]: Defensive Normalization
+                // Đi qua hàng loạt hàm normalize...Payload để đảm bảo dữ liệu nếu có bị ai đó cố tình
+                // sửa bậy bạ dưới Database (thành null, string rỗng, sai định dạng JSON) thì lên đây
+                // vẫn bị ép về mảng [] an toàn, tránh làm sập ứng dụng (Crash/White Screen).
                 'business_hours' => $this->normalizeBusinessHoursPayload($branch->business_hours),
                 'closure_windows' => $this->normalizeClosureWindowsPayload($branch->closure_windows, $timezone),
                 'booking_policy' => $this->normalizeBookingPolicyPayload($branch->booking_policy),
@@ -81,6 +94,7 @@ class BranchSchedulingPolicyService
         return $this->contextCache[$resolvedBranchId];
     }
 
+    // --- BƯỚC 3: NẠP VÀ TRÍCH XUẤT CÁC CẤU HÌNH MẶC ĐỊNH (DEFAULTS) ---
     /**
      * @return array<int, array{day_of_week:int,periods:array<int, array{start_time:string,end_time:string}>>>
      */
@@ -125,6 +139,7 @@ class BranchSchedulingPolicyService
         );
     }
 
+    // --- BƯỚC 4: TIỆN ÍCH CHUẨN HÓA VÀ LỌC DỮ LIỆU ĐẦU VÀO TỪ ADMIN ---
     /**
      * @return array<int, array{day_of_week:int,periods:array<int, array{start_time:string,end_time:string}>>>
      */
@@ -200,6 +215,7 @@ class BranchSchedulingPolicyService
             ];
         }
 
+        // Tự động sắp xếp lại các lịch đóng cửa (nghỉ lễ) theo trình tự thời gian tăng dần
         usort($normalized, static fn (array $left, array $right): int => [$left['start_local'], $left['end_local']] <=> [$right['start_local'], $right['end_local']]);
 
         return array_values($normalized);
@@ -221,9 +237,11 @@ class BranchSchedulingPolicyService
         return $this->normalizeBookingPolicyArray($value, 'booking_policy');
     }
 
+    // --- BƯỚC 5: CÁC HÀM TRUY VẤN NHANH TRẠNG THÁI NGHIỆP VỤ ---
+    // Các hàm (Getter) này là giao diện API trực tiếp cho các Service khác,
+    // giúp các Service đó không cần phải tự mổ xẻ mảng Booking Policy khổng lồ ra để tìm.
     public function branchTimezone(mixed $branchId = null, bool $activeOnly = true): string
     {
-        // currentOpenStatus tra ve ket qua giai thich duoc: dang mo hay dong va dong vi ly do nao.
         $context = $this->resolveContext($branchId, $activeOnly);
 
         return (string) $context['timezone'];
@@ -234,8 +252,14 @@ class BranchSchedulingPolicyService
      */
     public function currentOpenStatus(mixed $branchId = null, ?CarbonInterface $at = null, bool $activeOnly = true): array
     {
+        // currentOpenStatus tra ve ket qua giai thich duoc: dang mo hay dong va dong vi ly do nao.
+        // Nghiệp vụ: Tại chính giây phút này, chi nhánh có đang mở cửa đón khách không?
         $context = $this->resolveContext($branchId, $activeOnly);
         $timezone = (string) $context['timezone'];
+
+        // [BEST PRACTICE]: Timezone Agnostic Calculation
+        // Chuyển đổi thời gian hiện tại (hoặc mốc $at bất kỳ) về đúng múi giờ địa phương của nhà hàng
+        // để so sánh chính xác với bảng giờ mở cửa. Tránh tình trạng khách đặt bàn từ Mỹ (UTC-8) cho nhà hàng ở VN (UTC+7).
         $localPoint = ($at instanceof CarbonInterface ? CarbonImmutable::instance($at) : CarbonImmutable::now())
             ->setTimezone($timezone);
 
@@ -249,10 +273,10 @@ class BranchSchedulingPolicyService
 
         $reason = null;
         if (! $isWithinBusinessHours) {
-            $reason = 'outside_business_hours';
+            $reason = 'outside_business_hours'; // Ngoài giờ hành chính (ví dụ: Đang là 3h sáng)
         }
         if ($closureWindow !== null) {
-            $reason = 'closure_window';
+            $reason = 'closure_window'; // Nhà hàng đang đóng cửa đột xuất (ví dụ: cúp điện, hoặc ngày lễ Tết)
         }
 
         return [
@@ -266,16 +290,19 @@ class BranchSchedulingPolicyService
 
     /**
      * @return array{
-     *   bookable:bool,
-     *   reasons:list<string>,
-     *   message:?string,
-     *   branch_id:int,
-     *   timezone:string
+     * bookable:bool,
+     * reasons:list<string>,
+     * message:?string,
+     * branch_id:int,
+     * timezone:string
      * }
      */
     public function schedulingReadiness(mixed $branchId = null, bool $activeOnly = true): array
     {
         // schedulingReadiness dung de gate booking/ops UI truoc khi nguoi dung gap loi sau.
+        // Nghiệp vụ: Chặn sớm mọi rủi ro liên quan đến việc chi nhánh chưa setup xong.
+        // Ví dụ: Quản lý chi nhánh mới tạo chi nhánh nhưng quên không nhập giờ mở cửa.
+        // Nếu không có Gate này chặn lại, hệ thống tính toán ở các bước sau sẽ trả ra lỗi 500 nổ tung hệ thống.
         $branch = $this->resolveBranch($branchId, $activeOnly);
         $reasons = [];
         $timezone = $this->defaultTimezone();
@@ -315,6 +342,7 @@ class BranchSchedulingPolicyService
         ];
     }
 
+    // Các hàm Getter hỗ trợ kiểm tra thời gian quá hạn (Cut-off) cho các quyền lợi của Khách hàng
     public function customerCancellationCutoffMinutes(mixed $branchId = null, bool $activeOnly = true): int
     {
         $context = $this->resolveContext($branchId, $activeOnly);
@@ -357,6 +385,7 @@ class BranchSchedulingPolicyService
         return (int) data_get($context, 'booking_policy.availability.service_buffer_minutes', (int) config('booking.service_buffer_minutes', 0));
     }
 
+    // --- BƯỚC 6: BỘ MÁY ĐÁNH GIÁ THỜI GIAN ĐẶT CHỖ (CORE TIME EVALUATION ENGINE) ---
     /**
      * @return array{allowed:bool,reason:?string,message:?string,branch_id:int,timezone:string}
      */
@@ -368,7 +397,9 @@ class BranchSchedulingPolicyService
         string $useCase = 'reservation',
         bool $activeOnly = true,
     ): array {
+        // [BEST PRACTICE]: Single Source of Truth for Time Checking
         // Cong tam chinh de quyet dinh khung gio nay co duoc dat/doi lich hay khong.
+        // Tất cả mọi nơi trong code (dù là tạo Reservation, đổi giờ, hay tìm bàn trống) đều phải đi qua cái "máy quét" này.
         $readiness = $this->schedulingReadiness($branchId, $activeOnly);
         if (($readiness['bookable'] ?? false) !== true) {
             return [
@@ -395,6 +426,8 @@ class BranchSchedulingPolicyService
         $localNow = $nowAtUtc->setTimezone($timezone);
         $reservationPolicy = (array) data_get($context, 'booking_policy.reservation', []);
 
+        // Luật 1: Lead Time (Thời gian đặt trước tối thiểu)
+        // Ví dụ: Bắt buộc đặt bàn trước 60 phút để nhà hàng kịp chuẩn bị.
         $minLeadMinutes = max(0, (int) ($reservationPolicy['min_lead_time_minutes'] ?? 0));
         $leadThreshold = $minLeadMinutes === 0
             ? $localNow->copy()->startOfMinute()
@@ -412,6 +445,8 @@ class BranchSchedulingPolicyService
             );
         }
 
+        // Luật 2: Advance Time (Chặn đặt quá xa)
+        // Ví dụ: Không cho đặt bàn trước quá 3 tháng (vì có thể nhà hàng đã đóng cửa hoặc đổi chủ).
         $maxAdvanceMinutes = max(1, (int) ($reservationPolicy['max_advance_time_minutes'] ?? (60 * 24 * 365)));
         if ($localStart->greaterThan($localNow->addMinutes($maxAdvanceMinutes))) {
             return $this->windowDecision(
@@ -426,6 +461,8 @@ class BranchSchedulingPolicyService
             );
         }
 
+        // Luật 3: Same Day Cutoff (Chốt sổ trong ngày)
+        // Ví dụ: Quy định sau 20:00 thì không nhận booking cho tối ngày hôm đó nữa.
         $sameDayCutoffTime = $reservationPolicy['same_day_cutoff_time'] ?? null;
         if (
             ! $this->bypassesSameDayCutoff($useCase)
@@ -449,6 +486,7 @@ class BranchSchedulingPolicyService
             }
         }
 
+        // Luật 4: Business Hours (Đảm bảo giờ ăn nằm TRỌN vẹn trong giờ mở cửa)
         if (! $this->windowWithinBusinessHours((array) $context['business_hours'], $localStart, $localEnd)) {
             return $this->windowDecision(
                 $context,
@@ -458,6 +496,7 @@ class BranchSchedulingPolicyService
             );
         }
 
+        // Luật 5: Closure Windows (Né các lịch nghỉ lễ / cúp điện đã lên trước)
         $closureWindow = $this->firstOverlappingClosureWindow((array) $context['closure_windows'], $timezone, $localStart, $localEnd);
         if ($closureWindow !== null) {
             $reason = $closureWindow['reason'] ?? null;
@@ -506,6 +545,7 @@ class BranchSchedulingPolicyService
         return $this->evaluateReservationWindow($branchId, $startUtc, $endUtc, $nowUtc, 'availability', $activeOnly);
     }
 
+    // Rào chắn dành riêng cho tính năng Waiting List (Khách đứng chờ ngoài cửa quán)
     public function assertWaitingListEligible(
         mixed $branchId,
         ?CarbonInterface $requestedAtUtc = null,
@@ -618,6 +658,7 @@ class BranchSchedulingPolicyService
         ];
     }
 
+    // --- BƯỚC 7: CÁC TIỆN ÍCH QUẢN LÝ VÀ CHUẨN HÓA THỜI GIAN CHUYÊN SÂU ---
     /**
      * @param  array<int,mixed>  $value
      * @return array<int, array{day_of_week:int,periods:array<int, array{start_time:string,end_time:string}>>>
@@ -803,6 +844,8 @@ class BranchSchedulingPolicyService
     private function windowWithinBusinessHours(array $businessHours, CarbonImmutable $localStart, CarbonImmutable $localEnd): bool
     {
         foreach ($this->buildBusinessIntervals($businessHours, $localStart, $localEnd) as $interval) {
+            // Kiểm tra xem khoảng thời gian Khách chọn (VD 19:00 - 21:00) có lọt thỏm hoàn toàn bên trong
+            // một khung giờ mở cửa của nhà hàng hay không (VD 18:00 - 22:00)
             if ($localStart->greaterThanOrEqualTo($interval['start']) && $localEnd->lessThanOrEqualTo($interval['end'])) {
                 return true;
             }
@@ -817,6 +860,9 @@ class BranchSchedulingPolicyService
      */
     private function buildBusinessIntervals(array $businessHours, CarbonImmutable $localStart, CarbonImmutable $localEnd): array
     {
+        // [BEST PRACTICE]: Complex Time Interval Flattening (Trải phẳng các chu kỳ thời gian phức tạp)
+        // Nghiệp vụ: Chuyển mảng giờ mở cửa (Ví dụ: Thứ 2 mở 8h-12h và 14h-18h) thành một chuỗi các
+        // khoảng thời gian liên tục (Intervals) tính bằng Timestamp thực tế để dễ đem ra so sánh lớn bé.
         $businessHoursByDay = [];
         foreach ($businessHours as $dayConfig) {
             $businessHoursByDay[(int) ($dayConfig['day_of_week'] ?? 0)] = is_array($dayConfig['periods'] ?? null)
@@ -825,6 +871,7 @@ class BranchSchedulingPolicyService
         }
 
         $intervals = [];
+        // Lùi về 1 ngày trước đó để bắt những quán bar/club mở cửa từ 22:00 đêm qua vắt sang 02:00 sáng hôm nay.
         $dayCursor = $localStart->startOfDay()->subDay();
         $lastDay = $localEnd->startOfDay();
 
@@ -839,6 +886,7 @@ class BranchSchedulingPolicyService
                     ? $dayCursor->startOfDay()->addDay()
                     : $dayCursor->startOfDay()->addMinutes($endMinutes);
 
+                // Nếu giờ đóng cửa nhỏ hơn giờ mở cửa (VD mở 22:00, đóng 02:00) -> Hiểu là vắt sang ngày hôm sau
                 if ($endMinutes <= $startMinutes) {
                     $intervalEnd = $intervalEnd->addDay();
                 }
@@ -852,8 +900,11 @@ class BranchSchedulingPolicyService
             $dayCursor = $dayCursor->addDay();
         }
 
+        // Sắp xếp lại chuỗi thời gian tăng dần
         usort($intervals, static fn (array $left, array $right): int => [$left['start']->getTimestamp(), $left['end']->getTimestamp()] <=> [$right['start']->getTimestamp(), $right['end']->getTimestamp()]);
 
+        // Trộn các khoảng thời gian bị chồng lấn (Overlapping intervals)
+        // Ví dụ admin thiết lập lỡ tay mở từ 8h-14h và từ 10h-16h -> Trộn lại thành 8h-16h liên tục
         $merged = [];
         foreach ($intervals as $interval) {
             if ($merged === []) {
@@ -1017,6 +1068,8 @@ class BranchSchedulingPolicyService
             return $value;
         }
 
+        // [BEST PRACTICE]: Strict RegEx Validation
+        // Ép buộc định dạng nhập vào phải chuẩn HH:MM (ví dụ 08:30)
         if (preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $value) !== 1) {
             $this->throwValidation($field, sprintf('%s must use HH:MM and may use 24:00 only as an end time.', $field));
         }

@@ -28,6 +28,7 @@ class StaffInvoiceService
         private readonly StaffBranchContextService $staffBranchContextService,
     ) {}
 
+    // --- BƯỚC 1: KHỞI TẠO LUỒNG XUẤT HÓA ĐƠN ---
     /**
      * @return array{invoice:BillingInvoice,created:bool}
      */
@@ -35,7 +36,15 @@ class StaffInvoiceService
     {
         $issuedByUserId = StaffActorGuard::requireStaffUserId($issuedByUserId);
 
+        // [BEST PRACTICE]: Deadlock Recovery
+        // Tham số "3" ở cuối DB::transaction nghĩa là nếu xảy ra Deadlock khi nhiều thu ngân
+        // cùng thao tác, DB sẽ tự động retry tối đa 3 lần trước khi báo lỗi, giúp hệ thống
+        // chịu tải tốt hơn trong giờ cao điểm.
         return DB::transaction(function () use ($reservationId, $issuedByUserId, $branchId): array {
+
+            // [BEST PRACTICE]: Pessimistic Locking
+            // Khóa dòng Reservation này lại để đảm bảo không ai có thể sửa bill hay
+            // thêm món trong lúc đang xuất hóa đơn đỏ.
             $reservationQuery = Reservation::query()
                 ->lockForUpdate();
 
@@ -48,6 +57,8 @@ class StaffInvoiceService
             $reservationBranchId = $this->resolveReservationBranchId($reservation, $branchId);
             $this->staffBranchContextService->assertAccessibleBranch($issuedByUserId, $reservationBranchId);
 
+            // --- BƯỚC 2: KIỂM TRA LŨY ĐẲNG (IDEMPOTENCY) ---
+            // Nghiệp vụ: Chống xuất 2 hóa đơn cho cùng 1 bàn nếu thu ngân lỡ tay bấm đúp chuột (double-click).
             /** @var BillingInvoice|null $existing */
             $existing = BillingInvoice::query()
                 ->where('reservation_id', $reservationId)
@@ -59,20 +70,31 @@ class StaffInvoiceService
             if ($existing instanceof BillingInvoice) {
                 return [
                     'invoice' => $this->findInvoiceByReservationId($reservationId, $reservationBranchId),
-                    'created' => false,
+                    'created' => false, // Báo cho FE biết đây là hóa đơn cũ gọi lại, không phải mới tạo
                 ];
             }
 
+            // --- BƯỚC 3: KIỂM CHỨNG ĐIỀU KIỆN TIÊN QUYẾT (PRE-CONDITIONS) ---
+            // Chỉ được xuất hóa đơn khi bàn đã chốt bill (không còn gọi thêm món).
             if ($reservation->billed_at === null || $reservation->final_bill_amount === null) {
                 throw ValidationException::withMessages([
                     'reservation' => ['Invoice can only be issued for a reservation with a locked bill total.'],
                 ]);
             }
 
+            // Gọi qua module Cashiering để lấy bức tranh toàn cảnh về đối soát tài chính của bàn này.
             $reconciliation = $this->financialReconciliationService->show($reservationId, $reservationBranchId, $issuedByUserId);
+
+            // Ép buộc tính toàn vẹn tài chính (Bàn phải thanh toán đủ 100%, không thừa không thiếu)
             $this->assertIssuableReservationFinancialTruth($reconciliation);
+
+            // [BEST PRACTICE]: Domain Rules Enforcement
+            // Nhân viên thu ngân BẮT BUỘC phải đang mở ca (Open Shift) thì mới được phép xuất hóa đơn.
+            // Ngăn chặn việc nhân viên đã hết ca nhưng vẫn lén dùng tài khoản xuất hóa đơn gian lận.
             $this->assertOpenCashierShiftForBranch($issuedByUserId, $reservationBranchId);
 
+            // --- BƯỚC 4: TÍNH TOÁN THUẾ VÀ LƯU TRỮ ---
+            // Lấy cấu hình thuế có hiệu lực từ Workflow mà chúng ta đã phân tích ở bài trước.
             $profile = $this->taxProfileService->effectiveProfile();
             if (! (bool) ($profile['prices_include_tax'] ?? true)) {
                 throw ValidationException::withMessages([
@@ -80,13 +102,19 @@ class StaffInvoiceService
                 ]);
             }
 
+            // [BEST PRACTICE]: Minor Units Pattern (Chống sai số Floating Point)
+            // Đưa toàn bộ số tiền về đơn vị nhỏ nhất (Minor unit - ví dụ: đồng, cent) dạng Integer
+            // để cộng trừ, tuyệt đối không dùng Float/Double.
             $totalAmountMinor = Money::minorUnits($reservation->final_bill_amount, true);
             $discountAmountMinor = Money::minorUnits($reservation->discount_amount ?? 0, true);
             $subtotalAmountMinor = $totalAmountMinor + $discountAmountMinor;
+
             $totalAmount = Money::minorToFloat($totalAmountMinor);
             $discountAmount = Money::minorToFloat($discountAmountMinor);
             $currency = trim((string) ($reservation->bill_currency ?? 'VND')) ?: 'VND';
             $rate = round((float) ($profile['tax_rate_percentage'] ?? 0.0), 3);
+
+            // Bóc tách tiền trước thuế và tiền thuế từ tổng tiền (Inclusive Tax)
             [$taxableAmount, $taxAmount] = $this->splitInclusiveTax($totalAmount, $rate);
 
             $invoice = new BillingInvoice;
@@ -297,11 +325,17 @@ class StaffInvoiceService
         ];
     }
 
+    // --- BƯỚC 5: CÁC HÀM TIỆN ÍCH LÕI ---
     /**
      * @return array{0:float,1:float}
      */
     private function splitInclusiveTax(float $totalAmount, float $taxRatePercentage): array
     {
+        // [BEST PRACTICE]: Safe Math Division (Chia toán học an toàn)
+        // Khi giá món ăn ĐÃ BAO GỒM THUẾ (Inclusive), việc bóc tách ngược ra giá gốc (Taxable)
+        // và tiền thuế (Tax) rất dễ bị lệch 1 đồng do làm tròn số học (đặc biệt khi mua số lượng nhiều).
+        // Hàm này nhân tất cả lên 100,000 để dùng phép chia lấy nguyên (intdiv) của Integer,
+        // giúp triệt tiêu hoàn toàn rủi ro sai số Floating point, đảm bảo "Giá gốc + Thuế = Tổng tiền" luôn luôn khớp 100%.
         $totalMinor = Money::minorUnits($totalAmount, true);
         $rateUnits = max(0, (int) round($taxRatePercentage * 1000));
 
@@ -345,6 +379,13 @@ class StaffInvoiceService
      */
     private function assertIssuableReservationFinancialTruth(array $reconciliation): void
     {
+        // [BEST PRACTICE]: Strict Financial Invariants (Rào chắn bất biến tài chính)
+        // Đây là "cửa ải tử thần". Hệ thống quyết không cho xuất hóa đơn nếu bàn có dấu hiệu bất thường:
+        // - Bill bằng 0đ (không có giao dịch)
+        // - Khách chưa trả đủ tiền (has_bill_outstanding)
+        // - Khách trả lố tiền nhưng thu ngân chưa thối lại (has_bill_overpaid)
+        // - Dùng trộn lẫn nhiều loại tiền tệ phức tạp (mixed currencies)
+        // Điều này giúp sổ sách kế toán của nhà hàng luôn sạch sẽ và hợp lệ với cơ quan thuế.
         $summary = (array) ($reconciliation['summary'] ?? []);
         $flags = (array) ($summary['flags'] ?? []);
         $finalBillAmount = $this->money(data_get($summary, 'reconciliation.final_bill_amount'));

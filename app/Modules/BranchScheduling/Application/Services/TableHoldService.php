@@ -33,30 +33,39 @@ class TableHoldService
         $this->branchSchedulingPolicyService = $branchSchedulingPolicyService ?? app(BranchSchedulingPolicyService::class);
     }
 
+    // --- BƯỚC 1: DỌN DẸP DỮ LIỆU HẾT HẠN (GARBAGE COLLECTION) ---
     public function expireStaleHolds(): int
     {
         $nowUtc = Carbon::now('UTC');
 
         // Scheduler-style expiry is an explicit maintenance path guarded by the direct-write contract test.
+        // Nghiệp vụ: Mỗi khách hàng khi chọn bàn sẽ được cấp một "thời gian giữ chỗ" (TTL - ví dụ 5 phút) để điền thông tin và thanh toán.
+        // Nếu qua 5 phút mà khách chưa thanh toán, hệ thống sẽ tự động chuyển trạng thái từ "Holding" sang "Expired"
+        // để nhả bàn cho khách khác đặt.
         $count = DB::table('table_holds')
             ->whereIn('hold_status', ['Holding', 'Pending'])
             ->where('expire_at', '<=', $nowUtc)
             ->update([
                 'hold_status' => 'Expired',
                 'updated_at' => $nowUtc,
+                // [BEST PRACTICE]: Raw SQL Atomic Increment
+                // Tăng phiên bản dòng dữ liệu trực tiếp bằng DB::raw để tránh việc phải kéo dữ liệu lên PHP (SELECT) rồi mới lưu xuống (UPDATE).
+                // Giúp dọn dẹp hàng ngàn Hold hết hạn cùng lúc một cách cực kỳ nhanh chóng.
                 'row_version' => DB::raw('COALESCE(row_version, 1) + 1'),
             ]);
 
         if ($count > 0) {
-            AvailabilityCacheVersion::bump();
+            AvailabilityCacheVersion::bump(); // Báo hiệu đã có bàn trống mới, yêu cầu xóa cache tìm bàn trống.
             AuditEvent::info('table_holds_expired', ['count' => $count]);
         }
 
         return (int) $count;
     }
 
+    // --- BƯỚC 2: TIẾP NHẬN YÊU CẦU GIỮ BÀN (CREATE HOLD) ---
     public function createHold(array $payload, ?int $actorUserId = null): array
     {
+        // Luôn dọn dẹp các Hold đã chết trước khi tạo Hold mới để đảm bảo tính sẵn sàng tối đa
         $this->expireStaleHolds();
 
         $sessionId = (string) ($payload['session_id'] ?? '');
@@ -64,7 +73,10 @@ class TableHoldService
             throw ValidationException::withMessages(['session_id' => ['session_id is required.']]);
         }
 
+        // [BEST PRACTICE]: Actor Spoofing Prevention (Chống giả mạo danh tính)
         // Never trust client-supplied user_id to avoid actor spoofing.
+        // Khách hàng có thể cố tình sửa gói tin gửi lên máy chủ để "giữ bàn hộ" một user ID khác.
+        // Hệ thống sẽ kiểm tra đối chiếu (Cross-check) giữa Token đăng nhập ($actorUserId) và ID do FE gửi lên.
         $payloadUserId = isset($payload['user_id']) ? (int) $payload['user_id'] : null;
         if ($actorUserId !== null && $payloadUserId !== null && $payloadUserId !== (int) $actorUserId) {
             throw ValidationException::withMessages([
@@ -89,7 +101,7 @@ class TableHoldService
         }
 
         $tableIds = array_values(array_unique(array_map('intval', (array) ($payload['table_ids'] ?? []))));
-        sort($tableIds);
+        sort($tableIds); // Tránh Deadlock khi lock nhiều bảng
         if (count($tableIds) < 1) {
             throw ValidationException::withMessages(['table_ids' => ['table_ids is required.']]);
         }
@@ -112,6 +124,9 @@ class TableHoldService
 
         // Serialize theo table_ids (multi-instance)
         try {
+            // [BEST PRACTICE]: Phân lớp Lock an toàn (Nested Lock Abstraction)
+            // Lệnh withTableLocks() sẽ khóa toàn bộ các Table ID lại theo đúng thứ tự (đã sort ở trên).
+            // Đảm bảo không có luồng khác chen vào giữa lúc đang kiểm tra điều kiện.
             $holdId = (string) $this->lockService->withTableLocks($tableIds, function () use (
                 $sessionId,
                 $userId,
@@ -137,6 +152,7 @@ class TableHoldService
                     $tableIds,
                     $holdMinutes
                 ) {
+                    // Bước 2.1: Kiểm tra tính vật lý của Bàn
                     $tables = DB::table('restaurant_tables')
                         ->whereIn('table_id', $tableIds)
                         ->lockForUpdate()
@@ -152,6 +168,7 @@ class TableHoldService
                         throw ValidationException::withMessages(['table_ids' => ['Some selected tables were deleted: '.implode(',', $deleted)]]);
                     }
 
+                    // Bước 2.2: Kiểm tra trạng thái hiện tại (Realtime/Future Status)
                     $nowUtc = Carbon::now('UTC');
                     $isRealtimeHoldWindow = $start->lessThanOrEqualTo($nowUtc->copy()->addMinute())
                         && $end->greaterThanOrEqualTo($nowUtc->copy()->subMinute());
@@ -173,6 +190,7 @@ class TableHoldService
                         ]);
                     }
 
+                    // Bước 2.3: Chặn việc Giữ Bàn chéo chi nhánh
                     $tableBranchId = $this->branchContextService->assertSingleBranch(
                         $tables->pluck('branch_id')->all(),
                         'Selected tables must belong to a single branch.',
@@ -189,6 +207,7 @@ class TableHoldService
                         );
                     }
 
+                    // Bước 2.4: Kiểm duyệt bằng Bộ quy tắc (Policy Gate)
                     $this->branchSchedulingPolicyService->assertReservationWindowAllowed(
                         $tableBranchId,
                         $start,
@@ -199,6 +218,7 @@ class TableHoldService
                         false
                     );
 
+                    // Bước 2.5: Kiểm tra xem Bàn này có bị ai đó Đặt (Reservation) trước chưa
                     $reservationConflictIds = $this->tableTimeConflictService->findReservationConflictTableIds(
                         tableIds: $tableIds,
                         start: $start,
@@ -210,6 +230,9 @@ class TableHoldService
                         throw ValidationException::withMessages(['table_ids' => ['Some selected tables already have an overlapping reservation in this time window: '.implode(',', $reservationConflictIds)]]);
                     }
 
+                    // Bước 2.6: Tái sử dụng phiên giao dịch (Idempotency / Session Continuity)
+                    // Nếu khách hàng click "Next", xong ấn "Back", rồi lại ấn "Next" vào cùng một cái bàn.
+                    // Việc này sẽ không tạo ra 2 lệnh Hold mới, mà hệ thống sẽ tái sử dụng ID của lệnh Hold trước đó.
                     $existingSessionHold = $this->findReusableActiveHoldForSession(
                         sessionId: $sessionId,
                         tableIds: $tableIds,
@@ -221,6 +244,8 @@ class TableHoldService
                         return (string) $existingSessionHold->hold_id;
                     }
 
+                    // Nếu khách đổi ý: Chọn bàn A, nhưng sau đó hủy chọn và chuyển sang chọn Bàn B.
+                    // Hệ thống sẽ âm thầm hủy lệnh Hold của bàn A trước, sau đó mới cho phép tạo lệnh Hold Bàn B.
                     $sessionActiveHold = $this->findActiveHoldForSession(
                         sessionId: $sessionId,
                         holdIdToIgnore: null,
@@ -237,6 +262,7 @@ class TableHoldService
                         );
                     }
 
+                    // Bước 2.7: Kiểm tra xem Bàn này có bị người khác giữ (Hold) trước chưa
                     $holdConflictIds = $this->tableTimeConflictService->findHoldConflictTableIds(
                         tableIds: $tableIds,
                         start: $start,
@@ -252,6 +278,7 @@ class TableHoldService
                     // Ignore client-supplied user_id for anonymous sessions; protected staff flows should
                     // use a dedicated endpoint when acting on behalf of another customer.
 
+                    // BƯỚC 2.8: GHI NHẬN THÀNH CÔNG VÀ LƯU DATABASE
                     $holdId = (string) Str::uuid();
                     $hold = new TableHold;
                     $hold->hold_id = $holdId;
@@ -264,7 +291,7 @@ class TableHoldService
                     $hold->hold_status = 'Holding';
                     $hold->created_at = $nowUtc;
                     $hold->updated_at = $nowUtc;
-                    $hold->expire_at = $nowUtc->copy()->addMinutes($holdMinutes);
+                    $hold->expire_at = $nowUtc->copy()->addMinutes($holdMinutes); // Cài đặt đồng hồ đếm ngược
                     $hold->save();
 
                     $rows = [];
@@ -292,6 +319,7 @@ class TableHoldService
                 });
             });
         } catch (QueryException $e) {
+            // Biến lỗi khóa SQL thô kệch thành câu văn dễ hiểu cho Frontend
             $mapped = DatabaseWriteConflictMapper::toValidationException($e);
             if ($mapped !== null) {
                 throw $mapped;
@@ -305,6 +333,7 @@ class TableHoldService
         return $this->getHold($holdId);
     }
 
+    // --- CÁC HÀM TIỆN ÍCH DÙNG TRONG BƯỚC 2 ---
     private function findReusableActiveHoldForSession(string $sessionId, array $tableIds, Carbon $start, Carbon $end, bool $lock = false): ?object
     {
         $hold = $this->findActiveHoldForSession(sessionId: $sessionId, holdIdToIgnore: null, lock: $lock);
@@ -413,6 +442,8 @@ class TableHoldService
     {
         return $status instanceof TableHoldStatus ? $status->value : (string) $status;
     }
+
+    // --- BƯỚC 3: LẤY THÔNG TIN, HỦY VÀ GIA HẠN LỆNH GIỮ BÀN ---
 
     public function getHold(string $holdId, ?string $sessionId = null): array
     {
@@ -539,6 +570,10 @@ class TableHoldService
         ?int $expectedRowVersion = null,
         ?int $actorUserId = null,
     ): array {
+        // Nghiệp vụ: Tâm lý khách hàng khi thanh toán thường hay nấn ná.
+        // Thay vì ép buộc họ phải thanh toán xong ngay trong 5 phút (nếu không hủy bàn),
+        // thì mỗi khi họ tương tác trên giao diện, Frontend sẽ gọi API này để "Gia hạn" (Refresh)
+        // thêm 5 phút nữa, giữ cho chiếc bàn tiếp tục thuộc về họ một cách mượt mà.
         $this->expireStaleHolds();
 
         $hold = DB::table('table_holds')->where('hold_id', $holdId)->first();
@@ -593,6 +628,9 @@ class TableHoldService
                     $nowUtc = Carbon::now('UTC');
                     $createdAt = $hold->created_at ? Carbon::parse($hold->created_at)->utc() : $nowUtc->copy();
 
+                    // [BEST PRACTICE]: TTL Hard Ceiling (Trần bảo vệ thời gian sống)
+                    // Dù có gia hạn bao nhiêu lần đi nữa, tổng thời gian giữ bàn (tính từ lúc bắt đầu click chọn)
+                    // cũng không bao giờ được vượt quá một ngưỡng nhất định (ví dụ 15 phút), để ngăn khách "câu giờ".
                     $maxTotalTtl = (int) config('booking.hold_max_total_minutes', 15);
                     $maxExpireAt = $createdAt->copy()->addMinutes(max(1, $maxTotalTtl));
 

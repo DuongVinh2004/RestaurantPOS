@@ -20,6 +20,11 @@ use Illuminate\Support\Collection;
 
 class CustomerReservationOrderBillService
 {
+    // [BEST PRACTICE]: Constant Query Optimization (Eager Load Profiling)
+    // Khai báo sẵn các relations cần thiết cho từng luồng hiển thị.
+    // Tránh N+1 queries bằng cách chỉ load đúng những bảng cần thiết.
+    // - Luồng hiển thị Order: Cần biết bàn nào (tables) và có đang hoàn tiền không (refundOfPayment).
+    // - Luồng hiển thị Bill: Cần thêm thông tin Voucher khách đang áp dụng (appliedUserVoucher.voucher).
     private const ACTIVE_ORDER_RESERVATION_RELATIONS = [
         'tables',
         'payments.refundOfPayment',
@@ -40,11 +45,19 @@ class CustomerReservationOrderBillService
         private readonly FeatureFlagService $featureFlags,
     ) {}
 
+    // --- BƯỚC 1: TRUY XUẤT ĐƠN HÀNG VÀ HÓA ĐƠN (API ENDPOINTS) ---
+    // Các hàm này đóng vai trò như cửa ngõ (gateways) phục vụ cho 2 đối tượng:
+    // 1. Owned: Khách hàng tự gọi API để xem hóa đơn/đơn hàng của CHÍNH MÌNH (bắt buộc truyền user_id).
+    // 2. Accessible: Staff/Admin gọi API để xem hóa đơn/đơn hàng của MỘT BÀN BẤT KỲ.
+
     /**
      * @return array{reservation:Reservation,active_order:?ReservationOrder}
      */
     public function showOwnedActiveOrder(int $reservationId, int $customerUserId): array
     {
+        // [BEST PRACTICE]: IDOR Protection (Chống tấn công thay đổi ID)
+        // Khi gọi hàm loadOwnedReservation, hệ thống không chỉ whereKey() mà còn
+        // where('user_id', $customerUserId). Ngăn chặn triệt để việc khách A đổi ID trên URL để xem trộm bill khách B.
         return $this->buildAccessibleActiveOrderView(
             $this->loadOwnedReservation($reservationId, $customerUserId, self::ACTIVE_ORDER_RESERVATION_RELATIONS),
         );
@@ -80,6 +93,7 @@ class CustomerReservationOrderBillService
         );
     }
 
+    // --- BƯỚC 2: TIỆN ÍCH TRUY XUẤT DỮ LIỆU AN TOÀN ---
     /**
      * @param  list<string>  $relations
      */
@@ -103,6 +117,7 @@ class CustomerReservationOrderBillService
      */
     private function buildAccessibleBillView(Reservation $reservation): array
     {
+        // Tính toán Snapshot tạm thời (Chưa khóa bill)
         $computed = $this->reservationFinancialSyncService->computeReservationBillSnapshot(
             reservationId: (int) $reservation->reservation_id,
             discountAmount: Money::toFloat($reservation->discount_amount ?? 0, true),
@@ -133,6 +148,9 @@ class CustomerReservationOrderBillService
      */
     private function preloadAccessibleReservation(Reservation $reservation, array $relations): Reservation
     {
+        // [BEST PRACTICE]: Memory-efficient Preloading
+        // Nếu object Reservation mới tạo trong RAM (chưa lưu DB), việc gọi load() sẽ văng lỗi.
+        // Cần bypass bằng cách tự bơm mảng rỗng (seedInMemory) để tránh lỗi gọi relation trên object ảo.
         if (! $reservation->exists) {
             $this->seedInMemoryReservationRelations($reservation, $relations);
 
@@ -190,6 +208,9 @@ class CustomerReservationOrderBillService
         return false;
     }
 
+    // --- BƯỚC 3: TỔNG HỢP VÀ PHÂN TÍCH TÀI CHÍNH (CORE BUSINESS LOGIC) ---
+    // Nghiệp vụ: Chuyển hóa dữ liệu Database thành một "tờ hóa đơn" hoàn chỉnh, tính toán điểm thưởng
+    // và quyết định xem khách hàng có được phép "Tự quét mã thanh toán" (Self-Payment) hay không.
     /**
      * @return array<string,mixed>
      */
@@ -200,22 +221,32 @@ class CustomerReservationOrderBillService
         $paymentSummary = PaymentSummary::fromPayments($payments);
         $currencyMeta = PaymentSummary::summarizeCurrencies($payments, (string) ($computed['currency'] ?? $reservation->bill_currency ?? 'VND'));
 
+        // Phân biệt trạng thái:
+        // provisional = Bill tạm (đang ăn, giá có thể nhảy nếu gọi thêm)
+        // locked = Bill đã chốt (chuẩn bị tính tiền, giá đóng băng)
         $snapshotMode = $reservation->billed_at !== null && $reservation->final_bill_amount !== null ? 'locked' : 'provisional';
+
         $computedSubtotal = Money::toFloat($computed['subtotal'] ?? 0, true);
         $discountAmount = Money::toFloat($computed['discount'] ?? $reservation->discount_amount ?? 0, true);
         $computedTotalDue = Money::toFloat($computed['total_due'] ?? 0, true);
         $lockedTotalDue = $reservation->final_bill_amount !== null
             ? Money::toFloat($reservation->final_bill_amount, true)
             : null;
+
+        // Nếu đã chốt bill thì xài số đã chốt, nếu chưa thì xài số đang chạy thực tế
         $effectiveTotalDue = $snapshotMode === 'locked' ? (float) $lockedTotalDue : $computedTotalDue;
         $effectiveTotalDueMinor = Money::minorUnits($effectiveTotalDue, true);
+
         $settlement = $this->settlementAmountCalculator->buildSettlementAmounts($payments, $effectiveTotalDue);
         $settledMinor = Money::minorUnits($settlement['settled_amount'] ?? 0, true);
+
         $outstandingMinor = array_key_exists('remaining_due', $settlement)
             ? Money::minorUnits($settlement['remaining_due'], true)
             : max(0, $effectiveTotalDueMinor - $settledMinor);
+
         $settledAmount = Money::minorToFloat($settledMinor);
         $outstandingAmount = Money::minorToFloat($outstandingMinor);
+
         $paymentStatus = $settledMinor >= $effectiveTotalDueMinor
             ? 'Success'
             : ($settledMinor > 0 ? 'Partial' : 'Failed');
@@ -223,6 +254,18 @@ class CustomerReservationOrderBillService
         $reservationStatus = (string) ($reservation->status?->value ?? $reservation->status ?? '');
         $isActionableReservation = in_array($reservationStatus, ReservationStatus::activeDbValues(), true);
         $hasMixedCurrencies = (bool) ($currencyMeta['has_mixed_currencies'] ?? false);
+
+        // --- BƯỚC 4: KIỂM TRA ĐIỀU KIỆN TỰ THANH TOÁN (SELF-PAYMENT GATE) ---
+        // Nghiệp vụ: Cổng thanh toán quét mã QR (VNPAY/MoMo...) chỉ hiện ra khi hội tụ ĐỦ các yếu tố:
+        // 1. Hệ thống config đã bật cổng thanh toán này (Rollout)
+        // 2. Tính năng tự thanh toán đã được bật cho chi nhánh này (Feature Flag)
+        // 3. Nhân viên ĐÃ CHỐT BILL (locked)
+        // 4. Bàn đang mở (không phải bàn đã hủy)
+        // 5. Khách KHÔNG xài trộn nhiều loại tiền tệ (VD: trả cọc bằng USD nhưng muốn thanh toán bằng VND -> bắt buộc phải gọi nhân viên ra tính lại tỷ giá)
+        // 6. Khách VẪN CÒN NỢ TIỀN (outstanding > 0)
+
+        // [BEST PRACTICE]: Feature Flags & Progressive Rollout
+        // Hệ thống thanh toán có thể bật/tắt an toàn theo từng chi nhánh, không cần sửa code.
         $selfPaymentRollout = $this->paymentProviderRolloutConfig->customerSelfPayStatus(PaymentSessionScope::Bill);
         $selfPaymentFeature = $this->featureFlags->resolve(
             'customer.bill_self_payment',
@@ -230,11 +273,14 @@ class CustomerReservationOrderBillService
         );
         $selfPaymentSupported = (bool) ($selfPaymentRollout['ok'] ?? false)
             && (bool) ($selfPaymentFeature['enabled'] ?? false);
+
         $selfPaymentAvailable = $selfPaymentSupported
             && $snapshotMode === 'locked'
             && $isActionableReservation
             && ! $hasMixedCurrencies
             && $outstandingMinor > 0;
+
+        // Xuất ra lý do giải thích tại sao nút "Thanh toán QR" lại bị mờ (disabled)
         $selfPaymentDisabledReason = (bool) ($selfPaymentRollout['ok'] ?? false)
             ? ((bool) ($selfPaymentFeature['enabled'] ?? false) ? null : (string) ($selfPaymentFeature['message'] ?? ''))
             : (string) ($selfPaymentRollout['message'] ?? '');
@@ -267,6 +313,7 @@ class CustomerReservationOrderBillService
                 'refunded_total' => Money::format($paymentSummary['refunded_amount'] ?? 0, true),
                 'net_paid_total' => Money::format($paymentSummary['net_paid_amount'] ?? 0, true),
             ],
+            // Gọi qua Domain Loyalty để nhúng số điểm khách sẽ được nhận sau bữa ăn này
             'loyalty' => $this->loyaltyPointsService->getReservationLoyaltyPreview($reservation, $payments, $computed),
             'applied_voucher' => $reservation->appliedUserVoucher ? [
                 'user_voucher_id' => (int) $reservation->appliedUserVoucher->user_voucher_id,
@@ -290,6 +337,8 @@ class CustomerReservationOrderBillService
                 'awaiting_staff_finalization' => $snapshotMode === 'locked'
                     && $outstandingMinor <= 0
                     && Money::minorUnits($paymentSummary['final_net_amount'] ?? 0, true) > 0,
+                // [BEST PRACTICE]: State Machine Mapping (Bản đồ trạng thái)
+                // Quyết định chính xác bước tiếp theo trên giao diện Frontend (State-driven UI).
                 'next_step' => $this->resolveNextStep(
                     selfPaymentSupported: $selfPaymentSupported,
                     isActionableReservation: $isActionableReservation,
@@ -302,6 +351,9 @@ class CustomerReservationOrderBillService
         ];
     }
 
+    // --- BƯỚC 5: ĐIỀU HƯỚNG TRẠNG THÁI GIAO DIỆN (UI ROUTING) ---
+    // Trả về chuỗi tín hiệu để Frontend biết nên hiện thông báo gì cho khách:
+    // VD: "Bạn cần gọi phục vụ", "Chờ chốt bill", "Quét mã để trả tiền"...
     private function resolveNextStep(
         bool $selfPaymentSupported,
         bool $isActionableReservation,
@@ -315,23 +367,23 @@ class CustomerReservationOrderBillService
         }
 
         if ($hasMixedCurrencies) {
-            return 'currency_reconciliation_required';
+            return 'currency_reconciliation_required'; // Bắt buộc gọi phục vụ do xài 2 loại tiền tệ
         }
 
         if (! $selfPaymentSupported && Money::minorUnits($outstandingAmount, true) > 0) {
-            return 'staff_settlement_only';
+            return 'staff_settlement_only'; // Quán này không có thanh toán online
         }
 
         if ($snapshotMode !== 'locked') {
-            return 'awaiting_staff_bill_lock';
+            return 'awaiting_staff_bill_lock'; // Khách đòi trả nhưng nhân viên chưa ấn chốt máy tính
         }
 
         if (Money::minorUnits($outstandingAmount, true) <= 0) {
             return Money::minorUnits($finalNetAmount, true) > 0
-                ? 'payment_recorded_awaiting_staff_finalization'
-                : 'already_settled';
+                ? 'payment_recorded_awaiting_staff_finalization' // Trả tiền rồi nhưng chờ thu ngân xác nhận
+                : 'already_settled'; // Khách không ăn thêm gì vượt quá số tiền cọc
         }
 
-        return 'awaiting_customer_payment';
+        return 'awaiting_customer_payment'; // Dọn đường để khách bật app MoMo/VNPAY lên quét
     }
 }

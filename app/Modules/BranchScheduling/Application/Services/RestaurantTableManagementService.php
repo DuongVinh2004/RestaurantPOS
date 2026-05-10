@@ -23,6 +23,7 @@ class RestaurantTableManagementService
         private readonly BranchContextService $branchContextService,
     ) {}
 
+    // --- BƯỚC 1: TRUY VẤN DANH SÁCH BÀN VÀ ĐÍNH KÈM QUYỀN HẠN (LIST TABLES) ---
     /**
      * @param  array<string,mixed>  $filters
      * @return array{tables: array<int, RestaurantTable>, meta: array<string,mixed>}
@@ -72,8 +73,17 @@ class RestaurantTableManagementService
 
         /** @var EloquentCollection<int, RestaurantTable> $tables */
         $tables = $query->get();
+
+        // [BEST PRACTICE]: Batch Usage Snapshot (Chụp nhanh trạng thái sử dụng theo lô)
+        // Thay vì lặp qua từng bàn và gọi query kiểm tra xem "bàn này có khách không",
+        // hệ thống gom toàn bộ ID các bàn vừa lấy được truyền vào một hàm duy nhất để load thống kê,
+        // giúp giải quyết triệt để lỗi N+1 Query.
         $usageByTable = $this->loadUsageSnapshot($tables->modelKeys());
 
+        // [BEST PRACTICE]: Dynamic UI Guards (Bảo vệ giao diện động)
+        // Hệ thống backend tự động tính toán xem bàn này có được phép xóa/sửa không (dựa vào usage),
+        // sau đó trả về cục 'guards' cho frontend. Frontend chỉ việc dựa vào true/false để ẩn/hiện nút bấm,
+        // không cần phải tự viết logic nghiệp vụ kiểm tra chéo ở phía client.
         $decorated = $tables->map(function (RestaurantTable $table) use ($usageByTable): RestaurantTable {
             $usage = $usageByTable[(int) $table->table_id] ?? $this->emptyUsage();
             $table->setRelation('usage', collect($usage));
@@ -112,6 +122,7 @@ class RestaurantTableManagementService
         return $table;
     }
 
+    // --- BƯỚC 2: TẠO BÀN MỚI ---
     /**
      * @param  array<string,mixed>  $payload
      */
@@ -159,6 +170,7 @@ class RestaurantTableManagementService
         return $this->showTable((int) $table->table_id);
     }
 
+    // --- BƯỚC 3: CẬP NHẬT THÔNG TIN BÀN VÀ RÀO CHẮN NGHIỆP VỤ ---
     /**
      * @param  array<string,mixed>  $payload
      */
@@ -202,6 +214,11 @@ class RestaurantTableManagementService
                 ? (bool) $payload['is_deleted']
                 : (bool) $table->is_deleted;
 
+            // [BEST PRACTICE]: Master Data vs Runtime State Isolation
+            // Phân tách rạch ròi quyền lực giữa Admin (người cấu hình) và Operations (người vận hành).
+            // Bàn đang có khách ngồi (Occupied) thì chỉ có nhân viên phục vụ mới được thao tác chốt bill để giải phóng bàn.
+            // Admin tuyệt đối không được dùng quyền quản trị viên để cưỡng ép đổi trạng thái bàn thành Available,
+            // vì sẽ gây mâu thuẫn hóa đơn chưa thanh toán.
             $currentStatus = (string) ($table->status?->value ?? $table->status);
             $runtimeOwnedStatus = in_array($currentStatus, [RestaurantTableStatus::Occupied->value, RestaurantTableStatus::Reserved->value], true);
 
@@ -218,6 +235,7 @@ class RestaurantTableManagementService
                     ]);
                 }
 
+                // Không được phép chặn/đóng bàn để bảo trì nếu vẫn còn khách đang được xếp vào bàn này.
                 if ($hasOperationalLinks && in_array($newStatus, [RestaurantTableStatus::Blocked->value, RestaurantTableStatus::Maintenance->value], true)) {
                     throw ValidationException::withMessages([
                         'status' => ['Cannot block or mark maintenance while the table still has active reservations or holds.'],
@@ -225,6 +243,7 @@ class RestaurantTableManagementService
                 }
             }
 
+            // Các ràng buộc chặn việc đổi tên, đổi chi nhánh hoặc đổi sức chứa của bàn khi bàn đang được sử dụng.
             if ($newBranchId !== (int) $table->branch_id && ($hasOperationalLinks || $runtimeOwnedStatus)) {
                 throw ValidationException::withMessages([
                     'branch_id' => ['Cannot change branch linkage while the table is operationally linked.'],
@@ -309,6 +328,7 @@ class RestaurantTableManagementService
             ->all();
     }
 
+    // --- BƯỚC 4: XÓA MỀM BÀN ---
     /**
      * @param  array<string,mixed>  $payload
      */
@@ -333,6 +353,7 @@ class RestaurantTableManagementService
             $currentStatus = (string) ($table->status?->value ?? $table->status);
             $runtimeOwnedStatus = in_array($currentStatus, [RestaurantTableStatus::Occupied->value, RestaurantTableStatus::Reserved->value], true);
 
+            // Bàn đang có người ngồi hoặc đang có đơn đặt bàn tương lai thì tuyệt đối không được xóa.
             if ($runtimeOwnedStatus || $hasOperationalLinks) {
                 throw ValidationException::withMessages([
                     'table_id' => ['Cannot delete or archive a table while it still has active reservations, holds, or live orders.'],
@@ -341,6 +362,9 @@ class RestaurantTableManagementService
 
             if (! (bool) $table->is_deleted) {
                 $before = $this->auditSnapshot($table);
+                // [BEST PRACTICE]: Soft Deletion
+                // Thay vì DROP vật lý (Xóa vĩnh viễn), ta chỉ gạt cờ is_deleted = true để
+                // đảm bảo tính toàn vẹn của các hóa đơn cũ và dữ liệu thống kê lịch sử.
                 $table->is_deleted = true;
                 $table->save();
 
@@ -370,12 +394,18 @@ class RestaurantTableManagementService
         });
     }
 
+    // --- BƯỚC 5: KIỂM TOÁN TÌNH TRẠNG SỬ DỤNG BÀN (USAGE SNAPSHOT) ---
     /**
      * @param  list<int>  $tableIds
      * @return array<int, array{active_reservation_count:int,active_hold_count:int,active_order_count:int,has_active_operational_links:bool}>
      */
     private function loadUsageSnapshot(array $tableIds): array
     {
+        // [BEST PRACTICE]: Relational Data Aggregation
+        // Nghiệp vụ: Cần phải xác minh xem một Bàn vật lý (Master Data) có đang bị trói buộc
+        // bởi bất kỳ luồng giao dịch nào (Transactional Data) hay không.
+        // Hàm này quét chéo 3 bảng: Đặt bàn (reservations), Giữ chỗ (holds) và Đơn hàng (orders)
+        // để gom lại thành một bức tranh báo cáo tổng thể.
         $tableIds = array_values(array_unique(array_map('intval', $tableIds)));
         if ($tableIds === []) {
             return [];

@@ -33,6 +33,7 @@ class StaffCashierShiftService
         private readonly StaffBranchContextService $staffBranchContextService,
     ) {}
 
+    // --- BƯỚC 1: MỞ CA LÀM VIỆC (OPEN SHIFT) ---
     public function openShift(
         int $cashierUserId,
         float $openingFloatAmount = 0.0,
@@ -43,6 +44,10 @@ class StaffCashierShiftService
         mixed $branchId = null,
     ): CashierShift {
         // Mo ca la moc bat dau de moi payment/refund sau do co diem neo doi soat.
+        // Nghiệp vụ: Trước khi nhân viên thu ngân có thể bắt đầu tính tiền cho khách,
+        // họ phải "Mở ca". Quá trình này ghi nhận số tiền lẻ đang có sẵn trong ngăn kéo (openingFloatAmount)
+        // để cuối ngày kế toán biết mà trừ ra khi đếm tiền mặt.
+
         // Pha 1: normalize actor, currency va branch scope truoc khi mo ca.
         $cashierUserId = StaffActorGuard::requireStaffUserId($cashierUserId);
         $currency = $this->normalizeCurrency($currency);
@@ -62,7 +67,10 @@ class StaffCashierShiftService
             $openedBy,
             $branchId
         ): CashierShift {
+            // [BEST PRACTICE]: Single-Active Resource Pattern (Chống mở 2 ca cùng lúc)
             // Khoa user + kiem tra chua co ca mo truoc khi tao shift moi.
+            // Phải khóa cứng user này lại. Tránh tình trạng 1 nhân viên mở 2 tab trình duyệt
+            // rồi bấm "Mở ca" cùng 1 lúc, dẫn đến hệ thống tạo ra 2 ca làm việc song song gây loạn sổ sách.
             User::query()->where('user_id', $cashierUserId)->lockForUpdate()->firstOrFail();
 
             // Moi cashier chi duoc co toi da mot ca mo tai mot thoi diem.
@@ -79,6 +87,7 @@ class StaffCashierShiftService
             }
 
             $openedAt = Carbon::now('UTC');
+
             // Pha 2: tao shift record lam diem neo doi soat cho settlement/refund sau do.
             $shift = new CashierShift;
             $shift->branch_id = $this->staffBranchContextService->assertCashierShiftBranchEligible($cashierUserId, $branchId);
@@ -86,11 +95,14 @@ class StaffCashierShiftService
             $shift->cashier_user_id = $cashierUserId;
             $shift->status = 'Open';
             $shift->currency = $currency;
-            $shift->terminal_code = $terminalCode;
+            $shift->terminal_code = $terminalCode; // Mã máy POS thu ngân đang đứng
             $shift->opening_float_amount = $openingFloatAmount;
+
+            // Các con số kiểm toán (Đếm tiền cuối ngày) tạm thời để trống
             $shift->expected_cash_amount = null;
             $shift->actual_cash_amount = null;
             $shift->cash_discrepancy_amount = null;
+
             $shift->opened_at = $openedAt;
             $shift->closed_at = null;
             $shift->opened_by = $openedBy;
@@ -119,6 +131,7 @@ class StaffCashierShiftService
         });
     }
 
+    // --- BƯỚC 2: ĐÓNG CA VÀ ĐỐI SOÁT CUỐI NGÀY (CLOSE SHIFT) ---
     public function closeShift(
         int $shiftId,
         float $actualCashAmount,
@@ -129,6 +142,8 @@ class StaffCashierShiftService
     ): CashierShift {
         // Dong ca duoc tinh tren snapshot payment thuc te de suy ra expected cash va chenh lech.
         // Dong ca duoc tinh tren snapshot payment thuc te cua ca, khong dua vao so nhap tay.
+        // Nghiệp vụ: Cuối ngày, thu ngân sẽ mở ngăn kéo ra đếm xem thực tế có bao nhiêu tiền mặt (actualCashAmount),
+        // nhập con số đó vào phần mềm. Hệ thống sẽ tự động đối chiếu với số liệu trên máy để ra số chênh lệch (discrepancy).
         $cashierUserId = StaffActorGuard::requireStaffUserId($cashierUserId);
         $closedBy = $closedBy !== null
             ? StaffActorGuard::requireStaffUserId($closedBy, 'closed_by')
@@ -151,9 +166,15 @@ class StaffCashierShiftService
             $this->assertExpectedRowVersion($shift, $expectedRowVersion);
 
             $closedAt = Carbon::now('UTC');
+
+            // [BEST PRACTICE]: Point-in-time Reconciliation (Đối soát mốc thời gian)
             // Snapshot chot expected cash/payment summary tai dung thoi diem dong ca.
+            // Máy tính sẽ gọi hàm buildSnapshot() để tính xem TỪ LÚC MỞ CA ĐẾN ĐÚNG GIÂY PHÚT NÀY,
+            // thu ngân ĐÁNG LẼ ra phải có bao nhiêu tiền mặt (expectedCashAmount).
             $snapshot = $this->buildSnapshot($shift, $closedAt);
             $expectedCashAmount = Money::toFloat(data_get($snapshot, 'cash.raw.expected_cash_amount', 0), true);
+
+            // Tính số tiền lệch: Tiền thực đếm trừ đi Tiền đáng lẽ phải có.
             $discrepancyMinor = Money::minorUnits($actualCashAmount, true) - Money::minorUnits($expectedCashAmount, true);
             $discrepancy = Money::minorToFloat($discrepancyMinor);
 
@@ -162,7 +183,7 @@ class StaffCashierShiftService
             $shift->closed_by = $closedBy ?? $shift->cashier_user_id;
             $shift->expected_cash_amount = $expectedCashAmount;
             $shift->actual_cash_amount = $actualCashAmount;
-            $shift->cash_discrepancy_amount = $discrepancy;
+            $shift->cash_discrepancy_amount = $discrepancy; // Ghi nhận độ lệch vào DB để Cửa hàng trưởng kiểm tra
             $shift->closing_note = $closingNote !== '' ? $closingNote : null;
             $shift->save();
 
@@ -188,6 +209,7 @@ class StaffCashierShiftService
         });
     }
 
+    // --- BƯỚC 3: CÁC HÀM KIỂM TRA ĐIỀU KIỆN (GUARDS) ---
     public function currentOpenShift(int $cashierUserId, ?int $branchId = null): ?CashierShift
     {
         // Mutation settlement/refund tien mat deu phai bam vao mot open shift dung branch, dung currency.
@@ -207,7 +229,11 @@ class StaffCashierShiftService
 
     public function requireOpenShiftForMutation(int $cashierUserId, int $branchId, ?string $currency = null): CashierShift
     {
+        // [BEST PRACTICE]: Strict Mutation Boundary
         // Moi mutation tien mat/settlement/refund deu phai bam vao mot ca dang mo dung branch, dung currency.
+        // Hàng rào phòng thủ: Mọi nghiệp vụ thay đổi dữ liệu dòng tiền (Thu, Chi, Hoàn) đều bị ép buộc
+        // phải chạy qua hàm này trước. Nếu thu ngân quên mở ca, hoặc ca mở bên VND mà đòi thu USD,
+        // hệ thống sẽ ném Exception ngay lập tức.
         $cashierUserId = StaffActorGuard::requireStaffUserId($cashierUserId);
         $shift = CashierShift::query()
             ->where('cashier_user_id', $cashierUserId)
@@ -236,6 +262,7 @@ class StaffCashierShiftService
         return $shift;
     }
 
+    // --- BƯỚC 4: TIỆN ÍCH HIỂN THỊ VÀ LẤY DỮ LIỆU ---
     public function paginateShiftHistory(int $cashierUserId, array $filters = []): LengthAwarePaginator
     {
         $cashierUserId = StaffActorGuard::requireStaffUserId($cashierUserId);
@@ -318,6 +345,8 @@ class StaffCashierShiftService
             'closedByUser:user_id,full_name,email',
         ]);
 
+        // Tính toán Snapshot tự động mỗi khi lấy dữ liệu ra xem (View),
+        // giúp Quản lý nhà hàng có thể xem tình trạng tiền mặt đang thay đổi (Live) dù ca đó CHƯA ĐÓNG.
         $snapshot = $this->buildSnapshot($shift);
 
         return [
@@ -359,6 +388,7 @@ class StaffCashierShiftService
         ];
     }
 
+    // --- BƯỚC 5: XÂY DỰNG BÁO CÁO TOÀN DIỆN CHO CA LÀM VIỆC ---
     /**
      * @return array<string,mixed>
      */
@@ -369,6 +399,7 @@ class StaffCashierShiftService
             $effectiveEnd = $asOf?->copy()->utc() ?? Carbon::now('UTC');
         }
 
+        // Lấy tất cả giao dịch nạp rút trong khoảng thời gian của ca này
         $payments = $this->paymentsForShift($shift, $effectiveEnd);
         $paymentSummary = PaymentSummary::fromPayments($payments);
         $currencySummary = PaymentSummary::summarizeCurrencies($payments, (string) ($shift->currency ?? 'VND'));
@@ -403,9 +434,13 @@ class StaffCashierShiftService
      */
     private function paymentsForShift(CashierShift $shift, Carbon $effectiveEnd): Collection
     {
-        $openedAt = $shift->opened_at?->copy()->utc() ?? Carbon::parse((string) $shift->created_at)->utc();
+        // [BEST PRACTICE]: Timestamp Precision Safety
         // Persisted payment timestamps are stored at second precision in test SQLite and
         // production schema dumps, so compare using canonical second-precision strings.
+        // Ép định dạng string Y-m-d H:i:s để loại bỏ mili-giây, giúp các truy vấn >= <= luôn khớp
+        // chính xác với những gì đã lưu trong MySQL.
+        $openedAt = $shift->opened_at?->copy()->utc() ?? Carbon::parse((string) $shift->created_at)->utc();
+
         $start = $openedAt->toDateTimeString();
         $end = $effectiveEnd->copy()->utc()->toDateTimeString();
         $shiftCurrency = $this->normalizeCurrency((string) ($shift->currency ?? 'VND'));
@@ -417,7 +452,10 @@ class StaffCashierShiftService
         $payments = Payment::query()
             ->with('refundOfPayment')
             ->where(function (Builder $query) use ($branchId, $cashierUserId, $end, $shiftCurrency, $shiftId, $start): void {
+                // Ưu tiên 1: Lấy các payment đã được gán trực tiếp cashier_shift_id này
                 $query->where('cashier_shift_id', $shiftId)
+                    // Hỗ trợ tương thích ngược (Legacy fallback): Lấy các payment chưa có id ca làm việc,
+                    // nhưng rơi đúng vào khung giờ mà thu ngân này đang trực ở chi nhánh này.
                     ->orWhere(function (Builder $legacyQuery) use ($branchId, $cashierUserId, $end, $shiftCurrency, $start): void {
                         $legacyQuery
                             ->whereNull('cashier_shift_id')
@@ -441,6 +479,7 @@ class StaffCashierShiftService
     {
         $buckets = [];
 
+        // Gom nhóm thống kê theo phương thức (Tiền mặt, VNPay, Momo) để in báo cáo nộp kế toán
         foreach ($payments as $payment) {
             $method = $this->normalizeMethod((string) ($payment->payment_method ?? $payment->payment_provider ?? 'Other'));
             $currency = $this->normalizeCurrency((string) ($payment->currency ?? $fallbackCurrency));
@@ -505,6 +544,8 @@ class StaffCashierShiftService
      */
     private function cashSummary(Collection $payments, float|int|string|null $openingFloatAmount, string $shiftCurrency): array
     {
+        // Riêng tiền mặt (Cash) sẽ được gom vào một giỏ đặc biệt, có cộng dồn thêm số tiền lẻ mở ca ban đầu (Opening Float)
+        // để ra được expected_cash_amount (Số tiền ĐÁNG LẼ phải có trong ngăn kéo lúc này).
         $capturedMinor = 0;
         $refundedMinor = 0;
         $currencyMismatches = [];

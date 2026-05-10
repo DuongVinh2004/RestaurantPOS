@@ -15,18 +15,25 @@ use Illuminate\Support\Carbon;
  * @deprecated Compatibility facade for the legacy aggregated admin menu stack.
  * Runtime routes now use MenuCatalogManagementService through split controllers.
  */
+// [BEST PRACTICE]: Facade/Adapter Pattern (Mẫu thiết kế Mặt tiền/Trạm chuyển đổi)
+// Class này được gắn mác @deprecated. Nó đóng vai trò như một "trạm thu phí cũ".
+// Hệ thống thực chất đã được nâng cấp lên MenuCatalogManagementService mới xịn hơn,
+// nhưng để các API cũ đang chạy ở App/Web của nhân viên không bị sập (lỗi 404/500) khi deploy bản mới,
+// class này được giữ lại. Mọi request gọi vào đây sẽ được tự động "chuyển tiếp" sang Service mới.
 class LegacyMenuService
 {
     public function __construct(
         private readonly MenuCatalogManagementService $menuManagementService,
     ) {}
 
+    // --- BƯỚC 1: CÁC HÀM QUẢN LÝ DANH MỤC (CATEGORIES) ---
     /**
      * @param  array<string, mixed>  $filters
      * @return EloquentCollection<int, MenuCategory>
      */
     public function listCategories(array $filters = []): EloquentCollection
     {
+        // Nghiệp vụ: Lấy danh sách các nhóm món ăn (Ví dụ: Đồ nướng, Đồ uống, Lẩu).
         return MenuCategory::query()
             ->when(! ((bool) ($filters['include_deleted'] ?? false)), static fn ($query) => $query->where('is_deleted', false))
             ->ordered()
@@ -38,6 +45,7 @@ class LegacyMenuService
      */
     public function createCategory(array $attributes): MenuCategory
     {
+        // Chuyển tiếp lệnh tạo danh mục sang Service mới
         return $this->menuManagementService->createCategory($attributes);
     }
 
@@ -49,16 +57,20 @@ class LegacyMenuService
         return $this->menuManagementService->updateCategory($categoryId, $attributes);
     }
 
+    // --- BƯỚC 2: CÁC HÀM QUẢN LÝ MÓN ĂN (MENU ITEMS) ---
     /**
      * @param  array<string, mixed>  $filters
      */
     public function listItems(array $filters = []): LengthAwarePaginator
     {
+        // Nghiệp vụ: Admin muốn xem danh sách toàn bộ các món ăn đang có trong nhà hàng để quản lý.
         $perPage = max(1, min(100, (int) ($filters['per_page'] ?? 15)));
 
         return MenuItem::query()
             ->with([
                 'category',
+                // Lấy kèm Lịch sử giá của món ăn. Cùng 1 món nhưng có thể có nhiều mức giá khác nhau
+                // tùy theo thời điểm (ví dụ: Giá tháng 10, Giá Tết tháng 1).
                 'prices' => fn ($priceQuery) => $priceQuery
                     ->orderByDesc('effective_from')
                     ->orderByDesc('price_id'),
@@ -76,6 +88,7 @@ class LegacyMenuService
                 static function ($query) use ($filters): void {
                     $needle = trim((string) $filters['q']);
 
+                    // Tìm kiếm món ăn theo Tên hoặc Mã món (Ví dụ: "Lẩu Thái" hoặc "LT01")
                     $query->where(function ($inner) use ($needle): void {
                         $inner->where('name', 'like', '%'.$needle.'%')
                             ->orWhere('code', 'like', '%'.$needle.'%');
@@ -109,12 +122,14 @@ class LegacyMenuService
         return $this->menuManagementService->updateItem($itemId, $attributes);
     }
 
+    // --- BƯỚC 3: CÁC HÀM QUẢN LÝ GIÁ THEO THỜI GIAN (PRICE HISTORY) ---
     /**
      * @param  array<string, mixed>  $filters
      * @return EloquentCollection<int, MenuItemPrice>
      */
     public function listItemPrices(int $itemId, array $filters = []): EloquentCollection
     {
+        // Nghiệp vụ: Xem lịch sử thay đổi giá của một món ăn cụ thể.
         MenuItem::query()->findOrFail($itemId);
 
         return MenuItemPrice::query()
@@ -123,6 +138,7 @@ class LegacyMenuService
             ->when(
                 ! empty($filters['as_of']),
                 static function ($query) use ($filters): void {
+                    // Lấy ra mức giá có hiệu lực tại một mốc thời gian cụ thể trong quá khứ/tương lai (as_of)
                     $query->effectiveAt(Carbon::parse((string) $filters['as_of'])->utc());
                 }
             )

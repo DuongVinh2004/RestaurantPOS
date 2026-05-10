@@ -17,12 +17,14 @@ class BranchManagementService
         private readonly BranchSchedulingPolicyService $branchSchedulingPolicyService,
     ) {}
 
+    // --- BƯỚC 1: LIỆT KÊ VÀ TÌM KIẾM CHI NHÁNH ---
     /**
      * @param  array<string,mixed>  $filters
      * @return Collection<int, Branch>
      */
     public function listBranches(array $filters = []): Collection
     {
+        // Đảm bảo luôn có ít nhất 1 chi nhánh mặc định tồn tại trước khi query
         $this->branchContextService->ensureDefaultBranchExists();
 
         $keyword = trim((string) ($filters['q'] ?? ''));
@@ -31,6 +33,10 @@ class BranchManagementService
         $branches = Branch::query()
             ->when(array_key_exists('is_active', $filters), static fn ($query) => $query->where('is_active', (bool) $filters['is_active']))
             ->when($keyword !== '', static function ($query) use ($keyword): void {
+                // [BEST PRACTICE]: SQL Wildcard Sanitization
+                // Thoát (escape) các ký tự % và _ trong keyword người dùng nhập vào.
+                // Ngăn chặn rủi ro SQL Injection kiểu "LIKE Abuse" khiến database bị quét full table scan
+                // và treo hệ thống nếu kẻ tấn công cố tình nhập chuỗi '%_%%_%'.
                 $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $keyword).'%';
                 $query->where(function ($inner) use ($like): void {
                     $inner->where('branch_code', 'like', $like)
@@ -38,6 +44,7 @@ class BranchManagementService
                         ->orWhere('description', 'like', $like);
                 });
             })
+            // Chi nhánh mặc định luôn nằm trên cùng, sau đó xếp theo tên
             ->orderByDesc('is_default')
             ->orderBy('branch_name')
             ->orderBy('branch_id')
@@ -53,15 +60,20 @@ class BranchManagementService
         return Branch::query()->findOrFail($branchId);
     }
 
+    // --- BƯỚC 2: TẠO MỚI CHI NHÁNH VÀ LƯU VẾT KIỂM TOÁN ---
     /**
      * @param  array<string,mixed>  $payload
      */
     public function createBranch(array $payload, ?int $actorUserId = null): Branch
     {
+        // [BEST PRACTICE]: Deadlock Retry Transaction
+        // Tham số 3 cho phép DB tự động retry tối đa 3 lần nếu gặp Deadlock (bị khóa chéo giữa các transaction).
         return DB::transaction(function () use ($payload, $actorUserId): Branch {
             $isDefault = (bool) ($payload['is_default'] ?? false);
             $isActive = (bool) ($payload['is_active'] ?? true);
 
+            // [BEST PRACTICE]: Domain Invariant
+            // Luật kinh doanh: Một chi nhánh mặc định KHÔNG THỂ ở trạng thái ngừng hoạt động.
             if ($isDefault && ! $isActive) {
                 throw ValidationException::withMessages([
                     'is_default' => ['Default branch must be active.'],
@@ -72,12 +84,16 @@ class BranchManagementService
             $branch->fill($this->normalizePayload($payload, true));
             $branch->save();
 
+            // Nếu người tạo muốn đây là chi nhánh mặc định, chuyển cờ qua hàm chuyên dụng
             if ($isDefault) {
                 $this->makeDefault((int) $branch->branch_id);
             }
 
             $fresh = $this->showBranch((int) $branch->branch_id);
 
+            // [BEST PRACTICE]: Comprehensive Audit Trail
+            // Lưu lại dấu vết ai là người tạo chi nhánh, tạo lúc nào và thông số cụ thể là gì.
+            // Phục vụ truy vết trách nhiệm (Accountability) khi có sự cố hệ thống.
             AuditEvent::info('admin.branch.created', [
                 'branch_id' => (int) $fresh->branch_id,
                 'branch_code' => (string) $fresh->branch_code,
@@ -99,12 +115,17 @@ class BranchManagementService
         }, 3);
     }
 
+    // --- BƯỚC 3: CẬP NHẬT CHI NHÁNH VỚI KHÓA KÉP (LOCKING) ---
     /**
      * @param  array<string,mixed>  $payload
      */
     public function updateBranch(int $branchId, array $payload, ?int $actorUserId = null): Branch
     {
         return DB::transaction(function () use ($branchId, $payload, $actorUserId): Branch {
+            // [BEST PRACTICE]: Pessimistic Locking kết hợp Optimistic Locking
+            // lockForUpdate() chặn request khác sửa dòng này ở cấp độ Database.
+            // check $expectedRowVersion chặn lỗi "ghi đè mù" (Blind Overwrite) ở cấp độ Ứng dụng
+            // khi 2 quản trị viên cùng mở màn hình sửa chi nhánh.
             /** @var Branch $branch */
             $branch = Branch::query()->lockForUpdate()->findOrFail($branchId);
             $expectedRowVersion = (int) ($payload['row_version'] ?? 0);
@@ -118,6 +139,7 @@ class BranchManagementService
             $nextIsActive = array_key_exists('is_active', $normalized) ? (bool) $normalized['is_active'] : (bool) $branch->is_active;
             $nextIsDefault = array_key_exists('is_default', $normalized) ? (bool) $normalized['is_default'] : (bool) $branch->is_default;
 
+            // Xử lý các luật ràng buộc (Domain Invariants) khi tắt/mở chi nhánh mặc định
             if ($nextIsDefault && ! $nextIsActive) {
                 throw ValidationException::withMessages([
                     'is_default' => ['Default branch must be active.'],
@@ -136,6 +158,7 @@ class BranchManagementService
                 ]);
             }
 
+            // Lấy snapshot TRƯỚC khi lưu để log sự khác biệt (Diff)
             $before = $this->auditSnapshot($branch);
             $branch->fill($normalized);
             $branch->save();
@@ -146,6 +169,7 @@ class BranchManagementService
 
             $fresh = $this->showBranch($branchId);
 
+            // Lưu dấu vết TRƯỚC (before) và SAU (after) khi update
             AuditEvent::info('admin.branch.updated', [
                 'branch_id' => (int) $fresh->branch_id,
                 'branch_code' => (string) $fresh->branch_code,
@@ -170,10 +194,12 @@ class BranchManagementService
 
     private function makeDefault(int $branchId): void
     {
+        // Nghiệp vụ: Đảm bảo tại một thời điểm, chỉ có ĐÚNG MỘT chi nhánh được làm mặc định.
         Branch::query()->where('branch_id', '!=', $branchId)->update(['is_default' => false]);
         Branch::query()->where('branch_id', $branchId)->update(['is_default' => true, 'is_active' => true]);
     }
 
+    // --- BƯỚC 4: CHUẨN HÓA DỮ LIỆU ĐẦU VÀO ---
     /**
      * @param  array<string,mixed>  $payload
      * @return array<string,mixed>
@@ -207,6 +233,9 @@ class BranchManagementService
 
         $effectiveTimezone = (string) ($normalized['timezone'] ?? config('booking.multi_branch.default_branch_timezone', config('app.timezone', 'UTC')));
 
+        // [BEST PRACTICE]: Logic Delegation (Ủy quyền xử lý)
+        // Việc chuẩn hóa các cấu hình phức tạp dạng JSON (giờ mở cửa, giờ đóng cửa lễ tết, luật đặt bàn)
+        // được tách ra và giao cho BranchSchedulingPolicyService xử lý để tránh class hiện tại bị phình to (Fat Service).
         if (array_key_exists('business_hours', $payload)) {
             $normalized['business_hours'] = $this->branchSchedulingPolicyService->normalizeBusinessHoursPayload(
                 $payload['business_hours'] ?? null

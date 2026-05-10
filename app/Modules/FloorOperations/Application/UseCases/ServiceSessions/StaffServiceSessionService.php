@@ -48,19 +48,28 @@ class StaffServiceSessionService
     public function createWalkInSession(array $payload, ?int $staffUserId = null): Reservation
     {
         // Walk-in được tạo thành reservation đã check-in ngay để POS dùng cùng một mô hình dữ liệu.
+
+        // --- BƯỚC 1: CHUẨN HÓA ĐẦU VÀO (INPUT NORMALIZATION) ---
         // Pha 1: chuan hoa actor va input de walk-in session di theo mot payload viet ro.
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
+
+        // Best Practice (Lock Ordering): Luôn normalize và sort Table IDs trước khi đưa vào lock để chống Deadlock
         $tableIds = $this->normalizeTableIds((array) ($payload['table_ids'] ?? []));
         $guestCount = (int) ($payload['guest_count'] ?? 0);
         $startedAt = isset($payload['started_at'])
             ? Carbon::parse((string) $payload['started_at'])->utc()
             : Carbon::now('UTC');
 
+        // --- BƯỚC 2: KHÓA TÀI NGUYÊN (DISTRIBUTED LOCK) ---
         // Lock theo table ids de khong co hai luong cung mo walk-in tren cung mot ban.
         return $this->locks->withTableLocks($tableIds, function () use ($payload, $tableIds, $guestCount, $startedAt, $staffUserId) {
             return DB::transaction(function () use ($payload, $tableIds, $guestCount, $startedAt, $staffUserId) {
+
+                // --- BƯỚC 3: KIỂM TOÁN NĂNG LỰC PHỤC VỤ (CAPACITY & STATE GATE) ---
                 // Pha 2: lock table rows va gate capacity/allocatable truoc khi tao reservation.
+                // Pessimistic lock (FOR UPDATE) để lấy thông tin bàn chính xác tại mili-giây hiện tại
                 $tables = $this->conflictValidator->lockAndLoadTables($tableIds);
+                // Bàn có đủ sức chứa không? Bàn có đang bị hư hỏng không?
                 $this->conflictValidator->assertTablesAllocatableAndCapacity($tables, $tableIds, $guestCount);
 
                 // Suy ra chi nhánh vận hành từ bàn và kiểm tra staff có quyền thao tác tại đó.
@@ -82,13 +91,17 @@ class StaffServiceSessionService
                     );
                 }
 
+                // --- BƯỚC 4: TÍNH TOÁN KHUNG GIỜ PHỤC VỤ (SERVICE WINDOW) ---
                 // Service window cua walk-in duoc suy ra tu payload hoac branch policy waiting list.
+                // Nghiệp vụ: Lễ tân không biết khách sẽ ngồi bao lâu, hệ thống tự động gán một thời gian dự kiến (Service Minutes)
+                // dựa trên chính sách của nhà hàng (VD: Ăn lẩu buffer auto gán 120 phút) để dự báo bàn trống cho các Booking sau.
                 $serviceMinutes = isset($payload['service_minutes'])
                     ? (int) $payload['service_minutes']
                     : $this->branchSchedulingPolicyService->waitingListServiceMinutes($tableBranchId, true);
-                $serviceMinutes = max(30, min(480, $serviceMinutes));
+                $serviceMinutes = max(30, min(480, $serviceMinutes)); // Giới hạn an toàn: Tối thiểu 30p, tối đa 8 tiếng
                 $endAt = $startedAt->copy()->addMinutes($serviceMinutes);
 
+                // Nhà hàng có đang trong giờ mở cửa không?
                 $this->branchSchedulingPolicyService->assertOperationalServiceWindowOpen(
                     $tableBranchId,
                     $startedAt,
@@ -98,24 +111,30 @@ class StaffServiceSessionService
                 );
 
                 // Conflict gate nay bao ve ca overlap reservation va cac rang buoc create khac.
+                // Đảm bảo trong 120 phút tới, bàn này không có khách nào đặt trước (tránh đuổi khách walk-in giữa chừng)
                 $this->conflictValidator->assertNoCreateConflicts($tableIds, $startedAt, $endAt);
 
+                // --- BƯỚC 5: TẠO HỒ SƠ KHÁCH HÀNG ẢO (SHADOW PROFILE) ---
                 // Nếu là khách vãng lai, hệ thống tạo hồ sơ tối thiểu để reservation và billing bám vào.
                 // Pha 3: xac dinh customer hien huu hay auto-tao profile toi thieu cho khach vang lai.
                 [$customer, $customerCreated] = $this->resolveWalkInCustomer($payload);
                 $branch = $this->branchSchedulingPolicyService->resolveBranch($tableBranchId, true);
 
+                // --- BƯỚC 6: TẠO SERVICE SESSION (BẢN CHẤT LÀ RESERVATION ĐÃ CHECK-IN) ---
                 // Pha 4: tao reservation nguon WalkIn va mark checked-in ngay de POS dung chung model reservation.
                 $reservation = new Reservation;
                 $reservation->branch_id = $tableBranchId;
                 $reservation->user_id = (int) $customer->user_id;
                 $reservation->reservation_code = $this->reservationCodeGenerator->generate($startedAt->copy());
-                $reservation->reserved_at = Carbon::now('UTC');
-                $reservation->start_time = $startedAt;
+                $reservation->reserved_at = Carbon::now('UTC'); // Thời điểm tạo (Now)
+                $reservation->start_time = $startedAt; // Giờ bắt đầu phục vụ
                 $reservation->end_time = $endAt;
                 $reservation->guest_count = $guestCount;
+
+                // Điểm mấu chốt: Status ép cứng thành CheckedIn, Source là WalkIn
                 $reservation->status = ReservationStatus::checkedIn();
                 $reservation->source = 'WalkIn';
+
                 $reservation->checked_in_at = $startedAt;
                 $reservation->bill_currency = (string) ($branch->currency ?: 'VND');
                 $reservation->notes = $this->normalizeNullableString($payload['notes'] ?? null);
@@ -124,8 +143,11 @@ class StaffServiceSessionService
                 $reservation->save();
                 $reservation->tables()->attach($tableIds);
 
+                // --- BƯỚC 7: ĐỒNG BỘ TRẠNG THÁI VÀ PHÁT SÓNG SỰ KIỆN ---
                 // Từ thời điểm này bàn đã có khách, outbox và realtime sẽ báo cho các màn hình liên quan.
                 // Pha 5: board state, outbox va realtime duoc day ngay sau khi reservation/table mapping da ton tai.
+
+                // Đổi trạng thái Bàn Vật lý thành Đang có khách (Occupied)
                 $this->tableStateService->occupyTables(
                     $tableIds,
                     $startedAt,
@@ -138,6 +160,7 @@ class StaffServiceSessionService
                 );
 
                 $reservation->load(['user', 'tables', 'orders.items.item', 'payments']);
+                // Bắn Zalo/SMS tự động nếu khách vãng lai có đọc số điện thoại
                 $this->notificationOutboxService->enqueueReservationCheckedIn($reservation);
 
                 AuditEvent::info('staff.service_session.walk_in_created', [
@@ -193,6 +216,7 @@ class StaffServiceSessionService
                     'staff_user_id' => $staffUserId,
                 ]);
 
+                // Báo cho toàn bộ iPad/màn hình đang mở Board cập nhật giao diện
                 app(OperationalRealtimeService::class)->publishBoardEvent(
                     'service_session.walk_in_created',
                     [
@@ -213,6 +237,7 @@ class StaffServiceSessionService
         // Doc active session theo table cung phai di qua branch scope va realtime table state.
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
+        // --- BƯỚC 1: TRUY XUẤT NHANH (FAST LOOKUP) LẤY PHIÊN HOẠT ĐỘNG ---
         // Chỉ trả session khi bàn đang Occupied và staff có quyền xem đúng chi nhánh.
         /** @var RestaurantTable|null $table */
         $table = RestaurantTable::query()
@@ -235,6 +260,8 @@ class StaffServiceSessionService
         }
 
         // Query nay tim reservation dang phuc vu gan nhat tren table, uu tien checked_in_at moi nhat.
+        // Giải quyết bài toán: Một bàn có thể đã bị gán cho 2 Booking (Do nhân viên gán đè),
+        // ta sẽ lấy người "Check-in gần nhất" làm phiên phục vụ chính (Active Session).
         $reservationId = DB::table('reservation_tables as rt')
             ->join('reservations as r', 'r.reservation_id', '=', 'rt.reservation_id')
             ->where('rt.table_id', $tableId)
@@ -295,10 +322,14 @@ class StaffServiceSessionService
      */
     private function resolveWalkInCustomer(array $payload): array
     {
+        // --- XỬ LÝ KHÁCH ẢO (SHADOW PROFILE MANAGEMENT) ---
+        // Nghiệp vụ: Khách vãng lai đến thường không muốn đọc SĐT, chỉ đọc tên (VD: "Anh Tuấn").
+        // Dữ liệu tài chính (Billing) bắt buộc phải gắn với một UserID. Do đó ta tạo khách ảo.
+
         // Walk-in uu tien gan vao customer co san; neu khong co moi roi xuong guest profile toi thieu.
         $userId = isset($payload['user_id']) ? (int) $payload['user_id'] : 0;
         if ($userId > 0) {
-            return [$this->resolveExistingWalkInCustomer($userId), false];
+            return [$this->resolveExistingWalkInCustomer($userId), false]; // Đã có App/Tài khoản
         }
 
         $guestName = trim((string) ($payload['guest_name'] ?? ''));
@@ -309,6 +340,7 @@ class StaffServiceSessionService
         }
 
         // Phone la diem noi lai customer cu neu khach da tung ton tai trong he thong.
+        // Khách không đăng nhập App, nhưng đọc số điện thoại tích điểm, quét ra User cũ
         $phone = $this->normalizeNullableString($payload['phone'] ?? null);
         if ($phone !== null) {
             /** @var User|null $existingCustomer */
@@ -318,6 +350,7 @@ class StaffServiceSessionService
                 ->first();
 
             if ($existingCustomer instanceof User) {
+                // Ràng buộc bảo mật: Không được lấy số điện thoại của Admin/Staff để làm khách Walk-in
                 if ((bool) $existingCustomer->is_deleted || ! $this->isAllowedWalkInCustomer($existingCustomer)) {
                     throw ValidationException::withMessages([
                         'phone' => ['This phone number is already linked to a non-customer account.'],
@@ -328,9 +361,10 @@ class StaffServiceSessionService
             }
         }
 
+        // Tạo khách hàng ảo
         $customer = new User;
-        $customer->username = $this->generateWalkInUsername();
-        $customer->password_hash = null;
+        $customer->username = $this->generateWalkInUsername(); // Random Username
+        $customer->password_hash = null; // Khách ảo không thể đăng nhập
         $customer->full_name = $guestName;
         $customer->email = null;
         $customer->phone = $phone;
@@ -339,7 +373,7 @@ class StaffServiceSessionService
         $customer->is_deleted = false;
         $customer->save();
 
-        return [$customer->refresh(), true];
+        return [$customer->refresh(), true]; // Trả về Tuple [Entity, isNew (bool)]
     }
 
     private function resolveExistingWalkInCustomer(int $userId): User
@@ -391,6 +425,8 @@ class StaffServiceSessionService
 
     private function generateWalkInUsername(): string
     {
+        // Best Practice: Vòng lặp Retry (Auto-recovery) khi tạo chuỗi ngẫu nhiên
+        // Tránh lỗi Unique Constraint Exception ở DB nếu xác suất (dù cực thấp) tạo trùng Username.
         for ($attempt = 0; $attempt < 8; $attempt++) {
             $candidate = 'walkin_'.Str::lower(Str::random(12));
 

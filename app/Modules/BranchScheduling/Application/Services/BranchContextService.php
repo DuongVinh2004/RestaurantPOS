@@ -15,6 +15,10 @@ use Illuminate\Validation\ValidationException;
  */
 class BranchContextService
 {
+    // --- BƯỚC 1: XÁC ĐỊNH CHI NHÁNH MẶC ĐỊNH ---
+    // Nghiệp vụ: Hỗ trợ hệ thống chạy linh hoạt ở cả 2 chế độ: Chuỗi nhiều nhà hàng (Multi-site)
+    // và Quán đơn lẻ (Single-site). Nếu là quán đơn lẻ, các API không cần truyền branch_id,
+    // hệ thống sẽ tự động lấy chi nhánh mặc định này để xử lý.
     public function defaultBranch(): Branch
     {
         // Uu tien branch default; neu chua cau hinh thi roi xuong active branch dau tien.
@@ -29,7 +33,9 @@ class BranchContextService
             return $branch;
         }
 
+        // [BEST PRACTICE]: Graceful Degradation (Khôi phục mềm)
         // Neu chua co default thi fallback ve active branch dau tien de he thong van boot duoc.
+        // Tránh tình trạng hệ thống sập toàn tập chỉ vì Admin vô tình tắt cờ is_default của tất cả chi nhánh.
         /** @var Branch|null $active */
         $active = Branch::query()->where('is_active', true)->orderBy('branch_id')->first();
         if ($active instanceof Branch) {
@@ -39,6 +45,9 @@ class BranchContextService
         throw (new ModelNotFoundException)->setModel(Branch::class);
     }
 
+    // --- BƯỚC 2: CHUẨN HÓA VÀ XÁC THỰC CHI NHÁNH (NORMALIZATION) ---
+    // Nghiệp vụ: Chốt chặn đầu vào cho mọi Request. Biến các giá trị null, rỗng, hoặc ID thô
+    // thành một Branch ID hợp lệ và chắc chắn đang còn hoạt động (is_active).
     public function resolveBranchId(mixed $branchId = null, bool $activeOnly = true): int
     {
         // Null branch duoc hieu la "lay branch van hanh mac dinh".
@@ -61,6 +70,7 @@ class BranchContextService
         return (int) $branch->branch_id;
     }
 
+    // --- BƯỚC 3: CÁCH LY DỮ LIỆU ĐA CHI NHÁNH (TENANT ISOLATION) ---
     /**
      * @param  iterable<mixed>  $branchIds
      */
@@ -70,7 +80,10 @@ class BranchContextService
         string $field = 'branch_id',
         bool $activeOnly = false
     ): int {
+        // [BEST PRACTICE]: Multi-tenant Data Integrity (Bảo vệ toàn vẹn dữ liệu đa chi nhánh)
         // Dung khi request gom nhieu resource; tat ca phai quy ve cung mot branch.
+        // Nghiệp vụ: Chặn đứng tình huống lỗi logic nghiệp vụ nghiêm trọng.
+        // Ví dụ: Đặt 2 bàn nhưng Bàn A ở chi nhánh Hà Nội, Bàn B ở chi nhánh TP.HCM trong cùng 1 Order.
         $resolved = [];
 
         // Tat ca id di qua resolveBranchId de active/default semantics duoc ap dung dong nhat.
@@ -99,7 +112,10 @@ class BranchContextService
         string $field = 'branch_id',
         bool $activeOnly = false
     ): int {
+        // [BEST PRACTICE]: Context Drift Prevention (Chống trôi dạt ngữ cảnh)
         // Chot chan cuoi de reservation, table, hold, payment... khong bi drift branch.
+        // Nghiệp vụ: Đảm bảo khách hàng không thể lấy mã giảm giá của Chi nhánh A đem sang
+        // Chi nhánh B để áp dụng thanh toán.
         $expected = $this->resolveBranchId($expectedBranchId, $activeOnly);
         $actual = $this->resolveBranchId($actualBranchId, $activeOnly);
 
@@ -112,9 +128,13 @@ class BranchContextService
         return $actual;
     }
 
+    // --- BƯỚC 4: TỰ ĐỘNG KHỞI TẠO (AUTO-BOOTSTRAP) ---
     public function ensureDefaultBranchExists(): void
     {
+        // [BEST PRACTICE]: Zero-config Setup (Thiết lập không cấu hình)
         // Helper bootstrap nay giup code da branch-aware van chay tren moi truong chua setup branch day du.
+        // Hỗ trợ Developer/DevOps khi deploy lên môi trường mới. Hệ thống sẽ tự động chèn
+        // một chi nhánh mặc định nếu database trống, tránh việc app bị crash ngay lần chạy đầu tiên.
         if (! DB::getSchemaBuilder()->hasTable('branches')) {
             return;
         }

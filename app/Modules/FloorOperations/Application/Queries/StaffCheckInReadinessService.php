@@ -53,6 +53,8 @@ class StaffCheckInReadinessService
         ?int $updatedBy = null,
     ): array {
         // describe tra ve mot ban tong hop cac check de UI va write flow co the dung chung.
+
+        // --- BƯỚC 1: ĐỒNG BỘ VÀ LÀM SẠCH DỮ LIỆU (DATA NORMALIZATION) ---
         // Pha 1: normalize table ids + loaded table rows de toan bo cac gate sau dung cung mot snapshot.
         $assignedTableIds = $this->normalizeIds($assignedTableIds);
         $tables = Collection::make($tables)->values();
@@ -63,8 +65,11 @@ class StaffCheckInReadinessService
             ->sort()
             ->values()
             ->all();
-        // Missing table ids nghia la mapping reservation co table nhung write flow chua lock/load du row can thiet.
+
+        // Missing table ids nghia la mapping reservation co table nhung write flow chua load/lock du row can thiet.
+        // Nghiệp vụ: Phát hiện lỗi kỹ thuật nếu DB báo khách được xếp 2 bàn nhưng hệ thống chỉ tải được 1 bàn.
         $missingAssignedTableIds = array_values(array_diff($assignedTableIds, $loadedTableIds));
+
         $status = (string) ($reservation->status?->value ?? $reservation->status ?? '');
         $isTerminal = in_array($status, [
             ReservationStatus::Cancelled->value,
@@ -72,12 +77,17 @@ class StaffCheckInReadinessService
             ReservationStatus::Expired->value,
             ReservationStatus::NoShow->value,
         ], true);
+
         $alreadyCheckedIn = StaffReservationOperationGuard::isCheckedInReservation($reservation);
+        // Tính toán xem khách đến có đúng giờ không (sớm/muộn trong giới hạn cho phép)
         $window = $this->buildCheckInWindow($reservation, $checkInAt);
 
         $branchConsistent = false;
         $branchValidation = null;
+
+        // --- BƯỚC 2: KIỂM TRA TÍNH NHẤT QUÁN CHI NHÁNH (BRANCH CONSISTENCY GATE) ---
         // Branch consistency la gate quan trong vi check-in khong duoc phep keo reservation lech chi nhanh.
+        // Nghiệp vụ: Khách đặt bàn ở Chi nhánh Quận 1, nhưng nhân viên Chi nhánh Quận 3 lại cố tình bấm Check-in (sai quy trình/gian lận).
         if ($assignedTableIds !== [] && $missingAssignedTableIds === []) {
             try {
                 $tableBranchIds = $tables
@@ -109,7 +119,9 @@ class StaffCheckInReadinessService
             }
         }
 
+        // --- BƯỚC 3: KIỂM TRA TRẠNG THÁI BÀN VẬT LÝ (PHYSICAL TABLE STATE GATE) ---
         // Ban dang Occupied hoac dang bi operationally blocked deu khong duoc check-in them reservation moi.
+        // Nghiệp vụ: Bàn đang có khách ngồi (Occupied), hoặc bàn đang bị hỏng/đang dọn dẹp (Operationally Blocked).
         $nonServiceReadyTableIds = $tables
             ->filter(function (mixed $table): bool {
                 $status = $this->resolveTableStatus($table);
@@ -124,7 +136,10 @@ class StaffCheckInReadinessService
             ->values()
             ->all();
 
+        // --- BƯỚC 4: KIỂM TRA XUNG ĐỘT THỜI GIAN (TIME CONFLICT GATE) ---
         // Reservation conflict va hold conflict duoc lazily tinh neu caller chua precompute.
+        // Nghiệp vụ: Bàn hiện tại có thể trống, NHƯNG 15 phút nữa sẽ có khách VIP (Booking khác) đến.
+        // Hoặc Quản lý đã khoá bàn này (Hold) lúc 19h để Setup Tiệc.
         $reservationConflictTableIds = $reservationConflictTableIds !== null
             ? $this->normalizeIds($reservationConflictTableIds)
             : $this->tableTimeConflictService->findReservationConflictTableIds(
@@ -145,6 +160,7 @@ class StaffCheckInReadinessService
                 lock: $lock,
             );
 
+        // --- BƯỚC 5: TỔNG HỢP KẾT QUẢ VÀ TRẢ VỀ BÁO CÁO (READINESS REPORT) ---
         // available chi true khi tat ca gate business/state/time/branch/dependency deu xanh cung luc.
         $available = ! $isTerminal
             && $status === ReservationStatus::Confirmed->value
@@ -157,7 +173,7 @@ class StaffCheckInReadinessService
             && $holdConflictTableIds === []
             && $window['within_window'];
 
-        // Ket qua cuoi cung duoc doi ra thanh ma blocked reason de board/check-in flow hien thi ngan gon.
+        // Ket qua cuoi cung duoc doi ra thanh ma blocked reason de board/check-in flow hien thi ngan gon tren UI Frontend.
         return [
             'available' => $available,
             'blocked_reason_code' => $available ? null : $this->resolveBlockedReason(
@@ -212,8 +228,9 @@ class StaffCheckInReadinessService
         bool $lock = false,
         ?int $updatedBy = null,
     ): array {
+        // --- BƯỚC 6: CHUYỂN HOÁ BÁO CÁO THÀNH NGOẠI LỆ (ENFORCE WRITE FLOW) ---
         // Write flow goi vao day de bien ban readiness thanh validation error cu the neu co blocker.
-        // assertReadyForWrite bien snapshot readiness thanh loi validation cu the cho write flow.
+        // Tái sử dụng hàm describe() để lấy bức tranh toàn cảnh, sau đó throw lỗi nếu found blocker.
         $readiness = $this->describe(
             reservation: $reservation,
             checkInAt: $checkedInAt,
@@ -327,6 +344,8 @@ class StaffCheckInReadinessService
         Carbon $checkInAt,
         Carbon $windowEndUtc,
     ): string {
+        // --- BƯỚC 5.1 ĐỊNH TUYẾN MÃ LỖI CHO GIAO DIỆN ---
+        // Sắp xếp thứ tự return cực kỳ quan trọng: Lỗi nào nghiêm trọng và rõ ràng nhất sẽ được báo ra trước.
         if ($isTerminal) {
             return 'terminal_status';
         }

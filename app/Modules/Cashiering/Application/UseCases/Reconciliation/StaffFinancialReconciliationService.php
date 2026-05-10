@@ -24,6 +24,9 @@ class StaffFinancialReconciliationService
         private readonly StaffBranchContextService $branchContextService,
     ) {}
 
+    // --- BƯỚC 1: XÂY DỰNG API DANH SÁCH & XUẤT BÁO CÁO (LISTING & EXPORT) ---
+    // Nghiệp vụ: Cung cấp danh sách các bàn đang có "vấn đề" về tiền bạc (Ví dụ: khách chưa trả đủ, trả thừa,
+    // hoặc chuyển khoản bị treo). Phục vụ cho Kế toán soát xét cuối ngày.
     /**
      * @param  array<string,mixed>  $filters
      * @return LengthAwarePaginator<int,array<string,mixed>>
@@ -31,6 +34,9 @@ class StaffFinancialReconciliationService
     public function paginate(array $filters = [], ?int $staffActorUserId = null): LengthAwarePaginator
     {
         $staffActorUserId = StaffActorGuard::requireStaffUserId($staffActorUserId);
+
+        // [BEST PRACTICE]: Mandatory Tenant Isolation (Bắt buộc cách ly phân vùng)
+        // Nhân viên thuộc Chi nhánh A chỉ được phép soát xét hóa đơn của Chi nhánh A.
         $filters = $this->withAccessibleBranchScope($filters, $staffActorUserId);
         $perPage = max(1, min((int) ($filters['per_page'] ?? 25), 100));
         $page = max(1, (int) ($filters['page'] ?? 1));
@@ -50,6 +56,9 @@ class StaffFinancialReconciliationService
     {
         $staffActorUserId = StaffActorGuard::requireStaffUserId($staffActorUserId);
         $filters = $this->withAccessibleBranchScope($filters, $staffActorUserId);
+
+        // [BEST PRACTICE]: Resource Bounding (Giới hạn tài nguyên)
+        // Chặn không cho xuất Excel quá 1000 dòng một lần để tránh làm treo server (OOM - Out of Memory).
         $limit = max(1, min((int) ($filters['limit'] ?? 500), 1000));
 
         return $this->baseQuery($filters)
@@ -60,6 +69,7 @@ class StaffFinancialReconciliationService
             ->all();
     }
 
+    // --- BƯỚC 2: TRUY VẤN CHI TIẾT MỘT PHIÊN LÀM VIỆC (SHOW DETAILS) ---
     /**
      * @return array<string,mixed>
      */
@@ -78,12 +88,16 @@ class StaffFinancialReconciliationService
             ->whereIn('branch_id', $branchScope)
             ->findOrFail($reservationId);
 
+        // Kéo dữ liệu từ BaseQuery để tận dụng luôn các logic cộng trừ phức tạp đã viết ở đó
         $row = $this->baseQuery([
             'branch_scope' => $branchScope,
             'reservation_id' => $reservationId,
         ])->first();
+
         $summary = $row !== null
             ? $this->transformListRow($row)
+            // Dự phòng: Nếu BaseQuery không trả về gì (ví dụ do bị filter),
+            // thì tự nhét một object mock vào để tránh văng lỗi Null Pointer.
             : $this->transformListRow((object) [
                 'reservation_id' => (int) $reservation->reservation_id,
                 'reservation_code' => (string) $reservation->reservation_code,
@@ -163,11 +177,16 @@ class StaffFinancialReconciliationService
         return $this->branchContextService->branchScopeOrAccessible($staffActorUserId, $branchId);
     }
 
+    // --- BƯỚC 3: XÂY DỰNG CỖ MÁY TRUY VẤN VÀ TÍNH TOÁN (THE MEGA QUERY) ---
     /**
      * @param  array<string,mixed>  $filters
      */
     private function baseQuery(array $filters): Builder
     {
+        // [BEST PRACTICE]: Complex SQL Aggregation (Tính toán SQL nâng cao)
+        // Thay vì kéo hàng ngàn record lên PHP rồi dùng vòng lặp để cộng trừ (gây quá tải RAM và CPU),
+        // hệ thống nhúng thẳng một Subquery khổng lồ (paymentAggregateSubquery) vào MySQL để
+        // nó tự động tính ra tiền cọc, tiền trả thêm, tiền hoàn lại ngay dưới tầng Database.
         $aggregate = $this->paymentAggregateSubquery();
 
         $query = DB::table('reservations as reservations')
@@ -216,6 +235,7 @@ class StaffFinancialReconciliationService
                 DB::raw('COALESCE(payment_agg.over_refunded_amount, 0) as over_refunded_amount'),
             ]);
 
+        // Áp dụng các bộ lọc (Filters) tìm kiếm do Kế toán gửi lên
         $branchScope = array_values(array_unique(array_map(
             static fn ($value): int => (int) $value,
             array_filter((array) ($filters['branch_scope'] ?? []), static fn ($value): bool => $value !== null && $value !== ''),
@@ -233,6 +253,7 @@ class StaffFinancialReconciliationService
             $builder->where('reservations.reservation_id', (int) $filters['reservation_id']);
         });
 
+        // [BEST PRACTICE]: SQL Injection Protection (SafeLike)
         $query->when(($filters['reservation_code'] ?? null) !== null, function (Builder $builder) use ($filters): void {
             $builder->where('reservations.reservation_code', 'like', SafeLike::contains(trim((string) $filters['reservation_code'])));
         });
@@ -287,10 +308,13 @@ class StaffFinancialReconciliationService
             }
         );
 
+        // Lọc ra các hóa đơn có "Vấn đề / Chênh lệch" (Discrepancy)
         if (($filters['has_discrepancy'] ?? null) !== null) {
             $wantDiscrepancy = (bool) $filters['has_discrepancy'];
 
             if ($wantDiscrepancy) {
+                // Báo động đỏ: Lệch tiền, hoàn tiền lố, hoặc xài trộn 2 loại tiền tệ khác nhau.
+                // Cho phép sai số 0.009 (Float epsilon) để bù đắp các lỗi làm tròn thập phân siêu nhỏ.
                 $query->where(function (Builder $builder): void {
                     $builder->whereRaw('ABS(COALESCE(payment_agg.deposit_net_amount, 0) - COALESCE(reservations.deposit_paid_amount, 0)) > 0.009')
                         ->orWhereRaw('COALESCE(payment_agg.over_refunded_amount, 0) > 0.009')
@@ -328,6 +352,7 @@ class StaffFinancialReconciliationService
         return $filters;
     }
 
+    // Đây là "Trái tim" của hệ thống báo cáo: Một Sub-query tính toán và cộng dồn tất cả lịch sử giao dịch.
     private function paymentAggregateSubquery(): Builder
     {
         return DB::table('payments as payment_rows')
@@ -377,26 +402,33 @@ class StaffFinancialReconciliationService
         return [$map[$sortBy] ?? $map['last_payment_activity_at'], $direction];
     }
 
+    // --- BƯỚC 4: TIỆN ÍCH BIẾN ĐỔI GIAO DIỆN (DATA TRANSFORMERS) ---
     /**
      * @return array<string,mixed>
      */
     private function transformListRow(object $row): array
     {
+        // Chuyển dòng dữ liệu thô từ Database thành dạng JSON rành mạch,
+        // cắm sẵn cờ cảnh báo (Flags) cho Frontend hiển thị nhãn đỏ/xanh tương ứng.
         $depositRequired = $this->money($row->deposit_required_amount ?? 0.0);
         $depositStoredPaid = $this->money($row->deposit_paid_amount ?? 0.0);
         $finalBillAmount = $row->final_bill_amount !== null ? $this->money($row->final_bill_amount) : null;
         $depositNet = $this->money($row->deposit_net_amount ?? 0.0);
         $netPaid = $this->money($row->net_paid_amount ?? 0.0);
+
         $depositSyncGapMinor = Money::minorUnits($depositNet) - Money::minorUnits($depositStoredPaid);
         $billBalanceMinor = $finalBillAmount !== null ? Money::minorUnits($finalBillAmount) - Money::minorUnits($netPaid) : null;
         $billOutstanding = $billBalanceMinor !== null ? Money::minorToFloat(max(0, $billBalanceMinor)) : null;
         $billOverpaid = $billBalanceMinor !== null ? Money::minorToFloat(max(0, -1 * $billBalanceMinor)) : null;
         $overRefundedAmount = $this->money($row->over_refunded_amount ?? 0.0);
+
         $hasMixedCurrencies = (int) ($row->payment_currency_count ?? 0) > 1;
         $hasDepositSyncGap = $depositSyncGapMinor !== 0;
         $hasOverRefund = Money::minorUnits($overRefundedAmount, true) > 0;
         $hasBillOutstanding = $billOutstanding !== null && Money::minorUnits($billOutstanding, true) > 0;
         $hasBillOverpaid = $billOverpaid !== null && Money::minorUnits($billOverpaid, true) > 0;
+
+        // Nếu dính bất kỳ lỗi nào ở trên -> Cắm cờ "Có chênh lệch" (Discrepancy)
         $hasDiscrepancy = $hasDepositSyncGap || $hasOverRefund || $hasMixedCurrencies;
 
         $discrepancyReasons = [];
@@ -485,6 +517,7 @@ class StaffFinancialReconciliationService
      */
     private function methodBreakdown(Collection $payments, string $fallbackCurrency): array
     {
+        // Chẻ nhỏ tiền tệ theo từng Phương thức thanh toán (Tiền mặt, Thẻ tín dụng, Momo...)
         $buckets = [];
 
         foreach ($payments as $payment) {
