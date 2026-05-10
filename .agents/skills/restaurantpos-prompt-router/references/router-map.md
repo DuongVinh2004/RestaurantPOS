@@ -4,6 +4,9 @@
 
 - Customer-web or staff-web contract, generated SDK, mutation docs, FE error envelope, enum or state exposure: `restaurantpos-web-client-contracts`
 - Split web auth headers, access sessions, login refresh logout, CORS auth delivery: `restaurantpos-web-auth-session-contract`
+- Staff-web React, Ant Design, operator pages, POS/KDS/cashier UI, React Query, routing: `restaurantpos-staff-web-react`
+- Customer-web page composition, forms, async states, booking/menu/reservation/payment UI: `restaurantpos-customer-web-ui-flow`
+- Cross-app table, form, modal, status, responsive, accessibility, and visual consistency: `restaurantpos-ui-design-system-guardian`
 - Identity, actor boundary, deny path, capability: `restaurantpos-auth-rbac`
 - Reservation window, table board, holds, release, check-in: `restaurantpos-foh-reservations`
 - Table order mutation, item lifecycle, service session: `restaurantpos-order-lifecycle`
@@ -23,6 +26,7 @@
 
 - Need browser-facing contract or DX coverage for `customer-web` or `staff-web`: `restaurantpos-web-client-contracts`
 - Need split web auth or session propagation coverage: `restaurantpos-web-auth-session-contract`
+- Visible UI changed in `staff-web` or `customer-web`: `restaurantpos-ui-design-system-guardian`
 - Shared seam touched: `restaurantpos-shared-file-discipline`
 - Need smallest test set: `restaurantpos-targeted-verification`
 - Need Git diff based path collection: `restaurantpos-git-aware-verify`

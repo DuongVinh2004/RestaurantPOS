@@ -29,6 +29,7 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 
 ### Auth
 
+- POST api/v1/auth/customer/register
 - POST api/v1/auth/customer/login
 - GET api/v1/auth/customer/me
 - POST api/v1/auth/customer/refresh
@@ -78,7 +79,12 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 - GET api/v1/staff/tables/board/changes
 - POST api/v1/staff/service-sessions/walk-in
 - POST api/v1/staff/reservations/{id}/check-in
+- POST api/v1/staff/reservations/{id}/assign-table
+- POST api/v1/staff/reservations/{id}/assign-best-fit
+- POST api/v1/staff/reservations/{id}/move-table
+- POST api/v1/staff/tables/{table_id}/release
 - POST api/v1/staff/tables/{table_id}/orders
+- GET api/v1/staff/tables/{table_id}/active-order
 - POST api/v1/staff/orders/{order_id}/items
 - PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}
 - POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status
@@ -111,6 +117,7 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 
 ### Staff Lookup
 
+- GET api/v1/staff/branches
 - GET api/v1/staff/reservations
 - GET api/v1/staff/reservations/{reservation_id}
 - GET api/v1/staff/reservations/{reservation_id}/orders
@@ -125,6 +132,10 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 - GET api/v1/admin/inventory/ingredients
 - GET api/v1/admin/inventory/suppliers
 - GET api/v1/admin/inventory/purchase-orders
+- GET api/v1/admin/inventory/ingredients/{id}/movements
+- POST api/v1/admin/inventory/ingredients/{id}/movements
+- GET api/v1/admin/inventory/purchase-orders/{id}/receipts
+- POST api/v1/admin/inventory/purchase-orders/{id}/receipts
 - GET api/v1/admin/settings/branches
 
 ### Refunds
@@ -133,6 +144,13 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 - POST api/v1/staff/reservations/{reservation_id}/refund
 - POST api/v1/staff/reservations/{reservation_id}/refund-cancel
 
+### Staff Finance
+
+- GET api/v1/staff/finance/reconciliation
+- GET api/v1/staff/finance/reconciliation/{reservation_id}
+- GET api/v1/staff/finance/invoices/{reservation_id}
+- POST api/v1/staff/finance/invoices/{reservation_id}/issue
+
 ### Waiting List
 
 - GET api/v1/waiting-list
@@ -140,11 +158,14 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 - GET api/v1/waiting-list/{id}
 - GET api/v1/staff/waiting-list
 - GET api/v1/staff/waiting-list/changes
+- POST api/v1/staff/waiting-list
 - POST api/v1/staff/waiting-list/{id}/notify
 - POST api/v1/waiting-list/{id}/accept
 - POST api/v1/waiting-list/{id}/confirm-arrival
 - POST api/v1/waiting-list/{id}/decline
 - POST api/v1/waiting-list/{id}/cancel
+- POST api/v1/staff/waiting-list/{id}/cancel
+- POST api/v1/staff/waiting-list/{id}/advance
 - POST api/v1/staff/waiting-list/{id}/seat
 
 ### Benefits
@@ -171,12 +192,36 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 - POST api/v1/admin/menu/items
 - POST api/v1/admin/menu/items/{item_id}/prices
 
+### Admin Benefits
+
+- GET api/v1/admin/benefits/vouchers
+- GET api/v1/admin/benefits/vouchers/{id}
+- POST api/v1/admin/benefits/vouchers
+- PATCH api/v1/admin/benefits/vouchers/{id}
+- GET api/v1/admin/benefits/loyalty-tiers
+- GET api/v1/admin/benefits/loyalty-tiers/{id}
+- POST api/v1/admin/benefits/loyalty-tiers
+- PATCH api/v1/admin/benefits/loyalty-tiers/{id}
+- GET api/v1/admin/settings/benefits
+- POST api/v1/admin/settings/benefits
+
+### Admin Privacy
+
+- GET api/v1/admin/privacy/requests
+- GET api/v1/admin/privacy/customers/{user_id}/data-export
+- POST api/v1/admin/privacy/requests/{request_id}/review
+
 ### Conversation Inbox
 
 - GET api/v1/staff/conversations
 - GET api/v1/staff/conversations/{conversation_id}
+- POST api/v1/staff/conversations/{conversation_id}/assign
 - POST api/v1/staff/conversations/{conversation_id}/take-over
 - POST api/v1/staff/conversations/{conversation_id}/unassign
+- POST api/v1/staff/conversations/{conversation_id}/workflow-state
+- POST api/v1/staff/conversations/{conversation_id}/links
+- DELETE api/v1/staff/conversations/{conversation_id}/links/reservation
+- DELETE api/v1/staff/conversations/{conversation_id}/links/waiting-list
 - POST api/v1/staff/conversations/{conversation_id}/internal-notes
 - POST api/v1/staff/conversations/{conversation_id}/outbound-replies
 

@@ -17,6 +17,11 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Lớp này là Proxy/Facade chuyên xử lý các Request từ ứng dụng của Khách hàng (Customer Web/App).
+ * Nhiệm vụ chính: Xác thực quyền sở hữu (IDOR protection), kiểm tra luật nhà hàng (Policies),
+ * và ủy quyền thực thi xuống các Core Service.
+ */
 class CustomerReservationSelfService
 {
     public function __construct(
@@ -27,11 +32,14 @@ class CustomerReservationSelfService
     ) {}
 
     /**
+     * --- BƯỚC 1: LẤY DANH SÁCH ĐẶT BÀN CỦA KHÁCH ---
+     *
      * @param  array<string,mixed>  $filters
      * @return array{scope:string,paginator:LengthAwarePaginator}
      */
     public function listAccessibleReservations(?int $customerUserId, ?string $sessionId, array $filters = []): array
     {
+        // Luồng 1: Dành cho khách có tài khoản (OWNER). Lấy toàn bộ lịch sử theo user_id.
         if ($customerUserId !== null) {
             return [
                 'scope' => ReservationAccessScope::OWNER,
@@ -39,6 +47,7 @@ class CustomerReservationSelfService
             ];
         }
 
+        // Luồng 2: Dành cho khách vãng lai (SESSION). Chỉ lấy ra đúng cái đơn mà khách đang xem qua Link ẩn danh.
         if ($sessionId !== null && trim($sessionId) !== '') {
             return [
                 'scope' => ReservationAccessScope::SESSION,
@@ -52,12 +61,16 @@ class CustomerReservationSelfService
     }
 
     /**
+     * --- BƯỚC 2: KHÁCH HÀNG TỰ HỦY BÀN ---
+     *
      * @param  array<string,mixed>  $payload
      */
     public function cancelAccessibleReservation(int $reservationId, ?int $customerUserId, ?string $sessionId, array $payload = []): Reservation
     {
+        // 2.1: Xác thực quyền sở hữu (Chống IDOR)
         $reservation = $this->findAccessibleReservationOrFail($reservationId, $customerUserId, $sessionId);
 
+        // 2.2: Thẩm định Luật nhà hàng (Domain Policy) - Khách có ĐƯỢC PHÉP hủy lúc này không?
         $this->assertCustomerCanCancel($reservation);
 
         $actorUserId = $customerUserId;
@@ -65,6 +78,7 @@ class CustomerReservationSelfService
             ? trim((string) $payload['cancel_reason'])
             : 'Cancelled by customer self-service';
 
+        // 2.3: Ủy quyền cho Core Service thực thi việc Hủy (kéo theo hủy món, nhả bàn, hoàn tiền...)
         $updatedReservation = $this->reservationService->updateReservationStatus(
             reservationId: $reservationId,
             newStatus: ReservationStatus::Cancelled->value,
@@ -73,7 +87,8 @@ class CustomerReservationSelfService
             options: [
                 'actor_type' => 'customer',
                 'cancel_reason' => $cancelReason,
-                'force' => false,
+                'force' => false, // Tuyệt đối không cho phép Khách hàng Force Cancel (Ép hủy)
+                // Lưu vết (Audit) nếu khách vãng lai tự hủy
                 'audit_context' => $sessionId !== null && trim($sessionId) !== '' && $customerUserId === null
                     ? ['customer_session_id' => trim($sessionId)]
                     : [],
@@ -84,12 +99,15 @@ class CustomerReservationSelfService
     }
 
     /**
+     * --- BƯỚC 3: KHÁCH HÀNG TỰ DỜI LỊCH (RESCHEDULE) ---
+     *
      * @param  array<string,mixed>  $payload
      */
     public function rescheduleAccessibleReservation(int $reservationId, ?int $customerUserId, ?string $sessionId, array $payload = []): Reservation
     {
         $reservation = $this->findAccessibleReservationOrFail($reservationId, $customerUserId, $sessionId);
 
+        // Thẩm định Luật: Khách có được phép dời lịch lúc này không?
         $this->assertCustomerCanReschedule($reservation);
 
         $actorUserId = $customerUserId;
@@ -98,6 +116,7 @@ class CustomerReservationSelfService
             ? trim((string) $payload['reason'])
             : 'Customer self-service reschedule';
 
+        // Ủy quyền cho Reschedule Service (Service này sẽ lo việc check xem giờ mới có trống bàn không)
         $updatedReservation = $this->reservationRescheduleService->reschedule($reservationId, $normalizedPayload, [
             'type' => $customerUserId !== null ? 'customer' : 'customer_session',
             'user_id' => $actorUserId,
@@ -107,13 +126,17 @@ class CustomerReservationSelfService
         return $this->refreshReservationForScope($updatedReservation, $customerUserId);
     }
 
+    /**
+     * --- LÕI BẢO MẬT: TÌM VÀ XÁC THỰC QUYỀN SỞ HỮU ---
+     * Ngăn chặn khách A lấy ID bàn của khách B truyền vào API để hủy hoại.
+     */
     public function findAccessibleReservationOrFail(int $reservationId, ?int $customerUserId, ?string $sessionId): Reservation
     {
         if ($customerUserId !== null) {
             /** @var Reservation|null $reservation */
             $reservation = Reservation::query()
                 ->where('reservation_id', $reservationId)
-                ->where('user_id', $customerUserId)
+                ->where('user_id', $customerUserId) // Ép cứng điều kiện user_id phải là của user đang đăng nhập
                 ->first();
 
             if ($reservation instanceof Reservation) {
@@ -174,6 +197,7 @@ class CustomerReservationSelfService
         $bucket = $this->resolveBucket($filters);
         $statuses = $this->resolveStatuses($filters);
 
+        // Khách vãng lai tìm lại các đơn của mình thông qua lịch sử Session nằm trong bảng table_holds
         $reservationIds = DB::table('table_holds')
             ->where('session_id', $sessionId)
             ->whereNotNull('confirmed_reservation_id')
@@ -213,24 +237,33 @@ class CustomerReservationSelfService
         return $this->paginateCollection($reservations, $perPage, $page, $filters);
     }
 
+    /**
+     * --- LUẬT NHÀ HÀNG (DOMAIN POLICY): HỦY BÀN ---
+     */
     private function assertCustomerCanCancel(Reservation $reservation): void
     {
         $status = $reservation->status instanceof ReservationStatus
             ? $reservation->status
             : ReservationStatus::from((string) $reservation->getRawOriginal('status'));
 
+        // Chỉ được hủy khi đơn đang ở trạng thái Confirmed (Đã xác nhận)
         if ($status !== ReservationStatus::Confirmed) {
             throw ValidationException::withMessages([
                 'status' => ['Only Confirmed reservations can be cancelled by the customer self-service flow.'],
             ]);
         }
 
+        // Khách đã bước vào quán, lễ tân bấm Check-in rồi thì không thể tự cầm điện thoại ấn Hủy bàn được nữa
         if ($reservation->checked_in_at !== null) {
             throw ValidationException::withMessages([
                 'status' => ['Checked-in reservations cannot be cancelled from customer self-service.'],
             ]);
         }
 
+        // CUT-OFF TIME POLICY (Luật thời gian chốt chặn):
+        // Lấy cấu hình của chi nhánh đó xem "Cho phép khách tự hủy trước bao nhiêu phút?"
+        // VD: Quán lẩu quy định 120 phút. Nếu khách đặt 19:00, mà 18:00 khách mới vào web bấm Hủy -> Báo lỗi!
+        // Giúp bảo vệ nhà hàng khỏi rủi ro bàn trống sát giờ (No-show trá hình) và lãng phí thực phẩm đã rã đông.
         $cutoffMinutes = max(0, $this->branchSchedulingPolicyService->customerCancellationCutoffMinutes($reservation->branch_id, false));
         $cutoffAt = Carbon::parse((string) $reservation->start_time)->utc()->subMinutes($cutoffMinutes);
         if (Carbon::now('UTC')->gte($cutoffAt)) {
@@ -249,6 +282,9 @@ class CustomerReservationSelfService
             ->findOrFail((int) $reservation->reservation_id);
     }
 
+    /**
+     * --- LUẬT NHÀ HÀNG (DOMAIN POLICY): DỜI LỊCH ---
+     */
     private function assertCustomerCanReschedule(Reservation $reservation): void
     {
         $status = $reservation->status instanceof ReservationStatus
@@ -267,6 +303,7 @@ class CustomerReservationSelfService
             ]);
         }
 
+        // CUT-OFF TIME Tương tự như Hủy bàn: Không cho phép dời lịch quá sát giờ.
         $cutoffMinutes = max(0, $this->branchSchedulingPolicyService->customerRescheduleCutoffMinutes($reservation->branch_id, false));
         $cutoffAt = Carbon::parse((string) $reservation->start_time)->utc()->subMinutes($cutoffMinutes);
         if (Carbon::now('UTC')->gte($cutoffAt)) {
@@ -286,6 +323,9 @@ class CustomerReservationSelfService
     }
 
     /**
+     * --- UI/UX: PHÂN LOẠI TAB (BUCKET) ---
+     * Tách luồng dữ liệu thành Tab "Sắp tới" (Upcoming) và Tab "Lịch sử" (History)
+     *
      * @param  array<string,mixed>  $filters
      */
     private function resolveBucket(array $filters): string
@@ -313,6 +353,7 @@ class CustomerReservationSelfService
     {
         $now = Carbon::now('UTC');
 
+        // Upcoming: Các đơn chưa kết thúc và chưa quá giờ
         if ($bucket === 'upcoming') {
             $query->where(function ($inner) use ($now): void {
                 $inner->whereNotIn('status', [
@@ -326,6 +367,7 @@ class CustomerReservationSelfService
             return;
         }
 
+        // History: Các đơn đã bị Hủy, Đã ăn xong (Completed), Bị bom bàn (NoShow) hoặc đã trôi qua thời gian hiện tại
         if ($bucket === 'history') {
             $query->where(function ($inner) use ($now): void {
                 $inner->whereIn('status', [
@@ -350,12 +392,14 @@ class CustomerReservationSelfService
 
     private function applySort($query, string $bucket): void
     {
+        // Upcoming thì sếp lịch nào sắp diễn ra lên đầu (Tăng dần)
         if ($bucket === 'upcoming') {
             $query->orderBy('start_time')->orderBy('reservation_id');
 
             return;
         }
 
+        // History thì xếp lịch nào mới ăn xong gần nhất lên đầu (Giảm dần)
         $query->orderByDesc('start_time')->orderByDesc('reservation_id');
     }
 
@@ -381,10 +425,15 @@ class CustomerReservationSelfService
     }
 
     /**
+     * --- BẢO MẬT DỮ LIỆU (DATA PRIVACY) ---
+     *
      * @return list<string>
      */
     private function relationsForScope(string $scope): array
     {
+        // Kỹ thuật Data Minimization:
+        // Nếu là khách vãng lai (Session), chỉ trả về thông tin tối thiểu (Bàn, Món ăn).
+        // Nếu là chủ tài khoản đăng nhập (Owner), mới trả về lịch sử Thanh toán, Điểm thưởng Loyalty, Hạng thành viên, Voucher.
         return match ($scope) {
             ReservationAccessScope::SESSION => [
                 'user',

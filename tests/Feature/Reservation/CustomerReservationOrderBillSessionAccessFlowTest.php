@@ -20,6 +20,9 @@ class CustomerReservationOrderBillSessionAccessFlowTest extends TestCase
         parent::setUp();
 
         $this->requireBookingSchema();
+        config()->set('booking.payment_providers.customer_self_pay.enabled', true);
+        config()->set('booking.payment_providers.providers.simulated.enabled', true);
+        $this->upsertFeatureFlagOverride('customer.bill_self_payment', true, 'testing');
         config()->set('booking.require_redis_for_booking_api', false);
         config()->set('staff_auth.database_store_enabled', false);
         config()->set('staff_auth.allow_env_fallback', true);

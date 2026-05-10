@@ -42,12 +42,17 @@ class BookingManualEvidenceInitCommandTest extends TestCase
         $this->assertSame($outputPath, $payload['output_path'] ?? null);
         $this->assertSame([
             'uat_scenario_pack_replay',
+            'disaster_recovery_restore_evidence',
             'performance_verification_report',
+            'payment_provider_external_e2e',
             'notification_provider_external_e2e',
         ], $payload['check_keys'] ?? null);
         $this->assertSame('missing', data_get($template, 'checks.uat_scenario_pack_replay.status'));
+        $this->assertSame('missing', data_get($template, 'checks.disaster_recovery_restore_evidence.status'));
         $this->assertSame('', data_get($template, 'checks.performance_verification_report.performed_by'));
         $this->assertFalse((bool) data_get($template, 'guidance.uat_scenario_pack_replay.required_for_target'));
+        $this->assertFalse((bool) data_get($template, 'guidance.disaster_recovery_restore_evidence.required_for_target'));
+        $this->assertFalse((bool) data_get($template, 'guidance.payment_provider_external_e2e.required_for_target'));
         $this->assertSame(
             'Canonical UAT scenario pack replay',
             data_get($template, 'guidance.uat_scenario_pack_replay.label')
@@ -60,7 +65,6 @@ class BookingManualEvidenceInitCommandTest extends TestCase
             'pwsh -File .\\scripts\\uat\\Invoke-UatScenario.ps1 -Scenario all',
             (array) data_get($template, 'guidance.uat_scenario_pack_replay.operator_commands', [])
         );
-        $this->assertArrayNotHasKey('payment_provider_external_e2e', (array) ($template['checks'] ?? []));
     }
 
     #[Group('booking-smoke')]
@@ -80,14 +84,16 @@ class BookingManualEvidenceInitCommandTest extends TestCase
 
         $this->assertSame(0, $exitCode);
         $this->assertTrue((bool) ($payload['ok'] ?? false));
-        $this->assertSame(5, $payload['check_count'] ?? null);
+        $this->assertSame(6, $payload['check_count'] ?? null);
         $this->assertSame([
             'uat_scenario_pack_replay',
+            'disaster_recovery_restore_evidence',
             'performance_verification_report',
             'payment_provider_external_e2e',
             'notification_provider_external_e2e',
             'concurrency_rehearsal',
         ], $payload['check_keys'] ?? null);
+        $this->assertTrue((bool) data_get($template, 'guidance.disaster_recovery_restore_evidence.required_for_target'));
         $this->assertTrue((bool) data_get($template, 'guidance.payment_provider_external_e2e.required_for_target'));
         $this->assertTrue((bool) data_get($template, 'guidance.concurrency_rehearsal.required_for_target'));
         $this->assertSame(

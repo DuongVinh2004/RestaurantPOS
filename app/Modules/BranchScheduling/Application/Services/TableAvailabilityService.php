@@ -12,6 +12,9 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Tinh tap ban kha dung cho mot khung gio, co tinh den branch policy, hold, reservation va cache.
+ */
 class TableAvailabilityService
 {
     public function __construct(
@@ -25,6 +28,7 @@ class TableAvailabilityService
      */
     public function getAvailable(CarbonInterface $fromUtc, CarbonInterface $toUtc, array $filters = []): array
     {
+        // Chuan hoa dau vao som de cache key va overlap query on dinh hon.
         $fromUtc = $fromUtc->copy()->utc()->second(0);
         $toUtc = $toUtc->copy()->utc()->second(0);
 
@@ -40,6 +44,7 @@ class TableAvailabilityService
             : null;
         $branchId = $this->branchSchedulingPolicyService->resolveBranchId($filters['branch_id'] ?? null);
 
+        // Availability buffer mo rong cua so overlap de tranh booking sat mep thoi gian.
         $buffer = max(0, $this->branchSchedulingPolicyService->availabilityBufferMinutes($branchId));
         $overlapFrom = $buffer > 0 ? $fromUtc->copy()->subMinutes($buffer) : $fromUtc->copy();
         $overlapTo = $buffer > 0 ? $toUtc->copy()->addMinutes($buffer) : $toUtc->copy();
@@ -68,6 +73,7 @@ class TableAvailabilityService
         }
         $this->metrics->inc('booking_cache_miss_total', ['route' => 'v1/tables/available'], 1);
 
+        // Neu policy da chan tu dau thi tra rong som, khong ton query availability phia sau.
         $nowUtc = Carbon::now('UTC');
         $policyEvaluation = $this->branchSchedulingPolicyService->evaluateAvailabilityWindow($branchId, $fromUtc, $toUtc, $nowUtc);
         if (($policyEvaluation['allowed'] ?? false) !== true) {
@@ -76,6 +82,7 @@ class TableAvailabilityService
             return [];
         }
 
+        // Tap ban ban do reservation giu cho slot nay duoc tinh rieng de merge voi hold conflicts.
         $busyByReservation = DB::table('reservation_tables as rt')
             ->join('reservations as r', 'r.reservation_id', '=', 'rt.reservation_id')
             ->join('restaurant_tables as busy_tables', 'busy_tables.table_id', '=', 'rt.table_id')
@@ -90,6 +97,7 @@ class TableAvailabilityService
             ->values()
             ->all();
 
+        // Hold conflicts co rule "trust same session" nen query nay duoc ap scope rieng.
         $holdQuery = DB::table('table_hold_details as thd')
             ->join('table_holds as th', 'th.hold_id', '=', 'thd.hold_id')
             ->join('restaurant_tables as busy_hold_tables', 'busy_hold_tables.table_id', '=', 'thd.table_id')
@@ -113,6 +121,7 @@ class TableAvailabilityService
         $isRealtimeAvailabilityWindow = $fromUtc->lessThanOrEqualTo($nowUtc->copy()->addMinute())
             && $toUtc->greaterThanOrEqualTo($nowUtc->copy()->subMinute());
 
+        // Cuoi cung moi lay tap table nen va loai cac table dang busy/blocked theo ngu canh realtime hay future slot.
         $query = DB::table('restaurant_tables as t')
             ->leftJoin('table_templates as tt', 'tt.template_id', '=', 't.template_id')
             ->where('t.branch_id', $branchId)
@@ -156,6 +165,7 @@ class TableAvailabilityService
             ->orderBy('t.table_code')
             ->get();
 
+        // Result duoc flatten thanh payload nho, on dinh cho API/cache/client.
         $result = $rows->map(fn ($row) => [
             'table_id' => (int) $row->table_id,
             'branch_id' => $branchId,

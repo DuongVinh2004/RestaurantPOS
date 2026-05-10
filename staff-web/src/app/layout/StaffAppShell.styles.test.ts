@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
+const dashboardPreviewSource = readFileSync(resolve(currentDir, '../../../dev/dashboard-preview.tsx'), 'utf8');
 const indexCss = readFileSync(resolve(currentDir, '../../index.css'), 'utf8');
 const mainSource = readFileSync(resolve(currentDir, '../../main.tsx'), 'utf8');
 const tokensCss = readFileSync(resolve(currentDir, '../../styles/tokens.css'), 'utf8');
@@ -21,22 +22,25 @@ const shellContextSource = readFileSync(resolve(currentDir, './useStaffShellCont
 const workspaceSwitcherSource = readFileSync(resolve(currentDir, './StaffWorkspaceSwitcher.tsx'), 'utf8');
 
 describe('StaffAppShell layout styles', () => {
-  it('keeps the shared staff-web theme in the dark operational palette after bundle overrides load', () => {
-    expect(tokensCss).toMatch(/color-scheme:\s*dark;/s);
-    expect(tokensCss).toMatch(/--staff-bg-page:\s*#0f1115;/s);
-    expect(tokensCss).toMatch(/--staff-text-primary:\s*#f3f6fb;/s);
-    expect(tokensCss).toMatch(/--staff-text-secondary:\s*#bcc7d6;/s);
-    expect(tokensCss).toMatch(/--staff-text-tertiary:\s*#8d9aaf;/s);
+  it('keeps the shared staff-web theme in a readable light operational palette after bundle overrides load', () => {
+    expect(tokensCss).toMatch(/color-scheme:\s*light;/s);
+    expect(tokensCss).toMatch(/--staff-bg-page:\s*#f6f8fb;/s);
+    expect(tokensCss).toMatch(/--staff-text-primary:\s*#172033;/s);
+    expect(tokensCss).toMatch(/--staff-text-secondary:\s*#506176;/s);
+    expect(tokensCss).toMatch(/--staff-text-tertiary:\s*#74839a;/s);
     expect(mainSource).toMatch(/import '\.\/styles\/design-bundle-overrides\.css'[\s\S]*import '\.\/styles\/tokens\.css'[\s\S]*import '\.\/styles\/ui-overrides\.css'/);
+    expect(dashboardPreviewSource).toMatch(/import '\.\.\/src\/index\.css'[\s\S]*import '\.\.\/src\/styles\/design-bundle-overrides\.css'[\s\S]*import '\.\.\/src\/styles\/tokens\.css'[\s\S]*import '\.\.\/src\/styles\/ui-overrides\.css'/);
     expect(providersSource).toContain('staffAntTheme');
-    expect(themeSource).toMatch(/algorithm:\s*\[theme\.darkAlgorithm,\s*theme\.compactAlgorithm\]/s);
+    expect(themeSource).toMatch(/algorithm:\s*\[theme\.defaultAlgorithm,\s*theme\.compactAlgorithm\]/s);
+    expect(themeSource).not.toContain('theme.darkAlgorithm');
     expect(themeSource).toMatch(/colorPrimary:\s*staffThemeTokens\.primary/s);
     expect(themeSource).toMatch(/colorBgContainer:\s*staffThemeTokens\.surface1/s);
     expect(themeSource).toMatch(/colorTextSecondary:\s*staffThemeTokens\.textSecondary/s);
+    expect(uiOverridesCss).toContain('Readable light surface');
     expect(uiOverridesCss).toMatch(/\.staff-shell-layout,\s*\.staff-shell-layout > \.ant-layout,\s*\.staff-shell-content,\s*\.staff-shell-content-dashboard,\s*\.staff-dashboard-page\s*\{[^}]*var\(--staff-bg-page-accent\)[\s\S]*var\(--staff-bg-page\)[\s\S]*!important;/s);
-    expect(uiOverridesCss).toMatch(/\.ant-btn-primary\s*\{[^}]*background:\s*linear-gradient\(135deg,\s*#7c5cff,\s*#6f4cff\)\s*!important;[^}]*border-color:\s*#7c5cff\s*!important;/s);
-    expect(uiOverridesCss).toMatch(/\.ant-table-wrapper \.ant-table-tbody > tr\.ant-table-row:hover > td[\s\S]*background:\s*rgba\(124,\s*92,\s*255,\s*0\.08\)\s*!important;/s);
-    expect(uiOverridesCss).toContain('color: #c9bcff !important;');
+    expect(uiOverridesCss).toMatch(/\.ant-btn-primary\s*\{[^}]*background:\s*#2563eb\s*!important;[^}]*border-color:\s*#2563eb\s*!important;/s);
+    expect(uiOverridesCss).toMatch(/\.ant-table-wrapper \.ant-table-tbody > tr\.ant-table-row:hover > td[\s\S]*background:\s*#f5f9fd\s*!important;/s);
+    expect(uiOverridesCss).toContain('color: #1d4ed8 !important;');
   });
 
   it('keeps the shell header flexible for multi-line route context', () => {
@@ -79,9 +83,9 @@ describe('StaffAppShell layout styles', () => {
 
   it('keeps the sidebar brand terse and improves navigation legibility', () => {
     expect(uiOverridesCss).toMatch(/\.staff-sider-brand-copy\s*\{[^}]*display:\s*none !important;/s);
-    expect(uiOverridesCss).toMatch(/\.staff-shell-sider\s*\{[^}]*linear-gradient\(180deg,\s*#111827\s*0%,\s*#0b1220\s*100%\)/s);
+    expect(uiOverridesCss).toMatch(/\.staff-shell-sider[\s\S]*linear-gradient\(180deg,\s*#ffffff\s*0%,\s*#edf3fa\s*100%\)/s);
     expect(uiOverridesCss).toMatch(/\.staff-shell-nav-item\s*\{[^}]*gap:\s*10px;[^}]*min-height:\s*38px;[^}]*padding:\s*8px 10px;/s);
-    expect(uiOverridesCss).toMatch(/\.staff-shell-nav-item-selected\s*\{[^}]*border-color:\s*rgba\(165,\s*180,\s*252,\s*0\.42\)/s);
+    expect(uiOverridesCss).toMatch(/\.staff-shell-nav-item-selected[\s\S]*border-color:\s*rgba\(37,\s*99,\s*235,\s*0\.34\)/s);
     expect(uiOverridesCss).toMatch(/\.staff-nav-item-icon\s*\{[^}]*flex:\s*0 0 18px;[^}]*width:\s*18px;/s);
     expect(uiOverridesCss).toMatch(/\.staff-shell-sider::-webkit-scrollbar-thumb\s*\{[^}]*border-radius:\s*999px;/s);
     expect(uiOverridesCss).toMatch(/\.staff-shell-sider\s*\{[^}]*scrollbar-width:\s*thin;/s);

@@ -8,15 +8,15 @@ const mocks = vi.hoisted(() => ({
   customerWebRollout: {
     privacyRequests: {
       enabled: false,
-      disabledTitle: "Privacy tools are not in this rollout",
+      disabledTitle: "Công cụ dữ liệu cá nhân chưa được bật",
       disabledDescription:
-        "Privacy requests stay off by default and only open during a dedicated QA, UAT, or Wave 2 rollout.",
+        "Yêu cầu dữ liệu cá nhân mặc định đang tắt và chỉ mở trong rollout QA, UAT hoặc Wave 2 riêng.",
     },
     dataExport: {
       enabled: false,
-      disabledTitle: "Data export is not in this rollout",
+      disabledTitle: "Xuất dữ liệu chưa được bật",
       disabledDescription:
-        "Data export stays off until the broader privacy rollout is ready. Keep it disabled unless QA or UAT specifically needs export proof.",
+        "Xuất dữ liệu sẽ tắt cho đến khi rollout quyền riêng tư rộng hơn sẵn sàng. Chỉ bật khi QA hoặc UAT cần kiểm chứng xuất dữ liệu.",
     },
   },
   listPrivacyRequests: vi.fn(),
@@ -65,9 +65,8 @@ describe("PrivacyPanel", () => {
   it("renders a disabled rollout state when privacy tools are off", () => {
     renderPanel();
 
-    expect(screen.getByText("Dữ liệu cá nhân")).toBeInTheDocument();
-    expect(screen.getByText("Privacy tools are not in this rollout")).toBeInTheDocument();
-    expect(screen.getByText(/dedicated QA, UAT, or Wave 2 rollout/i)).toBeInTheDocument();
+    expect(screen.getByText("Công cụ dữ liệu cá nhân chưa được bật")).toBeInTheDocument();
+    expect(screen.getByText(/QA, UAT hoặc Wave 2 riêng/i)).toBeInTheDocument();
     expect(mocks.listPrivacyRequests).not.toHaveBeenCalled();
     expect(mocks.getDataExport).not.toHaveBeenCalled();
   });
@@ -82,10 +81,10 @@ describe("PrivacyPanel", () => {
       expect(mocks.listPrivacyRequests).toHaveBeenCalledTimes(1);
     });
 
-    expect(await screen.findByText("Data export is not in this rollout")).toBeInTheDocument();
-    expect(screen.getByText("Yêu cầu ẩn danh dữ liệu")).toBeInTheDocument();
-    expect(screen.getByText(/chứng từ tài chính, kiểm toán hoặc pháp lý/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Gửi yêu cầu ẩn danh dữ liệu" })).toBeInTheDocument();
+    expect(await screen.findByText("Xuất dữ liệu chưa được bật")).toBeInTheDocument();
+    expect(screen.getByText("Yêu cầu ẩn danh hóa")).toBeInTheDocument();
+    expect(screen.getByText(/Dữ liệu thanh toán, hóa đơn, audit và tranh chấp có thể được giữ lại/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Yêu cầu xem xét ẩn danh hóa" })).toBeInTheDocument();
     expect(mocks.getDataExport).not.toHaveBeenCalled();
   });
 
@@ -106,7 +105,7 @@ describe("PrivacyPanel", () => {
       expect(mocks.getDataExport).toHaveBeenCalledTimes(1);
     });
 
-    expect(await screen.findByText("Dữ liệu xuất mới nhất đang hiển thị tại đây.")).toBeInTheDocument();
+    expect(await screen.findByText("Bản xuất dữ liệu khách hàng mới nhất đã có từ API quyền riêng tư.")).toBeInTheDocument();
   });
 
   it("submits anonymization requests and refreshes the request lifecycle", async () => {
@@ -126,11 +125,11 @@ describe("PrivacyPanel", () => {
 
     renderPanel();
 
-    await user.type(await screen.findByRole("textbox", { name: "Ghi chú tùy chọn" }), "Please anonymize my account.");
-    await user.click(screen.getByRole("button", { name: "Gửi yêu cầu ẩn danh dữ liệu" }));
+    await user.type(await screen.findByRole("textbox", { name: "Ghi chú tùy chọn" }), "Vui lòng ẩn danh hóa tài khoản của tôi.");
+    await user.click(screen.getByRole("button", { name: "Yêu cầu xem xét ẩn danh hóa" }));
 
     await waitFor(() => {
-      expect(mocks.createPrivacyRequest).toHaveBeenCalledWith("Please anonymize my account.");
+      expect(mocks.createPrivacyRequest).toHaveBeenCalledWith("Vui lòng ẩn danh hóa tài khoản của tôi.");
       expect(mocks.listPrivacyRequests.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
   });

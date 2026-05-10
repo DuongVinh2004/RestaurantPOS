@@ -13,17 +13,31 @@ from pathlib import Path
 DOMAIN_RULES = [
     {
         "skill": "restaurantpos-web-client-contracts",
-        "keywords": ["frontend", "customer-web", "staff-web", "next.js", "vite", "typescript sdk", "api consumer", "mutation contract", "error shape", "error envelope", "enum", "state exposure", "postman", "dx"],
+        "keywords": ["frontend contract", "generated sdk", "typescript sdk", "api consumer", "mutation contract", "error shape", "error envelope", "enum", "state exposure", "postman", "dx"],
         "paths": ["docs/runbooks/api-consumer-artifacts.md", "docs/runbooks/booking-api-contract.md", "config/api_artifacts.php", "app/Support/ApiErrorResponse.php", "config/cors.php"],
         "representative_paths": ["config/api_artifacts.php", "app/Support/ApiErrorResponse.php", "config/cors.php"],
         "note": "Use web-client-contracts when the work is driven by what Next.js or Vite consumers can safely depend on, not only by internal backend structure.",
     },
     {
         "skill": "restaurantpos-web-auth-session-contract",
-        "keywords": ["customer-web", "staff-web", "next.js", "vite", "header-based auth", "x-customer-token", "x-staff-key", "x-session-id", "access session", "session propagation", "customer login", "staff login", "cors auth"],
+        "keywords": ["header-based auth", "x-customer-token", "x-staff-key", "x-session-id", "access session", "session propagation", "customer login", "staff login", "cors auth", "refresh token", "logout"],
         "paths": ["config/customer_auth.php", "config/staff_auth.php", "config/cors.php", "app/Http/Middleware/CustomerOrStaffMiddleware.php", "app/Http/Controllers/Api/Auth/CustomerAuthController.php", "app/Http/Controllers/Api/Auth/StaffAuthController.php"],
         "representative_paths": ["config/customer_auth.php", "config/staff_auth.php", "app/Http/Middleware/CustomerOrStaffMiddleware.php", "config/cors.php"],
         "note": "Use web-auth-session-contract when split-web auth headers, session propagation, or login lifecycle are the integration risk.",
+    },
+    {
+        "skill": "restaurantpos-staff-web-react",
+        "keywords": ["staff-web", "staff web", "staff ui", "operator ui", "antd", "ant design", "react query", "vite", "pos screen", "kds screen", "cashier screen", "admin screen", "staff page", "staff route"],
+        "paths": ["staff-web/package.json", "staff-web/src/app", "staff-web/src/domains", "staff-web/src/shared", "staff-web/src/workspaces"],
+        "representative_paths": ["staff-web/package.json"],
+        "note": "Use staff-web-react when the change is an operator-facing React screen or staff-web state/routing concern.",
+    },
+    {
+        "skill": "restaurantpos-customer-web-ui-flow",
+        "keywords": ["customer-web", "customer web", "customer ui", "next.js", "nextjs", "booking page", "reservation page", "reservation form", "waiting list", "menu page", "payment ui", "deposit ui", "customer form", "shadcn", "radix"],
+        "paths": ["customer-web/package.json", "customer-web/src/features", "customer-web/src/components", "customer-web/src/lib", "customer-web/src/app"],
+        "representative_paths": ["customer-web/package.json"],
+        "note": "Use customer-web-ui-flow when the change is a customer-facing page, form, or async UI flow.",
     },
     {
         "skill": "restaurantpos-auth-rbac",
@@ -126,8 +140,9 @@ DOMAIN_RULES = [
 ]
 
 SUPPORT_RULES = [
-    {"skill": "restaurantpos-web-client-contracts", "keywords": ["frontend", "customer-web", "staff-web", "next.js", "vite", "typescript sdk", "postman", "api consumer", "error shape", "error envelope", "enum", "state exposure", "dx"]},
+    {"skill": "restaurantpos-web-client-contracts", "keywords": ["frontend contract", "generated sdk", "typescript sdk", "postman", "api consumer", "error shape", "error envelope", "enum", "state exposure", "dx"]},
     {"skill": "restaurantpos-web-auth-session-contract", "keywords": ["header-based auth", "x-customer-token", "x-staff-key", "x-session-id", "access session", "session propagation", "customer login", "staff login", "cors auth"]},
+    {"skill": "restaurantpos-ui-design-system-guardian", "keywords": ["ui", "page", "form", "table", "modal", "dialog", "status badge", "responsive", "accessibility", "a11y", "antd", "ant design", "tailwind", "shadcn"]},
     {"skill": "restaurantpos-targeted-verification", "keywords": ["fix", "implement", "change", "update", "refactor", "test", "verify", "regression", "bug"]},
     {"skill": "restaurantpos-shared-file-discipline", "keywords": ["routes/api.php", "config/booking.php", "config/staff_capabilities.php", "mysql-schema.sql", "shared file"]},
     {"skill": "restaurantpos-sql-first-schema-sync", "keywords": ["schema", "patch", "sql", "db_all.sql", "database contract"]},

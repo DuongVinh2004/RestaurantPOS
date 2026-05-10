@@ -14,6 +14,10 @@ use App\SharedKernel\Money\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Chot bill tam thoi cho reservation dang phuc vu:
+ * dong bang snapshot tong tien de tu luc nay order item khong duoc sua tu do nua.
+ */
 class BillLockService
 {
     public function __construct(
@@ -32,7 +36,9 @@ class BillLockService
         callable $attachTotals,
         bool $bumpReservationVersion = true,
     ): ReservationOrder {
+        // Lock order + reservation truoc, vi day la moc chuyen tu "dang phuc vu" sang "san sang thu tien".
         /** @var ReservationOrder $order */
+        // Pha 1: lock order + reservation vi bill lock la moc chot snapshot truoc khi thu tien.
         $order = ReservationOrder::query()->where('order_id', $orderId)->lockForUpdate()->firstOrFail();
         $assertExpectedOrderRowVersion($order, $expectedRowVersion);
         /** @var Reservation $reservation */
@@ -58,6 +64,8 @@ class BillLockService
         $effectiveNonLoyaltyDiscountMinor = max($requestedNonLoyaltyDiscountMinor, $voucherDiscountMinor);
         $effectiveDiscount = Money::minorToFloat($effectiveNonLoyaltyDiscountMinor + $loyaltyDiscountMinor);
 
+        // Snapshot nay se tro thanh bill chinh thuc de payment va settlement bam theo.
+        // Pha 2: tinh snapshot bill tren order items da lock; day la bill chinh thuc payment se bam vao.
         $snapshot = $this->reservationFinancialSyncService->computeReservationBillSnapshot($reservationId, $effectiveDiscount, true);
         $subtotal = (float) ($snapshot['subtotal'] ?? 0.0);
         $discount = (float) ($snapshot['discount'] ?? 0.0);
@@ -70,6 +78,7 @@ class BillLockService
         $reservation->billed_at = Carbon::now('UTC');
         $reservation->updated_by = $staffUserId;
 
+        // touchFinancialMutation giup moi client dang mo bill thay duoc reservation bill state vua doi.
         if ($bumpReservationVersion) {
             $this->reservationFinancialSyncService->touchFinancialMutation($reservation, $staffUserId);
         } else {

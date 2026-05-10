@@ -132,6 +132,7 @@ function renderPanel() {
 
 describe("PreorderPanel", () => {
   beforeEach(() => {
+    window.sessionStorage.clear();
     mocks.clearReservationPreorder.mockReset();
     mocks.getReservationPreorder.mockReset();
     mocks.listMenuItems.mockReset();
@@ -219,6 +220,44 @@ describe("PreorderPanel", () => {
         pre_order_row_version: 9,
       });
     });
+  });
+
+  it("locks preorder inputs while preview is pending", async () => {
+    const user = userEvent.setup();
+    let resolvePreview: (value: unknown) => void = () => {};
+
+    mocks.previewReservationPreorder.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePreview = resolve;
+      }),
+    );
+
+    renderPanel();
+
+    const quantityInput = await screen.findByLabelText("Số lượng Spring rolls");
+    await user.clear(quantityInput);
+    await user.type(quantityInput, "2");
+    await user.click(screen.getByRole("button", { name: "Xem trước món" }));
+
+    expect(quantityInput).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cập nhật món đặt trước" })).toBeDisabled();
+
+    resolvePreview(
+      createPayload({
+        pre_order: {
+          ...createPayload().pre_order,
+          totals: {
+            item_count: 1,
+            quantity: 2,
+            subtotal: "24.00",
+          },
+          normalized_pre_order_items: [{ item_id: 10, quantity: 2 }],
+        },
+      }),
+    );
+
+    expect(await screen.findByText("Bản xem trước")).toBeInTheDocument();
+    expect(quantityInput).toBeEnabled();
   });
 
   it("invalidates the preview when the cart changes again", async () => {
@@ -347,5 +386,97 @@ describe("PreorderPanel", () => {
 
     expect(await screen.findByText("Preorder is locked for kitchen prep")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Cập nhật món đặt trước" })).not.toBeInTheDocument();
+  });
+
+  it("restores a stored preorder draft after reservation create partially succeeds", async () => {
+    const user = userEvent.setup();
+
+    window.sessionStorage.setItem(
+      "restaurantpos.customer.session-id.v1",
+      "browser-session-1",
+    );
+    window.sessionStorage.setItem(
+      "restaurantpos.customer.pending-preorder.v1.7",
+      JSON.stringify({
+        reservation_id: 7,
+        browser_session_id: "browser-session-1",
+        failure_stage: "replace",
+        created_at_utc: new Date().toISOString(),
+        items: [{ item_id: 10, quantity: 2 }],
+      }),
+    );
+    mocks.getReservationPreorder.mockResolvedValue(
+      createPayload({
+        pre_order: {
+          ...createPayload().pre_order,
+          present: false,
+          order_id: null,
+          order_row_version: null,
+          lines: [],
+          totals: {
+            item_count: 0,
+            quantity: 0,
+            subtotal: "0.00",
+          },
+          normalized_pre_order_items: [],
+        },
+      }),
+    );
+    mocks.previewReservationPreorder.mockResolvedValue(
+      createPayload({
+        pre_order: {
+          ...createPayload().pre_order,
+          present: false,
+          order_id: null,
+          order_row_version: null,
+          lines: [],
+          totals: {
+            item_count: 1,
+            quantity: 2,
+            subtotal: "24.00",
+          },
+          normalized_pre_order_items: [{ item_id: 10, quantity: 2 }],
+        },
+      }),
+    );
+    mocks.replaceReservationPreorder.mockResolvedValue(
+      createPayload({
+        reservation_row_version: 6,
+        pre_order: {
+          ...createPayload().pre_order,
+          present: true,
+          order_row_version: 10,
+          totals: {
+            item_count: 1,
+            quantity: 2,
+            subtotal: "24.00",
+          },
+          normalized_pre_order_items: [{ item_id: 10, quantity: 2 }],
+        },
+      }),
+    );
+
+    renderPanel();
+
+    expect(
+      await screen.findByText(/Hệ thống đã giữ lại giỏ món/i),
+    ).toBeInTheDocument();
+    expect(await screen.findByLabelText("Số lượng Spring rolls")).toHaveValue(2);
+
+    await user.click(screen.getByRole("button", { name: "Xem trước món" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Cập nhật món đặt trước" }),
+    );
+
+    await waitFor(() => {
+      expect(mocks.replaceReservationPreorder).toHaveBeenCalledWith(7, {
+        pre_order_items: [{ item_id: 10, quantity: 2 }],
+        row_version: 5,
+        pre_order_row_version: null,
+      });
+    });
+    expect(
+      window.sessionStorage.getItem("restaurantpos.customer.pending-preorder.v1.7"),
+    ).toBeNull();
   });
 });

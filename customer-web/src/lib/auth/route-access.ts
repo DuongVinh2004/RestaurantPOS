@@ -9,13 +9,13 @@ export type CustomerRouteAccess = {
 const accountRouteAccess: CustomerRouteAccess = {
   mode: "account",
   title: "Đăng nhập để tiếp tục",
-  description: "Bạn cần tài khoản khách hàng để mở trang này.",
+  description: "Dùng tài khoản khách hàng để mở trang này.",
 };
 
 const customerSessionRouteAccess: CustomerRouteAccess = {
   mode: "customer_session",
-  title: "Cần phiên đặt bàn",
-  description: "Mở trang này từ luồng giữ bàn, hoặc đăng nhập để xem lịch đặt theo tài khoản.",
+  title: "Tiếp tục với tư cách khách hoặc đăng nhập",
+  description: "Phiên khách giúp giữ lượt ghé này. Đăng nhập khi bạn muốn xem lịch sử tài khoản.",
 };
 
 export function getCustomerRouteAccess(pathname: string | null | undefined): CustomerRouteAccess {

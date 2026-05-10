@@ -18,6 +18,9 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
+/**
+ * Dong bo vong doi deposit payment session va ap ket qua nop coc vao reservation khi hop le.
+ */
 class ReservationDepositPaymentSessionLifecycleWorkflow
 {
     public function __construct(
@@ -29,6 +32,7 @@ class ReservationDepositPaymentSessionLifecycleWorkflow
      */
     public function applyProviderResult(ReservationDepositPaymentSession $session, array $providerResult, ?int $actorUserId = null): bool
     {
+        // Provider result chi duoc ghi de khi no hop le theo state machine cua payment session.
         $currentStatus = (string) ($session->session_status?->value ?? $session->session_status ?? ReservationDepositPaymentSessionStatus::Created->value);
         $incomingStatusValue = (string) ($providerResult['session_status'] ?? $currentStatus);
 
@@ -36,6 +40,7 @@ class ReservationDepositPaymentSessionLifecycleWorkflow
             return false;
         }
 
+        // Pha 1: map provider status vao enum noi bo va cap nhat metadata session lien quan.
         $status = ReservationDepositPaymentSessionStatus::from($incomingStatusValue);
         $now = Carbon::now('UTC');
 
@@ -74,6 +79,7 @@ class ReservationDepositPaymentSessionLifecycleWorkflow
      */
     public function applySucceededSessionIfNeeded(Reservation $reservation, ReservationDepositPaymentSession $session, Collection $lockedPayments, ?int $actorUserId = null): ?Payment
     {
+        // Deposit succeeded co the replay lai nhieu lan; linked payment va settlement_status giu cho flow idempotent.
         $status = $session->session_status instanceof ReservationDepositPaymentSessionStatus
             ? $session->session_status
             : ReservationDepositPaymentSessionStatus::from((string) $session->session_status);
@@ -88,6 +94,7 @@ class ReservationDepositPaymentSessionLifecycleWorkflow
             return null;
         }
 
+        // Pha 2: thu replay payment da tao truoc do truoc khi can nhac capture moi.
         $existingPayment = $this->depositPaymentService->replaySucceededCustomerSession(
             reservation: $reservation,
             session: $session,
@@ -107,6 +114,7 @@ class ReservationDepositPaymentSessionLifecycleWorkflow
         $outstanding = $this->calculateOutstandingDeposit($reservation, $summary);
         $outstandingMinor = Money::minorUnits($outstanding, true);
         $finalCapturedMinor = Money::minorUnits($summary['final_captured_amount'] ?? 0, true);
+        // Khong apply deposit nua neu coc da du hoac bill cuoi da duoc thu roi.
         if ($outstandingMinor <= 0 || $finalCapturedMinor > 0) {
             $payload = (array) ($session->provider_payload_json ?? []);
             $payload['settlement_skip_reason'] = $finalCapturedMinor > 0
@@ -120,6 +128,7 @@ class ReservationDepositPaymentSessionLifecycleWorkflow
             return null;
         }
 
+        // Pha 3: chi capture deposit khi reservation van con outstanding deposit va chua thu final payment.
         $payment = $this->depositPaymentService->captureSucceededCustomerSession(
             reservation: $reservation,
             session: $session,

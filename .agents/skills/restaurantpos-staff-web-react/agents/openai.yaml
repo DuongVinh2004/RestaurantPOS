@@ -1,0 +1,5 @@
+interface:
+  display_name: "RestaurantPOS Staff Web React"
+  short_description: "Build staff-web operator React flows safely"
+  default_prompt: "Use $restaurantpos-staff-web-react to change RestaurantPOS staff-web React operator screens with focused tests and contract safety."
+

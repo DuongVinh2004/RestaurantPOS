@@ -129,6 +129,50 @@ class TableHoldHttpFlowTest extends TestCase
             ->assertJsonValidationErrors(['session_id']);
     }
 
+    public function test_same_session_create_replaces_previous_live_hold(): void
+    {
+        $oldTableId = $this->createRestaurantTableWithSeats(2, ['status' => 'Available']);
+        $newTableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available']);
+        $start = $this->nowUtc()->copy()->addHours(3);
+        $end = $start->copy()->addHour();
+        $sessionId = 'sess-table-hold-replace';
+
+        $first = $this->postJson('/api/v1/table-holds', [
+            'session_id' => $sessionId,
+            'start_time' => $start->toIso8601String(),
+            'end_time' => $end->toIso8601String(),
+            'table_ids' => [$oldTableId],
+            'hold_minutes' => 5,
+        ], $this->withIdempotencyKey('table-hold-replace-first'));
+
+        $first->assertCreated()
+            ->assertJsonPath('data.hold_status', 'Holding')
+            ->assertJsonPath('data.tables.0.table_id', $oldTableId);
+
+        $oldHoldId = (string) $first->json('data.hold_id');
+
+        $second = $this->postJson('/api/v1/table-holds', [
+            'session_id' => $sessionId,
+            'start_time' => $start->toIso8601String(),
+            'end_time' => $end->toIso8601String(),
+            'table_ids' => [$newTableId],
+            'hold_minutes' => 5,
+        ], $this->withIdempotencyKey('table-hold-replace-second'));
+
+        $second->assertCreated()
+            ->assertJsonPath('data.hold_status', 'Holding')
+            ->assertJsonPath('data.tables.0.table_id', $newTableId);
+
+        $newHoldId = (string) $second->json('data.hold_id');
+        self::assertNotSame($oldHoldId, $newHoldId);
+        self::assertSame('Cancelled', (string) DB::table('table_holds')->where('hold_id', $oldHoldId)->value('hold_status'));
+        self::assertSame(2, (int) DB::table('table_holds')->where('hold_id', $oldHoldId)->value('row_version'));
+        self::assertSame(1, (int) DB::table('table_holds')
+            ->where('session_id', $sessionId)
+            ->whereIn('hold_status', ['Holding', 'Pending'])
+            ->count());
+    }
+
     public function test_future_hold_can_use_currently_occupied_table_when_time_window_is_free(): void
     {
         $tableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Occupied']);

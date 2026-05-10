@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { MenuPage } from "@/features/menu/menu-page";
+import { HomePage } from "@/features/home/home-page";
 
 export const metadata: Metadata = {
-  title: "Thực đơn",
-  description: "Xem thực đơn nhà hàng, tìm món và kiểm tra món có thể đặt trước khi đến.",
+  title: "RestaurantPOS",
+  description: "Chọn chi nhánh, xem thực đơn, đặt bàn và tiếp tục bằng phiên khách hoặc tài khoản đã đăng nhập.",
 };
 
 export default function Home() {
-  return <MenuPage />;
+  return <HomePage />;
 }

@@ -13,13 +13,13 @@ const confirmActionMock = vi.hoisted(() => vi.fn(async () => true));
 const apiMocks = vi.hoisted(() => ({
   assignBestFitTable: vi.fn(),
   assignSuggestedTable: vi.fn(),
+  cancelReservation: vi.fn(),
   checkInReservation: vi.fn(),
   createReservation: vi.fn(),
   getActiveOrderByReservation: vi.fn(),
   getReservationDetail: vi.fn(),
   getTableBoard: vi.fn(),
   listReservations: vi.fn(),
-  updateReservationStatus: vi.fn(),
 }));
 
 vi.mock('../../../../shared/api/staff-api', () => apiMocks);
@@ -182,7 +182,7 @@ describe('ReservationsPage', () => {
         row_version: 7,
       },
     });
-    apiMocks.updateReservationStatus.mockResolvedValue({
+    apiMocks.cancelReservation.mockResolvedValue({
       data: createReservationLookupEntry({
         status: 'Cancelled',
         cancelled_at: '2026-04-11T12:05:00Z',
@@ -289,6 +289,13 @@ describe('ReservationsPage', () => {
         deposit_intent_submitted: false,
         deposit_self_service_follow_up: false,
       },
+    }))).toBe(true);
+  });
+
+  it('looks up the active order for a reserved reservation because canonical active-order selection now comes from reservation orders', () => {
+    expect(shouldLookupActiveOrder(createReservationLookupEntry({
+      status: 'Reserved',
+      checked_in_at: null,
     }))).toBe(true);
   });
 
@@ -446,8 +453,7 @@ describe('ReservationsPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Cancel reservation now' }));
 
     await waitFor(() => expect(confirmActionMock).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(apiMocks.updateReservationStatus).toHaveBeenCalledWith(91, {
-      status: 'Cancelled',
+    await waitFor(() => expect(apiMocks.cancelReservation).toHaveBeenCalledWith(91, {
       row_version: 7,
     }));
     await waitFor(() => expect(screen.getByTestId('mutation-status-notice')).toHaveAttribute('data-phase', 'succeeded'));

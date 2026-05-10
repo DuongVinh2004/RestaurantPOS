@@ -4,6 +4,7 @@ import {
   buildAdminMenuItemQuery,
   formatCatalogPrice,
   readSelectedCatalogItemId,
+  resolveSelectedCatalogItem,
   summarizeAdminCatalog,
   type AdminCatalogFilterState,
 } from './admin-catalog';
@@ -33,6 +34,17 @@ describe('admin catalog helpers', () => {
       sort: 'name',
     });
     expect(readSelectedCatalogItemId(filters)).toBe(12);
+  });
+
+  it('keeps direct item id selection even when the current list no longer includes that item', () => {
+    expect(resolveSelectedCatalogItem(77, [
+      { item_id: 12, name: 'Coffee' },
+    ])).toEqual({
+      itemId: 77,
+      item: null,
+      displayLabel: 'Món #77',
+      outsideCurrentResults: true,
+    });
   });
 
   it('summarizes catalog reads and prices', () => {

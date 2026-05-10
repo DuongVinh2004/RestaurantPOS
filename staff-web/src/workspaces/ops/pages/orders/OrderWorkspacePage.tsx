@@ -16,7 +16,6 @@ import {
   createTableOrder,
   dispatchKitchenOrder,
   getActiveOrderByReservation,
-  getActiveOrderByTable,
   getOrderDetail,
   getReservationDetail,
   listMenuItems,
@@ -220,28 +219,19 @@ export function OrderWorkspacePage() {
     setOrderMutationFeedback(null);
   }, [routeOrderId]);
 
-  const activeOrderByTableQuery = useQuery({
-    queryKey: ['active-order-by-table', tableId],
-    queryFn: () => getActiveOrderByTable(tableId as number),
-    enabled: !!tableId && (!routeOrderId || routeOrderRecoveryEnabled),
-    retry: (failureCount, error) => !isApiStatus(error, 404) && failureCount < 1,
-  });
-
   const activeOrderByReservationQuery = useQuery({
     queryKey: ['active-order-by-reservation', reservationId],
     queryFn: () => getActiveOrderByReservation(reservationId as number),
-    enabled: !!reservationId && !activeOrderByTableQuery.data && (!routeOrderId || routeOrderRecoveryEnabled),
-    retry: (failureCount, error) => !isApiStatus(error, 404) && failureCount < 1,
+    enabled: !!reservationId && (!routeOrderId || routeOrderRecoveryEnabled),
+    retry: false,
   });
-  const activeOrderLookupPending = activeOrderByTableQuery.isFetching || activeOrderByReservationQuery.isFetching;
+  const activeOrderLookupPending = activeOrderByReservationQuery.isFetching;
 
   const resolvedOrderId = routeOrderId && !routeOrderRecoveryEnabled
     ? routeOrderId
-    : activeOrderByTableQuery.data?.data.order.order_id
-      ?? activeOrderByReservationQuery.data?.data.order.order_id
+    : activeOrderByReservationQuery.data?.data.order?.order_id
       ?? null;
-  const activeOrderRowVersion = activeOrderByTableQuery.data?.data.order.row_version
-    ?? activeOrderByReservationQuery.data?.data.order.row_version
+  const activeOrderRowVersion = activeOrderByReservationQuery.data?.data.order?.row_version
     ?? null;
 
   const orderDetailQuery = useQuery({
@@ -492,9 +482,6 @@ export function OrderWorkspacePage() {
       resolvedOrderId
         ? queryClient.invalidateQueries({ queryKey: ['checkout-order-detail', resolvedOrderId], refetchType: 'active' })
         : Promise.resolve(),
-      tableId
-        ? queryClient.invalidateQueries({ queryKey: ['active-order-by-table', tableId], refetchType: 'active' })
-        : Promise.resolve(),
       reservationId
         ? queryClient.invalidateQueries({ queryKey: ['active-order-by-reservation', reservationId], refetchType: 'active' })
         : Promise.resolve(),
@@ -503,14 +490,15 @@ export function OrderWorkspacePage() {
 
   async function recoverRouteOrderContext() {
     setRouteOrderRecoveryEnabled(true);
-    await Promise.all([
-      tableId
-        ? queryClient.invalidateQueries({ queryKey: ['active-order-by-table', tableId], refetchType: 'active' })
-        : Promise.resolve(),
-      reservationId
-        ? queryClient.invalidateQueries({ queryKey: ['active-order-by-reservation', reservationId], refetchType: 'active' })
-        : Promise.resolve(),
-    ]);
+
+    if (!reservationId) {
+      return;
+    }
+
+    await queryClient.invalidateQueries({
+      queryKey: ['active-order-by-reservation', reservationId],
+      refetchType: 'active',
+    });
   }
 
   async function handleOrderMutationError(error: unknown, fallback: string) {
@@ -549,7 +537,6 @@ export function OrderWorkspacePage() {
     onSuccess: async (orderEnvelope) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['table-board'] }),
-        queryClient.invalidateQueries({ queryKey: ['active-order-by-table', primaryTableId] }),
         queryClient.invalidateQueries({ queryKey: ['active-order-by-reservation', reservationId] }),
       ]);
       const orderId = orderEnvelope.data.order_id;
@@ -796,7 +783,13 @@ export function OrderWorkspacePage() {
     }
   }
 
-  const staleRouteOrderRecovered = routeOrderId !== null && routeOrderRecoveryEnabled;
+  const staleRouteRecoveryActive = routeOrderId !== null && routeOrderRecoveryEnabled;
+  const staleRouteOrderRecovered = Boolean(
+    staleRouteRecoveryActive
+    && resolvedOrderId !== null
+    && resolvedOrderId !== routeOrderId,
+  );
+  const tableOnlyActiveOrderBlocked = Boolean(staleRouteRecoveryActive && tableId && !reservationId);
   const itemConcurrencyMissing = orderItems.some((item) => !item.row_version) || (orderItems.length > 0 && !orderDetailQuery.data?.data.order.row_version);
   const selectedItemEditable = canEditOrderItem(selectedItem?.status);
   const allowedStatusTransitions = getAllowedOrderItemStatuses(selectedItem?.status);
@@ -809,12 +802,34 @@ export function OrderWorkspacePage() {
       primaryAction={<Button onClick={() => void refreshOrderWorkspaceSlices()}>Tải lại chi tiết</Button>}
       className="staff-inline-note"
     />
-  ) : orderMutationFeedback?.kind === 'stale-order' && !staleRouteOrderRecovered ? (
+  ) : orderMutationFeedback?.kind === 'stale-order' && staleRouteRecoveryActive && !staleRouteOrderRecovered ? (
     <ConflictState
-      title="Đơn hàng trên URL không còn hợp lệ"
-      description="Workspace đang dò lại active order theo bàn hoặc đặt bàn hiện tại trước khi cho phép thao tác tiếp."
-      meta={mutationFeedbackMeta ? `Mã truy vết: ${mutationFeedbackMeta}` : undefined}
-      primaryAction={<Button onClick={() => void recoverRouteOrderContext()}>Dò lại đơn hiện tại</Button>}
+      title={tableOnlyActiveOrderBlocked ? 'Khong the do lai active order chi tu table_id' : 'Don hang tren URL khong con hop le'}
+      description={
+        tableOnlyActiveOrderBlocked
+          ? 'Route hien tai chi con table_id sau khi order_id cu het hieu luc. Staff-web khong the do lai active order bang table vi frozen contract chua co lookup canon theo table.'
+          : 'Workspace dang do lai active order theo dat ban hien tai truoc khi cho phep thao tac tiep.'
+      }
+      meta={
+        tableOnlyActiveOrderBlocked
+          ? 'Blocked route: GET /api/v1/staff/tables/{table_id}/active-order. Missing invariant: full-contract active-order lookup by table in frozen OpenAPI + generated SDK.'
+          : mutationFeedbackMeta ? `Mã truy vết: ${mutationFeedbackMeta}` : undefined
+      }
+      primaryAction={tableOnlyActiveOrderBlocked ? (
+        <Button
+          onClick={() =>
+            navigate(`${staffRoutePaths.ops.tables}?${buildJourneySearch({
+              source: 'board',
+              tableId: tableId ?? undefined,
+              tableIds: routeTableIds.length > 0 ? routeTableIds : undefined,
+            })}`)
+          }
+        >
+          Quay lai so do ban
+        </Button>
+      ) : (
+        <Button onClick={() => void recoverRouteOrderContext()}>Do lai don hien tai</Button>
+      )}
       className="staff-inline-note"
     />
   ) : orderMutationFeedback?.kind === 'api-error' ? (
@@ -853,10 +868,10 @@ export function OrderWorkspacePage() {
         }
       />
 
-      {orderDetailQuery.isLoading || activeOrderByTableQuery.isLoading || activeOrderByReservationQuery.isLoading ? (
+      {orderDetailQuery.isLoading || activeOrderByReservationQuery.isLoading ? (
         <InlineLoading tip="Đang xác định đơn hàng hiện tại..." />
       ) : null}
-      {orderDetailQuery.error && !(staleRouteOrderRecovered && isApiStatus(orderDetailQuery.error, 404)) ? (
+      {orderDetailQuery.error && !(staleRouteRecoveryActive && isApiStatus(orderDetailQuery.error, 404)) ? (
         <ApiStateBlock
           error={orderDetailQuery.error}
           fallback="Không thể tải chi tiết đơn hàng."
@@ -872,7 +887,7 @@ export function OrderWorkspacePage() {
           tone="info"
           eyebrow="Đã tự phục hồi ngữ cảnh"
           title={`Đã khôi phục sang đơn hàng đang phục vụ #${resolvedOrderId}`}
-          description="Ngữ cảnh order cũ trên URL không còn hợp lệ. Workspace đã dò lại active order theo bàn hoặc đặt bàn hiện tại."
+          description="Ngữ cảnh order cũ trên URL không còn hợp lệ. Workspace đã dò lại active order theo dat ban hien tai."
           className="staff-inline-note"
         />
       ) : null}
@@ -881,8 +896,9 @@ export function OrderWorkspacePage() {
         <Card title="Chưa có đơn hàng đang phục vụ">
           <Space orientation="vertical" size={16} style={{ width: '100%' }}>
             <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-              Backend chưa trả về đơn hàng đang phục vụ cho bàn hoặc đặt bàn hiện tại. Nếu khách đã bắt đầu dùng dịch vụ,
-              hãy tạo đơn đầu tiên tại đây để tiếp tục luồng phục vụ.
+              {tableOnlyActiveOrderBlocked
+                ? 'Route hien tai chi con table_id sau khi active order cu khong con hop le. Staff-web khong the tiep tuc do lai active order tu ban vi contract canon khong expose lookup nay.'
+                : 'Backend chua tra ve don hang dang phuc vu cho dat ban hien tai. Neu khach da bat dau dung dich vu, hay tao don dau tien tai day de tiep tuc luong phuc vu.'}
             </Typography.Paragraph>
             <Descriptions bordered size="small" column={1}>
               <Descriptions.Item label="Bàn">{reservationTableLabel}</Descriptions.Item>
@@ -891,6 +907,36 @@ export function OrderWorkspacePage() {
                 {reservationRowVersion ?? reservationDetailQuery.data?.data.row_version ?? 'Thiếu'}
               </Descriptions.Item>
             </Descriptions>
+            {tableOnlyActiveOrderBlocked ? (
+              <ConflictState
+                title="Active order theo ban dang bi khoa boi contract"
+                description="Neu can tiep tuc, hay quay lai so do ban hoac mo lai luong dat ban de lay reservation_id canon truoc khi vao workspace don hang."
+                meta="Blocked route: GET /api/v1/staff/tables/{table_id}/active-order. Missing invariant: full-contract active-order lookup by table in frozen OpenAPI + generated SDK."
+                primaryAction={(
+                  <Button
+                    onClick={() =>
+                      navigate(`${staffRoutePaths.ops.tables}?${buildJourneySearch({
+                        source: 'board',
+                        tableId: tableId ?? undefined,
+                        tableIds: routeTableIds.length > 0 ? routeTableIds : undefined,
+                      })}`)
+                    }
+                  >
+                    Quay lai so do ban
+                  </Button>
+                )}
+                className="staff-inline-note"
+              />
+            ) : null}
+            {activeOrderByReservationQuery.error ? (
+              <ApiStateBlock
+                error={activeOrderByReservationQuery.error}
+                fallback="Khong the xac dinh active order canonical cho dat ban hien tai."
+                onRetry={() => {
+                  void activeOrderByReservationQuery.refetch();
+                }}
+              />
+            ) : null}
             {reservationDetailQuery.error ? (
               <ApiStateBlock
                 error={reservationDetailQuery.error}
@@ -900,14 +946,16 @@ export function OrderWorkspacePage() {
                 }}
               />
             ) : null}
-            <Form<CreateOrderValues> layout="vertical" onFinish={(values) => createOrderMutation.mutate(values)}>
-              <Form.Item name="notes" label="Ghi chú đơn hàng">
-                <Input.TextArea rows={3} placeholder="Ghi chú phục vụ nếu cần" />
-              </Form.Item>
-              <Button type="primary" htmlType="submit" loading={createOrderMutation.isPending}>
-                Tạo đơn hàng
-              </Button>
-            </Form>
+            {!tableOnlyActiveOrderBlocked && !activeOrderByReservationQuery.error ? (
+              <Form<CreateOrderValues> layout="vertical" onFinish={(values) => createOrderMutation.mutate(values)}>
+                <Form.Item name="notes" label="Ghi chú đơn hàng">
+                  <Input.TextArea rows={3} placeholder="Ghi chú phục vụ nếu cần" />
+                </Form.Item>
+                <Button type="primary" htmlType="submit" loading={createOrderMutation.isPending}>
+                  Tạo đơn hàng
+                </Button>
+              </Form>
+            ) : null}
           </Space>
         </Card>
       ) : (

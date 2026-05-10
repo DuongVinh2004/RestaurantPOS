@@ -33,6 +33,7 @@ class InventoryStockMovementService
     public function recordMovement(int $ingredientId, array $payload, ?int $actorUserId = null): IngredientStockMovement
     {
         return DB::transaction(function () use ($ingredientId, $payload, $actorUserId): IngredientStockMovement {
+            // Ingredient bi lock tai goc de moi stock mutation cho cung ingredient chay noi tiep.
             /** @var Ingredient|null $ingredient */
             $ingredient = Ingredient::query()->lockForUpdate()->find($ingredientId);
 
@@ -49,6 +50,7 @@ class InventoryStockMovementService
      */
     public function recordMovementForIngredient(Ingredient $ingredient, array $payload, ?int $actorUserId = null): IngredientStockMovement
     {
+        // Toan bo movement deu duoc chuan hoa ve branch, unit, quantity_delta va reference lineage truoc khi save.
         $branchId = $this->branchContextService->resolveBranchId($payload['branch_id'] ?? null);
         $movementType = (string) $payload['movement_type'];
         $unitCode = $this->resolveIngredientUnitCode($ingredient, $payload['unit_code'] ?? null, 'unit_code');
@@ -63,6 +65,7 @@ class InventoryStockMovementService
             lockForUpdate: true,
         );
         if ($existingMovement instanceof IngredientStockMovement) {
+            // Purchase receipt va order-item consumption co the replay an toan neu payload khop 100%.
             $this->assertReplayCompatible(
                 existingMovement: $existingMovement,
                 branchId: $branchId,
@@ -75,6 +78,7 @@ class InventoryStockMovementService
         }
 
         if ($this->isNegativeMovementType($movementType)) {
+            // Moi stock out/decrease/wastage phai qua preflight de ledger khong am.
             $this->assertStockWillNotGoNegative(
                 (int) $ingredient->ingredient_id,
                 $branchId,
@@ -83,6 +87,7 @@ class InventoryStockMovementService
         }
 
         $movement = new IngredientStockMovement;
+        // Ledger movement la su that ke toan cua ton kho, khong sua line cu ma chi them dong moi.
         $movement->fill([
             'branch_id' => $branchId,
             'ingredient_id' => (int) $ingredient->ingredient_id,
@@ -114,6 +119,7 @@ class InventoryStockMovementService
     public function assertSufficientStockForMovements(array $movements): void
     {
         DB::transaction(function () use ($movements): void {
+            // Helper nay dung cho batch outflow: gop nhu cau theo ingredient/branch roi check mot lan truoc khi ghi.
             $requirements = [];
 
             foreach ($movements as $movement) {
@@ -138,6 +144,7 @@ class InventoryStockMovementService
                     referenceId: $referenceId,
                 );
                 if ($existingMovement instanceof IngredientStockMovement) {
+                    // Movement replay hop le khong duoc tinh lai vao nhu cau ton kho.
                     $this->assertReplayCompatible(
                         existingMovement: $existingMovement,
                         branchId: $branchId,
@@ -158,6 +165,7 @@ class InventoryStockMovementService
                 $requirements[$key]['quantity_delta'] += $this->toScaledQuantity($quantityDelta);
             }
 
+            // Sort on dinh giup lock/check luon theo cung thu tu, giam nguy co deadlock khi batch lon.
             ksort($requirements);
 
             foreach ($requirements as $requirement) {
@@ -172,6 +180,7 @@ class InventoryStockMovementService
 
     public function currentStockOnHand(int $ingredientId, ?int $branchId = null): string
     {
+        // Ton kho hien tai duoc suy ra tu tong ledger, khong luu denormalized snapshot o service nay.
         $quantity = IngredientStockMovement::query()
             ->where('ingredient_id', $ingredientId)
             ->when($branchId !== null, static fn ($query) => $query->where('branch_id', $branchId))
@@ -182,6 +191,7 @@ class InventoryStockMovementService
 
     private function normalizeQuantityDelta(string $movementType, mixed $quantity): string
     {
+        // Quantity duoc doi dau theo movement type de moi noi chi can nhap tri tuyet doi.
         $absolute = abs((float) $quantity);
 
         return match ($movementType) {
@@ -205,6 +215,7 @@ class InventoryStockMovementService
 
     private function assertStockWillNotGoNegative(int $ingredientId, int $branchId, int $quantityDelta): void
     {
+        // Khoa ca ingredient va ledger movement cua branch de current stock + projected stock duoc tinh nhat quan.
         Ingredient::query()->where('ingredient_id', $ingredientId)->lockForUpdate()->firstOrFail();
 
         $currentStock = IngredientStockMovement::query()
@@ -285,6 +296,7 @@ class InventoryStockMovementService
         ?string $referenceId,
         bool $lockForUpdate = false,
     ): ?IngredientStockMovement {
+        // Chi mot so lineage he thong moi duoc replay; stock adjustment tay thi khong.
         if ($referenceType === null || $referenceId === null || ! in_array($referenceType, self::REPLAY_SAFE_REFERENCE_TYPES, true)) {
             return null;
         }
@@ -312,6 +324,7 @@ class InventoryStockMovementService
         string $quantityDelta,
         string $unitCode,
     ): void {
+        // Replay khac branch/type/quantity/unit phai fail ngay de tranh reference trung ma noi dung lech.
         $existingQuantityDelta = number_format((float) $existingMovement->quantity_delta, 3, '.', '');
         $isCompatible = (int) $existingMovement->branch_id === $branchId
             && (string) $existingMovement->movement_type === $movementType

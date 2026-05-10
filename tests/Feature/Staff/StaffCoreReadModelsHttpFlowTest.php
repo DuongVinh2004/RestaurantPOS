@@ -126,7 +126,7 @@ class StaffCoreReadModelsHttpFlowTest extends TestCase
         $categoryId = $this->ensureMenuCategory('Staff Ordering');
         $itemId = $this->createMenuItem([
             'category_id' => $categoryId,
-            'name' => 'Pho Tai',
+            'name' => 'Pho Tai Staff Filter',
             'code' => 'PHO-STAFF-01',
             'is_preorder_enabled' => 1,
         ]);
@@ -138,13 +138,13 @@ class StaffCoreReadModelsHttpFlowTest extends TestCase
         ]);
 
         $response = $this->withHeaders($headers)->getJson(
-            '/api/v1/staff/menu/items?service_time='.urlencode($serviceTime->toIso8601String()).'&q=Pho'
+            '/api/v1/staff/menu/items?service_time='.urlencode($serviceTime->toIso8601String()).'&q=PHO-STAFF-01'
         );
 
         $response->assertOk()
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.item_id', $itemId)
-            ->assertJsonPath('data.0.name', 'Pho Tai')
+            ->assertJsonPath('data.0.name', 'Pho Tai Staff Filter')
             ->assertJsonPath('data.0.price.amount', '95000.00');
     }
 

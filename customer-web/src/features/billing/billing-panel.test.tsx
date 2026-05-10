@@ -161,8 +161,43 @@ describe("BillingPanel", () => {
     await waitFor(() => {
       expect(mocks.confirmBillPaymentSession).toHaveBeenCalledWith(7, 401, 22);
     });
-    expect(await screen.findByText("Đã ghi nhận thanh toán")).toBeInTheDocument();
-    expect(screen.getByText("Thanh toán đã kết nối")).toBeInTheDocument();
+    expect((await screen.findAllByText("Đã ghi nhận thanh toán")).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Đã kết nối nhà cung cấp")).toBeInTheDocument();
+  });
+
+  it("does not allow creating a second bill payment session while restoring one", async () => {
+    window.sessionStorage.setItem("restaurantpos.customer.session-id.v1", "browser-session-1");
+    window.sessionStorage.setItem(
+      "restaurantpos.customer.payment-session.v1.bill.7",
+      JSON.stringify({
+        surface: "bill",
+        reservation_id: 7,
+        session_id: 401,
+        browser_session_id: "browser-session-1",
+      }),
+    );
+    mocks.getBillPaymentSession.mockReturnValue(new Promise(() => {}));
+
+    renderPanel();
+
+    expect(await screen.findByRole("button", { name: "Thanh toán hóa đơn" })).toBeDisabled();
+    expect(mocks.createBillPaymentSession).not.toHaveBeenCalled();
+  });
+
+  it("prevents refresh and confirm from running at the same time", async () => {
+    const user = userEvent.setup();
+
+    mocks.createBillPaymentSession.mockResolvedValue(createPaymentSessionEnvelope(21));
+    mocks.refreshBillPaymentSession.mockReturnValue(new Promise(() => {}));
+
+    renderPanel();
+
+    await user.click(await screen.findByRole("button", { name: "Thanh toán hóa đơn" }));
+    await screen.findByText("bill-1");
+    await user.click(screen.getByRole("button", { name: "Cập nhật trạng thái" }));
+
+    expect(await screen.findByRole("button", { name: "Xác nhận thanh toán" })).toBeDisabled();
+    expect(mocks.confirmBillPaymentSession).not.toHaveBeenCalled();
   });
 
   it("renders a blocked state when bill self-service is forbidden for the current actor", async () => {
@@ -200,9 +235,9 @@ describe("BillingPanel", () => {
 
     renderPanel();
 
-    expect(await screen.findByText("Đơn tại bàn đang mở")).toBeInTheDocument();
+    expect(await screen.findByText("Theo dõi món")).toBeInTheDocument();
     expect(
-      screen.getByText("Đơn tại bàn vẫn đang mở. Hóa đơn cuối sẽ xuất hiện sau khi nhân viên chốt đơn."),
+      screen.getByText("Đơn này vẫn đang được xử lý."),
     ).toBeInTheDocument();
   });
 

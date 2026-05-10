@@ -24,6 +24,9 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Chuyen reservation dang check-in tu ban nay sang ban khac trong khi van giu nguyen service context.
+ */
 class StaffMoveTableService
 {
     private readonly ReservationBranchScopeService $reservationBranchScopeService;
@@ -49,6 +52,8 @@ class StaffMoveTableService
         ?int $staffUserId = null,
         ?int $expectedRowVersion = null
     ): Reservation {
+        // Move-table la thao tac nhay cam nen phai lock ca reservation, ban cu, ban moi.
+        // Pha 1: validate actor va target ids truoc khi tinh lock scope.
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
         if ($fromTableId <= 0 || $toTableId <= 0 || $fromTableId === $toTableId) {
@@ -57,6 +62,7 @@ class StaffMoveTableService
             ]);
         }
 
+        // Lay bo table hien tai de lock du reservation, ban cu va bat ky ban dang gan nao khac.
         $currentTableIds = DB::table('reservation_tables')
             ->where('reservation_id', $reservationId)
             ->pluck('table_id')
@@ -94,7 +100,9 @@ class StaffMoveTableService
                     $staffUserId,
                     $expectedRowVersion
                 ) {
+                    // Trong transaction nay se xac minh checked-in state, conflict, roi moi doi mapping ban.
                     /** @var Reservation|null $reservation */
+                    // Pha 2: lock reservation + current mappings + target table trong cung mot transaction.
                     $reservation = Reservation::query()
                         ->where('reservation_id', $reservationId)
                         ->lockForUpdate()
@@ -107,6 +115,7 @@ class StaffMoveTableService
                     $this->assertMoveTableReservationIsCheckedIn($reservation);
                     $this->assertReservationRowVersionMatches($reservation, $expectedRowVersion);
 
+                    // Snapshot mapping hien tai la co so de thay fromTable bang toTable mot cach xac dinh.
                     $currentTableIds = DB::table('reservation_tables')
                         ->where('reservation_id', $reservationId)
                         ->lockForUpdate()
@@ -143,12 +152,14 @@ class StaffMoveTableService
                     $to = $tables->get($toTableId);
                     $toStatus = (string) ($to->status?->value ?? $to->status);
 
+                    // Ban dich phai dang allocatable theo board state hien tai, neu khong move se tao side-effect sai.
                     if (! $this->tableStateService->isAllocatableForBooking($toStatus)) {
                         throw ValidationException::withMessages([
                             'to_table_id' => ['Target table is not currently Available.'],
                         ]);
                     }
 
+                    // targetTableIds la tap table sau khi thay ban cu bang ban moi; no duoc dung cho capacity + branch checks.
                     $targetTableIds = array_values(array_unique(array_map(
                         fn (int $id) => $id === $fromTableId ? $toTableId : $id,
                         $currentTableIds
@@ -178,6 +189,7 @@ class StaffMoveTableService
                         ]);
                     }
 
+                    // Kiem tra conflict chi can nhin vao ban moi, vi ban cu da la ban dang thuoc reservation nay.
                     $reservationConflictIds = $this->tableTimeConflictService->findReservationConflictTableIds(
                         tableIds: [$toTableId],
                         start: $reservation->start_time->copy()->utc(),
@@ -213,6 +225,7 @@ class StaffMoveTableService
                         $staffUserId,
                     );
 
+                    // Pha 3: mutate mapping reservation_tables theo thu tu xoa ban cu roi chen ban moi neu can.
                     DB::table('reservation_tables')
                         ->where('reservation_id', $reservationId)
                         ->where('table_id', $fromTableId)
@@ -236,6 +249,7 @@ class StaffMoveTableService
                         currentReservationId: $reservationId,
                     );
 
+                    // Pha 4: dong bo realtime table state cho ban cu va ban moi.
                     $this->tableStateService->releaseTablesSafely(
                         [$fromTableId],
                         null,
@@ -278,6 +292,7 @@ class StaffMoveTableService
                 });
             });
 
+            // Publish sau commit de board/timeline chi nhan event cua mutation da thanh cong.
             app(OperationalRealtimeService::class)->publishBoardEvent(
                 'reservation.table_moved',
                 [

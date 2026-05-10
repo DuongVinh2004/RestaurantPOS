@@ -54,6 +54,31 @@ export type AddOrderItemsRequest = {
   row_version: number;
 };
 
+export type AdminBenefitSetting = {
+  setting_key: string;
+  value: string;
+  updated_at?: (string) | null;
+  [key: string]: unknown;
+};
+
+export type AdminBenefitSettingCollectionEnvelope = {
+  data: Array<AdminBenefitSetting>;
+  meta?: Record<string, unknown>;
+};
+
+export type AdminBenefitSettingEnvelope = {
+  data: AdminBenefitSetting;
+  meta?: Record<string, unknown>;
+};
+
+export type AdminCustomerDataExportEnvelope = {
+  data: Record<string, unknown>;
+  meta?: {
+  action?: string;
+  [key: string]: unknown;
+};
+};
+
 export type AdminIngredient = {
   ingredient_id: number;
   code: (string) | null;
@@ -107,6 +132,113 @@ export type AdminIngredientCollectionMeta = {
   query_contract: ListingQueryContract;
 };
 
+export type AdminIngredientMovement = {
+  movement_id: number;
+  branch_id: (number) | null;
+  ingredient_id: number;
+  movement_type: string;
+  quantity_delta: string;
+  unit_code: string;
+  reference: {
+  type: (string) | null;
+  id: (string) | null;
+};
+  notes: (string) | null;
+  created_by: (number) | null;
+  created_at: (string) | null;
+};
+
+export type AdminIngredientMovementCollectionEnvelope = {
+  data: Array<AdminIngredientMovement>;
+  meta?: {
+  ingredient?: Record<string, unknown>;
+  current_page?: number;
+  per_page?: number;
+  total?: number;
+  last_page?: number;
+  filters?: Record<string, unknown>;
+  sort?: {
+  supported: boolean;
+  value: (string) | null;
+  by: (string) | null;
+  dir: (string) | null;
+};
+  query_contract?: ListingQueryContract;
+  [key: string]: unknown;
+};
+};
+
+export type AdminIngredientMovementEnvelope = {
+  data: AdminIngredientMovement;
+  meta?: {
+  stock_on_hand?: string;
+  [key: string]: unknown;
+};
+};
+
+export type AdminLoyaltyTier = {
+  tier_id: number;
+  tier_code: string;
+  tier_name: string;
+  min_points: number;
+  benefits_json?: (Array<Record<string, unknown>>) | null;
+  is_active: boolean;
+  row_version: number;
+  created_at?: (string) | null;
+  updated_at?: (string) | null;
+  [key: string]: unknown;
+};
+
+export type AdminLoyaltyTierCollectionEnvelope = {
+  data: Array<AdminLoyaltyTier>;
+  meta?: Record<string, unknown>;
+};
+
+export type AdminLoyaltyTierEnvelope = {
+  data: AdminLoyaltyTier;
+};
+
+export type AdminPrivacyRequest = {
+  request_id: number;
+  privacy_request_id?: number;
+  customer_privacy_request_id?: number;
+  user_id: (number) | null;
+  customer_user_id?: (number) | null;
+  request_type: string;
+  status: string;
+  decision?: (string) | null;
+  requested_at?: (string) | null;
+  created_at?: (string) | null;
+  reviewed_at?: (string) | null;
+  processed_at?: (string) | null;
+  notes?: (string) | null;
+  resolution_notes?: (string) | null;
+  result_summary?: (string) | null;
+  [key: string]: unknown;
+};
+
+export type AdminPrivacyRequestCollectionEnvelope = {
+  data: Array<AdminPrivacyRequest>;
+  meta?: {
+  action?: string;
+  current_page?: number;
+  per_page?: number;
+  total?: number;
+  last_page?: number;
+  [key: string]: unknown;
+};
+};
+
+export type AdminPrivacyReviewEnvelope = {
+  data: Record<string, unknown>;
+  meta?: {
+  action?: string;
+  mode?: string;
+  committed?: boolean;
+  [key: string]: unknown;
+};
+};
+
 export type AdminPurchaseOrder = {
   purchase_order_id: number;
   branch_id: (number) | null;
@@ -138,6 +270,8 @@ export type AdminPurchaseOrder = {
   received_total_quantity: string;
   remaining_total_quantity: string;
 };
+  lines?: Array<AdminPurchaseOrderLine>;
+  receipts?: Array<AdminPurchaseOrderReceipt>;
   created_by?: (number) | null;
   updated_by?: (number) | null;
   created_at: (string) | null;
@@ -180,6 +314,76 @@ export type AdminPurchaseOrderCollectionMeta = {
   last_page: number;
   has_more_pages: boolean;
   query_contract: ListingQueryContract;
+};
+
+export type AdminPurchaseOrderLine = {
+  po_line_id: number;
+  ingredient_id: number;
+  ingredient?: {
+  ingredient_id: number;
+  code: string;
+  name: string;
+  unit_code: string;
+  is_active: boolean;
+} | null;
+  ordered_quantity: string;
+  received_quantity: string;
+  remaining_quantity: string;
+  unit_code: string;
+  unit_cost: (string) | null;
+  notes: (string) | null;
+  sort_order: number;
+};
+
+export type AdminPurchaseOrderReceipt = {
+  receipt_id: number;
+  branch_id: (number) | null;
+  purchase_order_id: number;
+  receipt_code: string;
+  receipt_status: string;
+  received_at: (string) | null;
+  supplier_document_no: (string) | null;
+  notes: (string) | null;
+  summary: {
+  line_count: number;
+  received_total_quantity: string;
+};
+  lines?: Array<AdminPurchaseOrderReceiptLine>;
+  created_by: (number) | null;
+  created_at: (string) | null;
+};
+
+export type AdminPurchaseOrderReceiptCollectionEnvelope = {
+  data: Array<AdminPurchaseOrderReceipt>;
+  meta?: {
+  purchase_order: AdminPurchaseOrder;
+  count: number;
+};
+};
+
+export type AdminPurchaseOrderReceiptEnvelope = {
+  data: AdminPurchaseOrderReceipt;
+  meta?: {
+  purchase_order: AdminPurchaseOrder;
+};
+};
+
+export type AdminPurchaseOrderReceiptLine = {
+  receipt_line_id: number;
+  purchase_order_line_id: number;
+  ingredient_id: number;
+  ingredient?: {
+  ingredient_id: number;
+  code: string;
+  name: string;
+  unit_code: string;
+  is_active: boolean;
+} | null;
+  received_quantity: string;
+  unit_code: string;
+  unit_cost: (string) | null;
+  notes: (string) | null;
+  [key: string]: unknown;
 };
 
 export type AdminSupplier = {
@@ -230,6 +434,45 @@ export type AdminSupplierCollectionMeta = {
   last_page: number;
   has_more_pages: boolean;
   query_contract: ListingQueryContract;
+};
+
+export type AdminVoucher = {
+  voucher_id: number;
+  code: string;
+  description?: (string) | null;
+  discount_type: string;
+  discount_value: (number) | null;
+  free_item_id?: (number) | null;
+  free_item_qty?: (number) | null;
+  max_usage?: (number) | null;
+  max_usage_per_user?: (number) | null;
+  min_spend?: (number) | null;
+  start_date?: (string) | null;
+  expiry_date?: (string) | null;
+  is_active: boolean;
+  row_version: number;
+  created_at?: (string) | null;
+  updated_at?: (string) | null;
+  [key: string]: unknown;
+};
+
+export type AdminVoucherCollectionEnvelope = {
+  data: Array<AdminVoucher>;
+  meta?: Record<string, unknown>;
+};
+
+export type AdminVoucherEnvelope = {
+  data: AdminVoucher;
+};
+
+export type AdvanceWaitlistRequest = {
+  hold_minutes?: (number) | null;
+  row_version: number;
+};
+
+export type AssignConversationRequest = {
+  agent_user_id: number;
+  notes?: (string) | null;
 };
 
 export type AvailableTablesCollectionEnvelope = {
@@ -291,10 +534,19 @@ export type BranchCollectionEnvelope = {
 };
 };
 
+export type BranchScopeRequest = {
+  branch_id?: (number) | null;
+};
+
 export type CancelReservationRequest = {
   row_version: number;
   cancel_reason?: (string) | null;
   session_id?: string;
+};
+
+export type CancelWaitlistRequest = {
+  cancel_reason?: (string) | null;
+  row_version: number;
 };
 
 export type CashierShift = {
@@ -509,9 +761,33 @@ export type CloseCashierShiftRequest = {
   staff_user_id?: (number) | null;
 };
 
+export type CreateIngredientStockMovementRequest = {
+  movement_type: "StockIn" | "StockOut" | "AdjustmentIncrease" | "AdjustmentDecrease" | "Wastage";
+  branch_id?: (number) | null;
+  quantity: number;
+  unit_code?: (string) | null;
+  reference_type?: (string) | null;
+  reference_id?: (string) | null;
+  notes?: (string) | null;
+};
+
 export type CreatePrivacyRequestRequest = {
   request_type: "anonymize";
   reason?: (string) | null;
+};
+
+export type CreatePurchaseOrderReceiptRequest = {
+  receipt_code?: (string) | null;
+  received_at?: (string) | null;
+  supplier_document_no?: (string) | null;
+  notes?: (string) | null;
+  lines: Array<{
+  purchase_order_line_id: number;
+  received_quantity: number;
+  unit_code?: (string) | null;
+  unit_cost?: (number) | null;
+  notes?: (string) | null;
+}>;
 };
 
 export type CreateReservationRequest = {
@@ -566,6 +842,16 @@ export type CreateTableOrderRequest = {
   notes?: (string) | null;
   staff_user_id?: (number) | null;
   row_version: number;
+};
+
+export type CreateWaitlistEntryRequest = {
+  branch_id?: (number) | null;
+  user_id?: (number) | null;
+  guest_name?: (string) | null;
+  phone?: (string) | null;
+  guest_count: number;
+  priority?: (number) | null;
+  notes?: (string) | null;
 };
 
 export type CreateWalkInServiceSessionRequest = {
@@ -1222,6 +1508,14 @@ export type DeleteV1ReservationsIdPreorderQueryParams = {
   pre_order_row_version?: (number) | null;
 };
 
+export type DeleteV1StaffConversationsConversationIdLinksReservationPathParams = {
+  conversation_id: string;
+};
+
+export type DeleteV1StaffConversationsConversationIdLinksWaitingListPathParams = {
+  conversation_id: string;
+};
+
 export type DeleteV1TableHoldsHoldIdPathParams = {
   hold_id: string;
 };
@@ -1235,8 +1529,114 @@ export type DispatchKitchenTicketRequest = {
   row_version: number;
 };
 
+export type FinanceInvoiceEnvelope = {
+  data: {
+  invoice: {
+  billing_invoice_id: number;
+  reservation_id: number;
+  invoice_number: string;
+  invoice_status: string;
+  currency: string;
+  bill_amounts?: Record<string, unknown>;
+  tax?: Record<string, unknown>;
+  seller?: Record<string, unknown>;
+  issued_at?: (string) | null;
+  issued_by?: Record<string, unknown>;
+  row_version: number;
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+};
+  reservation: FinancialReservationSummary;
+  reconciliation: FinancialReconciliationRow;
+  method_breakdown: Array<Record<string, unknown>>;
+  [key: string]: unknown;
+};
+  meta?: {
+  action?: string;
+  created?: boolean;
+  branch_id?: (number) | null;
+  [key: string]: unknown;
+};
+};
+
+export type FinancialReconciliationCollectionEnvelope = {
+  data: Array<FinancialReconciliationRow>;
+  meta?: {
+  action?: string;
+  filters?: Record<string, unknown>;
+  current_page?: number;
+  per_page?: number;
+  total?: number;
+  last_page?: number;
+  query_contract?: ListingQueryContract;
+  [key: string]: unknown;
+};
+};
+
+export type FinancialReconciliationDetailEnvelope = {
+  data: {
+  reservation: FinancialReservationSummary;
+  summary: FinancialReconciliationRow;
+  payments: Array<Record<string, unknown>>;
+  method_breakdown: Array<Record<string, unknown>>;
+  [key: string]: unknown;
+};
+  meta?: {
+  action?: string;
+  branch_id?: (number) | null;
+  [key: string]: unknown;
+};
+};
+
+export type FinancialReconciliationRow = {
+  reservation: FinancialReservationSummary;
+  payment_summary: Record<string, unknown>;
+  reconciliation: Record<string, unknown>;
+  flags: Record<string, unknown>;
+  [key: string]: unknown;
+};
+
+export type FinancialReservationSummary = {
+  reservation_id: number;
+  reservation_code: string;
+  row_version?: (number) | null;
+  status: string;
+  deposit_status: string;
+  start_time?: (string) | null;
+  end_time?: (string) | null;
+  billed_at?: (string) | null;
+  updated_at?: (string) | null;
+  bill_currency?: (string) | null;
+  customer: Record<string, unknown>;
+  [key: string]: unknown;
+};
+
 export type GenericDataEnvelope = {
   data: Record<string, unknown>;
+};
+
+export type GetV1AdminBenefitsLoyaltyTiersIdPathParams = {
+  id: number;
+};
+
+export type GetV1AdminBenefitsVouchersIdPathParams = {
+  id: number;
+};
+
+export type GetV1AdminInventoryIngredientsIdMovementsPathParams = {
+  id: number;
+};
+
+export type GetV1AdminInventoryIngredientsIdMovementsQueryParams = {
+  filter?: Array<Record<string, never>>;
+  filters?: Array<Record<string, never>>;
+  movement_type?: ("StockIn" | "StockOut" | "AdjustmentIncrease" | "AdjustmentDecrease" | "Wastage") | null;
+  branch_id?: (number) | null;
+  page?: (number) | null;
+  per_page?: (number) | null;
+  sort?: ("created_at" | "-created_at" | "movement_id" | "-movement_id" | "movement_type" | "-movement_type" | "quantity_delta" | "-quantity_delta") | null;
+  sort_by?: ("created_at" | "movement_id" | "movement_type" | "quantity_delta") | null;
+  sort_dir?: ("asc" | "desc") | null;
 };
 
 export type GetV1AdminInventoryIngredientsQueryParams = {
@@ -1248,6 +1648,24 @@ export type GetV1AdminInventoryIngredientsQueryParams = {
   per_page?: (number) | null;
   sort?: ("name" | "-name" | "code" | "-code" | "ingredient_id" | "-ingredient_id" | "stock_on_hand_quantity" | "-stock_on_hand_quantity" | "recipe_usage_count" | "-recipe_usage_count" | "updated_at" | "-updated_at") | null;
   sort_by?: ("name" | "code" | "ingredient_id" | "stock_on_hand_quantity" | "recipe_usage_count" | "updated_at") | null;
+  sort_dir?: ("asc" | "desc") | null;
+};
+
+export type GetV1AdminInventoryPurchaseOrdersIdReceiptsPathParams = {
+  id: number;
+};
+
+export type GetV1AdminInventoryPurchaseOrdersIdReceiptsQueryParams = {
+  filter?: Array<Record<string, never>>;
+  filters?: Array<Record<string, never>>;
+  supplier_id?: (number) | null;
+  branch_id?: (number) | null;
+  purchase_order_status?: ("Draft" | "Ordered" | "PartiallyReceived" | "Received" | "Cancelled") | null;
+  q?: (string) | null;
+  page?: (number) | null;
+  per_page?: (number) | null;
+  sort?: ("created_at" | "-created_at" | "ordered_at" | "-ordered_at" | "expected_at" | "-expected_at" | "purchase_order_id" | "-purchase_order_id" | "purchase_order_status" | "-purchase_order_status" | "supplier_id" | "-supplier_id" | "branch_id" | "-branch_id") | null;
+  sort_by?: ("created_at" | "ordered_at" | "expected_at" | "purchase_order_id" | "purchase_order_status" | "supplier_id" | "branch_id") | null;
   sort_dir?: ("asc" | "desc") | null;
 };
 
@@ -1275,6 +1693,16 @@ export type GetV1AdminInventorySuppliersQueryParams = {
   sort?: ("name" | "-name" | "code" | "-code" | "supplier_id" | "-supplier_id" | "updated_at" | "-updated_at") | null;
   sort_by?: ("name" | "code" | "supplier_id" | "updated_at") | null;
   sort_dir?: ("asc" | "desc") | null;
+};
+
+export type GetV1AdminPrivacyCustomersUserIdDataExportPathParams = {
+  user_id: number;
+};
+
+export type GetV1AdminPrivacyRequestsQueryParams = {
+  status?: ("requested" | "rejected" | "completed" | "failed") | null;
+  user_id?: (number) | null;
+  per_page?: (number) | null;
 };
 
 export type GetV1AdminSettingsBranchesQueryParams = {
@@ -1442,6 +1870,45 @@ export type GetV1StaffConversationsQueryParams = {
   page?: (number) | null;
 };
 
+export type GetV1StaffFinanceInvoicesReservationIdPathParams = {
+  reservation_id: number;
+};
+
+export type GetV1StaffFinanceInvoicesReservationIdQueryParams = {
+  branch_id?: (number) | null;
+};
+
+export type GetV1StaffFinanceReconciliationQueryParams = {
+  filter?: Array<Record<string, never>>;
+  filters?: Array<Record<string, never>>;
+  branch_id?: (number) | null;
+  reservation_id?: (number) | null;
+  reservation_code?: (string) | null;
+  user_id?: (number) | null;
+  status?: ("Confirmed" | "Reserved" | "Cancelled" | "Expired" | "Completed" | "NoShow") | null;
+  deposit_status?: ("NotRequired" | "Pending" | "Paid" | "Refunded" | "PartiallyRefunded" | "Forfeited") | null;
+  payment_currency?: (string) | null;
+  cashier_user_id?: (number) | null;
+  activity_from?: (string) | null;
+  activity_to?: (string) | null;
+  has_discrepancy?: (boolean) | null;
+  per_page?: (number) | null;
+  page?: (number) | null;
+  limit?: (number) | null;
+  sort?: ("reservation_id" | "-reservation_id" | "start_time" | "-start_time" | "updated_at" | "-updated_at" | "final_bill_amount" | "-final_bill_amount" | "net_paid_amount" | "-net_paid_amount" | "refunded_amount" | "-refunded_amount" | "last_payment_activity_at" | "-last_payment_activity_at") | null;
+  sort_by?: ("reservation_id" | "start_time" | "updated_at" | "final_bill_amount" | "net_paid_amount" | "refunded_amount" | "last_payment_activity_at") | null;
+  sort_dir?: ("asc" | "desc") | null;
+  format?: ("json" | "csv") | null;
+};
+
+export type GetV1StaffFinanceReconciliationReservationIdPathParams = {
+  reservation_id: number;
+};
+
+export type GetV1StaffFinanceReconciliationReservationIdQueryParams = {
+  branch_id?: (number) | null;
+};
+
 export type GetV1StaffKitchenChangesQueryParams = {
   after_version?: (number) | null;
   limit?: (number) | null;
@@ -1570,6 +2037,10 @@ export type GetV1StaffTablesBoardChangesQueryParams = {
   after_version?: (number) | null;
   limit?: (number) | null;
   branch_id?: (number) | null;
+};
+
+export type GetV1StaffTablesTableIdActiveOrderPathParams = {
+  table_id: number;
 };
 
 export type GetV1StaffWaitingListChangesQueryParams = {
@@ -1740,6 +2211,13 @@ export type KitchenStation = {
   updated_at: (string) | null;
 };
 
+export type LinkConversationRequest = {
+  reservation_id?: (number) | null;
+  waiting_list_id?: (number) | null;
+  customer_user_id?: (number) | null;
+  notes?: (string) | null;
+};
+
 export type ListingQueryContract = {
   parameters: {
   filter: string;
@@ -1770,6 +2248,14 @@ export type LoyaltyPointTransaction = {
   created_by: (number) | null;
 };
 
+export type MoveTableRequest = {
+  from_table_id: number;
+  to_table_id: number;
+  moved_at?: (string) | null;
+  row_version: number;
+  staff_user_id?: (number) | null;
+};
+
 export type OpenCashierShiftRequest = {
   opening_float_amount?: (number) | null;
   branch_id?: (number) | null;
@@ -1777,6 +2263,14 @@ export type OpenCashierShiftRequest = {
   terminal_code?: (string) | null;
   notes?: (string) | null;
   staff_user_id?: (number) | null;
+};
+
+export type PatchV1AdminBenefitsLoyaltyTiersIdPathParams = {
+  id: number;
+};
+
+export type PatchV1AdminBenefitsVouchersIdPathParams = {
+  id: number;
 };
 
 export type PatchV1StaffOrdersOrderIdItemsOrderItemIdPathParams = {
@@ -1799,8 +2293,20 @@ export type PayOrderRequest = {
   staff_user_id?: (number) | null;
 };
 
+export type PostV1AdminInventoryIngredientsIdMovementsPathParams = {
+  id: number;
+};
+
+export type PostV1AdminInventoryPurchaseOrdersIdReceiptsPathParams = {
+  id: number;
+};
+
 export type PostV1AdminMenuItemsItemIdPricesPathParams = {
   item_id: number;
+};
+
+export type PostV1AdminPrivacyRequestsRequestIdReviewPathParams = {
+  request_id: number;
 };
 
 export type PostV1PaymentsProvidersProviderCodeWebhooksBody = {
@@ -1890,7 +2396,15 @@ export type PostV1StaffCashierShiftsShiftIdClosePathParams = {
   shift_id: number;
 };
 
+export type PostV1StaffConversationsConversationIdAssignPathParams = {
+  conversation_id: string;
+};
+
 export type PostV1StaffConversationsConversationIdInternalNotesPathParams = {
+  conversation_id: string;
+};
+
+export type PostV1StaffConversationsConversationIdLinksPathParams = {
   conversation_id: string;
 };
 
@@ -1904,6 +2418,10 @@ export type PostV1StaffConversationsConversationIdTakeOverPathParams = {
 
 export type PostV1StaffConversationsConversationIdUnassignPathParams = {
   conversation_id: string;
+};
+
+export type PostV1StaffFinanceInvoicesReservationIdIssuePathParams = {
+  reservation_id: number;
 };
 
 export type PostV1StaffKitchenTicketsTicketIdBumpPathParams = {
@@ -1943,7 +2461,19 @@ export type PostV1StaffOrdersOrderIdSettlementFinalizePathParams = {
   order_id: number;
 };
 
+export type PostV1StaffReservationsIdAssignBestFitPathParams = {
+  id: number;
+};
+
+export type PostV1StaffReservationsIdAssignTablePathParams = {
+  id: number;
+};
+
 export type PostV1StaffReservationsIdCheckInPathParams = {
+  id: number;
+};
+
+export type PostV1StaffReservationsIdMoveTablePathParams = {
   id: number;
 };
 
@@ -1957,6 +2487,18 @@ export type PostV1StaffReservationsReservationIdRefundPathParams = {
 
 export type PostV1StaffTablesTableIdOrdersPathParams = {
   table_id: number;
+};
+
+export type PostV1StaffTablesTableIdReleasePathParams = {
+  table_id: number;
+};
+
+export type PostV1StaffWaitingListIdAdvancePathParams = {
+  id: number;
+};
+
+export type PostV1StaffWaitingListIdCancelPathParams = {
+  id: number;
 };
 
 export type PostV1StaffWaitingListIdNotifyPathParams = {
@@ -1981,6 +2523,10 @@ export type PostV1WaitingListIdConfirmArrivalPathParams = {
 
 export type PostV1WaitingListIdDeclinePathParams = {
   id: number;
+};
+
+export type PostV1staffconversationsconversationIdworkflowStatePathParams = {
+  conversation_id: string;
 };
 
 export type PreviewCustomerReservationPreorderRequest = {
@@ -2033,6 +2579,24 @@ export type RefundReservationRequest = {
   notes?: (string) | null;
   reason?: (string) | null;
   row_version: number;
+};
+
+export type RegisterRequest = {
+  full_name: string;
+  email?: (string) | null;
+  phone?: (string) | null;
+  password: string;
+  password_confirmation: string;
+  session_id?: (string) | null;
+  session_label?: (string) | null;
+  device_id?: (string) | null;
+};
+
+export type ReleaseTableRequest = {
+  force?: (boolean) | null;
+  notes?: (string) | null;
+  row_version: number;
+  staff_user_id?: (number) | null;
 };
 
 export type ReplaceCustomerReservationPreorderRequest = {
@@ -2409,6 +2973,16 @@ export type RestaurantTable = {
   updated_at: (string) | null;
 };
 
+export type RestaurantTableEnvelope = {
+  data: RestaurantTable;
+};
+
+export type ReviewPrivacyRequestRequest = {
+  decision: "approve" | "reject";
+  mode: "dry_run" | "commit";
+  notes?: (string) | null;
+};
+
 export type RevokeCustomerReservationDepositIntentRequest = {
   row_version: number;
   session_id?: (string) | null;
@@ -2426,6 +3000,23 @@ export type SendConversationOutboundReplyRequest = {
   message_text: string;
   related_reservation_id?: (number) | null;
   related_order_id?: (number) | null;
+};
+
+export type StaffAssignBestFitTableRequest = {
+  row_version: number;
+  board_from?: (string) | null;
+  board_to?: (string) | null;
+  zone?: (string) | null;
+  staff_user_id?: (number) | null;
+};
+
+export type StaffAssignSuggestedTableRequest = {
+  table_id: number;
+  row_version: number;
+  board_from?: (string) | null;
+  board_to?: (string) | null;
+  zone?: (string) | null;
+  staff_user_id?: (number) | null;
 };
 
 export type StaffAuditTrailActor = {
@@ -3512,6 +4103,7 @@ export type StaffTableBoardRow = {
   zone: (string) | null;
   pos_x: (number) | null;
   pos_y: (number) | null;
+  row_version: number;
   realtime_status: string;
   board_state: string;
   reservations: Array<StaffTableBoardAssignedReservation>;
@@ -3605,6 +4197,14 @@ export type StaffTablesBoardQueryParams = {
   zone?: (string) | null;
   include_holds?: (boolean) | null;
   group_by?: ("zone" | "capacity" | "zone_capacity" | "status") | null;
+};
+
+export type StaffWaitingListAdvanceEnvelope = {
+  data: {
+  source_waiting_list: StaffWaitingListEntry;
+  advanced_waiting_list: StaffWaitingListEntry | null;
+  automation: Record<string, unknown>;
+};
 };
 
 export type StaffWaitingListCollectionEnvelope = {
@@ -3788,6 +4388,14 @@ export type StartReservationDepositPaymentRequest = {
   notes?: (string) | null;
 };
 
+export type StoreLoyaltyTierRequest = {
+  tier_code: string;
+  tier_name: string;
+  min_points: number;
+  benefits_json?: (Array<Record<string, never>>) | null;
+  is_active?: boolean;
+};
+
 export type StoreMenuCategoryRequest = {
   name: string;
   description?: (string) | null;
@@ -3812,6 +4420,21 @@ export type StoreMenuItemRequest = {
   is_preorder_enabled?: boolean;
   preorder_quota_per_day?: (number) | null;
   preorder_cutoff_minutes?: number;
+};
+
+export type StoreVoucherRequest = {
+  code: string;
+  description?: (string) | null;
+  discount_type: "Fixed" | "Percent" | "FreeItem";
+  discount_value?: (number) | null;
+  free_item_id?: (number) | null;
+  free_item_qty?: (number) | null;
+  max_usage?: (number) | null;
+  max_usage_per_user?: (number) | null;
+  min_spend?: (number) | null;
+  start_date?: (string) | null;
+  expiry_date?: (string) | null;
+  is_active?: boolean;
 };
 
 export type SubmitCustomerReservationDepositIntentRequest = {
@@ -3847,6 +4470,21 @@ export type UnassignConversationRequest = {
   notes?: (string) | null;
 };
 
+export type UpdateConversationWorkflowStateRequest = {
+  workflow_state: "Open" | "Triaged" | "PendingCustomer" | "Resolved" | "Closed";
+  expected_workflow_state?: ("Open" | "Triaged" | "Assigned" | "PendingCustomer" | "Resolved" | "Closed") | null;
+  reason?: (string) | null;
+};
+
+export type UpdateLoyaltyTierRequest = {
+  row_version: number;
+  tier_code?: string;
+  tier_name?: string;
+  min_points?: number;
+  benefits_json?: (Array<Record<string, never>>) | null;
+  is_active?: boolean;
+};
+
 export type UpdateOrderItemRequest = {
   qty?: number;
   note?: (string) | null;
@@ -3860,6 +4498,28 @@ export type UpdateOrderItemStatusRequest = {
   order_row_version: number;
   row_version: number;
   staff_user_id?: (number) | null;
+};
+
+export type UpdateVoucherRequest = {
+  row_version: number;
+  code?: string;
+  description?: (string) | null;
+  discount_type?: "Fixed" | "Percent" | "FreeItem";
+  discount_value?: (number) | null;
+  free_item_id?: (number) | null;
+  free_item_qty?: (number) | null;
+  max_usage?: (number) | null;
+  max_usage_per_user?: (number) | null;
+  min_spend?: (number) | null;
+  start_date?: (string) | null;
+  expiry_date?: (string) | null;
+  is_active?: boolean;
+};
+
+export type UpsertBenefitSettingRequest = {
+  setting_key: "loyalty.enabled" | "loyalty.earn_amount_per_point" | "loyalty.redeem_amount_per_point" | "loyalty.min_redeem_points" | "voucher.lock_minutes";
+  value: string;
+  expected_updated_at?: (string) | null;
 };
 
 export type WebhookReceiptEnvelope = {
@@ -3894,6 +4554,19 @@ export class RestaurantPosClient {
     }
 
     this.fetchImpl = globalThis.fetch.bind(globalThis);
+  }
+
+  async postV1AuthCustomerRegister(body: RegisterRequest, options: RequestOptions = {}): Promise<CustomerAuthSessionEnvelope> {
+    return this.request<CustomerAuthSessionEnvelope>(
+      'POST',
+      '/api/v1/auth/customer/register',
+      'none',
+      true,
+      false,
+      undefined,
+      body,
+      options,
+    );
   }
 
   async postV1AuthCustomerLogin(body: CustomerLoginRequest, options: RequestOptions = {}): Promise<CustomerAuthSessionEnvelope> {
@@ -4416,6 +5089,58 @@ export class RestaurantPosClient {
     );
   }
 
+  async postV1StaffReservationsIdAssignTable(pathParams: PostV1StaffReservationsIdAssignTablePathParams, body: StaffAssignSuggestedTableRequest, options: RequestOptions = {}): Promise<ReservationEnvelope> {
+    return this.request<ReservationEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/reservations/{id}/assign-table', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async postV1StaffReservationsIdAssignBestFit(pathParams: PostV1StaffReservationsIdAssignBestFitPathParams, body: StaffAssignBestFitTableRequest, options: RequestOptions = {}): Promise<ReservationEnvelope> {
+    return this.request<ReservationEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/reservations/{id}/assign-best-fit', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async postV1StaffReservationsIdMoveTable(pathParams: PostV1StaffReservationsIdMoveTablePathParams, body: MoveTableRequest, options: RequestOptions = {}): Promise<ReservationEnvelope> {
+    return this.request<ReservationEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/reservations/{id}/move-table', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async postV1StaffTablesTableIdRelease(pathParams: PostV1StaffTablesTableIdReleasePathParams, body: ReleaseTableRequest, options: RequestOptions = {}): Promise<RestaurantTableEnvelope> {
+    return this.request<RestaurantTableEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/tables/{table_id}/release', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
   async postV1StaffTablesTableIdOrders(pathParams: PostV1StaffTablesTableIdOrdersPathParams, body: CreateTableOrderRequest, options: RequestOptions = {}): Promise<StaffReservationOrderEnvelope> {
     return this.request<StaffReservationOrderEnvelope>(
       'POST',
@@ -4425,6 +5150,19 @@ export class RestaurantPosClient {
       true,
       undefined,
       body,
+      options,
+    );
+  }
+
+  async getV1StaffTablesTableIdActiveOrder(pathParams: GetV1StaffTablesTableIdActiveOrderPathParams, options: RequestOptions = {}): Promise<StaffOrderReadEnvelope> {
+    return this.request<StaffOrderReadEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/staff/tables/{table_id}/active-order', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      undefined,
+      undefined,
       options,
     );
   }
@@ -4767,6 +5505,19 @@ export class RestaurantPosClient {
     );
   }
 
+  async getV1StaffBranches(options: RequestOptions = {}): Promise<BranchCollectionEnvelope> {
+    return this.request<BranchCollectionEnvelope>(
+      'GET',
+      '/api/v1/staff/branches',
+      'staff',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
   async getV1StaffReservations(query: GetV1StaffReservationsQueryParams, options: RequestOptions = {}): Promise<StaffReservationLookupCollectionEnvelope> {
     return this.request<StaffReservationLookupCollectionEnvelope>(
       'GET',
@@ -4910,6 +5661,58 @@ export class RestaurantPosClient {
     );
   }
 
+  async getV1AdminInventoryIngredientsIdMovements(pathParams: GetV1AdminInventoryIngredientsIdMovementsPathParams, query: GetV1AdminInventoryIngredientsIdMovementsQueryParams, options: RequestOptions = {}): Promise<AdminIngredientMovementCollectionEnvelope> {
+    return this.request<AdminIngredientMovementCollectionEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/admin/inventory/ingredients/{id}/movements', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      query,
+      undefined,
+      options,
+    );
+  }
+
+  async postV1AdminInventoryIngredientsIdMovements(pathParams: PostV1AdminInventoryIngredientsIdMovementsPathParams, body: CreateIngredientStockMovementRequest, options: RequestOptions = {}): Promise<AdminIngredientMovementEnvelope> {
+    return this.request<AdminIngredientMovementEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/admin/inventory/ingredients/{id}/movements', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async getV1AdminInventoryPurchaseOrdersIdReceipts(pathParams: GetV1AdminInventoryPurchaseOrdersIdReceiptsPathParams, query: GetV1AdminInventoryPurchaseOrdersIdReceiptsQueryParams, options: RequestOptions = {}): Promise<AdminPurchaseOrderReceiptCollectionEnvelope> {
+    return this.request<AdminPurchaseOrderReceiptCollectionEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/admin/inventory/purchase-orders/{id}/receipts', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      query,
+      undefined,
+      options,
+    );
+  }
+
+  async postV1AdminInventoryPurchaseOrdersIdReceipts(pathParams: PostV1AdminInventoryPurchaseOrdersIdReceiptsPathParams, body: CreatePurchaseOrderReceiptRequest, options: RequestOptions = {}): Promise<AdminPurchaseOrderReceiptEnvelope> {
+    return this.request<AdminPurchaseOrderReceiptEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/admin/inventory/purchase-orders/{id}/receipts', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
   async getV1AdminSettingsBranches(query: GetV1AdminSettingsBranchesQueryParams, options: RequestOptions = {}): Promise<BranchCollectionEnvelope> {
     return this.request<BranchCollectionEnvelope>(
       'GET',
@@ -4953,6 +5756,58 @@ export class RestaurantPosClient {
     return this.request<StaffRefundEnvelope>(
       'POST',
       this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/refund-cancel', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async getV1StaffFinanceReconciliation(query: GetV1StaffFinanceReconciliationQueryParams, options: RequestOptions = {}): Promise<FinancialReconciliationCollectionEnvelope> {
+    return this.request<FinancialReconciliationCollectionEnvelope>(
+      'GET',
+      '/api/v1/staff/finance/reconciliation',
+      'staff',
+      false,
+      false,
+      query,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1StaffFinanceReconciliationReservationId(pathParams: GetV1StaffFinanceReconciliationReservationIdPathParams, query: GetV1StaffFinanceReconciliationReservationIdQueryParams, options: RequestOptions = {}): Promise<FinancialReconciliationDetailEnvelope> {
+    return this.request<FinancialReconciliationDetailEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/staff/finance/reconciliation/{reservation_id}', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      query,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1StaffFinanceInvoicesReservationId(pathParams: GetV1StaffFinanceInvoicesReservationIdPathParams, query: GetV1StaffFinanceInvoicesReservationIdQueryParams, options: RequestOptions = {}): Promise<FinanceInvoiceEnvelope> {
+    return this.request<FinanceInvoiceEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/staff/finance/invoices/{reservation_id}', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      query,
+      undefined,
+      options,
+    );
+  }
+
+  async postV1StaffFinanceInvoicesReservationIdIssue(pathParams: PostV1StaffFinanceInvoicesReservationIdIssuePathParams, body: BranchScopeRequest, options: RequestOptions = {}): Promise<FinanceInvoiceEnvelope> {
+    return this.request<FinanceInvoiceEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/finance/invoices/{reservation_id}/issue', pathParams as Record<string, string | number>),
       'staff',
       false,
       true,
@@ -5027,6 +5882,19 @@ export class RestaurantPosClient {
     );
   }
 
+  async postV1StaffWaitingList(body: CreateWaitlistEntryRequest, options: RequestOptions = {}): Promise<StaffWaitingListEnvelope> {
+    return this.request<StaffWaitingListEnvelope>(
+      'POST',
+      '/api/v1/staff/waiting-list',
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
   async postV1StaffWaitingListIdNotify(pathParams: PostV1StaffWaitingListIdNotifyPathParams, body: InviteWaitlistCustomerRequest, options: RequestOptions = {}): Promise<StaffWaitingListEnvelope> {
     return this.request<StaffWaitingListEnvelope>(
       'POST',
@@ -5084,6 +5952,32 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/waiting-list/{id}/cancel', pathParams as Record<string, string | number>),
       'customer',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async postV1StaffWaitingListIdCancel(pathParams: PostV1StaffWaitingListIdCancelPathParams, body: CancelWaitlistRequest, options: RequestOptions = {}): Promise<StaffWaitingListEnvelope> {
+    return this.request<StaffWaitingListEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/waiting-list/{id}/cancel', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async postV1StaffWaitingListIdAdvance(pathParams: PostV1StaffWaitingListIdAdvancePathParams, body: AdvanceWaitlistRequest, options: RequestOptions = {}): Promise<StaffWaitingListAdvanceEnvelope> {
+    return this.request<StaffWaitingListAdvanceEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/waiting-list/{id}/advance', pathParams as Record<string, string | number>),
+      'staff',
       false,
       true,
       undefined,
@@ -5300,6 +6194,175 @@ export class RestaurantPosClient {
     );
   }
 
+  async getV1AdminBenefitsVouchers(options: RequestOptions = {}): Promise<AdminVoucherCollectionEnvelope> {
+    return this.request<AdminVoucherCollectionEnvelope>(
+      'GET',
+      '/api/v1/admin/benefits/vouchers',
+      'staff',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1AdminBenefitsVouchersId(pathParams: GetV1AdminBenefitsVouchersIdPathParams, options: RequestOptions = {}): Promise<AdminVoucherEnvelope> {
+    return this.request<AdminVoucherEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/admin/benefits/vouchers/{id}', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async postV1AdminBenefitsVouchers(body: StoreVoucherRequest, options: RequestOptions = {}): Promise<AdminVoucherEnvelope> {
+    return this.request<AdminVoucherEnvelope>(
+      'POST',
+      '/api/v1/admin/benefits/vouchers',
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async patchV1AdminBenefitsVouchersId(pathParams: PatchV1AdminBenefitsVouchersIdPathParams, body: UpdateVoucherRequest, options: RequestOptions = {}): Promise<AdminVoucherEnvelope> {
+    return this.request<AdminVoucherEnvelope>(
+      'PATCH',
+      this.interpolatePath('/api/v1/admin/benefits/vouchers/{id}', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async getV1AdminBenefitsLoyaltyTiers(options: RequestOptions = {}): Promise<AdminLoyaltyTierCollectionEnvelope> {
+    return this.request<AdminLoyaltyTierCollectionEnvelope>(
+      'GET',
+      '/api/v1/admin/benefits/loyalty-tiers',
+      'staff',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1AdminBenefitsLoyaltyTiersId(pathParams: GetV1AdminBenefitsLoyaltyTiersIdPathParams, options: RequestOptions = {}): Promise<AdminLoyaltyTierEnvelope> {
+    return this.request<AdminLoyaltyTierEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/admin/benefits/loyalty-tiers/{id}', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async postV1AdminBenefitsLoyaltyTiers(body: StoreLoyaltyTierRequest, options: RequestOptions = {}): Promise<AdminLoyaltyTierEnvelope> {
+    return this.request<AdminLoyaltyTierEnvelope>(
+      'POST',
+      '/api/v1/admin/benefits/loyalty-tiers',
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async patchV1AdminBenefitsLoyaltyTiersId(pathParams: PatchV1AdminBenefitsLoyaltyTiersIdPathParams, body: UpdateLoyaltyTierRequest, options: RequestOptions = {}): Promise<AdminLoyaltyTierEnvelope> {
+    return this.request<AdminLoyaltyTierEnvelope>(
+      'PATCH',
+      this.interpolatePath('/api/v1/admin/benefits/loyalty-tiers/{id}', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async getV1AdminSettingsBenefits(options: RequestOptions = {}): Promise<AdminBenefitSettingCollectionEnvelope> {
+    return this.request<AdminBenefitSettingCollectionEnvelope>(
+      'GET',
+      '/api/v1/admin/settings/benefits',
+      'staff',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async postV1AdminSettingsBenefits(body: UpsertBenefitSettingRequest, options: RequestOptions = {}): Promise<AdminBenefitSettingEnvelope> {
+    return this.request<AdminBenefitSettingEnvelope>(
+      'POST',
+      '/api/v1/admin/settings/benefits',
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async getV1AdminPrivacyRequests(query: GetV1AdminPrivacyRequestsQueryParams, options: RequestOptions = {}): Promise<AdminPrivacyRequestCollectionEnvelope> {
+    return this.request<AdminPrivacyRequestCollectionEnvelope>(
+      'GET',
+      '/api/v1/admin/privacy/requests',
+      'staff',
+      false,
+      false,
+      query,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1AdminPrivacyCustomersUserIdDataExport(pathParams: GetV1AdminPrivacyCustomersUserIdDataExportPathParams, options: RequestOptions = {}): Promise<AdminCustomerDataExportEnvelope> {
+    return this.request<AdminCustomerDataExportEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/admin/privacy/customers/{user_id}/data-export', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async postV1AdminPrivacyRequestsRequestIdReview(pathParams: PostV1AdminPrivacyRequestsRequestIdReviewPathParams, body: ReviewPrivacyRequestRequest, options: RequestOptions = {}): Promise<AdminPrivacyReviewEnvelope> {
+    return this.request<AdminPrivacyReviewEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/admin/privacy/requests/{request_id}/review', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
   async getV1StaffConversations(query: GetV1StaffConversationsQueryParams, options: RequestOptions = {}): Promise<StaffConversationCollectionEnvelope> {
     return this.request<StaffConversationCollectionEnvelope>(
       'GET',
@@ -5326,6 +6389,19 @@ export class RestaurantPosClient {
     );
   }
 
+  async postV1StaffConversationsConversationIdAssign(pathParams: PostV1StaffConversationsConversationIdAssignPathParams, body: AssignConversationRequest, options: RequestOptions = {}): Promise<StaffConversationMutationEnvelope> {
+    return this.request<StaffConversationMutationEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/conversations/{conversation_id}/assign', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
   async postV1StaffConversationsConversationIdTakeOver(pathParams: PostV1StaffConversationsConversationIdTakeOverPathParams, body: TakeOverConversationRequest, options: RequestOptions = {}): Promise<StaffConversationMutationEnvelope> {
     return this.request<StaffConversationMutationEnvelope>(
       'POST',
@@ -5348,6 +6424,58 @@ export class RestaurantPosClient {
       true,
       undefined,
       body,
+      options,
+    );
+  }
+
+  async postV1staffconversationsconversationIdworkflowState(pathParams: PostV1staffconversationsconversationIdworkflowStatePathParams, body: UpdateConversationWorkflowStateRequest, options: RequestOptions = {}): Promise<StaffConversationMutationEnvelope> {
+    return this.request<StaffConversationMutationEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/conversations/{conversation_id}/workflow-state', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async postV1StaffConversationsConversationIdLinks(pathParams: PostV1StaffConversationsConversationIdLinksPathParams, body: LinkConversationRequest, options: RequestOptions = {}): Promise<StaffConversationMutationEnvelope> {
+    return this.request<StaffConversationMutationEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/conversations/{conversation_id}/links', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async deleteV1StaffConversationsConversationIdLinksReservation(pathParams: DeleteV1StaffConversationsConversationIdLinksReservationPathParams, options: RequestOptions = {}): Promise<StaffConversationMutationEnvelope> {
+    return this.request<StaffConversationMutationEnvelope>(
+      'DELETE',
+      this.interpolatePath('/api/v1/staff/conversations/{conversation_id}/links/reservation', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async deleteV1StaffConversationsConversationIdLinksWaitingList(pathParams: DeleteV1StaffConversationsConversationIdLinksWaitingListPathParams, options: RequestOptions = {}): Promise<StaffConversationMutationEnvelope> {
+    return this.request<StaffConversationMutationEnvelope>(
+      'DELETE',
+      this.interpolatePath('/api/v1/staff/conversations/{conversation_id}/links/waiting-list', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      undefined,
       options,
     );
   }

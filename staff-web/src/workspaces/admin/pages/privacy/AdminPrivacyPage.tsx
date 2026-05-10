@@ -20,10 +20,10 @@ type PrivacyReviewMode = 'dry_run' | 'commit';
 
 const requestStatusOptions = [
   { value: '', label: 'Tất cả trạng thái' },
-  { value: 'Pending', label: 'Đang chờ' },
-  { value: 'Approved', label: 'Đã duyệt' },
-  { value: 'Rejected', label: 'Đã từ chối' },
-  { value: 'Completed', label: 'Hoàn tất' },
+  { value: 'requested', label: 'Đang chờ' },
+  { value: 'rejected', label: 'Đã từ chối' },
+  { value: 'completed', label: 'Hoàn tất' },
+  { value: 'failed', label: 'Thất bại' },
 ];
 
 export function AdminPrivacyPage() {
@@ -42,7 +42,7 @@ export function AdminPrivacyPage() {
   const requestsQuery = useQuery({
     queryKey: ['admin-privacy-requests', filters.status, filters.userId],
     queryFn: () => listAdminPrivacyRequests({
-      status: filters.status || undefined,
+      status: (filters.status || undefined) as 'requested' | 'rejected' | 'completed' | 'failed' | undefined,
       user_id: positiveInteger(filters.userId) ?? undefined,
       per_page: 25,
     }),

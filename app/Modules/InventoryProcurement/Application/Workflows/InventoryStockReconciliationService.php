@@ -21,6 +21,7 @@ final class InventoryStockReconciliationService
         $sampleLimit = max(1, min(25, $sampleLimit));
         $movementSampleLimit = max(1, min(25, $movementSampleLimit));
 
+        // Reconciliation nay co tinh schema-tolerant de van chay duoc ca khi local db chua co du bang/cot.
         if (! Schema::hasTable('ingredient_stock_movements')) {
             return [
                 'table_present' => false,
@@ -46,6 +47,7 @@ final class InventoryStockReconciliationService
             static fn (string $column): bool => ! Schema::hasColumn('ingredient_stock_movements', $column),
         ));
 
+        // Neu contract bang chua du, service tra ve report thieu cot thay vi fail cung.
         if ($missingColumns !== []) {
             return [
                 'table_present' => true,
@@ -66,6 +68,7 @@ final class InventoryStockReconciliationService
             ->limit($sampleLimit)
             ->get();
 
+        // negative_examples giup operator thay ngay nhom ton kho nao dang am va movement nao tham gia vao nhom do.
         $negativeExamples = $negativeRows
             ->map(function (object $row) use ($dimensions, $movementSampleLimit): array {
                 $example = [
@@ -84,6 +87,7 @@ final class InventoryStockReconciliationService
             ->all();
 
         $impossibleQuery = $this->impossibleMovementQuery();
+        // impossible_examples bat cac dong ledger vo ly nhu quantity 0, movement_type sai dau, thieu ingredient...
         $impossibleExamples = (clone $impossibleQuery)
             ->select($this->movementSampleColumns())
             ->orderBy('movement_id')
@@ -124,6 +128,7 @@ final class InventoryStockReconciliationService
      */
     private function stockDimensions(): array
     {
+        // Dimension ton kho co the khac nhau giua cac schema, nen duoc detect dong.
         $candidates = [
             'branch_id',
             'storage_location_id',
@@ -146,6 +151,7 @@ final class InventoryStockReconciliationService
      */
     private function stockOnHandGroupQuery(array $dimensions): Builder
     {
+        // Moi toan bo report ton kho deu xoay quanh group query nay: gom nhom va tinh quantity ledger.
         $query = DB::table('ingredient_stock_movements')
             ->select($dimensions)
             ->selectRaw('SUM(CAST(quantity_delta AS DECIMAL(18,3))) AS computed_quantity')
@@ -160,6 +166,7 @@ final class InventoryStockReconciliationService
 
     private function impossibleMovementQuery(): Builder
     {
+        // Ledger "impossible" la cac dong khong the xuat hien trong su that nghiep vu inventory.
         $positiveTypes = [
             IngredientStockMovement::TYPE_STOCK_IN,
             IngredientStockMovement::TYPE_ADJUSTMENT_INCREASE,
@@ -218,6 +225,7 @@ final class InventoryStockReconciliationService
      */
     private function movementIdsForGroup(array $dimensions, object $row, int $limit): array
     {
+        // Lay mot sample movement_id de operator tra nguoc tu group bi am ve cac dong ledger cu the.
         $query = DB::table('ingredient_stock_movements')->select('movement_id');
 
         foreach ($dimensions as $dimension) {

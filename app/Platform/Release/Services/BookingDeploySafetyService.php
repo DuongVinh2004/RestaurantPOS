@@ -526,10 +526,16 @@ class BookingDeploySafetyService
      */
     private function guardFullDumpDefiners(): array
     {
+        $definition = (array) config('booking_release.artifacts.full_dump', []);
+        $relativePath = trim((string) ($definition['path'] ?? 'db_all.sql'));
+        if ($relativePath === '') {
+            $relativePath = 'db_all.sql';
+        }
+
         return $this->guardSqlArtifactDefiners(
-            base_path('db_all.sql'),
+            base_path($relativePath),
             'Full database dump',
-            'db_all.sql',
+            $relativePath,
             true,
         );
     }

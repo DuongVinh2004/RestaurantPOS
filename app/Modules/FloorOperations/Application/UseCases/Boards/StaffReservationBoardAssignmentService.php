@@ -22,6 +22,9 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Gan ban cho reservation tren board staff, theo goi y cu the hoac theo best-fit candidate.
+ */
 class StaffReservationBoardAssignmentService
 {
     private readonly ReservationBranchScopeService $reservationBranchScopeService;
@@ -49,6 +52,8 @@ class StaffReservationBoardAssignmentService
         ?\DateTimeInterface $boardTo = null,
         bool $includeSlotOnlyCandidates = true,
     ): array {
+        // Luong nay uu tien dung suggestion tu board de tranh gan ban ngoai ngu canh hien tai.
+        // Pha 1: validate actor va table target truoc khi check suggestion set.
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
         if ($tableId <= 0) {
@@ -69,6 +74,7 @@ class StaffReservationBoardAssignmentService
             ->map(static fn ($value): int => (int) $value)
             ->all();
 
+        // Fast path: reservation da gan dung table nay roi thi tra meta assignment, tranh mutate vo ich.
         if ($assignedTableIds !== []) {
             if ($assignedTableIds === [$tableId]
                 && ($expectedRowVersion === null || (int) ($reservation->row_version ?? 1) === $expectedRowVersion)
@@ -99,6 +105,7 @@ class StaffReservationBoardAssignmentService
             ];
         }
 
+        // Candidate map duoc chup theo board context hien tai de buoc assignment khong lech ngu canh UI.
         $candidateMap = collect($this->resolveCandidateTables(
             reservation: $reservation,
             zone: $zone,
@@ -109,6 +116,7 @@ class StaffReservationBoardAssignmentService
             static fn (array $candidate): int => (int) ($candidate['table_id'] ?? 0)
         );
 
+        // Neu table khong nam trong suggestion set hien tai thi bat UI refresh lai board truoc.
         if (! $candidateMap->has($tableId)) {
             throw ValidationException::withMessages([
                 'table_id' => ['Target table is not in the current board suggestion set for this reservation. Refresh the board and try again.'],
@@ -141,6 +149,8 @@ class StaffReservationBoardAssignmentService
         ?\DateTimeInterface $boardTo = null,
         bool $includeSlotOnlyCandidates = true,
     ): array {
+        // Best-fit la luong de service tu chon candidate dung top ranking tu board context.
+        // Best-fit flow cho system tu thu candidate tu tren xuong duoi cho den khi co table commit duoc.
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
 
         $reservation = Reservation::query()->find($reservationId);
@@ -162,6 +172,7 @@ class StaffReservationBoardAssignmentService
         }
 
         foreach ($candidates as $candidate) {
+            // Validation "table_id" o tung candidate chi co nghia la thu table tiep theo; cac loi khac thi fail that su.
             $tableId = (int) ($candidate['table_id'] ?? 0);
             if ($tableId <= 0) {
                 continue;
@@ -199,6 +210,8 @@ class StaffReservationBoardAssignmentService
      */
     private function commitAssignment(int $reservationId, int $tableId, ?int $staffUserId, ?int $expectedRowVersion): array
     {
+        // Day la diem ghi DB that su: lock reservation/table, verify conflict, cap nhat mapping va audit.
+        // Pha 2: diem write thuc su, lock reservation va target table truoc khi xac minh va gan mapping.
         $lockKeys = [
             config('booking.reservation_lock_reservation_prefix', 'booking:lock:reservation').':'.$reservationId,
             config('booking.reservation_lock_prefix', 'booking:lock:table').':'.$tableId,
@@ -235,6 +248,7 @@ class StaffReservationBoardAssignmentService
                         ]);
                     }
 
+                    // Reservation board assignment chi hop le khi reservation con Confirmed va chua co table nao.
                     $assignedTableIds = DB::table('reservation_tables')
                         ->where('reservation_id', $reservationId)
                         ->lockForUpdate()
@@ -279,6 +293,7 @@ class StaffReservationBoardAssignmentService
                         'table_id',
                     );
 
+                    // Ban dich phai allocatable va du ghe ngoi, neu khong board suggestion da stale.
                     $tableStatus = (string) ($table->status?->value ?? $table->status);
                     if (! $this->tableStateService->isAllocatableForBooking($tableStatus)) {
                         throw ValidationException::withMessages([
@@ -322,6 +337,7 @@ class StaffReservationBoardAssignmentService
                         ]);
                     }
 
+                    // Pha 3: ghi mapping, bump version va audit sau khi target table qua het gate.
                     DB::table('reservation_tables')->insert([
                         'reservation_id' => $reservationId,
                         'table_id' => $tableId,
@@ -347,6 +363,7 @@ class StaffReservationBoardAssignmentService
             });
 
             if (($result['mutated'] ?? false) === true) {
+                // Realtime chi ban sau commit va chi khi co mutate thuc su.
                 app(OperationalRealtimeService::class)->publishBoardEvent(
                     'reservation.board_assignment_committed',
                     [

@@ -107,6 +107,70 @@ describe('AdminCatalogPage', () => {
     expect(await screen.findByText('45.000 ₫')).toBeInTheDocument();
   });
 
+  it('surfaces price route not-found states when an operator enters a direct item id outside the current list', async () => {
+    apiMocks.listAdminMenuItemPrices.mockImplementation((itemId: number) => {
+      if (itemId === 77) {
+        return Promise.reject({
+          status: 404,
+          payload: {
+            error_code: 'not_found',
+            category_code: 'not_found',
+            message: 'Resource not found.',
+            request_id: 'req-catalog-404',
+          },
+        });
+      }
+
+      return Promise.resolve({
+        data: [
+          { price_id: 4, item_id: 12, price: '45000.00', currency: 'VND', effective_from: '2026-04-17T00:00:00Z', effective_to: null },
+        ],
+      });
+    });
+
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText('Mã món đang chọn'), {
+      target: { value: '77' },
+    });
+
+    await waitFor(() => expect(apiMocks.listAdminMenuItemPrices).toHaveBeenCalledWith(77, {
+      per_page: 8,
+      sort: '-effective_from',
+    }));
+    expect(await screen.findByText('Món #77')).toBeInTheDocument();
+    expect(await screen.findByText('Không còn thấy món #77')).toBeInTheDocument();
+    expect(screen.queryByText('Chưa chọn món')).not.toBeInTheDocument();
+  });
+
+  it('shows inline mutation feedback when creating a price fails for a stale item selection', async () => {
+    apiMocks.createAdminMenuItemPrice.mockRejectedValue({
+      status: 404,
+      payload: {
+        error_code: 'not_found',
+        category_code: 'not_found',
+        message: 'Resource not found.',
+        request_id: 'req-catalog-price-create-404',
+      },
+    });
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Cà phê/i }));
+    fireEvent.change(await screen.findByLabelText('Giá món mới'), {
+      target: { value: '56000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng giá' }));
+
+    await waitFor(() => expect(apiMocks.createAdminMenuItemPrice).toHaveBeenCalledWith(12, {
+      price: 56000,
+      currency: 'VND',
+      effective_from: expect.any(String),
+    }));
+    expect(await screen.findByText('Không còn thêm giá cho cà phê')).toBeInTheDocument();
+    expect(await screen.findByText('Mã truy vết: req-catalog-price-create-404')).toBeInTheDocument();
+  });
+
   it('previews imports before commit can be sent with an idempotency key', async () => {
     renderPage();
 

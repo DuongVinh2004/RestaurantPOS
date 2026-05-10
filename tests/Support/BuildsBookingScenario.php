@@ -907,7 +907,7 @@ trait BuildsBookingScenario
                 $table->dateTime('refreshed_at')->nullable();
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
-                $table->unique(['branch_id', 'business_date', 'currency']);
+                $table->unique(['branch_id', 'business_date', 'currency'], 'uq_rpt_daily_sales__branch_date_currency');
             });
         }
 
@@ -933,7 +933,7 @@ trait BuildsBookingScenario
                 $table->dateTime('refreshed_at')->nullable();
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
-                $table->unique(['branch_id', 'business_date']);
+                $table->unique(['branch_id', 'business_date'], 'uq_rpt_daily_ops__branch_date');
             });
         }
 
@@ -956,7 +956,7 @@ trait BuildsBookingScenario
                 $table->dateTime('refreshed_at')->nullable();
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
-                $table->unique(['branch_id', 'business_date', 'ingredient_id', 'unit_code']);
+                $table->unique(['branch_id', 'business_date', 'ingredient_id', 'unit_code'], 'uq_rpt_daily_inv_move__branch_date_ing_unit');
             });
         }
 
@@ -1173,6 +1173,7 @@ trait BuildsBookingScenario
         if (! Schema::hasTable('table_holds')) {
             Schema::create('table_holds', function (Blueprint $table): void {
                 $table->string('hold_id')->primary();
+                $table->unsignedInteger('branch_id')->default(1);
                 $table->string('session_id');
                 $table->unsignedInteger('user_id')->nullable();
                 $table->unsignedInteger('confirmed_reservation_id')->nullable();
@@ -1185,6 +1186,12 @@ trait BuildsBookingScenario
                 $table->unsignedInteger('row_version')->default(1);
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
+            });
+        }
+
+        if (Schema::hasTable('table_holds') && ! Schema::hasColumn('table_holds', 'branch_id')) {
+            Schema::table('table_holds', function (Blueprint $table): void {
+                $table->unsignedInteger('branch_id')->default(1);
             });
         }
 
@@ -1203,7 +1210,7 @@ trait BuildsBookingScenario
                 $table->unsignedInteger('customer_user_id');
                 $table->unsignedInteger('linked_payment_id')->nullable();
                 $table->string('provider_code', 50);
-                $table->string('provider_session_code')->unique();
+                $table->string('provider_session_code')->unique('uq_resv_deposit_sessions__provider_session');
                 $table->string('provider_payment_code')->nullable();
                 $table->string('payment_method', 30)->nullable();
                 $table->decimal('amount', 12, 2)->default(0);
@@ -1225,7 +1232,7 @@ trait BuildsBookingScenario
                 $table->unsignedInteger('row_version')->default(1);
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
-                $table->unique(['reservation_id', 'idempotency_key']);
+                $table->unique(['reservation_id', 'idempotency_key'], 'uq_resv_deposit_sessions__resv_idem');
             });
         }
 
@@ -1237,7 +1244,7 @@ trait BuildsBookingScenario
                 $table->unsignedInteger('customer_user_id');
                 $table->unsignedInteger('linked_payment_id')->nullable();
                 $table->string('provider_code', 50);
-                $table->string('provider_session_code')->unique();
+                $table->string('provider_session_code')->unique('uq_resv_bill_sessions__provider_session');
                 $table->string('provider_payment_code')->nullable();
                 $table->string('payment_method', 30)->nullable();
                 $table->decimal('amount', 12, 2)->default(0);
@@ -1259,7 +1266,7 @@ trait BuildsBookingScenario
                 $table->unsignedInteger('row_version')->default(1);
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
-                $table->unique(['reservation_id', 'idempotency_key']);
+                $table->unique(['reservation_id', 'idempotency_key'], 'uq_resv_bill_sessions__resv_idem');
             });
         }
 
@@ -1283,8 +1290,8 @@ trait BuildsBookingScenario
                 $table->unsignedInteger('row_version')->default(1);
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
-                $table->unique(['provider_code', 'provider_event_code']);
-                $table->index(['provider_code', 'provider_session_code']);
+                $table->unique(['provider_code', 'provider_event_code'], 'uq_payment_webhooks__provider_event');
+                $table->index(['provider_code', 'provider_session_code'], 'idx_payment_webhooks__provider_session');
             });
         }
 

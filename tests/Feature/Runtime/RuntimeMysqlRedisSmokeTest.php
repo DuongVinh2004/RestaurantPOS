@@ -43,20 +43,23 @@ final class RuntimeMysqlRedisSmokeTest extends TestCase
 
     public function test_walk_in_service_session_contends_on_same_table_with_mysql_and_redis_locks(): void
     {
+        $branchId = $this->createRuntimeOpenBranch();
         $firstStaffId = $this->createUser(['role_name' => 'Staff']);
         $secondStaffId = $this->createUser(['role_name' => 'Staff']);
+        $this->assignRuntimeStaffBranch($firstStaffId, $branchId);
+        $this->assignRuntimeStaffBranch($secondStaffId, $branchId);
         $customerId = $this->createUser([
             'role_name' => 'Customer',
             'email' => 'runtime.walkin.customer@example.test',
         ]);
         $tableId = $this->createRestaurantTableWithSeats(4, [
-            'branch_id' => 1,
+            'branch_id' => $branchId,
             'table_code' => 'RT-WALKIN-01',
             'status' => 'Available',
         ]);
         $startedAt = $this->nowUtc()->copy()->addMinutes(45)->startOfMinute();
         $payload = [
-            'branch_id' => 1,
+            'branch_id' => $branchId,
             'user_id' => $customerId,
             'table_ids' => [$tableId],
             'guest_count' => 2,
@@ -226,20 +229,22 @@ final class RuntimeMysqlRedisSmokeTest extends TestCase
 
     public function test_one_open_cashier_shift_per_cashier_branch_currency(): void
     {
+        $branchId = $this->runtimeDefaultBranchId();
         $staffId = $this->createUser(['role_name' => 'Cashier']);
+        $this->assignRuntimeStaffBranch($staffId, $branchId);
         $headers = $this->staffAuthHeaders($staffId, 'runtime-cashier-shift');
 
         $this->useRuntimeRedisCache();
 
         $first = $this->postJson('/api/v1/staff/cashier/shifts/open', [
-            'branch_id' => 1,
+            'branch_id' => $branchId,
             'opening_float_amount' => 50000,
             'currency' => 'VND',
             'terminal_code' => 'RT-CASHIER-A',
         ], $this->withIdempotencyKey($headers, 'runtime-cashier-shift-a'));
 
         $second = $this->postJson('/api/v1/staff/cashier/shifts/open', [
-            'branch_id' => 1,
+            'branch_id' => $branchId,
             'opening_float_amount' => 25000,
             'currency' => 'VND',
             'terminal_code' => 'RT-CASHIER-B',
@@ -252,7 +257,7 @@ final class RuntimeMysqlRedisSmokeTest extends TestCase
 
         self::assertSame(1, (int) DB::table('cashier_shifts')
             ->where('cashier_user_id', $staffId)
-            ->where('branch_id', 1)
+            ->where('branch_id', $branchId)
             ->where('currency', 'VND')
             ->where('status', 'Open')
             ->count());
@@ -356,6 +361,39 @@ final class RuntimeMysqlRedisSmokeTest extends TestCase
         config()->set('booking.realtime.poll_hint_ms', 1500);
         config()->set('notifications.outbox.enabled', false);
         app('cache')->forgetDriver('redis');
+    }
+
+    private function runtimeDefaultBranchId(): int
+    {
+        $branchId = (int) (DB::table('branches')->where('is_default', 1)->value('branch_id') ?? 0);
+
+        return $branchId > 0 ? $branchId : 1;
+    }
+
+    private function createRuntimeOpenBranch(): int
+    {
+        return $this->createBranch([
+            'branch_code' => 'RT'.strtoupper(bin2hex(random_bytes(3))),
+            'branch_name' => 'Runtime Smoke Open Branch',
+            'timezone' => 'UTC',
+            'business_hours' => $this->defaultBranchFixtureBusinessHours(),
+            'closure_windows' => [],
+            'booking_policy' => $this->defaultBranchFixtureBookingPolicy(),
+        ]);
+    }
+
+    private function assignRuntimeStaffBranch(int $staffId, int $branchId, bool $primary = true): void
+    {
+        DB::table('staff_branch_assignments')->updateOrInsert([
+            'user_id' => $staffId,
+            'branch_id' => $branchId,
+        ], [
+            'is_primary' => $primary ? 1 : 0,
+            'assigned_at' => now('UTC'),
+            'revoked_at' => null,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]);
     }
 
     private function flushRuntimeRedis(): void

@@ -1,26 +1,26 @@
 :root {
-  --staff-bg-page: #0f1115;
-  --staff-bg-page-accent: #10141c;
-  --staff-bg-elevated: rgba(21, 25, 34, 0.98);
-  --staff-bg-muted: #1b2130;
-  --staff-bg-contrast: #232b3b;
-  --staff-surface-warning: rgba(245, 158, 11, 0.14);
-  --staff-surface-critical: rgba(239, 68, 68, 0.12);
-  --staff-surface-success: rgba(34, 197, 94, 0.12);
-  --staff-surface-info: rgba(59, 130, 246, 0.12);
-  --staff-border-default: #2d3748;
-  --staff-border-strong: #3b4658;
-  --staff-border-active: #7c5cff;
-  --staff-border-warning: rgba(245, 158, 11, 0.5);
-  --staff-border-critical: rgba(239, 68, 68, 0.5);
-  --staff-text-primary: #f3f6fb;
-  --staff-text-secondary: #bcc7d6;
-  --staff-text-tertiary: #8d9aaf;
-  --staff-accent-primary: #7c5cff;
+  --staff-bg-page: #f6f8fb;
+  --staff-bg-page-accent: #eef4f9;
+  --staff-bg-elevated: #ffffff;
+  --staff-bg-muted: #f1f5f9;
+  --staff-bg-contrast: #e6edf5;
+  --staff-surface-warning: rgba(217, 119, 6, 0.1);
+  --staff-surface-critical: rgba(220, 38, 38, 0.1);
+  --staff-surface-success: rgba(22, 163, 74, 0.1);
+  --staff-surface-info: rgba(37, 99, 235, 0.1);
+  --staff-border-default: #d8e2ee;
+  --staff-border-strong: #b8c6d8;
+  --staff-border-active: #2563eb;
+  --staff-border-warning: rgba(217, 119, 6, 0.48);
+  --staff-border-critical: rgba(220, 38, 38, 0.46);
+  --staff-text-primary: #172033;
+  --staff-text-secondary: #506176;
+  --staff-text-tertiary: #74839a;
+  --staff-accent-primary: #2563eb;
   --staff-accent-warning: #f59e0b;
-  --staff-accent-danger: #ef4444;
-  --staff-accent-success: #22c55e;
-  --staff-accent-info: #3b82f6;
+  --staff-accent-danger: #dc2626;
+  --staff-accent-success: #16a34a;
+  --staff-accent-info: #2563eb;
   --staff-accent-analytics: #d946ef;
   --staff-space-1: 4px;
   --staff-space-2: 8px;
@@ -33,11 +33,11 @@
   --staff-radius-md: 12px;
   --staff-radius-lg: 14px;
   --staff-radius-hero: 18px;
-  --staff-shadow-card: 0 14px 34px rgba(0, 0, 0, 0.22);
-  --staff-shadow-hover: 0 18px 44px rgba(0, 0, 0, 0.28);
-  --staff-shadow-selected: 0 0 0 1px rgba(124, 92, 255, 0.38), 0 18px 44px rgba(20, 16, 52, 0.28);
-  --staff-shadow-sticky: 0 24px 52px rgba(0, 0, 0, 0.32);
-  color-scheme: dark;
+  --staff-shadow-card: 0 8px 22px rgba(31, 41, 55, 0.08);
+  --staff-shadow-hover: 0 14px 32px rgba(31, 41, 55, 0.12);
+  --staff-shadow-selected: 0 0 0 1px rgba(37, 99, 235, 0.34), 0 12px 28px rgba(37, 99, 235, 0.12);
+  --staff-shadow-sticky: 0 18px 38px rgba(31, 41, 55, 0.1);
+  color-scheme: light;
   font-family:
     'IBM Plex Sans',
     'Segoe UI',
@@ -57,8 +57,8 @@ body,
 body {
   color: var(--staff-text-primary);
   background:
-    radial-gradient(circle at top left, rgba(124, 92, 255, 0.12), transparent 24%),
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 26%),
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.1), transparent 24%),
+    radial-gradient(circle at top right, rgba(22, 163, 74, 0.07), transparent 26%),
     linear-gradient(180deg, var(--staff-bg-page-accent) 0%, var(--staff-bg-page) 100%);
 }
 
@@ -70,7 +70,7 @@ textarea {
 }
 
 .staff-eyebrow {
-  color: #c9bcff;
+  color: #1d4ed8;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.14em;
@@ -114,16 +114,16 @@ textarea {
 }
 
 .ant-btn-primary {
-  background: linear-gradient(135deg, #7c5cff, #6f4cff) !important;
-  border-color: #7c5cff !important;
-  box-shadow: 0 10px 22px rgba(64, 44, 150, 0.34) !important;
-  color: #f8f8ff !important;
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.2) !important;
+  color: #ffffff !important;
 }
 
 .ant-btn-primary:hover,
 .ant-btn-primary:focus {
-  background: linear-gradient(135deg, #8a6eff, #7c5cff) !important;
-  border-color: #8a6eff !important;
+  background: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
 }
 
 .ant-card,
@@ -138,9 +138,9 @@ textarea {
 
 .staff-shell-layout {
   background:
-    radial-gradient(circle at top left, rgba(124, 92, 255, 0.1), transparent 22%),
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 24%),
-    linear-gradient(180deg, #10141c 0%, #0f1115 100%);
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.1), transparent 22%),
+    radial-gradient(circle at top right, rgba(22, 163, 74, 0.07), transparent 24%),
+    linear-gradient(180deg, #f8fbff 0%, #eef4f9 100%);
 }
 
 :where(
@@ -161,6 +161,6 @@ textarea {
   .staff-order-line-card,
   .staff-order-menu-item
 ):focus-visible {
-  outline: 2px solid rgba(124, 92, 255, 0.72);
+  outline: 2px solid rgba(37, 99, 235, 0.72);
   outline-offset: 2px;
 }

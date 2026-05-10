@@ -5,29 +5,24 @@ import { AccountPage } from "./account-page";
 
 const mocks = vi.hoisted(() => ({
   getLoyalty: vi.fn(),
+  listReservations: vi.fn(),
   listVouchers: vi.fn(),
   customerWebRollout: {
     accountBenefits: {
       enabled: false,
-      description: "Keep loyalty and voucher data contract-visible behind an explicit rollout flag.",
-      liveProofSummary:
-        "Loyalty, vouchers, reservation benefits preview, and row-versioned voucher or loyalty mutations have live proof behind the account-benefits rollout flag.",
-      disabledTitle: "Benefits are not in this rollout",
+      disabledTitle: "Ưu đãi chưa được bật",
       disabledDescription:
-        "Loyalty and vouchers stay off by default. Enable the account-benefits rollout flag only for a deliberate QA or Wave 2 pass.",
+        "Điểm thưởng và voucher chưa được bật mặc định. Chỉ bật cờ ưu đãi tài khoản cho QA hoặc Wave 2.",
     },
     privacyRequests: {
       enabled: false,
-      description: "Privacy request entry points stay disabled by default and only open when the privacy-tools flag is enabled.",
-      disabledTitle: "Privacy tools are not in this rollout",
-      disabledDescription: "Privacy requests stay off by default and only open during a dedicated QA, UAT, or Wave 2 rollout.",
+      disabledTitle: "Công cụ dữ liệu cá nhân chưa được bật",
+      disabledDescription: "Yêu cầu dữ liệu cá nhân mặc định đang tắt và chỉ mở trong rollout riêng.",
     },
     dataExport: {
       enabled: false,
-      description: "Data export remains an explicit Wave 2 extra and should never become a go-live dependency for booking core.",
-      disabledTitle: "Data export is not in this rollout",
-      disabledDescription:
-        "Data export stays off until the broader privacy rollout is ready. Keep it disabled unless QA or UAT specifically needs export proof.",
+      disabledTitle: "Xuất dữ liệu chưa được bật",
+      disabledDescription: "Xuất dữ liệu sẽ tắt cho đến khi rollout quyền riêng tư rộng hơn sẵn sàng.",
     },
   },
 }));
@@ -35,13 +30,20 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/providers/auth-provider", () => ({
   useAuth: () => ({
     profile: {
+      userId: 7,
       name: "Demo Customer",
+      email: "demo@example.com",
+      phone: "555-0100",
     },
   }),
 }));
 
 vi.mock("./api", () => ({
   getLoyalty: mocks.getLoyalty,
+}));
+
+vi.mock("@/features/reservations/api", () => ({
+  listReservations: mocks.listReservations,
 }));
 
 vi.mock("@/features/vouchers/api", () => ({
@@ -75,23 +77,30 @@ function renderAccountPage() {
 describe("AccountPage", () => {
   beforeEach(() => {
     mocks.getLoyalty.mockReset();
+    mocks.listReservations.mockReset();
     mocks.listVouchers.mockReset();
+    mocks.listReservations.mockResolvedValue([]);
     mocks.customerWebRollout.accountBenefits.enabled = false;
     mocks.customerWebRollout.privacyRequests.enabled = false;
     mocks.customerWebRollout.dataExport.enabled = false;
   });
 
-  it("keeps benefits gated and avoids live loyalty or voucher queries when the rollout is off", () => {
+  it("keeps benefits gated and avoids live loyalty or voucher queries when rollout is off", async () => {
     renderAccountPage();
 
-    expect(screen.getByText("Công cụ tài khoản")).toBeInTheDocument();
-    expect(screen.getAllByText("Benefits are not in this rollout").length).toBeGreaterThanOrEqual(3);
-    expect(screen.getAllByText(/enable the account-benefits rollout flag/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Tài khoản khách hàng của bạn")).toBeInTheDocument();
+    expect(screen.getAllByText("Ưu đãi chưa được bật").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Tùy chọn nhận thông báo")).toBeInTheDocument();
+    expect(screen.getByText("Góp ý sau bữa ăn")).toBeInTheDocument();
     expect(mocks.getLoyalty).not.toHaveBeenCalled();
     expect(mocks.listVouchers).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(mocks.listReservations).toHaveBeenCalledWith("upcoming");
+    });
   });
 
-  it("renders benefits as a gated contract shell when the rollout is enabled", async () => {
+  it("renders loyalty and voucher wallet when account benefits are enabled", async () => {
     mocks.customerWebRollout.accountBenefits.enabled = true;
     mocks.getLoyalty.mockResolvedValue({
       user: {
@@ -156,14 +165,13 @@ describe("AccountPage", () => {
       expect(mocks.listVouchers).toHaveBeenCalledWith({ bucket: "all", per_page: 24 });
     });
 
-    expect(await screen.findByText("Ưu đãi đã sẵn sàng")).toBeInTheDocument();
-    expect(screen.getByText(/Bạn có thể xem điểm thưởng, voucher/i)).toBeInTheDocument();
-    expect(screen.getByText("Hạng Bronze đang hiển thị")).toBeInTheDocument();
-    expect(screen.getAllByText("Voucher chưa đủ điều kiện").length).toBeGreaterThanOrEqual(1);
+    expect(await screen.findByText("Tóm tắt thành viên")).toBeInTheDocument();
+    expect(screen.getByText("Hạng Bronze")).toBeInTheDocument();
+    expect(screen.getAllByText("Cần thêm 80 điểm để mở hạng Silver.").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Chưa đủ điều kiện").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Spend more before this voucher can apply.")).toBeInTheDocument();
-    expect(screen.getByText(/Thao tác áp dụng hoặc gỡ voucher nằm trong chi tiết lịch đặt/i)).toBeInTheDocument();
-    expect(screen.getByText(/Đơn tối thiểu/i)).toBeInTheDocument();
+    expect(screen.getByText(/Chỉ áp dụng ở lịch đặt/i)).toBeInTheDocument();
+    expect(screen.getByText(/Chi tiêu tối thiểu/i)).toBeInTheDocument();
     expect(screen.getByText(/Giảm dự kiến/i)).toBeInTheDocument();
   });
 });

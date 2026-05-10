@@ -42,6 +42,7 @@ class InventoryManagementService
             (string) ($filters['sort_dir'] ?? 'asc'),
         );
 
+        // Man hinh ingredient khong doc bang stock snapshot rieng; no build tu ledger + recipe usage ngay trong query.
         $query = $this->baseIngredientsQuery($requestedBranchId, $accessibleBranchIds)
             ->when(array_key_exists('is_active', $filters) && $filters['is_active'] !== null, static fn ($query) => $query->where('ingredients.is_active', (bool) $filters['is_active']))
             ->when($keyword !== '', static function ($query) use ($keyword): void {
@@ -95,6 +96,7 @@ class InventoryManagementService
     public function createIngredient(array $payload): Ingredient
     {
         $ingredient = new Ingredient;
+        // Ingredient la master data nen create flow giu rat thang: normalize field truoc khi save.
         $ingredient->fill([
             'code' => $this->normalizeNullableString($payload['code'] ?? null),
             'name' => trim((string) $payload['name']),
@@ -116,6 +118,7 @@ class InventoryManagementService
             /** @var Ingredient $ingredient */
             $ingredient = Ingredient::query()->lockForUpdate()->findOrFail($ingredientId);
 
+            // Ingredient edit dung optimistic lock de tranh de thay doi unit/code mo phong nhau.
             $this->assertExpectedRowVersion((int) ($ingredient->row_version ?? 1), (int) $payload['row_version']);
 
             if (array_key_exists('code', $payload)) {
@@ -180,6 +183,7 @@ class InventoryManagementService
             /** @var list<array<string,mixed>> $lines */
             $lines = array_values((array) ($payload['lines'] ?? []));
 
+            // Recipe duoc coi nhu mot aggregate; row_version lay theo max cua cac line hien tai.
             /** @var Collection<int, MenuItemRecipe> $existingLines */
             $existingLines = MenuItemRecipe::query()
                 ->where('item_id', $itemId)
@@ -207,6 +211,7 @@ class InventoryManagementService
                 throw (new ModelNotFoundException)->setModel(Ingredient::class, $ingredientIds);
             }
 
+            // Xoa truoc cac ingredient khong con xuat hien trong payload de sync co tinh thay the toan bo recipe.
             MenuItemRecipe::query()
                 ->where('item_id', $itemId)
                 ->when($ingredientIds !== [], static fn ($query) => $query->whereNotIn('ingredient_id', $ingredientIds))
@@ -227,6 +232,7 @@ class InventoryManagementService
                     'lines.'.$index.'.unit_code'
                 );
 
+                // Moi ingredient co toi da mot recipe line; sync reuse line cu theo ingredient_id thay vi theo thu tu payload.
                 /** @var MenuItemRecipe|null $recipeLine */
                 $recipeLine = $existingByIngredientId->get((int) $ingredient->ingredient_id);
                 if (! $recipeLine instanceof MenuItemRecipe) {
@@ -268,6 +274,7 @@ class InventoryManagementService
             ->when(isset($filters['movement_type']), static fn ($query) => $query->where('movement_type', (string) $filters['movement_type']))
             ->when(isset($filters['branch_id']), static fn ($query) => $query->where('branch_id', (int) $filters['branch_id']));
 
+        // Khi khong chot branch cu the, ledger bi ep ve cac branch actor duoc phep xem.
         if ($requestedBranchId === null && is_array($accessibleBranchIds)) {
             if ($accessibleBranchIds === []) {
                 $query->whereRaw('1 = 0');
@@ -292,6 +299,7 @@ class InventoryManagementService
      */
     public function createIngredientMovement(int $ingredientId, array $payload, ?int $actorUserId = null): array
     {
+        // Writable branch duoc resolve tai day de stock service nhan payload da sach va dung scope.
         $branchId = $this->resolveWritableBranchId($actorUserId, $payload['branch_id'] ?? null);
 
         $movement = $this->stockMovementService->recordMovement($ingredientId, [
@@ -308,6 +316,7 @@ class InventoryManagementService
         $stockBranchId = isset($movement->branch_id) ? (int) $movement->branch_id : null;
 
         return [
+            // Tra ve stock_on_hand moi ngay sau movement de UI khong phai goi them mot request tong hop.
             'movement' => $movement,
             'stock_on_hand' => $this->stockMovementService->currentStockOnHand($ingredientId, $stockBranchId),
         ];
@@ -318,6 +327,7 @@ class InventoryManagementService
      */
     private function baseIngredientsQuery(?int $branchId = null, ?array $accessibleBranchIds = null): Builder
     {
+        // Query nen cho inventory list ghep 2 view logic: ton kho hien tai va so recipe dang su dung ingredient.
         $stockSubquery = IngredientStockMovement::query()
             ->selectRaw('ingredient_id, SUM(quantity_delta) as stock_on_hand_quantity')
             ->groupBy('ingredient_id');
@@ -355,6 +365,7 @@ class InventoryManagementService
      */
     private function branchScopeForActor(?int $actorUserId, ?int $requestedBranchId = null): ?array
     {
+        // Actor null duoc hieu la caller noi bo, khong ep branch scope.
         if ($actorUserId === null || $actorUserId <= 0) {
             return null;
         }
@@ -364,6 +375,7 @@ class InventoryManagementService
 
     private function resolveWritableBranchId(?int $actorUserId, mixed $requestedBranchId = null): ?int
     {
+        // Create movement cho staff phai luon chot vao branch hien hanh hoac branch ma staff co quyen ghi.
         if ($actorUserId === null || $actorUserId <= 0) {
             return $requestedBranchId !== null && $requestedBranchId !== '' ? (int) $requestedBranchId : null;
         }
@@ -394,6 +406,7 @@ class InventoryManagementService
 
     private function resolveIngredientUnitCode(Ingredient $ingredient, mixed $requestedUnitCode, string $field): string
     {
+        // Recipe line va movement phai di cung don vi chuan cua ingredient de tranh doi don vi ngam.
         $ingredientUnitCode = trim((string) $ingredient->unit_code);
         if ($ingredientUnitCode === '') {
             throw ValidationException::withMessages([
@@ -418,6 +431,7 @@ class InventoryManagementService
 
     private function assertExpectedRowVersion(int $currentRowVersion, int $expectedRowVersion): void
     {
+        // Aggregate inventory admin flow dung row_version de ngan stale write.
         if ($currentRowVersion === $expectedRowVersion) {
             return;
         }
@@ -429,6 +443,7 @@ class InventoryManagementService
 
     private function bumpRowVersion(Ingredient $ingredient): void
     {
+        // Moi update ingredient hop le deu tang row_version.
         $ingredient->row_version = max(1, (int) ($ingredient->row_version ?? 1)) + 1;
     }
 

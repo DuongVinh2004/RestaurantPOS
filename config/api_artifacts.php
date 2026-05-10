@@ -18,6 +18,7 @@ return [
             [
                 'name' => 'Auth',
                 'signatures' => [
+                    'POST api/v1/auth/customer/register',
                     'POST api/v1/auth/customer/login',
                     'GET api/v1/auth/customer/me',
                     'POST api/v1/auth/customer/refresh',
@@ -73,7 +74,12 @@ return [
                     'GET api/v1/staff/tables/board/changes',
                     'POST api/v1/staff/service-sessions/walk-in',
                     'POST api/v1/staff/reservations/{id}/check-in',
+                    'POST api/v1/staff/reservations/{id}/assign-table',
+                    'POST api/v1/staff/reservations/{id}/assign-best-fit',
+                    'POST api/v1/staff/reservations/{id}/move-table',
+                    'POST api/v1/staff/tables/{table_id}/release',
                     'POST api/v1/staff/tables/{table_id}/orders',
+                    'GET api/v1/staff/tables/{table_id}/active-order',
                     'POST api/v1/staff/orders/{order_id}/items',
                     'PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}',
                     'POST api/v1/staff/orders/{order_id}/items/{order_item_id}/status',
@@ -110,6 +116,7 @@ return [
             [
                 'name' => 'Staff Lookup',
                 'signatures' => [
+                    'GET api/v1/staff/branches',
                     'GET api/v1/staff/reservations',
                     'GET api/v1/staff/reservations/{reservation_id}',
                     'GET api/v1/staff/reservations/{reservation_id}/orders',
@@ -126,6 +133,10 @@ return [
                     'GET api/v1/admin/inventory/ingredients',
                     'GET api/v1/admin/inventory/suppliers',
                     'GET api/v1/admin/inventory/purchase-orders',
+                    'GET api/v1/admin/inventory/ingredients/{id}/movements',
+                    'POST api/v1/admin/inventory/ingredients/{id}/movements',
+                    'GET api/v1/admin/inventory/purchase-orders/{id}/receipts',
+                    'POST api/v1/admin/inventory/purchase-orders/{id}/receipts',
                     'GET api/v1/admin/settings/branches',
                 ],
             ],
@@ -138,6 +149,15 @@ return [
                 ],
             ],
             [
+                'name' => 'Staff Finance',
+                'signatures' => [
+                    'GET api/v1/staff/finance/reconciliation',
+                    'GET api/v1/staff/finance/reconciliation/{reservation_id}',
+                    'GET api/v1/staff/finance/invoices/{reservation_id}',
+                    'POST api/v1/staff/finance/invoices/{reservation_id}/issue',
+                ],
+            ],
+            [
                 'name' => 'Waiting List',
                 'signatures' => [
                     'GET api/v1/waiting-list',
@@ -145,11 +165,14 @@ return [
                     'GET api/v1/waiting-list/{id}',
                     'GET api/v1/staff/waiting-list',
                     'GET api/v1/staff/waiting-list/changes',
+                    'POST api/v1/staff/waiting-list',
                     'POST api/v1/staff/waiting-list/{id}/notify',
                     'POST api/v1/waiting-list/{id}/accept',
                     'POST api/v1/waiting-list/{id}/confirm-arrival',
                     'POST api/v1/waiting-list/{id}/decline',
                     'POST api/v1/waiting-list/{id}/cancel',
+                    'POST api/v1/staff/waiting-list/{id}/cancel',
+                    'POST api/v1/staff/waiting-list/{id}/advance',
                     'POST api/v1/staff/waiting-list/{id}/seat',
                 ],
             ],
@@ -184,12 +207,40 @@ return [
                 ],
             ],
             [
+                'name' => 'Admin Benefits',
+                'signatures' => [
+                    'GET api/v1/admin/benefits/vouchers',
+                    'GET api/v1/admin/benefits/vouchers/{id}',
+                    'POST api/v1/admin/benefits/vouchers',
+                    'PATCH api/v1/admin/benefits/vouchers/{id}',
+                    'GET api/v1/admin/benefits/loyalty-tiers',
+                    'GET api/v1/admin/benefits/loyalty-tiers/{id}',
+                    'POST api/v1/admin/benefits/loyalty-tiers',
+                    'PATCH api/v1/admin/benefits/loyalty-tiers/{id}',
+                    'GET api/v1/admin/settings/benefits',
+                    'POST api/v1/admin/settings/benefits',
+                ],
+            ],
+            [
+                'name' => 'Admin Privacy',
+                'signatures' => [
+                    'GET api/v1/admin/privacy/requests',
+                    'GET api/v1/admin/privacy/customers/{user_id}/data-export',
+                    'POST api/v1/admin/privacy/requests/{request_id}/review',
+                ],
+            ],
+            [
                 'name' => 'Conversation Inbox',
                 'signatures' => [
                     'GET api/v1/staff/conversations',
                     'GET api/v1/staff/conversations/{conversation_id}',
+                    'POST api/v1/staff/conversations/{conversation_id}/assign',
                     'POST api/v1/staff/conversations/{conversation_id}/take-over',
                     'POST api/v1/staff/conversations/{conversation_id}/unassign',
+                    'POST api/v1/staff/conversations/{conversation_id}/workflow-state',
+                    'POST api/v1/staff/conversations/{conversation_id}/links',
+                    'DELETE api/v1/staff/conversations/{conversation_id}/links/reservation',
+                    'DELETE api/v1/staff/conversations/{conversation_id}/links/waiting-list',
                     'POST api/v1/staff/conversations/{conversation_id}/internal-notes',
                     'POST api/v1/staff/conversations/{conversation_id}/outbound-replies',
                 ],
@@ -347,7 +398,22 @@ return [
             'POST api/v1/staff/reservations/{id}/check-in' => [
                 'path' => ['id' => 'reservationIdDineIn'],
             ],
+            'POST api/v1/staff/reservations/{id}/assign-table' => [
+                'path' => ['id' => 'reservationIdDineIn'],
+            ],
+            'POST api/v1/staff/reservations/{id}/assign-best-fit' => [
+                'path' => ['id' => 'reservationIdDineIn'],
+            ],
+            'POST api/v1/staff/reservations/{id}/move-table' => [
+                'path' => ['id' => 'reservationIdDineIn'],
+            ],
+            'POST api/v1/staff/tables/{table_id}/release' => [
+                'path' => ['table_id' => 'dineInTableId'],
+            ],
             'POST api/v1/staff/tables/{table_id}/orders' => [
+                'path' => ['table_id' => 'dineInTableId'],
+            ],
+            'GET api/v1/staff/tables/{table_id}/active-order' => [
                 'path' => ['table_id' => 'dineInTableId'],
             ],
             'POST api/v1/staff/orders/{order_id}/items' => [
@@ -456,6 +522,19 @@ return [
                     'sort' => 'purchaseOrderSort',
                 ],
             ],
+            'GET api/v1/admin/inventory/ingredients/{id}/movements' => [
+                'path' => ['id' => 'ingredientId'],
+                'query' => ['branch_id' => 'branchId'],
+            ],
+            'POST api/v1/admin/inventory/ingredients/{id}/movements' => [
+                'path' => ['id' => 'ingredientId'],
+            ],
+            'GET api/v1/admin/inventory/purchase-orders/{id}/receipts' => [
+                'path' => ['id' => 'purchaseOrderId'],
+            ],
+            'POST api/v1/admin/inventory/purchase-orders/{id}/receipts' => [
+                'path' => ['id' => 'purchaseOrderId'],
+            ],
             'GET api/v1/admin/settings/branches' => [
                 'query' => [
                     'is_active' => 'branchActiveOnly',
@@ -546,6 +625,26 @@ return [
             'POST api/v1/staff/reservations/{reservation_id}/refund-cancel' => [
                 'path' => ['reservation_id' => 'reservationIdRefundCancel'],
             ],
+            'GET api/v1/staff/finance/reconciliation' => [
+                'query' => [
+                    'branch_id' => 'branchId',
+                    'reservation_id' => 'reservationIdDineIn',
+                    'per_page' => 'perPage',
+                    'sort' => 'financeReconciliationSort',
+                ],
+            ],
+            'GET api/v1/staff/finance/reconciliation/{reservation_id}' => [
+                'path' => ['reservation_id' => 'reservationIdDineIn'],
+                'query' => ['branch_id' => 'branchId'],
+            ],
+            'GET api/v1/staff/finance/invoices/{reservation_id}' => [
+                'path' => ['reservation_id' => 'reservationIdDineIn'],
+                'query' => ['branch_id' => 'branchId'],
+            ],
+            'POST api/v1/staff/finance/invoices/{reservation_id}/issue' => [
+                'path' => ['reservation_id' => 'reservationIdDineIn'],
+                'query' => ['branch_id' => 'branchId'],
+            ],
             'GET api/v1/waiting-list/{id}' => [
                 'path' => ['id' => 'waitingListId'],
             ],
@@ -565,6 +664,12 @@ return [
                 ],
             ],
             'POST api/v1/staff/waiting-list/{id}/notify' => [
+                'path' => ['id' => 'waitingListId'],
+            ],
+            'POST api/v1/staff/waiting-list/{id}/cancel' => [
+                'path' => ['id' => 'waitingListId'],
+            ],
+            'POST api/v1/staff/waiting-list/{id}/advance' => [
                 'path' => ['id' => 'waitingListId'],
             ],
             'POST api/v1/waiting-list/{id}/accept' => [
@@ -614,6 +719,24 @@ return [
             'POST api/v1/admin/menu/items/{item_id}/prices' => [
                 'path' => ['item_id' => 'menuItemId'],
             ],
+            'GET api/v1/admin/benefits/vouchers/{id}' => [
+                'path' => ['id' => 'voucherId'],
+            ],
+            'PATCH api/v1/admin/benefits/vouchers/{id}' => [
+                'path' => ['id' => 'voucherId'],
+            ],
+            'GET api/v1/admin/benefits/loyalty-tiers/{id}' => [
+                'path' => ['id' => 'loyaltyTierId'],
+            ],
+            'PATCH api/v1/admin/benefits/loyalty-tiers/{id}' => [
+                'path' => ['id' => 'loyaltyTierId'],
+            ],
+            'GET api/v1/admin/privacy/customers/{user_id}/data-export' => [
+                'path' => ['user_id' => 'customerUserId'],
+            ],
+            'POST api/v1/admin/privacy/requests/{request_id}/review' => [
+                'path' => ['request_id' => 'privacyRequestId'],
+            ],
             'GET api/v1/staff/conversations' => [
                 'query' => [
                     'branch_id' => 'branchId',
@@ -631,7 +754,22 @@ return [
             'POST api/v1/staff/conversations/{conversation_id}/take-over' => [
                 'path' => ['conversation_id' => 'conversationId'],
             ],
+            'POST api/v1/staff/conversations/{conversation_id}/assign' => [
+                'path' => ['conversation_id' => 'conversationId'],
+            ],
             'POST api/v1/staff/conversations/{conversation_id}/unassign' => [
+                'path' => ['conversation_id' => 'conversationId'],
+            ],
+            'POST api/v1/staff/conversations/{conversation_id}/workflow-state' => [
+                'path' => ['conversation_id' => 'conversationId'],
+            ],
+            'POST api/v1/staff/conversations/{conversation_id}/links' => [
+                'path' => ['conversation_id' => 'conversationId'],
+            ],
+            'DELETE api/v1/staff/conversations/{conversation_id}/links/reservation' => [
+                'path' => ['conversation_id' => 'conversationId'],
+            ],
+            'DELETE api/v1/staff/conversations/{conversation_id}/links/waiting-list' => [
                 'path' => ['conversation_id' => 'conversationId'],
             ],
             'POST api/v1/staff/conversations/{conversation_id}/internal-notes' => [
@@ -645,6 +783,14 @@ return [
             ],
         ],
         'body_overrides' => [
+            'POST api/v1/auth/customer/register' => [
+                'full_name' => 'Postman Customer',
+                'email' => 'postman.customer+{{$timestamp}}@example.test',
+                'phone' => '09{{$timestamp}}',
+                'password' => '{{customerPassword}}',
+                'password_confirmation' => '{{customerPassword}}',
+                'session_label' => 'postman-customer-register',
+            ],
             'POST api/v1/auth/customer/login' => [
                 'identifier' => '{{customerUsername}}',
                 'password' => '{{customerPassword}}',
@@ -901,6 +1047,10 @@ return [
             ],
         ],
         'capture_variables' => [
+            'POST api/v1/auth/customer/register' => [
+                'customerToken' => 'data.access_token',
+                'customerSessionId' => 'data.session_id',
+            ],
             'POST api/v1/auth/customer/login' => [
                 'customerToken' => 'data.access_token',
                 'customerSessionId' => 'data.session_id',
@@ -1058,7 +1208,10 @@ return [
             [
                 'name' => 'Staff waiting list',
                 'signatures' => [
+                    'POST api/v1/staff/waiting-list',
                     'POST api/v1/staff/waiting-list/{id}/notify',
+                    'POST api/v1/staff/waiting-list/{id}/cancel',
+                    'POST api/v1/staff/waiting-list/{id}/advance',
                     'POST api/v1/staff/waiting-list/{id}/seat',
                 ],
             ],
@@ -1066,6 +1219,10 @@ return [
                 'name' => 'Staff order + checkout + cashier core',
                 'signatures' => [
                     'POST api/v1/staff/reservations/{id}/check-in',
+                    'POST api/v1/staff/reservations/{id}/assign-table',
+                    'POST api/v1/staff/reservations/{id}/assign-best-fit',
+                    'POST api/v1/staff/reservations/{id}/move-table',
+                    'POST api/v1/staff/tables/{table_id}/release',
                     'POST api/v1/staff/tables/{table_id}/orders',
                     'POST api/v1/staff/orders/{order_id}/items',
                     'PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}',
@@ -1075,6 +1232,40 @@ return [
                     'POST api/v1/staff/orders/{order_id}/settlement/finalize',
                     'POST api/v1/staff/cashier/shifts/open',
                     'POST api/v1/staff/cashier/shifts/{shift_id}/close',
+                    'POST api/v1/staff/finance/invoices/{reservation_id}/issue',
+                ],
+            ],
+            [
+                'name' => 'Staff conversation workflow',
+                'signatures' => [
+                    'POST api/v1/staff/conversations/{conversation_id}/assign',
+                    'POST api/v1/staff/conversations/{conversation_id}/workflow-state',
+                    'POST api/v1/staff/conversations/{conversation_id}/links',
+                    'DELETE api/v1/staff/conversations/{conversation_id}/links/reservation',
+                    'DELETE api/v1/staff/conversations/{conversation_id}/links/waiting-list',
+                ],
+            ],
+            [
+                'name' => 'Admin inventory receiving',
+                'signatures' => [
+                    'POST api/v1/admin/inventory/ingredients/{id}/movements',
+                    'POST api/v1/admin/inventory/purchase-orders/{id}/receipts',
+                ],
+            ],
+            [
+                'name' => 'Admin benefits',
+                'signatures' => [
+                    'POST api/v1/admin/benefits/vouchers',
+                    'PATCH api/v1/admin/benefits/vouchers/{id}',
+                    'POST api/v1/admin/benefits/loyalty-tiers',
+                    'PATCH api/v1/admin/benefits/loyalty-tiers/{id}',
+                    'POST api/v1/admin/settings/benefits',
+                ],
+            ],
+            [
+                'name' => 'Admin privacy',
+                'signatures' => [
+                    'POST api/v1/admin/privacy/requests/{request_id}/review',
                 ],
             ],
             [

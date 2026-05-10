@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { RestaurantPosApiError } from "@/lib/contracts/generated/restaurantpos-sdk";
-import { ACTIVE_TABLE_HOLD_SESSION_MESSAGE, getApiErrorDisplay, isActiveTableHoldSessionError } from "./errors";
+import {
+  ACTIVE_TABLE_HOLD_SESSION_MESSAGE,
+  getApiErrorDisplay,
+  isActiveTableHoldSessionError,
+  isConflictLikeApiError,
+  normalizeApiError,
+} from "./errors";
 
 describe("API error display helpers", () => {
   it("surfaces request id, status, and retry guidance for conflict errors", () => {
@@ -74,5 +80,35 @@ describe("API error display helpers", () => {
       requestIdLabel: "Mã hỗ trợ: req-active-hold",
       errorCodeLabel: "Mã lỗi validation_error",
     });
+  });
+
+  it("preserves machine-readable conflict metadata for frontend recovery branches", () => {
+    const error = new RestaurantPosApiError("Conflict", 409, {
+      message: "State conflict detected.",
+      error_code: "idempotency_conflict",
+      category_code: "idempotency_conflict",
+      request_id: "req-idem-1",
+      errors: {
+        row_version: ["The row version is stale."],
+      },
+      conflict_type: "idempotency_payload_mismatch",
+      replay_state: "payload_mismatch",
+      state_reason: "row_version_mismatch",
+      next_actions: ["reload_resource", "retry_with_latest_row_version"],
+    });
+
+    expect(normalizeApiError(error)).toMatchObject({
+      errorCode: "idempotency_conflict",
+      categoryCode: "idempotency_conflict",
+      requestId: "req-idem-1",
+      validationErrors: {
+        row_version: ["The row version is stale."],
+      },
+      conflictType: "idempotency_payload_mismatch",
+      replayState: "payload_mismatch",
+      stateReason: "row_version_mismatch",
+      nextActions: ["reload_resource", "retry_with_latest_row_version"],
+    });
+    expect(isConflictLikeApiError(error)).toBe(true);
   });
 });

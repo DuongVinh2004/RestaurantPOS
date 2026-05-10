@@ -23,6 +23,9 @@ const mocks = vi.hoisted(() => ({
   confirmWaitingListArrival: vi.fn(),
   declineWaitingListEntry: vi.fn(),
   cancelWaitingListEntry: vi.fn(),
+  authState: {
+    profile: null as null | { name: string; phone: string | null },
+  },
 }));
 
 vi.mock("next/link", () => ({
@@ -41,6 +44,10 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/config/feature-flags", () => ({
   customerWebRollout: mocks.customerWebRollout,
+}));
+
+vi.mock("@/providers/auth-provider", () => ({
+  useAuth: () => mocks.authState,
 }));
 
 vi.mock("./api", () => ({
@@ -163,15 +170,17 @@ describe("WaitingListPage", () => {
     mocks.declineWaitingListEntry.mockReset();
     mocks.cancelWaitingListEntry.mockReset();
     mocks.toastSuccess.mockReset();
+    mocks.authState.profile = null;
   });
 
   it("renders a rollout-disabled state without calling live waiting-list queries", () => {
     renderPage();
 
-    expect(screen.getByText("Waiting list is not in this rollout")).toBeInTheDocument();
-    expect(screen.getByText(/dedicated waiting-list rollout flag/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Danh sách chờ chưa khả dụng" })).toBeInTheDocument();
+    expect(screen.getByText(/chưa bật ghi danh chờ bàn trực tuyến/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Tìm bàn" })).toHaveAttribute("href", "/booking");
     expect(screen.getByRole("link", { name: "Xem lịch đặt" })).toHaveAttribute("href", "/reservations");
+    expect(screen.getByRole("link", { name: "Xem thực đơn" })).toHaveAttribute("href", "/menu");
     expect(mocks.listWaitingList).not.toHaveBeenCalled();
     expect(mocks.getWaitingListEntry).not.toHaveBeenCalled();
   });
@@ -195,6 +204,20 @@ describe("WaitingListPage", () => {
     expect(screen.queryByRole("button", { name: "Nhận lời mời" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Xác nhận đã đến" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Từ chối lời mời" })).not.toBeInTheDocument();
+  });
+
+  it("prefills the waiting-list contact fields from the signed-in profile", async () => {
+    mocks.customerWebRollout.waitingList.enabled = true;
+    mocks.authState.profile = {
+      name: "Casey Nguyen",
+      phone: "0900111222",
+    };
+    mocks.listWaitingList.mockResolvedValue([]);
+
+    renderPage();
+
+    expect(await screen.findByDisplayValue("Casey Nguyen")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("0900111222")).toBeInTheDocument();
   });
 
   it("shows queue priority, notes, and the backend owner response set for an active invite window", async () => {

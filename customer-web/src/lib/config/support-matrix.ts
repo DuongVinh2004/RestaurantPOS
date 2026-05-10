@@ -86,13 +86,14 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
     exposure: "default-on",
     evidence: "Generated SDK curated Auth batch and frozen OpenAPI full contract.",
     routes: [
+      "POST /api/v1/auth/customer/register",
       "POST /api/v1/auth/customer/login",
       "GET /api/v1/auth/customer/me",
       "POST /api/v1/auth/customer/refresh",
       "POST /api/v1/auth/customer/logout",
     ],
     requiredHeaders: ["X-Customer-Token"],
-    frontendDecision: "Use explicit token storage and SDK auth headers. No cookies.",
+    frontendDecision: "Dùng lưu token rõ ràng và header xác thực của SDK. Không dùng cookie.",
   },
   {
     id: "menu-catalog",
@@ -103,7 +104,7 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
     evidence: "Generated SDK curated Availability + Reservation batch.",
     routes: ["GET /api/v1/menu/categories", "GET /api/v1/menu/items", "GET /api/v1/menu/items/{id}"],
     requiredHeaders: [],
-    frontendDecision: "Public browse stays live. Optional category and item-detail UI remains fail-closed behind explicit frontend flags.",
+    frontendDecision: "Duyệt thực đơn công khai vẫn mở. UI danh mục và chi tiết món tùy chọn đóng an toàn sau cờ frontend rõ ràng.",
     envFlags: ["NEXT_PUBLIC_FEATURE_MENU_CATEGORIES", "NEXT_PUBLIC_FEATURE_MENU_ITEM_DETAIL"],
   },
   {
@@ -121,7 +122,7 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
       "DELETE /api/v1/table-holds/{hold_id}",
     ],
     requiredHeaders: ["X-Session-Id", "Idempotency-Key"],
-    frontendDecision: "Use browser session id propagation and idempotent mutations. Optional availability and hold UI remains fail-closed behind explicit frontend flags.",
+    frontendDecision: "Dùng mã phiên trình duyệt và mutation idempotent. UI kiểm tra bàn trống và giữ bàn tùy chọn đóng an toàn sau cờ frontend rõ ràng.",
     envFlags: ["NEXT_PUBLIC_FEATURE_TABLE_AVAILABILITY", "NEXT_PUBLIC_FEATURE_TABLE_HOLDS"],
   },
   {
@@ -139,15 +140,16 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
       "POST /api/v1/reservations/{id}/reschedule",
     ],
     requiredHeaders: ["X-Customer-Token", "X-Session-Id", "Idempotency-Key"],
-    frontendDecision: "Wave 1 launch promise covers create, list, and detail. Cancel and reschedule remain contract-visible but are not part of the current launch promise.",
+    frontendDecision: "Phạm vi Wave 1 gồm tạo, danh sách và chi tiết lịch đặt. Hủy và đổi lịch đã có contract nhưng chưa thuộc cam kết phát hành hiện tại.",
   },
   {
     id: "preorder",
     feature: "Preorder",
     releaseWave: "deferred",
-    status: "ci-safe-only",
+    status: "live-ready",
     exposure: "env-flag",
-    evidence: "Generated SDK preorder preview, replace, clear, and reservation preorder routes.",
+    evidence:
+      "Generated SDK preorder preview, replace, clear, and reservation preorder routes, plus customer-web create-journey recovery tests, browser smoke proof, and focused live browser proof against the Laravel runtime.",
     routes: [
       "POST /api/v1/menu/preorder/preview",
       "GET /api/v1/reservations/{id}/preorder",
@@ -156,13 +158,15 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
       "DELETE /api/v1/reservations/{id}/preorder",
     ],
     requiredHeaders: ["X-Customer-Token", "X-Session-Id", "Idempotency-Key"],
-    frontendDecision: "Contract coverage exists, but preorder is outside the current go-live dependency chain and should not be treated as live launch proof.",
+    frontendDecision:
+      "Giữ món đặt trước sau cờ NEXT_PUBLIC_FEATURE_PREORDER để rollout có kiểm soát. Luồng khách hàng đã hỗ trợ chọn nháp khi tạo lịch đặt, khôi phục ở chi tiết lịch đặt, và kiểm chứng Laravel live cho xem trước, lưu, cập nhật và xóa.",
     gateFlag: "enablePreorder",
     envFlags: ["NEXT_PUBLIC_FEATURE_PREORDER"],
     disabledTitle: "Món đặt trước chưa được bật",
     disabledDescription:
-      "Nhà hàng chưa bật tính năng đặt món trước cho khách hàng trong phiên bản này.",
-    liveProofSummary: "Món đặt trước hiện chỉ hiển thị để tham khảo.",
+      "Món đặt trước hiện chỉ hiển thị để tham khảo.",
+    liveProofSummary:
+      "Món đặt trước vẫn khóa bằng cấu hình rollout, nhưng luồng tạo, xem chi tiết, cập nhật và xóa đã có kiểm chứng Laravel live có trọng tâm.",
   },
   {
     id: "deposit-self-pay",
@@ -184,9 +188,9 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
     ],
     requiredHeaders: ["X-Customer-Token", "X-Session-Id", "Idempotency-Key"],
     frontendDecision:
-      "Keep deposit preview truthful, but treat payment-session controls as contract-visible only until real provider evidence promotes them into launch scope.",
+      "Giữ phần xem trước đặt cọc đúng dữ liệu thật, nhưng chỉ xem thao tác phiên thanh toán là contract-visible cho đến khi có bằng chứng nhà cung cấp thật trong phạm vi phát hành.",
     liveProofSummary:
-      "Deposit self-pay is contract-visible and runtime-conditional. Simulated-provider or local UAT proof does not make it part of the day-1 launch promise.",
+      "Tự thanh toán đặt cọc đã có contract nhưng phụ thuộc runtime. Bằng chứng nhà cung cấp mô phỏng hoặc UAT cục bộ chưa đủ để đưa vào cam kết ngày ra mắt.",
   },
   {
     id: "bill-and-active-order",
@@ -207,9 +211,9 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
     ],
     requiredHeaders: ["X-Customer-Token", "X-Session-Id", "Idempotency-Key"],
     frontendDecision:
-      "Keep bill preview and active-order visibility truthful, but do not treat customer bill payment-session controls as a day-1 launch promise while staff settlement remains canonical.",
+      "Giữ xem trước hóa đơn và đơn đang mở theo dữ liệu thật, nhưng chưa xem thanh toán hóa đơn từ phía khách là cam kết ngày ra mắt khi quyết toán nhân viên vẫn là nguồn chuẩn.",
     liveProofSummary:
-      "Bill preview and active-order reads are contract-visible, but customer bill self-pay remains off by default for day 1. Any bill payment-session proof is contract-ready only until provider evidence and rollout approval promote it.",
+      "Xem trước hóa đơn và đơn đang mở đã có contract, nhưng tự thanh toán hóa đơn của khách vẫn tắt mặc định cho ngày ra mắt. Phiên thanh toán hóa đơn chỉ ở mức sẵn sàng contract cho đến khi có bằng chứng nhà cung cấp và phê duyệt rollout.",
   },
   {
     id: "waiting-list",
@@ -229,7 +233,7 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
     ],
     requiredHeaders: ["X-Customer-Token", "Idempotency-Key"],
     frontendDecision:
-      "Keep customer waiting-list disabled by default for day 1. When Wave 2 QA enables it, use customer-token owner mutations, manual refresh, and staff-backed notification setup without faking realtime or final seating.",
+      "Giữ danh sách chờ của khách tắt mặc định cho ngày ra mắt. Khi QA Wave 2 bật tính năng, dùng mutation theo token khách hàng, cập nhật thủ công và thiết lập thông báo do nhân viên hỗ trợ, không giả lập realtime hoặc trạng thái xếp bàn cuối.",
     gateFlag: "enableWaitingList",
     envFlags: ["NEXT_PUBLIC_FEATURE_WAITING_LIST"],
     disabledTitle: "Danh sách chờ chưa được bật",
@@ -256,7 +260,7 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
     ],
     requiredHeaders: ["X-Customer-Token", "Idempotency-Key"],
     frontendDecision:
-      "Keep loyalty and voucher benefits disabled by default. When QA enables the flag, account reads and reservation-level voucher or loyalty mutations use owner scope, Idempotency-Key, and latest row_version.",
+      "Giữ điểm thưởng và voucher tắt mặc định. Khi QA bật cờ, phần đọc tài khoản và mutation voucher hoặc điểm thưởng ở cấp lịch đặt phải dùng phạm vi chủ sở hữu, Idempotency-Key và row_version mới nhất.",
     gateFlag: "enableAccountBenefits",
     envFlags: ["NEXT_PUBLIC_FEATURE_ACCOUNT_BENEFITS"],
     disabledTitle: "Ưu đãi chưa được bật",
@@ -274,7 +278,7 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
     evidence: "Generated SDK Customer Privacy batch plus gated live proof for list and idempotent anonymization request creation.",
     routes: ["GET /api/v1/me/privacy-requests", "POST /api/v1/me/privacy-requests"],
     requiredHeaders: ["X-Customer-Token", "Idempotency-Key"],
-    frontendDecision: "Privacy request entry points stay disabled by default and only open when the privacy-tools flag is enabled.",
+    frontendDecision: "Điểm vào yêu cầu dữ liệu cá nhân mặc định đang tắt và chỉ mở khi cờ privacy-tools được bật.",
     gateFlag: "enablePrivacyTools",
     envFlags: ["NEXT_PUBLIC_FEATURE_PRIVACY_TOOLS"],
     disabledTitle: "Công cụ dữ liệu cá nhân chưa được bật",
@@ -292,7 +296,7 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
     evidence: "Generated SDK Customer Privacy batch plus gated live proof for customer data export reads.",
     routes: ["GET /api/v1/me/data-export"],
     requiredHeaders: ["X-Customer-Token"],
-    frontendDecision: "Data export remains an explicit Wave 2 extra and should never become a go-live dependency for booking core.",
+    frontendDecision: "Xuất dữ liệu vẫn là phần bổ sung rõ ràng của Wave 2 và không được trở thành phụ thuộc go-live của luồng đặt bàn cốt lõi.",
     gateFlag: "enableDataExport",
     envFlags: ["NEXT_PUBLIC_FEATURE_DATA_EXPORT"],
     disabledTitle: "Xuất dữ liệu chưa được bật",
@@ -310,10 +314,9 @@ export const customerWebSupportMatrix: SupportMatrixEntry[] = [
     evidence: "Frontend-only adapter selected by NEXT_PUBLIC_ENABLE_DEV_MOCKS outside production.",
     routes: ["SDK-compatible in-memory fetch responses"],
     requiredHeaders: [],
-    frontendDecision: "Use mock adapters only for local or controlled UAT diagnostics when the backend is unavailable. They are never live proof.",
+    frontendDecision: "Chỉ dùng adapter mô phỏng cho local hoặc chẩn đoán UAT có kiểm soát khi backend chưa khả dụng. Đây không bao giờ là bằng chứng live.",
     gateFlag: "enableDevMocks",
     envFlags: ["NEXT_PUBLIC_ENABLE_DEV_MOCKS"],
-    disabledTitle: "Dữ liệu mô phỏng đang tắt",
     disabledDescription: "Ứng dụng sẽ dùng API thật trừ khi nhà phát triển bật dữ liệu mô phỏng.",
     liveProofSummary: "Dữ liệu mô phỏng chỉ dùng để kiểm thử nội bộ.",
   },

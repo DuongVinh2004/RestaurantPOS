@@ -53,6 +53,7 @@ class ProcurementManagementService
             (string) ($filters['sort_dir'] ?? 'asc'),
         );
 
+        // Supplier list la CRUD read flow, chi them filter/sort an toan cho admin inventory.
         return Supplier::query()
             ->when(array_key_exists('is_active', $filters) && $filters['is_active'] !== null, static fn ($query) => $query->where('is_active', (bool) $filters['is_active']))
             ->when($keyword !== '', static function ($query) use ($keyword): void {
@@ -94,6 +95,7 @@ class ProcurementManagementService
     public function createSupplier(array $payload): Supplier
     {
         $supplier = new Supplier;
+        // Supplier la master data, nen create flow chu yeu normalize field va audit sau khi save.
         $supplier->fill([
             'code' => $this->normalizeNullableString($payload['code'] ?? null),
             'name' => trim((string) $payload['name']),
@@ -122,6 +124,7 @@ class ProcurementManagementService
             /** @var Supplier $supplier */
             $supplier = Supplier::query()->lockForUpdate()->findOrFail($supplierId);
 
+            // Supplier edit dung row_version de tranh de stale form ghi de nhau.
             $this->assertExpectedRowVersion((int) ($supplier->row_version ?? 1), (int) $payload['row_version']);
 
             if (array_key_exists('code', $payload)) {
@@ -172,6 +175,7 @@ class ProcurementManagementService
             (string) ($filters['sort_dir'] ?? 'desc'),
         );
 
+        // Purchase order list doc tu query tong hop co supplier/branch/line_count/receipt_count san cho dashboard.
         $query = $this->basePurchaseOrdersQuery()
             ->when(isset($filters['supplier_id']), static fn ($query) => $query->where('purchase_orders.supplier_id', (int) $filters['supplier_id']))
             ->when(isset($filters['purchase_order_status']), static fn ($query) => $query->where('purchase_orders.purchase_order_status', (string) $filters['purchase_order_status']))
@@ -203,6 +207,7 @@ class ProcurementManagementService
     {
         $accessibleBranchIds = $this->branchScopeForActor($actorUserId);
 
+        // Detail view nap full aggregate supplier, branch, lines va receipts de UI khong query bo sung.
         /** @var PurchaseOrder|null $order */
         $query = $this->basePurchaseOrdersQuery()
             ->with([
@@ -245,12 +250,14 @@ class ProcurementManagementService
     public function createPurchaseOrder(array $payload, ?int $actorUserId = null): PurchaseOrder
     {
         return DB::transaction(function () use ($payload, $actorUserId): PurchaseOrder {
+            // Khoa supplier + resolve branch som de don hang moi duoc tao trong dung branch va nha cung cap hop le.
             $supplierId = (int) $payload['supplier_id'];
             Supplier::query()->lockForUpdate()->findOrFail($supplierId);
             $branchId = $this->resolveWritableBranchId($actorUserId, $payload['branch_id'] ?? null);
 
             /** @var list<array<string,mixed>> $lines */
             $lines = array_values((array) $payload['lines']);
+            // Ingredient trong PO phai la tap distinct; moi line la mot commitment mua hang rieng.
             $this->assertDistinctIngredientLines($lines);
             $ingredients = $this->loadIngredientsForLines($lines);
 
@@ -273,6 +280,7 @@ class ProcurementManagementService
             ]);
             $order->save();
 
+            // Line replace tach rieng de create/update cung dung mot quy tac unit/quantity.
             $this->replacePurchaseOrderLines($order, $lines, $ingredients);
 
             AuditEvent::info('admin.purchase_order.created', [
@@ -294,6 +302,7 @@ class ProcurementManagementService
         return DB::transaction(function () use ($purchaseOrderId, $payload, $actorUserId): PurchaseOrder {
             $accessibleBranchIds = $this->branchScopeForActor($actorUserId);
 
+            // Sau khi receiving bat dau, nhieu thuoc tinh cua PO bi dong bang de bao toan lineage mua hang.
             /** @var PurchaseOrder $order */
             $orderQuery = PurchaseOrder::query()->lockForUpdate();
             $this->constrainPurchaseOrderQueryToBranchScope($orderQuery, null, $accessibleBranchIds);
@@ -370,6 +379,7 @@ class ProcurementManagementService
                 $lines = array_values((array) $payload['lines']);
                 $this->assertDistinctIngredientLines($lines);
                 $ingredients = $this->loadIngredientsForLines($lines);
+                // Chua co receipt thi van duoc thay toan bo line-set cua PO.
                 $this->replacePurchaseOrderLines($order, $lines, $ingredients);
             }
 
@@ -422,6 +432,7 @@ class ProcurementManagementService
         return DB::transaction(function () use ($purchaseOrderId, $payload, $actorUserId): array {
             $accessibleBranchIds = $this->branchScopeForActor($actorUserId);
 
+            // Receipt la diem bien PO thanh stock ledger, nen khoa order va line ngay tu dau.
             /** @var PurchaseOrder $order */
             $orderQuery = PurchaseOrder::query()->lockForUpdate();
             $this->constrainPurchaseOrderQueryToBranchScope($orderQuery, null, $accessibleBranchIds);
@@ -448,6 +459,7 @@ class ProcurementManagementService
             $this->assertDistinctReceiptLines($receiptLines);
             $requestedReceiptCode = $this->normalizeNullableString($payload['receipt_code'] ?? null);
             $supplierDocumentNo = $this->normalizeNullableString($payload['supplier_document_no'] ?? null);
+            // Chu ky receipt gom line id + qty + unit + cost de detect replay cung mot nghiep vu nhap kho.
             $requestedReceiptSignature = $this->normalizeRequestedReceiptSignature($receiptLines, $orderLines);
             $replayedReceipt = $this->findReplayableReceipt(
                 purchaseOrderId: $purchaseOrderId,
@@ -457,6 +469,7 @@ class ProcurementManagementService
             );
 
             if ($replayedReceipt instanceof PurchaseReceipt) {
+                // Replay hop le tra lai receipt cu thay vi ghi them stock movement trung.
                 AuditEvent::info('admin.purchase_order.receipt_replayed', [
                     'purchase_order_id' => $purchaseOrderId,
                     'receipt_id' => (int) $replayedReceipt->receipt_id,
@@ -482,6 +495,7 @@ class ProcurementManagementService
                 ]);
             }
 
+            // Receipt header duoc tao truoc de cac line va stock movement co lineage receipt_code on dinh.
             $receivedAt = $payload['received_at'] ?? Carbon::now('UTC');
             $receipt = new PurchaseReceipt;
             $receipt->fill([
@@ -511,6 +525,7 @@ class ProcurementManagementService
                 $receivedQuantity = (float) $linePayload['received_quantity'];
                 $remainingQuantity = (float) $orderLine->ordered_quantity - (float) $orderLine->received_quantity;
 
+                // Over-receive bi chan ngay tai line level truoc khi ghi stock.
                 if ($receivedQuantity - $remainingQuantity > 0.0005) {
                     throw ValidationException::withMessages([
                         'lines.'.$index.'.received_quantity' => 'Received quantity exceeds the remaining purchase order quantity.',
@@ -523,6 +538,7 @@ class ProcurementManagementService
                     'lines.'.$index.'.unit_code'
                 );
                 $referenceId = $receipt->receipt_code.':'.$orderLine->po_line_id;
+                // Moi receipt line tao dung mot stock-in movement de PO va inventory co cung lineage.
                 $movement = $this->stockMovementService->recordMovement((int) $orderLine->ingredient_id, [
                     'branch_id' => (int) $order->branch_id,
                     'movement_type' => IngredientStockMovement::TYPE_STOCK_IN,
@@ -559,6 +575,7 @@ class ProcurementManagementService
             $hasAnyReceived = $freshLines->contains(static fn (PurchaseOrderLine $line): bool => (float) $line->received_quantity > 0.0005);
             $isFullyReceived = $freshLines->every(static fn (PurchaseOrderLine $line): bool => ((float) $line->ordered_quantity - (float) $line->received_quantity) <= 0.0005);
 
+            // Status PO duoc tinh lai tu ledger receipt thay vi tin vao status payload.
             $order->purchase_order_status = $isFullyReceived
                 ? PurchaseOrderStatus::Received
                 : ($hasAnyReceived ? PurchaseOrderStatus::PartiallyReceived : PurchaseOrderStatus::Ordered);
@@ -568,6 +585,7 @@ class ProcurementManagementService
             $this->bumpPurchaseOrderRowVersion($order);
             $order->save();
 
+            // Reconciliation sau khi post giup phat hien drift line/receipt/movement ngay trong transaction batch.
             $reconciliation = $this->purchaseOrderReconciliationService->report($purchaseOrderId);
             if ((int) ($reconciliation['issue_count'] ?? 0) > 0) {
                 AuditEvent::warning('admin.purchase_order.receipt_reconciliation_drift_detected', [
@@ -603,6 +621,7 @@ class ProcurementManagementService
 
     private function basePurchaseOrdersQuery(): Builder
     {
+        // Query goc gom cac aggregate thuong dung de list/detail khong lap lai logic dem tong.
         return PurchaseOrder::query()
             ->with([
                 'supplier' => static fn ($query) => $query->select('supplier_id', 'code', 'name', 'contact_name', 'phone', 'email', 'is_active'),
@@ -621,6 +640,7 @@ class ProcurementManagementService
      */
     private function branchScopeForActor(?int $actorUserId, ?int $requestedBranchId = null): ?array
     {
+        // Actor null duoc xem nhu internal caller, bo qua staff branch scope.
         if ($actorUserId === null || $actorUserId <= 0) {
             return null;
         }
@@ -630,6 +650,7 @@ class ProcurementManagementService
 
     private function resolveWritableBranchId(?int $actorUserId, mixed $requestedBranchId = null): int
     {
+        // Ghi PO/receipt cho staff phai cham dung branch hien hanh hoac branch staff co quyen.
         if ($actorUserId === null || $actorUserId <= 0) {
             return $this->branchContextService->resolveBranchId($requestedBranchId);
         }
@@ -651,6 +672,7 @@ class ProcurementManagementService
      */
     private function constrainPurchaseOrderQueryToBranchScope(Builder $query, ?int $branchId, ?array $accessibleBranchIds): void
     {
+        // Khong co accessible branch thi query ve rong thay vi lo du lieu procurement branch khac.
         if ($branchId !== null) {
             $query->where('purchase_orders.branch_id', $branchId);
 
@@ -672,6 +694,7 @@ class ProcurementManagementService
      */
     private function loadIngredientsForLines(array $lines): array
     {
+        // Resolve ingredient mot lan cho ca bo line de validate ton tai truoc khi ghi.
         $ingredientIds = collect($lines)
             ->pluck('ingredient_id')
             ->map(static fn ($value): int => (int) $value)
@@ -732,6 +755,7 @@ class ProcurementManagementService
      */
     private function normalizeRequestedReceiptSignature(array $receiptLines, Collection $orderLines): array
     {
+        // Signature thu tu-doc lap cho phep so sanh replay ma khong phu thuoc ordering cua payload.
         $signature = [];
 
         foreach ($receiptLines as $index => $linePayload) {
@@ -772,6 +796,7 @@ class ProcurementManagementService
         ?string $receiptCode,
         array $requestedReceiptSignature,
     ): ?PurchaseReceipt {
+        // Receipt co the duoc nhan dien lai bang supplier_document_no hoac receipt_code, nhung phai khop signature line.
         if ($supplierDocumentNo === null && $receiptCode === null) {
             return null;
         }
@@ -887,6 +912,7 @@ class ProcurementManagementService
      */
     private function replacePurchaseOrderLines(PurchaseOrder $order, array $lines, array $ingredients): void
     {
+        // Replace line-set duoc dung cho create/update truoc receiving; moi line moi mac dinh received_quantity = 0.
         PurchaseOrderLine::query()->where('purchase_order_id', (int) $order->purchase_order_id)->delete();
 
         foreach ($lines as $index => $line) {
@@ -915,6 +941,7 @@ class ProcurementManagementService
 
     private function normalizeWritableStatus(string $value, bool $allowCancelled): PurchaseOrderStatus
     {
+        // Caller chi duoc set cac status "ke hoach"; status received phai do receiving lifecycle quan ly.
         $status = PurchaseOrderStatus::from($value);
 
         if (! $allowCancelled && $status === PurchaseOrderStatus::Cancelled) {
@@ -968,6 +995,7 @@ class ProcurementManagementService
         string $field,
         string $missingUnitMessage
     ): string {
+        // PO line va receipt line phai trung don vi voi ingredient/PO line goc de ton kho khong bi sai scale.
         if ($expectedUnitCode === '') {
             throw ValidationException::withMessages([
                 $field => $missingUnitMessage,
@@ -1002,6 +1030,7 @@ class ProcurementManagementService
 
     private function assertExpectedRowVersion(int $currentRowVersion, int $expectedRowVersion): void
     {
+        // Procurement edit flow dung row_version cho supplier va purchase order.
         if ($currentRowVersion === $expectedRowVersion) {
             return;
         }
@@ -1013,11 +1042,13 @@ class ProcurementManagementService
 
     private function bumpSupplierRowVersion(Supplier $supplier): void
     {
+        // Moi supplier write hop le deu tang row_version.
         $supplier->row_version = max(1, (int) ($supplier->row_version ?? 1)) + 1;
     }
 
     private function bumpPurchaseOrderRowVersion(PurchaseOrder $order): void
     {
+        // PO moi khi doi line/status/receipt aggregate deu tang row_version.
         $order->row_version = max(1, (int) ($order->row_version ?? 1)) + 1;
     }
 

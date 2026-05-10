@@ -81,7 +81,10 @@ Deprecated alias routes are intentionally omitted. Use canonical routes only.
 
 | Route | Contract path | Auth | row_version | Idempotency-Key | Session contract | 401 | 403 | 409 | 422 |
 |---|---|---|---|---|---|---|---|---|---|
+| `POST api/v1/staff/waiting-list` | `SDK` | `staff_api_key` | No | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key |
 | `POST api/v1/staff/waiting-list/{id}/notify` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
+| `POST api/v1/staff/waiting-list/{id}/cancel` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
+| `POST api/v1/staff/waiting-list/{id}/advance` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
 | `POST api/v1/staff/waiting-list/{id}/seat` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
 
 ## Staff order + checkout + cashier core
@@ -89,6 +92,10 @@ Deprecated alias routes are intentionally omitted. Use canonical routes only.
 | Route | Contract path | Auth | row_version | Idempotency-Key | Session contract | 401 | 403 | 409 | 422 |
 |---|---|---|---|---|---|---|---|---|---|
 | `POST api/v1/staff/reservations/{id}/check-in` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
+| `POST api/v1/staff/reservations/{id}/assign-table` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
+| `POST api/v1/staff/reservations/{id}/assign-best-fit` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
+| `POST api/v1/staff/reservations/{id}/move-table` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
+| `POST api/v1/staff/tables/{table_id}/release` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
 | `POST api/v1/staff/tables/{table_id}/orders` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
 | `POST api/v1/staff/orders/{order_id}/items` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
 | `PATCH api/v1/staff/orders/{order_id}/items/{order_item_id}` | `SDK` | `staff_api_key` | body.order_row_version required; body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
@@ -98,6 +105,40 @@ Deprecated alias routes are intentionally omitted. Use canonical routes only.
 | `POST api/v1/staff/orders/{order_id}/settlement/finalize` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
 | `POST api/v1/staff/cashier/shifts/open` | `SDK` | `staff_api_key` | No | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key |
 | `POST api/v1/staff/cashier/shifts/{shift_id}/close` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
+| `POST api/v1/staff/finance/invoices/{reservation_id}/issue` | `SDK` | `staff_api_key` | No | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key |
+
+## Staff conversation workflow
+
+| Route | Contract path | Auth | row_version | Idempotency-Key | Session contract | 401 | 403 | 409 | 422 |
+|---|---|---|---|---|---|---|---|---|---|
+| `POST api/v1/staff/conversations/{conversation_id}/assign` | `SDK` | `staff_api_key` | No | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key |
+| `POST api/v1/staff/conversations/{conversation_id}/workflow-state` | `SDK` | `staff_api_key` | No | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | idempotency conflict/replay | validation / missing Idempotency-Key |
+| `POST api/v1/staff/conversations/{conversation_id}/links` | `SDK` | `staff_api_key` | No | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | No | validation / missing Idempotency-Key |
+| `DELETE api/v1/staff/conversations/{conversation_id}/links/reservation` | `SDK` | `staff_api_key` | No | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | No | No |
+| `DELETE api/v1/staff/conversations/{conversation_id}/links/waiting-list` | `SDK` | `staff_api_key` | No | `Required` | No | missing/invalid X-Staff-Key | capability/branch boundary | No | No |
+
+## Admin inventory receiving
+
+| Route | Contract path | Auth | row_version | Idempotency-Key | Session contract | 401 | 403 | 409 | 422 |
+|---|---|---|---|---|---|---|---|---|---|
+| `POST api/v1/admin/inventory/ingredients/{id}/movements` | `SDK` | `staff_api_key` | No | `Required` | No | missing/invalid X-Staff-Key | staff capability boundary | idempotency conflict/replay | validation / missing Idempotency-Key |
+| `POST api/v1/admin/inventory/purchase-orders/{id}/receipts` | `SDK` | `staff_api_key` | No | `Required` | No | missing/invalid X-Staff-Key | staff capability boundary | idempotency conflict/replay | validation / missing Idempotency-Key |
+
+## Admin benefits
+
+| Route | Contract path | Auth | row_version | Idempotency-Key | Session contract | 401 | 403 | 409 | 422 |
+|---|---|---|---|---|---|---|---|---|---|
+| `POST api/v1/admin/benefits/vouchers` | `SDK` | `staff_api_key` | No | `Required` | No | missing/invalid X-Staff-Key | staff capability boundary | idempotency conflict/replay | validation / missing Idempotency-Key |
+| `PATCH api/v1/admin/benefits/vouchers/{id}` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | staff capability boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
+| `POST api/v1/admin/benefits/loyalty-tiers` | `SDK` | `staff_api_key` | No | `Required` | No | missing/invalid X-Staff-Key | staff capability boundary | idempotency conflict/replay | validation / missing Idempotency-Key |
+| `PATCH api/v1/admin/benefits/loyalty-tiers/{id}` | `SDK` | `staff_api_key` | body.row_version required | `Required` | No | missing/invalid X-Staff-Key | staff capability boundary | idempotency conflict/replay | validation / missing Idempotency-Key / stale row_version mismatch / missing row_version |
+| `POST api/v1/admin/settings/benefits` | `SDK` | `staff_api_key` | No | `Required` | No | missing/invalid X-Staff-Key | staff capability boundary | idempotency conflict/replay | validation / missing Idempotency-Key |
+
+## Admin privacy
+
+| Route | Contract path | Auth | row_version | Idempotency-Key | Session contract | 401 | 403 | 409 | 422 |
+|---|---|---|---|---|---|---|---|---|---|
+| `POST api/v1/admin/privacy/requests/{request_id}/review` | `SDK` | `staff_api_key` | No | `Required` | No | missing/invalid X-Staff-Key | staff capability boundary | idempotency conflict/replay | validation / missing Idempotency-Key |
 
 ## Staff kitchen core
 

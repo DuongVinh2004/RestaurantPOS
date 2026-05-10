@@ -45,6 +45,7 @@ class DispatchKitchenOrderAction
     {
         $actorUserId = StaffActorGuard::requireStaffUserId($actorUserId);
 
+        // Dispatch la thao tac thay doi ticket theo snapshot order hien tai, nen bat buoc client gui row_version.
         if ($expectedOrderRowVersion === null) {
             throw ValidationException::withMessages([
                 'row_version' => ['The row version field is required.'],
@@ -52,6 +53,7 @@ class DispatchKitchenOrderAction
         }
 
         return DB::transaction(function () use ($orderId, $expectedOrderRowVersion, $actorUserId): array {
+            // Khoa order trong pham vi branch staff duoc phep de tranh dispatch vao order ngoai scope.
             $accessibleBranchIds = $this->branchContextService->accessibleBranchIds($actorUserId);
 
             /** @var ReservationOrder $order */
@@ -77,6 +79,7 @@ class DispatchKitchenOrderAction
                 ]);
             }
 
+            // Moi order item hop le se co mot ticket KDS, tao moi neu chua co hoac tai su dung ticket cu khi duoc phep.
             $createdCount = 0;
             $reusedCount = 0;
             $unroutedCount = 0;
@@ -85,6 +88,7 @@ class DispatchKitchenOrderAction
 
             foreach ($order->items as $orderItem) {
                 $itemStatus = $this->normalizeOrderItemStatus($orderItem);
+                // Item da huy khong duoc dua vao kitchen queue.
                 if ($itemStatus === ReservationOrderItemStatus::Cancelled) {
                     continue;
                 }
@@ -98,6 +102,7 @@ class DispatchKitchenOrderAction
                 $isNew = false;
                 $currentTicketStatus = null;
                 if (! $ticket instanceof KitchenOrderItemTicket) {
+                    // Ticket moi chi khoi tao metadata co ban; status cuoi cung van duoc suy ra tu trang thai order item.
                     $ticket = new KitchenOrderItemTicket;
                     $ticket->order_item_id = (int) $orderItem->order_item_id;
                     $ticket->first_dispatched_at = Carbon::now('UTC');
@@ -110,6 +115,7 @@ class DispatchKitchenOrderAction
                     $currentTicketStatus = $this->normalizeTicketStatus($ticket);
                     $ticket->loadMissing(['station', 'route', 'orderItem']);
 
+                    // Active ticket bi lech order item hoac routing phai duoc reconcile truoc, tranh redispatch len drift cu.
                     if (! $this->isTerminalTicketStatus($currentTicketStatus)
                         && ! $this->ticketConsistencyInspector->canRedispatchActiveTicket($ticket)) {
                         $inspection = $this->ticketConsistencyInspector->describe($ticket);
@@ -133,12 +139,14 @@ class DispatchKitchenOrderAction
                 }
 
                 $route = $this->resolveRouteForOrderItem($orderItem, $orderBranchId);
+                // Ticket moi hoac ticket da ket thuc ma khong tim thay route thi chi ghi nhan unrouted, khong tao ticket mo co.
                 if ($route === null && ($isNew || $this->isTerminalTicketStatus($currentTicketStatus))) {
                     $unroutedCount++;
 
                     continue;
                 }
 
+                // Route category la nguon mac dinh; active ticket se co quyen "pin" route cu de tranh nhay station giua service.
                 $effectiveStation = $route?->station;
                 $effectiveRouteId = $route?->route_id !== null ? (int) $route->route_id : null;
                 $effectiveRouteSource = 'Category';
@@ -153,6 +161,7 @@ class DispatchKitchenOrderAction
 
                 if (! $isNew) {
                     if (! $this->isTerminalTicketStatus($currentTicketStatus)) {
+                        // Active ticket tiep tuc giu route/station dang phuc vu de bep khong mat ngu canh.
                         $pinnedRouteCount++;
                     }
 
@@ -167,12 +176,14 @@ class DispatchKitchenOrderAction
                         : KitchenStation::query()->findOrFail((int) $ticket->station_id);
                 }
 
+                // Neu khong xac dinh duoc dich den cuoi cung thi bo qua item nay va de reconciliation xu ly sau.
                 if ($effectiveStation === null || $effectiveRouteId === null || ! ($effectiveOutputMode instanceof KitchenStationOutputMode)) {
                     $unroutedCount++;
 
                     continue;
                 }
 
+                // Dong bo snapshot ticket tu order item hien tai truoc khi tinh status va timestamp lifecycle.
                 $ticket->station_id = (int) $effectiveStation->station_id;
                 $ticket->order_id = (int) $order->order_id;
                 $ticket->reservation_id = (int) $order->reservation_id;
@@ -199,6 +210,7 @@ class DispatchKitchenOrderAction
 
                 $ticket->save();
 
+                // Luu lai ticket vua tao/cap nhat de tra ve mot snapshot on dinh sau transaction.
                 $ticketIds[] = (int) $ticket->ticket_id;
 
                 if ($isNew) {
@@ -215,6 +227,7 @@ class DispatchKitchenOrderAction
                 ->orderBy('ticket_id')
                 ->get();
 
+            // Audit ghi nhan tong quan, realtime danh thuc board KDS va dashboard order.
             AuditEvent::info('staff.kitchen.order_dispatched', [
                 'order_id' => $orderId,
                 'actor_user_id' => $actorUserId,
@@ -252,6 +265,7 @@ class DispatchKitchenOrderAction
      */
     private function constrainReservationLookupToAccessibleBranches(Builder $query, array $accessibleBranchIds): void
     {
+        // Staff khong co branch hop le thi query bi khoa rong thay vi vo tinh mo toan bo du lieu.
         if ($accessibleBranchIds === []) {
             $query->whereRaw('1 = 0');
 
@@ -265,6 +279,7 @@ class DispatchKitchenOrderAction
 
     private function assertDispatchEnabledForReservation(?Reservation $reservation): void
     {
+        // Kitchen dispatch duoc gate theo feature flag branch de rollout an toan.
         $this->featureFlags->assertEnabled(
             'staff.kitchen_dispatch',
             $reservation?->branch_id !== null ? (int) $reservation->branch_id : null,
@@ -293,6 +308,7 @@ class DispatchKitchenOrderAction
 
     private function resolveRouteForOrderItem(ReservationOrderItem $orderItem, int $branchId): ?KitchenStationCategoryRoute
     {
+        // Route hien tai duoc map tu category cua mon trong dung branch dang phuc vu.
         $categoryId = $orderItem->item?->category_id;
         if ($categoryId === null) {
             return null;
@@ -319,6 +335,7 @@ class DispatchKitchenOrderAction
         KitchenTicketStatus $nextStatus,
         ?KitchenTicketStatus $currentStatus,
     ): void {
+        // Chi cham vao moc thoi gian khi ticket that su doi state; comment nay giup doc flow KDS de hinh dung hon.
         if ($currentStatus === $nextStatus) {
             return;
         }
@@ -366,6 +383,7 @@ class DispatchKitchenOrderAction
 
     private function bumpTicketRowVersion(KitchenOrderItemTicket $ticket): void
     {
+        // Ticket duoc optimistic-lock rieng de fire/bump/recall khong de len nhau.
         $ticket->row_version = max(1, (int) ($ticket->row_version ?? 1)) + 1;
     }
 }

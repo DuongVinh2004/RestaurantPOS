@@ -194,7 +194,9 @@ class NotificationOutboxServiceSmokeTest extends TestCase
         $this->assertSame('Cancelled', $message->status);
         $this->assertNull($message->next_retry_at);
         $this->assertStringContainsString('not enabled', (string) $message->last_error);
-        $attempt = NotificationDeliveryAttempt::query()->firstOrFail();
+        $attempt = NotificationDeliveryAttempt::query()
+            ->where('outbox_id', (int) $message->outbox_id)
+            ->firstOrFail();
         $this->assertSame('Failed', $attempt->status);
         $this->assertSame('channel_disabled', $attempt->error_code);
     }

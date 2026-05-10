@@ -23,11 +23,15 @@ use App\Modules\Reservations\Domain\Models\ReservationTable;
 use App\Modules\Reservations\Domain\Policies\ReservationStatusTransitionPolicy;
 use App\SharedKernel\Money\Money;
 use App\Support\AuditEvent;
-use App\Support\AvailabilityCacheVersion;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Service độc quyền chịu trách nhiệm thay đổi Trạng thái của một Đơn Đặt Bàn.
+ * Đảm bảo mọi sự kiện thay đổi trạng thái đều kích hoạt đúng các hiệu ứng phụ (Side-effects)
+ * liên module như: Nhả Voucher (Promotions), Nhả Bàn (FloorOps), Hủy Món (Ordering), Gửi Email (Notifications)...
+ */
 class ReservationStatusTransitionService
 {
     public function __construct(
@@ -38,6 +42,10 @@ class ReservationStatusTransitionService
         private readonly ReservationFinancialSyncService $reservationFinancialSyncService,
     ) {}
 
+    /**
+     * --- BƯỚC 1: ĐỘNG CƠ CẬP NHẬT TRẠNG THÁI (STATE MUTATOR) ---
+     * Hàm này là một "Phễu" (Chokepoint) duy nhất để đổi trạng thái. Mọi user, cronjob đều phải đi qua đây.
+     */
     public function updateReservationStatus(
         int $reservationId,
         string $newStatus,
@@ -45,6 +53,8 @@ class ReservationStatusTransitionService
         ?int $actorUserId = null,
         array $options = []
     ): Reservation {
+
+        // --- 1.1 KIỂM DUYỆT ĐẦU VÀO ---
         $newStatus = trim($newStatus);
         if ($newStatus === '') {
             throw ValidationException::withMessages(['status' => ['status là bắt buộc.']]);
@@ -59,12 +69,15 @@ class ReservationStatusTransitionService
         $force = (bool) ($options['force'] ?? false);
         $cancelReason = isset($options['cancel_reason']) ? trim((string) $options['cancel_reason']) : null;
 
+        // Chốt chặn An toàn: Không cho phép gọi API Update Status chung chung để "Đóng bàn".
+        // Đóng bàn (Completed) liên quan đến ghi nhận doanh thu, nên bắt buộc phải đi qua luồng Thanh toán (Checkout Flow).
         if ($targetEnum === ReservationStatus::Completed) {
             throw ValidationException::withMessages([
                 'status' => ['Completed is not allowed via generic status endpoint. Use checkout / settlement flow instead.'],
             ]);
         }
 
+        // --- 1.2 BẮT ĐẦU KHÓA PHÂN TÁN (DISTRIBUTED LOCK) ---
         return $this->lockService->withReservationLock($reservationId, function () use ($reservationId, $targetEnum, $expectedRowVersion, $actorUserId, $force, $cancelReason) {
             $tableIds = ReservationTable::query()
                 ->where('reservation_id', $reservationId)
@@ -74,8 +87,10 @@ class ReservationStatusTransitionService
                 ->values()
                 ->all();
 
+            // Bao bọc toàn bộ Side-effects vào một Database Transaction
             $work = function () use ($reservationId, $targetEnum, $expectedRowVersion, $actorUserId, $force, $cancelReason, $tableIds) {
-                DB::transaction(function () use ($reservationId, $targetEnum, $expectedRowVersion, $actorUserId, $force, $cancelReason, $tableIds) {
+                return DB::transaction(function () use ($reservationId, $targetEnum, $expectedRowVersion, $actorUserId, $force, $cancelReason, $tableIds) {
+
                     /** @var Reservation $reservation */
                     $reservation = Reservation::query()->lockForUpdate()->findOrFail($reservationId);
 
@@ -85,6 +100,7 @@ class ReservationStatusTransitionService
                     $current = $currentEnum->value;
                     $target = $targetEnum->value;
 
+                    // Tính lũy đẳng (Idempotency): Nếu request lặp lại thao tác đã làm, chỉ log lại và bỏ qua, không văng lỗi.
                     if ($current === $target) {
                         AuditEvent::info('reservation_status_noop', [
                             'reservation_id' => (int) $reservation->reservation_id,
@@ -95,11 +111,13 @@ class ReservationStatusTransitionService
                             'actor_user_id' => $actorUserId,
                         ]);
 
-                        return;
+                        return $reservation; // Trả về entity hiện tại
                     }
 
+                    // Gọi Chuyên gia thẩm định (Policy) để check State Machine (Ví dụ: Đã Cancelled thì không được Confirmed lại)
                     ReservationStatusTransitionPolicy::assertTransitionAllowed($current, $targetEnum, $force);
 
+                    // Optimistic Lock: Chống ghi đè từ giao diện cũ (VD: Lễ tân mở máy từ sáng nhưng chiều mới bấm Hủy)
                     $beforeVersion = (int) ($reservation->row_version ?? 1);
                     if ($expectedRowVersion !== null && $beforeVersion !== (int) $expectedRowVersion) {
                         throw ValidationException::withMessages([
@@ -107,6 +125,7 @@ class ReservationStatusTransitionService
                         ]);
                     }
 
+                    // Tải toàn bộ Hóa đơn và Thanh toán kèm Lock DB để chuẩn bị dọn dẹp
                     $orders = ReservationOrder::query()
                         ->where('reservation_id', $reservationId)
                         ->lockForUpdate()
@@ -123,6 +142,10 @@ class ReservationStatusTransitionService
 
                     $now = Carbon::now('UTC');
 
+                    // --- 1.3 XỬ LÝ CÁC SIDE-EFFECTS THEO TỪNG KỊCH BẢN ---
+
+                    // KỊCH BẢN A: ÉP HỦY MỘT BÀN ĐANG NGỒI (Force Cancel Checked-In)
+                    // Cực kỳ nhạy cảm: Khách đã vào ngồi nhưng xảy ra sự cố (đồ ăn có vấn đề, khách bỏ về...).
                     if ($current === ReservationStatus::checkedInDbValue() && $target === ReservationStatus::Cancelled->value) {
                         if (! $force) {
                             throw ValidationException::withMessages([
@@ -130,6 +153,7 @@ class ReservationStatusTransitionService
                             ]);
                         }
 
+                        // Nếu khách đã trả tiền rồi -> Không cho Hủy ngang xương, phải đi luồng Refund để kế toán còn làm việc.
                         $paymentSummary = PaymentSummary::fromPayments($payments);
                         if (Money::isPositive($paymentSummary['final_net_amount'] ?? 0)) {
                             throw ValidationException::withMessages([
@@ -144,15 +168,17 @@ class ReservationStatusTransitionService
                         $reservation->cancel_reason = $cancelReason !== '' ? $cancelReason : ($reservation->cancel_reason ?? 'Forced staff cancellation');
                     }
 
+                    // KỊCH BẢN B: TRẢ LẠI QUYỀN LỢI KHI ĐƠN BỊ HỦY (Tự hủy, Quá hạn, Bom bàn)
                     if ($target === ReservationStatus::Cancelled->value && in_array($current, ReservationStatus::activeDbValues(), true)) {
-                        $this->releaseReservationVoucherForStatusLocked($reservation, $actorUserId);
-                        $this->loyaltyPointsService->releaseReservationRedemptionForStatusLocked(
+                        $this->releaseReservationVoucherForStatusLocked($reservation, $actorUserId); // Nhả Voucher
+                        $this->loyaltyPointsService->releaseReservationRedemptionForStatusLocked( // Nhả điểm tích lũy
                             reservation: $reservation,
                             staffUserId: $actorUserId,
                             reason: 'status_cancelled'
                         );
                     }
 
+                    // KỊCH BẢN C: ĐƠN HẾT HẠN (Expired) HOẶC KHÁCH BOM BÀN (NoShow)
                     if ($target === ReservationStatus::Expired->value || $target === ReservationStatus::NoShow->value) {
                         $this->releaseReservationVoucherForStatusLocked($reservation, $actorUserId);
                         $this->loyaltyPointsService->releaseReservationRedemptionForStatusLocked(
@@ -161,6 +187,7 @@ class ReservationStatusTransitionService
                             reason: $target === ReservationStatus::Expired->value ? 'status_expired' : 'status_no_show'
                         );
 
+                        // Hủy các món bếp đang làm dở (nếu khách có Pre-order)
                         $activeOrderIds = $orders
                             ->filter(fn ($order) => (string) ($order->status?->value ?? $order->status) === ReservationOrderStatus::Active->value)
                             ->pluck('order_id')
@@ -180,6 +207,7 @@ class ReservationStatusTransitionService
                         }
                     }
 
+                    // KỊCH BẢN D: HỦY MỘT ĐƠN ĐANG CHỜ (Confirmed -> Cancelled)
                     if ($target === ReservationStatus::Cancelled->value && $current === ReservationStatus::Confirmed->value) {
                         $paymentSummary = PaymentSummary::fromPayments($payments);
                         if (Money::isPositive($paymentSummary['final_net_amount'] ?? 0)) {
@@ -193,13 +221,17 @@ class ReservationStatusTransitionService
                         $reservation->cancelled_by = $actorUserId;
                         $reservation->cancel_reason = $cancelReason !== '' ? $cancelReason : $reservation->cancel_reason;
                     }
+
                     if ($target === ReservationStatus::NoShow->value) {
                         $reservation->no_show_at = $reservation->no_show_at ?? $now;
                     }
 
+                    // --- 1.4 CHỐT LƯU VÀ PHÁT SÓNG THÔNG BÁO ---
                     $reservation->status = $targetEnum;
                     $reservation->updated_by = $actorUserId;
                     $reservation->save();
+
+                    // Outbox Pattern: Thả sự kiện vào hàng đợi để gửi SMS/Email, không làm nghẽn API hiện tại
                     if ($current !== $target && $target === ReservationStatus::Cancelled->value) {
                         $this->notificationOutboxService->enqueueReservationCancelled($reservation);
                     }
@@ -223,15 +255,12 @@ class ReservationStatusTransitionService
                         'new_row_version' => $beforeVersion + 1,
                         'actor_user_id' => $actorUserId,
                     ]);
+
+                    return $reservation; // Sửa lỗi return type
                 });
-
-                AvailabilityCacheVersion::bump();
-
-                return Reservation::query()
-                    ->with(['user', 'tables', 'orders.items.item', 'payments'])
-                    ->findOrFail($reservationId);
             };
 
+            // Lock luôn cả những bàn vật lý liên quan nếu đơn này có giữ bàn
             if (! empty($tableIds)) {
                 return $this->lockService->withTableLocks($tableIds, $work);
             }
@@ -240,9 +269,15 @@ class ReservationStatusTransitionService
         });
     }
 
+    /**
+     * --- BƯỚC 2: CRONJOB (TỰ ĐỘNG ĐÁNH DẤU BOM BÀN) ---
+     * Thường được gắn vào Laravel Scheduler chạy mỗi 5 phút.
+     */
     public function markNoShows(int $graceMinutes = 15): int
     {
         $graceMinutes = max(0, $graceMinutes);
+        // Thời điểm phán xét: Hiện tại trừ đi "Thời gian du di".
+        // VD: Quán cho trễ 15p. Khách đặt 19:00. Lúc 19:16 quét sẽ thấy đơn này <= 19:01 -> Phạt NoShow.
         $threshold = Carbon::now('UTC')->subMinutes($graceMinutes);
 
         $reservationIds = Reservation::query()
@@ -257,15 +292,18 @@ class ReservationStatusTransitionService
         $count = 0;
         foreach ($reservationIds as $reservationId) {
             try {
+                // Tái sử dụng (Reuse) phễu updateReservationStatus để hưởng toàn bộ logic nhả voucher, báo bếp...
                 $this->updateReservationStatus(
                     reservationId: $reservationId,
                     newStatus: ReservationStatus::NoShow->value,
                     expectedRowVersion: null,
-                    actorUserId: null,
+                    actorUserId: null, // Hệ thống tự động nên Actor = null
                     options: ['source' => 'scheduler.no_show']
                 );
                 $count++;
             } catch (\Throwable $e) {
+                // Fault Tolerance: Nếu 1 đơn lỗi (do đang bị nhân viên lock để xử lý),
+                // bỏ qua và chạy tiếp đơn khác thay vì sập toàn bộ tiến trình cronjob.
                 AuditEvent::warning('reservation_mark_no_show_failed', [
                     'reservation_id' => (int) $reservationId,
                     'grace_minutes' => $graceMinutes,
@@ -278,6 +316,14 @@ class ReservationStatusTransitionService
         return $count;
     }
 
+    /**
+     * --- BƯỚC 3: CÁC HÀM TIỆN ÍCH (CROSS-MODULE SIDE EFFECTS) ---
+     */
+
+    /**
+     * Gác cổng State Machine nội bộ (Có thể hơi dư thừa nếu đã có ReservationStatusTransitionPolicy,
+     * nhưng mang tính chất Fallback bảo vệ 2 lớp).
+     */
     private function assertStatusTransitionAllowed(string $current, string $target, bool $force = false): void
     {
         if ($current === $target) {
@@ -314,11 +360,14 @@ class ReservationStatusTransitionService
         }
     }
 
+    /**
+     * Logic giao tiếp với Module Promotions: Nhả Voucher
+     */
     private function releaseReservationVoucherForStatusLocked(Reservation $reservation, ?int $actorUserId = null): void
     {
         $userVoucherId = (int) ($reservation->applied_user_voucher_id ?? 0);
         if ($userVoucherId <= 0) {
-            return;
+            return; // Đơn này không xài voucher
         }
 
         /** @var UserVoucher|null $userVoucher */
@@ -335,6 +384,7 @@ class ReservationStatusTransitionService
             ->lockForUpdate()
             ->get();
 
+        // Ủy quyền thao tác phức tạp (mở khóa voucher & trừ lại tiền hóa đơn) cho Chuyên gia Voucher.
         ReservationVoucherLifecycleSupport::releaseVoucherAndDiscountSnapshot(
             reservation: $reservation,
             userVoucher: $userVoucher,
@@ -346,6 +396,9 @@ class ReservationStatusTransitionService
         );
     }
 
+    /**
+     * Logic giao tiếp với Module Ordering: Hủy hóa đơn nhà bếp
+     */
     private function cancelActiveOrders($orders, ?int $actorUserId, Carbon $now): void
     {
         foreach ($orders as $order) {
@@ -353,6 +406,7 @@ class ReservationStatusTransitionService
                 continue;
             }
 
+            // Chỉ hủy các món ăn chưa làm xong (Chưa Served)
             $items = ReservationOrderItem::query()
                 ->where('order_id', $order->order_id)
                 ->whereNotIn('status', [ReservationOrderItemStatus::Cancelled->value, ReservationOrderItemStatus::Served->value])
@@ -374,6 +428,8 @@ class ReservationStatusTransitionService
     }
 
     /**
+     * Logic giao tiếp với Module Floor Operations: Trả lại bàn lên sơ đồ
+     *
      * @param  list<int>  $tableIds
      */
     private function releaseTables(array $tableIds): void

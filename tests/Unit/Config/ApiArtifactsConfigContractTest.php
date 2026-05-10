@@ -29,10 +29,13 @@ class ApiArtifactsConfigContractTest extends TestCase
             'Staff Lookup',
             'Operations Read Models',
             'Refunds',
+            'Staff Finance',
             'Waiting List',
             'Benefits',
             'Customer Privacy',
             'Admin Master Data',
+            'Admin Benefits',
+            'Admin Privacy',
             'Conversation Inbox',
             'Payment Webhooks',
             'Health',
@@ -58,7 +61,23 @@ class ApiArtifactsConfigContractTest extends TestCase
         self::assertContains('POST api/v1/reservations/{id}/cancel', $mutationGroupsByName['Customer reservation + preorder + deposit + bill payment']['signatures']);
         self::assertContains('POST api/v1/reservations/{reservation_id}/bill/payment-sessions', $mutationGroupsByName['Customer reservation + preorder + deposit + bill payment']['signatures']);
         self::assertContains('POST api/v1/waiting-list/{id}/cancel', $mutationGroupsByName['Customer waiting list']['signatures']);
+        self::assertContains('POST api/v1/staff/waiting-list', $mutationGroupsByName['Staff waiting list']['signatures']);
+        self::assertContains('POST api/v1/staff/waiting-list/{id}/cancel', $mutationGroupsByName['Staff waiting list']['signatures']);
+        self::assertContains('POST api/v1/staff/waiting-list/{id}/advance', $mutationGroupsByName['Staff waiting list']['signatures']);
         self::assertContains('POST api/v1/staff/orders/{order_id}/items', $mutationGroupsByName['Staff order + checkout + cashier core']['signatures']);
+        self::assertContains('POST api/v1/staff/reservations/{id}/assign-table', $mutationGroupsByName['Staff order + checkout + cashier core']['signatures']);
+        self::assertContains('POST api/v1/staff/reservations/{id}/assign-best-fit', $mutationGroupsByName['Staff order + checkout + cashier core']['signatures']);
+        self::assertContains('POST api/v1/staff/reservations/{id}/move-table', $mutationGroupsByName['Staff order + checkout + cashier core']['signatures']);
+        self::assertContains('POST api/v1/staff/tables/{table_id}/release', $mutationGroupsByName['Staff order + checkout + cashier core']['signatures']);
+        self::assertContains('POST api/v1/staff/finance/invoices/{reservation_id}/issue', $mutationGroupsByName['Staff order + checkout + cashier core']['signatures']);
+        self::assertContains('POST api/v1/staff/conversations/{conversation_id}/assign', $mutationGroupsByName['Staff conversation workflow']['signatures']);
+        self::assertContains('POST api/v1/staff/conversations/{conversation_id}/workflow-state', $mutationGroupsByName['Staff conversation workflow']['signatures']);
+        self::assertContains('POST api/v1/admin/inventory/ingredients/{id}/movements', $mutationGroupsByName['Admin inventory receiving']['signatures']);
+        self::assertContains('POST api/v1/admin/inventory/purchase-orders/{id}/receipts', $mutationGroupsByName['Admin inventory receiving']['signatures']);
+        self::assertContains('POST api/v1/admin/benefits/vouchers', $mutationGroupsByName['Admin benefits']['signatures']);
+        self::assertContains('PATCH api/v1/admin/benefits/vouchers/{id}', $mutationGroupsByName['Admin benefits']['signatures']);
+        self::assertContains('POST api/v1/admin/settings/benefits', $mutationGroupsByName['Admin benefits']['signatures']);
+        self::assertContains('POST api/v1/admin/privacy/requests/{request_id}/review', $mutationGroupsByName['Admin privacy']['signatures']);
         self::assertContains('PATCH api/v1/admin/settings/branches/{id}', $mutationGroupsByName['Admin branch update']['signatures']);
         self::assertContains('GET api/v1/staff/tables/board', $groupsByName['Dine-In + Checkout']['signatures']);
         self::assertContains('GET api/v1/staff/tables/board/changes', $groupsByName['Dine-In + Checkout']['signatures']);
@@ -66,16 +85,33 @@ class ApiArtifactsConfigContractTest extends TestCase
         self::assertContains('POST api/v1/staff/service-sessions/walk-in', $groupsByName['Dine-In + Checkout']['signatures']);
         self::assertContains('GET api/v1/staff/cashier/shifts/current', $groupsByName['Dine-In + Checkout']['signatures']);
         self::assertContains('GET api/v1/staff/reservations', $groupsByName['Staff Lookup']['signatures']);
+        self::assertContains('GET api/v1/staff/branches', $groupsByName['Staff Lookup']['signatures']);
         self::assertContains('GET api/v1/staff/reservations/{reservation_id}', $groupsByName['Staff Lookup']['signatures']);
         self::assertContains('GET api/v1/staff/reservations/{reservation_id}/orders', $groupsByName['Staff Lookup']['signatures']);
         self::assertContains('GET api/v1/staff/cashier/shifts', $groupsByName['Staff Lookup']['signatures']);
+        self::assertContains('GET api/v1/staff/finance/reconciliation', $groupsByName['Staff Finance']['signatures']);
+        self::assertContains('GET api/v1/staff/finance/invoices/{reservation_id}', $groupsByName['Staff Finance']['signatures']);
+        self::assertContains('POST api/v1/staff/finance/invoices/{reservation_id}/issue', $groupsByName['Staff Finance']['signatures']);
         self::assertContains('POST api/v1/staff/conversations/{conversation_id}/unassign', $groupsByName['Conversation Inbox']['signatures']);
+        self::assertContains('POST api/v1/staff/conversations/{conversation_id}/assign', $groupsByName['Conversation Inbox']['signatures']);
+        self::assertContains('POST api/v1/staff/conversations/{conversation_id}/workflow-state', $groupsByName['Conversation Inbox']['signatures']);
+        self::assertContains('POST api/v1/staff/conversations/{conversation_id}/links', $groupsByName['Conversation Inbox']['signatures']);
         self::assertContains('GET api/v1/staff/waiting-list', $groupsByName['Waiting List']['signatures']);
         self::assertContains('GET api/v1/staff/waiting-list/changes', $groupsByName['Waiting List']['signatures']);
+        self::assertContains('POST api/v1/staff/waiting-list', $groupsByName['Waiting List']['signatures']);
+        self::assertContains('POST api/v1/staff/waiting-list/{id}/cancel', $groupsByName['Waiting List']['signatures']);
+        self::assertContains('POST api/v1/staff/waiting-list/{id}/advance', $groupsByName['Waiting List']['signatures']);
         self::assertContains('GET api/v1/me/loyalty', $groupsByName['Benefits']['signatures']);
         self::assertContains('GET api/v1/me/data-export', $groupsByName['Customer Privacy']['signatures']);
         self::assertContains('GET api/v1/me/privacy-requests', $groupsByName['Customer Privacy']['signatures']);
         self::assertContains('POST api/v1/me/privacy-requests', $groupsByName['Customer Privacy']['signatures']);
+        self::assertContains('GET api/v1/admin/benefits/vouchers', $groupsByName['Admin Benefits']['signatures']);
+        self::assertContains('POST api/v1/admin/benefits/vouchers', $groupsByName['Admin Benefits']['signatures']);
+        self::assertContains('PATCH api/v1/admin/benefits/loyalty-tiers/{id}', $groupsByName['Admin Benefits']['signatures']);
+        self::assertContains('GET api/v1/admin/settings/benefits', $groupsByName['Admin Benefits']['signatures']);
+        self::assertContains('GET api/v1/admin/privacy/requests', $groupsByName['Admin Privacy']['signatures']);
+        self::assertContains('GET api/v1/admin/privacy/customers/{user_id}/data-export', $groupsByName['Admin Privacy']['signatures']);
+        self::assertContains('POST api/v1/admin/privacy/requests/{request_id}/review', $groupsByName['Admin Privacy']['signatures']);
         self::assertContains('POST api/v1/me/privacy-requests', $mutationGroupsByName['Customer privacy']['signatures']);
         self::assertSame('boardZone', config('api_artifacts.postman.parameter_aliases.GET api/v1/staff/tables/board.query.zone'));
         self::assertSame('boardAfterVersion', config('api_artifacts.postman.parameter_aliases.GET api/v1/staff/tables/board/changes.query.after_version'));

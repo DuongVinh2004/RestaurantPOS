@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getSelfServiceBlockedState } from "@/features/reservations/self-service-boundary";
 import { isConflictLikeApiError, normalizeApiError } from "@/lib/api/errors";
+import { trackCustomerEvent } from "@/lib/analytics/events";
 import { queryKeys } from "@/lib/api/query-keys";
 import { customerWebRollout } from "@/lib/config/feature-flags";
 import { formatMoney } from "@/lib/contracts/format";
@@ -49,6 +50,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
     mutationFn: ({ rowVersion, voucherCode }: { rowVersion: number; voucherCode: string }) =>
       applyVoucher(reservationId, rowVersion, voucherCode),
     onSuccess(result) {
+      trackCustomerEvent("voucher_applied", { reservation_id: reservationId, surface: "reservation_benefits" });
       toast.success("Đã áp dụng voucher.");
       syncBenefitsPreview({
         reservation: result.reservation,
@@ -236,7 +238,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
                             className="rounded-lg"
                             disabled={actionPending || !canSubmitRedeem}
                             onClick={() => {
-                              if (currentRowVersion === null || !canSubmitRedeem) {
+                              if (actionPending || currentRowVersion === null || !canSubmitRedeem) {
                                 return;
                               }
 
@@ -262,7 +264,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
                           className="mt-4 rounded-lg"
                           disabled={actionPending || currentRowVersion === null}
                           onClick={() => {
-                            if (currentRowVersion === null) {
+                            if (actionPending || currentRowVersion === null) {
                               return;
                             }
 
@@ -314,7 +316,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
                                 className="mt-4 rounded-lg"
                                 disabled={actionPending || currentRowVersion === null}
                                 onClick={() => {
-                                  if (currentRowVersion === null) {
+                                  if (actionPending || currentRowVersion === null) {
                                     return;
                                   }
 
@@ -330,7 +332,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
                                 className="mt-4 rounded-lg"
                                 disabled={actionPending || currentRowVersion === null}
                                 onClick={() => {
-                                  if (currentRowVersion === null) {
+                                  if (actionPending || currentRowVersion === null) {
                                     return;
                                   }
 

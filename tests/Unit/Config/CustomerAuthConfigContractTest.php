@@ -18,6 +18,9 @@ class CustomerAuthConfigContractTest extends TestCase
         $this->assertGreaterThan(0, (int) config('customer_auth.access_session_ttl_minutes'));
         $this->assertGreaterThan(0, (int) config('customer_auth.login_throttle_limit'));
         $this->assertGreaterThan(0, (int) config('customer_auth.login_throttle_window_seconds'));
+        $this->assertGreaterThan(0, (int) config('customer_auth.register_throttle_limit'));
+        $this->assertGreaterThan(0, (int) config('customer_auth.register_throttle_window_seconds'));
+        $this->assertGreaterThanOrEqual(8, (int) config('customer_auth.register_password_min_length'));
         $this->assertGreaterThan(0, (int) config('customer_auth.password_reset_ttl_minutes'));
         $this->assertIsBool(config('customer_auth.touch_last_used_at'));
         $this->assertSame([3], array_values(config('customer_auth.allowed_role_ids')));

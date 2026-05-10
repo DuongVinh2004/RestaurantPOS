@@ -1,26 +1,52 @@
 import type {
   AdminIngredientCollectionEnvelope,
+  AdminBenefitSettingCollectionEnvelope,
+  AdminBenefitSettingEnvelope,
+  AdminCustomerDataExportEnvelope,
+  AdminLoyaltyTierCollectionEnvelope,
+  AdminLoyaltyTierEnvelope,
+  AdminPrivacyRequestCollectionEnvelope,
+  AdminPrivacyReviewEnvelope,
   AdminPurchaseOrderCollectionEnvelope,
+  AdminPurchaseOrderReceiptEnvelope,
   AdminSupplierCollectionEnvelope,
+  AdminVoucherCollectionEnvelope,
+  AdminVoucherEnvelope,
   AddConversationInternalNoteRequest,
   AddOrderItemsRequest,
+  AssignConversationRequest,
   BranchCollectionEnvelope,
+  BranchScopeRequest,
+  CancelReservationRequest,
+  CancelWaitlistRequest,
   CashierShiftCollectionEnvelope,
   CashierShiftEnvelope,
   StaffCheckInReservationRequest as CheckInReservationRequest,
   StaffCheckoutOrderRequest as CheckoutOrderRequest,
+  CreateIngredientStockMovementRequest,
+  CreatePurchaseOrderReceiptRequest,
   CloseCashierShiftRequest,
   CreateRestaurantTableRequest,
+  CreateWaitlistEntryRequest,
   CustomerMenuItemsCollectionEnvelope,
   DispatchKitchenTicketRequest as DispatchKitchenTicketsRequest,
+  FinanceInvoiceEnvelope as SdkFinanceInvoiceEnvelope,
+  FinancialReconciliationCollectionEnvelope as SdkFinancialReconciliationCollectionEnvelope,
+  FinancialReconciliationDetailEnvelope as SdkFinancialReconciliationDetailEnvelope,
+  FinancialReconciliationRow as SdkFinancialReconciliationRow,
+  FinancialReservationSummary as SdkFinancialReservationSummary,
   GetV1AdminInventoryIngredientsQueryParams,
+  GetV1AdminInventoryIngredientsIdMovementsQueryParams,
   GetV1AdminInventoryPurchaseOrdersQueryParams,
+  GetV1AdminInventoryPurchaseOrdersIdReceiptsQueryParams,
   GetV1AdminInventorySuppliersQueryParams,
+  GetV1AdminPrivacyRequestsQueryParams,
   GetV1AdminSettingsBranchesQueryParams,
   GetV1StaffAuditTrailQueryParams,
   GetV1StaffConversationsConversationIdQueryParams,
   GetV1StaffConversationsQueryParams,
   GetV1StaffCashierShiftsQueryParams,
+  GetV1StaffFinanceReconciliationQueryParams,
   GetV1StaffReportingDailyInventoryQueryParams,
   GetV1StaffReportingDailyOperationsQueryParams,
   GetV1StaffReportingDailySalesQueryParams,
@@ -32,14 +58,22 @@ import type {
   GetV1StaffWaitingListQueryParams,
   GenericDataEnvelope,
   InviteWaitlistCustomerRequest as NotifyWaitingListRequest,
+  LinkConversationRequest,
+  MoveTableRequest,
   OpenCashierShiftRequest,
   PayOrderRequest,
+  ReservationActionEnvelope,
   ReservationEnvelope,
+  ReservationOrder,
+  ReleaseTableRequest,
   RefundAndCancelReservationRequest,
   RefundReservationRequest,
+  RestaurantTableEnvelope,
   SendConversationOutboundReplyRequest,
   SeatWaitlistRequest as SeatWaitingListRequest,
   StaffAuditTrailEnvelope,
+  StaffAssignBestFitTableRequest,
+  StaffAssignSuggestedTableRequest,
   StaffCheckoutSettlementEnvelope,
   StaffConversationCollectionEnvelope,
   StaffConversationDetailEnvelope,
@@ -63,19 +97,26 @@ import type {
   StaffWaitingListCollectionEnvelope,
   StaffWaitingListEntry,
   StaffWaitingListEnvelope,
+  StaffWaitingListAdvanceEnvelope,
   StaffWaitingListSeatEnvelope,
   StaffTablesBoardQueryParams,
+  StoreLoyaltyTierRequest,
   StoreMenuCategoryRequest,
   StoreMenuItemPriceRequest,
   StoreMenuItemRequest,
   CreateReservationRequest as StoreReservationRequest,
+  StoreVoucherRequest,
   TakeOverConversationRequest,
+  UpdateConversationWorkflowStateRequest,
+  UpdateLoyaltyTierRequest,
   UpdateOrderItemRequest,
   UpdateOrderItemStatusRequest,
+  UpdateVoucherRequest,
+  UpsertBenefitSettingRequest,
 } from './sdk';
 import { createIdempotencyKey } from '../utils/idempotency';
 import { staffClient } from './client';
-import { apiRequest } from './http';
+import { StaffApiError, apiRequest } from './http';
 export { getCurrentStaffSession, loginStaff, logoutStaff, refreshStaffSession } from './staff-auth-api';
 export { listBranches } from './staff-branch-api';
 
@@ -122,12 +163,12 @@ export type UpdateOrderItemStatusPayload = UpdateOrderItemStatusRequest;
 export type MoveTablePayload = {
   from_table_id: number;
   to_table_id: number;
-  row_version?: number | null;
+  row_version: number;
   moved_at?: string | null;
 };
 
 export type ReleaseTablePayload = {
-  row_version?: number | null;
+  row_version: number;
   force?: boolean;
   notes?: string | null;
 };
@@ -219,7 +260,7 @@ export type AdminBenefitsQuery = {
 };
 
 export type AdminPrivacyRequestQuery = {
-  status?: string;
+  status?: 'requested' | 'rejected' | 'completed' | 'failed';
   user_id?: number;
   per_page?: number;
 };
@@ -412,6 +453,8 @@ export type AdminCreateIngredientMovementPayload = {
   notes?: string | null;
 };
 
+export type AdminCreatePurchaseOrderReceiptPayload = CreatePurchaseOrderReceiptRequest;
+
 export type AdminPurchaseOrderReceipt = {
   receipt_id: number;
   branch_id: number | null;
@@ -538,89 +581,21 @@ export type AdminIngredientMovementQuery = BranchScopedQuery & {
   sort?: string;
 };
 
+export type ReservationActiveOrderEnvelope = {
+  data: {
+    reservation_id: number;
+    order: ReservationOrder | null;
+  };
+};
+
 export type AuditTrailEntry = StaffAuditTrailEnvelope['data'][number];
 
-export type FinancialReservationSummary = {
-  reservation_id: number;
-  reservation_code: string;
-  row_version?: number | null;
-  status: string;
-  deposit_status: string;
-  start_time?: string | null;
-  end_time?: string | null;
-  billed_at?: string | null;
-  updated_at?: string | null;
-  bill_currency?: string | null;
-  customer: {
-    user_id?: number | null;
-    full_name?: string | null;
-    email?: string | null;
-    phone?: string | null;
-  };
-};
-
-export type FinancialPaymentSummary = {
-  payment_count: number;
-  refund_count: number;
-  captured_amount: number;
-  refunded_amount: number;
-  net_paid_amount: number;
-  deposit_captured_amount: number;
-  deposit_refunded_amount: number;
-  deposit_net_amount: number;
-  final_captured_amount: number;
-  final_refunded_amount: number;
-  final_net_amount: number;
-  over_refunded_amount: number;
-  last_payment_activity_at?: string | null;
-  last_refund_at?: string | null;
-  currency: {
-    currency?: string | null;
-    has_mixed_currencies: boolean;
-  };
-};
-
-export type FinancialReconciliationSummary = {
-  deposit_required_amount: number;
-  deposit_recorded_paid_amount: number;
-  deposit_computed_net_amount: number;
-  deposit_sync_gap_amount: number;
-  final_bill_amount?: number | null;
-  bill_outstanding_amount?: number | null;
-  bill_overpaid_amount?: number | null;
-};
-
-export type FinancialFlags = {
-  has_refunds: boolean;
-  has_payments: boolean;
-  has_discrepancy: boolean;
-  has_deposit_sync_gap: boolean;
-  has_over_refund: boolean;
-  has_mixed_payment_currencies: boolean;
-  has_bill_outstanding: boolean;
-  has_bill_overpaid: boolean;
-  discrepancy_reasons: Array<string>;
-  is_fully_settled: boolean;
-};
-
-export type FinancialReconciliationRow = {
-  reservation: FinancialReservationSummary;
-  payment_summary: FinancialPaymentSummary;
-  reconciliation: FinancialReconciliationSummary;
-  flags: FinancialFlags;
-};
-
-export type FinancialReconciliationCollectionEnvelope = {
-  data: Array<FinancialReconciliationRow>;
-  meta?: {
-    action: string;
-    page: number;
-    per_page: number;
-    total: number;
-    last_page: number;
-    filters: Record<string, unknown>;
-  };
-};
+export type FinancialReservationSummary = SdkFinancialReservationSummary;
+export type FinancialPaymentSummary = Record<string, unknown>;
+export type FinancialReconciliationSummary = Record<string, unknown>;
+export type FinancialFlags = Record<string, unknown>;
+export type FinancialReconciliationRow = SdkFinancialReconciliationRow;
+export type FinancialReconciliationCollectionEnvelope = SdkFinancialReconciliationCollectionEnvelope;
 
 export type FinancialPaymentRow = {
   payment_id: number;
@@ -657,62 +632,8 @@ export type FinancialMethodBreakdownRow = {
   currency: string;
 };
 
-export type FinancialReconciliationDetailEnvelope = {
-  data: {
-    reservation: FinancialReservationSummary;
-    summary: FinancialReconciliationRow;
-    payments: Array<FinancialPaymentRow>;
-    method_breakdown: Array<FinancialMethodBreakdownRow>;
-  };
-  meta?: {
-    action: string;
-  };
-};
-
-export type FinanceInvoiceEnvelope = {
-  data: {
-    invoice: {
-      billing_invoice_id: number;
-      reservation_id: number;
-      invoice_number: string;
-      invoice_status: string;
-      currency: string;
-      bill_amounts: {
-        subtotal_amount: number;
-        discount_amount: number;
-        total_amount: number;
-      };
-      tax: {
-        tax_code?: string | null;
-        tax_name?: string | null;
-        tax_rate_percentage: number;
-        prices_include_tax: boolean;
-        taxable_amount: number;
-        tax_amount: number;
-      };
-      seller: {
-        seller_name?: string | null;
-        seller_tax_id?: string | null;
-        seller_address?: string | null;
-      };
-      issued_at?: string | null;
-      issued_by: {
-        user_id?: number | null;
-        full_name?: string | null;
-        email?: string | null;
-      };
-      row_version: number;
-      metadata: Record<string, unknown>;
-    };
-    reservation: FinancialReservationSummary;
-    reconciliation: FinancialReconciliationRow;
-    method_breakdown: Array<FinancialMethodBreakdownRow>;
-  };
-  meta?: {
-    action: string;
-    created?: boolean;
-  };
-};
+export type FinancialReconciliationDetailEnvelope = SdkFinancialReconciliationDetailEnvelope;
+export type FinanceInvoiceEnvelope = SdkFinanceInvoiceEnvelope;
 
 export type CreateBillSnapshotPayload = {
   row_version: number;
@@ -788,24 +709,39 @@ export async function listAdminIngredientMovements(
   ingredientId: number,
   query: AdminIngredientMovementQuery = { per_page: 8, sort: '-created_at' },
 ): Promise<AdminIngredientMovementCollectionEnvelope> {
-  return apiRequest<AdminIngredientMovementCollectionEnvelope>(`/admin/inventory/ingredients/${ingredientId}/movements`, { query });
+  return staffClient.getV1AdminInventoryIngredientsIdMovements(
+    { id: ingredientId },
+    query as GetV1AdminInventoryIngredientsIdMovementsQueryParams,
+  );
 }
 
 export async function createAdminIngredientMovement(
   ingredientId: number,
   payload: AdminCreateIngredientMovementPayload,
 ): Promise<AdminIngredientMovementEnvelope> {
-  return apiRequest<AdminIngredientMovementEnvelope>(`/admin/inventory/ingredients/${ingredientId}/movements`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`admin-inventory-movement-${ingredientId}`),
-  });
+  return staffClient.postV1AdminInventoryIngredientsIdMovements(
+    { id: ingredientId },
+    payload as CreateIngredientStockMovementRequest,
+    { idempotencyKey: createIdempotencyKey(`admin-inventory-movement-${ingredientId}`) },
+  );
 }
 
 export async function listAdminPurchaseOrderReceipts(
   purchaseOrderId: number,
+  query: GetV1AdminInventoryPurchaseOrdersIdReceiptsQueryParams = { per_page: 8, sort: '-created_at' },
 ): Promise<AdminPurchaseOrderReceiptCollectionEnvelope> {
-  return apiRequest<AdminPurchaseOrderReceiptCollectionEnvelope>(`/admin/inventory/purchase-orders/${purchaseOrderId}/receipts`);
+  return staffClient.getV1AdminInventoryPurchaseOrdersIdReceipts({ id: purchaseOrderId }, query);
+}
+
+export async function createAdminPurchaseOrderReceipt(
+  purchaseOrderId: number,
+  payload: AdminCreatePurchaseOrderReceiptPayload,
+): Promise<AdminPurchaseOrderReceiptEnvelope> {
+  return staffClient.postV1AdminInventoryPurchaseOrdersIdReceipts(
+    { id: purchaseOrderId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`admin-purchase-order-receipt-${purchaseOrderId}`) },
+  );
 }
 
 export async function listAdminBranches(
@@ -878,80 +814,79 @@ export async function createAdminMenuItemPrice(
   );
 }
 
-export async function listAdminBenefitVouchers(query: AdminBenefitsQuery = { per_page: 20 }): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>('/admin/benefits/vouchers', { query });
+export async function listAdminBenefitVouchers(query: AdminBenefitsQuery = { per_page: 20 }): Promise<AdminVoucherCollectionEnvelope> {
+  void query;
+  return staffClient.getV1AdminBenefitsVouchers();
 }
 
-export async function getAdminBenefitVoucher(voucherId: number): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>(`/admin/benefits/vouchers/${voucherId}`);
+export async function getAdminBenefitVoucher(voucherId: number): Promise<AdminVoucherEnvelope> {
+  return staffClient.getV1AdminBenefitsVouchersId({ id: voucherId });
 }
 
-export async function createAdminBenefitVoucher(payload: AdminVoucherPayload): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>('/admin/benefits/vouchers', {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`admin-benefit-voucher-${payload.code}`),
-  });
+export async function createAdminBenefitVoucher(payload: AdminVoucherPayload): Promise<AdminVoucherEnvelope> {
+  return staffClient.postV1AdminBenefitsVouchers(
+    payload as StoreVoucherRequest,
+    { idempotencyKey: createIdempotencyKey(`admin-benefit-voucher-${payload.code}`) },
+  );
 }
 
-export async function updateAdminBenefitVoucher(voucherId: number, payload: AdminVoucherUpdatePayload): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>(`/admin/benefits/vouchers/${voucherId}`, {
-    method: 'PATCH',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`admin-benefit-voucher-update-${voucherId}`),
-  });
+export async function updateAdminBenefitVoucher(voucherId: number, payload: AdminVoucherUpdatePayload): Promise<AdminVoucherEnvelope> {
+  return staffClient.patchV1AdminBenefitsVouchersId(
+    { id: voucherId },
+    payload as UpdateVoucherRequest,
+    { idempotencyKey: createIdempotencyKey(`admin-benefit-voucher-update-${voucherId}`) },
+  );
 }
 
-export async function listAdminLoyaltyTiers(query: AdminBenefitsQuery = { per_page: 20 }): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>('/admin/benefits/loyalty-tiers', { query });
+export async function listAdminLoyaltyTiers(query: AdminBenefitsQuery = { per_page: 20 }): Promise<AdminLoyaltyTierCollectionEnvelope> {
+  void query;
+  return staffClient.getV1AdminBenefitsLoyaltyTiers();
 }
 
-export async function getAdminLoyaltyTier(tierId: number): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>(`/admin/benefits/loyalty-tiers/${tierId}`);
+export async function getAdminLoyaltyTier(tierId: number): Promise<AdminLoyaltyTierEnvelope> {
+  return staffClient.getV1AdminBenefitsLoyaltyTiersId({ id: tierId });
 }
 
-export async function createAdminLoyaltyTier(payload: AdminLoyaltyTierPayload): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>('/admin/benefits/loyalty-tiers', {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`admin-loyalty-tier-${payload.tier_code}`),
-  });
+export async function createAdminLoyaltyTier(payload: AdminLoyaltyTierPayload): Promise<AdminLoyaltyTierEnvelope> {
+  return staffClient.postV1AdminBenefitsLoyaltyTiers(
+    payload as StoreLoyaltyTierRequest,
+    { idempotencyKey: createIdempotencyKey(`admin-loyalty-tier-${payload.tier_code}`) },
+  );
 }
 
-export async function updateAdminLoyaltyTier(tierId: number, payload: AdminLoyaltyTierUpdatePayload): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>(`/admin/benefits/loyalty-tiers/${tierId}`, {
-    method: 'PATCH',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`admin-loyalty-tier-update-${tierId}`),
-  });
+export async function updateAdminLoyaltyTier(tierId: number, payload: AdminLoyaltyTierUpdatePayload): Promise<AdminLoyaltyTierEnvelope> {
+  return staffClient.patchV1AdminBenefitsLoyaltyTiersId(
+    { id: tierId },
+    payload as UpdateLoyaltyTierRequest,
+    { idempotencyKey: createIdempotencyKey(`admin-loyalty-tier-update-${tierId}`) },
+  );
 }
 
-export async function getAdminBenefitSettings(): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>('/admin/settings/benefits');
+export async function getAdminBenefitSettings(): Promise<AdminBenefitSettingCollectionEnvelope> {
+  return staffClient.getV1AdminSettingsBenefits();
 }
 
-export async function upsertAdminBenefitSetting(payload: AdminBenefitSettingPayload): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>('/admin/settings/benefits', {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`admin-benefit-setting-${payload.setting_key}`),
-  });
+export async function upsertAdminBenefitSetting(payload: AdminBenefitSettingPayload): Promise<AdminBenefitSettingEnvelope> {
+  return staffClient.postV1AdminSettingsBenefits(
+    payload as UpsertBenefitSettingRequest,
+    { idempotencyKey: createIdempotencyKey(`admin-benefit-setting-${payload.setting_key}`) },
+  );
 }
 
-export async function listAdminPrivacyRequests(query: AdminPrivacyRequestQuery = { per_page: 20 }): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>('/admin/privacy/requests', { query });
+export async function listAdminPrivacyRequests(query: AdminPrivacyRequestQuery = { per_page: 20 }): Promise<AdminPrivacyRequestCollectionEnvelope> {
+  return staffClient.getV1AdminPrivacyRequests(query as GetV1AdminPrivacyRequestsQueryParams);
 }
 
-export async function exportAdminCustomerData(userId: number): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>(`/admin/privacy/customers/${userId}/data-export`);
+export async function exportAdminCustomerData(userId: number): Promise<AdminCustomerDataExportEnvelope> {
+  return staffClient.getV1AdminPrivacyCustomersUserIdDataExport({ user_id: userId });
 }
 
-export async function reviewAdminPrivacyRequest(requestId: number, payload: AdminPrivacyReviewPayload): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>(`/admin/privacy/requests/${requestId}/review`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`admin-privacy-review-${requestId}-${payload.mode}`),
-  });
+export async function reviewAdminPrivacyRequest(requestId: number, payload: AdminPrivacyReviewPayload): Promise<AdminPrivacyReviewEnvelope> {
+  return staffClient.postV1AdminPrivacyRequestsRequestIdReview(
+    { request_id: requestId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`admin-privacy-review-${requestId}-${payload.mode}`) },
+  );
 }
 
 export async function importAdminMasterData(
@@ -1079,11 +1014,10 @@ export async function getWaitingListChanges(afterVersion?: number, branchId?: nu
 }
 
 export async function createWaitingListEntry(payload: CreateWaitingListPayload): Promise<StaffWaitingListEnvelope> {
-  return apiRequest<StaffWaitingListEnvelope>('/staff/waiting-list', {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey('waiting-create'),
-  });
+  return staffClient.postV1StaffWaitingList(
+    payload as CreateWaitlistEntryRequest,
+    { idempotencyKey: createIdempotencyKey('waiting-create') },
+  );
 }
 
 export async function notifyWaitingListEntry(waitingId: number, payload: NotifyWaitingListRequest): Promise<StaffWaitingListEnvelope> {
@@ -1103,19 +1037,19 @@ export async function seatWaitingListEntry(waitingId: number, payload: SeatWaiti
 }
 
 export async function cancelWaitingListEntry(waitingId: number, payload: CancelWaitingListPayload): Promise<StaffWaitingListEnvelope> {
-  return apiRequest<StaffWaitingListEnvelope>(`/staff/waiting-list/${waitingId}/cancel`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`waiting-cancel-${waitingId}`),
-  });
+  return staffClient.postV1StaffWaitingListIdCancel(
+    { id: waitingId },
+    payload as CancelWaitlistRequest,
+    { idempotencyKey: createIdempotencyKey(`waiting-cancel-${waitingId}`) },
+  );
 }
 
 export async function advanceWaitingListEntry(waitingId: number, payload: AdvanceWaitingListPayload): Promise<WaitingListAdvanceEnvelope> {
-  return apiRequest<WaitingListAdvanceEnvelope>(`/staff/waiting-list/${waitingId}/advance`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`waiting-advance-${waitingId}`),
-  });
+  return staffClient.postV1StaffWaitingListIdAdvance(
+    { id: waitingId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`waiting-advance-${waitingId}`) },
+  ) as Promise<StaffWaitingListAdvanceEnvelope>;
 }
 
 export async function listReservations(query: ReservationListQuery): Promise<StaffReservationLookupCollectionEnvelope> {
@@ -1130,6 +1064,17 @@ export async function createReservation(payload: CreateReservationPayload): Prom
 
 export async function getReservationDetail(reservationId: number): Promise<ReservationEnvelope> {
   return staffClient.getV1StaffReservationsReservationId({ reservation_id: reservationId });
+}
+
+export async function cancelReservation(
+  reservationId: number,
+  payload: CancelReservationRequest,
+): Promise<ReservationActionEnvelope> {
+  return staffClient.postV1ReservationsIdCancel(
+    { id: reservationId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`reservation-cancel-${reservationId}`) },
+  );
 }
 
 export async function listStaffReservationVouchers(reservationId: number): Promise<GenericDataEnvelope> {
@@ -1251,11 +1196,11 @@ export async function assignConversation(
   conversationId: string,
   payload: AssignConversationPayload,
 ): Promise<StaffConversationMutationEnvelope> {
-  return apiRequest<StaffConversationMutationEnvelope>(`/staff/conversations/${conversationId}/assign`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`conversation-assign-${conversationId}`),
-  });
+  return staffClient.postV1StaffConversationsConversationIdAssign(
+    { conversation_id: conversationId },
+    payload as AssignConversationRequest,
+    { idempotencyKey: createIdempotencyKey(`conversation-assign-${conversationId}`) },
+  );
 }
 
 export async function unassignConversation(
@@ -1273,36 +1218,36 @@ export async function updateConversationWorkflowState(
   conversationId: string,
   payload: UpdateConversationWorkflowStatePayload,
 ): Promise<StaffConversationMutationEnvelope> {
-  return apiRequest<StaffConversationMutationEnvelope>(`/staff/conversations/${conversationId}/workflow-state`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`conversation-workflow-${conversationId}`),
-  });
+  return staffClient.postV1staffconversationsconversationIdworkflowState(
+    { conversation_id: conversationId },
+    payload as UpdateConversationWorkflowStateRequest,
+    { idempotencyKey: createIdempotencyKey(`conversation-workflow-${conversationId}`) },
+  );
 }
 
 export async function linkConversation(
   conversationId: string,
   payload: LinkConversationPayload,
 ): Promise<StaffConversationMutationEnvelope> {
-  return apiRequest<StaffConversationMutationEnvelope>(`/staff/conversations/${conversationId}/links`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`conversation-link-${conversationId}`),
-  });
+  return staffClient.postV1StaffConversationsConversationIdLinks(
+    { conversation_id: conversationId },
+    payload as LinkConversationRequest,
+    { idempotencyKey: createIdempotencyKey(`conversation-link-${conversationId}`) },
+  );
 }
 
 export async function unlinkConversationReservation(conversationId: string): Promise<StaffConversationMutationEnvelope> {
-  return apiRequest<StaffConversationMutationEnvelope>(`/staff/conversations/${conversationId}/links/reservation`, {
-    method: 'DELETE',
-    idempotencyKey: createIdempotencyKey(`conversation-unlink-reservation-${conversationId}`),
-  });
+  return staffClient.deleteV1StaffConversationsConversationIdLinksReservation(
+    { conversation_id: conversationId },
+    { idempotencyKey: createIdempotencyKey(`conversation-unlink-reservation-${conversationId}`) },
+  );
 }
 
 export async function unlinkConversationWaitingList(conversationId: string): Promise<StaffConversationMutationEnvelope> {
-  return apiRequest<StaffConversationMutationEnvelope>(`/staff/conversations/${conversationId}/links/waiting-list`, {
-    method: 'DELETE',
-    idempotencyKey: createIdempotencyKey(`conversation-unlink-waiting-${conversationId}`),
-  });
+  return staffClient.deleteV1StaffConversationsConversationIdLinksWaitingList(
+    { conversation_id: conversationId },
+    { idempotencyKey: createIdempotencyKey(`conversation-unlink-waiting-${conversationId}`) },
+  );
 }
 
 export async function addConversationInternalNote(
@@ -1344,42 +1289,42 @@ export async function listDailyInventoryReporting(query: DailyInventoryReporting
 }
 
 export async function listFinancialReconciliation(query: FinancialReconciliationQuery): Promise<FinancialReconciliationCollectionEnvelope> {
-  return apiRequest<FinancialReconciliationCollectionEnvelope>('/staff/finance/reconciliation', { query });
+  return staffClient.getV1StaffFinanceReconciliation(query as GetV1StaffFinanceReconciliationQueryParams);
 }
 
 export async function getFinancialReconciliationDetail(
   reservationId: number,
   query: BranchScopedQuery = {},
 ): Promise<FinancialReconciliationDetailEnvelope> {
-  return apiRequest<FinancialReconciliationDetailEnvelope>(`/staff/finance/reconciliation/${reservationId}`, { query });
+  return staffClient.getV1StaffFinanceReconciliationReservationId({ reservation_id: reservationId }, query);
 }
 
 export async function getFinanceInvoice(reservationId: number, query: BranchScopedQuery = {}): Promise<FinanceInvoiceEnvelope> {
-  return apiRequest<FinanceInvoiceEnvelope>(`/staff/finance/invoices/${reservationId}`, { query });
+  return staffClient.getV1StaffFinanceInvoicesReservationId({ reservation_id: reservationId }, query);
 }
 
 export async function issueFinanceInvoice(reservationId: number, query: BranchScopedQuery = {}): Promise<FinanceInvoiceEnvelope> {
-  return apiRequest<FinanceInvoiceEnvelope>(`/staff/finance/invoices/${reservationId}/issue`, {
-    method: 'POST',
-    query,
-    idempotencyKey: createIdempotencyKey(`finance-invoice-${reservationId}`),
-  });
+  return staffClient.postV1StaffFinanceInvoicesReservationIdIssue(
+    { reservation_id: reservationId },
+    query as BranchScopeRequest,
+    { idempotencyKey: createIdempotencyKey(`finance-invoice-${reservationId}`) },
+  );
 }
 
 export async function assignSuggestedTable(reservationId: number, payload: AssignSuggestedTablePayload): Promise<ReservationEnvelope> {
-  return apiRequest<ReservationEnvelope>(`/staff/reservations/${reservationId}/assign-table`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`reservation-assign-table-${reservationId}`),
-  });
+  return staffClient.postV1StaffReservationsIdAssignTable(
+    { id: reservationId },
+    payload as StaffAssignSuggestedTableRequest,
+    { idempotencyKey: createIdempotencyKey(`reservation-assign-table-${reservationId}`) },
+  );
 }
 
 export async function assignBestFitTable(reservationId: number, payload: AssignBestFitTablePayload): Promise<ReservationEnvelope> {
-  return apiRequest<ReservationEnvelope>(`/staff/reservations/${reservationId}/assign-best-fit`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`reservation-assign-best-fit-${reservationId}`),
-  });
+  return staffClient.postV1StaffReservationsIdAssignBestFit(
+    { id: reservationId },
+    payload as StaffAssignBestFitTableRequest,
+    { idempotencyKey: createIdempotencyKey(`reservation-assign-best-fit-${reservationId}`) },
+  );
 }
 
 export async function checkInReservation(reservationId: number, payload: CheckInReservationRequest): Promise<ReservationEnvelope> {
@@ -1391,19 +1336,19 @@ export async function checkInReservation(reservationId: number, payload: CheckIn
 }
 
 export async function moveReservationTable(reservationId: number, payload: MoveTablePayload): Promise<ReservationEnvelope> {
-  return apiRequest<ReservationEnvelope>(`/staff/reservations/${reservationId}/move-table`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`reservation-move-table-${reservationId}`),
-  });
+  return staffClient.postV1StaffReservationsIdMoveTable(
+    { id: reservationId },
+    payload as MoveTableRequest,
+    { idempotencyKey: createIdempotencyKey(`reservation-move-table-${reservationId}`) },
+  );
 }
 
-export async function releaseStaffTable(tableId: number, payload: ReleaseTablePayload = {}): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>(`/staff/tables/${tableId}/release`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`table-release-${tableId}`),
-  });
+export async function releaseStaffTable(tableId: number, payload: ReleaseTablePayload): Promise<RestaurantTableEnvelope> {
+  return staffClient.postV1StaffTablesTableIdRelease(
+    { table_id: tableId },
+    payload as ReleaseTableRequest,
+    { idempotencyKey: createIdempotencyKey(`table-release-${tableId}`) },
+  );
 }
 
 export async function createWalkInSession(payload: WalkInPayload): Promise<ReservationEnvelope> {
@@ -1417,11 +1362,17 @@ export async function listMenuItems(query: GetV1MenuItemsQueryParams): Promise<C
 }
 
 export async function getActiveOrderByTable(tableId: number): Promise<StaffOrderReadEnvelope> {
-  return apiRequest<StaffOrderReadEnvelope>(`/staff/tables/${tableId}/active-order`);
+  return staffClient.getV1StaffTablesTableIdActiveOrder({ table_id: tableId });
 }
 
-export async function getActiveOrderByReservation(reservationId: number): Promise<StaffOrderReadEnvelope> {
-  return apiRequest<StaffOrderReadEnvelope>(`/staff/reservations/${reservationId}/active-order`);
+export async function getActiveOrderByReservation(reservationId: number): Promise<ReservationActiveOrderEnvelope> {
+  const reservationOrders = await listReservationOrders(reservationId);
+  return {
+    data: {
+      reservation_id: reservationId,
+      order: selectCanonicalActiveOrder(reservationId, reservationOrders.data),
+    },
+  };
 }
 
 export async function listReservationOrders(reservationId: number): Promise<StaffReservationOrderCollectionEnvelope> {
@@ -1589,4 +1540,19 @@ function adminMasterDataImportOptions(payload: AdminMasterDataImportPayload) {
     body,
     idempotencyKey,
   } as const;
+}
+
+function selectCanonicalActiveOrder(reservationId: number, orders: Array<ReservationOrder>): ReservationOrder | null {
+  const activeOrders = orders.filter((order) => order.status === 'Active');
+
+  if (activeOrders.length <= 1) {
+    return activeOrders[0] ?? null;
+  }
+
+  throw new StaffApiError(409, {
+    error_code: 'reservation_active_order_conflict',
+    message: `Reservation ${reservationId} has multiple active orders in canonical lookup.`,
+    reservation_id: reservationId,
+    active_order_ids: activeOrders.map((order) => order.order_id),
+  }, 'Conflict');
 }

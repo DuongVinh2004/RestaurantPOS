@@ -1,5 +1,6 @@
 import { Button, Descriptions, Divider, Drawer, Space, Typography } from 'antd';
-import type { ReservationEnvelope, StaffOrderReadEnvelope } from '../../api/sdk';
+import type { ReservationEnvelope } from '../../api/sdk';
+import type { ReservationActiveOrderEnvelope } from '../../api/staff-api';
 import { formatDateTime } from '../../utils/format';
 import {
   getReservationGuestLabel,
@@ -19,8 +20,6 @@ export function ReservationDetailDrawer({
   activeOrder,
   busy,
   onClose,
-  onAssignBestFit,
-  onAssignCurrentTable,
   onCheckIn,
   onCancelReservation,
   onOpenOrder,
@@ -28,11 +27,9 @@ export function ReservationDetailDrawer({
 }: {
   open: boolean;
   reservation: ReservationDetail | null;
-  activeOrder: StaffOrderReadEnvelope | null;
+  activeOrder: ReservationActiveOrderEnvelope | null;
   busy?: boolean;
   onClose: () => void;
-  onAssignBestFit?: () => void;
-  onAssignCurrentTable?: () => void;
   onCheckIn?: () => void;
   onCancelReservation?: () => void;
   onOpenOrder?: () => void;
@@ -41,10 +38,22 @@ export function ReservationDetailDrawer({
   const customerLabel = getReservationGuestLabel(reservation);
   const isSnapshotOnlyGuest = isReservationSnapshotOnlyGuest(reservation);
   const tableLabel = getReservationTableLabel(reservation);
+  const footerActions = [
+    onCheckIn ? (
+      <Button key="check-in" type="primary" onClick={onCheckIn} loading={busy}>
+        Nhan ban ngay
+      </Button>
+    ) : null,
+    onCancelReservation ? (
+      <Button key="cancel" danger onClick={onCancelReservation} loading={busy}>
+        Huy dat ban
+      </Button>
+    ) : null,
+  ].filter(Boolean);
 
   return (
     <Drawer
-      title={reservation ? reservation.reservation_code : 'Chi tiết đặt bàn'}
+      title={reservation ? reservation.reservation_code : 'Chi tiet dat ban'}
       placement="right"
       styles={{ wrapper: { width: 500, maxWidth: '100vw' } }}
       open={open}
@@ -57,26 +66,15 @@ export function ReservationDetailDrawer({
           ) : null}
         </Space>
       ) : null}
-      footer={reservation ? (
+      footer={reservation && footerActions.length > 0 ? (
         <div className="staff-drawer-footer">
-          <Button onClick={onAssignBestFit} loading={busy} disabled={!onAssignBestFit}>
-            Gán bàn tốt nhất
-          </Button>
-          <Button onClick={onAssignCurrentTable} loading={busy} disabled={!onAssignCurrentTable}>
-            Dùng bàn đang chọn
-          </Button>
-          <Button type="primary" onClick={onCheckIn} loading={busy} disabled={!onCheckIn}>
-            Nhận bàn ngay
-          </Button>
-          <Button danger onClick={onCancelReservation} loading={busy} disabled={!onCancelReservation}>
-            Hủy đặt bàn
-          </Button>
+          {footerActions}
         </div>
       ) : null}
     >
       {!reservation ? (
         <Typography.Text type="secondary">
-          Chọn một đặt bàn để xem chi tiết.
+          Chon mot dat ban de xem chi tiet.
         </Typography.Text>
       ) : (
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -84,12 +82,12 @@ export function ReservationDetailDrawer({
             tone="info"
             eyebrow="Triage nhanh"
             title={customerLabel}
-            description={`Khung giờ ${formatDateTime(reservation.start_time)} đến ${formatDateTime(reservation.end_time)} • ${reservation.guest_count ?? 'Chưa rõ'} khách`}
-            meta={`Bàn hiện tại: ${tableLabel}`}
+            description={`Khung gio ${formatDateTime(reservation.start_time)} den ${formatDateTime(reservation.end_time)} • ${reservation.guest_count ?? 'Chua ro'} khach`}
+            meta={`Ban hien tai: ${tableLabel}`}
           />
 
           <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label="Khách">
+            <Descriptions.Item label="Khach">
               <Space wrap size={8}>
                 <Typography.Text>{customerLabel}</Typography.Text>
                 {isSnapshotOnlyGuest ? (
@@ -97,38 +95,38 @@ export function ReservationDetailDrawer({
                 ) : null}
               </Space>
             </Descriptions.Item>
-            <Descriptions.Item label="Bắt đầu">
+            <Descriptions.Item label="Bat dau">
               {formatDateTime(reservation.start_time)}
             </Descriptions.Item>
-            <Descriptions.Item label="Kết thúc">
+            <Descriptions.Item label="Ket thuc">
               {formatDateTime(reservation.end_time)}
             </Descriptions.Item>
-            <Descriptions.Item label="Số khách">
-              {reservation.guest_count ?? 'Không có'}
+            <Descriptions.Item label="So khach">
+              {reservation.guest_count ?? 'Khong co'}
             </Descriptions.Item>
-            <Descriptions.Item label="Bàn">
+            <Descriptions.Item label="Ban">
               {tableLabel}
             </Descriptions.Item>
-            <Descriptions.Item label="Phiên bản thao tác">
+            <Descriptions.Item label="Phien ban thao tac">
               {reservation.row_version}
             </Descriptions.Item>
           </Descriptions>
 
           <StaffFacingAlert
-            tone={activeOrder ? 'success' : 'warning'}
-            eyebrow="Luồng tiếp theo"
-            title={activeOrder ? `Đã có đơn #${activeOrder.data.order.order_id}` : 'Chưa có đơn đang phục vụ'}
-            description={activeOrder
-              ? 'Có thể mở thẳng đơn đang chạy để tiếp tục món, bếp hoặc thanh toán.'
-              : 'Nếu khách đã ngồi bàn, hãy mở màn hình đơn hàng để tạo flow phục vụ ngay từ đặt bàn này.'}
+            tone={activeOrder?.data.order ? 'success' : 'warning'}
+            eyebrow="Luong tiep theo"
+            title={activeOrder?.data.order ? `Da co don #${activeOrder.data.order.order_id}` : 'Chua co don dang phuc vu'}
+            description={activeOrder?.data.order
+              ? 'Co the mo thang don dang chay de tiep tuc mon, bep hoac thanh toan.'
+              : 'Neu khach da ngoi ban, hay mo man hinh don hang de tao flow phuc vu ngay tu dat ban nay.'}
             actions={(
               <Space wrap>
-                <Button type={activeOrder ? 'primary' : 'default'} onClick={onOpenOrder}>
-                  {activeOrder ? 'Mở đơn đang phục vụ' : 'Mở màn hình đơn hàng'}
+                <Button type={activeOrder?.data.order ? 'primary' : 'default'} onClick={onOpenOrder}>
+                  {activeOrder?.data.order ? 'Mo don dang phuc vu' : 'Mo man hinh don hang'}
                 </Button>
-                {activeOrder && onOpenCheckout ? (
+                {activeOrder?.data.order && onOpenCheckout ? (
                   <Button onClick={onOpenCheckout}>
-                    Mở thanh toán
+                    Mo thanh toan
                   </Button>
                 ) : null}
               </Space>
@@ -138,15 +136,15 @@ export function ReservationDetailDrawer({
           <Divider style={{ margin: 0 }} />
 
           <div>
-            <Typography.Text strong>Ghi nhớ trước khi thao tác</Typography.Text>
+            <Typography.Text strong>Ghi nho truoc khi thao tac</Typography.Text>
             <div className="staff-mini-list" style={{ marginTop: 12 }}>
               <div className="staff-mini-list-item">
-                <Typography.Text strong>Kiểm tra bàn gán</Typography.Text>
-                <Typography.Text type="secondary">Đổi chi nhánh hoặc đổi bàn đang chọn sẽ làm gợi ý hiện tại không còn đáng tin cậy.</Typography.Text>
+                <Typography.Text strong>Kiem tra ban gan</Typography.Text>
+                <Typography.Text type="secondary">Doi chi nhanh hoac doi ban dang chon se lam goi y hien tai khong con dang tin cay.</Typography.Text>
               </div>
               <div className="staff-mini-list-item">
-                <Typography.Text strong>Giữ đúng phiên bản thao tác</Typography.Text>
-                <Typography.Text type="secondary">Nếu detail này đã cũ, hãy tải lại trước khi nhận bàn, gán bàn hoặc hủy đặt bàn để tránh ghi đè thao tác mới hơn.</Typography.Text>
+                <Typography.Text strong>Giu dung phien ban thao tac</Typography.Text>
+                <Typography.Text type="secondary">Neu detail nay da cu, hay tai lai truoc khi nhan ban hoac huy dat ban de tranh ghi de thao tac moi hon.</Typography.Text>
               </div>
             </div>
           </div>

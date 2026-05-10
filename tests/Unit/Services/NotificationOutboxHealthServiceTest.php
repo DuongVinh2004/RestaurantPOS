@@ -44,10 +44,20 @@ class NotificationOutboxHealthServiceTest extends TestCase
         }
     }
 
+    private function resetOutboxRowsForSnapshot(): void
+    {
+        if (Schema::hasTable('notification_delivery_attempts')) {
+            NotificationDeliveryAttempt::query()->delete();
+        }
+
+        NotificationOutbox::query()->delete();
+    }
+
     #[Group('booking-ops')]
     public function test_snapshot_marks_outbox_degraded_when_failed_or_stale_processing_rows_exist(): void
     {
         $this->requireOutboxSchema();
+        $this->resetOutboxRowsForSnapshot();
 
         $now = Carbon::parse('2026-03-14T12:00:00Z')->utc();
 
@@ -138,6 +148,7 @@ class NotificationOutboxHealthServiceTest extends TestCase
     public function test_dead_letter_snapshot_includes_latest_attempt_evidence(): void
     {
         $this->requireOutboxSchema();
+        $this->resetOutboxRowsForSnapshot();
 
         $message = NotificationOutbox::query()->create([
             'channel' => 'Email',

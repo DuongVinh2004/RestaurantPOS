@@ -55,6 +55,10 @@ const trackedGeneratedFiles = Array.from(
 
 const rolloutChecks = [
   {
+    id: "preorder",
+    required: ['status: "live-ready"', 'exposure: "env-flag"', 'gateFlag: "enablePreorder"'],
+  },
+  {
     id: "waiting-list",
     required: ['status: "live-conditional"', 'exposure: "env-flag"', 'gateFlag: "enableWaitingList"'],
   },
@@ -131,6 +135,33 @@ const sourceContractChecks = [
       '"X-Idempotency-Key"',
       "'X-Idempotency-Key'",
       "idempotency_key",
+    ],
+  },
+  {
+    label: "customer public menu preorder rollout gate",
+    path: "customer-web/src/features/menu/menu-page.tsx",
+    required: [
+      "const canPreorder = featureFlags.preorder && item.preorder.enabled && item.is_available;",
+      "disabled={!canPreorder}",
+    ],
+    forbidden: [],
+  },
+  {
+    label: "customer preorder focused live proof",
+    path: "customer-web/e2e/customer-preorder-live.spec.ts",
+    required: [
+      "NEXT_PUBLIC_FEATURE_PREORDER",
+      "/api/v1/menu/preorder/preview",
+      "/api/v1/reservations/${reservationId}/preorder/preview",
+      "/api/v1/reservations/${reservationId}/preorder",
+      "Update preorder",
+      "Clear preorder",
+      '"X-Staff-Key": adminApiKey',
+    ],
+    forbidden: [
+      "pre-order",
+      "PreOrder",
+      "X-Staff-Api-Key",
     ],
   },
 ];

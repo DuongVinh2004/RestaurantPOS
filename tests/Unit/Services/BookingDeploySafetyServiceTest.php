@@ -17,7 +17,27 @@ use Tests\TestCase;
 
 class BookingDeploySafetyServiceTest extends TestCase
 {
-    private ?string $fullDumpBackup = null;
+    private string $fullDumpArtifactPath = 'storage/framework/testing/booking-deploy-safety/full-dump.sql';
+
+    /**
+     * @var list<int>
+     */
+    private array $seededBranchIds = [];
+
+    /**
+     * @var list<int>
+     */
+    private array $seededIngredientIds = [];
+
+    /**
+     * @var list<int>
+     */
+    private array $seededUserIds = [];
+
+    /**
+     * @var list<array<string,mixed>>
+     */
+    private array $staffApiKeyBackupRows = [];
 
     protected function setUp(): void
     {
@@ -51,10 +71,13 @@ class BookingDeploySafetyServiceTest extends TestCase
         config()->set('customer_auth.header', 'X-Customer-Token');
         config()->set('customer_auth.allowed_purposes', ['VerifyEmail']);
         config()->set('customer_auth.allowed_role_ids', [3]);
+        config()->set('booking_release.artifacts.full_dump.path', $this->fullDumpArtifactPath);
 
         $this->ensureMigrationRepository();
         $this->ensureDeploySafetyTables();
+        $this->staffApiKeyBackupRows = $this->snapshotTableRows('staff_api_keys');
         $this->truncateDeploySafetyTables();
+        $this->ensureDeploySafetyUser(2);
         DB::table('staff_api_keys')->insert([
             'staff_api_key_id' => 1,
             'user_id' => 2,
@@ -71,9 +94,14 @@ class BookingDeploySafetyServiceTest extends TestCase
 
     protected function tearDown(): void
     {
-        $this->restoreFullDumpArtifact();
-
-        parent::tearDown();
+        try {
+            $this->truncateDeploySafetyTables();
+            $this->deleteDeploySafetyReferenceSeeds();
+            $this->restoreTableRows('staff_api_keys', $this->staffApiKeyBackupRows);
+            File::delete(base_path($this->fullDumpArtifactPath));
+        } finally {
+            parent::tearDown();
+        }
     }
 
     #[Group('booking-smoke')]
@@ -168,6 +196,10 @@ class BookingDeploySafetyServiceTest extends TestCase
     #[Group('booking-ops')]
     public function test_preflight_fails_when_direct_stock_movements_have_impossible_signs(): void
     {
+        if ($this->hasCheckConstraint('ingredient_stock_movements', 'chk_ingredient_stock_movements__sign_matches_type')) {
+            $this->markTestSkipped('The runtime schema already enforces stock movement type/sign consistency.');
+        }
+
         $this->insertDeploySafetyStockMovement([
             'movement_id' => 111,
             'branch_id' => 1,
@@ -352,13 +384,22 @@ class BookingDeploySafetyServiceTest extends TestCase
                 'row_version' => 1,
             ]));
 
-            $this->insertDeploySafetyPayments([[
-                'payment_id' => 1,
-                'payment_type' => 'Final',
-                'status' => 'Success',
-                'refund_of_payment_id' => 999,
-                'amount' => 10,
-            ]]);
+            $this->insertDeploySafetyPayments([
+                [
+                    'payment_id' => 1,
+                    'payment_type' => 'Deposit',
+                    'status' => 'Failed',
+                    'refund_of_payment_id' => null,
+                    'amount' => 10,
+                ],
+                [
+                    'payment_id' => 2,
+                    'payment_type' => 'Refund',
+                    'status' => 'Refunded',
+                    'refund_of_payment_id' => 1,
+                    'amount' => 10,
+                ],
+            ]);
 
             DB::table('user_vouchers')->insert($this->payloadForExistingColumns('user_vouchers', [
                 'user_voucher_id' => 1,
@@ -370,7 +411,7 @@ class BookingDeploySafetyServiceTest extends TestCase
                 'is_used' => 1,
                 'used_date' => now('UTC'),
                 'used_reservation_id' => 1,
-                'used_amount' => -10,
+                'used_amount' => 10,
                 'lock_token' => 'lock',
                 'locked_until' => now('UTC')->addHour(),
                 'row_version' => 1,
@@ -600,35 +641,37 @@ class BookingDeploySafetyServiceTest extends TestCase
     #[Group('booking-ops')]
     public function test_preflight_fails_when_refund_source_is_missing_or_not_refundable(): void
     {
-        $this->insertDeploySafetyPayments([
-            [
-                'payment_id' => 300,
-                'reservation_id' => 30,
-                'payment_type' => 'Deposit',
-                'status' => 'Failed',
-                'refund_of_payment_id' => null,
-                'amount' => 100,
-                'currency' => 'VND',
-            ],
-            [
-                'payment_id' => 301,
-                'reservation_id' => 30,
-                'payment_type' => 'Refund',
-                'status' => 'Refunded',
-                'refund_of_payment_id' => 300,
-                'amount' => 10,
-                'currency' => 'VND',
-            ],
-            [
-                'payment_id' => 302,
-                'reservation_id' => 30,
-                'payment_type' => 'Refund',
-                'status' => 'Refunded',
-                'refund_of_payment_id' => 999,
-                'amount' => 10,
-                'currency' => 'VND',
-            ],
-        ]);
+        $this->withoutForeignKeyChecks(function (): void {
+            $this->insertDeploySafetyPayments([
+                [
+                    'payment_id' => 300,
+                    'reservation_id' => 30,
+                    'payment_type' => 'Deposit',
+                    'status' => 'Failed',
+                    'refund_of_payment_id' => null,
+                    'amount' => 100,
+                    'currency' => 'VND',
+                ],
+                [
+                    'payment_id' => 301,
+                    'reservation_id' => 30,
+                    'payment_type' => 'Refund',
+                    'status' => 'Refunded',
+                    'refund_of_payment_id' => 300,
+                    'amount' => 10,
+                    'currency' => 'VND',
+                ],
+                [
+                    'payment_id' => 302,
+                    'reservation_id' => 30,
+                    'payment_type' => 'Refund',
+                    'status' => 'Refunded',
+                    'refund_of_payment_id' => 999,
+                    'amount' => 10,
+                    'currency' => 'VND',
+                ],
+            ]);
+        });
 
         $report = app(BookingDeploySafetyService::class)->inspect('preflight');
 
@@ -643,6 +686,12 @@ class BookingDeploySafetyServiceTest extends TestCase
     #[Group('booking-ops')]
     public function test_preflight_fails_when_refund_rows_have_impossible_state_or_duplicate_references(): void
     {
+        if ($this->hasCheckConstraint('payments', 'chk_payments__refund_status')
+            && $this->hasUniqueIndex('payments', 'uq_payments__idempotency_key')
+            && $this->hasUniqueIndex('payments', 'uq_payments__payment_provider__transaction_code')) {
+            $this->markTestSkipped('The runtime schema already enforces refund status and duplicate payment reference constraints.');
+        }
+
         $this->insertDeploySafetyPayments([
             [
                 'payment_id' => 400,
@@ -718,7 +767,7 @@ class BookingDeploySafetyServiceTest extends TestCase
     #[Group('booking-smoke')]
     public function test_preflight_fails_when_full_dump_contains_definers(): void
     {
-        File::put(base_path('db_all.sql'), 'CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_bad`() SELECT 1;
+        File::put(base_path($this->fullDumpArtifactPath), 'CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_bad`() SELECT 1;
 ');
 
         $report = app(BookingDeploySafetyService::class)->inspect('preflight');
@@ -734,7 +783,10 @@ class BookingDeploySafetyServiceTest extends TestCase
     {
         $now = now('UTC');
         $reservationId = (int) ($overrides['reservation_id'] ?? 1);
+        $branchId = (int) ($overrides['branch_id'] ?? 1);
         $start = $now->copy()->addHour();
+
+        $this->ensureDeploySafetyBranch($branchId);
 
         DB::table('reservations')->insert($this->payloadForExistingColumns('reservations', array_merge([
             'reservation_id' => $reservationId,
@@ -742,7 +794,7 @@ class BookingDeploySafetyServiceTest extends TestCase
             'guest_name' => null,
             'guest_phone' => null,
             'guest_email' => null,
-            'branch_id' => 1,
+            'branch_id' => $branchId,
             'reservation_code' => 'DEPLOY-RSV-'.$reservationId,
             'reserved_at' => $now,
             'start_time' => $start,
@@ -772,14 +824,20 @@ class BookingDeploySafetyServiceTest extends TestCase
     private function insertDeploySafetyPayments(array $rows): void
     {
         $reservationIds = [];
+        $branchIds = [];
         foreach ($rows as $row) {
             $reservationIds[] = (int) ($row['reservation_id'] ?? 1);
+            $branchIds[] = (int) ($row['branch_id'] ?? 1);
         }
 
         foreach (array_values(array_unique(array_filter($reservationIds, static fn (int $id): bool => $id > 0))) as $reservationId) {
             if (! DB::table('reservations')->where('reservation_id', $reservationId)->exists()) {
                 $this->insertDeploySafetyReservation(['reservation_id' => $reservationId]);
             }
+        }
+
+        foreach (array_values(array_unique(array_filter($branchIds, static fn (int $id): bool => $id > 0))) as $branchId) {
+            $this->ensureDeploySafetyBranch($branchId);
         }
 
         DB::table('payments')->insert(array_map(
@@ -794,8 +852,7 @@ class BookingDeploySafetyServiceTest extends TestCase
     private function insertDeploySafetyStockMovement(array $overrides = []): void
     {
         $movementId = (int) ($overrides['movement_id'] ?? 1);
-
-        DB::table('ingredient_stock_movements')->insert($this->payloadForExistingColumns('ingredient_stock_movements', array_merge([
+        $payload = array_merge([
             'movement_id' => $movementId,
             'branch_id' => 1,
             'ingredient_id' => 1,
@@ -805,7 +862,12 @@ class BookingDeploySafetyServiceTest extends TestCase
             'reference_type' => null,
             'reference_id' => null,
             'created_at' => now('UTC'),
-        ], $overrides)));
+        ], $overrides);
+
+        $this->ensureDeploySafetyBranch((int) ($payload['branch_id'] ?? 0));
+        $this->ensureDeploySafetyIngredient((int) ($payload['ingredient_id'] ?? 0), (string) ($payload['unit_code'] ?? 'unit'));
+
+        DB::table('ingredient_stock_movements')->insert($this->payloadForExistingColumns('ingredient_stock_movements', $payload));
     }
 
     /**
@@ -852,6 +914,43 @@ class BookingDeploySafetyServiceTest extends TestCase
         return array_intersect_key($payload, $columns);
     }
 
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private function snapshotTableRows(string $table): array
+    {
+        if (! Schema::hasTable($table)) {
+            return [];
+        }
+
+        return DB::table($table)
+            ->get()
+            ->map(static fn (object $row): array => (array) $row)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $rows
+     */
+    private function restoreTableRows(string $table, array $rows): void
+    {
+        if (! Schema::hasTable($table)) {
+            return;
+        }
+
+        DB::table($table)->delete();
+
+        if ($rows === []) {
+            return;
+        }
+
+        DB::table($table)->insert(array_map(
+            fn (array $row): array => $this->payloadForExistingColumns($table, $row),
+            $rows,
+        ));
+    }
+
     private function hasUniqueIndex(string $table, string $indexName): bool
     {
         $driver = (string) DB::connection()->getDriverName();
@@ -866,6 +965,151 @@ class BookingDeploySafetyServiceTest extends TestCase
         }
 
         return false;
+    }
+
+    private function hasCheckConstraint(string $table, string $constraintName): bool
+    {
+        $driver = (string) DB::connection()->getDriverName();
+
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            return (int) DB::table('information_schema.table_constraints')
+                ->whereRaw('CONSTRAINT_SCHEMA = DATABASE()')
+                ->where('TABLE_NAME', $table)
+                ->where('CONSTRAINT_NAME', $constraintName)
+                ->where('CONSTRAINT_TYPE', 'CHECK')
+                ->count() > 0;
+        }
+
+        return false;
+    }
+
+    private function ensureDeploySafetyBranch(int $branchId): void
+    {
+        if ($branchId <= 0 || ! Schema::hasTable('branches')) {
+            return;
+        }
+
+        $existing = DB::table('branches')
+            ->where('branch_id', $branchId)
+            ->first(['branch_code']);
+
+        if ($existing !== null) {
+            if ((string) ($existing->branch_code ?? '') === 'DEPLOY-BR-'.$branchId) {
+                $this->seededBranchIds[] = $branchId;
+            }
+
+            return;
+        }
+
+        DB::table('branches')->insert($this->payloadForExistingColumns('branches', [
+            'branch_id' => $branchId,
+            'branch_code' => 'DEPLOY-BR-'.$branchId,
+            'branch_name' => 'Deploy Safety Branch '.$branchId,
+            'description' => null,
+            'timezone' => 'Asia/Ho_Chi_Minh',
+            'currency' => 'VND',
+            'business_hours' => null,
+            'closure_windows' => null,
+            'booking_policy' => null,
+            'is_active' => 1,
+            'is_default' => 0,
+            'row_version' => 1,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]));
+
+        $this->seededBranchIds[] = $branchId;
+    }
+
+    private function ensureDeploySafetyIngredient(int $ingredientId, string $unitCode): void
+    {
+        if ($ingredientId <= 0 || ! Schema::hasTable('ingredients')) {
+            return;
+        }
+
+        $existing = DB::table('ingredients')
+            ->where('ingredient_id', $ingredientId)
+            ->first(['code']);
+
+        if ($existing !== null) {
+            if ((string) ($existing->code ?? '') === 'DEPLOY-ING-'.$ingredientId) {
+                $this->seededIngredientIds[] = $ingredientId;
+            }
+
+            return;
+        }
+
+        $unitCode = trim($unitCode) !== '' ? trim($unitCode) : 'unit';
+
+        DB::table('ingredients')->insert($this->payloadForExistingColumns('ingredients', [
+            'ingredient_id' => $ingredientId,
+            'code' => 'DEPLOY-ING-'.$ingredientId,
+            'name' => 'Deploy Safety Ingredient '.$ingredientId,
+            'unit_code' => $unitCode,
+            'description' => null,
+            'is_active' => 1,
+            'row_version' => 1,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]));
+
+        $this->seededIngredientIds[] = $ingredientId;
+    }
+
+    private function deleteDeploySafetyReferenceSeeds(): void
+    {
+        $userIds = array_values(array_unique($this->seededUserIds));
+        if ($userIds !== [] && Schema::hasTable('users')) {
+            DB::table('users')->whereIn('user_id', $userIds)->delete();
+        }
+
+        $ingredientIds = array_values(array_unique($this->seededIngredientIds));
+        if ($ingredientIds !== [] && Schema::hasTable('ingredients')) {
+            DB::table('ingredients')->whereIn('ingredient_id', $ingredientIds)->delete();
+        }
+
+        $branchIds = array_values(array_unique($this->seededBranchIds));
+        if ($branchIds !== [] && Schema::hasTable('branches')) {
+            DB::table('branches')->whereIn('branch_id', $branchIds)->delete();
+        }
+    }
+
+    private function ensureDeploySafetyUser(int $userId): void
+    {
+        if ($userId <= 0 || ! Schema::hasTable('users')) {
+            return;
+        }
+
+        if (DB::table('users')->where('user_id', $userId)->exists()) {
+            return;
+        }
+
+        if (Schema::hasTable('roles') && ! DB::table('roles')->where('role_id', 2)->exists()) {
+            DB::table('roles')->insert($this->payloadForExistingColumns('roles', [
+                'role_id' => 2,
+                'role_name' => 'Staff',
+                'created_at' => now('UTC'),
+                'updated_at' => now('UTC'),
+            ]));
+        }
+
+        DB::table('users')->insert($this->payloadForExistingColumns('users', [
+            'user_id' => $userId,
+            'username' => 'deploy-safety-staff-'.$userId,
+            'password_hash' => 'test',
+            'full_name' => 'Deploy Safety Staff '.$userId,
+            'email' => 'deploy-safety-staff-'.$userId.'@example.test',
+            'phone' => null,
+            'role_id' => 2,
+            'current_tier_id' => null,
+            'language_pref' => 'vn',
+            'is_deleted' => 0,
+            'row_version' => 1,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]));
+
+        $this->seededUserIds[] = $userId;
     }
 
     /**
@@ -893,8 +1137,8 @@ class BookingDeploySafetyServiceTest extends TestCase
 
     private function preparePortableFullDumpArtifact(): void
     {
-        $dumpPath = base_path('db_all.sql');
-        $this->fullDumpBackup = File::exists($dumpPath) ? File::get($dumpPath) : null;
+        $dumpPath = base_path($this->fullDumpArtifactPath);
+        File::ensureDirectoryExists(dirname($dumpPath));
 
         $fragments = array_values(array_filter(
             array_map(static fn ($fragment) => is_scalar($fragment) ? trim((string) $fragment) : '', (array) config('booking_release.artifacts.full_dump.required_fragments', [])),
@@ -902,19 +1146,6 @@ class BookingDeploySafetyServiceTest extends TestCase
         ));
 
         File::put($dumpPath, "-- portable test dump\n".implode("\n", $fragments)."\n");
-    }
-
-    private function restoreFullDumpArtifact(): void
-    {
-        $dumpPath = base_path('db_all.sql');
-
-        if ($this->fullDumpBackup === null) {
-            File::delete($dumpPath);
-
-            return;
-        }
-
-        File::put($dumpPath, $this->fullDumpBackup);
     }
 
     private function ensureMigrationRepository(): void
@@ -1027,9 +1258,16 @@ class BookingDeploySafetyServiceTest extends TestCase
         if (! Schema::hasTable('table_holds')) {
             Schema::create('table_holds', function (Blueprint $table): void {
                 $table->string('hold_id')->primary();
+                $table->unsignedBigInteger('branch_id')->default(1);
                 $table->string('session_id')->nullable();
                 $table->unsignedBigInteger('confirmed_reservation_id')->nullable();
                 $table->string('hold_status', 30)->nullable();
+            });
+        }
+
+        if (Schema::hasTable('table_holds') && ! Schema::hasColumn('table_holds', 'branch_id')) {
+            Schema::table('table_holds', function (Blueprint $table): void {
+                $table->unsignedBigInteger('branch_id')->default(1)->after('hold_id');
             });
         }
 
@@ -1098,17 +1336,23 @@ class BookingDeploySafetyServiceTest extends TestCase
 
     private function truncateDeploySafetyTables(): void
     {
-        DB::table('reservations')->delete();
-        DB::table('reservation_orders')->delete();
-        DB::table('reservation_order_items')->delete();
-        DB::table('payments')->delete();
-        DB::table('user_vouchers')->delete();
-        DB::table('bank_accounts')->delete();
-        DB::table('agent_assignments')->delete();
-        DB::table('table_holds')->delete();
-        DB::table('staff_api_keys')->delete();
-        DB::table('audit_logs')->delete();
-        DB::table('ingredient_stock_movements')->delete();
+        foreach ([
+            'reservation_order_items',
+            'payments',
+            'user_vouchers',
+            'table_holds',
+            'reservation_orders',
+            'reservations',
+            'bank_accounts',
+            'agent_assignments',
+            'staff_api_keys',
+            'audit_logs',
+            'ingredient_stock_movements',
+        ] as $table) {
+            if (Schema::hasTable($table)) {
+                DB::table($table)->delete();
+            }
+        }
     }
 
     private function insertDeploySafetyOrder(int $orderId, int $reservationId): void

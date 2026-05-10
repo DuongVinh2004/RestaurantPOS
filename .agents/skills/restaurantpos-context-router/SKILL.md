@@ -5,7 +5,7 @@ description: Route RestaurantPOS tasks to the smallest correct context before do
 
 # RestaurantPOS Context Router
 
-Read `AGENTS.md`, `.codex/AGENTS.md`, and `references/decision-map.md` before exploring a large or ambiguous task.
+Read `AGENTS.md`, `.codex/AGENTS.md`, and `references/decision-map.md` before exploring a large or ambiguous task. Read `references/context-budget.md` when the task may expand across many files.
 
 ## Workflow
 
@@ -13,12 +13,16 @@ Read `AGENTS.md`, `.codex/AGENTS.md`, and `references/decision-map.md` before ex
 2. Load one primary domain skill first.
 3. Add at most two supporting process skills only if the task actually crosses those concerns.
 4. Read the minimal first-pass files from `references/decision-map.md`.
-5. Expand outward only when the first-pass files prove the task crosses more than one domain.
+5. Use exact, path-limited discovery before opening more files.
+6. Expand outward only when the first-pass files prove the task crosses more than one domain.
 
 ## Primary routing
 
 - Split web-client contract, TypeScript SDK, mutation docs, error envelope, enum or state exposure, frontend DX: use `$restaurantpos-web-client-contracts`
 - Split web auth, login refresh logout, auth headers, access sessions, session propagation, CORS auth delivery: use `$restaurantpos-web-auth-session-contract`
+- Staff-web React, Ant Design, operator pages, routing, React Query, POS/KDS/cashier UI: use `$restaurantpos-staff-web-react`
+- Cross-app UI consistency, tables, forms, modals, responsive or accessibility polish: use `$restaurantpos-ui-design-system-guardian`
+- Customer-web page composition, forms, async UI, reservation/menu/payment UX: use `$restaurantpos-customer-web-ui-flow`
 - Auth, capability mapping, actor resolution, access sessions, scope bleed: use `$restaurantpos-auth-rbac`
 - Availability, hold, assignment, check-in, move-table, release: use `$restaurantpos-foh-reservations`
 - Table order, item lifecycle, service-session mutation, order reads: use `$restaurantpos-order-lifecycle`
@@ -39,6 +43,7 @@ Read `AGENTS.md`, `.codex/AGENTS.md`, and `references/decision-map.md` before ex
 
 - Use `$restaurantpos-web-client-contracts` when the task is driven by `customer-web`, `staff-web`, generated SDK usage, mutation contract docs, FE error shapes, enum exposure, or browser-facing DX
 - Use `$restaurantpos-web-auth-session-contract` when the task involves `X-Customer-Token`, `X-Staff-Key`, `X-Session-Id`, login lifecycle, access sessions, or split-web CORS auth behavior
+- Use `$restaurantpos-ui-design-system-guardian` for visible UI changes, table/form/modal work, accessibility, or responsive behavior
 - Use `$restaurantpos-shared-file-discipline` when the task may touch `routes/api.php`, `config/booking.php`, `config/staff_capabilities.php`, or `database/schema/mysql-schema.sql`
 - Use `$restaurantpos-sql-first-schema-sync` when code behavior depends on schema, patch, or dump changes
 - Use `$restaurantpos-targeted-verification` when you need the smallest safe test and gate set
@@ -56,4 +61,5 @@ Read `AGENTS.md`, `.codex/AGENTS.md`, and `references/decision-map.md` before ex
 - Do not start with full-tree scans through `app/`, `tests/`, `docs/`, and `database/` all at once
 - Do not read `build/`, `storage/`, `vendor/`, or `node_modules/` unless the task is explicitly about generated artifacts, runtime evidence, dependencies, or release output
 - Prefer 3 to 8 file reads plus one targeted search over whole-repo dumping
+- Stop and summarize ownership, current behavior, change seam, invariants, and verification before editing if more context is needed
 - If the task is clearly single-domain, stay inside that skill's hotspot files and tests first

@@ -27,6 +27,7 @@ class OrderItemInventoryConsumptionService
         ReservationOrderItemStatus $targetStatus,
         ?int $actorUserId = null,
     ): void {
+        // Inventory chi bi tru mot lan khi item chuyen sang Served lan dau; cac replay sau phai no-op.
         if ($previousStatus === ReservationOrderItemStatus::Served || $targetStatus !== ReservationOrderItemStatus::Served) {
             return;
         }
@@ -47,6 +48,7 @@ class OrderItemInventoryConsumptionService
             ->orderBy('recipe_line_id')
             ->get();
 
+        // Moi recipe line tao ra mot stock-out movement co reference_id xac dinh de replay an toan.
         $movementPayloads = [];
         foreach ($recipeLines as $recipeLine) {
             $ingredientId = (int) ($recipeLine->ingredient_id ?? 0);
@@ -76,6 +78,7 @@ class OrderItemInventoryConsumptionService
         }
 
         DB::transaction(function () use ($movementPayloads, $actorUserId): void {
+            // Preflight ton kho truoc, sau do moi ghi tung movement de tranh ghi nua chung nua ngat.
             $this->stockMovementService->assertSufficientStockForMovements($movementPayloads);
 
             foreach ($movementPayloads as $payload) {

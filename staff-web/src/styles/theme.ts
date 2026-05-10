@@ -1,28 +1,28 @@
 import { theme, type ThemeConfig } from 'antd';
 
 export const staffThemeTokens = {
-  background: '#0f1115',
-  backgroundAccent: '#10141c',
-  surface1: '#151922',
-  surface2: '#1b2130',
-  surface3: '#232b3b',
-  border: '#2d3748',
-  borderSubtle: '#202838',
-  textPrimary: '#f3f6fb',
-  textSecondary: '#bcc7d6',
-  textTertiary: '#8d9aaf',
-  disabled: '#657289',
-  primary: '#7c5cff',
-  primaryHover: '#6f4cff',
-  info: '#3b82f6',
-  success: '#22c55e',
+  background: '#f6f8fb',
+  backgroundAccent: '#eef4f9',
+  surface1: '#ffffff',
+  surface2: '#f1f5f9',
+  surface3: '#e6edf5',
+  border: '#d8e2ee',
+  borderSubtle: '#e5edf6',
+  textPrimary: '#172033',
+  textSecondary: '#506176',
+  textTertiary: '#74839a',
+  disabled: '#9aa8ba',
+  primary: '#2563eb',
+  primaryHover: '#1d4ed8',
+  info: '#2563eb',
+  success: '#16a34a',
   warning: '#f59e0b',
-  danger: '#ef4444',
+  danger: '#dc2626',
   analytics: '#d946ef',
 } as const;
 
 export const staffAntTheme: ThemeConfig = {
-  algorithm: [theme.darkAlgorithm, theme.compactAlgorithm],
+  algorithm: [theme.defaultAlgorithm, theme.compactAlgorithm],
   token: {
     colorPrimary: staffThemeTokens.primary,
     colorInfo: staffThemeTokens.info,
@@ -50,17 +50,17 @@ export const staffAntTheme: ThemeConfig = {
   },
   components: {
     Alert: {
-      colorInfoBg: 'rgba(59, 130, 246, 0.12)',
-      colorSuccessBg: 'rgba(34, 197, 94, 0.12)',
+      colorInfoBg: 'rgba(37, 99, 235, 0.1)',
+      colorSuccessBg: 'rgba(22, 163, 74, 0.1)',
       colorWarningBg: 'rgba(245, 158, 11, 0.12)',
-      colorErrorBg: 'rgba(239, 68, 68, 0.12)',
+      colorErrorBg: 'rgba(220, 38, 38, 0.1)',
     },
     Button: {
       borderRadius: 10,
       controlHeight: 36,
       controlHeightLG: 44,
       fontWeight: 700,
-      primaryShadow: '0 10px 22px rgba(64, 44, 150, 0.34)',
+      primaryShadow: '0 10px 22px rgba(37, 99, 235, 0.2)',
     },
     Card: {
       borderRadiusLG: 14,
@@ -73,17 +73,17 @@ export const staffAntTheme: ThemeConfig = {
     },
     Input: {
       activeBorderColor: staffThemeTokens.primary,
-      hoverBorderColor: '#8a6eff',
+      hoverBorderColor: staffThemeTokens.primaryHover,
     },
     Layout: {
       bodyBg: staffThemeTokens.background,
-      headerBg: 'rgba(15, 17, 21, 0.86)',
-      siderBg: '#0d1118',
+      headerBg: 'rgba(255, 255, 255, 0.94)',
+      siderBg: staffThemeTokens.surface1,
     },
     Menu: {
-      darkItemBg: '#0d1118',
-      darkSubMenuItemBg: '#0d1118',
-      darkItemSelectedBg: 'rgba(124, 92, 255, 0.18)',
+      darkItemBg: staffThemeTokens.surface1,
+      darkSubMenuItemBg: staffThemeTokens.surface1,
+      darkItemSelectedBg: 'rgba(37, 99, 235, 0.12)',
       darkItemSelectedColor: staffThemeTokens.textPrimary,
     },
     Modal: {
@@ -91,13 +91,13 @@ export const staffAntTheme: ThemeConfig = {
       headerBg: staffThemeTokens.surface1,
     },
     Select: {
-      optionSelectedBg: 'rgba(124, 92, 255, 0.18)',
+      optionSelectedBg: 'rgba(37, 99, 235, 0.12)',
     },
     Table: {
       borderColor: staffThemeTokens.border,
       headerBg: staffThemeTokens.surface2,
       headerColor: staffThemeTokens.textSecondary,
-      rowHoverBg: 'rgba(124, 92, 255, 0.08)',
+      rowHoverBg: 'rgba(37, 99, 235, 0.08)',
     },
     Tabs: {
       itemActiveColor: staffThemeTokens.textPrimary,

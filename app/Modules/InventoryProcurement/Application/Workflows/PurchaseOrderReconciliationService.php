@@ -27,6 +27,7 @@ class PurchaseOrderReconciliationService
      */
     public function duplicatePurchaseReceiptReferenceSummary(int $limit = 3): array
     {
+        // Bao cao rieng nay tim duplicate reference lineage trong stock movements tao boi purchase receipt.
         if (! Schema::hasTable('ingredient_stock_movements')) {
             return [
                 'duplicate_reference_count' => 0,
@@ -52,6 +53,7 @@ class PurchaseOrderReconciliationService
             ->selectRaw('COALESCE(SUM(duplicate_count), 0) AS duplicate_movement_count')
             ->first();
 
+        // Examples giup tim thang den movement_id nao dang bi ghi trung reference_id.
         $examples = collect((clone $duplicateReferences)
             ->orderBy('reference_id')
             ->limit($limit)
@@ -96,6 +98,7 @@ class PurchaseOrderReconciliationService
     public function scan(array $filters = []): array
     {
         $limit = max(1, min((int) ($filters['limit'] ?? 50), 200));
+        // Scan batch dung eager load day du de report mismatch line/receipt/movement ma khong N+1.
         $query = PurchaseOrder::query()
             ->with([
                 'lines.receiptLines',
@@ -121,6 +124,7 @@ class PurchaseOrderReconciliationService
         $reports = [];
 
         foreach ($orders as $order) {
+            // Moi order duoc report rieng, roi scan tong hop lai thanh counters cho dashboard.
             $report = $this->reportForOrder($order);
 
             if (($report['issue_count'] ?? 0) > 0) {
@@ -172,6 +176,7 @@ class PurchaseOrderReconciliationService
      */
     public function report(int $purchaseOrderId): array
     {
+        // Detail report cho mot PO duoc tai tu cung aggregate ma scan batch su dung.
         /** @var PurchaseOrder|null $order */
         $order = PurchaseOrder::query()
             ->with([
@@ -201,6 +206,7 @@ class PurchaseOrderReconciliationService
      */
     public function reportForOrder(PurchaseOrder $order): array
     {
+        // Report nay doi chieu 3 lop: line quantity, receipt lineage, va stock movement lineage.
         $orderStatus = $order->purchase_order_status instanceof PurchaseOrderStatus
             ? $order->purchase_order_status
             : PurchaseOrderStatus::from((string) $order->purchase_order_status);
@@ -215,6 +221,7 @@ class PurchaseOrderReconciliationService
         $isFullyReceived = $order->lines->isNotEmpty();
 
         foreach ($order->lines as $line) {
+            // received_quantity tren PO line phai bang tong cac receipt line cung tro vao no.
             $receiptTotal = (float) $line->receiptLines->sum(static fn (PurchaseReceiptLine $receiptLine): float => (float) $receiptLine->received_quantity);
             $recordedReceived = (float) $line->received_quantity;
             $orderedQuantity = (float) $line->ordered_quantity;
@@ -257,6 +264,7 @@ class PurchaseOrderReconciliationService
         }
 
         foreach ($order->receipts as $receipt) {
+            // Sau khi line totals hop ly, tiep tuc doi chieu lineage receipt -> stock movement.
             $this->collectReceiptLineIssues($order, $receipt, $lineMap->all(), $issues, $receiptIssueCount, $movementIssueCount);
         }
 
@@ -322,6 +330,7 @@ class PurchaseOrderReconciliationService
         int &$movementIssueCount,
     ): void {
         foreach ($receipt->lines as $receiptLine) {
+            // Moi receipt line phai truy vet duoc ve order line goc va stock movement stock-in cua no.
             $orderLine = $lineMap[(int) $receiptLine->purchase_order_line_id] ?? null;
             if (! $orderLine instanceof PurchaseOrderLine) {
                 $receiptIssueCount++;
@@ -341,6 +350,7 @@ class PurchaseOrderReconciliationService
             $expectedReferenceId = (string) $receipt->receipt_code.':'.(int) $receiptLine->purchase_order_line_id;
             $stockMovement = $receiptLine->relationLoaded('stockMovement') ? $receiptLine->stockMovement : null;
 
+            // Mat stock movement nghia la PO da nhan hang nhung ledger ton kho khong con line ke thua.
             if (! $stockMovement instanceof IngredientStockMovement) {
                 $movementIssueCount++;
                 $issues[] = [
@@ -408,6 +418,7 @@ class PurchaseOrderReconciliationService
                 ->where('reference_id', $expectedReferenceId)
                 ->count();
 
+            // Duplicate reference la dau hieu replay ghi them movement thay vi tra lai movement cu.
             if ($duplicateReferenceCount > 1) {
                 $movementIssueCount++;
                 $issues[] = [

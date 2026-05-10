@@ -17,6 +17,10 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Chot settlement cuoi cung cho reservation:
+ * dong order active, mark completed, tieu voucher/loyalty, va nha ban.
+ */
 class SettlementFinalizerService
 {
     public function __construct(
@@ -32,6 +36,8 @@ class SettlementFinalizerService
         ?int $staffUserId,
         callable $consumeAppliedVoucherLocked,
     ): void {
+        // Ham nay duoc goi khi bill da du tien; phan con lai la dong trang thai va don side-effect.
+        // Pha 1: xac minh reservation du dieu kien complete va lock tat ca tai nguyen lien quan.
         $reservationId = (int) $reservation->reservation_id;
         $now = Carbon::now('UTC');
 
@@ -43,6 +49,7 @@ class SettlementFinalizerService
         );
         $this->assertPaidServiceReservationHasBillSnapshot($reservation);
 
+        // Table ids duoc lock cung reservation de release table sau settlement khong bi race.
         $tableIds = DB::table('reservation_tables')
             ->where('reservation_id', $reservationId)
             ->orderBy('table_id')
@@ -59,12 +66,14 @@ class SettlementFinalizerService
         }
 
         /** @var Collection<int,ReservationOrder> $activeOrders */
+        // Pha 2: moi order active phai duoc chuyen Completed truoc khi reservation dong lai.
         $activeOrders = ReservationOrder::query()
             ->where('reservation_id', $reservationId)
             ->where('status', ReservationOrderStatus::Active->value)
             ->lockForUpdate()
             ->get();
 
+        // Moi order active phai duoc chot truoc khi reservation chuyen sang Completed.
         foreach ($activeOrders as $activeOrder) {
             $activeOrder->status = ReservationOrderStatus::Completed;
             $activeOrder->updated_by = $staffUserId;
@@ -72,12 +81,14 @@ class SettlementFinalizerService
             $activeOrder->save();
         }
 
+        // Reservation chot thanh Completed chi sau khi active orders da duoc dong.
         $reservation->status = ReservationStatus::Completed;
         $reservation->checked_out_at = $now;
         $reservation->updated_by = $staffUserId;
         $reservation->save();
 
         /** @var Collection<int,ReservationOrder> $orders */
+        // Reload lai tap order active/completed de voucher/loyalty nhin dung snapshot cuoi cung.
         $orders = ReservationOrder::query()
             ->where('reservation_id', $reservationId)
             ->whereIn('status', [ReservationOrderStatus::Active->value, ReservationOrderStatus::Completed->value])
@@ -85,6 +96,7 @@ class SettlementFinalizerService
             ->lockForUpdate()
             ->get();
 
+        // Sau khi chot reservation, moi xu ly quyen loi va nha ban de van hanh nhin thay ngay.
         $consumeAppliedVoucherLocked($reservation, $orders, $staffUserId);
         $this->loyaltyPointsService->syncReservationCompletionLocked($reservation, $staffUserId);
         $this->tableStateService->releaseTablesSafely($tableIds, $now, $staffUserId, [
@@ -96,6 +108,7 @@ class SettlementFinalizerService
 
     private function assertPaidServiceReservationHasBillSnapshot(Reservation $reservation): void
     {
+        // Reservation da co payment dich vu thi bat buoc phai co bill snapshot day du truoc khi complete.
         $reservationId = (int) $reservation->reservation_id;
         if ($reservationId <= 0) {
             throw ValidationException::withMessages([

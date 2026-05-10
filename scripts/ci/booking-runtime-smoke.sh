@@ -77,6 +77,13 @@ booking_ci_run_step \
   "php artisan notifications:outbox-health --json | tee build/booking-ci/runtime-outbox-health.json"
 
 booking_ci_run_step \
+  "runtime-reporting-snapshots-rebuild" \
+  "runtime reporting snapshots rebuild" \
+  300 \
+  "build/booking-ci/runtime-reporting-snapshots-rebuild.log" \
+  "php artisan booking:reporting-snapshots:rebuild --json | tee build/booking-ci/runtime-reporting-snapshots-rebuild.json"
+
+booking_ci_run_step \
   "runtime-deploy-check-strict" \
   "runtime deploy preflight strict" \
   240 \

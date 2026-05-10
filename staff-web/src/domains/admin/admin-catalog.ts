@@ -18,8 +18,20 @@ type ItemLike = {
   current_price?: unknown | null;
 };
 
+type SelectableItemLike = {
+  item_id: number;
+  name: string;
+};
+
 type PriceLike = {
   price: string | number | null;
+};
+
+export type AdminCatalogSelection<TItem> = {
+  itemId: number | null;
+  item: TItem | null;
+  displayLabel: string | null;
+  outsideCurrentResults: boolean;
 };
 
 export function buildAdminMenuCategoryQuery(
@@ -56,6 +68,29 @@ export function buildAdminMenuItemPriceQuery(perPage = 8): AdminMenuItemPriceQue
 
 export function readSelectedCatalogItemId(filters: AdminCatalogFilterState): number | null {
   return parsePositiveInteger(filters.selectedItemIdInput);
+}
+
+export function resolveSelectedCatalogItem<TItem extends SelectableItemLike>(
+  itemId: number | null,
+  items: Array<TItem>,
+): AdminCatalogSelection<TItem> {
+  if (itemId === null) {
+    return {
+      itemId: null,
+      item: null,
+      displayLabel: null,
+      outsideCurrentResults: false,
+    };
+  }
+
+  const item = items.find((candidate) => candidate.item_id === itemId) ?? null;
+
+  return {
+    itemId,
+    item,
+    displayLabel: item?.name ?? `Món #${itemId}`,
+    outsideCurrentResults: item === null,
+  };
 }
 
 export function summarizeAdminCatalog<TCategory extends CategoryLike, TItem extends ItemLike, TPrice extends PriceLike>(

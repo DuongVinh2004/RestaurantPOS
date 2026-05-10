@@ -936,6 +936,12 @@
             "action": "App\\Modules\\IdentityAccess\\Http\\Controllers\\Customer\\AuthController@login"
         },
         {
+            "key": "post_v1_auth_customer_register",
+            "method": "POST",
+            "uri": "api/v1/auth/customer/register",
+            "action": "App\\Modules\\IdentityAccess\\Http\\Controllers\\Customer\\AuthController@register"
+        },
+        {
             "key": "post_v1_auth_customer_logout",
             "method": "POST",
             "uri": "api/v1/auth/customer/logout",

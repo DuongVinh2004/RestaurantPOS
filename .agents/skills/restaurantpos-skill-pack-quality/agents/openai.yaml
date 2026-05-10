@@ -1,4 +1,4 @@
 interface:
   display_name: "RestaurantPOS Skill Pack Quality"
-  short_description: "Validate the project-local skill pack"
-  default_prompt: "Use $restaurantpos-skill-pack-quality to validate the RestaurantPOS skill pack for missing files, placeholders, and broken references."
+  short_description: "Validate and prune project-local skills"
+  default_prompt: "Use $restaurantpos-skill-pack-quality to validate and prune RestaurantPOS skills for missing metadata, duplicate guidance, placeholders, and broken references."

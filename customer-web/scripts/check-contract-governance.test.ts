@@ -26,7 +26,9 @@ function createRepoFixture({
   writeFile(root, "customer-web/src/lib/api/sdk-client.ts", sdkClientFixture());
   writeFile(root, "customer-web/src/features/deposit/api.ts", depositApiFixture());
   writeFile(root, "customer-web/src/features/billing/api.ts", billingApiFixture());
+  writeFile(root, "customer-web/src/features/menu/menu-page.tsx", menuPageFixture());
   writeFile(root, "customer-web/src/features/preorder/api.ts", preorderApiFixture());
+  writeFile(root, "customer-web/e2e/customer-preorder-live.spec.ts", preorderLiveFixture());
 
   return {
     root,
@@ -44,7 +46,7 @@ afterEach(() => {
 });
 
 describe("checkContractGovernance", () => {
-  it("passes when generated SDK files match and proven Wave 2 surfaces remain flag-gated", () => {
+  it("passes when generated SDK files match and preorder or Wave 2 surfaces remain inside the support matrix policy", () => {
     const fixture = createRepoFixture();
 
     const result = checkContractGovernance({
@@ -75,9 +77,18 @@ describe("checkContractGovernance", () => {
     );
   });
 
-  it("fails when waiting-list or account benefits are opened outside the support matrix gate", () => {
+  it("fails when preorder, waiting-list, or account benefits are opened outside the support matrix gate", () => {
     const fixture = createRepoFixture({
-      supportMatrix: supportMatrixFixture().replace('exposure: "env-flag"', 'exposure: "default-on"'),
+      supportMatrix: supportMatrixFixture().replace(
+        `id: "waiting-list",
+    status: "live-conditional",
+    exposure: "env-flag",
+    gateFlag: "enableWaitingList",`,
+        `id: "waiting-list",
+    status: "live-conditional",
+    exposure: "default-on",
+    gateFlag: "enableWaitingList",`,
+      ),
     });
 
     const result = checkContractGovernance({
@@ -150,6 +161,12 @@ function supportMatrixFixture() {
   return `
 export const customerWebSupportMatrix = [
   {
+    id: "preorder",
+    status: "live-ready",
+    exposure: "env-flag",
+    gateFlag: "enablePreorder",
+  },
+  {
     id: "waiting-list",
     status: "live-conditional",
     exposure: "env-flag",
@@ -211,11 +228,38 @@ client.postV1ReservationsReservationIdBillPaymentSessionsSessionIdConfirm({}, { 
 `;
 }
 
+function menuPageFixture() {
+  return `
+const preorderPreviewEnabled = featureFlags.preorder && item.preorder.enabled;
+
+<Button
+  disabled={!preorderPreviewEnabled || previewMutation.isPending}
+/>;
+`;
+}
+
 function preorderApiFixture() {
   return `
 client.getV1ReservationsIdPreorder({});
 client.postV1ReservationsIdPreorderPreview({}, {}, idempotentSessionOptions("preorder"));
 client.putV1ReservationsIdPreorder({}, {}, idempotentSessionOptions("preorder"));
 client.deleteV1ReservationsIdPreorder({}, { row_version: rowVersion }, idempotentSessionOptions("preorder"));
+`;
+}
+
+function preorderLiveFixture() {
+  return `
+if (!process.env.NEXT_PUBLIC_FEATURE_PREORDER) {
+  throw new Error("NEXT_PUBLIC_FEATURE_PREORDER is required");
+}
+
+await waitForApi(page, "/api/v1/menu/preorder/preview", "POST");
+await waitForApi(page, \`/api/v1/reservations/\${reservationId}/preorder/preview\`, "POST");
+await waitForApi(page, \`/api/v1/reservations/\${reservationId}/preorder\`, "PUT");
+await waitForApi(page, \`/api/v1/reservations/\${reservationId}/preorder\`, "DELETE");
+
+const headers = { "X-Staff-Key": adminApiKey };
+await page.getByRole("button", { name: "Update preorder" }).click();
+await page.getByRole("button", { name: "Clear preorder" }).click();
 `;
 }

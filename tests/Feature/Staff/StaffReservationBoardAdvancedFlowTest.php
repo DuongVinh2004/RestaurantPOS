@@ -22,6 +22,8 @@ class StaffReservationBoardAdvancedFlowTest extends TestCase
         $this->requireBookingSchema();
         config()->set('booking.check_in_grace_minutes', 15);
         config()->set('booking.no_show_grace_minutes', 15);
+        config()->set('staff_capabilities.fallback_branch_scopes', ['*']);
+        config()->set('staff_capabilities.role_branch_scopes.Staff', ['*']);
     }
 
     public function test_staff_table_board_includes_zone_groups_capacity_and_orchestration_context(): void
@@ -34,24 +36,32 @@ class StaffReservationBoardAdvancedFlowTest extends TestCase
 
         $windowStart = $now->copy();
         $windowEnd = $now->copy()->addHours(3);
+        $branchId = $this->createBranch([
+            'branch_code' => 'BRDADV',
+            'branch_name' => 'Board Advanced',
+        ]);
 
         $mainExactTableId = $this->createRestaurantTableWithSeats(4, [
             'table_code' => 'MAIN-04',
+            'branch_id' => $branchId,
             'zone' => 'Main',
             'status' => 'Available',
         ]);
         $mainOccupiedTableId = $this->createRestaurantTableWithSeats(4, [
             'table_code' => 'MAIN-06',
+            'branch_id' => $branchId,
             'zone' => 'Main',
             'status' => 'Available',
         ]);
         $patioTableId = $this->createRestaurantTableWithSeats(2, [
             'table_code' => 'PATIO-02',
+            'branch_id' => $branchId,
             'zone' => 'Patio',
             'status' => 'Occupied',
         ]);
 
         $assignedReservationId = $this->createReservation([
+            'branch_id' => $branchId,
             'start_time' => $now->copy()->addMinutes(10),
             'end_time' => $now->copy()->addHours(2),
             'guest_count' => 6,
@@ -69,6 +79,7 @@ class StaffReservationBoardAdvancedFlowTest extends TestCase
         ]);
 
         $dueSoonReservationId = $this->createReservation([
+            'branch_id' => $branchId,
             'start_time' => $now->copy()->addMinutes(10),
             'end_time' => $now->copy()->addHours(1),
             'guest_count' => 4,
@@ -76,6 +87,7 @@ class StaffReservationBoardAdvancedFlowTest extends TestCase
         ]);
 
         $lateReservationId = $this->createReservation([
+            'branch_id' => $branchId,
             'start_time' => $now->copy()->subMinutes(5),
             'end_time' => $now->copy()->addHour(),
             'guest_count' => 2,
@@ -83,6 +95,7 @@ class StaffReservationBoardAdvancedFlowTest extends TestCase
         ]);
 
         $overdueReservationId = $this->createReservation([
+            'branch_id' => $branchId,
             'start_time' => $now->copy()->subMinutes(25),
             'end_time' => $now->copy()->addHour(),
             'guest_count' => 8,
@@ -90,6 +103,7 @@ class StaffReservationBoardAdvancedFlowTest extends TestCase
         ]);
 
         $terminalReservationId = $this->createReservation([
+            'branch_id' => $branchId,
             'start_time' => $now->copy()->addMinutes(15),
             'end_time' => $now->copy()->addHours(2),
             'guest_count' => 2,
@@ -98,9 +112,10 @@ class StaffReservationBoardAdvancedFlowTest extends TestCase
         $this->attachReservationTable($terminalReservationId, $patioTableId);
 
         $response = $this->withHeaders($headers)->getJson(sprintf(
-            '/api/v1/staff/tables/board?from=%s&to=%s&include_holds=0',
+            '/api/v1/staff/tables/board?from=%s&to=%s&include_holds=0&branch_id=%d',
             urlencode($windowStart->toIso8601String()),
             urlencode($windowEnd->toIso8601String()),
+            $branchId,
         ));
 
         $response->assertOk()

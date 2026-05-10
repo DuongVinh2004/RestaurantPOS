@@ -10,6 +10,9 @@ use App\Modules\FloorOperations\Domain\Audit\TableStateAuditLogger;
 use App\Support\AvailabilityCacheVersion;
 use Illuminate\Support\Carbon;
 
+/**
+ * Chuyen trang thai ban tren so do van hanh va ghi audit cho moi lan occupy/release.
+ */
 class RestaurantTableStateService
 {
     public function isOperationallyBlocked(string $status): bool
@@ -27,6 +30,7 @@ class RestaurantTableStateService
 
     public function occupyTables(array $tableIds, ?Carbon $now = null, ?int $actorUserId = null, array $context = []): void
     {
+        // Occupy chi danh dau nhung ban thuc su co the nhan khach tai thoi diem hien tai.
         $tableIds = $this->normalizeTableIds($tableIds);
         if ($tableIds === []) {
             return;
@@ -34,6 +38,7 @@ class RestaurantTableStateService
 
         $now ??= Carbon::now('UTC');
 
+        // Pha 1: lock tap table hien tai, chup before-snapshot roi moi mutate tung row.
         $tables = RestaurantTable::query()
             ->whereIn('table_id', $tableIds)
             ->lockForUpdate()
@@ -45,6 +50,7 @@ class RestaurantTableStateService
 
         $updated = 0;
         foreach ($tables as $table) {
+            // Ban dang blocked/maintenance/occupied thi bo qua, tranh overwrite state van hanh dac biet.
             $status = (string) ($table->status?->value ?? $table->status);
             if ($this->isOperationallyBlocked($status) || $status === RestaurantTableStatus::Occupied->value) {
                 continue;
@@ -56,6 +62,7 @@ class RestaurantTableStateService
             $updated++;
         }
 
+        // Audit va bump cache chi can khi co row thuc su doi state.
         if ($updated > 0) {
             $afterRows = RestaurantTable::query()
                 ->whereIn('table_id', $tableIds)
@@ -79,6 +86,7 @@ class RestaurantTableStateService
 
     public function releaseTablesSafely(array $tableIds, ?Carbon $now = null, ?int $actorUserId = null, array $context = []): void
     {
+        // Release khong "bat" cac ban dang blocked/maintenance ve Available mot cach mu quang.
         $tableIds = $this->normalizeTableIds($tableIds);
         if ($tableIds === []) {
             return;
@@ -86,6 +94,7 @@ class RestaurantTableStateService
 
         $now ??= Carbon::now('UTC');
 
+        // Pha 1: lock tap table can release va chup before-snapshot y nhu occupy flow.
         $tables = RestaurantTable::query()
             ->whereIn('table_id', $tableIds)
             ->lockForUpdate()
@@ -97,6 +106,7 @@ class RestaurantTableStateService
 
         $updated = 0;
         foreach ($tables as $table) {
+            // Ban dang blocked/maintenance/available thi giu nguyen, khong "ep" state quay ve available.
             $status = (string) ($table->status?->value ?? $table->status);
             if ($this->isOperationallyBlocked($status) || $status === RestaurantTableStatus::Available->value) {
                 continue;
@@ -108,6 +118,7 @@ class RestaurantTableStateService
             $updated++;
         }
 
+        // Chi khi co mutate moi can ghi audit transition va bump availability generation.
         if ($updated > 0) {
             $afterRows = RestaurantTable::query()
                 ->whereIn('table_id', $tableIds)
@@ -131,6 +142,7 @@ class RestaurantTableStateService
 
     public function releaseModelSafely(RestaurantTable $table, ?Carbon $now = null, ?int $actorUserId = null, array $context = []): RestaurantTable
     {
+        // Dung cho cac flow dang giu san model da lock va chi muon nha dung 1 ban.
         $status = (string) ($table->status?->value ?? $table->status);
         if ($this->isOperationallyBlocked($status) || $status === RestaurantTableStatus::Available->value) {
             return $table;
@@ -144,6 +156,7 @@ class RestaurantTableStateService
             'updated_at' => $table->updated_at,
         ]];
 
+        // releaseModelSafely dung cho flow da co san model lock, nen chi mutate 1 row roi ghi audit tuong ung.
         $table->status = RestaurantTableStatus::Available;
         $table->updated_at = $now;
         $table->save();

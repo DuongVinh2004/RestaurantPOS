@@ -9,14 +9,11 @@ use App\Modules\Reporting\Http\Controllers\Admin\ReportingSnapshotController;
 use App\Modules\Reporting\Http\Controllers\Staff\InventoryReportController;
 use App\Modules\Reporting\Http\Controllers\Staff\OperationsReportController;
 use App\Modules\Reporting\Http\Controllers\Staff\SalesReportController;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class AdminReportingAndMultiBranchRouteSurfaceTest extends TestCase
 {
-    use RefreshDatabase;
-
     public function test_reporting_and_branch_routes_are_registered_to_runtime_surface(): void
     {
         $expected = [

@@ -9,9 +9,11 @@ use App\Modules\IdentityAccess\Application\UseCases\Authentication\LoginCustomer
 use App\Modules\IdentityAccess\Application\UseCases\Authentication\LogoutCustomerHandler;
 use App\Modules\IdentityAccess\Application\UseCases\Authentication\ProductAuthConfigurationException;
 use App\Modules\IdentityAccess\Application\UseCases\Authentication\RefreshCustomerSessionHandler;
+use App\Modules\IdentityAccess\Application\UseCases\Authentication\RegisterCustomerHandler;
 use App\Modules\IdentityAccess\Application\UseCases\Authentication\ShowCurrentCustomerSessionHandler;
 use App\Modules\IdentityAccess\Http\Requests\Customer\LoginRequest;
 use App\Modules\IdentityAccess\Http\Requests\Customer\RefreshSessionRequest;
+use App\Modules\IdentityAccess\Http\Requests\Customer\RegisterRequest;
 use App\Modules\IdentityAccess\Http\Resources\Customer\AccessSessionResource;
 use App\Support\ApiErrorResponse;
 use Illuminate\Http\JsonResponse;
@@ -21,6 +23,7 @@ class AuthController extends Controller
 {
     public function __construct(
         private readonly LoginCustomerHandler $loginCustomer,
+        private readonly RegisterCustomerHandler $registerCustomer,
         private readonly ShowCurrentCustomerSessionHandler $showCurrentCustomerSession,
         private readonly RefreshCustomerSessionHandler $refreshCustomerSession,
         private readonly LogoutCustomerHandler $logoutCustomer,
@@ -35,6 +38,41 @@ class AuthController extends Controller
                 array_filter([
                     'session_id' => $request->input('session_id'),
                     'guest_name' => $request->input('guest_name'),
+                    'phone' => $request->input('phone'),
+                    'device_id' => $request->input('device_id'),
+                    'session_label' => $request->input('session_label'),
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ], static fn (mixed $value): bool => $value !== null && $value !== ''),
+            );
+        } catch (ProductAuthConfigurationException $exception) {
+            return ApiErrorResponse::json(
+                $request,
+                $exception->status(),
+                $exception->errorCode(),
+                $exception->getMessage(),
+                extra: [
+                    'state_reason' => $exception->errorCode(),
+                ],
+            );
+        }
+
+        return $this->respond($request, $payload);
+    }
+
+    public function register(RegisterRequest $request): JsonResponse
+    {
+        try {
+            $payload = $this->registerCustomer->handle(
+                [
+                    'full_name' => $request->input('full_name'),
+                    'email' => $request->input('email'),
+                    'phone' => $request->input('phone'),
+                    'password' => $request->input('password'),
+                ],
+                array_filter([
+                    'session_id' => $request->input('session_id'),
+                    'guest_name' => $request->input('full_name'),
                     'phone' => $request->input('phone'),
                     'device_id' => $request->input('device_id'),
                     'session_label' => $request->input('session_label'),

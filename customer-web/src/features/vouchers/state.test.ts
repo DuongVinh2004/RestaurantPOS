@@ -121,7 +121,20 @@ describe("benefits state helpers", () => {
     expect(wallet.title).toBe("Chỉ còn voucher hết hạn");
   });
 
-  it("marks reservation benefits as gated actions when preview data is visible but cannot apply", () => {
+  it("warns when an available voucher is close to expiry", () => {
+    const item = getVoucherWalletItemState(
+      createVoucher({
+        can_apply: true,
+        expires_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+      }),
+    );
+
+    expect(item.state).toBe("available");
+    expect(item.nearExpiry).toBe(true);
+    expect(item.detailLines.join(" ")).toMatch(/Sắp hết hạn/i);
+  });
+
+  it("marks reservation benefits as visible but without forced fake actions", () => {
     const state = getReservationBenefitsState(
       createBenefitsPreview({
         reservation: {

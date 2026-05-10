@@ -105,11 +105,11 @@ export function buildFinanceReviewSearch(
 
 export function summarizeFinance(rows: Array<FinancialReconciliationRow>): FinanceSummary {
   return rows.reduce<FinanceSummary>((summary, row) => ({
-    discrepancyCount: summary.discrepancyCount + (row.flags.has_discrepancy ? 1 : 0),
-    outstandingCount: summary.outstandingCount + (row.flags.has_bill_outstanding ? 1 : 0),
-    outstandingAmount: roundMoney(summary.outstandingAmount + Number(row.reconciliation.bill_outstanding_amount ?? 0)),
-    overRefundAmount: roundMoney(summary.overRefundAmount + Number(row.payment_summary.over_refunded_amount ?? 0)),
-    fullySettledCount: summary.fullySettledCount + (row.flags.is_fully_settled ? 1 : 0),
+    discrepancyCount: summary.discrepancyCount + (readFlag(row, 'has_discrepancy') ? 1 : 0),
+    outstandingCount: summary.outstandingCount + (readFlag(row, 'has_bill_outstanding') ? 1 : 0),
+    outstandingAmount: roundMoney(summary.outstandingAmount + readMetric(row.reconciliation, 'bill_outstanding_amount')),
+    overRefundAmount: roundMoney(summary.overRefundAmount + readMetric(row.payment_summary, 'over_refunded_amount')),
+    fullySettledCount: summary.fullySettledCount + (readFlag(row, 'is_fully_settled') ? 1 : 0),
   }), {
     discrepancyCount: 0,
     outstandingCount: 0,
@@ -141,6 +141,26 @@ export function financeFlagLabels(row: FinancialReconciliationRow): Array<string
     labels.add('Đã quyết toán');
   }
 
+  labels.clear();
+  if (readFlag(row, 'has_discrepancy')) {
+    labels.add('Discrepancy');
+  }
+  if (readFlag(row, 'has_bill_outstanding')) {
+    labels.add('Outstanding');
+  }
+  if (readFlag(row, 'has_bill_overpaid')) {
+    labels.add('Overpaid');
+  }
+  if (readFlag(row, 'has_over_refund')) {
+    labels.add('Over-refund');
+  }
+  if (readFlag(row, 'has_mixed_payment_currencies')) {
+    labels.add('Mixed currency');
+  }
+  if (readFlag(row, 'is_fully_settled')) {
+    labels.add('Fully settled');
+  }
+
   return Array.from(labels);
 }
 
@@ -149,13 +169,21 @@ export function canIssueInvoiceForRow(row: FinancialReconciliationRow | null | u
     return false;
   }
 
-  return Number(row.reconciliation.final_bill_amount ?? 0) > 0
-    && row.flags.is_fully_settled
-    && !row.flags.has_discrepancy
-    && !row.flags.has_bill_outstanding
-    && !row.flags.has_bill_overpaid
-    && !row.flags.has_over_refund
-    && !row.flags.has_mixed_payment_currencies;
+  return readMetric(row.reconciliation, 'final_bill_amount') > 0
+    && readFlag(row, 'is_fully_settled')
+    && !readFlag(row, 'has_discrepancy')
+    && !readFlag(row, 'has_bill_outstanding')
+    && !readFlag(row, 'has_bill_overpaid')
+    && !readFlag(row, 'has_over_refund')
+    && !readFlag(row, 'has_mixed_payment_currencies');
+}
+
+export function readFinanceMetric(value: Record<string, unknown> | null | undefined, field: string): number {
+  return readMetric(value, field);
+}
+
+export function readFinanceFlag(row: FinancialReconciliationRow | null | undefined, field: string): boolean {
+  return row ? readFlag(row, field) : false;
 }
 
 function normalizeText(value: string): string | undefined {
@@ -195,6 +223,26 @@ function normalizeDiscrepancy(value: FinanceFilterState['hasDiscrepancy']): bool
 
 function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+function readFlag(row: FinancialReconciliationRow, field: string): boolean {
+  const value = row.flags[field];
+  return value === true || value === 1 || value === '1' || value === 'true';
+}
+
+function readMetric(value: Record<string, unknown> | null | undefined, field: string): number {
+  const raw = value?.[field];
+
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    return raw;
+  }
+
+  if (typeof raw === 'string' && raw.trim() !== '') {
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
 }
 
 function readDiscrepancy(value: string | null): FinanceFilterState['hasDiscrepancy'] {

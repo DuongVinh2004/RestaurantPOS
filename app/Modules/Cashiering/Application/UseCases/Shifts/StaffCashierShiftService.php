@@ -21,6 +21,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Quan ly ca thu ngan:
+ * mo ca, dong ca, tim ca dang mo, va tao snapshot doi soat cuoi ca.
+ */
 class StaffCashierShiftService
 {
     private const STALE_ROW_VERSION_MESSAGE = 'The row_version is stale (row_version mismatch). Reload the resource and try again.';
@@ -38,6 +42,8 @@ class StaffCashierShiftService
         ?int $openedBy = null,
         mixed $branchId = null,
     ): CashierShift {
+        // Mo ca la moc bat dau de moi payment/refund sau do co diem neo doi soat.
+        // Pha 1: normalize actor, currency va branch scope truoc khi mo ca.
         $cashierUserId = StaffActorGuard::requireStaffUserId($cashierUserId);
         $currency = $this->normalizeCurrency($currency);
         $terminalCode = $this->normalizeNullableString($terminalCode);
@@ -56,8 +62,10 @@ class StaffCashierShiftService
             $openedBy,
             $branchId
         ): CashierShift {
+            // Khoa user + kiem tra chua co ca mo truoc khi tao shift moi.
             User::query()->where('user_id', $cashierUserId)->lockForUpdate()->firstOrFail();
 
+            // Moi cashier chi duoc co toi da mot ca mo tai mot thoi diem.
             $existing = CashierShift::query()
                 ->where('cashier_user_id', $cashierUserId)
                 ->where('status', 'Open')
@@ -71,6 +79,7 @@ class StaffCashierShiftService
             }
 
             $openedAt = Carbon::now('UTC');
+            // Pha 2: tao shift record lam diem neo doi soat cho settlement/refund sau do.
             $shift = new CashierShift;
             $shift->branch_id = $this->staffBranchContextService->assertCashierShiftBranchEligible($cashierUserId, $branchId);
             $shift->shift_code = $this->generateShiftCode($cashierUserId, $openedAt);
@@ -118,6 +127,8 @@ class StaffCashierShiftService
         ?int $closedBy = null,
         ?int $cashierUserId = null,
     ): CashierShift {
+        // Dong ca duoc tinh tren snapshot payment thuc te de suy ra expected cash va chenh lech.
+        // Dong ca duoc tinh tren snapshot payment thuc te cua ca, khong dua vao so nhap tay.
         $cashierUserId = StaffActorGuard::requireStaffUserId($cashierUserId);
         $closedBy = $closedBy !== null
             ? StaffActorGuard::requireStaffUserId($closedBy, 'closed_by')
@@ -140,6 +151,7 @@ class StaffCashierShiftService
             $this->assertExpectedRowVersion($shift, $expectedRowVersion);
 
             $closedAt = Carbon::now('UTC');
+            // Snapshot chot expected cash/payment summary tai dung thoi diem dong ca.
             $snapshot = $this->buildSnapshot($shift, $closedAt);
             $expectedCashAmount = Money::toFloat(data_get($snapshot, 'cash.raw.expected_cash_amount', 0), true);
             $discrepancyMinor = Money::minorUnits($actualCashAmount, true) - Money::minorUnits($expectedCashAmount, true);
@@ -178,6 +190,7 @@ class StaffCashierShiftService
 
     public function currentOpenShift(int $cashierUserId, ?int $branchId = null): ?CashierShift
     {
+        // Mutation settlement/refund tien mat deu phai bam vao mot open shift dung branch, dung currency.
         $cashierUserId = StaffActorGuard::requireStaffUserId($cashierUserId);
         $branchScope = $this->staffBranchContextService->branchScopeOrAccessible($cashierUserId, $branchId);
         if ($branchScope === []) {
@@ -194,6 +207,7 @@ class StaffCashierShiftService
 
     public function requireOpenShiftForMutation(int $cashierUserId, int $branchId, ?string $currency = null): CashierShift
     {
+        // Moi mutation tien mat/settlement/refund deu phai bam vao mot ca dang mo dung branch, dung currency.
         $cashierUserId = StaffActorGuard::requireStaffUserId($cashierUserId);
         $shift = CashierShift::query()
             ->where('cashier_user_id', $cashierUserId)

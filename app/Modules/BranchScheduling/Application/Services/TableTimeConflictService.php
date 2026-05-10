@@ -9,6 +9,9 @@ use App\Modules\BranchScheduling\Domain\Guards\HoldConflictScope;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Tim danh sach ban dang va cham theo reservation hoac hold trong mot khoang thoi gian.
+ */
 class TableTimeConflictService
 {
     /**
@@ -22,11 +25,13 @@ class TableTimeConflictService
         ?int $ignoreReservationId = null,
         bool $lock = false,
     ): array {
+        // Dung cho booking da xac nhan; ket qua tra ve la table id de caller tu quyet cach bao loi.
         $tableIds = $this->normalizeTableIds($tableIds);
         if ($tableIds === []) {
             return [];
         }
 
+        // Reservation conflict query chi can tra ve table ids, de caller tu quyet cach xu ly/block message.
         $query = DB::table('reservation_tables as rt')
             ->join('reservations as r', 'r.reservation_id', '=', 'rt.reservation_id')
             ->whereIn('rt.table_id', $tableIds)
@@ -65,11 +70,13 @@ class TableTimeConflictService
         bool $lock = false,
         ?int $ignoreConfirmedReservationId = null,
     ): array {
+        // Trusted hold cho phep bo qua hold cua chinh session hien tai khi dang tiep tuc flow.
         $tableIds = $this->normalizeTableIds($tableIds);
         if ($tableIds === []) {
             return [];
         }
 
+        // Hold conflict query co them trusted hold/session-ignore hooks de phuc vu continue-flow scenarios.
         $query = DB::table('table_hold_details as thd')
             ->join('table_holds as th', 'th.hold_id', '=', 'thd.hold_id')
             ->whereIn('thd.table_id', $tableIds)

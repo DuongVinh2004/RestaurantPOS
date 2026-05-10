@@ -45,6 +45,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
+/**
+ * Điều phối dòng tiền checkout:
+ * khóa bill, thu tiền, chốt reservation, và đồng bộ trạng thái sau thanh toán.
+ */
 class OrderSettlementWorkflow
 {
     private const SETTLEMENT_READ_RESERVATION_RELATIONS = [
@@ -139,10 +143,12 @@ class OrderSettlementWorkflow
         ?int $staffUserId = null,
         string $idempotencyKey = ''
     ): array {
+        // Pha 1: normalize actor/idempotency cho luong checkout legacy close+pay trong mot request.
         $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
         $idempotencyKey = trim($idempotencyKey);
         $cashieringReplayScope = CashieringReplayRecorder::SCOPE_STAFF_CHECKOUT;
         $settlementCompletedRealtimePayload = null;
+        // checkout là luồng cũ: khóa bill và thu tiền trong một lần xử lý.
         $requestFingerprint = $idempotencyKey !== ''
             ? $this->buildCheckoutRequestFingerprint(
                 paymentMethod: $paymentMethod,
@@ -154,6 +160,7 @@ class OrderSettlementWorkflow
                 discountAmount: $discountAmount,
             )
             : null;
+        // Nếu POS retry cùng payload thì trả lại kết quả cũ, tránh double charge.
         if ($idempotencyKey !== '') {
             $this->assertCheckoutReplayMatchesRequest($orderId, $idempotencyKey, $requestFingerprint ?? '', $cashieringReplayScope);
             $replayed = $this->findExistingCheckoutReplay($orderId, $idempotencyKey, $currency, $cashieringReplayScope, $staffUserId);
@@ -162,6 +169,7 @@ class OrderSettlementWorkflow
             }
         }
 
+        // Lock context duoc mo rong ra reservation va tat ca table cua no de chot bill/payment an toan.
         $context = $this->getReservationLockContextForOrder($orderId);
 
         $result = $this->locks->withLockKeys($context['lock_keys'], function () use (
@@ -196,6 +204,7 @@ class OrderSettlementWorkflow
                 $cashieringReplayScope,
                 &$settlementCompletedRealtimePayload,
             ) {
+                // Pha 2: lock order + reservation + cashier shift scope trong transaction settlement.
                 $lockedOrder = ReservationOrder::query()->where('order_id', $orderId)->lockForUpdate()->firstOrFail();
                 $this->assertExpectedOrderRowVersion($lockedOrder, $expectedRowVersion);
 
@@ -213,6 +222,7 @@ class OrderSettlementWorkflow
                 $orderStatus = (string) ($lockedOrder->status?->value ?? $lockedOrder->status);
                 $reservationStatus = (string) ($lockedReservation->status?->value ?? $lockedReservation->status);
                 $orderType = (string) ($lockedOrder->order_type?->value ?? $lockedOrder->order_type);
+                // Neu order/reservation da chuyen state trong luc retry, replay result cu neu idempotency key hop le.
                 if (
                     $orderStatus !== ReservationOrderStatus::Active->value
                     || $reservationStatus !== ReservationStatus::Reserved->value
@@ -227,6 +237,7 @@ class OrderSettlementWorkflow
                     }
                 }
 
+                // Pha 3: lock bill snapshot truoc, roi payment capture moi dua tren snapshot nay ma settle.
                 $this->prepareCheckoutBillStateLocked($lockedReservation, $discountAmount, $staffUserId);
                 $order = $this->paymentCaptureService->executeLocked(
                     order: $lockedOrder,
@@ -256,6 +267,7 @@ class OrderSettlementWorkflow
                     cashierShiftId: (int) $cashierShift->cashier_shift_id,
                 );
 
+                // Replay recorder chi ghi sau khi business mutation da thanh cong.
                 $this->recordCheckoutCashieringReplay(
                     scope: $cashieringReplayScope,
                     orderId: $orderId,
@@ -267,6 +279,7 @@ class OrderSettlementWorkflow
             });
         });
 
+        // Realtime settlement completed duoc publish sau commit de dashboard nhan ket qua cuoi cung.
         $this->settlementRealtimeEventService->publishSettlementCompleted($settlementCompletedRealtimePayload);
 
         return $result;
@@ -406,6 +419,7 @@ class OrderSettlementWorkflow
         $idempotencyKey = trim($idempotencyKey);
         $cashieringReplayScope = CashieringReplayRecorder::SCOPE_STAFF_PAY_ORDER;
         $settlementCompletedRealtimePayload = null;
+        // payOrder dùng cho luồng tách bước: bill đã khóa trước, giờ chỉ còn thu tiền.
         $requestFingerprint = $idempotencyKey !== ''
             ? $this->buildCheckoutRequestFingerprint(
                 paymentMethod: $paymentMethod,
@@ -417,6 +431,7 @@ class OrderSettlementWorkflow
                 discountAmount: null,
             )
             : null;
+        // Replay cache + replay DB phối hợp để chống việc thu tiền lặp lại khi POS gửi lại request.
         if ($idempotencyKey !== '') {
             $this->assertCheckoutReplayMatchesRequest($orderId, $idempotencyKey, $requestFingerprint ?? '', $cashieringReplayScope);
             $hit = $this->paymentReplayCacheGet($orderId, $idempotencyKey);
@@ -475,6 +490,7 @@ class OrderSettlementWorkflow
             );
         });
 
+        // Realtime chỉ phát sau commit để UI không đọc phải trạng thái đang dở.
         $this->settlementRealtimeEventService->publishSettlementCompleted($settlementCompletedRealtimePayload);
 
         return $result;

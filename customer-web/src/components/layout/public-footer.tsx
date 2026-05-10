@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, Clock3, ExternalLink, Mail, MapPin, Phone, ReceiptText } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { AppButton, StatusPill } from "@/components/customer/ui";
 import { queryKeys } from "@/lib/api/query-keys";
-import { cn } from "@/lib/utils";
 import { getRestaurantProfile } from "@/features/restaurant/api";
 import {
   customerFooterContact,
@@ -28,8 +26,8 @@ export function PublicFooter({ isAuthenticated }: { isAuthenticated: boolean }) 
 
   const profile = profileQuery.data ?? null;
   const hours = weeklyHours(profile);
-  const statusLabel = profileQuery.isError ? "Giờ mở cửa đang cập nhật" : openStatusLabel(profile);
-  const todayLabel = profileQuery.isError ? "Theo lịch chi nhánh trong hệ thống" : todayHoursLabel(profile);
+  const statusLabel = profileQuery.isError ? "Đang cập nhật giờ mở cửa" : openStatusLabel(profile);
+  const todayLabel = profileQuery.isError ? "Xem lịch chi nhánh tại nhà hàng" : todayHoursLabel(profile);
   const timezoneLabel = formatTimezone(profile?.current_status.timezone ?? profile?.timezone);
   const mapUrl = googleMapsUrl();
   const reservationHref = isAuthenticated ? "/reservations" : "/login";
@@ -48,18 +46,18 @@ export function PublicFooter({ isAuthenticated }: { isAuthenticated: boolean }) 
             </Link>
 
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Button asChild className="min-h-10 rounded-lg">
+              <AppButton asChild>
                 <Link href="/booking">
                   <CalendarDays className="h-4 w-4" />
                   Đặt bàn
                 </Link>
-              </Button>
-              <Button asChild variant="outline" className="min-h-10 rounded-lg">
-                <Link href="/">
+              </AppButton>
+              <AppButton asChild variant="outline">
+                <Link href="/menu">
                   <ReceiptText className="h-4 w-4" />
-                  Xem thực đơn
+                  Thực đơn
                 </Link>
-              </Button>
+              </AppButton>
             </div>
 
             <div className="space-y-3 text-sm">
@@ -82,17 +80,7 @@ export function PublicFooter({ isAuthenticated }: { isAuthenticated: boolean }) 
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-sm font-semibold">Giờ mở cửa</h2>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "rounded-md",
-                    profile?.current_status.is_open
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                      : "border-amber-200 bg-amber-50 text-amber-900",
-                  )}
-                >
-                  {statusLabel}
-                </Badge>
+                <StatusPill label={statusLabel} tone={profile?.current_status.is_open ? "success" : "warning"} />
               </div>
               <div className="flex items-start gap-3 text-sm text-muted-foreground">
                 <Clock3 className="mt-0.5 h-4 w-4 shrink-0" />
@@ -126,18 +114,18 @@ export function PublicFooter({ isAuthenticated }: { isAuthenticated: boolean }) 
           </div>
 
           <div className="grid gap-2 text-sm sm:grid-cols-2">
-            <FooterLink href={mapUrl} label="Mở Google Maps" />
+            <FooterLink href={mapUrl} label="Mở bản đồ" />
             <FooterLink href={customerFooterContact.facebookUrl} label="Facebook" />
             <FooterInternalLink href={reservationHref} label={isAuthenticated ? "Lịch đặt" : "Đăng nhập"} />
-            <FooterInternalLink href="/booking" label="Tìm bàn" />
+            <FooterInternalLink href="/booking" label="Đặt bàn" />
           </div>
         </section>
       </div>
 
       <div className="border-t">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} {customerFooterContact.name}. All rights reserved.</p>
-          <p>Thông tin giờ mở cửa được đồng bộ theo chi nhánh mặc định.</p>
+          <p>Bản quyền {new Date().getFullYear()} {customerFooterContact.name}. Đã đăng ký mọi quyền.</p>
+          <p>Giờ mở cửa được đồng bộ từ hồ sơ chi nhánh cho khách hàng.</p>
         </div>
       </div>
     </footer>

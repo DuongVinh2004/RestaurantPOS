@@ -18,7 +18,8 @@ describe('staff api bundle guards', () => {
     expect(authApiSource).toContain('postV1AuthStaffRefresh');
     expect(authApiSource).toContain('postV1AuthStaffLogout');
     expect(authApiSource).not.toContain('apiRequest');
-    expect(branchApiSource).toContain("'/staff/branches'");
+    expect(branchApiSource).toContain('getV1StaffBranches');
+    expect(branchApiSource).not.toContain('apiRequest');
     expect(barrelSource).toContain("export { getCurrentStaffSession, loginStaff, logoutStaff, refreshStaffSession } from './staff-auth-api';");
     expect(barrelSource).toContain("export { listBranches } from './staff-branch-api';");
     expect(barrelSource).not.toContain("export async function loginStaff(payload");

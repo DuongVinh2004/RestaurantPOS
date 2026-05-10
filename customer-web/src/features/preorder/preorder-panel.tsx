@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
 import { Button } from "@/components/ui/button";
@@ -14,21 +14,28 @@ import { isConflictLikeApiError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query-keys";
 import { customerWebRollout } from "@/lib/config/feature-flags";
 import { formatDateTime, formatMoney } from "@/lib/contracts/format";
-import type {
-  CustomerMenuItem,
-  CustomerReservationPreorderPayload,
-} from "@/lib/contracts/generated/restaurantpos-sdk";
 import {
   clearReservationPreorder,
   getReservationPreorder,
   previewReservationPreorder,
   replaceReservationPreorder,
+  type ReservationPreorderResult,
 } from "./api";
-
-type PreorderCartItem = {
-  item_id: number;
-  quantity: number;
-};
+import {
+  clearStoredPendingReservationPreorderDraft,
+  getReservationPreorderRecoveryMessage,
+  readStoredPendingReservationPreorderDraft,
+  type StoredPendingReservationPreorderDraft,
+} from "./reservation-draft-storage";
+import {
+  menuItemPrice,
+  normalizePreorderCart,
+  preorderCartFromReservation,
+  preorderCartQuantity,
+  preorderCartSignature,
+  type PreorderCartItem,
+  updatePreorderCartItem,
+} from "./cart";
 
 type DraftState = {
   snapshotKey: string;
@@ -38,44 +45,17 @@ type DraftState = {
 type PreviewDraftState = {
   snapshotKey: string;
   cartKey: string;
-  payload: CustomerReservationPreorderPayload;
+  payload: ReservationPreorderResult;
 };
-
-function normalizeCart(items: PreorderCartItem[]): PreorderCartItem[] {
-  return items
-    .filter(
-      (item) =>
-        Number.isInteger(item.item_id) &&
-        item.item_id > 0 &&
-        Number.isInteger(item.quantity) &&
-        item.quantity > 0,
-    )
-    .sort((left, right) => left.item_id - right.item_id);
-}
-
-function cartSignature(items: PreorderCartItem[]): string {
-  return normalizeCart(items)
-    .map((item) => `${item.item_id}:${item.quantity}`)
-    .join("|");
-}
-
-function cartFromPreorder(payload: CustomerReservationPreorderPayload): PreorderCartItem[] {
-  return normalizeCart(payload.pre_order.normalized_pre_order_items);
-}
-
-function cartQuantity(cart: PreorderCartItem[], itemId: number): number {
-  return cart.find((item) => item.item_id === itemId)?.quantity ?? 0;
-}
-
-function menuItemPrice(item: CustomerMenuItem): string {
-  return formatMoney(item.price.amount ?? "0.00", item.price.currency ?? "USD");
-}
 
 export function PreorderPanel({ reservationId }: { reservationId: number }) {
   const queryClient = useQueryClient();
   const preorderRollout = customerWebRollout.preorder;
   const [cartDraft, setCartDraft] = useState<DraftState | null>(null);
   const [previewDraft, setPreviewDraft] = useState<PreviewDraftState | null>(null);
+  const [pendingDraft, setPendingDraft] =
+    useState<StoredPendingReservationPreorderDraft | null>(null);
+  const [restoredDraftKey, setRestoredDraftKey] = useState<string | null>(null);
   const preorderQuery = useQuery({
     queryKey: queryKeys.reservations.preorder(reservationId),
     queryFn: () => getReservationPreorder(reservationId),
@@ -90,32 +70,32 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
   const preorderSnapshotKey = preorderQuery.data
     ? `${preorderQuery.data.reservation_row_version}:${preorderQuery.data.pre_order.order_row_version ?? "none"}:${preorderQuery.data.pre_order.totals.quantity}`
     : "";
-  const baseCart = preorderQuery.data ? cartFromPreorder(preorderQuery.data) : [];
+  const baseCart = preorderQuery.data
+    ? preorderCartFromReservation(preorderQuery.data)
+    : [];
   const cart = cartDraft?.snapshotKey === preorderSnapshotKey ? cartDraft.items : baseCart;
-  const cartItems = normalizeCart(cart);
-  const baseCartKey = cartSignature(baseCart);
-  const cartKey = cartSignature(cartItems);
+  const cartItems = normalizePreorderCart(cart);
+  const baseCartKey = preorderCartSignature(baseCart);
+  const cartKey = preorderCartSignature(cartItems);
   const previewResult =
     previewDraft?.snapshotKey === preorderSnapshotKey && previewDraft.cartKey === cartKey
       ? previewDraft.payload
       : null;
 
   const updateCartItem = (itemId: number, rawQuantity: number) => {
-    const quantity = Number.isFinite(rawQuantity) ? Math.max(0, Math.floor(rawQuantity)) : 0;
-
     setCartDraft({
       snapshotKey: preorderSnapshotKey,
-      items: normalizeCart([
-        ...cart.filter((item) => item.item_id !== itemId),
-        ...(quantity > 0 ? [{ item_id: itemId, quantity }] : []),
-      ]),
+      items: updatePreorderCartItem(cart, itemId, rawQuantity),
     });
   };
 
-  const syncPreorder = async (payload: CustomerReservationPreorderPayload) => {
+  const syncPreorder = async (payload: ReservationPreorderResult) => {
     queryClient.setQueryData(queryKeys.reservations.preorder(reservationId), payload);
+    clearStoredPendingReservationPreorderDraft(reservationId);
     setCartDraft(null);
+    setPendingDraft(null);
     setPreviewDraft(null);
+    setRestoredDraftKey(null);
     await queryClient.invalidateQueries({
       queryKey: queryKeys.reservations.detail(reservationId),
       refetchType: "inactive",
@@ -135,6 +115,58 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
     }
   };
 
+  useEffect(() => {
+    if (!preorderQuery.data) {
+      return;
+    }
+
+    const stored = readStoredPendingReservationPreorderDraft(reservationId);
+
+    if (!stored) {
+      startTransition(() => {
+        setPendingDraft(null);
+      });
+      return;
+    }
+
+    const storedItems = normalizePreorderCart(stored.items);
+    const storedKey = preorderCartSignature(storedItems);
+
+    if (storedKey === "" || storedKey === baseCartKey) {
+      clearStoredPendingReservationPreorderDraft(reservationId);
+      startTransition(() => {
+        setPendingDraft(null);
+        setRestoredDraftKey(null);
+      });
+      return;
+    }
+
+    const nextRestoredDraftKey = `${preorderSnapshotKey}:${storedKey}`;
+
+    if (restoredDraftKey === nextRestoredDraftKey) {
+      startTransition(() => {
+        setPendingDraft(stored);
+      });
+      return;
+    }
+
+    startTransition(() => {
+      setCartDraft({
+        snapshotKey: preorderSnapshotKey,
+        items: storedItems,
+      });
+      setPendingDraft(stored);
+      setPreviewDraft(null);
+      setRestoredDraftKey(nextRestoredDraftKey);
+    });
+  }, [
+    baseCartKey,
+    preorderQuery.data,
+    preorderSnapshotKey,
+    reservationId,
+    restoredDraftKey,
+  ]);
+
   const handleMutationError = async (error: unknown) => {
     if (isConflictLikeApiError(error)) {
       await refreshPreorder();
@@ -142,11 +174,12 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
   };
 
   const previewMutation = useMutation({
-    mutationFn: () => previewReservationPreorder(reservationId, { pre_order_items: cartItems }),
-    onSuccess(result) {
+    mutationFn: ({ items }: { items: PreorderCartItem[]; snapshotKey: string; cartKey: string }) =>
+      previewReservationPreorder(reservationId, { pre_order_items: items }),
+    onSuccess(result, variables) {
       setPreviewDraft({
-        snapshotKey: preorderSnapshotKey,
-        cartKey,
+        snapshotKey: variables.snapshotKey,
+        cartKey: variables.cartKey,
         payload: result,
       });
     },
@@ -204,6 +237,10 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
   const canRequestPreview = canManage && cartItems.length > 0 && hasCartChanges;
   const canReplace = canManage && cartItems.length > 0 && hasCartChanges && previewResult !== null;
   const mutationPending = previewMutation.isPending || replaceMutation.isPending || clearMutation.isPending;
+  const cartInputsDisabled = mutationPending || preorderQuery.isFetching || menuQuery.isFetching;
+  const pendingDraftMessage = pendingDraft
+    ? getReservationPreorderRecoveryMessage(pendingDraft.failure_stage)
+    : null;
 
   if (!preorderRollout.enabled) {
     return (
@@ -307,6 +344,11 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
                     Hệ thống sẽ yêu cầu xem trước lại mỗi khi bạn đổi giỏ món trước khi cập nhật.
                   </p>
                 </div>
+                {pendingDraftMessage ? (
+                  <div className="rounded-lg border border-dashed bg-secondary/20 p-4 text-sm text-muted-foreground">
+                    {pendingDraftMessage}
+                  </div>
+                ) : null}
                 {menuQuery.data?.length === 0 ? (
                   <EmptyState
                     title="Chưa có món hỗ trợ đặt trước"
@@ -315,7 +357,7 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
                 ) : null}
                 <div className="grid gap-3">
                   {menuQuery.data?.map((item) => {
-                    const quantity = cartQuantity(cart, item.item_id);
+                    const quantity = preorderCartQuantity(cart, item.item_id);
                     const itemAvailable = item.is_available !== false && item.preorder.enabled !== false;
 
                     return (
@@ -345,7 +387,7 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
                             min={0}
                             className="min-h-10 rounded-lg"
                             value={quantity}
-                            disabled={!itemAvailable}
+                            disabled={!itemAvailable || cartInputsDisabled}
                             onChange={(event) =>
                               updateCartItem(item.item_id, Number(event.target.value))
                             }
@@ -394,7 +436,11 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
                     variant="outline"
                     className="rounded-lg"
                     disabled={!canRequestPreview || mutationPending}
-                    onClick={() => previewMutation.mutate()}
+                    onClick={() => previewMutation.mutate({
+                      items: cartItems,
+                      snapshotKey: preorderSnapshotKey,
+                      cartKey,
+                    })}
                   >
                     {previewMutation.isPending ? "Đang xem trước" : "Xem trước món"}
                   </Button>

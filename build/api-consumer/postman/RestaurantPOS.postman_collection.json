@@ -17,6 +17,63 @@
             "name": "Auth",
             "item": [
                 {
+                    "name": "Customer registration",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/auth/customer/register",
+                        "description": "Create a customer account using the configured customer role and issue an opaque customer access session token.\n\nSignature: `POST api/v1/auth/customer/register`\nAuth mode: `public`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"full_name\": \"Postman Customer\",\n    \"email\": \"postman.customer+{{$timestamp}}@example.test\",\n    \"phone\": \"09{{$timestamp}}\",\n    \"password\": \"{{customerPassword}}\",\n    \"password_confirmation\": \"{{customerPassword}}\",\n    \"session_label\": \"postman-customer-register\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": [],
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "let json = null;",
+                                    "try {",
+                                    "  json = pm.response.json();",
+                                    "} catch (error) {",
+                                    "  console.warn(\"Response is not JSON; skipping capture.\", error);",
+                                    "}",
+                                    "if (!json) {",
+                                    "  return;",
+                                    "}",
+                                    "const readPath = (source, path) => path.split(\".\").reduce((carry, segment) => carry == null ? undefined : carry[segment], source);",
+                                    "const captures = {\"customerToken\":\"data.access_token\",\"customerSessionId\":\"data.session_id\"};",
+                                    "Object.entries(captures).forEach(([key, path]) => {",
+                                    "  const value = readPath(json, path);",
+                                    "  if (value !== undefined && value !== null) {",
+                                    "    pm.environment.set(key, String(value));",
+                                    "  }",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
                     "name": "Customer login",
                     "request": {
                         "method": "POST",
@@ -1624,6 +1681,166 @@
                     "response": []
                 },
                 {
+                    "name": "Assign reservation to selected table",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationIdDineIn}}/assign-table",
+                        "description": "Assign an unseated reservation to the selected board table using row_version protection and current board-window conflict checks.\n\nSignature: `POST api/v1/staff/reservations/{id}/assign-table`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"table_id\": 12,\n    \"row_version\": 2,\n    \"board_from\": \"2026-04-05T11:00:00Z\",\n    \"board_to\": \"2026-04-05T16:00:00Z\",\n    \"zone\": \"Main\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Assign reservation to best-fit table",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationIdDineIn}}/assign-best-fit",
+                        "description": "Ask the floor assignment service to choose and assign the best currently available table for an unseated reservation.\n\nSignature: `POST api/v1/staff/reservations/{id}/assign-best-fit`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": 2,\n    \"board_from\": \"2026-04-05T11:00:00Z\",\n    \"board_to\": \"2026-04-05T16:00:00Z\",\n    \"zone\": \"Main\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Move in-service reservation to another table",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationIdDineIn}}/move-table",
+                        "description": "Move an in-service reservation from one table to another while preserving stale-write and floor-conflict guards.\n\nSignature: `POST api/v1/staff/reservations/{id}/move-table`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"from_table_id\": 12,\n    \"to_table_id\": 18,\n    \"moved_at\": \"2026-04-05T12:45:00Z\",\n    \"row_version\": 3\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Release a staff table",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/tables/{{dineInTableId}}/release",
+                        "description": "Release an occupied table back into allocatable floor state with row_version protection and force guard metadata.\n\nSignature: `POST api/v1/staff/tables/{table_id}/release`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": 7,\n    \"force\": false,\n    \"notes\": \"Service completed and table reset.\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
                     "name": "Create table order",
                     "request": {
                         "method": "POST",
@@ -1689,6 +1906,27 @@
                             }
                         }
                     ]
+                },
+                {
+                    "name": "Show active order by table",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/tables/{{dineInTableId}}/active-order",
+                        "description": "Return the active staff order currently attached to the requested table, or a not-found error when no active order exists.\n\nSignature: `GET api/v1/staff/tables/{table_id}/active-order`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
                 },
                 {
                     "name": "Add order items",
@@ -2798,6 +3036,27 @@
             "name": "Staff Lookup",
             "item": [
                 {
+                    "name": "List accessible staff branches",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/branches",
+                        "description": "Return the active branch context list exposed to staff-web for branch switching and branch-aware filters. The list is limited to the authenticated actor explicit branch entitlement scope and never expands from cashier shift state.\n\nSignature: `GET api/v1/staff/branches`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
                     "name": "List staff reservations",
                     "request": {
                         "method": "GET",
@@ -3034,6 +3293,128 @@
                     "response": []
                 },
                 {
+                    "name": "List ingredient stock movements",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/inventory/ingredients/{{ingredientId}}/movements?filter={{filter}}&filters={{filters}}&movement_type={{movementType}}&branch_id={{branchId}}&page={{page}}&per_page={{perPage}}&sort={{sort}}&sort_by={{sortBy}}&sort_dir={{sortDir}}",
+                        "description": "Return paged stock movement ledger rows for one ingredient, scoped by staff branch access and optional branch filter.\n\nSignature: `GET api/v1/admin/inventory/ingredients/{id}/movements`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create ingredient stock movement",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/inventory/ingredients/{{ingredientId}}/movements",
+                        "description": "Create a guarded stock movement for one ingredient and return the posted ledger row with updated stock-on-hand metadata.\n\nSignature: `POST api/v1/admin/inventory/ingredients/{id}/movements`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"movement_type\": \"AdjustmentDecrease\",\n    \"branch_id\": 1,\n    \"quantity\": 2.5,\n    \"unit_code\": \"kg\",\n    \"reference_type\": \"manual_adjustment\",\n    \"reference_id\": \"ADJ-20260405-01\",\n    \"notes\": \"Spoilage recorded during prep\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List purchase order receipts",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/inventory/purchase-orders/{{purchaseOrderId}}/receipts?filter={{filter}}&filters={{filters}}&supplier_id={{supplierId}}&branch_id={{branchId}}&purchase_order_status={{purchaseOrderStatus}}&q={{q}}&page={{page}}&per_page={{perPage}}&sort={{sort}}&sort_by={{sortBy}}&sort_dir={{sortDir}}",
+                        "description": "Return posted receiving records for one purchase order, including purchase-order context and receipt line summaries.\n\nSignature: `GET api/v1/admin/inventory/purchase-orders/{id}/receipts`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Receive purchase order stock",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/inventory/purchase-orders/{{purchaseOrderId}}/receipts",
+                        "description": "Post a purchase-order receiving transaction, update stock ledger rows, and return the posted receipt plus refreshed purchase-order context.\n\nSignature: `POST api/v1/admin/inventory/purchase-orders/{id}/receipts`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"receipt_code\": \"RCV-20260405-001\",\n    \"received_at\": \"2026-04-05T09:30:00Z\",\n    \"supplier_document_no\": \"SUP-DOC-7788\",\n    \"notes\": \"Partial morning delivery\",\n    \"lines\": [\n        {\n            \"purchase_order_line_id\": 701,\n            \"received_quantity\": 5,\n            \"unit_code\": \"kg\",\n            \"unit_cost\": 120000,\n            \"notes\": \"Checked by receiving staff\"\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
                     "name": "List branches",
                     "request": {
                         "method": "GET",
@@ -3151,6 +3532,114 @@
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"payment_method\": \"Cash\",\n    \"payment_provider\": \"Cash\",\n    \"refund_scope\": \"{{refundScope}}\",\n    \"refund_amount\": 150000,\n    \"currency\": \"{{currency}}\",\n    \"transaction_code\": \"REFUND-CANCEL-{{$timestamp}}-{{$randomInt}}\",\n    \"reason\": \"customer_request\",\n    \"cancel_reason\": \"customer_request\",\n    \"row_version\": \"{{reservationRowVersionRefundCancel}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Staff Finance",
+            "item": [
+                {
+                    "name": "List financial reconciliation rows",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/finance/reconciliation?filter={{filter}}&filters={{filters}}&branch_id={{branchId}}&reservation_id={{reservationIdDineIn}}&reservation_code={{reservationCode}}&user_id={{userId}}&status={{status}}&deposit_status={{depositStatus}}&payment_currency={{paymentCurrency}}&cashier_user_id={{cashierUserId}}&activity_from={{activityFrom}}&activity_to={{activityTo}}&has_discrepancy={{hasDiscrepancy}}&per_page={{perPage}}&page={{page}}&limit={{limit}}&sort={{financeReconciliationSort}}&sort_by={{sortBy}}&sort_dir={{sortDir}}&format={{format}}",
+                        "description": "Return paged staff financial reconciliation rows with reservation, payment, discrepancy, and settlement summary fields for finance review.\n\nSignature: `GET api/v1/staff/finance/reconciliation`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show financial reconciliation detail",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/finance/reconciliation/{{reservationIdDineIn}}?branch_id={{branchId}}",
+                        "description": "Return the reconciliation detail for one reservation including payment rows and method breakdown.\n\nSignature: `GET api/v1/staff/finance/reconciliation/{reservation_id}`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show finance invoice",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/finance/invoices/{{reservationIdDineIn}}?branch_id={{branchId}}",
+                        "description": "Return the invoice projection or persisted billing invoice for a reservation, including reconciliation and payment method breakdown context.\n\nSignature: `GET api/v1/staff/finance/invoices/{reservation_id}`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Issue finance invoice",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/finance/invoices/{{reservationIdDineIn}}/issue",
+                        "description": "Create or replay the guarded reservation invoice issuance operation and return the canonical invoice read model.\n\nSignature: `POST api/v1/staff/finance/invoices/{reservation_id}/issue`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"branch_id\": 101\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -3313,6 +3802,46 @@
                         ],
                         "url": "{{baseUrl}}/api/v1/staff/waiting-list/changes?after_version={{waitingListAfterVersion}}&limit={{eventLimit}}&branch_id={{branchId}}",
                         "description": "Return the staff waiting list realtime polling feed since the requested version cursor.\n\nSignature: `GET api/v1/staff/waiting-list/changes`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create staff waiting list entry",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/waiting-list",
+                        "description": "Create a staff-managed waiting-list entry for walk-up or phone guests with branch scope and idempotency protection.\n\nSignature: `POST api/v1/staff/waiting-list`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"branch_id\": 1,\n    \"guest_name\": \"Walk-up Guest\",\n    \"phone\": \"0901234567\",\n    \"guest_count\": 2,\n    \"priority\": 10,\n    \"notes\": \"Prefers window seat\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
                     },
                     "response": []
                 },
@@ -3507,6 +4036,86 @@
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"row_version\": 2,\n    \"cancel_reason\": \"Plans changed\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Cancel staff waiting list entry",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/waiting-list/{{waitingListId}}/cancel",
+                        "description": "Cancel an active staff waiting-list entry using row_version protection.\n\nSignature: `POST api/v1/staff/waiting-list/{id}/cancel`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": 2,\n    \"cancel_reason\": \"Guest left before notification\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Advance staff waiting list queue",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/waiting-list/{{waitingListId}}/advance",
+                        "description": "Advance the queue after a declined or expired invite and optionally notify the next candidate using the semi-automation guardrails.\n\nSignature: `POST api/v1/staff/waiting-list/{id}/advance`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": 3,\n    \"hold_minutes\": 10\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -4168,6 +4777,403 @@
             ]
         },
         {
+            "name": "Admin Benefits",
+            "item": [
+                {
+                    "name": "List admin vouchers",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/benefits/vouchers",
+                        "description": "Return paged voucher master data for admin benefits management.\n\nSignature: `GET api/v1/admin/benefits/vouchers`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show admin voucher",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/benefits/vouchers/{{voucherId}}",
+                        "description": "Return one voucher master-data record with row_version for guarded updates.\n\nSignature: `GET api/v1/admin/benefits/vouchers/{id}`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create admin voucher",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/benefits/vouchers",
+                        "description": "Create a voucher master-data record under the admin benefits capability.\n\nSignature: `POST api/v1/admin/benefits/vouchers`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"code\": \"WELCOME50\",\n    \"discount_type\": \"Fixed\",\n    \"discount_value\": 50000,\n    \"description\": \"Welcome discount\",\n    \"is_active\": true\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update admin voucher",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/benefits/vouchers/{{voucherId}}",
+                        "description": "Update a voucher master-data record using row_version stale-write protection.\n\nSignature: `PATCH api/v1/admin/benefits/vouchers/{id}`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": 2,\n    \"description\": \"Updated welcome discount\",\n    \"discount_value\": 60000,\n    \"is_active\": true\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List admin loyalty tiers",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/benefits/loyalty-tiers",
+                        "description": "Return paged loyalty tier master data for admin benefits management.\n\nSignature: `GET api/v1/admin/benefits/loyalty-tiers`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show admin loyalty tier",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/benefits/loyalty-tiers/{{loyaltyTierId}}",
+                        "description": "Return one loyalty tier master-data record with row_version for guarded updates.\n\nSignature: `GET api/v1/admin/benefits/loyalty-tiers/{id}`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create admin loyalty tier",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/benefits/loyalty-tiers",
+                        "description": "Create a loyalty tier master-data record under the admin benefits capability.\n\nSignature: `POST api/v1/admin/benefits/loyalty-tiers`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"tier_code\": \"GOLD\",\n    \"tier_name\": \"Gold\",\n    \"min_points\": 1000,\n    \"benefits_json\": [],\n    \"is_active\": true\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update admin loyalty tier",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/benefits/loyalty-tiers/{{loyaltyTierId}}",
+                        "description": "Update a loyalty tier master-data record using row_version stale-write protection.\n\nSignature: `PATCH api/v1/admin/benefits/loyalty-tiers/{id}`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": 3,\n    \"tier_name\": \"Gold Plus\",\n    \"min_points\": 1200,\n    \"is_active\": true\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List admin benefit settings",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/settings/benefits",
+                        "description": "Return runtime benefit settings used by voucher and loyalty operations.\n\nSignature: `GET api/v1/admin/settings/benefits`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Upsert admin benefit setting",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/settings/benefits",
+                        "description": "Upsert one benefit runtime setting with idempotency and optional expected timestamp guard.\n\nSignature: `POST api/v1/admin/settings/benefits`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"setting_key\": \"loyalty.enabled\",\n    \"value\": \"true\",\n    \"expected_updated_at\": \"2026-04-05T10:00:00Z\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Admin Privacy",
+            "item": [
+                {
+                    "name": "List admin privacy requests",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/privacy/requests?status={{status}}&user_id={{userId}}&per_page={{perPage}}",
+                        "description": "Return paged customer privacy requests for admin review with stable request identifiers and status fields.\n\nSignature: `GET api/v1/admin/privacy/requests`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Export admin customer data",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/privacy/customers/{{customerUserId}}/data-export",
+                        "description": "Return the admin-visible customer data export payload while preserving finance and audit lineage.\n\nSignature: `GET api/v1/admin/privacy/customers/{user_id}/data-export`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Review admin privacy request",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/privacy/requests/{{privacyRequestId}}/review",
+                        "description": "Dry-run or commit an admin privacy request review decision while keeping anonymization side effects explicit.\n\nSignature: `POST api/v1/admin/privacy/requests/{request_id}/review`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"decision\": \"approve\",\n    \"mode\": \"dry_run\",\n    \"notes\": \"Reviewed by data protection owner.\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
             "name": "Conversation Inbox",
             "item": [
                 {
@@ -4209,6 +5215,46 @@
                         ],
                         "url": "{{baseUrl}}/api/v1/staff/conversations/{{conversationId}}?message_limit={{messageLimit}}&event_limit={{eventLimit}}&include_closed_assignments={{includeClosedAssignments}}",
                         "description": "Return one conversation with messages, files, entities, event history, analyses, and assignment history for staff operations.\n\nSignature: `GET api/v1/staff/conversations/{conversation_id}`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Assign conversation",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/conversations/{{conversationId}}/assign",
+                        "description": "Assign an unowned conversation to a staff actor that is allowed to manage conversation inbox work.\n\nSignature: `POST api/v1/staff/conversations/{conversation_id}/assign`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"agent_user_id\": 12,\n    \"notes\": \"Assigning to front desk shift owner.\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
                     },
                     "response": []
                 },
@@ -4289,6 +5335,138 @@
                                 }
                             }
                         }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update conversation workflow state",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/conversations/{{conversationId}}/workflow-state",
+                        "description": "Move a staff conversation through the explicit inbox workflow with guarded transitions for triage, waiting-on-customer, resolve, reopen, and close.\n\nSignature: `POST api/v1/staff/conversations/{conversation_id}/workflow-state`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"workflow_state\": \"Resolved\",\n    \"expected_workflow_state\": \"Assigned\",\n    \"reason\": \"Customer confirmed the issue is resolved.\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Link conversation to operational records",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/conversations/{{conversationId}}/links",
+                        "description": "Attach a conversation to a reservation, waiting-list entry, and customer record while keeping branch and user linkage consistent.\n\nSignature: `POST api/v1/staff/conversations/{conversation_id}/links`\nAuth mode: `staff_api_key`\nContract grade: `full`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"reservation_id\": 101,\n    \"waiting_list_id\": 55,\n    \"customer_user_id\": 77,\n    \"notes\": \"Linked after staff triage.\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Unlink reservation",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/conversations/{{conversationId}}/links/reservation",
+                        "description": "Remove the reservation link from a conversation while preserving the rest of the conversation history.\n\nSignature: `DELETE api/v1/staff/conversations/{conversation_id}/links/reservation`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Unlink waiting-list entry",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/conversations/{{conversationId}}/links/waiting-list",
+                        "description": "Remove the waiting-list link from a conversation while preserving the rest of the conversation history.\n\nSignature: `DELETE api/v1/staff/conversations/{conversation_id}/links/waiting-list`\nAuth mode: `staff_api_key`\nContract grade: `full`"
                     },
                     "response": []
                 },
@@ -4543,27 +5721,6 @@
                             "response": []
                         },
                         {
-                            "name": "List accessible staff branches",
-                            "request": {
-                                "method": "GET",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/staff/branches",
-                                "description": "Return the active branch context list exposed to staff-web for branch switching and branch-aware filters. The list is limited to the authenticated actor explicit branch entitlement scope and never expands from cashier shift state.\n\nSignature: `GET api/v1/staff/branches`\nAuth mode: `staff_api_key`\nContract grade: `full`"
-                            },
-                            "response": []
-                        },
-                        {
                             "name": "Show branch",
                             "request": {
                                 "method": "GET",
@@ -4668,178 +5825,6 @@
                                 ],
                                 "url": "{{baseUrl}}/api/v1/staff/conversations/{{conversationId}}/messages/{{messageId}}/attachment",
                                 "description": "Redirect an authorized staff actor to a short-lived legacy message attachment target using a signed backend access handle.\n\nSignature: `GET api/v1/staff/conversations/{conversation_id}/messages/{message_id}/attachment`\nAuth mode: `staff_api_key`\nContract grade: `full`"
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "Assign conversation",
-                            "request": {
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Idempotency-Key",
-                                        "value": "restaurantpos-{{$guid}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/staff/conversations/{{conversationId}}/assign",
-                                "description": "Assign an unowned conversation to a staff actor that is allowed to manage conversation inbox work.\n\nSignature: `POST api/v1/staff/conversations/{conversation_id}/assign`\nAuth mode: `staff_api_key`\nContract grade: `full`",
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n    \"agent_user_id\": 12,\n    \"notes\": \"Assigning to front desk shift owner.\"\n}",
-                                    "options": {
-                                        "raw": {
-                                            "language": "json"
-                                        }
-                                    }
-                                }
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "Link conversation to operational records",
-                            "request": {
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Idempotency-Key",
-                                        "value": "restaurantpos-{{$guid}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/staff/conversations/{{conversationId}}/links",
-                                "description": "Attach a conversation to a reservation, waiting-list entry, and customer record while keeping branch and user linkage consistent.\n\nSignature: `POST api/v1/staff/conversations/{conversation_id}/links`\nAuth mode: `staff_api_key`\nContract grade: `full`",
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n    \"reservation_id\": 101,\n    \"waiting_list_id\": 55,\n    \"customer_user_id\": 77,\n    \"notes\": \"Linked after staff triage.\"\n}",
-                                    "options": {
-                                        "raw": {
-                                            "language": "json"
-                                        }
-                                    }
-                                }
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "Unlink reservation",
-                            "request": {
-                                "method": "DELETE",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Idempotency-Key",
-                                        "value": "restaurantpos-{{$guid}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/staff/conversations/{{conversationId}}/links/reservation",
-                                "description": "Remove the reservation link from a conversation while preserving the rest of the conversation history.\n\nSignature: `DELETE api/v1/staff/conversations/{conversation_id}/links/reservation`\nAuth mode: `staff_api_key`\nContract grade: `full`"
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "Unlink waiting-list entry",
-                            "request": {
-                                "method": "DELETE",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Idempotency-Key",
-                                        "value": "restaurantpos-{{$guid}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/staff/conversations/{{conversationId}}/links/waiting-list",
-                                "description": "Remove the waiting-list link from a conversation while preserving the rest of the conversation history.\n\nSignature: `DELETE api/v1/staff/conversations/{conversation_id}/links/waiting-list`\nAuth mode: `staff_api_key`\nContract grade: `full`"
-                            },
-                            "response": []
-                        },
-                        {
-                            "name": "Update conversation workflow state",
-                            "request": {
-                                "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "X-Staff-Key",
-                                        "value": "{{staffApiKey}}",
-                                        "type": "text"
-                                    },
-                                    {
-                                        "key": "Idempotency-Key",
-                                        "value": "restaurantpos-{{$guid}}",
-                                        "type": "text"
-                                    }
-                                ],
-                                "url": "{{baseUrl}}/api/v1/staff/conversations/{{conversationId}}/workflow-state",
-                                "description": "Move a staff conversation through the explicit inbox workflow with guarded transitions for triage, waiting-on-customer, resolve, reopen, and close.\n\nSignature: `POST api/v1/staff/conversations/{conversation_id}/workflow-state`\nAuth mode: `staff_api_key`\nContract grade: `full`",
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n    \"workflow_state\": \"Resolved\",\n    \"expected_workflow_state\": \"Assigned\",\n    \"reason\": \"Customer confirmed the issue is resolved.\"\n}",
-                                    "options": {
-                                        "raw": {
-                                            "language": "json"
-                                        }
-                                    }
-                                }
                             },
                             "response": []
                         }

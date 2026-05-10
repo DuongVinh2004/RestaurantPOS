@@ -4,6 +4,7 @@ import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/status/status-badge";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
+import { ConfirmDialog } from "@/components/customer/ui";
 import { isConflictLikeApiError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query-keys";
 import { localDateTimeRangeToUtc } from "@/lib/contracts/datetime";
@@ -125,6 +127,7 @@ function buildReservationTimelineItems({
 
 export function ReservationDetailPage({ id }: { id: number }) {
   const queryClient = useQueryClient();
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
   const reservationQuery = useQuery({
     queryKey: queryKeys.reservations.detail(id),
     queryFn: () => getReservation(id),
@@ -240,6 +243,7 @@ export function ReservationDetailPage({ id }: { id: number }) {
   const billSummary = getReservationBillSummaryState(reservation);
   const holdSummary = getReservationHoldSummaryState(reservation);
   const actionError = cancelMutation.error ?? rescheduleMutation.error;
+  const actionPending = cancelMutation.isPending || rescheduleMutation.isPending;
   const actionBoundary = actionError
     ? getSelfServiceBlockedState("reservation", actionError, isConflictLikeApiError(actionError) ? "Thông tin lịch đặt đã thay đổi" : "Chưa xử lý được lịch đặt")
     : null;
@@ -345,6 +349,10 @@ export function ReservationDetailPage({ id }: { id: number }) {
                   <form
                     className="space-y-3"
                     onSubmit={actionForm.handleSubmit((values) => {
+                      if (actionPending) {
+                        return;
+                      }
+
                       if (!values.start_time) {
                         actionForm.setError("start_time", { message: "Chọn giờ mới." });
                         return;
@@ -378,7 +386,7 @@ export function ReservationDetailPage({ id }: { id: number }) {
                       <Label htmlFor="reason">Lý do hoặc ghi chú</Label>
                       <Textarea id="reason" className="min-h-20 rounded-lg" {...actionForm.register("reason")} />
                     </div>
-                    <Button type="submit" variant="outline" className="w-full rounded-lg" disabled={rescheduleMutation.isPending}>
+                    <Button type="submit" variant="outline" className="w-full rounded-lg" disabled={actionPending}>
                       {rescheduleMutation.isPending ? "Đang gửi giờ mới" : "Yêu cầu đổi giờ"}
                     </Button>
                   </form>
@@ -390,8 +398,8 @@ export function ReservationDetailPage({ id }: { id: number }) {
                     type="button"
                     variant="destructive"
                     className="w-full rounded-lg"
-                    disabled={cancelMutation.isPending}
-                    onClick={actionForm.handleSubmit((values) => cancelMutation.mutate(values))}
+                    disabled={actionPending}
+                    onClick={() => setConfirmCancelOpen(true)}
                   >
                     {cancelMutation.isPending ? "Đang hủy" : "Hủy lịch đặt"}
                   </Button>
@@ -415,6 +423,23 @@ export function ReservationDetailPage({ id }: { id: number }) {
           </CardContent>
         </Card>
       </div>
+      <ConfirmDialog
+        open={confirmCancelOpen}
+        onOpenChange={setConfirmCancelOpen}
+        title="Hủy lịch đặt?"
+        description="Thao tác này gửi yêu cầu hủy lịch đặt đến nhà hàng. Thông tin đặt cọc hoặc hoàn tiền, nếu có, vẫn hiển thị trong lịch đặt này."
+        confirmLabel="Hủy lịch đặt"
+        destructive
+        onConfirm={() => {
+          void actionForm.handleSubmit((values) => {
+            if (actionPending) {
+              return;
+            }
+
+            cancelMutation.mutate(values);
+          })();
+        }}
+      />
     </main>
   );
 }

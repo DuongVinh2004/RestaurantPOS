@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Auth;
 
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -22,6 +23,11 @@ class CustomerProductAuthHttpFlowTest extends TestCase
         config()->set('customer_auth.allowed_role_ids', [3]);
         config()->set('customer_auth.login_throttle_limit', 5);
         config()->set('customer_auth.login_throttle_window_seconds', 60);
+        config()->set('customer_auth.register_throttle_limit', 100);
+        config()->set('customer_auth.register_throttle_window_seconds', 60);
+        config()->set('customer_auth.register_password_min_length', 8);
+
+        $this->withoutMiddleware(ThrottleRequests::class);
 
         DB::purge('sqlite');
         DB::reconnect('sqlite');
@@ -161,6 +167,134 @@ class CustomerProductAuthHttpFlowTest extends TestCase
             'X-Customer-Token' => $replacementToken,
         ])->getJson('/api/v1/auth/customer/me')
             ->assertStatus(401);
+    }
+
+    public function test_customer_can_register_and_then_login_with_created_account(): void
+    {
+        $register = $this->withHeaders([
+            'Accept' => 'application/json',
+            'X-Session-Id' => 'sess-register-header',
+        ])->postJson('/api/v1/auth/customer/register', [
+            'full_name' => 'Registered Customer',
+            'email' => 'registered.customer@example.test',
+            'phone' => '0904000000',
+            'password' => 'secret-123',
+            'password_confirmation' => 'secret-123',
+            'session_label' => 'web-register',
+            'role_id' => 2,
+        ]);
+
+        $register->assertOk()
+            ->assertJsonPath('data.auth_mode', 'customer_access_session')
+            ->assertJsonPath('data.auth_header', 'X-Customer-Token')
+            ->assertJsonPath('data.session_id', 'sess-register-header')
+            ->assertJsonPath('data.user.full_name', 'Registered Customer')
+            ->assertJsonPath('data.user.email', 'registered.customer@example.test')
+            ->assertJsonPath('data.user.role_id', 3);
+
+        $userId = (int) $register->json('data.user.user_id');
+        $user = DB::table('users')->where('user_id', $userId)->first();
+
+        self::assertNotNull($user);
+        self::assertSame(3, (int) $user->role_id);
+        self::assertSame('registered.customer@example.test', (string) $user->username);
+        self::assertTrue(Hash::check('secret-123', (string) $user->password_hash));
+
+        $this->postJson('/api/v1/auth/customer/login', [
+            'identifier' => 'registered.customer@example.test',
+            'password' => 'secret-123',
+            'session_label' => 'web-login-after-register',
+        ])->assertOk()
+            ->assertJsonPath('data.user.user_id', $userId);
+    }
+
+    public function test_customer_register_rejects_duplicate_email_and_phone(): void
+    {
+        DB::table('users')->insert([
+            'user_id' => 40,
+            'username' => 'existing-customer',
+            'password_hash' => Hash::make('secret-123'),
+            'full_name' => 'Existing Customer',
+            'email' => 'existing.customer@example.test',
+            'phone' => '0905000000',
+            'role_id' => 3,
+            'current_tier_id' => null,
+            'language_pref' => 'vn',
+            'is_deleted' => 0,
+            'row_version' => 1,
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
+        ]);
+
+        $this->postJson('/api/v1/auth/customer/register', [
+            'full_name' => 'Duplicate Email',
+            'email' => 'existing.customer@example.test',
+            'phone' => '0905000001',
+            'password' => 'secret-123',
+            'password_confirmation' => 'secret-123',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+
+        $this->postJson('/api/v1/auth/customer/register', [
+            'full_name' => 'Duplicate Phone',
+            'email' => 'new.customer@example.test',
+            'phone' => '0905000000',
+            'password' => 'secret-123',
+            'password_confirmation' => 'secret-123',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['phone']);
+    }
+
+    public function test_customer_register_requires_contact_and_strong_enough_password(): void
+    {
+        $this->postJson('/api/v1/auth/customer/register', [
+            'full_name' => 'Missing Contact',
+            'password' => 'secret-123',
+            'password_confirmation' => 'secret-123',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['email', 'phone']);
+
+        $this->postJson('/api/v1/auth/customer/register', [
+            'full_name' => 'Weak Password',
+            'email' => 'weak.password@example.test',
+            'password' => 'short',
+            'password_confirmation' => 'short',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['password']);
+    }
+
+    public function test_customer_register_fails_closed_when_customer_role_contract_is_missing_or_auth_disabled(): void
+    {
+        config()->set('customer_auth.allowed_role_ids', []);
+
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'X-Request-Id' => 'req-customer-register-role-config-missing',
+        ])->postJson('/api/v1/auth/customer/register', [
+            'full_name' => 'Role Missing',
+            'email' => 'role.missing@example.test',
+            'password' => 'secret-123',
+            'password_confirmation' => 'secret-123',
+        ])->assertStatus(503)
+            ->assertHeader('X-Request-Id', 'req-customer-register-role-config-missing')
+            ->assertJsonPath('error_code', 'customer_role_configuration_missing')
+            ->assertJsonPath('state_reason', 'customer_role_configuration_missing');
+
+        config()->set('customer_auth.allowed_role_ids', [3]);
+        config()->set('customer_auth.enabled', false);
+
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'X-Request-Id' => 'req-customer-register-auth-disabled',
+        ])->postJson('/api/v1/auth/customer/register', [
+            'full_name' => 'Auth Disabled',
+            'email' => 'auth.disabled@example.test',
+            'password' => 'secret-123',
+            'password_confirmation' => 'secret-123',
+        ])->assertStatus(503)
+            ->assertHeader('X-Request-Id', 'req-customer-register-auth-disabled')
+            ->assertJsonPath('error_code', 'customer_auth_disabled')
+            ->assertJsonPath('state_reason', 'customer_auth_disabled');
     }
 
     public function test_customer_login_uses_request_session_header_when_body_session_id_is_missing(): void

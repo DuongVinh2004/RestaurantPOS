@@ -96,9 +96,25 @@ describe("createLiveRuntimeConfig", () => {
 
     expect(config.issues).toEqual([
       expect.stringContaining("UAT manifest not found"),
-      "CUSTOMER_WEB_LIVE_IDENTIFIER is required for live verification.",
-      "CUSTOMER_WEB_LIVE_PASSWORD is required for live verification.",
+      "CUSTOMER_WEB_LIVE_IDENTIFIER or auth.customer_primary.username is required for live verification.",
+      "CUSTOMER_WEB_LIVE_PASSWORD or auth.customer_primary.password is required for live verification.",
     ]);
+  });
+
+  it("uses canonical UAT customer credentials when live credential env vars are not provided", () => {
+    const config = createLiveRuntimeConfig({
+      env: {
+        CUSTOMER_WEB_LIVE_API_BASE_URL: "http://127.0.0.1:8000",
+        NEXT_PUBLIC_ENABLE_DEV_MOCKS: "false",
+        NODE_ENV: "test",
+      } as NodeJS.ProcessEnv,
+      now: freshNow,
+      manifestStatus: presentManifest(),
+    });
+
+    expect(config.issues).toEqual([]);
+    expect(config.identifier).toBe("uat.customer.primary");
+    expect(config.password).toBe("UatDemo!123");
   });
 
   it("accepts env vars when the canonical UAT manifest is present and fresh", () => {
@@ -112,6 +128,7 @@ describe("createLiveRuntimeConfig", () => {
     expect(config.healthUrl).toBe("http://127.0.0.1:8000/api/v1/health");
     expect(config.appHealthUrl).toBe("http://127.0.0.1:3000/login");
     expect(config.identifier).toBe("uat.customer.primary");
+    expect(config.proof.preorder.status).toBe("flag-disabled");
     expect(config.proof.depositPaymentSession.status).toBe("simulated-local-uat");
     expect(config.proof.billPaymentSession.status).toBe("runtime-prerequisites-present");
     expect(config.proof.waitingList.status).toBe("runtime-prerequisites-present");
@@ -196,12 +213,14 @@ describe("createLiveRuntimeConfig", () => {
   it("classifies requested payment and Wave 2 diagnostics without fake runtime success", () => {
     const config = createLiveRuntimeConfig({
       env: liveEnv({
+        CUSTOMER_WEB_LIVE_EXERCISE_PREORDER: "true",
         CUSTOMER_WEB_LIVE_EXERCISE_DEPOSIT_PAYMENT_SESSION: "true",
         CUSTOMER_WEB_LIVE_EXERCISE_BILL_PAYMENT_SESSION: "true",
         CUSTOMER_WEB_LIVE_EXERCISE_WAITING_LIST: "true",
         CUSTOMER_WEB_LIVE_EXERCISE_ACCOUNT_BENEFITS: "true",
         CUSTOMER_WEB_LIVE_EXERCISE_PRIVACY_TOOLS: "true",
         CUSTOMER_WEB_LIVE_EXERCISE_DATA_EXPORT: "true",
+        NEXT_PUBLIC_FEATURE_PREORDER: "true",
         NEXT_PUBLIC_FEATURE_WAITING_LIST: "true",
         NEXT_PUBLIC_FEATURE_ACCOUNT_BENEFITS: "true",
         NEXT_PUBLIC_FEATURE_PRIVACY_TOOLS: "true",
@@ -234,6 +253,7 @@ describe("createLiveRuntimeConfig", () => {
       ),
     });
 
+    expect(config.proof.preorder.status).toBe("enabled-runtime-prerequisites-present");
     expect(config.proof.depositPaymentSession.status).toBe("enabled-runtime-support");
     expect(config.proof.billPaymentSession.status).toBe("enabled-runtime-support");
     expect(config.proof.waitingList.status).toBe("enabled-missing-data");
@@ -245,6 +265,21 @@ describe("createLiveRuntimeConfig", () => {
     );
     expect(config.issues).toContain(
       "Account benefits diagnostics were requested, but the canonical UAT manifest is missing benefits reservation, voucher, or loyalty prerequisites.",
+    );
+  });
+
+  it("fails clearly when preorder live proof is requested without the preorder rollout flag", () => {
+    const config = createLiveRuntimeConfig({
+      env: liveEnv({
+        CUSTOMER_WEB_LIVE_EXERCISE_PREORDER: "true",
+      }),
+      now: freshNow,
+      manifestStatus: presentManifest(),
+    });
+
+    expect(config.proof.preorder.status).toBe("enabled-missing-flag");
+    expect(config.issues).toContain(
+      "Preorder live proof was requested, but NEXT_PUBLIC_FEATURE_PREORDER is not enabled for the customer-web runtime.",
     );
   });
 });

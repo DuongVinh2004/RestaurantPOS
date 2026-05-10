@@ -46,6 +46,7 @@ env:
   QUEUE_CONNECTION: database
   SESSION_DRIVER: database
   MAIL_MAILER: log
+  CUSTOMER_AUTH_JWT_SECRET: booking-ci-customer-auth-secret-2026
   REDIS_CLIENT: phpredis
   REDIS_HOST: 127.0.0.1
   REDIS_PORT: 6379
@@ -53,6 +54,7 @@ env:
   REDIS_CACHE_DB: 1
   BOOKING_CI_BOOTSTRAP_DATABASE: true
   BOOKING_CI_BOOTSTRAP_SITE: true
+  BOOKING_CI_BOOTSTRAP_REPORTING: true
   BOOKING_CI_BOOTSTRAP_STAFF_WEB: true
   BOOKING_CI_BOOTSTRAP_CUSTOMER_WEB: true
   BOOKING_RELEASE_PACKAGE_OVERWRITE: true
@@ -98,6 +100,7 @@ jobs:
         with:
           php-version: '8.2'
           extensions: mbstring, dom, pdo_mysql, redis, phar
+          ini-values: memory_limit=3G
           tools: composer:v2
           coverage: none
 
