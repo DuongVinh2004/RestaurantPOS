@@ -30,6 +30,8 @@ class BookingLaunchReadinessCommandTest extends TestCase
         parent::setUp();
 
         config()->set('booking_launch_readiness.artifact_root', $this->artifactRoot);
+        // Keep freshness-sensitive manual evidence fixtures deterministic across CI dates.
+        Carbon::setTestNow(Carbon::parse('2026-04-28T10:00:00Z'));
     }
 
     protected function tearDown(): void
