@@ -10,8 +10,8 @@
             "sha256": "cc3bf4a817f2190fbe6973fb2afe75ddb20f3393d1810c17f3d4a5fbafdf2c48",
             "bytes": 175150,
             "line_count": 2564,
-            "modified_epoch": 1777440621,
-            "modified_at_utc": "2026-04-29T05:30:21+00:00",
+            "modified_epoch": 1778423629,
+            "modified_at_utc": "2026-05-10T14:33:49+00:00",
             "required_fragment_count": 64,
             "missing_fragments": []
         },
@@ -22,8 +22,8 @@
             "sha256": "590fe79054e07ace29f73fe20a8ad34bd082d5ae64f1654fb83ea2d1c55070d1",
             "bytes": 174673,
             "line_count": 2561,
-            "modified_epoch": 1777462265,
-            "modified_at_utc": "2026-04-29T11:31:05+00:00",
+            "modified_epoch": 1778423629,
+            "modified_at_utc": "2026-05-10T14:33:49+00:00",
             "required_fragment_count": 64,
             "missing_fragments": []
         },
@@ -34,8 +34,8 @@
             "sha256": "f02f2a7c6c764a4124a45e39b14788b5a1df7b73491407ffcdd33fbdfcd08cc0",
             "bytes": 21888,
             "line_count": 597,
-            "modified_epoch": 1777451669,
-            "modified_at_utc": "2026-04-29T08:34:29+00:00",
+            "modified_epoch": 1778423629,
+            "modified_at_utc": "2026-05-10T14:33:49+00:00",
             "required_fragment_count": 2,
             "missing_fragments": []
         },
@@ -70,8 +70,8 @@
             "sha256": "2a6aadfebd6ffabc11874a0b6035fd1347cd7ddd7c5a70a3e9e43510e2b99962",
             "bytes": 73157,
             "line_count": 1574,
-            "modified_epoch": 1778144291,
-            "modified_at_utc": "2026-05-07T08:58:11+00:00",
+            "modified_epoch": 1778427005,
+            "modified_at_utc": "2026-05-10T15:30:05+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -82,8 +82,8 @@
             "sha256": "344cae35d3cdf412a24a215642dbd9d3162de9bbfde5032de71c38af3ffb31da",
             "bytes": 2415533,
             "line_count": 58965,
-            "modified_epoch": 1778144403,
-            "modified_at_utc": "2026-05-07T09:00:03+00:00",
+            "modified_epoch": 1778427005,
+            "modified_at_utc": "2026-05-10T15:30:05+00:00",
             "required_fragment_count": 5,
             "missing_fragments": []
         },
@@ -94,8 +94,8 @@
             "sha256": "229b090fac489583b97f1fca35dd9230770be304272e558cf63e04a9317bcc4a",
             "bytes": 310176,
             "line_count": 5862,
-            "modified_epoch": 1778144403,
-            "modified_at_utc": "2026-05-07T09:00:03+00:00",
+            "modified_epoch": 1778427005,
+            "modified_at_utc": "2026-05-10T15:30:05+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -106,8 +106,8 @@
             "sha256": "bfcc8777a93fa3058df9670a18ef5030897f233fbcea003035a19cf19d0573eb",
             "bytes": 19763,
             "line_count": 824,
-            "modified_epoch": 1778144403,
-            "modified_at_utc": "2026-05-07T09:00:03+00:00",
+            "modified_epoch": 1778427005,
+            "modified_at_utc": "2026-05-10T15:30:05+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -118,8 +118,8 @@
             "sha256": "039f494f44a505efe424e7e1f3fb7cf8bc724457e987e026a3dad290b29897ef",
             "bytes": 19657,
             "line_count": 824,
-            "modified_epoch": 1778144403,
-            "modified_at_utc": "2026-05-07T09:00:03+00:00",
+            "modified_epoch": 1778427005,
+            "modified_at_utc": "2026-05-10T15:30:05+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -130,8 +130,8 @@
             "sha256": "2cf380ce4598a25943ac7af4cc777941a0f8a773b23e103217406cf8e2ea73bc",
             "bytes": 189106,
             "line_count": 6729,
-            "modified_epoch": 1778144403,
-            "modified_at_utc": "2026-05-07T09:00:03+00:00",
+            "modified_epoch": 1778427005,
+            "modified_at_utc": "2026-05-10T15:30:05+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -142,8 +142,8 @@
             "sha256": "4cfd7e1b9857a5fd173fee29689fcf93e2d33dc352022815ac8a8a51aad8102a",
             "bytes": 10982,
             "line_count": 206,
-            "modified_epoch": 1778144403,
-            "modified_at_utc": "2026-05-07T09:00:03+00:00",
+            "modified_epoch": 1778427005,
+            "modified_at_utc": "2026-05-10T15:30:05+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -151,11 +151,11 @@
             "path": "build/api-consumer/sdk/typescript/README.md",
             "exists": true,
             "optional": false,
-            "sha256": "21c2324c3830639664afba397cc426fa05192d4c9d78c03b759fc559e0b8838d",
-            "bytes": 10816,
+            "sha256": "c8c2b64e60946defd3ccc6962a44bac1bf62402c00eef559f81409395e54adae",
+            "bytes": 10825,
             "line_count": 267,
-            "modified_epoch": 1778144403,
-            "modified_at_utc": "2026-05-07T09:00:03+00:00",
+            "modified_epoch": 1778592149,
+            "modified_at_utc": "2026-05-12T13:22:29+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -166,8 +166,8 @@
             "sha256": "416b8f751a2b169b87b624aa79dce18de35e7ce2744ee56a68a7524a408e1e44",
             "bytes": 14770,
             "line_count": 481,
-            "modified_epoch": 1778144403,
-            "modified_at_utc": "2026-05-07T09:00:03+00:00",
+            "modified_epoch": 1778427005,
+            "modified_at_utc": "2026-05-10T15:30:05+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         },
@@ -178,8 +178,8 @@
             "sha256": "bf8c06de924b38eeeb5b92ddde708b21e87bc5ff5419d72721776a1a1c5747dd",
             "bytes": 22972,
             "line_count": 156,
-            "modified_epoch": 1778144403,
-            "modified_at_utc": "2026-05-07T09:00:03+00:00",
+            "modified_epoch": 1778427005,
+            "modified_at_utc": "2026-05-10T15:30:05+00:00",
             "required_fragment_count": 4,
             "missing_fragments": []
         },
@@ -211,11 +211,11 @@
             "path": "storage/app/booking_release/release_manifest_snapshot.json",
             "exists": true,
             "optional": false,
-            "sha256": "ead87b1d4f5ff03508662dcd69b1734edb3601c65a8f920d645e13a69595a115",
+            "sha256": "6edd49626ed9d5e5052215923cd4650319be42d5907b7e5604ba803e64fe3032",
             "bytes": 17981,
             "line_count": 354,
-            "modified_epoch": 1778135835,
-            "modified_at_utc": "2026-05-07T06:37:15+00:00",
+            "modified_epoch": 1778591875,
+            "modified_at_utc": "2026-05-12T13:17:55+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         }
@@ -345,7 +345,7 @@
         "required_count": 54
     },
     "meta": {
-        "generated_at_utc": "2026-05-07T09:00:04+00:00"
+        "generated_at_utc": "2026-05-12T13:22:49+00:00"
     },
     "definition_path": "config/booking_release.php",
     "definition_sha256": "ebc2bedf420680b75c07e4585009b504d84a66b8a3a76a0af5d6a9f38c30a16a",

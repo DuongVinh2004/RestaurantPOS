@@ -289,6 +289,8 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertStringContainsString('build/api-consumer/mutation-contracts.md', $sdkReadme);
         self::assertStringContainsString('customerSessionId: () => sessionStorage.getItem(\'customerSessionId\') ?? undefined,', $sdkReadme);
         self::assertStringContainsString('staffCsrfToken: () => readCookie(\'staff_web_csrf\') ?? undefined,', $sdkReadme);
+        self::assertStringContainsString('password: \'CHANGE_ME_LOCAL_ONLY\',', $sdkReadme);
+        self::assertStringNotContainsString('password: \'UatDemo!123\',', $sdkReadme);
         self::assertStringContainsString('keeps `X-Customer-Token` and `X-Session-Id` together when both are configured', $sdkReadme);
         self::assertStringContainsString('refresh/logout also send `staffCsrfToken` as `X-Staff-CSRF` when provided', $sdkReadme);
         self::assertStringContainsString('## Curated priority batch', $sdkReadme);

@@ -2036,7 +2036,7 @@ const client = new RestaurantPosClient({
 
 const login = await client.postV1AuthCustomerLogin({
   identifier: 'uat.customer.primary',
-  password: 'UatDemo!123',
+  password: 'CHANGE_ME_LOCAL_ONLY',
   session_label: 'web',
 });
 ```
