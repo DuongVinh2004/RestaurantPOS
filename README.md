@@ -3,234 +3,621 @@
 [![Backend CI](https://github.com/DuongVinh2004/RestaurantPOS/actions/workflows/booking-ci.yml/badge.svg?branch=main)](https://github.com/DuongVinh2004/RestaurantPOS/actions/workflows/booking-ci.yml)
 [![Release Gate](https://github.com/DuongVinh2004/RestaurantPOS/actions/workflows/booking-release-gate.yml/badge.svg?branch=main)](https://github.com/DuongVinh2004/RestaurantPOS/actions/workflows/booking-release-gate.yml)
 
-SQL-first RestaurantPOS monorepo built around a Laravel 12 backend, branch-aware operational workflows, and release/runtime gates that are meant to survive real deployment conditions.
+RestaurantPOS is a SQL-first Laravel 12 backend with staff and customer web clients, API consumer artifacts, and release/runtime gates for production-style restaurant operations.
 
-This repository is not a demo scaffold. It owns:
-
-- reservation, table hold, waiting-list, and service-session flows
-- dine-in ordering, cashier settlement, refunds, and payment webhook handling
-- kitchen dispatch and branch routing foundations
-- inventory, purchasing, and reporting foundations
-- operator-facing `staff-web/`, customer-facing `customer-web/`, and generated API consumer artifacts
-- deploy, release, launch-readiness, DR, and runtime health contracts
-
-## Project Status
-
-The codebase is being hardened toward a production-grade RestaurantPOS backend. Some domains are fully contract-visible before they are fully launch-enabled; use feature flags, runbooks, and launch-readiness evidence instead of assuming that every exposed route is day-1 enabled.
-
-The most important repository rule is unchanged: environment provisioning is SQL-first. Do not treat `php artisan migrate` as the default bootstrap path for local, staging, or release validation.
-
-## Repository Standards
-
-- [Contributing guide](./CONTRIBUTING.md)
-- [Security policy](./SECURITY.md)
-- [PR template](./.github/PULL_REQUEST_TEMPLATE.md)
-- [Issue templates](./.github/ISSUE_TEMPLATE/)
-- [MIT license](./LICENSE)
-
-## What Is Included
-
-- `app/`: Laravel application code and domain modules
-- `routes/`: API and console route entry points
-- `database/schema/mysql-schema.sql`: canonical schema dump used for provisioning
-- `database/patches/`: ordered SQL patch inventory that completes the release contract
-- `tools/mysql/`: bootstrap, verification, and MySQL release helpers
-- `staff-web/`: operator-facing React + TypeScript client
-- `customer-web/`: customer-facing web client
-- `build/api-consumer/`: generated SDK, Postman, enum state, and mutation contract artifacts
-- `docs/runbooks/`: operator and release documentation
-- `docs/architecture/`: module ownership, structure, and decomposition references
-- `storage/app/booking_release/`: release evidence and manifest snapshots
-
-## Core Capabilities
-
-- Auth / RBAC for staff, customer access sessions, and web auth session hardening
-- Front-of-house reservations, board views, branch scope, check-in, move-table, and release flows
-- Dine-in ordering, active-order read models, and kitchen dispatch foundations
-- Checkout, deposit capture, bill self-pay support, refunds, invoices, cashier shifts, and reconciliation
-- Waiting-list orchestration and customer response flows
-- Inventory, purchasing, supplier receiving, and reporting read models
-- Release packaging, launch-readiness checks, doctor/outbox health, and DR verification
-
-## Stack
-
-- PHP 8.2
-- Laravel 12
-- MySQL 8
-- Redis
-- Node.js / npm
-- Vite + Tailwind CSS
-- React + TypeScript in `staff-web/` and `customer-web/`
-
-## Architecture References
-
-- [Refactored app structure guide](./docs/architecture/refactored-app-structure-guide.md)
-- [Module ownership map](./docs/architecture/module-ownership-map.md)
-- [Module dependency rules](./docs/architecture/module-dependency-rules.md)
-- [API contract runbook](./docs/runbooks/booking-api-contract.md)
-- [Launch readiness runbook](./docs/runbooks/booking-launch-readiness.md)
-
-## Bootstrap Contract
-
-Canonical provisioning uses this sequence:
+The repository is intentionally not migration-first. A fresh machine must be provisioned from the checked-in SQL release contract:
 
 1. `database/schema/mysql-schema.sql`
-2. `database/patches/*.sql`
-3. `tools/mysql/bootstrap_release.php` or `composer bootstrap:booking`
+2. every `database/patches/*.sql` file in lexical order
+3. `tools/mysql/verify_release_contract.sql`
+4. `composer bootstrap:booking` for database bootstrap, reference data, site bootstrap, reporting snapshots, release artifacts, and scheduler heartbeat priming
 
-`composer bootstrap:booking` imports the schema, applies every required patch, seeds reference data, refreshes release artifacts, rebuilds reporting snapshots, and primes the scheduler heartbeat once so runtime gates can run immediately.
+Do not use `php artisan migrate` as the default local, staging, or release bootstrap path.
 
-If you change schema-sensitive behavior, keep these files aligned:
+## What This Repo Runs
 
-- `database/schema/mysql-schema.sql`
-- `database/patches/*.sql`
-- `db_all.sql`
+- Laravel backend API for reservations, table holds, waiting list, dine-in POS, checkout, refunds, cashier shifts, inventory, reporting, notifications, and operational gates
+- `staff-web/`: staff-facing React + Vite client
+- `customer-web/`: customer-facing Next.js client
+- `build/api-consumer/`: generated SDK, Postman collection, enum/state map, and mutation contract artifacts
+- `storage/app/booking_release/`: frozen release evidence and manifest snapshots used by release gates
 
 ## Prerequisites
 
-- PHP 8.2 with common Laravel extensions, including `mbstring`, `openssl`, `pdo_mysql`, `fileinfo`, `tokenizer`, `xml`, and `ctype`
-- MySQL 8 compatible server plus the `mysql` CLI in `PATH`
-- Redis and the PHP Redis extension when `REQUIRE_REDIS_FOR_BOOKING_API=true`
+Install these before cloning or bootstrapping:
+
+- Git
+- PHP 8.2 or newer, with Composer resolving against the repo's PHP 8.2 platform
 - Composer 2
-- Node.js and npm
-- Docker Compose is supported as a local-only fallback for the repo runtime lane when MySQL/Redis binaries are not installed locally.
+- Node.js 20 LTS or newer, plus npm
+- MySQL 8 compatible server and the `mysql` CLI
+- Redis 7 compatible server
+- Docker Desktop or Docker Engine, optional but useful for local MySQL/Redis fallback
 
-## Quick Start
+Recommended PHP extensions:
 
-1. Copy the environment file and configure MySQL and Redis values.
-   - Windows: `copy .env.example .env`
-   - macOS / Linux: `cp .env.example .env`
-2. Install backend dependencies.
-   - `composer install`
-3. Generate the application key if `.env` does not already contain one.
-   - `php artisan key:generate --ansi --force`
-4. Run the SQL-first bootstrap flow.
-   - `composer bootstrap:booking`
-5. Build root frontend assets when needed.
-   - `npm install`
-   - `npm run build`
-6. Build the web clients you are actively changing.
-   - `cd staff-web && npm install && npm run build`
-   - `cd customer-web && npm install && npm run build`
+- `ctype`
+- `curl`
+- `fileinfo`
+- `mbstring`
+- `openssl`
+- `pdo_mysql`
+- `pdo_sqlite`
+- `redis` or `phpredis` when Redis-backed runtime gates are enabled
+- `tokenizer`
+- `xml`
 
-`composer setup` wraps backend install/bootstrap plus the root frontend build. It is useful for a first machine bootstrap, but release validation should still use the SQL-first contract explicitly.
+Check the tools:
 
-## Local Development
+```bash
+php -v
+composer -V
+node -v
+npm -v
+mysql --version
+redis-cli --version
+```
 
-For a runtime-like local lane:
+On Windows, use PowerShell for repo helper scripts. The Windows local MySQL helper requires MySQL Server 8 compatible `mysqld.exe`; older XAMPP/MariaDB runtimes are not a reliable substitute for the SQL-first release contract.
 
-- `npm run runtime:up`
-- `composer bootstrap:booking`
-- `npm run runtime:preflight`
-- `npm run runtime:down`
+## Fresh Clone Setup
 
-`npm run runtime:up` brings up MySQL, Redis, backend HTTP, and scheduler work. On Windows it first tries the repo PowerShell helpers; on Windows, macOS, and Linux it can fall back to `docker-compose.testing.yml` for local-only MySQL/Redis when no local service is reachable. Run `composer bootstrap:booking` after services are reachable on a fresh machine or after schema drift; that is the SQL-first bootstrap and it must not be replaced by `php artisan migrate`. `npm run runtime:preflight` then validates backend HTTP, MySQL TCP, Redis TCP, `booking:doctor`, scheduler heartbeat, notification outbox health, and strict deploy preflight.
+These steps are the canonical path for a new machine.
 
-PowerShell can run the same lane through npm, or call the Windows wrapper directly when debugging process startup:
+### 1. Clone and enter the repo
 
-- `npm run runtime:up`
-- `powershell -ExecutionPolicy Bypass -File scripts\ops\local-runtime.ps1 -Action up`
+```bash
+git clone https://github.com/DuongVinh2004/RestaurantPOS.git
+cd RestaurantPOS
+```
 
-CI-like Linux/macOS lanes should use the same npm commands. If no MySQL/Redis service is provided by CI, start Docker first so the local-only Compose fallback can expose `DB_PORT` and `REDIS_PORT`.
+### 2. Install backend dependencies
 
-Runtime gate recovery checklist:
+```bash
+composer install
+```
 
-- MySQL refused: run `npm run runtime:restart` or `npm run mysql:local:restart`, confirm `.env` `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, and set `MYSQL_BIN` if the `mysql` CLI is not on `PATH`. If Docker is the local fallback, make sure Docker is running and `docker-compose.testing.yml` can bind the configured `DB_PORT`.
-- Redis refused: run `npm run runtime:restart`, `powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-redis.ps1 -Restart`, or start an external Redis service on `.env` `REDIS_HOST:REDIS_PORT`.
-- Scheduler heartbeat missing: keep `php artisan schedule:work` running, or restart the unified lane with `npm run runtime:restart`.
-- SQL bootstrap not applied: run `composer bootstrap:booking`, then `php artisan booking:doctor --json` and `php artisan booking:deploy-check --mode=preflight --strict --json`.
+### 3. Create `.env`
 
-For faster UI-focused iteration:
+Windows:
 
-- `npm run dev:be`
-- `npm run dev:all`
-- `npm run dev:smoke`
+```powershell
+copy .env.example .env
+```
 
-`npm run dev:be` and `npm run dev:all` ensure MySQL and Redis before bootstrapping the demo runtime. On Windows they first try the native repo helpers; if MySQL Server 8 or Redis is not installed locally and Docker Desktop is running, they fall back to the `mysql` and `redis` services in `docker-compose.testing.yml`.
+macOS / Linux:
 
-The simple dev lane is convenient for browser iteration, but it does not replace the runtime lane when scheduler heartbeat freshness, outbox health, Redis, or release evidence matters.
+```bash
+cp .env.example .env
+```
 
-The dev bootstrap refreshes demo credentials into `storage/app/uat/scenario-pack.json`. See [local login accounts](./docs/runbooks/local-login-accounts.md) and [UAT scenario pack](./docs/runbooks/uat-demo-scenario-pack.md) for the expected accounts and seeded flows.
+Edit `.env` before bootstrapping. For a local Docker-backed setup, use:
 
-For Windows `cmd.exe` usage in VSCode, use [booking-local-windows-vscode-cmd-runbook.md](./docs/runbooks/booking-local-windows-vscode-cmd-runbook.md).
+```env
+APP_ENV=local
+APP_DEBUG=true
+APP_URL=http://127.0.0.1:8000
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=restaurantdb
+DB_USERNAME=root
+DB_PASSWORD=123456
+
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REQUIRE_REDIS_FOR_BOOKING_API=false
+```
+
+If you use an existing MySQL service, set `DB_USERNAME` and `DB_PASSWORD` to the real local credentials. If `mysql` is not on `PATH`, set:
+
+```env
+MYSQL_BIN=/absolute/path/to/mysql
+```
+
+On Windows, use a Windows path:
+
+```env
+MYSQL_BIN=C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe
+MYSQLD_BIN=C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe
+```
+
+### 4. Generate the Laravel app key
+
+```bash
+php artisan key:generate --ansi --force
+```
+
+### 5. Start MySQL and Redis
+
+Use one of these options.
+
+Docker local fallback:
+
+```bash
+docker compose -f docker-compose.testing.yml up -d mysql redis
+```
+
+Windows repo-local helpers:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-mysql.ps1 -Restart
+powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-redis.ps1 -Restart
+```
+
+Existing services:
+
+- Start your own MySQL 8 compatible service on `DB_HOST:DB_PORT`.
+- Start your own Redis service on `REDIS_HOST:REDIS_PORT`.
+- Confirm `.env` matches those services.
+
+Confirm connectivity:
+
+```bash
+mysql --protocol=tcp -h 127.0.0.1 -P 3306 -u root -p -e "SELECT 1"
+redis-cli -h 127.0.0.1 -p 6379 ping
+```
+
+The Redis command should return `PONG`.
+
+### 6. Bootstrap the SQL-first backend
+
+Run the canonical bootstrap:
+
+```bash
+composer bootstrap:booking
+```
+
+This command:
+
+- creates the configured database when allowed
+- imports `database/schema/mysql-schema.sql`
+- applies every SQL patch in `database/patches/`
+- runs `tools/mysql/verify_release_contract.sql`
+- seeds reference data
+- clears Laravel caches
+- runs `booking:bootstrap-site`
+- rebuilds recent reporting snapshots
+- normalizes release artifacts
+- refreshes the release manifest report
+- primes the scheduler heartbeat once
+
+Use a disposable local database. The bootstrap imports the canonical schema and patches, so it is not a safe command to run casually against a hand-maintained production database.
+
+For CI or platforms that pre-create the database:
+
+```bash
+composer bootstrap:booking -- --skip-create-db
+```
+
+Database-only bootstrap:
+
+```bash
+composer bootstrap:release-db
+```
+
+### 7. Start the backend runtime
+
+The managed local runtime starts Laravel HTTP and `schedule:work`, and can reuse or start local MySQL/Redis:
+
+```bash
+npm run runtime:up
+```
+
+Default backend URL:
+
+```text
+http://127.0.0.1:8000
+```
+
+Health endpoint:
+
+```text
+http://127.0.0.1:8000/api/v1/health
+```
+
+Stop the managed runtime:
+
+```bash
+npm run runtime:down
+```
+
+Manual equivalent, useful when debugging:
+
+```bash
+php artisan serve --host=127.0.0.1 --port=8000
+php artisan schedule:work
+```
+
+Keep `schedule:work` running when you need scheduler heartbeat, reservation expiry, waiting-list expiry, reminders, outbox processing, or reporting freshness.
+
+### 8. Prove the backend is usable
+
+Run:
+
+```bash
+npm run runtime:preflight
+php artisan booking:doctor --json
+php artisan notifications:outbox-health --json
+php artisan booking:deploy-check --mode=preflight --strict --json
+php artisan booking:release-manifest --json
+```
+
+Expected local state:
+
+- database probe passes
+- Redis probe passes
+- scheduler heartbeat is fresh
+- notification outbox health is inspectable
+- deploy preflight has no blocking errors
+- release manifest returns `ok=true`
+
+If any of these fail, fix runtime health before debugging feature flows.
+
+## Frontend Setup
+
+The backend can run without the web clients. Install and build only the clients you need.
+
+### Root Vite assets
+
+```bash
+npm ci
+npm run build
+```
+
+### Staff web
+
+Windows:
+
+```powershell
+copy staff-web\.env.example staff-web\.env.local
+```
+
+macOS / Linux:
+
+```bash
+cp staff-web/.env.example staff-web/.env.local
+```
+
+Ensure:
+
+```env
+VITE_API_URL=http://127.0.0.1:8000/api/v1
+```
+
+Install and run:
+
+```bash
+cd staff-web
+npm ci
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+Build and test:
+
+```bash
+npm run test
+npm run build
+```
+
+### Customer web
+
+Windows:
+
+```powershell
+copy customer-web\.env.example customer-web\.env.local
+```
+
+macOS / Linux:
+
+```bash
+cp customer-web/.env.example customer-web/.env.local
+```
+
+Ensure:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_ENABLE_DEV_MOCKS=false
+```
+
+Install and run:
+
+```bash
+cd customer-web
+npm ci
+npm run dev -- --hostname 127.0.0.1 --port 3000
+```
+
+Build and test:
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+### Backend CORS for local web clients
+
+If the browser clients call the backend directly, set exact local origins in backend `.env`:
+
+```env
+CORS_ALLOWED_ORIGINS=http://127.0.0.1:3000,http://localhost:3000,http://127.0.0.1:5173,http://localhost:5173
+CORS_SUPPORTS_CREDENTIALS=false
+```
+
+Origins must be exact `scheme://host:port` values. Do not include paths or trailing slashes.
+
+### Windows one-command UI lane
+
+After root, staff, and customer npm dependencies are installed:
+
+```bash
+npm run dev:all
+```
+
+Defaults:
+
+- backend: `http://127.0.0.1:8000`
+- customer-web: `http://127.0.0.1:3000`
+- staff-web: `http://127.0.0.1:5173`
+
+Then smoke the local UI lane:
+
+```bash
+npm run dev:smoke
+```
+
+`npm run dev:all` is a Windows PowerShell wrapper. On macOS/Linux, run the backend, scheduler, `customer-web`, and `staff-web` commands in separate terminals.
+
+## Day-To-Day Workflow
+
+After pulling new code:
+
+```bash
+composer install
+npm ci
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
+```
+
+Run `composer bootstrap:booking` again when:
+
+- this is a new machine
+- the local database was deleted
+- `database/schema/mysql-schema.sql` changed
+- `database/patches/` changed
+- `db_all.sql` changed
+- local data is inconsistent and you want a clean reset
+
+Start daily backend runtime:
+
+```bash
+npm run runtime:up
+npm run runtime:preflight
+```
+
+Stop it:
+
+```bash
+npm run runtime:down
+```
 
 ## Verification
 
-Start with the selector instead of jumping straight to the full suite:
+Automated PHPUnit tests use SQLite in memory by default through `phpunit.xml`. Passing PHPUnit is useful, but it is not proof that MySQL, Redis, scheduler, outbox, or release bootstrap are healthy.
 
-- `composer verify:select -- --path=app/Services/Staff/StaffCheckoutService.php`
-- `php artisan booking:verify-select --base=origin/main --json`
+Use the verification selector first:
 
-Typical verification layers:
+```bash
+composer verify:select -- --path=app/Services/Staff/StaffCheckoutService.php
+php artisan booking:verify-select --base=origin/main --json
+```
 
-- formatting: `vendor/bin/pint --test`
-- static analysis: `vendor/bin/phpstan analyse --memory-limit=1G --no-progress`
-- targeted tests: `php artisan test ...`
-- full automated suite: `php artisan test`
-- runtime and release gates:
-  - `php artisan booking:doctor --json`
-  - `php artisan notifications:outbox-health --json`
-  - `php artisan booking:deploy-check --mode=preflight --strict --json`
-  - `php artisan booking:release-manifest --json`
-  - `php artisan booking:launch-readiness --target=staging --json`
+Common backend checks:
 
-If MySQL, Redis, scheduler heartbeat, or backend HTTP are unavailable, treat those failures as runtime blockers, not as false positives.
+```bash
+vendor/bin/pint --test
+vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+php artisan test
+composer test:release-contract
+vendor/bin/phpunit --group booking-smoke --testdox
+```
 
-## CI And Release
+Runtime and release checks:
 
-This repository already carries two important GitHub workflows:
+```bash
+php artisan booking:doctor --json
+php artisan notifications:outbox-health --json
+php artisan booking:deploy-check --mode=preflight --strict --json
+php artisan booking:release-manifest --verify-frozen --json
+node scripts/release/check-package-integrity.mjs --json
+```
 
-- `booking-backend-ci`: fast contracts, smoke, and full-gate CI lanes
-- `booking-release-gate`: release evidence and packaging gate
+CI-like gate scripts are under `scripts/ci/`. They are Bash scripts, so on Windows use Git Bash or a compatible shell:
 
-Release and operator documentation lives in:
+```bash
+bash scripts/ci/booking-smoke-gate.sh
+bash scripts/ci/booking-full-gate.sh
+```
 
-- [CI/CD runbook](./docs/runbooks/booking-ci-cd-runbook.md)
-- [Release packaging runbook](./docs/runbooks/booking-release-packaging-runbook.md)
-- [Deploy runbook](./docs/runbooks/booking-deploy-runbook.md)
-- [Performance verification](./docs/runbooks/booking-performance-verification.md)
+## API Contracts And Generated Artifacts
+
+Do not hand-maintain frontend API shapes from route files. Use the generated artifacts:
+
+- `storage/app/booking_release/openapi-v1.json`
+- `build/api-consumer/sdk/typescript/restaurantpos-sdk.ts`
+- `build/api-consumer/sdk/typescript/restaurantpos-enums.ts`
+- `build/api-consumer/postman/`
+- `build/api-consumer/enum-state-map.json`
+- `build/api-consumer/mutation-contracts.md`
+- `storage/app/booking_release/release_manifest_snapshot.json`
+
+Regenerate the API consumer and release manifest artifacts:
+
+```bash
+composer api:artifacts
+php artisan booking:release-manifest --verify-frozen --json
+```
+
+Read [docs/runbooks/api-consumer-artifacts.md](./docs/runbooks/api-consumer-artifacts.md) before changing generated artifact behavior.
+
+## Local UAT Pack
+
+For local demo and live browser proof, generate the UAT scenario pack after the backend is bootstrapped:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\uat\Bootstrap-UatPack.ps1 -BaseUrl http://127.0.0.1:8000
+```
+
+The generated manifest lives at:
+
+```text
+storage/app/uat/scenario-pack.json
+```
+
+That file is local runtime evidence and should not be committed. See:
+
+- [local login accounts](./docs/runbooks/local-login-accounts.md)
+- [UAT scenario pack](./docs/runbooks/uat-demo-scenario-pack.md)
+
+## Troubleshooting
+
+### `composer bootstrap:booking` cannot connect to MySQL
+
+- Confirm MySQL is listening on `.env` `DB_HOST:DB_PORT`.
+- Confirm `DB_USERNAME`, `DB_PASSWORD`, and `DB_DATABASE`.
+- If using Docker local fallback, set `DB_PASSWORD=123456` unless you changed the compose environment.
+- If `mysql` is not on `PATH`, set `MYSQL_BIN`.
+- Run:
+
+```bash
+mysql --protocol=tcp -h 127.0.0.1 -P 3306 -u root -p -e "SELECT 1"
+```
+
+### MySQL helper rejects the runtime
+
+Use MySQL Server 8 compatible `mysqld.exe`. The Windows helper deliberately rejects incompatible local MySQL/MariaDB binaries because the release contract is MySQL 8 oriented.
+
+### Redis is unavailable
+
+Start Redis and confirm:
+
+```bash
+redis-cli -h 127.0.0.1 -p 6379 ping
+```
+
+Windows helper:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-redis.ps1 -Restart
+```
+
+### Scheduler heartbeat is stale
+
+Keep this running:
+
+```bash
+php artisan schedule:work
+```
+
+Or restart the managed runtime:
+
+```bash
+npm run runtime:restart
+```
+
+Then rerun:
+
+```bash
+php artisan booking:doctor --json
+```
+
+### Browser calls are blocked by CORS
+
+Set `CORS_ALLOWED_ORIGINS` in backend `.env` to exact frontend origins. Use `http://127.0.0.1:3000`, `http://localhost:3000`, `http://127.0.0.1:5173`, and `http://localhost:5173` as needed. Do not use wildcards in production-like environments.
+
+### Runtime preflight fails after a fresh pull
+
+Run:
+
+```bash
+composer install
+php artisan config:clear
+composer bootstrap:booking
+npm run runtime:restart
+npm run runtime:preflight
+```
+
+### Ports are already in use
+
+Defaults:
+
+- backend: `8000`
+- customer-web: `3000`
+- staff-web: `5173`
+- MySQL: `3306`
+- Redis: `6379`
+
+Stop the existing process, change `.env` ports, or pass explicit ports to the frontend dev commands.
+
+## Repository Map
+
+- `app/`: Laravel application and domain modules
+- `routes/`: API and console route registration
+- `config/`: runtime, release, auth, feature flag, and booking configuration
+- `database/schema/mysql-schema.sql`: canonical MySQL schema dump
+- `database/patches/`: release patch inventory
+- `tools/mysql/`: SQL-first bootstrap, backup, restore, and verification helpers
+- `scripts/ops/`: local runtime and preflight helpers
+- `scripts/ci/`: CI gate scripts
+- `scripts/uat/`: local UAT scenario pack helpers
+- `staff-web/`: staff React/Vite client
+- `customer-web/`: customer Next.js client
+- `build/api-consumer/`: generated consumer artifacts
+- `docs/runbooks/`: operator, release, API, UAT, and runtime documentation
+- `storage/app/booking_release/`: frozen release evidence and reports
+
+## Important Runbooks
+
+- [Windows local setup](./docs/runbooks/booking-local-windows-vscode-cmd-runbook.md)
+- [SQL release bootstrap](./database/README_release_bootstrap.md)
+- [MySQL bootstrap helper](./tools/mysql/README_bootstrap_release.md)
+- [API contract](./docs/runbooks/booking-api-contract.md)
+- [API consumer artifacts](./docs/runbooks/api-consumer-artifacts.md)
+- [Launch readiness](./docs/runbooks/booking-launch-readiness.md)
+- [CI/CD](./docs/runbooks/booking-ci-cd-runbook.md)
+- [Release packaging](./docs/runbooks/booking-release-packaging-runbook.md)
+- [Deploy](./docs/runbooks/booking-deploy-runbook.md)
 - [Backup and restore](./docs/runbooks/booking-backup-restore-runbook.md)
 - [Disaster recovery drill](./docs/runbooks/booking-disaster-recovery-drill.md)
 
-## Generated Artifacts
+## Contribution Standards
 
-Frontend and external consumers should rely on the generated contract artifacts instead of reverse-engineering routes by hand.
+Before opening a PR:
 
-Key artifacts:
+1. Keep changes aligned with the SQL-first bootstrap and release contract.
+2. Prefer focused, reviewable batches.
+3. Keep controllers thin and move business behavior into services or domain logic.
+4. Add or update tests for meaningful behavior changes.
+5. Run the smallest verification set that proves the change.
+6. Update docs and runbooks when operator behavior, bootstrap, runtime, artifacts, or deployment steps change.
+7. Fill the PR template with intent, changed files, tests, verification, and remaining risks.
 
-- `build/api-consumer/sdk/typescript/restaurantpos-sdk.ts`
-- `build/api-consumer/sdk/typescript/restaurantpos-enums.ts`
-- `build/api-consumer/mutation-contracts.md`
-- `build/api-consumer/postman/`
-- `storage/app/booking_release/openapi-v1.json`
-- `storage/app/booking_release/release_manifest_snapshot.json`
+Project standards:
 
-See [api-consumer-artifacts.md](./docs/runbooks/api-consumer-artifacts.md) for regeneration and delivery rules.
-
-## Split Frontend Delivery
-
-When `customer-web` and `staff-web` are deployed separately:
-
-- set `CORS_ALLOWED_ORIGINS` to exact frontend origins
-- point `customer-web` to the backend origin, for example `http://127.0.0.1:8000`
-- point `staff-web` to the API base URL, for example `http://127.0.0.1:8000/api/v1`
-- keep auth header-based with `X-Customer-Token`, `X-Staff-Key`, and `X-Session-Id`
-
-Exact origin means `scheme://host:port` with no path and no trailing slash.
-
-## Contribution Workflow
-
-Use the repository standards before opening a PR:
-
-1. Read [CONTRIBUTING.md](./CONTRIBUTING.md).
-2. Keep changes aligned with the SQL-first bootstrap and release contract.
-3. Run the smallest verification set that proves the change.
-4. Update docs or runbooks when operator behavior changes.
-5. Fill the existing PR template with intent, changed files, verification, tests, and remaining risks.
+- [CONTRIBUTING.md](./CONTRIBUTING.md)
+- [SECURITY.md](./SECURITY.md)
+- [PR template](./.github/PULL_REQUEST_TEMPLATE.md)
+- [Issue templates](./.github/ISSUE_TEMPLATE/)
 
 ## Security
 
-Please do not open public issues for exploitable vulnerabilities. Use [SECURITY.md](./SECURITY.md) and GitHub Security Advisories for responsible reporting.
+Do not open public issues for exploitable vulnerabilities. Use [SECURITY.md](./SECURITY.md) and GitHub Security Advisories for responsible disclosure.
 
 ## License
 
