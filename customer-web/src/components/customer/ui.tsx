@@ -363,6 +363,7 @@ export function QuantityStepper({
   label = "Số lượng",
   onChange,
   className,
+  disabled = false,
 }: {
   value: number;
   min?: number;
@@ -370,9 +371,10 @@ export function QuantityStepper({
   label?: string;
   onChange: (value: number) => void;
   className?: string;
+  disabled?: boolean;
 }) {
-  const decrementDisabled = value <= min;
-  const incrementDisabled = value >= max;
+  const decrementDisabled = disabled || value <= min;
+  const incrementDisabled = disabled || value >= max;
 
   return (
     <div className={cn("inline-flex items-center gap-2 rounded-lg border bg-background p-1", className)}>

@@ -99,10 +99,11 @@ export function MenuDetailPage({ id }: { id: number }) {
 
               <div className="flex flex-wrap gap-2">
                 <StatusPill label={item.is_available ? "Còn phục vụ" : "Tạm hết"} tone={item.is_available ? "success" : "warning"} />
-                <StatusPill
-                  label={item.preorder.enabled ? "Có thể đặt trước" : "Chỉ dùng tại bàn"}
-                  tone={item.preorder.enabled ? "info" : "neutral"}
-                />
+                {featureFlags.preorder && item.preorder.enabled ? (
+                  <StatusPill label="Có thể thêm trước" tone="info" />
+                ) : (
+                  <StatusPill label="Thưởng thức tại nhà hàng" tone="neutral" />
+                )}
                 {item.preorder.requires_preview_validation ? <StatusPill label="Kiểm tra lại trước khi gửi" tone="info" /> : null}
               </div>
             </div>
@@ -111,12 +112,12 @@ export function MenuDetailPage({ id }: { id: number }) {
           <AppCard className="p-5">
             <SectionHeader
               title="Thông tin món"
-              description="Contract thực đơn hiện cung cấp thông tin cơ bản và chính sách đặt trước."
+              description="Thông tin cơ bản để bạn chọn món trước khi đặt bàn."
             />
             <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-              <DetailItem label="Thành phần" value="API thực đơn cho khách chưa cung cấp thông tin này" />
-              <DetailItem label="Dị ứng" value="API thực đơn cho khách chưa cung cấp thông tin này" />
-              <DetailItem label="Tùy chọn và topping" value="API món đặt trước chưa cung cấp thông tin này" />
+              <DetailItem label="Thành phần" value="Nhà hàng sẽ bổ sung thông tin này sau." />
+              <DetailItem label="Dị ứng" value="Vui lòng ghi chú khi đặt bàn hoặc hỏi nhân viên." />
+              <DetailItem label="Tùy chọn và topping" value="Nhà hàng sẽ xác nhận tùy chọn khi bạn gọi món." />
               <DetailItem
                 label="Hạn chót đặt trước"
                 value={
@@ -132,12 +133,12 @@ export function MenuDetailPage({ id }: { id: number }) {
         <aside className="space-y-4 lg:sticky lg:top-[5.25rem] lg:h-fit">
           <AppCard className="p-5">
             <SectionHeader
-              eyebrow="Thêm vào đặt trước"
-              title={canPreorder ? "Lưu cho lịch đặt" : "Chưa khả dụng"}
+              eyebrow="Chọn món"
+              title={canPreorder ? "Thêm món trước" : "Đặt bàn để thưởng thức"}
               description={
                 canPreorder
                   ? "Món đã lưu nằm trong phiên này và có thể đính kèm khi bạn tạo lịch đặt."
-                  : "Hiện chưa thể thêm món này vào món đặt trước."
+                  : "Món này vẫn có thể thưởng thức tại nhà hàng khi còn phục vụ."
               }
             />
             <div className="mt-4 space-y-4">
@@ -153,12 +154,14 @@ export function MenuDetailPage({ id }: { id: number }) {
                 label="Ghi chú món"
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
-                helperText="Đang lưu trên trình duyệt. API món đặt trước hiện chưa gửi ghi chú món."
+                helperText="Ghi chú được giữ trong phiên này để bạn xem lại trước khi xác nhận."
               />
-              <AppButton type="button" className="w-full" disabled={!canPreorder || !selectedBranch} onClick={addToCart}>
-                <ShoppingBag className="h-4 w-4" />
-                Thêm vào giỏ
-              </AppButton>
+              {featureFlags.preorder ? (
+                <AppButton type="button" className="w-full" disabled={!canPreorder || !selectedBranch} onClick={addToCart}>
+                  <ShoppingBag className="h-4 w-4" />
+                  Thêm món
+                </AppButton>
+              ) : null}
               <AppButton asChild variant="outline" className="w-full">
                 <Link href="/booking">
                   <CalendarDays className="h-4 w-4" />

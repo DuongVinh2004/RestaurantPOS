@@ -15,24 +15,24 @@ describe('staff shared UI primitives', () => {
   it('renders operational bars, KPI cards, search, and form structure', () => {
     render(
       <>
-        <ActionBar left={<span>Filters</span>} right={<button type="button">Refresh</button>} />
-        <FiltersBar fields={<SearchInput aria-label="Search tables" placeholder="Search" />} actions={<button type="button">Reset</button>} />
+        <ActionBar left={<span>Bộ lọc</span>} right={<button type="button">Làm mới</button>} />
+        <FiltersBar fields={<SearchInput aria-label="Tìm bàn" />} actions={<button type="button">Đặt lại</button>} />
         <KPIGrid>
-          <SummaryCard label="Open orders" value="12" hint="Live" tone="processing" />
+          <SummaryCard label="Đơn đang mở" value="12" hint="Đang cập nhật" tone="processing" />
         </KPIGrid>
-        <BulkActionBar selectedCount={2}>Assign</BulkActionBar>
-        <FormSection title="Guest details" description="Visible labels are required.">
-          <FormField label="Guest phone" htmlFor="guest-phone" help="Use the customer phone number.">
+        <BulkActionBar selectedCount={2}>Gán</BulkActionBar>
+        <FormSection title="Thông tin khách" description="Luôn giữ nhãn hiển thị rõ ràng.">
+          <FormField label="Số điện thoại khách" htmlFor="guest-phone" help="Dùng số khách cung cấp.">
             <input id="guest-phone" />
           </FormField>
         </FormSection>
       </>,
     );
 
-    expect(screen.getByText('Filters')).toBeInTheDocument();
-    expect(screen.getByRole('searchbox', { name: 'Search tables' })).toBeInTheDocument();
-    expect(screen.getByText('Open orders')).toBeInTheDocument();
-    expect(screen.getByText('2 selected')).toBeInTheDocument();
-    expect(screen.getByLabelText('Guest phone')).toBeInTheDocument();
+    expect(screen.getByText('Bộ lọc')).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Tìm bàn' })).toBeInTheDocument();
+    expect(screen.getByText('Đơn đang mở')).toBeInTheDocument();
+    expect(screen.getByText('2 dòng đã chọn')).toBeInTheDocument();
+    expect(screen.getByLabelText('Số điện thoại khách')).toBeInTheDocument();
   });
 });

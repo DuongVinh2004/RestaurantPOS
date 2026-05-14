@@ -13,9 +13,8 @@ const mocks = vi.hoisted(() => ({
   customerWebRollout: {
     preorder: {
       enabled: true,
-      disabledTitle: "Preorder is not in this rollout",
-      disabledDescription:
-        "Preorder stays off by default because live replace and clear proof is outside the current launch scope. Enable the preorder flag only for a focused contract or QA pass.",
+      disabledTitle: "Món đặt trước chưa được bật",
+      disabledDescription: "Món đặt trước hiện chỉ hiển thị để tham khảo.",
     },
   },
 }));
@@ -143,15 +142,12 @@ describe("PreorderPanel", () => {
     mocks.listMenuItems.mockResolvedValue([createMenuItem()]);
   });
 
-  it("renders a rollout-disabled state without calling preorder reads or menu reads", () => {
+  it("hides preorder without calling preorder reads or menu reads when the feature is off", () => {
     mocks.customerWebRollout.preorder.enabled = false;
 
     renderPanel();
 
-    expect(screen.getByText("Preorder is not in this rollout")).toBeInTheDocument();
-    expect(
-      screen.getByText(/replace and clear proof is outside the current launch scope/i),
-    ).toBeInTheDocument();
+    expect(screen.queryByText("Món đặt trước")).not.toBeInTheDocument();
     expect(mocks.getReservationPreorder).not.toHaveBeenCalled();
     expect(mocks.listMenuItems).not.toHaveBeenCalled();
   });

@@ -583,7 +583,7 @@ export function KitchenBoardPage() {
                         </span>
                         <span>
                           <strong>{station.ticket_counts.ready}</strong>
-                          <small>Sẵn sàng</small>
+                          <small>Sẵn sàng phục vụ</small>
                         </span>
                       </div>
                       <p className="staff-kitchen-station-summary">{stationWorkloadLabel(station)}</p>
@@ -603,7 +603,7 @@ export function KitchenBoardPage() {
               <div className="staff-kitchen-lane-summary" aria-label="Tóm tắt phiếu bếp">
                 <StatusChip label={`${ticketSummary.queued} chờ làm`} tone="warning" />
                 <StatusChip label={`${ticketSummary.fired} đang làm`} tone="processing" />
-                <StatusChip label={`${ticketSummary.ready} sẵn sàng`} tone="success" />
+                <StatusChip label={`${ticketSummary.ready} sẵn sàng phục vụ`} tone="success" />
               </div>
             </div>
 

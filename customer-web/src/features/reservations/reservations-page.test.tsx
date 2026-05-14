@@ -65,7 +65,7 @@ describe("ReservationsPage", () => {
     renderPage();
 
     expect(await screen.findByRole("heading", { name: "Lịch đặt" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Tạo lịch đặt" })).toHaveAttribute("href", "/reservations/new");
+    expect(screen.getByRole("link", { name: "Đặt bàn mới" })).toHaveAttribute("href", "/reservations/new");
     expect(await screen.findByText("Lượt ghé nổi bật")).toBeInTheDocument();
     expect(screen.getByText("Tổng khách từ dữ liệu hiện có")).toBeInTheDocument();
     const detailLinks = await screen.findAllByRole("link", { name: "Mở chi tiết" });

@@ -18,8 +18,8 @@ class BookingReportingAndMultiBranchConfigContractTest extends TestCase
             (int) config('booking.reporting_page_max')
         );
 
-        $this->assertSame('MAIN', (string) config('booking.multi_branch.default_branch_code'));
-        $this->assertSame('Chi nhanh chinh', (string) config('booking.multi_branch.default_branch_name'));
+        $this->assertSame('MS-HK', (string) config('booking.multi_branch.default_branch_code'));
+        $this->assertSame('Mộc Sen Bistro - Hoàn Kiếm', (string) config('booking.multi_branch.default_branch_name'));
         $this->assertSame('Asia/Ho_Chi_Minh', (string) config('booking.multi_branch.default_branch_timezone'));
         $this->assertSame('VND', (string) config('booking.multi_branch.default_branch_currency'));
         $this->assertIsArray(config('booking.branch_policy_defaults.business_hours'));

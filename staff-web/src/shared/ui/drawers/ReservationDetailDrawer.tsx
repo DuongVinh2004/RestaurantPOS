@@ -41,19 +41,19 @@ export function ReservationDetailDrawer({
   const footerActions = [
     onCheckIn ? (
       <Button key="check-in" type="primary" onClick={onCheckIn} loading={busy}>
-        Nhan ban ngay
+        Nhận bàn ngay
       </Button>
     ) : null,
     onCancelReservation ? (
       <Button key="cancel" danger onClick={onCancelReservation} loading={busy}>
-        Huy dat ban
+        Hủy đặt bàn
       </Button>
     ) : null,
   ].filter(Boolean);
 
   return (
     <Drawer
-      title={reservation ? reservation.reservation_code : 'Chi tiet dat ban'}
+      title={reservation ? reservation.reservation_code : 'Chi tiết đặt bàn'}
       placement="right"
       styles={{ wrapper: { width: 500, maxWidth: '100vw' } }}
       open={open}
@@ -74,20 +74,20 @@ export function ReservationDetailDrawer({
     >
       {!reservation ? (
         <Typography.Text type="secondary">
-          Chon mot dat ban de xem chi tiet.
+          Chọn một đặt bàn để xem chi tiết.
         </Typography.Text>
       ) : (
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={16} style={{ width: '100%' }}>
           <StaffFacingAlert
             tone="info"
             eyebrow="Triage nhanh"
             title={customerLabel}
-            description={`Khung gio ${formatDateTime(reservation.start_time)} den ${formatDateTime(reservation.end_time)} • ${reservation.guest_count ?? 'Chua ro'} khach`}
-            meta={`Ban hien tai: ${tableLabel}`}
+            description={`Khung giờ ${formatDateTime(reservation.start_time)} đến ${formatDateTime(reservation.end_time)} • ${reservation.guest_count ?? 'Chưa rõ'} khách`}
+            meta={`Bàn hiện tại: ${tableLabel}`}
           />
 
           <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label="Khach">
+            <Descriptions.Item label="Khách">
               <Space wrap size={8}>
                 <Typography.Text>{customerLabel}</Typography.Text>
                 {isSnapshotOnlyGuest ? (
@@ -95,38 +95,38 @@ export function ReservationDetailDrawer({
                 ) : null}
               </Space>
             </Descriptions.Item>
-            <Descriptions.Item label="Bat dau">
+            <Descriptions.Item label="Bắt đầu">
               {formatDateTime(reservation.start_time)}
             </Descriptions.Item>
-            <Descriptions.Item label="Ket thuc">
+            <Descriptions.Item label="Kết thúc">
               {formatDateTime(reservation.end_time)}
             </Descriptions.Item>
-            <Descriptions.Item label="So khach">
-              {reservation.guest_count ?? 'Khong co'}
+            <Descriptions.Item label="Số khách">
+              {reservation.guest_count ?? 'Không có'}
             </Descriptions.Item>
             <Descriptions.Item label="Ban">
               {tableLabel}
             </Descriptions.Item>
-            <Descriptions.Item label="Phien ban thao tac">
+            <Descriptions.Item label="Phiên bản thao tác">
               {reservation.row_version}
             </Descriptions.Item>
           </Descriptions>
 
           <StaffFacingAlert
             tone={activeOrder?.data.order ? 'success' : 'warning'}
-            eyebrow="Luong tiep theo"
-            title={activeOrder?.data.order ? `Da co don #${activeOrder.data.order.order_id}` : 'Chua co don dang phuc vu'}
+            eyebrow="Luồng tiếp theo"
+            title={activeOrder?.data.order ? `Đã có đơn #${activeOrder.data.order.order_id}` : 'Chưa có đơn đang phục vụ'}
             description={activeOrder?.data.order
-              ? 'Co the mo thang don dang chay de tiep tuc mon, bep hoac thanh toan.'
-              : 'Neu khach da ngoi ban, hay mo man hinh don hang de tao flow phuc vu ngay tu dat ban nay.'}
+              ? 'Có thể mở thẳng đơn đang chạy để tiếp tục món, bếp hoặc thanh toán.'
+              : 'Nếu khách đã ngồi bàn, hãy mở màn hình đơn hàng để tạo luồng phục vụ ngay từ đặt bàn này.'}
             actions={(
               <Space wrap>
                 <Button type={activeOrder?.data.order ? 'primary' : 'default'} onClick={onOpenOrder}>
-                  {activeOrder?.data.order ? 'Mo don dang phuc vu' : 'Mo man hinh don hang'}
+                  {activeOrder?.data.order ? 'Mở đơn đang phục vụ' : 'Mở màn hình đơn hàng'}
                 </Button>
                 {activeOrder?.data.order && onOpenCheckout ? (
                   <Button onClick={onOpenCheckout}>
-                    Mo thanh toan
+                    Mở thanh toán
                   </Button>
                 ) : null}
               </Space>
@@ -136,15 +136,15 @@ export function ReservationDetailDrawer({
           <Divider style={{ margin: 0 }} />
 
           <div>
-            <Typography.Text strong>Ghi nho truoc khi thao tac</Typography.Text>
+            <Typography.Text strong>Ghi nhớ trước khi thao tác</Typography.Text>
             <div className="staff-mini-list" style={{ marginTop: 12 }}>
               <div className="staff-mini-list-item">
-                <Typography.Text strong>Kiem tra ban gan</Typography.Text>
-                <Typography.Text type="secondary">Doi chi nhanh hoac doi ban dang chon se lam goi y hien tai khong con dang tin cay.</Typography.Text>
+                <Typography.Text strong>Kiểm tra bàn gắn</Typography.Text>
+                <Typography.Text type="secondary">Đổi chi nhánh hoặc đổi bàn đang chọn sẽ làm gợi ý hiện tại không còn đáng tin cậy.</Typography.Text>
               </div>
               <div className="staff-mini-list-item">
-                <Typography.Text strong>Giu dung phien ban thao tac</Typography.Text>
-                <Typography.Text type="secondary">Neu detail nay da cu, hay tai lai truoc khi nhan ban hoac huy dat ban de tranh ghi de thao tac moi hon.</Typography.Text>
+                <Typography.Text strong>Giữ đúng phiên bản thao tác</Typography.Text>
+                <Typography.Text type="secondary">Nếu chi tiết này đã cũ, hãy tải lại trước khi nhận bàn hoặc hủy đặt bàn để tránh ghi đè thao tác mới hơn.</Typography.Text>
               </div>
             </div>
           </div>

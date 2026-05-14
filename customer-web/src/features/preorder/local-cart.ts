@@ -6,6 +6,7 @@ import { ensureCustomerSessionId } from "@/lib/auth/storage";
 
 const cartVersion = 1;
 const cartKeyPrefix = "restaurantpos.customer.preorder-cart.v1";
+const cartChangedEventName = "restaurantpos:preorder-cart-changed";
 
 export type LocalPreorderServeTiming = "when_arrived" | "after_seated" | "custom_note";
 
@@ -37,6 +38,12 @@ export type LocalPreorderSubmitItem = {
   quantity: number;
 };
 
+type LocalPreorderCartChangedDetail = {
+  sessionId: string;
+  branchId: number | null;
+  storageKey: string;
+};
+
 function browserStorage(): Storage | null {
   if (typeof window === "undefined") {
     return null;
@@ -51,6 +58,22 @@ function browserStorage(): Storage | null {
 
 function cartStorageKey(sessionId: string, branchId: number | null | undefined): string {
   return `${cartKeyPrefix}.${sessionId}.${branchId ?? "default"}`;
+}
+
+function notifyCartChanged(sessionId: string, branchId: number | null | undefined): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent<LocalPreorderCartChangedDetail>(cartChangedEventName, {
+      detail: {
+        sessionId,
+        branchId: branchId ?? null,
+        storageKey: cartStorageKey(sessionId, branchId),
+      },
+    }),
+  );
 }
 
 function emptyCart(sessionId: string, branchId: number | null): LocalPreorderCart {
@@ -117,10 +140,12 @@ export function readLocalPreorderCart(sessionId: string, branchId: number | null
 
 export function writeLocalPreorderCart(cart: LocalPreorderCart): void {
   browserStorage()?.setItem(cartStorageKey(cart.session_id, cart.branch_id), JSON.stringify(cart));
+  notifyCartChanged(cart.session_id, cart.branch_id);
 }
 
 export function clearLocalPreorderCart(sessionId: string, branchId: number | null | undefined): void {
   browserStorage()?.removeItem(cartStorageKey(sessionId, branchId));
+  notifyCartChanged(sessionId, branchId);
 }
 
 export function localCartSubtotal(cart: LocalPreorderCart): { amount: number; currency: string } {
@@ -176,6 +201,39 @@ export function useLocalPreorderCart(branchId: number | null | undefined) {
       setCart(readLocalPreorderCart(nextSessionId, effectiveBranchId));
     });
   }, [effectiveBranchId]);
+
+  useEffect(() => {
+    if (!sessionId || typeof window === "undefined") {
+      return;
+    }
+
+    const storageKey = cartStorageKey(sessionId, effectiveBranchId);
+    const refreshCart = () => {
+      startTransition(() => {
+        setCart(readLocalPreorderCart(sessionId, effectiveBranchId));
+      });
+    };
+    const handleCartChanged = (event: Event) => {
+      const detail = (event as CustomEvent<LocalPreorderCartChangedDetail>).detail;
+
+      if (detail?.storageKey === storageKey) {
+        refreshCart();
+      }
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === storageKey) {
+        refreshCart();
+      }
+    };
+
+    window.addEventListener(cartChangedEventName, handleCartChanged);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener(cartChangedEventName, handleCartChanged);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [effectiveBranchId, sessionId]);
 
   const commit = useCallback((updater: (current: LocalPreorderCart) => LocalPreorderCart) => {
     const nextSessionId = sessionId ?? ensureCustomerSessionId();

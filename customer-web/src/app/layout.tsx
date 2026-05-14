@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/layout/app-shell";
 import { AppQueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/providers/auth-provider";
+import { customerBrand } from "@/lib/brand/customer-brand";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,11 +19,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "RestaurantPOS Khách hàng",
-    template: "%s | RestaurantPOS Khách hàng",
+    default: customerBrand.metaTitle,
+    template: `%s | ${customerBrand.shortName}`,
   },
-  description: "Xem thực đơn, chọn chi nhánh, đặt bàn và quản lý phiên khách hàng trong một ứng dụng.",
-  applicationName: "RestaurantPOS Khách hàng",
+  description: customerBrand.metaDescription,
+  applicationName: customerBrand.appName,
   manifest: "/manifest.webmanifest",
   formatDetection: {
     telephone: false,
@@ -31,12 +32,12 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "RestaurantPOS Khách hàng",
+    title: customerBrand.shortName,
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#fef9f5",
+  themeColor: "#2f7d5c",
 };
 
 export default function RootLayout({

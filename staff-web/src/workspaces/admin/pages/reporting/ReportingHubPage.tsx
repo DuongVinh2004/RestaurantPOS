@@ -151,9 +151,9 @@ export function ReportingHubPage() {
   const main = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <PageHeader
-        eyebrow="Điều tra snapshot"
-        title="Hub giám sát và điều tra"
-        description="Tra cứu snapshot theo ngày để lần vết nhanh bán hàng, vận hành và tồn kho trước khi mở điều tra sâu hơn."
+        eyebrow="Báo cáo Mộc Sen"
+        title="Hub báo cáo vận hành"
+        description="Theo dõi doanh thu, đặt bàn, bếp, voucher, Điểm Sen và tồn kho theo snapshot mỗi ngày."
         meta={latestRefreshLabel}
         context={(
           <>

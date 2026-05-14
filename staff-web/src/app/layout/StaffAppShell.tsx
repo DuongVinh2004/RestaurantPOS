@@ -66,9 +66,9 @@ export function StaffAppShell() {
       ...resumeTrayItems.map((item) => ({
         key: `resume-${item.key}`,
         label: item.label,
-        subtitle: item.subtitle ?? 'Tiep tuc dung flow dang do.',
+        subtitle: item.subtitle ?? 'Tiếp tục luồng đang dở.',
         path: item.path,
-        group: item.pinned ? 'Viec da ghim' : 'Tiep tuc cong viec',
+        group: item.pinned ? 'Việc đã ghim' : 'Tiếp tục công việc',
       })),
     ];
 
@@ -328,10 +328,10 @@ function renderShellAlerts({
         <div className="staff-shell-alert-stack">
           <StaffFacingAlert
             tone="warning"
-            title="Du lieu chi nhanh tam thoi chua san sang"
+            title="Dữ liệu chi nhánh tạm thời chưa sẵn sàng"
             description={formatStaffFacingApiError(
               branchesError,
-              'Hay lam moi phien hoac lien he quan tri neu loi tiep tuc lap lai.',
+              'Hãy làm mới phiên hoặc liên hệ quản trị nếu lỗi tiếp tục lặp lại.',
             )}
           />
         </div>
@@ -341,8 +341,8 @@ function renderShellAlerts({
         <div className="staff-shell-alert-stack">
           <StaffFacingAlert
             tone="info"
-            title={`Con ${otherBranchWorkItemsCount} flow do o chi nhanh khac`}
-            description="Resume tray chi mo cac flow cung chi nhanh hien tai de tranh thao tac nham. Doi chi nhanh neu can noi lai cong viec cu."
+            title={`Còn ${otherBranchWorkItemsCount} luồng dở ở chi nhánh khác`}
+            description="Khay tiếp tục chỉ mở luồng cùng chi nhánh hiện tại để tránh thao tác nhầm. Đổi chi nhánh nếu cần nối lại công việc cũ."
           />
         </div>
       ) : null}

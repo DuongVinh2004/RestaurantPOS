@@ -49,14 +49,14 @@ export function PrivacyPanel() {
         <SectionHeader
           eyebrow="Dữ liệu cá nhân"
           title="Trung tâm quyền riêng tư"
-          description="Xem trạng thái xuất dữ liệu và gửi yêu cầu ẩn danh hóa khi tính năng quyền riêng tư được bật."
+          description="Xem yêu cầu dữ liệu cá nhân và gửi ghi chú để nhà hàng hỗ trợ quyền riêng tư của bạn."
           action={<StatusPill label="Theo khách hàng" tone="info" />}
         />
 
         <div className="rounded-lg border bg-secondary/30 p-4 text-sm">
           <p className="font-medium">Yêu cầu ẩn danh hóa</p>
           <p className="mt-1 text-muted-foreground">
-            Yêu cầu này đề nghị nhà hàng xem xét ẩn danh hóa dữ liệu định danh khách hàng. Dữ liệu thanh toán, hóa đơn, audit và tranh chấp có thể được giữ lại khi nhà hàng cần bảo toàn lịch sử tài chính.
+            Yêu cầu này đề nghị nhà hàng xem xét ẩn danh hóa dữ liệu định danh khách hàng. Một số thông tin giao dịch có thể được giữ lại khi nhà hàng cần bảo toàn lịch sử tài chính.
           </p>
         </div>
 
@@ -74,12 +74,12 @@ export function PrivacyPanel() {
             <p className="font-medium">Tóm tắt dữ liệu đang lưu</p>
             <p className="mt-1 text-muted-foreground">
               {exportQuery.data
-                ? "Bản xuất dữ liệu khách hàng mới nhất đã có từ API quyền riêng tư."
-                : "Bản xuất dữ liệu sẽ hiển thị sau khi API quyền riêng tư phản hồi."}
+                ? "Bản tóm tắt dữ liệu khách hàng mới nhất đã sẵn sàng."
+                : "Bản tóm tắt dữ liệu sẽ hiển thị sau khi nhà hàng xử lý."}
             </p>
             {exportQuery.data ? (
               <p className="mt-2 text-xs text-muted-foreground">
-                Bản xuất JSON chứa dữ liệu tài khoản, lịch đặt, thanh toán, điểm thưởng, chờ bàn, hội thoại và yêu cầu dữ liệu cá nhân thuộc khách hàng khi có sẵn.
+                Bản tóm tắt gồm thông tin tài khoản, lịch đặt, thanh toán, điểm thưởng, chờ bàn, hội thoại và yêu cầu dữ liệu cá nhân khi có sẵn.
               </p>
             ) : null}
           </div>

@@ -9,26 +9,26 @@ import {
   type CustomerNavItem,
 } from "@/components/customer/layout";
 import { useCustomerIdentity } from "@/features/auth/hooks";
+import { featureFlags } from "@/lib/config/feature-flags";
 import { useAuth } from "@/providers/auth-provider";
 import { BackendStatusBanner } from "./backend-status-banner";
 import { PublicFooter } from "./public-footer";
 
-const navItems: CustomerNavItem[] = [
-  { href: "/", label: "Trang chủ", icon: Home },
-  { href: "/menu", label: "Thực đơn", icon: ReceiptText },
-  { href: "/booking", label: "Đặt bàn", icon: CalendarDays },
-  { href: "/reservations", label: "Lịch đặt", icon: CalendarDays },
-  { href: "/waiting-list", label: "Chờ bàn", icon: ListChecks },
-  { href: "/account", label: "Tài khoản", icon: UserRound },
+const homeNavItem: CustomerNavItem = { href: "/", label: "Trang chủ", icon: Home };
+const menuNavItem: CustomerNavItem = { href: "/menu", label: "Thực đơn", icon: ReceiptText };
+const bookingNavItem: CustomerNavItem = { href: "/booking", label: "Đặt bàn", icon: CalendarDays };
+const reservationsNavItem: CustomerNavItem = { href: "/reservations", label: "Lịch đặt", icon: CalendarDays };
+const accountNavItem: CustomerNavItem = { href: "/account", label: "Tài khoản", icon: UserRound };
+
+const primaryNavItems: CustomerNavItem[] = [
+  homeNavItem,
+  menuNavItem,
+  bookingNavItem,
+  reservationsNavItem,
+  accountNavItem,
 ];
 
-const bottomNavItems: CustomerNavItem[] = [
-  { href: "/", label: "Trang chủ", icon: Home },
-  { href: "/menu", label: "Thực đơn", icon: ReceiptText },
-  { href: "/booking", label: "Đặt bàn", icon: CalendarDays },
-  { href: "/reservations", label: "Lịch đặt", icon: CalendarDays },
-  { href: "/account", label: "Tài khoản", icon: UserRound },
-];
+const waitingListNavItem: CustomerNavItem = { href: "/waiting-list", label: "Chờ bàn", icon: ListChecks };
 
 function shouldShowPublicFooter(pathname: string): boolean {
   return pathname === "/" || pathname.startsWith("/menu") || pathname.startsWith("/booking") || pathname.startsWith("/login");
@@ -43,6 +43,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
   const identity = useCustomerIdentity();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const navItems = featureFlags.waitingList
+    ? [homeNavItem, menuNavItem, bookingNavItem, reservationsNavItem, waitingListNavItem, accountNavItem]
+    : primaryNavItems;
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -68,7 +71,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       />
       {children}
       {shouldShowPublicFooter(pathname) ? <PublicFooter isAuthenticated={auth.isAuthenticated} /> : null}
-      {shouldShowBottomNav(pathname) ? <CustomerBottomNav items={bottomNavItems} pathname={pathname} /> : null}
+      {shouldShowBottomNav(pathname) ? <CustomerBottomNav items={primaryNavItems} pathname={pathname} /> : null}
     </div>
   );
 }

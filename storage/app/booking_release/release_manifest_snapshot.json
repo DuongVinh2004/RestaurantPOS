@@ -211,11 +211,11 @@
             "path": "storage/app/booking_release/release_manifest_snapshot.json",
             "exists": true,
             "optional": false,
-            "sha256": "6edd49626ed9d5e5052215923cd4650319be42d5907b7e5604ba803e64fe3032",
+            "sha256": "80ac5d1cdd0c45e1fd75979c782306f92600ab7a336cfcb606dbb6f83c3f2fc3",
             "bytes": 17981,
             "line_count": 354,
-            "modified_epoch": 1778591875,
-            "modified_at_utc": "2026-05-12T13:17:55+00:00",
+            "modified_epoch": 1778592169,
+            "modified_at_utc": "2026-05-12T13:22:49+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         }
@@ -282,7 +282,8 @@
             "2026_04_27_000060_order_item_line_total_invariant.sql",
             "2026_04_28_000061_inventory_master_data_row_version.sql",
             "2026_04_29_000062_payment_cashier_shift_link.sql",
-            "2026_04_29_000063_completed_paid_bill_snapshot_gate.sql"
+            "2026_04_29_000063_completed_paid_bill_snapshot_gate.sql",
+            "2026_05_14_000064_moc_sen_story_data_pack.sql"
         ],
         "required": [
             "2026_03_14_000015_access_contract_and_portability_hardening.sql",
@@ -338,16 +339,17 @@
             "2026_04_27_000060_order_item_line_total_invariant.sql",
             "2026_04_28_000061_inventory_master_data_row_version.sql",
             "2026_04_29_000062_payment_cashier_shift_link.sql",
-            "2026_04_29_000063_completed_paid_bill_snapshot_gate.sql"
+            "2026_04_29_000063_completed_paid_bill_snapshot_gate.sql",
+            "2026_05_14_000064_moc_sen_story_data_pack.sql"
         ],
         "missing": [],
-        "count": 61,
-        "required_count": 54
+        "count": 62,
+        "required_count": 55
     },
     "meta": {
-        "generated_at_utc": "2026-05-12T13:22:49+00:00"
+        "generated_at_utc": "2026-05-13T19:38:07+00:00"
     },
     "definition_path": "config/booking_release.php",
-    "definition_sha256": "ebc2bedf420680b75c07e4585009b504d84a66b8a3a76a0af5d6a9f38c30a16a",
+    "definition_sha256": "014e4e18abfed9e5635cfef3dc58c2f4960154924309ea50ad1858286923cf6a",
     "snapshot_path": "storage/app/booking_release/release_manifest_snapshot.json"
 }

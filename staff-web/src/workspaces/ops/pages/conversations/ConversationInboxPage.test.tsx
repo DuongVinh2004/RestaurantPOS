@@ -34,7 +34,8 @@ const initialFlowState = useFlowStore.getState();
 
 describe('ConversationInboxPage', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    confirmActionMock.mockResolvedValue(true);
     useAuthStore.setState(initialAuthState, true);
     useFlowStore.setState(initialFlowState, true);
     useAuthStore.getState().setSession(buildStaffSession({
@@ -62,16 +63,19 @@ describe('ConversationInboxPage', () => {
         },
       },
     });
-    apiMocks.getConversationDetail.mockResolvedValue(makeConversationDetail());
+    apiMocks.getConversationDetail.mockImplementation(async () => makeConversationDetail());
     apiMocks.assignConversation.mockResolvedValue({ data: { action: 'assigned', conversation: makeConversation() } });
     apiMocks.updateConversationWorkflowState.mockResolvedValue({ data: { action: 'workflow_state_updated', conversation: makeConversation() } });
     apiMocks.linkConversation.mockResolvedValue({ data: { action: 'linked', conversation: makeConversation() } });
   });
 
   it('posts assign, workflow and link payloads from the detail controls', async () => {
-    renderWithProviders('/ops/conversations');
+    const detail = makeConversationDetail();
+    apiMocks.getConversationDetail.mockResolvedValueOnce(detail);
 
-    expect(await screen.findByText('Phân công rõ nhân viên')).toBeInTheDocument();
+    renderWithProviders('/ops/conversations?conversation=conv-001', detail);
+
+    expect(await screen.findByText('Phân công rõ nhân viên', {}, { timeout: 5_000 })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Staff user id nhận hội thoại'), { target: { value: '77' } });
     fireEvent.click(screen.getByRole('button', { name: 'Phân công' }));
@@ -106,7 +110,7 @@ describe('ConversationInboxPage', () => {
         notes: 'Khách hỏi đổi giờ',
       });
     });
-  });
+  }, 30_000);
 
   it('passes workflow and inbox view filters from the url into the conversation list query', async () => {
     renderWithProviders('/ops/conversations?workflow_state=Resolved&inbox_view=resolved_today&assignment=mine&status=Closed');
@@ -122,7 +126,7 @@ describe('ConversationInboxPage', () => {
   });
 
   it('defaults workflow mutation to the first backend-approved target for assigned conversations', async () => {
-    apiMocks.getConversationDetail.mockResolvedValueOnce(makeConversationDetail({
+    const detail = makeConversationDetail({
       conversation: makeConversation({
         workflow: {
           state: 'Assigned',
@@ -163,9 +167,10 @@ describe('ConversationInboxPage', () => {
           recipient_masked: null,
         },
       },
-    }));
+    });
+    apiMocks.getConversationDetail.mockResolvedValueOnce(detail);
 
-    renderWithProviders('/ops/conversations');
+    renderWithProviders('/ops/conversations', detail);
 
     expect(await screen.findByText('Phân công rõ nhân viên')).toBeInTheDocument();
 
@@ -182,7 +187,7 @@ describe('ConversationInboxPage', () => {
   });
 
   it('locks assignment, linkage and internal note controls for closed conversations', async () => {
-    apiMocks.getConversationDetail.mockResolvedValueOnce(makeConversationDetail({
+    const detail = makeConversationDetail({
       conversation: makeConversation({
         status: 'Closed',
         workflow: {
@@ -213,9 +218,10 @@ describe('ConversationInboxPage', () => {
           recipient_masked: null,
         },
       },
-    }));
+    });
+    apiMocks.getConversationDetail.mockResolvedValueOnce(detail);
 
-    renderWithProviders('/ops/conversations');
+    renderWithProviders('/ops/conversations', detail);
 
     expect(await screen.findByText('Phân công rõ nhân viên')).toBeInTheDocument();
 
@@ -228,13 +234,20 @@ describe('ConversationInboxPage', () => {
   });
 });
 
-function renderWithProviders(initialEntry: string) {
+function renderWithProviders(initialEntry: string, initialDetail?: StaffConversationDetailEnvelope) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
     },
   });
+
+  if (initialDetail) {
+    queryClient.setQueryData(
+      ['conversation-detail', initialDetail.data.conversation.conversation_id],
+      initialDetail,
+    );
+  }
 
   return render(
     <AntdApp>

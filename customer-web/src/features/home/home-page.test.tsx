@@ -139,14 +139,14 @@ describe("HomePage", () => {
     mocks.trackCustomerEvent.mockReset();
   });
 
-  it("renders the personalized first screen and primary customer actions", () => {
+  it("renders the customer first screen and primary restaurant actions", () => {
     renderPage();
 
-    expect(screen.getByRole("heading", { name: "Bạn đang muốn trải nghiệm ẩm thực gì?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Chọn món ngon, giữ bàn đúng giờ" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^Xem thực đơn$/ })).toHaveAttribute("href", "/menu");
-    expect(screen.getByRole("link", { name: /Giữ bàn/ })).toHaveAttribute("href", "/booking");
+    expect(screen.getByRole("link", { name: /^Đặt bàn ngay$/ })).toHaveAttribute("href", "/booking");
     expect(screen.getByRole("button", { name: "Chi nhánh chính" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Đặt bàn ngay/ })).toHaveAttribute("href", "/booking");
+    expect(screen.getByRole("link", { name: /^Tìm bàn$/ })).toHaveAttribute("href", "/booking?guest_count=2&date=today&time=19%3A00");
   });
 
   it("starts a guest session from the personal session panel", async () => {
@@ -154,7 +154,7 @@ describe("HomePage", () => {
 
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: /Tiếp tục với tư cách khách/ }));
+    await user.click(screen.getByRole("button", { name: /Tiếp tục như khách/ }));
 
     expect(mocks.session.continueAsGuest).toHaveBeenCalledTimes(1);
   });
@@ -169,8 +169,8 @@ describe("HomePage", () => {
 
     renderPage();
 
-    expect(screen.getAllByText("Casey").length).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: /Xem tất cả lịch đặt/ })).toHaveAttribute("href", "/reservations");
-    expect(screen.queryByRole("button", { name: /Tiếp tục với tư cách khách/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/Xin chào, Casey/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Lịch đặt/ })).toHaveAttribute("href", "/reservations");
+    expect(screen.queryByRole("button", { name: /Tiếp tục như khách/ })).not.toBeInTheDocument();
   });
 });

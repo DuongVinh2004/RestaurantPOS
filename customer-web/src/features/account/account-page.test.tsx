@@ -12,17 +12,17 @@ const mocks = vi.hoisted(() => ({
       enabled: false,
       disabledTitle: "Ưu đãi chưa được bật",
       disabledDescription:
-        "Điểm thưởng và voucher chưa được bật mặc định. Chỉ bật cờ ưu đãi tài khoản cho QA hoặc Wave 2.",
+        "Điểm thưởng và voucher chưa được bật cho tài khoản khách hàng.",
     },
     privacyRequests: {
       enabled: false,
       disabledTitle: "Công cụ dữ liệu cá nhân chưa được bật",
-      disabledDescription: "Yêu cầu dữ liệu cá nhân mặc định đang tắt và chỉ mở trong rollout riêng.",
+      disabledDescription: "Nhà hàng chưa bật yêu cầu dữ liệu cá nhân trong phiên bản này.",
     },
     dataExport: {
       enabled: false,
       disabledTitle: "Xuất dữ liệu chưa được bật",
-      disabledDescription: "Xuất dữ liệu sẽ tắt cho đến khi rollout quyền riêng tư rộng hơn sẵn sàng.",
+      disabledDescription: "Xuất dữ liệu sẽ mở sau khi công cụ dữ liệu cá nhân sẵn sàng.",
     },
   },
 }));
@@ -85,11 +85,11 @@ describe("AccountPage", () => {
     mocks.customerWebRollout.dataExport.enabled = false;
   });
 
-  it("keeps benefits gated and avoids live loyalty or voucher queries when rollout is off", async () => {
+  it("keeps benefits hidden and avoids live loyalty or voucher queries when the feature is off", async () => {
     renderAccountPage();
 
-    expect(screen.getByText("Tài khoản khách hàng của bạn")).toBeInTheDocument();
-    expect(screen.getAllByText("Ưu đãi chưa được bật").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole("heading", { name: "Hồ sơ của tôi" })).toBeInTheDocument();
+    expect(screen.queryByText("Ưu đãi chưa được bật")).not.toBeInTheDocument();
     expect(screen.getByText("Tùy chọn nhận thông báo")).toBeInTheDocument();
     expect(screen.getByText("Góp ý sau bữa ăn")).toBeInTheDocument();
     expect(mocks.getLoyalty).not.toHaveBeenCalled();

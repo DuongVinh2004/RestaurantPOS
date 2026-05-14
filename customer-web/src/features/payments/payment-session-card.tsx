@@ -286,7 +286,7 @@ function getSettlementDescription(policy: PaymentSessionPolicy): string {
     case "unapplied":
     default:
       return policy.lifecycle === "confirmed"
-        ? "Nhà cung cấp đã xác nhận thanh toán và hệ thống đang ghi nhận."
+      ? "Nhà cung cấp đã xác nhận thanh toán và ứng dụng đang cập nhật."
         : "Chưa ghi nhận kết quả cuối từ nhà cung cấp.";
   }
 }
@@ -311,7 +311,7 @@ function getRefreshDescription(policy: PaymentSessionPolicy): string {
       return "Bấm cập nhật khi bạn muốn kiểm tra trạng thái mới nhất từ nhà cung cấp.";
     case "stopped":
     default:
-      return "Phiên này đã kết thúc, nên hệ thống đã dừng kiểm tra trạng thái.";
+    return "Phiên này đã kết thúc, nên ứng dụng đã dừng kiểm tra trạng thái.";
   }
 }
 
@@ -340,5 +340,5 @@ function getProviderDescription(policy: PaymentSessionPolicy, surfaceLabel: stri
     return `Nhà hàng đã mở phiên thanh toán ${surfaceLabel.toLowerCase()} qua nhà cung cấp.`;
   }
 
-  return "Khả dụng của nhà cung cấp phụ thuộc vào cấu hình vận hành và rollout của nhà hàng.";
+  return "Khả dụng của nhà cung cấp phụ thuộc vào thiết lập thanh toán của nhà hàng.";
 }

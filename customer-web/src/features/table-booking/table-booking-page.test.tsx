@@ -129,7 +129,7 @@ describe("TableBookingPage", () => {
     });
 
     expect(tableOption).toHaveAttribute("aria-pressed", "true");
-    const continueLink = await screen.findByRole("link", { name: "Tiếp tục đặt chỗ" });
+    const continueLink = await screen.findByRole("link", { name: "Xác nhận thông tin đặt bàn" });
     expect(continueLink).toHaveAttribute("href", expect.stringContaining("hold_id=hold-123"));
     expect(continueLink).toHaveAttribute("href", expect.stringContaining("hold_status=Holding"));
     expect(continueLink).toHaveAttribute("href", expect.stringContaining("hold_expires_at="));
@@ -247,7 +247,7 @@ describe("TableBookingPage", () => {
 
     await clickSearchButton(user);
     await user.click(await screen.findByRole("button", { name: "Chọn Bàn 7" }));
-    await screen.findByRole("link", { name: "Tiếp tục đặt chỗ" });
+    await screen.findByRole("link", { name: "Xác nhận thông tin đặt bàn" });
 
     await user.click(screen.getByRole("button", { name: "Chọn Bàn 8" }));
 
@@ -263,7 +263,7 @@ describe("TableBookingPage", () => {
       );
     });
 
-    expect(await screen.findByRole("link", { name: "Tiếp tục đặt chỗ" })).toHaveAttribute("href", expect.stringContaining("hold_id=hold-456"));
+    expect(await screen.findByRole("link", { name: "Xác nhận thông tin đặt bàn" })).toHaveAttribute("href", expect.stringContaining("hold_id=hold-456"));
     expect(screen.queryByText("Đang có lượt giữ bàn")).not.toBeInTheDocument();
   });
 
@@ -443,7 +443,7 @@ describe("TableBookingPage", () => {
       tables: [{ table_id: 7, table_code: "T7", zone: "A" }],
     });
 
-    expect(await screen.findByRole("link", { name: "Tiếp tục đặt chỗ" })).toHaveAttribute("href", expect.stringContaining("hold_id=hold-123"));
+    expect(await screen.findByRole("link", { name: "Xác nhận thông tin đặt bàn" })).toHaveAttribute("href", expect.stringContaining("hold_id=hold-123"));
   });
 
   it("restores an active local hold and automatically replaces it when choosing a new table", async () => {
@@ -495,7 +495,7 @@ describe("TableBookingPage", () => {
 
     expect(await screen.findByText("Mã giữ bàn")).toBeInTheDocument();
     expect(screen.getByText("hold-local-1")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Tiếp tục đặt chỗ" })).toHaveAttribute("href", expect.stringContaining("hold_id=hold-local-1"));
+    expect(screen.getByRole("link", { name: "Xác nhận thông tin đặt bàn" })).toHaveAttribute("href", expect.stringContaining("hold_id=hold-local-1"));
 
     await clickSearchButton(user);
     await user.click(await screen.findByRole("button", { name: "Chọn Bàn 7" }));
@@ -503,11 +503,11 @@ describe("TableBookingPage", () => {
     await waitFor(() => {
       expect(mocks.cancelTableHold).toHaveBeenCalledWith("hold-local-1", 7);
       expect(mocks.createTableHold).toHaveBeenCalledWith(
-        expect.objectContaining({ guest_count: 2, duration_minutes: 90 }),
+        expect.objectContaining({ guest_count: 3, duration_minutes: 90 }),
         [7],
       );
     });
-    expect(await screen.findByRole("link", { name: "Tiếp tục đặt chỗ" })).toHaveAttribute("href", expect.stringContaining("hold_id=hold-new-7"));
+    expect(await screen.findByRole("link", { name: "Xác nhận thông tin đặt bàn" })).toHaveAttribute("href", expect.stringContaining("hold_id=hold-new-7"));
   });
 
   it("shows a friendly Vietnamese message when Laravel rejects another active session hold", async () => {
@@ -579,7 +579,7 @@ describe("TableBookingPage", () => {
 
     await clickSearchButton(user);
     await user.click(await screen.findByRole("button", { name: "Chọn Bàn 7" }));
-    await screen.findByRole("link", { name: "Tiếp tục đặt chỗ" });
+    await screen.findByRole("link", { name: "Xác nhận thông tin đặt bàn" });
 
     expect(screen.queryByRole("button", { name: "Gia hạn giữ bàn" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Hủy giữ bàn" })).not.toBeInTheDocument();
@@ -670,7 +670,7 @@ describe("TableBookingPage", () => {
     await user.click(await screen.findByRole("button", { name: "Chọn Bàn 7" }));
 
     expect(await screen.findByText("Bàn đã chọn không còn hiệu lực")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Tiếp tục đặt chỗ" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Xác nhận thông tin đặt bàn" })).not.toBeInTheDocument();
   });
 
   it("shows loading, empty, and retry states for availability search", async () => {

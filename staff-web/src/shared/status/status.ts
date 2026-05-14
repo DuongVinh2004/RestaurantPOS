@@ -90,6 +90,7 @@ export function paymentTone(status: string | null | undefined): StatusTone {
     case 'partially_refunded':
     case 'partial':
     case 'partial_paid':
+    case 'refunded':
       return 'warning';
     case 'notrequired':
     case 'not_required':
@@ -99,7 +100,6 @@ export function paymentTone(status: string | null | undefined): StatusTone {
       return 'warning';
     case 'processing':
       return 'processing';
-    case 'refunded':
     case 'forfeited':
     case 'cancelled':
       return 'error';

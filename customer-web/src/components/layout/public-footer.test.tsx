@@ -35,8 +35,8 @@ function renderFooter(isAuthenticated = false) {
 function profile() {
   return {
     branch_id: 1,
-    branch_code: "MAIN",
-    branch_name: "RestaurantPOS",
+    branch_code: "MS-HK",
+    branch_name: "Mộc Sen Bistro - Hoàn Kiếm",
     timezone: "Asia/Ho_Chi_Minh",
     business_hours: Array.from({ length: 7 }, (_, day) => ({
       day_of_week: day,
@@ -65,12 +65,12 @@ describe("PublicFooter", () => {
   it("renders restaurant contact, map, social links, and backend hours", async () => {
     renderFooter();
 
-    expect(screen.getAllByText("RestaurantPOS").length).toBeGreaterThan(0);
-    expect(screen.getByText("Truong Dai hoc Xay dung Ha Noi")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /0961 702 575/ })).toHaveAttribute("href", "tel:0961702575");
-    expect(screen.getByRole("link", { name: /duongvinhdxv@gmail\.com/ })).toHaveAttribute("href", "mailto:duongvinhdxv@gmail.com");
-    expect(screen.getByRole("link", { name: /Facebook/ })).toHaveAttribute("href", "https://www.facebook.com/duong.vinh.339875");
-    expect(screen.getByTitle("Bản đồ RestaurantPOS")).toHaveAttribute("src", expect.stringContaining("google.com/maps"));
+    expect(screen.getAllByText("Mộc Sen Bistro").length).toBeGreaterThan(0);
+    expect(screen.getByText("24 Tràng Tiền, Hoàn Kiếm, Hà Nội")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /024 3824 5588/ })).toHaveAttribute("href", "tel:02438245588");
+    expect(screen.getByRole("link", { name: /hello@mocsenbistro\.vn/ })).toHaveAttribute("href", "mailto:hello@mocsenbistro.vn");
+    expect(screen.getByRole("link", { name: /Facebook/ })).toHaveAttribute("href", "https://www.facebook.com/mocsenbistro");
+    expect(screen.getByTitle("Bản đồ Mộc Sen Bistro")).toHaveAttribute("src", expect.stringContaining("google.com/maps"));
 
     expect(await screen.findByText("Đang mở cửa")).toBeInTheDocument();
     expect(screen.getAllByText("09:00 - 22:00").length).toBeGreaterThan(0);

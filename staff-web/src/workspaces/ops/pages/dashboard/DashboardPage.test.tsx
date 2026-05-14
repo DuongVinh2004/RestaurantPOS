@@ -312,7 +312,7 @@ describe('DashboardPage', () => {
   it('renders dashboard blocks from live query data', async () => {
     renderDashboard();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Cockpit giám sát chi nhánh' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Cockpit vận hành Mộc Sen' })).toBeInTheDocument();
     expect(screen.getByText('Tình trạng ca')).toBeInTheDocument();
     expect(await screen.findAllByRole('button', { name: /mở đối soát/i })).not.toHaveLength(0);
     expect(screen.getByRole('heading', { level: 4, name: 'Sàn phục vụ' })).toBeInTheDocument();

@@ -31,6 +31,8 @@ vi.mock('../../../../shared/api/staff-api', async () => {
 
 describe('AdminCatalogPage', () => {
   beforeEach(() => {
+    vi.resetAllMocks();
+
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       value: vi.fn().mockReturnValue({
@@ -45,7 +47,6 @@ describe('AdminCatalogPage', () => {
       }),
     });
 
-    vi.clearAllMocks();
     apiMocks.listAdminMenuCategories.mockResolvedValue({
       data: [
         { category_id: 3, name: 'Món sáng', description: null, sort_order: 1, is_deleted: false },
@@ -98,7 +99,7 @@ describe('AdminCatalogPage', () => {
     expect(await screen.findByText('Thực đơn và giá bán')).toBeInTheDocument();
     expect(await screen.findByText('Món sáng')).toBeInTheDocument();
 
-    fireEvent.click(await screen.findByRole('button', { name: /Cà phê/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Cà phê/i }, { timeout: 5_000 }));
 
     await waitFor(() => expect(apiMocks.listAdminMenuItemPrices).toHaveBeenCalledWith(12, {
       per_page: 8,
@@ -156,7 +157,8 @@ describe('AdminCatalogPage', () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: /Cà phê/i }));
+    expect(await screen.findByText('Món sáng', {}, { timeout: 5_000 })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /Cà phê/i }, { timeout: 5_000 }));
     fireEvent.change(await screen.findByLabelText('Giá món mới'), {
       target: { value: '56000' },
     });

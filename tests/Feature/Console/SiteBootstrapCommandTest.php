@@ -15,7 +15,7 @@ class SiteBootstrapCommandTest extends TestCase
 {
     private const BOOTSTRAP_MENU_CATEGORY_COUNT = 7;
 
-    private const BOOTSTRAP_MENU_ITEM_COUNT = 36;
+    private const BOOTSTRAP_MENU_ITEM_COUNT = 48;
 
     protected function setUp(): void
     {
@@ -54,7 +54,7 @@ class SiteBootstrapCommandTest extends TestCase
         $first = $this->decodeArtisanOutput();
         $this->assertTrue($first['ok']);
         $this->assertSame('MAIN', $first['data']['branch']['branch_code']);
-        $this->assertSame(8, (int) $first['data']['tables']['count']);
+        $this->assertSame(16, (int) $first['data']['tables']['count']);
         $this->assertSame(self::BOOTSTRAP_MENU_CATEGORY_COUNT, (int) $first['data']['menu']['category_count']);
         $this->assertSame(self::BOOTSTRAP_MENU_ITEM_COUNT, (int) $first['data']['menu']['item_count']);
         $this->assertSame('created', $first['data']['finance']['action']);
@@ -67,8 +67,9 @@ class SiteBootstrapCommandTest extends TestCase
         $this->assertSame(1, (int) DB::table('branches')->count());
         $this->assertSame('Chi nhánh chính', (string) DB::table('branches')->value('branch_name'));
         $this->assertSame(3, (int) DB::table('table_templates')->count());
-        $this->assertSame(8, (int) DB::table('restaurant_tables')->count());
-        $this->assertSame(['Khu A', 'Khu B'], DB::table('restaurant_tables')->distinct()->orderBy('zone')->pluck('zone')->all());
+        $this->assertSame(['MS-2P', 'MS-4P', 'MS-6P'], DB::table('table_templates')->orderBy('seats')->pluck('template_code')->all());
+        $this->assertSame(16, (int) DB::table('restaurant_tables')->count());
+        $this->assertSame(['Garden Corner', 'Main Hall', 'Private Room', 'Window Zone'], DB::table('restaurant_tables')->distinct()->orderBy('zone')->pluck('zone')->all());
         $this->assertSame(self::BOOTSTRAP_MENU_CATEGORY_COUNT, (int) DB::table('menu_categories')->count());
         $this->assertSame(self::BOOTSTRAP_MENU_ITEM_COUNT, (int) DB::table('menu_items')->count());
         $this->assertSame(self::BOOTSTRAP_MENU_ITEM_COUNT, (int) DB::table('menu_item_prices')->count());
@@ -77,10 +78,13 @@ class SiteBootstrapCommandTest extends TestCase
         $this->assertSame(2, (int) DB::table('users')->count());
         $this->assertSame(1, (int) DB::table('staff_api_keys')->count());
         $this->assertSame('Món chính', (string) DB::table('menu_categories')->where('sort_order', 20)->value('name'));
-        $this->assertSame('Cơm chiên hải sản', (string) DB::table('menu_items')->where('code', 'BOOT-FRIED-RICE')->value('name'));
+        $this->assertSame('Cơm gà lá sen', (string) DB::table('menu_items')->where('code', 'MS-COM-GA-LA-SEN')->value('name'));
+        $this->assertSame('/customer-web/menu/com-ga-la-sen.jpg', (string) DB::table('menu_items')->where('code', 'MS-COM-GA-LA-SEN')->value('img_url'));
+        $this->assertSame('Set bếp trưởng đề xuất', (string) DB::table('menu_items')->where('code', 'MS-SET-BEP-TRUONG-DE-XUAT')->value('name'));
+        $this->assertSame('/customer-web/menu/set-bep-truong-de-xuat.jpg', (string) DB::table('menu_items')->where('code', 'MS-SET-BEP-TRUONG-DE-XUAT')->value('img_url'));
         $this->assertSame(
-            'Bún xào bò mềm với rau cải và nước sốt đậm vị.',
-            (string) DB::table('menu_items')->where('code', 'BOOT-NOODLE-BOWL')->value('description'),
+            'Nước dùng đậm vị, thịt bò mềm, rau thơm và sa tế nhẹ.',
+            (string) DB::table('menu_items')->where('code', 'MS-BUN-BO-MOC-SEN')->value('description'),
         );
 
         $secondExitCode = Artisan::call('booking:bootstrap-site', ['--json' => true]);
@@ -93,7 +97,7 @@ class SiteBootstrapCommandTest extends TestCase
         $this->assertNull($second['data']['staff_api_key']['plaintext_key_masked']);
 
         $this->assertSame(1, (int) DB::table('branches')->count());
-        $this->assertSame(8, (int) DB::table('restaurant_tables')->count());
+        $this->assertSame(16, (int) DB::table('restaurant_tables')->count());
         $this->assertSame(self::BOOTSTRAP_MENU_ITEM_COUNT, (int) DB::table('menu_items')->count());
         $this->assertSame(1, (int) DB::table('staff_api_keys')->count());
     }
@@ -128,8 +132,24 @@ class SiteBootstrapCommandTest extends TestCase
         $this->assertSame(0, $exitCode);
         $this->assertSame(self::BOOTSTRAP_MENU_CATEGORY_COUNT, (int) DB::table('menu_categories')->count());
         $this->assertSame(0, (int) DB::table('menu_categories')->whereIn('name', ['Do uong', 'Mon chinh'])->count());
-        $this->assertSame('Đồ uống', (string) DB::table('menu_categories')->where('sort_order', 10)->value('name'));
+        $this->assertSame('Đồ uống', (string) DB::table('menu_categories')->where('sort_order', 60)->value('name'));
         $this->assertSame('Món chính', (string) DB::table('menu_categories')->where('sort_order', 20)->value('name'));
+    }
+
+    #[Group('booking-ops')]
+    public function test_bootstrap_site_command_renames_legacy_table_templates(): void
+    {
+        DB::table('table_templates')->insert([
+            ['template_code' => 'BOOT-2P', 'seats' => 2, 'description' => 'Legacy 2 seats'],
+            ['template_code' => 'BOOT-4P', 'seats' => 4, 'description' => 'Legacy 4 seats'],
+            ['template_code' => 'BOOT-6P', 'seats' => 6, 'description' => 'Legacy 6 seats'],
+        ]);
+
+        $exitCode = Artisan::call('booking:bootstrap-site', ['--json' => true]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertSame(3, (int) DB::table('table_templates')->count());
+        $this->assertSame(['MS-2P', 'MS-4P', 'MS-6P'], DB::table('table_templates')->orderBy('seats')->pluck('template_code')->all());
     }
 
     #[Group('booking-ops')]

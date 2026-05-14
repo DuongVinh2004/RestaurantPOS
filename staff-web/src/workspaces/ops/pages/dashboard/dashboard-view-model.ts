@@ -192,8 +192,8 @@ export function buildDashboardFocus(session: StaffSession): DashboardFocusModel 
   if (roleName.includes('manager') || (capabilities.has('reporting.view') && capabilities.has('cashier.shift.manage') && capabilities.has('conversation.manage'))) {
     return {
       roleLabel: 'Branch manager',
-      title: 'Cockpit giám sát chi nhánh',
-      description: 'Theo dõi việc nóng, readiness, tài chính và snapshot giám sát mà không mất mạch vận hành.',
+      title: 'Cockpit vận hành Mộc Sen',
+      description: 'Theo dõi doanh thu, bàn, bếp, thanh toán và snapshot Mộc Sen trong cùng một màn hình.',
       priorityPaths: [staffRoutePaths.ops.dashboard, staffRoutePaths.ops.financeReview, staffRoutePaths.ops.cashierShift, staffRoutePaths.admin.reporting],
     };
   }
@@ -209,8 +209,8 @@ export function buildDashboardFocus(session: StaffSession): DashboardFocusModel 
 
   return {
     roleLabel: 'Service floor',
-    title: 'Trung tâm nhịp phục vụ',
-    description: 'Nhìn nhanh khách sắp đến, bàn còn trống, việc nóng trên sàn và các bước tiếp theo để xử lý ngay.',
+    title: 'Trung tâm nhịp phục vụ Mộc Sen',
+    description: 'Nhìn nhanh khách sắp đến, bàn còn trống, món sẵn sàng và bước tiếp theo để xử lý ngay.',
     priorityPaths: [staffRoutePaths.ops.tables, staffRoutePaths.ops.reservations, staffRoutePaths.ops.waitingList, staffRoutePaths.ops.orders],
   };
 }

@@ -1155,7 +1155,7 @@ function paymentSettlementDescription({
     case "unapplied":
     default:
       return lifecycle === "confirmed"
-        ? "Thanh toán đã xác nhận, hệ thống đang cập nhật vào lịch đặt."
+    ? "Thanh toán đã xác nhận, lịch đặt đang được cập nhật."
         : "Chưa có kết quả ghi nhận cuối cùng từ nhà cung cấp.";
   }
 }

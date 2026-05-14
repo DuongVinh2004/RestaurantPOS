@@ -271,9 +271,9 @@ describe("DepositPanel", () => {
 
     await user.click(await screen.findByRole("button", { name: "Thanh toán đặt cọc" }));
 
-    expect(screen.getByText("Tải lại trang để lấy thông tin mới nhất rồi thử lại.")).toBeInTheDocument();
-    expect(screen.getByText("Thông tin đặt cọc đã thay đổi")).toBeInTheDocument();
-    expect(screen.getByText("Tải lại trang để lấy thông tin mới nhất rồi thử lại.")).toBeInTheDocument();
+    expect(screen.getByText("Thông tin đặt bàn vừa được cập nhật. Vui lòng tải lại trạng thái mới nhất trước khi tiếp tục.")).toBeInTheDocument();
+    expect(screen.getByText("Thanh toán cọc chưa thành công. Đặt bàn của bạn vẫn được giữ. Món đặt trước chưa được xác nhận chuẩn bị.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Thanh toán lại" })).toBeInTheDocument();
   });
 
   it("renders a settled deposit state when no further customer action is open", async () => {

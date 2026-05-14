@@ -87,7 +87,7 @@ export function SearchInput({
   value,
   onChange,
   onSearch,
-  placeholder = 'Search',
+  placeholder = 'Tìm kiếm',
   className,
   ...props
 }: InputProps & {
@@ -185,7 +185,7 @@ export function BulkActionBar({
   selectedCount,
   children,
   onClear,
-  clearLabel = 'Clear selection',
+  clearLabel = 'Bỏ chọn',
   className,
 }: {
   selectedCount: number;
@@ -200,7 +200,7 @@ export function BulkActionBar({
 
   return (
     <div className={joinClasses('staff-bulk-action-bar', className)}>
-      <strong>{selectedCount} selected</strong>
+      <strong>{selectedCount} dòng đã chọn</strong>
       {children}
       {onClear ? (
         <Button type="text" onClick={onClear}>
@@ -239,7 +239,7 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel,
-  cancelLabel = 'Cancel',
+  cancelLabel = 'Đóng',
   destructive = false,
   confirming = false,
   onConfirm,

@@ -4,6 +4,7 @@ import { cancelTableHold, createTableHold, refreshTableHold, searchAvailableTabl
 const mocks = vi.hoisted(() => ({
   ensureCustomerSessionId: vi.fn(),
   idempotentSessionOptions: vi.fn(),
+  createIdempotencyKey: vi.fn(),
   createStableIdempotencyKey: vi.fn(),
   apiCall: vi.fn(),
   getV1TableHoldsHoldId: vi.fn(),
@@ -23,6 +24,7 @@ vi.mock("@/lib/api/sdk-client", () => ({
 }));
 
 vi.mock("@/lib/api/idempotency", () => ({
+  createIdempotencyKey: mocks.createIdempotencyKey,
   createStableIdempotencyKey: mocks.createStableIdempotencyKey,
 }));
 
@@ -30,6 +32,7 @@ describe("table booking api", () => {
   beforeEach(() => {
     mocks.ensureCustomerSessionId.mockReset();
     mocks.idempotentSessionOptions.mockReset();
+    mocks.createIdempotencyKey.mockReset();
     mocks.createStableIdempotencyKey.mockReset();
     mocks.apiCall.mockReset();
     mocks.getV1TableHoldsHoldId.mockReset();
@@ -39,6 +42,7 @@ describe("table booking api", () => {
     mocks.deleteV1TableHoldsHoldId.mockReset();
 
     mocks.ensureCustomerSessionId.mockReturnValue("session-123");
+    mocks.createIdempotencyKey.mockReturnValue("idem-random-123");
     mocks.createStableIdempotencyKey.mockReturnValue("idem-stable-123");
     mocks.idempotentSessionOptions.mockReturnValue({ idempotencyKey: "idem-123" });
     mocks.apiCall.mockImplementation(async (operation: (client: unknown) => unknown) =>
@@ -82,7 +86,7 @@ describe("table booking api", () => {
     });
   });
 
-  it("creates holds with session propagation and idempotent request options", async () => {
+  it("creates holds with a fresh idempotency key so a cancelled hold is not replayed", async () => {
     mocks.postV1TableHolds.mockResolvedValue({ data: { hold_id: "hold-1" } });
 
     await createTableHold(
@@ -95,17 +99,9 @@ describe("table booking api", () => {
       [8, 7],
     );
 
-    expect(mocks.createStableIdempotencyKey).toHaveBeenCalledWith(
-      "table-hold-create",
-      {
-        branch_id: 2,
-        end_time: new Date(2026, 3, 18, 20, 0, 0, 0).toISOString(),
-        session_id: "session-123",
-        start_time: new Date(2026, 3, 18, 18, 30, 0, 0).toISOString(),
-        table_ids: [7, 8],
-      },
-    );
-    expect(mocks.idempotentSessionOptions).toHaveBeenCalledWith("table-hold-create", { idempotencyKey: "idem-stable-123" });
+    expect(mocks.createIdempotencyKey).toHaveBeenCalledWith("table-hold-create");
+    expect(mocks.createStableIdempotencyKey).not.toHaveBeenCalled();
+    expect(mocks.idempotentSessionOptions).toHaveBeenCalledWith("table-hold-create", { idempotencyKey: "idem-random-123" });
     expect(mocks.postV1TableHolds).toHaveBeenCalledWith(
       {
         session_id: "session-123",

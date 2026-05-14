@@ -85,7 +85,7 @@ export function useBranchSelection(): BranchSelectionState {
         setLocationPermission("resolved");
         setLocationMessage(
           branches.length > 1
-            ? "Chọn chi nhánh gần nhất sẽ dùng tọa độ thật khi API cung cấp dữ liệu."
+            ? "Nhà hàng sẽ chọn chi nhánh gần bạn nhất khi có đủ thông tin vị trí."
             : "Hiện chỉ có chi nhánh mặc định trực tuyến.",
         );
       },

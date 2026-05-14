@@ -1,3 +1,7 @@
+param(
+    [switch] $ResetDatabase
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
@@ -14,8 +18,13 @@ if (-not $npxCommand) {
     throw 'npx was not found. Install Node.js/npm before running npm run dev:all.'
 }
 
+$backendCommand = 'powershell -ExecutionPolicy Bypass -File scripts\ops\dev-backend.ps1'
+if ($ResetDatabase) {
+    $backendCommand = "$backendCommand -ResetDatabase"
+}
+
 $commands = @(
-    'powershell -ExecutionPolicy Bypass -File scripts\ops\dev-backend.ps1',
+    $backendCommand,
     'powershell -ExecutionPolicy Bypass -File scripts\ops\dev-web.ps1 -App customer-web -HostName 127.0.0.1 -Port 3000',
     'powershell -ExecutionPolicy Bypass -File scripts\ops\dev-web.ps1 -App staff-web -HostName 127.0.0.1 -Port 5173'
 )

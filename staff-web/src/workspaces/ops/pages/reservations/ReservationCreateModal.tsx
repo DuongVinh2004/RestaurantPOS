@@ -39,10 +39,10 @@ export function ReservationCreateModal({
       open={open}
       onCancel={submitting ? undefined : onCancel}
       footer={null}
-      maskClosable={!submitting}
+      mask={{ closable: !submitting }}
       closable={!submitting}
     >
-      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={12} style={{ width: '100%' }}>
         <Typography.Text type="secondary">{description}</Typography.Text>
         {lockedTableLabel ? (
           <Typography.Text type="secondary">

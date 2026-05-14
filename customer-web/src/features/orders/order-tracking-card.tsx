@@ -101,11 +101,11 @@ export function OrderTrackingCard({
             </div>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">API đơn hàng chưa cung cấp trạng thái theo từng món.</p>
+          <p className="text-sm text-muted-foreground">Nhà hàng chưa gửi trạng thái riêng cho từng món.</p>
         )}
 
         <div className="rounded-lg border border-dashed bg-secondary/30 p-4 text-sm text-muted-foreground">
-          Chưa kết nối gọi nhân viên từ customer-web. Vui lòng hỏi nhân viên tại nhà hàng nếu bạn cần hỗ trợ.
+          Nếu bạn cần hỗ trợ, vui lòng hỏi nhân viên tại nhà hàng.
         </div>
       </div>
     </AppCard>
@@ -114,11 +114,11 @@ export function OrderTrackingCard({
 
 function getOrderTrackingDescription(tracking: CustomerOrderTrackingState): string {
   if (tracking.status === "cancelled") {
-    return "Đơn này đã hủy. Hệ thống dừng cập nhật sau trạng thái cuối.";
+    return "Đơn này đã hủy và sẽ không cập nhật thêm.";
   }
 
   if (tracking.terminal) {
-    return "Đơn này đã đến trạng thái cuối. Hệ thống đã dừng cập nhật.";
+    return "Đơn này đã hoàn tất trạng thái cuối và sẽ không cập nhật thêm.";
   }
 
   return "Màn hình này cập nhật an toàn khi đơn vẫn đang xử lý.";

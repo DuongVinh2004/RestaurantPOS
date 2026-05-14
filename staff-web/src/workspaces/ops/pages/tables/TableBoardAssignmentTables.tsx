@@ -29,7 +29,7 @@ export function TableBoardUnassignedReservationsTable({
             <div className="staff-table-board-assignment-head">
               <Typography.Text strong>{reservation.reservation_code}</Typography.Text>
               <span className="staff-table-board-assignment-caption">
-                {reservation.guest_count} khach
+                {reservation.guest_count} khách
               </span>
             </div>
 
@@ -41,19 +41,19 @@ export function TableBoardUnassignedReservationsTable({
             </Space>
 
             <div className="staff-table-board-assignment-summary">
-              <span>Bat dau: {formatDateTime(reservation.start_time)}</span>
-              <span>Ban goi y: {reservation.orchestration.best_fit_table?.table_code ?? 'Chua co goi y'}</span>
+              <span>Bắt đầu: {formatDateTime(reservation.start_time)}</span>
+              <span>Bàn gợi ý: {reservation.orchestration.best_fit_table?.table_code ?? 'Chưa có gợi ý'}</span>
             </div>
           </div>
 
           <div className="staff-table-board-assignment-actions">
             {onAssignBestFit ? (
               <Button onClick={() => onAssignBestFit(reservation)} loading={assignBestFitPending}>
-                Gan phu hop nhat
+                Gán phù hợp nhất
               </Button>
             ) : null}
             <Button onClick={() => onOpenDetail(reservation)}>
-              Mo chi tiet
+              Mở chi tiết
             </Button>
           </div>
         </article>
@@ -81,7 +81,7 @@ export function TableBoardCandidateReservationsTable({
             <div className="staff-table-board-assignment-head">
               <Typography.Text strong>{candidate.reservation_code}</Typography.Text>
               <span className="staff-table-board-assignment-caption">
-                {candidate.guest_count} khach
+                {candidate.guest_count} khách
               </span>
             </div>
 
@@ -93,10 +93,10 @@ export function TableBoardCandidateReservationsTable({
             </Space>
 
             <div className="staff-table-board-assignment-flags">
-              {candidate.flags.due_soon ? <StatusChip label="Sap den" tone="warning" /> : null}
-              {candidate.flags.overdue ? <StatusChip label="Qua gio" tone="error" /> : null}
+              {candidate.flags.due_soon ? <StatusChip label="Sắp đến" tone="warning" /> : null}
+              {candidate.flags.overdue ? <StatusChip label="Quá giờ" tone="error" /> : null}
               {!candidate.flags.due_soon && !candidate.flags.overdue ? (
-                <span className="staff-table-board-assignment-caption">Khong co co canh bao</span>
+                <span className="staff-table-board-assignment-caption">Không có cờ cảnh báo</span>
               ) : null}
             </div>
           </div>
@@ -108,12 +108,12 @@ export function TableBoardCandidateReservationsTable({
                 onClick={() => onUseCurrentTable(candidate)}
                 loading={assignCurrentPending}
               >
-                Dung ban nay
+                Dùng bàn này
               </Button>
             ) : null}
             {onOpenReservation ? (
               <Button size="small" onClick={() => onOpenReservation(candidate)}>
-                Mo dat ban
+                Mở đặt bàn
               </Button>
             ) : null}
           </div>

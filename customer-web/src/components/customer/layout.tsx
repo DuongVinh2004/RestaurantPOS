@@ -7,6 +7,7 @@ import { CalendarCheck2, ChevronDown, ChevronRight, LogOut, Menu as MenuIcon, Sh
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { AppButton, StatusPill } from "./ui";
+import { customerBrand } from "@/lib/brand/customer-brand";
 import { cn } from "@/lib/utils";
 
 export type CustomerNavItem = {
@@ -60,16 +61,16 @@ export function CustomerHeader({
   return (
     <header className="sticky top-0 z-30 border-b bg-background/96 backdrop-blur-xl">
       <div className="mx-auto flex min-h-[4.5rem] w-full max-w-7xl items-center justify-between gap-3 px-4 py-3">
-        <Link href="/" className="group flex min-w-0 items-center gap-3 leading-tight" aria-label="Trang chủ RestaurantPOS">
+        <Link href="/" className="group flex min-w-0 items-center gap-3 leading-tight" aria-label={`Trang chủ ${customerBrand.appName}`}>
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-            RP
+            {customerBrand.monogram}
           </span>
           <span className="min-w-0">
             <span className="block text-[1.25rem] font-bold tracking-normal text-foreground">
-              Restaurant<span className="text-primary">POS</span>
+              {customerBrand.appName}
             </span>
             <span className="hidden text-xs font-medium text-muted-foreground sm:block">
-              {activeItem ? activeItem.label : "Trải nghiệm khách hàng"}
+              {activeItem ? activeItem.label : customerBrand.tagline}
             </span>
           </span>
         </Link>
@@ -96,8 +97,8 @@ export function CustomerHeader({
           </SheetTrigger>
           <SheetContent className="w-[88vw] p-0">
             <SheetHeader className="px-4 py-4 text-left">
-              <SheetTitle>RestaurantPOS</SheetTitle>
-              <SheetDescription>Chọn khu vực bạn muốn mở trong ứng dụng khách hàng.</SheetDescription>
+              <SheetTitle>{customerBrand.appName}</SheetTitle>
+              <SheetDescription>Chọn mục bạn muốn mở cho bữa ăn sắp tới.</SheetDescription>
             </SheetHeader>
             <Separator />
             <div className="space-y-5 p-4">
@@ -105,9 +106,9 @@ export function CustomerHeader({
                 <div className="flex items-start gap-3">
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                   <div className="space-y-1">
-                    <p className="text-sm font-semibold">Thông tin lượt ghé của bạn</p>
+                    <p className="text-sm font-semibold">{customerBrand.visitLabel}</p>
                     <p className="text-sm text-muted-foreground">
-                      Theo dõi đặt bàn, thanh toán và tài khoản trong cùng một nơi.
+                      Theo dõi đặt bàn, thực đơn và thông tin liên hệ trong cùng một nơi.
                     </p>
                   </div>
                 </div>

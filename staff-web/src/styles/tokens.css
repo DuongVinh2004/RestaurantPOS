@@ -1,27 +1,27 @@
 :root {
   --staff-bg-page: #f6f8fb;
-  --staff-bg-page-accent: #eef4f9;
+  --staff-bg-page-accent: #f8fbff;
   --staff-bg-elevated: #ffffff;
   --staff-bg-muted: #f1f5f9;
-  --staff-bg-contrast: #e6edf5;
+  --staff-bg-contrast: #eef2f7;
   --staff-surface-warning: rgba(217, 119, 6, 0.1);
   --staff-surface-critical: rgba(220, 38, 38, 0.1);
   --staff-surface-success: rgba(22, 163, 74, 0.1);
   --staff-surface-info: rgba(37, 99, 235, 0.1);
-  --staff-border-default: #d8e2ee;
+  --staff-border-default: #d8e0ea;
   --staff-border-strong: #b8c6d8;
   --staff-border-active: #2563eb;
   --staff-border-warning: rgba(217, 119, 6, 0.48);
   --staff-border-critical: rgba(220, 38, 38, 0.46);
-  --staff-text-primary: #172033;
-  --staff-text-secondary: #506176;
-  --staff-text-tertiary: #74839a;
+  --staff-text-primary: #111827;
+  --staff-text-secondary: #4b5563;
+  --staff-text-tertiary: #6b7280;
   --staff-accent-primary: #2563eb;
-  --staff-accent-warning: #f59e0b;
+  --staff-accent-warning: #d97706;
   --staff-accent-danger: #dc2626;
   --staff-accent-success: #16a34a;
-  --staff-accent-info: #2563eb;
-  --staff-accent-analytics: #d946ef;
+  --staff-accent-info: #0284c7;
+  --staff-accent-analytics: #7c3aed;
   --staff-space-1: 4px;
   --staff-space-2: 8px;
   --staff-space-3: 12px;
@@ -140,7 +140,7 @@ textarea {
   background:
     radial-gradient(circle at top left, rgba(37, 99, 235, 0.1), transparent 22%),
     radial-gradient(circle at top right, rgba(22, 163, 74, 0.07), transparent 24%),
-    linear-gradient(180deg, #f8fbff 0%, #eef4f9 100%);
+    linear-gradient(180deg, #f8fbff 0%, #f6f8fb 100%);
 }
 
 :where(

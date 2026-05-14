@@ -423,8 +423,8 @@ return [
 
     // Multi-branch defaults for single-site compatibility and bootstrap.
     'multi_branch' => [
-        'default_branch_code' => (string) env('BOOKING_DEFAULT_BRANCH_CODE', 'MAIN'),
-        'default_branch_name' => (string) env('BOOKING_DEFAULT_BRANCH_NAME', 'Chi nhanh chinh'),
+        'default_branch_code' => (string) env('BOOKING_DEFAULT_BRANCH_CODE', 'MS-HK'),
+        'default_branch_name' => (string) env('BOOKING_DEFAULT_BRANCH_NAME', 'Mộc Sen Bistro - Hoàn Kiếm'),
         'default_branch_timezone' => (string) env('BOOKING_DEFAULT_BRANCH_TIMEZONE', 'Asia/Ho_Chi_Minh'),
         'default_branch_currency' => (string) env('BOOKING_DEFAULT_BRANCH_CURRENCY', 'VND'),
     ],
@@ -469,7 +469,7 @@ return [
         'tax_rate_percentage' => (float) env('BOOKING_FINANCE_TAX_RATE_PERCENTAGE', 10),
         'prices_include_tax' => (bool) env('BOOKING_FINANCE_PRICES_INCLUDE_TAX', true),
         'invoice_prefix' => (string) env('BOOKING_FINANCE_INVOICE_PREFIX', 'INV'),
-        'seller_name' => (string) env('BOOKING_FINANCE_SELLER_NAME', 'RestaurantPOS'),
+        'seller_name' => (string) env('BOOKING_FINANCE_SELLER_NAME', 'Mộc Sen Bistro'),
         'seller_tax_id' => (string) env('BOOKING_FINANCE_SELLER_TAX_ID', ''),
         'seller_address' => (string) env('BOOKING_FINANCE_SELLER_ADDRESS', ''),
     ],

@@ -153,7 +153,7 @@ describe('TableBoardPage', () => {
       target: { value: 'Phone-in reservation' },
     });
 
-    fireEvent.click(withinLast(dialog, /Tao dat ban ho/i));
+    fireEvent.click(withinLast(dialog, /Tạo đặt bàn hộ/i));
 
     await waitFor(() => expect(apiMocks.createReservation).toHaveBeenCalledTimes(1));
 
@@ -193,12 +193,11 @@ describe('TableBoardPage', () => {
 
     const card = await screen.findByRole('button', { name: /Bàn 1/i });
 
-    expect(within(card).getAllByText('Sẵn bàn')).toHaveLength(1);
+    expect(within(card).getAllByText('Trống')).toHaveLength(2);
     expect(within(card).queryByText('Gợi ý')).not.toBeInTheDocument();
     expect(within(card).getByText('Khu B')).toBeInTheDocument();
-    expect(within(card).getByText('Trống')).toBeInTheDocument();
     expect(within(card).queryByText('Tiếp theo')).not.toBeInTheDocument();
-    expect(within(card).getByText('Xếp khách')).toBeInTheDocument();
+    expect(within(card).getByText('Xếp bàn')).toBeInTheDocument();
   });
 
   it('shows reservation guest name phone and party size in the selected table inspector', async () => {
@@ -321,11 +320,11 @@ describe('TableBoardPage', () => {
     const selectedCard = await screen.findByRole('button', { name: /Bàn 1/i });
     const reservedCard = await screen.findByRole('button', { name: /Bàn 2/i });
 
-    expect(within(selectedCard).getByText('Xếp khách')).toBeInTheDocument();
+    expect(within(selectedCard).getByText('Xếp bàn')).toBeInTheDocument();
     expect(within(selectedCard).queryByText('Đang mở chi tiết')).not.toBeInTheDocument();
     expect(within(reservedCard).getByText('Đã đặt')).toBeInTheDocument();
     expect(within(reservedCard).queryByText('reserved_in_range')).not.toBeInTheDocument();
-    expect(within(reservedCard).getByText('Nhận bàn')).toBeInTheDocument();
+    expect(within(reservedCard).getByText('Check-in khách')).toBeInTheDocument();
   });
 
   it('moves a checked-in reservation through the canonical table reassignment contract', async () => {
@@ -486,7 +485,7 @@ describe('TableBoardPage', () => {
 
     renderWithProviders('/ops/tables?source=board&table_id=33');
 
-    fireEvent.click(await screen.findByText(/Gan phu hop nhat/i));
+    fireEvent.click(await screen.findByText(/Gán phù hợp nhất/i));
     await waitFor(() => expect(apiMocks.assignBestFitTable).toHaveBeenCalledWith(66, {
       row_version: 4,
       board_from: '2026-04-11T10:00:00Z',
@@ -494,7 +493,7 @@ describe('TableBoardPage', () => {
       zone: undefined,
     }));
 
-    fireEvent.click(await screen.findByText(/Dung ban nay/i));
+    fireEvent.click(await screen.findByText(/Dùng bàn này/i));
     await waitFor(() => expect(apiMocks.assignSuggestedTable).toHaveBeenCalledWith(77, {
       table_id: 33,
       row_version: 5,

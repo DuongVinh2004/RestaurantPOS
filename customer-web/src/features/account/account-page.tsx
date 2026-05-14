@@ -52,9 +52,9 @@ export function AccountPage() {
     <ResponsivePageShell className="space-y-6">
       <section className="space-y-2">
         <AppBadge>Tài khoản</AppBadge>
-        <h1 className="text-4xl font-semibold tracking-normal">Tài khoản khách hàng của bạn</h1>
+        <h1 className="text-4xl font-semibold tracking-normal">Hồ sơ của tôi</h1>
         <p className="max-w-3xl text-muted-foreground">
-          {displayName} có thể xem lịch đặt, ưu đãi, công cụ dữ liệu cá nhân và các phần cài đặt đang chờ API tại một nơi.
+          Quản lý lịch đặt, thông tin liên hệ và sở thích dùng bữa của bạn.
         </p>
       </section>
 
@@ -81,26 +81,28 @@ export function AccountPage() {
         dataExportEnabled={dataExportEnabled}
       />
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <LoyaltyCard
-          enabled={accountBenefitsRollout.enabled}
-          visibilityTitle={benefitsVisibility.title}
-          visibilityDescription={benefitsVisibility.description}
-          query={loyaltyQuery}
-          state={loyaltyState}
-        />
-        <VoucherWalletCard
-          enabled={accountBenefitsRollout.enabled}
-          visibilityTitle={benefitsVisibility.title}
-          visibilityDescription={benefitsVisibility.description}
-          query={vouchersQuery}
-          wallet={voucherWallet}
-        />
-      </section>
+      {accountBenefitsRollout.enabled ? (
+        <section className="grid gap-4 lg:grid-cols-2">
+          <LoyaltyCard
+            enabled={accountBenefitsRollout.enabled}
+            visibilityTitle={benefitsVisibility.title}
+            visibilityDescription={benefitsVisibility.description}
+            query={loyaltyQuery}
+            state={loyaltyState}
+          />
+          <VoucherWalletCard
+            enabled={accountBenefitsRollout.enabled}
+            visibilityTitle={benefitsVisibility.title}
+            visibilityDescription={benefitsVisibility.description}
+            query={vouchersQuery}
+            wallet={voucherWallet}
+          />
+        </section>
+      ) : null}
 
       <NotificationPreferencesPanel />
       <FeedbackPanel />
-      <PrivacyPanel />
+      {privacyEnabled ? <PrivacyPanel /> : null}
     </ResponsivePageShell>
   );
 }
@@ -124,9 +126,9 @@ function AccountSummaryCard({
     <AppCard className="p-4">
       <div className="space-y-4">
         <SectionHeader
-          eyebrow="Hồ sơ đã đăng nhập"
+          eyebrow="Thông tin liên hệ"
           title={name}
-          description="Trang này chỉ hiển thị dữ liệu thuộc phạm vi tài khoản khách hàng."
+          description="Nhà hàng dùng thông tin này để xác nhận lịch đặt và liên hệ khi cần."
         />
         <div className="grid gap-2 text-sm">
           <SummaryRow label="Email" value={email ?? "Chưa cung cấp"} />
@@ -157,35 +159,35 @@ function ExperienceHub({
   privacyEnabled: boolean;
   dataExportEnabled: boolean;
 }) {
-  const readiness = [
+  const utilityItems = [
     {
       label: "Thông báo",
-      value: "Có thể cài đặt",
+      value: "Đang có",
       icon: BellRing,
       tone: "info" as const,
     },
     {
       label: "Ưu đãi",
-      value: benefitsEnabled ? "Đã bật" : "Chưa bật",
+      value: benefitsEnabled ? "Đang có" : "Sắp ra mắt",
       icon: WalletCards,
       tone: benefitsEnabled ? "success" as const : "neutral" as const,
     },
     {
       label: "Quyền riêng tư",
-      value: privacyEnabled ? "Đã bật" : "Chưa bật",
+      value: privacyEnabled ? "Đang có" : "Theo yêu cầu",
       icon: ShieldCheck,
       tone: privacyEnabled ? "success" as const : "neutral" as const,
     },
     {
       label: "Xuất dữ liệu",
-      value: dataExportEnabled ? "Đã bật" : "Chưa bật",
+      value: dataExportEnabled ? "Đang có" : "Theo yêu cầu",
       icon: UserRound,
       tone: dataExportEnabled ? "success" as const : "neutral" as const,
     },
   ];
 
   return (
-    <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]" aria-label="Không gian cá nhân hóa">
+    <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]" aria-label="Không gian cá nhân">
       <AppCard className="overflow-hidden p-0">
         <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_17rem]">
           <div className="space-y-5 p-5">
@@ -194,9 +196,9 @@ function ExperienceHub({
                 <Sparkles className="h-5 w-5" />
               </span>
               <div>
-                <h2 className="text-2xl font-semibold tracking-normal">Hồ sơ trải nghiệm</h2>
+                <h2 className="text-2xl font-semibold tracking-normal">Hồ sơ dùng bữa</h2>
                 <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-                  Dùng thông tin đã có để giảm số lần nhập lại khi đặt bàn, theo dõi lịch và nhận thông báo.
+                  Dùng thông tin đã có để đặt bàn nhanh hơn, theo dõi lịch và nhận nhắc hẹn.
                 </p>
               </div>
             </div>
@@ -220,13 +222,13 @@ function ExperienceHub({
       <AppCard className="p-4">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2 className="font-semibold">Mức sẵn sàng</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Tính năng cá nhân hóa theo rollout hiện tại.</p>
+            <h2 className="font-semibold">Tiện ích của tôi</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Những mục có thể dùng trong tài khoản.</p>
           </div>
           <StatusPill label="An toàn" tone="success" />
         </div>
         <div className="grid gap-2">
-          {readiness.map((item) => (
+            {utilityItems.map((item) => (
             <ReadinessRow key={item.label} {...item} />
           ))}
         </div>
@@ -290,7 +292,7 @@ function UpcomingReservationsCard({
         <SectionHeader
           eyebrow="Lịch đặt"
           title="Lịch đặt sắp tới"
-          description="Chỉ hiển thị lịch đặt mà token khách hàng hoặc phiên khách này được phép xem."
+          description="Các lượt ghé sắp tới của bạn sẽ hiển thị tại đây."
           action={
             <AppButton asChild variant="outline">
               <Link href="/reservations">Xem tất cả</Link>
@@ -304,7 +306,7 @@ function UpcomingReservationsCard({
         {!query.isLoading && !query.error && (query.data?.length ?? 0) === 0 ? (
           <EmptyState
             title="Chưa có lịch đặt sắp tới"
-            description="Tạo lịch đặt mới khi bạn sẵn sàng đến nhà hàng."
+            description="Đặt bàn mới khi bạn sẵn sàng đến nhà hàng."
             action={
               <AppButton asChild>
                 <Link href="/booking">Đặt bàn</Link>
@@ -387,7 +389,7 @@ function LoyaltyCard({
               </div>
             )}
             <div className="rounded-lg border border-dashed bg-secondary/25 p-4 text-sm text-muted-foreground">
-              Danh sách quyền lợi và quà sinh nhật sẽ hiển thị khi API điểm thưởng cung cấp dữ liệu. Trang này không tự tạo quyền lợi hạng.
+              Quyền lợi thành viên và quà sinh nhật sẽ hiển thị khi nhà hàng bổ sung cho tài khoản của bạn.
             </div>
           </>
         ) : null}
@@ -412,7 +414,7 @@ function VoucherWalletCard({
   return (
     <AppCard className="p-4">
       <div className="space-y-4">
-        <SectionHeader eyebrow="Voucher" title="Ví voucher" description={visibilityDescription} />
+        <SectionHeader eyebrow="Mã ưu đãi" title="Mã ưu đãi của tôi" description={visibilityDescription} />
         {!enabled ? <EmptyState title={visibilityTitle} description={visibilityDescription} /> : null}
         {query.isLoading ? <LoadingBlock label="Đang tải ví voucher" /> : null}
         {query.error ? <ErrorState error={query.error} title="Chưa tải được ví voucher" onRetry={() => query.refetch()} /> : null}
@@ -431,12 +433,12 @@ function VoucherWalletCard({
                   <MetricCard label="Dùng được" value={wallet.counts.available} />
                   <MetricCard label="Chưa đủ điều kiện" value={wallet.counts.notEligible} />
                   <MetricCard label="Hết hạn" value={wallet.counts.expired} />
-                  <MetricCard label="Chưa khả dụng" value={wallet.counts.unavailable} />
+                  <MetricCard label="Chưa dùng được" value={wallet.counts.unavailable} />
                 </div>
                 <div className="rounded-lg border border-dashed bg-secondary/20 p-4 text-sm text-muted-foreground">
                   <p className="font-medium text-foreground">Chỉ áp dụng ở lịch đặt</p>
                   <p className="mt-1">
-                    Áp dụng hoặc gỡ voucher sẽ thực hiện tại chi tiết lịch đặt khi contract ưu đãi của lịch đặt cho phép.
+                    Áp dụng hoặc gỡ mã ưu đãi trong chi tiết lịch đặt khi nhà hàng cho phép.
                   </p>
                   <p className="mt-2">{wallet.summary}</p>
                 </div>
@@ -484,7 +486,7 @@ function FeatureState({ label, enabled }: { label: string; enabled: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3 text-sm">
       <span>{label}</span>
-      <AppBadge>{enabled ? "Đã bật" : "Chưa bật"}</AppBadge>
+      <AppBadge>{enabled ? "Đang có" : "Sắp ra mắt"}</AppBadge>
     </div>
   );
 }

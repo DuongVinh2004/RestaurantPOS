@@ -152,11 +152,11 @@ function tableCardActionCopy(row: StaffTableBoardRow): string {
   const boardState = (row.board_state ?? '').toLowerCase();
 
   if (row.active_order) {
-    return 'Mở đơn';
+    return 'Mở order';
   }
 
   if (row.actions?.check_in?.available) {
-    return 'Nhận bàn';
+    return 'Check-in khách';
   }
 
   if (row.reservation) {
@@ -164,7 +164,7 @@ function tableCardActionCopy(row: StaffTableBoardRow): string {
   }
 
   if (boardState === 'available') {
-    return 'Xếp khách';
+    return 'Xếp bàn';
   }
 
   if (row.availability?.has_hold_in_range || row.hold || (row.holds?.length ?? 0) > 0) {
@@ -591,7 +591,7 @@ export function TableBoardPage() {
   const walkInMutation = useMutation({
     onMutate: () => {
       mutationFeedback.setSubmitting(
-        'Xếp khách vào bàn',
+        'Xếp bàn cho khách',
         `Đang tạo phiên khách mới cho ${selectedTableDisplayName ?? 'bàn đang chọn'} và khóa thao tác gửi lặp.`,
       );
     },
@@ -637,7 +637,7 @@ export function TableBoardPage() {
         source: 'board',
       });
       mutationFeedback.setSuccess(
-        'Xếp khách vào bàn',
+        'Xếp bàn cho khách',
         `Đã tạo ${reservation.reservation_code} và mở tiếp luồng order cho ${selectedTableDisplayName ?? 'bàn đang chọn'}.`,
       );
       navigate(`${staffRoutePaths.ops.orders}?${buildJourneySearch({
@@ -649,7 +649,7 @@ export function TableBoardPage() {
     },
     onError: (error) => {
       mutationFeedback.setFailure(error, {
-        actionLabel: 'Xếp khách vào bàn',
+        actionLabel: 'Xếp bàn cho khách',
         fallbackMessage: formatWalkInCreationError(error),
       });
     },
@@ -716,7 +716,7 @@ export function TableBoardPage() {
   const checkInMutation = useMutation({
     onMutate: (table) => {
       mutationFeedback.setSubmitting(
-        'Nhận bàn',
+        'Check-in khách',
         `Đang chuyển ${table.reservation?.reservation_code ?? 'reservation đã chọn'} sang trạng thái đang phục vụ.`,
       );
     },
@@ -748,7 +748,7 @@ export function TableBoardPage() {
         source: 'board',
       });
       mutationFeedback.setSuccess(
-        'Nhận bàn',
+        'Check-in khách',
         `Đã nhận bàn cho ${table.reservation?.reservation_code ?? reservation.reservation_code} và mở luồng order hiện tại.`,
       );
       navigate(`${staffRoutePaths.ops.orders}?${buildJourneySearch({
@@ -760,7 +760,7 @@ export function TableBoardPage() {
     },
     onError: (error) => {
       mutationFeedback.setFailure(error, {
-        actionLabel: 'Nhận bàn',
+        actionLabel: 'Check-in khách',
         fallbackMessage: 'Không thể nhận bàn cho đặt bàn này.',
       });
     },
@@ -989,7 +989,7 @@ export function TableBoardPage() {
 
   async function handleCheckIn(table: StaffTableBoardRow) {
     const confirmed = await confirmAction({
-      title: `Nhận bàn ${table.reservation?.reservation_code ?? 'đặt bàn'}`,
+      title: `Check-in khách ${table.reservation?.reservation_code ?? 'đặt bàn'}`,
       content: (
         <Space direction="vertical" size={10}>
           <Typography.Text>
@@ -1013,7 +1013,7 @@ export function TableBoardPage() {
           </div>
         </Space>
       ),
-      okText: 'Nhận bàn',
+      okText: 'Check-in khách',
       width: 560,
     });
 
@@ -1067,7 +1067,7 @@ export function TableBoardPage() {
           className="staff-table-board-page-header"
           eyebrow="Vận hành sàn phục vụ"
           title="Sơ đồ bàn"
-          description="Chọn bàn để xếp khách, nhận đặt bàn hoặc mở đơn đang phục vụ."
+          description="Chọn bàn để xếp khách, check-in đặt bàn hoặc mở order đang phục vụ."
           context={(
             <>
               <StatusChip label={branchId ? 'Đúng chi nhánh đang chọn' : 'Theo branch mặc định'} tone="default" variant="freshness" />
@@ -1357,7 +1357,7 @@ export function TableBoardPage() {
                       loading={checkInMutation.isPending}
                       disabled={!selectedTable.actions.check_in?.available}
                     >
-                      Nhận bàn
+                      Check-in khách
                     </Button>
                     <Button
                       onClick={openMoveTableFormForSelectedTable}
@@ -1394,7 +1394,7 @@ export function TableBoardPage() {
                         })}`)
                       }
                     >
-                      Mở đơn hàng
+                      Mở order
                     </Button>
                     <Button
                       onClick={() =>
@@ -1425,7 +1425,7 @@ export function TableBoardPage() {
                   onClick={openWalkInFormForSelectedTable}
                   disabled={!selectedTable.availability.accepts_new_assignment}
                 >
-                  {selectedTableHasWalkInDraft ? 'Tiếp tục xếp khách' : 'Xếp khách vào bàn'}
+                  {selectedTableHasWalkInDraft ? 'Tiếp tục xếp bàn' : 'Xếp bàn'}
                 </Button>
                 {session && can(session, 'reservation.manage') ? (
                   <Button

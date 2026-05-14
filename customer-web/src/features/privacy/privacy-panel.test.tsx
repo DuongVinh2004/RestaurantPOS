@@ -9,14 +9,12 @@ const mocks = vi.hoisted(() => ({
     privacyRequests: {
       enabled: false,
       disabledTitle: "Công cụ dữ liệu cá nhân chưa được bật",
-      disabledDescription:
-        "Yêu cầu dữ liệu cá nhân mặc định đang tắt và chỉ mở trong rollout QA, UAT hoặc Wave 2 riêng.",
+      disabledDescription: "Nhà hàng chưa bật yêu cầu dữ liệu cá nhân trong phiên bản này.",
     },
     dataExport: {
       enabled: false,
       disabledTitle: "Xuất dữ liệu chưa được bật",
-      disabledDescription:
-        "Xuất dữ liệu sẽ tắt cho đến khi rollout quyền riêng tư rộng hơn sẵn sàng. Chỉ bật khi QA hoặc UAT cần kiểm chứng xuất dữ liệu.",
+      disabledDescription: "Xuất dữ liệu sẽ mở sau khi công cụ dữ liệu cá nhân sẵn sàng.",
     },
   },
   listPrivacyRequests: vi.fn(),
@@ -62,11 +60,11 @@ describe("PrivacyPanel", () => {
     mocks.createPrivacyRequest.mockReset();
   });
 
-  it("renders a disabled rollout state when privacy tools are off", () => {
+  it("renders a disabled privacy state when privacy tools are off", () => {
     renderPanel();
 
     expect(screen.getByText("Công cụ dữ liệu cá nhân chưa được bật")).toBeInTheDocument();
-    expect(screen.getByText(/QA, UAT hoặc Wave 2 riêng/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nhà hàng chưa bật yêu cầu dữ liệu cá nhân/i)).toBeInTheDocument();
     expect(mocks.listPrivacyRequests).not.toHaveBeenCalled();
     expect(mocks.getDataExport).not.toHaveBeenCalled();
   });
@@ -83,7 +81,7 @@ describe("PrivacyPanel", () => {
 
     expect(await screen.findByText("Xuất dữ liệu chưa được bật")).toBeInTheDocument();
     expect(screen.getByText("Yêu cầu ẩn danh hóa")).toBeInTheDocument();
-    expect(screen.getByText(/Dữ liệu thanh toán, hóa đơn, audit và tranh chấp có thể được giữ lại/i)).toBeInTheDocument();
+    expect(screen.getByText(/Một số thông tin giao dịch có thể được giữ lại/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Yêu cầu xem xét ẩn danh hóa" })).toBeInTheDocument();
     expect(mocks.getDataExport).not.toHaveBeenCalled();
   });
@@ -105,7 +103,7 @@ describe("PrivacyPanel", () => {
       expect(mocks.getDataExport).toHaveBeenCalledTimes(1);
     });
 
-    expect(await screen.findByText("Bản xuất dữ liệu khách hàng mới nhất đã có từ API quyền riêng tư.")).toBeInTheDocument();
+    expect(await screen.findByText("Bản tóm tắt dữ liệu khách hàng mới nhất đã sẵn sàng.")).toBeInTheDocument();
   });
 
   it("submits anonymization requests and refreshes the request lifecycle", async () => {

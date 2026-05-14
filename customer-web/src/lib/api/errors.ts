@@ -223,6 +223,47 @@ export function userFacingApiMessage(error: unknown): string {
   return getApiErrorDisplay(error).message;
 }
 
+export function customerFriendlyHoldMessage(
+  error: unknown,
+  options: { recoveryFailed?: boolean } = {},
+): string {
+  if (isExpiredHoldApiError(error)) {
+    return options.recoveryFailed
+      ? "Bàn đã hết thời gian giữ. Bạn có thể chọn lại bàn mà không cần nhập lại thông tin."
+      : "Bàn vừa hết thời gian giữ. Mình sẽ thử giữ lại bàn này cho bạn.";
+  }
+
+  if (isHoldConflictApiError(error)) {
+    return "Bàn này vừa có khách khác chọn. Hãy chọn một bàn còn trống khác.";
+  }
+
+  if (isHoldSessionMismatchApiError(error)) {
+    return "Phiên giữ bàn không còn hợp lệ. Vui lòng chọn lại bàn để tiếp tục.";
+  }
+
+  if (isHoldScopeMismatchApiError(error)) {
+    return "Thông tin giữ bàn không khớp với thời gian đặt. Vui lòng chọn lại bàn.";
+  }
+
+  return "Mộc Sen chưa thể kiểm tra trạng thái lúc này. Vui lòng thử lại sau ít phút.";
+}
+
+export function customerFriendlyDepositMessage(error: unknown): string {
+  if (isStaleRowVersionApiError(error)) {
+    return "Thông tin đặt bàn vừa được cập nhật. Vui lòng tải lại trạng thái mới nhất trước khi tiếp tục.";
+  }
+
+  if (isPaymentSessionExpiredApiError(error)) {
+    return "Phiên thanh toán đã hết hạn. Bạn có thể tạo lại phiên thanh toán mới.";
+  }
+
+  if (isConflictLikeApiError(error)) {
+    return "Thông tin đặt bàn vừa được cập nhật. Vui lòng tải lại trạng thái mới nhất trước khi tiếp tục.";
+  }
+
+  return "Mộc Sen chưa thể kiểm tra trạng thái lúc này. Vui lòng thử lại sau ít phút.";
+}
+
 export function getApiErrorDisplay(error: unknown): ApiErrorDisplay {
   const normalized = normalizeApiError(error);
   const requestIdLabel = normalized.requestId ? `Mã hỗ trợ: ${normalized.requestId}` : null;
@@ -507,6 +548,85 @@ export function isConflictLikeApiError(error: unknown): boolean {
   const haystack = searchableErrorText(normalized);
 
   return /conflict|row[_\s-]?version|stale|updated elsewhere/.test(haystack);
+}
+
+export function isStaleRowVersionApiError(error: unknown): boolean {
+  const normalized = normalizeApiError(error);
+
+  return (
+    normalized.errorCode === "stale_row_version" ||
+    normalized.categoryCode === "stale_write" ||
+    normalized.conflictType === "stale_write" ||
+    normalized.nextActions?.includes("retry_with_latest_row_version") ||
+    hasValidationField(normalized, ["row_version", "pre_order_row_version"]) ||
+    /row[_\s-]?version|stale|updated elsewhere/.test(searchableErrorText(normalized))
+  );
+}
+
+export function isExpiredHoldApiError(error: unknown): boolean {
+  const normalized = normalizeApiError(error);
+  const haystack = searchableErrorText(normalized);
+
+  return (
+    normalized.errorCode === "hold_expired" ||
+    normalized.errorCode === "table_hold_expired" ||
+    normalized.categoryCode === "hold_expired" ||
+    normalized.stateReason === "expired" ||
+    /(expired hold|hold.*expired|expired|expire_at|hết hạn|maximum ttl|can no longer|not in a state)/.test(haystack) &&
+      hasValidationField(normalized, ["hold_id", "expire_at", "hold_status"])
+  );
+}
+
+export function isHoldConflictApiError(error: unknown): boolean {
+  const normalized = normalizeApiError(error);
+  const haystack = searchableErrorText(normalized);
+
+  return (
+    normalized.kind === "conflict" ||
+    normalized.errorCode === "table_hold_conflict" ||
+    normalized.errorCode === "reservation_conflict" ||
+    normalized.categoryCode === "resource_conflict" ||
+    hasValidationField(normalized, ["table_ids"]) &&
+      /(overlap|conflict|another session|already|held|reservation|trùng|khác chọn)/.test(haystack)
+  );
+}
+
+export function isHoldSessionMismatchApiError(error: unknown): boolean {
+  const normalized = normalizeApiError(error);
+  const haystack = searchableErrorText(normalized);
+
+  return (
+    normalized.errorCode === "session_mismatch" ||
+    normalized.errorCode === "hold_session_mismatch" ||
+    normalized.categoryCode === "session_mismatch" ||
+    hasValidationField(normalized, ["session_id", "hold_id"]) && /(session|không thuộc session|not authorized|mismatch|không còn hợp lệ)/.test(haystack)
+  );
+}
+
+export function isHoldScopeMismatchApiError(error: unknown): boolean {
+  const normalized = normalizeApiError(error);
+  const haystack = searchableErrorText(normalized);
+
+  return (
+    normalized.errorCode === "hold_scope_mismatch" ||
+    normalized.errorCode === "reservation_hold_mismatch" ||
+    normalized.categoryCode === "scope_mismatch" ||
+    hasValidationField(normalized, ["branch_id", "table_ids", "hold_id", "start_time", "end_time"]) &&
+    /(branch|time window|bao phủ|does not match|không khớp|requested branch|selected table)/.test(haystack)
+  );
+}
+
+export function isPaymentSessionExpiredApiError(error: unknown): boolean {
+  const normalized = normalizeApiError(error);
+  const haystack = searchableErrorText(normalized);
+
+  return (
+    normalized.errorCode === "payment_session_expired" ||
+    normalized.errorCode === "deposit_payment_session_expired" ||
+    normalized.categoryCode === "payment_session_expired" ||
+    hasValidationField(normalized, ["payment_session", "session_id", "provider_expires_at"]) &&
+    /(expired|expire|hết hạn|session)/.test(haystack)
+  );
 }
 
 export function isSessionDriftLikeApiError(error: unknown): boolean {

@@ -59,7 +59,7 @@ export function financeDateRangeError(filters: Pick<FinanceFilterState, 'activit
     return null;
   }
 
-  return activityFrom <= activityTo ? null : 'Activity end date must be on or after activity start date.';
+  return activityFrom <= activityTo ? null : 'Ngày kết thúc hoạt động phải bằng hoặc sau ngày bắt đầu.';
 }
 
 export function readFinanceReviewUrlState(search: string | URLSearchParams): FinanceReviewUrlState {
@@ -139,26 +139,6 @@ export function financeFlagLabels(row: FinancialReconciliationRow): Array<string
   }
   if (row.flags.is_fully_settled) {
     labels.add('Đã quyết toán');
-  }
-
-  labels.clear();
-  if (readFlag(row, 'has_discrepancy')) {
-    labels.add('Discrepancy');
-  }
-  if (readFlag(row, 'has_bill_outstanding')) {
-    labels.add('Outstanding');
-  }
-  if (readFlag(row, 'has_bill_overpaid')) {
-    labels.add('Overpaid');
-  }
-  if (readFlag(row, 'has_over_refund')) {
-    labels.add('Over-refund');
-  }
-  if (readFlag(row, 'has_mixed_payment_currencies')) {
-    labels.add('Mixed currency');
-  }
-  if (readFlag(row, 'is_fully_settled')) {
-    labels.add('Fully settled');
   }
 
   return Array.from(labels);

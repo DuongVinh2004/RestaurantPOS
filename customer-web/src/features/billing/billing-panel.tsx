@@ -235,7 +235,7 @@ export function BillingPanel({
   const billBreakdownNote =
     billBreakdownLines.some((line) => line.label === "Phí dịch vụ" || line.label === "Thuế")
       ? undefined
-      : "API hóa đơn cho khách hàng hiện chưa tách riêng phí dịch vụ và thuế.";
+      : "Một số khoản phí có thể được nhà hàng gộp trong tổng tiền.";
 
   useEffect(() => {
     if (!orderTracking.present || orderTracking.terminal || activeOrderQuery.isFetching) {
@@ -335,7 +335,7 @@ export function BillingPanel({
               </div>
               <PaymentBreakdown
                 title="Chi tiết tổng tiền"
-                description="Chỉ hiển thị các trường API hóa đơn cho khách hàng trả về."
+                description="Các khoản tiền hiện có trong hóa đơn của bạn."
                 lines={billBreakdownLines}
                 note={billBreakdownNote}
               />

@@ -14,12 +14,10 @@ const mocks = vi.hoisted(() => ({
   customerWebRollout: {
     accountBenefits: {
       enabled: false,
-      description: "Keep loyalty and voucher data contract-visible behind an explicit rollout flag.",
-      liveProofSummary:
-        "Loyalty, vouchers, reservation benefits preview, and row-versioned voucher or loyalty mutations have live proof behind the account-benefits rollout flag.",
-      disabledTitle: "Benefits are not in this rollout",
-      disabledDescription:
-        "Loyalty and vouchers stay off by default. Enable the account-benefits rollout flag only for a deliberate QA or Wave 2 pass.",
+      description: "Điểm thưởng và voucher hiển thị khi nhà hàng bật tính năng.",
+      liveProofSummary: "Điểm thưởng và voucher sẽ hiển thị khi nhà hàng bật tính năng.",
+      disabledTitle: "Ưu đãi chưa được bật",
+      disabledDescription: "Điểm thưởng và voucher chưa được bật cho tài khoản khách hàng.",
     },
   },
 }));
@@ -135,27 +133,26 @@ describe("BenefitsPanel", () => {
     mocks.customerWebRollout.accountBenefits.enabled = false;
   });
 
-  it("renders a gated placeholder when the benefits rollout flag is off", async () => {
+  it("hides benefits when the feature is off", async () => {
     renderPanel();
 
-    expect(screen.getByText("Benefits are not in this rollout")).toBeInTheDocument();
-    expect(screen.getByText(/wave 2 pass/i)).toBeInTheDocument();
+    expect(screen.queryByText("Ưu đãi")).not.toBeInTheDocument();
     expect(mocks.getBenefitsPreview).not.toHaveBeenCalled();
   });
 
-  it("renders reservation benefits actions plus voucher contract metadata when the rollout flag is on", async () => {
+  it("renders reservation benefits actions plus voucher metadata when account benefits are on", async () => {
     mocks.customerWebRollout.accountBenefits.enabled = true;
     mocks.getBenefitsPreview.mockResolvedValue(createPreview());
 
     renderPanel();
 
-    expect(await screen.findByText("Ưu đãi đã sẵn sàng")).toBeInTheDocument();
-    expect(await screen.findByText("Ưu đãi đang hiển thị")).toBeInTheDocument();
+    expect(await screen.findByText("Ưu đãi đang có")).toBeInTheDocument();
+    expect(await screen.findByText("Có ưu đãi khả dụng")).toBeInTheDocument();
     expect(screen.getByText(/áp dụng hoặc gỡ ưu đãi/i)).toBeInTheDocument();
-    expect(screen.getAllByText("Voucher chưa đủ điều kiện").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Voucher cần thêm điều kiện")).toBeInTheDocument();
     expect(screen.getAllByText("Chưa đủ điều kiện").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Spend more before this voucher can apply.")).toBeInTheDocument();
-    expect(screen.getByText(/Đơn tối thiểu/i)).toBeInTheDocument();
+    expect(screen.getByText(/Chi tiêu tối thiểu/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Giảm dự kiến/i).length).toBeGreaterThanOrEqual(2);
   });
 

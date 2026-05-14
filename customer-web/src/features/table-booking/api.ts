@@ -1,7 +1,7 @@
 import { ensureCustomerSessionId } from "@/lib/auth/storage";
 import { unwrapData } from "@/lib/api/envelope";
 import { apiCall, idempotentSessionOptions } from "@/lib/api/sdk-client";
-import { createStableIdempotencyKey } from "@/lib/api/idempotency";
+import { createIdempotencyKey, createStableIdempotencyKey } from "@/lib/api/idempotency";
 import type {
   AvailableTablesCollectionEnvelope,
   RestaurantTable,
@@ -48,13 +48,7 @@ export function createTableHold(
   const times = availabilityTimes(values);
   const sessionId = ensureCustomerSessionId();
   const normalizedTableIds = normalizeTableIds(tableIds);
-  const idempotencyKey = createStableIdempotencyKey("table-hold-create", {
-    branch_id: values.branch_id ?? null,
-    end_time: times.end_time,
-    session_id: sessionId,
-    start_time: times.start_time,
-    table_ids: normalizedTableIds,
-  });
+  const idempotencyKey = createIdempotencyKey("table-hold-create");
 
   return apiCall((client) =>
     client.postV1TableHolds(

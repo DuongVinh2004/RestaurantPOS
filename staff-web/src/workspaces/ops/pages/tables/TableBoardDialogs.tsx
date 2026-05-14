@@ -97,14 +97,14 @@ export function TableBoardDialogs({
   return (
     <>
       <Modal
-        title={`Khach vang lai cho ${selectedTableCode ?? 'ban'}`}
+        title={`Khách vãng lai cho ${selectedTableCode ?? 'bàn'}`}
         open={walkInOpen}
         onCancel={() => {
           onWalkInValuesChange(walkInForm.getFieldsValue());
           onWalkInCancel();
         }}
         footer={null}
-        maskClosable={!walkInSubmitting}
+        mask={{ closable: !walkInSubmitting }}
         closable={!walkInSubmitting}
       >
         <Form<WalkInFormValues>
@@ -114,20 +114,20 @@ export function TableBoardDialogs({
           onValuesChange={(_, values) => onWalkInValuesChange(values)}
           onFinish={onWalkInSubmit}
         >
-          <Form.Item name="guest_name" label="Ten khach" rules={[{ required: true, message: 'Nhap ten khach.' }]}>
-            <Input placeholder="Khach vang lai" />
+          <Form.Item name="guest_name" label="Tên khách" rules={[{ required: true, message: 'Nhập tên khách.' }]}>
+            <Input placeholder="Khách vãng lai" />
           </Form.Item>
-          <Form.Item name="phone" label="So dien thoai">
-            <Input placeholder="Khong bat buoc" />
+          <Form.Item name="phone" label="Số điện thoại">
+            <Input placeholder="Không bắt buộc" />
           </Form.Item>
-          <Form.Item name="guest_count" label="So khach" rules={[{ required: true, message: 'Nhap so khach.' }]}>
+          <Form.Item name="guest_count" label="Số khách" rules={[{ required: true, message: 'Nhập số khách.' }]}>
             <InputNumber min={1} max={30} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="service_minutes" label="So phut phuc vu">
+          <Form.Item name="service_minutes" label="Số phút phục vụ">
             <InputNumber min={30} max={480} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="notes" label="Ghi chu">
-            <Input.TextArea rows={3} placeholder="Ghi chu phuc vu neu can" />
+          <Form.Item name="notes" label="Ghi chú">
+            <Input.TextArea rows={3} placeholder="Ghi chú phục vụ nếu cần" />
           </Form.Item>
           <div className="staff-modal-footer">
             <Button
@@ -137,10 +137,10 @@ export function TableBoardDialogs({
               }}
               disabled={walkInSubmitting}
             >
-              Luu nhap va dong
+              Lưu nháp và đóng
             </Button>
             <Button type="primary" htmlType="submit" loading={walkInSubmitting}>
-              Xep khach vao ban
+              Xếp khách vào bàn
             </Button>
           </div>
         </Form>
@@ -148,12 +148,12 @@ export function TableBoardDialogs({
 
       <ReservationCreateModal
         open={phoneReservationOpen}
-        title={`Dat ban ho cho ${selectedTableCode ?? 'ban'}`}
-        description={`Dat ban moi se duoc gan truc tiep vao ${selectedTableCode ?? 'ban dang chon'} va luu guest snapshot cho khach goi dien.`}
+        title={`Đặt bàn hộ cho ${selectedTableCode ?? 'bàn'}`}
+        description={`Đặt bàn mới sẽ được gán trực tiếp vào ${selectedTableCode ?? 'bàn đang chọn'} và lưu guest snapshot cho khách gọi điện.`}
         form={phoneReservationForm}
         lockedTableLabel={selectedTableCode}
         submitting={phoneReservationSubmitting}
-        submitLabel="Tao dat ban ho"
+        submitLabel="Tạo đặt bàn hộ"
         onCancel={onPhoneReservationCancel}
         onSubmit={onPhoneReservationSubmit}
       />
@@ -163,10 +163,10 @@ export function TableBoardDialogs({
         open={moveTableOpen}
         onCancel={moveTableSubmitting ? undefined : onMoveTableCancel}
         footer={null}
-        maskClosable={!moveTableSubmitting}
+        mask={{ closable: !moveTableSubmitting }}
         closable={!moveTableSubmitting}
       >
-        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={12} style={{ width: '100%' }}>
           <Typography.Text type="secondary">
             Đây là thao tác rủi ro trên sơ đồ bàn. Hãy xác nhận lại bàn nguồn, bàn đích và reservation trước khi bấm chuyển.
           </Typography.Text>

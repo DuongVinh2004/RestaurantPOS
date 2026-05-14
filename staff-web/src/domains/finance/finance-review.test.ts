@@ -52,7 +52,7 @@ describe('finance review helpers', () => {
   });
 
   it('classifies invalid activity date ranges before issuing a reconciliation query', () => {
-    expect(financeDateRangeError({ activityFrom: '2026-04-10', activityTo: '2026-04-01' })).toBe('Activity end date must be on or after activity start date.');
+    expect(financeDateRangeError({ activityFrom: '2026-04-10', activityTo: '2026-04-01' })).toBe('Ngày kết thúc hoạt động phải bằng hoặc sau ngày bắt đầu.');
     expect(financeDateRangeError({ activityFrom: '2026-04-01', activityTo: '2026-04-10' })).toBeNull();
     expect(financeDateRangeError({ activityFrom: '2026-04-01', activityTo: '' })).toBeNull();
   });
@@ -94,7 +94,7 @@ describe('finance review helpers', () => {
       finalBillAmount: 240000,
     });
 
-    expect(financeFlagLabels(row)).toEqual(['Discrepancy', 'Outstanding', 'Mixed currency']);
+    expect(financeFlagLabels(row)).toEqual(['Có chênh lệch', 'Còn thiếu', 'Lệch loại tiền']);
     expect(canIssueInvoiceForRow(row)).toBe(false);
     expect(canIssueInvoiceForRow(makeRow({
       reservationId: 7,

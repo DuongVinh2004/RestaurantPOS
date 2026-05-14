@@ -97,16 +97,7 @@ export function BenefitsPanel({ reservationId }: { reservationId: number }) {
   });
 
   if (!benefitsRollout.enabled) {
-    return (
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle>Ưu đãi</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <EmptyState title={benefitsVisibility.title} description={benefitsVisibility.description} />
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   const loadBoundary = benefitsQuery.error ? getSelfServiceBlockedState("benefits", benefitsQuery.error, "Chưa tải được ưu đãi") : null;

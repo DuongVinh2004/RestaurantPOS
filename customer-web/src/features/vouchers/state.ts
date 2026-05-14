@@ -69,7 +69,7 @@ export function getBenefitsVisibilityState(rollout: SurfaceRolloutDecision): Ben
   if (!rollout.enabled) {
     return {
       state: "gated",
-      badgeLabel: "Chưa bật",
+      badgeLabel: "Sắp ra mắt",
       title: rollout.disabledTitle,
       description: rollout.disabledDescription,
     };
@@ -77,8 +77,8 @@ export function getBenefitsVisibilityState(rollout: SurfaceRolloutDecision): Ben
 
   return {
     state: "contract_visible",
-    badgeLabel: "Đã bật",
-    title: "Ưu đãi đã sẵn sàng",
+    badgeLabel: "Đang có",
+    title: "Ưu đãi đang có",
     description: "Bạn có thể xem điểm thưởng, voucher và ưu đãi áp dụng cho lịch đặt này.",
   };
 }
@@ -245,7 +245,7 @@ export function getReservationBenefitsState(preview: CustomerReservationBenefits
           ? "Ưu đãi hết hạn vẫn hiển thị để tham khảo."
           : "Ưu đãi đang hiển thị, nhưng hiện chưa có thao tác cho khách hàng.",
     actionTitle: "Thao tác ưu đãi",
-    actionDescription: "Chỉ áp dụng hoặc gỡ ưu đãi khi contract lịch đặt cho phép.",
+    actionDescription: "Chỉ áp dụng hoặc gỡ ưu đãi khi lịch đặt hiện tại cho phép.",
     loyaltyTitle:
       loyaltyState === "available"
         ? "Có điểm thưởng khả dụng"
@@ -332,7 +332,7 @@ export function getVoucherWalletItemState(voucher: CustomerVoucher): VoucherWall
       state: "available",
       badgeLabel: nearExpiry ? "Sắp hết hạn" : "Đã áp dụng",
       title: "Đã áp dụng",
-      description: "Voucher này đã áp dụng cho lịch đặt và có thể gỡ khi contract lịch đặt cho phép.",
+      description: "Voucher này đã áp dụng cho lịch đặt và có thể gỡ khi lịch đặt hiện tại cho phép.",
       detailLines,
       nearExpiry,
     };

@@ -299,6 +299,7 @@ return [
         '2026_04_28_000061_inventory_master_data_row_version.sql',
         '2026_04_29_000062_payment_cashier_shift_link.sql',
         '2026_04_29_000063_completed_paid_bill_snapshot_gate.sql',
+        '2026_05_14_000064_moc_sen_story_data_pack.sql',
     ],
     'release_manifest' => [
         'definition_path' => 'config/booking_release.php',

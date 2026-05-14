@@ -78,8 +78,8 @@ export function PreorderCartPanel({
   const branchLabel = branchName ?? "Chưa chọn chi nhánh";
 
   return (
-    <AppCard className={cn("overflow-hidden p-0", compact ? "text-sm" : undefined)}>
-      <div className="border-b bg-[linear-gradient(135deg,var(--restaurant-coral-soft),white_54%,var(--restaurant-teal-soft))] p-4 sm:p-5">
+    <AppCard className={cn("overflow-hidden p-0", compact ? "text-sm lg:flex lg:max-h-[calc(100vh-6.5rem)] lg:flex-col" : undefined)}>
+        <div className="shrink-0 border-b bg-[linear-gradient(135deg,var(--restaurant-amber-soft),white_54%,var(--restaurant-teal-soft))] p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
@@ -114,7 +114,7 @@ export function PreorderCartPanel({
       </div>
 
       {quantity === 0 ? (
-        <div className="space-y-4 p-4 sm:p-5">
+        <div className={cn("space-y-4 p-4 sm:p-5", compact ? "lg:overflow-y-auto" : undefined)}>
           <EmptyState
             title="Giỏ món đặt trước đang trống"
             description="Thêm món còn phục vụ từ thực đơn. Nhà bếp chỉ nhận món đặt trước sau khi có lịch đặt."
@@ -144,7 +144,10 @@ export function PreorderCartPanel({
         </div>
       ) : (
         <>
-          <div className="divide-y">
+          <div
+            className={cn("divide-y", compact ? "max-h-96 overflow-y-auto lg:min-h-0 lg:flex-1 lg:max-h-none" : "max-h-[32rem] overflow-y-auto")}
+            aria-label="Danh sách món trong giỏ đặt trước"
+          >
             {cart.items.map((item) => {
               const canSubmit = item.is_available && item.preorder_enabled;
 
@@ -238,7 +241,7 @@ export function PreorderCartPanel({
             })}
           </div>
 
-          <div className="border-t bg-secondary/35 p-4 sm:p-5">
+          <div className="shrink-0 border-t bg-secondary/35 p-4 sm:p-5">
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-background text-primary">
                 <Clock3 className="h-4 w-4" />
@@ -246,7 +249,7 @@ export function PreorderCartPanel({
               <div className="min-w-0 flex-1 space-y-3">
                 <div>
                   <h3 className="font-semibold">Cách phục vụ</h3>
-                  <p className="text-sm text-muted-foreground">Lưu mong muốn cho lượt ghé này trước khi tạo lịch đặt.</p>
+                  <p className="text-sm text-muted-foreground">Lưu mong muốn cho lượt ghé này trước khi xác nhận đặt bàn.</p>
                 </div>
                 <div className="grid gap-3">
                   <AppSelect
@@ -268,12 +271,12 @@ export function PreorderCartPanel({
 
             {hasUnsupportedNotes ? (
               <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                Ghi chú đang được giữ trong giỏ này. Khi gửi yêu cầu đặt trước, hệ thống hiện chỉ gửi món và số lượng.
+                Ghi chú đang được giữ trong giỏ này. Khi gửi yêu cầu đặt trước, nhà hàng hiện chỉ nhận món và số lượng.
               </p>
             ) : null}
           </div>
 
-          <div className="space-y-3 border-t bg-background/95 p-4 sm:p-5">
+          <div className="shrink-0 space-y-3 border-t bg-background/95 p-4 sm:p-5">
             <div className="flex items-end justify-between gap-3">
               <div>
                 <p className="text-sm text-muted-foreground">Tạm tính</p>

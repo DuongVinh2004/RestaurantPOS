@@ -53,7 +53,7 @@ export const opsNavigation: StaffWorkspaceNavigationDefinition = {
           iconKey: 'orders',
           workspace: 'ops',
           capability: 'order.manage',
-          description: 'Mở đơn, thêm món và đẩy bếp theo đúng ngữ cảnh bàn.',
+    description: 'Mở order, thêm món và gửi món xuống bếp theo đúng ngữ cảnh bàn.',
         },
       ],
     },

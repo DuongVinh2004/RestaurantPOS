@@ -105,7 +105,7 @@ export function PublicFooter({ isAuthenticated }: { isAuthenticated: boolean }) 
         <section className="space-y-4" aria-label="Bản đồ và liên kết">
           <div className="overflow-hidden rounded-lg border bg-muted">
             <iframe
-              title="Bản đồ RestaurantPOS"
+              title={`Bản đồ ${customerFooterContact.name}`}
               src={googleMapsEmbedUrl()}
               className="h-52 w-full border-0"
               loading="lazy"
@@ -125,7 +125,7 @@ export function PublicFooter({ isAuthenticated }: { isAuthenticated: boolean }) 
       <div className="border-t">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>Bản quyền {new Date().getFullYear()} {customerFooterContact.name}. Đã đăng ký mọi quyền.</p>
-          <p>Giờ mở cửa được đồng bộ từ hồ sơ chi nhánh cho khách hàng.</p>
+          <p>Giờ mở cửa được cập nhật từ chi nhánh nhà hàng.</p>
         </div>
       </div>
     </footer>

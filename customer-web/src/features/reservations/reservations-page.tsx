@@ -48,13 +48,13 @@ export function ReservationsPage() {
             </div>
             <h1 className="text-4xl font-bold tracking-normal">Lịch đặt</h1>
             <p className="mt-2 max-w-2xl text-base leading-7 text-muted-foreground">
-              Xem các lượt ghé sắp tới, theo dõi đặt cọc và thanh toán hóa đơn khi nhà hàng đã sẵn sàng.
+              Xem các lượt ghé sắp tới, mở thông tin đặt bàn và chuẩn bị trước khi đến nhà hàng.
             </p>
           </div>
           <AppButton asChild className="min-h-12">
             <Link href="/reservations/new">
               <CalendarPlus className="h-4 w-4" />
-              Tạo lịch đặt
+              Đặt bàn mới
             </Link>
           </AppButton>
         </section>
@@ -125,7 +125,7 @@ export function ReservationsPage() {
       {!reservationsQuery.isLoading && !reservationsQuery.error && reservationsQuery.data?.length === 0 ? (
         <EmptyState
           title="Chưa có lịch đặt"
-          description="Tìm bàn hoặc tạo lịch đặt mới để bắt đầu lượt ghé nhà hàng."
+          description="Tìm bàn hoặc đặt bàn mới để bắt đầu lượt ghé nhà hàng."
           action={
             <AppButton asChild>
               <Link href="/booking">Tìm bàn</Link>

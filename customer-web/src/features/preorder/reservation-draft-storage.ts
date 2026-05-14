@@ -5,6 +5,7 @@ import {
 } from "./cart";
 
 export type ReservationPreorderFailureStage =
+  | "post_reservation"
   | "snapshot"
   | "preview"
   | "replace";
@@ -53,7 +54,8 @@ function isStoredPendingReservationPreorderDraft(
   return (
     Number(record.reservation_id) === reservationId &&
     record.browser_session_id === browserSessionId &&
-    (record.failure_stage === "snapshot" ||
+    (record.failure_stage === "post_reservation" ||
+      record.failure_stage === "snapshot" ||
       record.failure_stage === "preview" ||
       record.failure_stage === "replace") &&
     items.length > 0 &&
@@ -66,6 +68,8 @@ export function getReservationPreorderRecoveryMessage(
   stage: ReservationPreorderFailureStage,
 ): string {
   switch (stage) {
+    case "post_reservation":
+      return "Mộc Sen đã giữ giỏ món của bạn. Bạn có thể xem trước và lưu món đặt trước khi sẵn sàng.";
     case "snapshot":
       return "Lịch đặt đã được tạo nhưng chưa tải được phiên món đặt trước. Hệ thống đã giữ lại giỏ món để bạn tiếp tục lưu.";
     case "preview":

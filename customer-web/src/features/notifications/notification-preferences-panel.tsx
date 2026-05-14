@@ -21,7 +21,7 @@ const notificationStates = [
   },
   {
     label: "Nhắc voucher",
-    description: "Tin nhắn voucher sắp hết hạn khi backend hỗ trợ.",
+    description: "Tin nhắn mã ưu đãi sắp hết hạn khi nhà hàng mở mục này.",
     icon: MessageSquare,
   },
 ];
@@ -33,8 +33,8 @@ export function NotificationPreferencesPanel() {
         <SectionHeader
           eyebrow="Thông báo"
           title="Tùy chọn nhận thông báo"
-          description="Backend đã có hạ tầng gửi tin, nhưng endpoint tùy chọn khách hàng và API đăng ký push chưa mở cho customer-web."
-          action={<StatusPill label="Cần API" tone="warning" />}
+          description="Chọn cách nhận nhắc lịch và cập nhật từ nhà hàng. Các lựa chọn chỉnh sửa sẽ mở sau."
+          action={<StatusPill label="Sắp ra mắt" tone="info" />}
         />
         <div className="grid gap-3 sm:grid-cols-2">
           {notificationStates.map((state) => {
@@ -49,7 +49,7 @@ export function NotificationPreferencesPanel() {
                   <div>
                     <p className="font-medium">{state.label}</p>
                     <p className="mt-1 text-sm text-muted-foreground">{state.description}</p>
-                    <p className="mt-2 text-xs font-medium text-muted-foreground">Trạng thái tích hợp chỉ đọc</p>
+                    <p className="mt-2 text-xs font-medium text-muted-foreground">Đang dùng theo thiết lập của nhà hàng</p>
                   </div>
                 </div>
               </div>

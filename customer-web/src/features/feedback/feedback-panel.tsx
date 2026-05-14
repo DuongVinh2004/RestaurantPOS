@@ -12,8 +12,8 @@ export function FeedbackPanel() {
         <SectionHeader
           eyebrow="Góp ý"
           title="Góp ý sau bữa ăn"
-          description="Chưa thể gửi góp ý vì API đánh giá của khách hàng chưa được mở."
-          action={<StatusPill label="Cần API" tone="warning" />}
+          description="Góp ý trực tuyến đang được chuẩn bị. Khi cần hỗ trợ ngay, bạn có thể trao đổi trực tiếp với nhân viên nhà hàng."
+          action={<StatusPill label="Sắp ra mắt" tone="info" />}
         />
         <div className="grid gap-3 sm:grid-cols-2">
           {ratingRows.map((row) => (
@@ -39,8 +39,8 @@ export function FeedbackPanel() {
           label="Vấn đề hoặc nhận xét"
           value=""
           disabled
-          placeholder="Gửi góp ý sẽ khả dụng sau khi backend mở endpoint theo quyền sở hữu khách hàng."
-          helperText="Form này đang chỉ đọc, nên không thu thập hoặc lưu góp ý riêng tư trong trình duyệt."
+          placeholder="Góp ý của bạn sẽ giúp nhà hàng phục vụ tốt hơn."
+          helperText="Mục này hiện chỉ để xem, chưa gửi nội dung từ trang tài khoản."
         />
       </div>
     </AppCard>

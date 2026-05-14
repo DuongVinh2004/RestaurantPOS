@@ -1,15 +1,16 @@
 import type { MetadataRoute } from "next";
+import { customerBrand } from "@/lib/brand/customer-brand";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "RestaurantPOS Khách hàng",
-    short_name: "RestaurantPOS",
-    description: "Đặt bàn, xem thực đơn, theo dõi ưu đãi và trạng thái thanh toán cho khách hàng RestaurantPOS.",
+    name: customerBrand.appName,
+    short_name: customerBrand.shortName,
+    description: customerBrand.metaDescription,
     start_url: "/",
     scope: "/",
     display: "standalone",
-    background_color: "#fffaf7",
-    theme_color: "#f97316",
+    background_color: "#fffdf8",
+    theme_color: "#2f7d5c",
     categories: ["food", "business"],
     icons: [
       {

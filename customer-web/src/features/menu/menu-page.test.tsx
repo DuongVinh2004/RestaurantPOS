@@ -17,6 +17,18 @@ const mocks = vi.hoisted(() => ({
   routerReplace: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
+  branchSelection: {
+    branches: [{ branchId: 10, branchName: "Chi nhánh trung tâm" }],
+    selectedBranch: { branchId: 10, branchName: "Chi nhánh trung tâm" },
+    selectedBranchId: 10,
+    isLoading: false,
+    error: null,
+    locationPermission: "idle",
+    locationMessage: null,
+    selectBranch: vi.fn(),
+    findNearMe: vi.fn(),
+    refetch: vi.fn(),
+  },
 }));
 
 vi.mock("next/link", () => ({
@@ -36,6 +48,10 @@ vi.mock("sonner", () => ({
     error: mocks.toastError,
     success: mocks.toastSuccess,
   },
+}));
+
+vi.mock("@/features/branch/hooks", () => ({
+  useBranchSelection: () => mocks.branchSelection,
 }));
 
 vi.mock("@/lib/config/feature-flags", () => ({
@@ -97,8 +113,12 @@ describe("MenuPage", () => {
     mocks.routerReplace.mockReset();
     mocks.toastError.mockReset();
     mocks.toastSuccess.mockReset();
+    mocks.branchSelection.selectedBranch = { branchId: 10, branchName: "Chi nhánh trung tâm" };
+    mocks.branchSelection.selectedBranchId = 10;
     mocks.listMenuItems.mockResolvedValue([menuItem()]);
     mocks.listMenuCategories.mockResolvedValue([]);
+    window.localStorage.clear();
+    window.sessionStorage.clear();
   });
 
   it("links to menu item detail and renders Vietnamese menu display text", async () => {
@@ -124,18 +144,30 @@ describe("MenuPage", () => {
     expect(screen.getByRole("button", { name: "Chi tiết" })).toBeDisabled();
   });
 
-  it("keeps preorder preview closed on the public menu until the preorder rollout flag is enabled", async () => {
+  it("keeps preorder preview closed on the public menu until preorder is enabled", async () => {
+    renderPage();
+
+    expect(await screen.findByText("Phở bò")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Thêm món" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Đặt bàn" }).length).toBeGreaterThan(0);
+
+    expect(mocks.previewMenuPreorder).not.toHaveBeenCalled();
+  });
+
+  it("updates the side cart immediately after adding a preorder item", async () => {
     const user = userEvent.setup();
+    mocks.featureFlags.preorder = true;
 
     renderPage();
 
     expect(await screen.findByText("Phở bò")).toBeInTheDocument();
-    const preorderButton = screen.getByRole("button", { name: "Thêm" });
-    expect(preorderButton).toBeDisabled();
+    expect(screen.getByRole("heading", { name: "Sẵn sàng thêm món" })).toBeInTheDocument();
 
-    await user.click(preorderButton);
+    await user.click(screen.getByRole("button", { name: "Thêm món" }));
 
-    expect(mocks.previewMenuPreorder).not.toHaveBeenCalled();
+    expect(await screen.findByRole("heading", { name: "1 món đã chọn" })).toBeInTheDocument();
+    expect(screen.getByText("1/1 khả dụng")).toBeInTheDocument();
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Đã thêm Phở bò vào giỏ đặt trước.");
   });
 
   it("paginates long menu lists instead of rendering every item at once", async () => {

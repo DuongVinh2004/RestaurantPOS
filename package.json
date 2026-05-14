@@ -17,7 +17,9 @@
         "runtime:restart": "node scripts/ops/local-runtime.mjs restart",
         "runtime:preflight": "node scripts/ops/local-runtime-preflight.mjs",
         "dev:be": "powershell -ExecutionPolicy Bypass -File scripts/ops/dev-backend.ps1",
+        "dev:be:reset": "powershell -ExecutionPolicy Bypass -File scripts/ops/dev-backend.ps1 -ResetDatabase",
         "dev:all": "powershell -ExecutionPolicy Bypass -File scripts/ops/dev-all.ps1",
+        "dev:all:reset": "powershell -ExecutionPolicy Bypass -File scripts/ops/dev-all.ps1 -ResetDatabase",
         "dev:smoke": "node scripts/ops/dev-smoke.mjs",
         "build": "node scripts/ui-text-encoding-guard.mjs && vite build",
         "dev": "vite"

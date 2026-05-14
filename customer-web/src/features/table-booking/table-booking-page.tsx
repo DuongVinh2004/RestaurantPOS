@@ -15,6 +15,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { BookingProgress } from "@/components/booking/booking-progress";
 import { StickyBookingSummary } from "@/components/booking/sticky-booking-summary";
+import {
+  clearCustomerBookingDraftHold,
+  readCustomerBookingDraft,
+  storeCustomerBookingDraft,
+} from "@/features/booking/booking-draft-storage";
 import { TimeSlotGrid, selectedDateFromLocalDateTime } from "@/components/booking/time-slot-grid";
 import { SelectedBranchEntry } from "@/features/branch/branch-selector";
 import { useBranchSelection } from "@/features/branch/hooks";
@@ -23,8 +28,9 @@ import type { RestaurantTable, TableHold } from "@/lib/contracts/generated/resta
 import { createRoundedFutureLocalDateTimeInput, formatLocalDateTimeInput, parseLocalDateTimeInput } from "@/lib/contracts/datetime";
 import { formatDateTime } from "@/lib/contracts/format";
 import { queryKeys } from "@/lib/api/query-keys";
-import { ACTIVE_TABLE_HOLD_SESSION_MESSAGE, isActiveTableHoldSessionError } from "@/lib/api/errors";
+import { ACTIVE_TABLE_HOLD_SESSION_MESSAGE, customerFriendlyHoldMessage, isActiveTableHoldSessionError } from "@/lib/api/errors";
 import { ensureCustomerSessionId } from "@/lib/auth/storage";
+import { featureFlags } from "@/lib/config/feature-flags";
 import {
   formatCustomerTableName,
   formatCustomerZone,
@@ -74,6 +80,8 @@ const durationQuickOptions = [
   { label: "90 phút", value: 90 },
   { label: "120 phút", value: 120 },
 ];
+
+const holdRefreshLeadMs = 120_000;
 
 const quickDateOptions: Array<{
   key: QuickDateKey;
@@ -303,11 +311,12 @@ export function TableBookingPage() {
 
   const [initialSession] = useState(() => {
     if (typeof window === "undefined") {
-      return { sessionId: "", snapshot: null };
+      return { sessionId: "", snapshot: null, draft: null };
     }
     const sessionId = ensureCustomerSessionId();
     const snapshot = readStoredActiveTableHoldSnapshot(sessionId);
-    return { sessionId, snapshot };
+    const draft = readCustomerBookingDraft(sessionId);
+    return { sessionId, snapshot, draft };
   });
 
   const customerSessionId = initialSession.sessionId;
@@ -323,10 +332,10 @@ export function TableBookingPage() {
   const form = useForm<AvailabilitySearchValues>({
     resolver: zodResolver(availabilitySearchSchema),
     defaultValues: {
-      start_time: createRoundedFutureLocalDateTimeInput(),
-      duration_minutes: 90,
-      guest_count: 2,
-      branch_id: branchSelection.selectedBranch?.branchId ?? undefined,
+      start_time: restoredVisitDetails?.start_time ?? initialSession.draft?.start_time ?? createRoundedFutureLocalDateTimeInput(),
+      duration_minutes: restoredVisitDetails?.duration_minutes ?? initialSession.draft?.duration_minutes ?? 90,
+      guest_count: restoredVisitDetails?.guest_count ?? initialSession.draft?.guest_count ?? 2,
+      branch_id: restoredVisitDetails?.branch_id ?? initialSession.draft?.branch_id ?? branchSelection.selectedBranch?.branchId ?? undefined,
     },
   });
   const startTimeValue = useWatch({ control: form.control, name: "start_time" });
@@ -361,6 +370,16 @@ export function TableBookingPage() {
     setHeldVisitDetails(visitDetails);
     setHeldTableIds(effectiveTableIds);
     setSelectedTableIds(effectiveTableIds);
+    storeCustomerBookingDraft({
+      branch_id: visitDetails?.branch_id ?? null,
+      start_time: visitDetails?.start_time ?? null,
+      duration_minutes: visitDetails?.duration_minutes ?? null,
+      guest_count: visitDetails?.guest_count ?? null,
+      selected_table_ids: effectiveTableIds,
+      hold_id: result.hold_id,
+      hold_expires_at: result.expire_at ?? null,
+      hold_row_version: result.row_version ?? null,
+    });
     queryClient.setQueryData(queryKeys.tableBooking.hold(result.hold_id), result);
 
     const snapshot = createActiveTableHoldSnapshot(result, {
@@ -386,6 +405,7 @@ export function TableBookingPage() {
       setHeldVisitDetails(null);
       setHeldTableIds([]);
       setSelectedTableIds([]);
+      clearCustomerBookingDraftHold();
       clearStoredActiveTableHoldSnapshot(customerSessionId);
     },
     onError(error: unknown) {
@@ -397,6 +417,7 @@ export function TableBookingPage() {
         setHold(null);
         setHeldVisitDetails(null);
         setHeldTableIds([]);
+        clearCustomerBookingDraftHold();
         clearStoredActiveTableHoldSnapshot(customerSessionId);
         if (!holdCreateInFlightKeyRef.current) {
           setSelectedTableIds([]);
@@ -410,6 +431,13 @@ export function TableBookingPage() {
     onMutate() {
       setAvailability(null);
       setAvailabilitySearchValues(null);
+      const values = form.getValues();
+      storeCustomerBookingDraft({
+        branch_id: values.branch_id ?? null,
+        start_time: values.start_time,
+        duration_minutes: values.duration_minutes,
+        guest_count: values.guest_count,
+      });
       if (!holdState?.isActive) {
         setSelectedTableIds([]);
       }
@@ -417,6 +445,12 @@ export function TableBookingPage() {
     onSuccess(result, values) {
       setAvailability(result);
       setAvailabilitySearchValues(values);
+      storeCustomerBookingDraft({
+        branch_id: values.branch_id ?? null,
+        start_time: values.start_time,
+        duration_minutes: values.duration_minutes,
+        guest_count: values.guest_count,
+      });
     },
   });
 
@@ -433,30 +467,14 @@ export function TableBookingPage() {
       const isConflictError = status === 409 || message.includes('conflict');
 
       if (isConflictError) {
-        toast.error("Bàn bạn chọn vừa có người khác đặt. Hệ thống đang tải lại danh sách bàn trống!", {
-           duration: 4000
-        });
+        toast.error(customerFriendlyHoldMessage(error), { duration: 4000 });
 
         setSelectedTableIds([]);
         searchMutation.mutate(form.getValues());
       } else if (status === 422) {
-        const data = (response.data ?? err.data ?? {}) as Record<string, unknown>;
-        let validationMsg = "Dữ liệu không hợp lệ.";
-
-        if (data.errors && typeof data.errors === "object" && !Array.isArray(data.errors)) {
-          const errorsObj = data.errors as Record<string, unknown>;
-          const firstKey = Object.keys(errorsObj)[0];
-          if (firstKey) {
-            const firstError = Array.isArray(errorsObj[firstKey]) ? errorsObj[firstKey][0] : errorsObj[firstKey];
-            if (typeof firstError === "string") validationMsg = firstError;
-          }
-        } else if (typeof data.message === "string") {
-          validationMsg = data.message;
-        }
-
-        toast.error(`Từ chối giữ bàn: ${validationMsg}`);
+        toast.error(customerFriendlyHoldMessage(error));
       } else {
-        toast.error("Chưa thể giữ bàn lúc này. Vui lòng thử lại.");
+        toast.error("Mộc Sen chưa thể giữ bàn lúc này. Vui lòng thử lại sau ít phút.");
       }
     },
     onSettled() {
@@ -479,8 +497,9 @@ export function TableBookingPage() {
         setHeldVisitDetails(null);
         setHeldTableIds([]);
         setSelectedTableIds([]);
+        clearCustomerBookingDraftHold();
         clearStoredActiveTableHoldSnapshot(customerSessionId);
-        toast.error("Bàn đang giữ đã mất hiệu lực. Vui lòng chọn lại.");
+        toast.error("Bàn vừa hết thời gian giữ, nhưng thông tin của bạn vẫn được giữ nguyên.");
       }
     }
   });
@@ -515,7 +534,7 @@ export function TableBookingPage() {
     { label: "Bàn đã chọn", value: selectedChoice?.title ?? (heldTableIds.length ? `${heldTableIds.length} bàn` : "Chưa chọn") },
   ];
 
-  const isoStartTime = heldVisitDetails?.start_time ? new Date(heldVisitDetails.start_time).toISOString() : "";
+  const isoStartTime = heldVisitDetails?.start_time ?? "";
   const isHoldTransitionPending = holdSelectionMutation.isPending || cancelHoldMutation.isPending;
   const searchPending = searchMutation.isPending || isHoldTransitionPending;
   const reservationCreateHref = holdState?.isActive && heldVisitDetails && !isHoldTransitionPending
@@ -528,6 +547,17 @@ export function TableBookingPage() {
       clearStoredActiveTableHoldSnapshot(customerSessionId);
     }
   }, [customerSessionId, holdState?.isActive]);
+
+  useEffect(() => {
+    if (!isMounted || initialSession.snapshot || !initialSession.draft?.start_time) {
+      return;
+    }
+
+    const values = form.getValues();
+    searchMutation.mutate(values);
+    // Run once after a saved draft returns to table selection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMounted]);
 
   useEffect(() => {
     const syncAndRefreshHold = () => {
@@ -546,9 +576,9 @@ export function TableBookingPage() {
       const timeLeftMs = expiresAtMs - now;
 
       if (timeLeftMs <= 0) {
-        toast.error("Phiên chọn bàn đã hết hạn do bạn rời đi quá lâu. Vui lòng chọn lại.");
+        toast.error("Bàn vừa hết thời gian giữ, nhưng thông tin của bạn vẫn được giữ nguyên.");
         cancelHoldMutation.mutate({ holdId: holdState.holdId, rowVersion: holdState.rowVersion });
-      } else if (timeLeftMs < 30_000 && !refreshHoldMutation.isPending) {
+      } else if (timeLeftMs < holdRefreshLeadMs && !refreshHoldMutation.isPending) {
         refreshHoldMutation.mutate({ holdId: holdState.holdId, rowVersion: holdState.rowVersion });
       }
     };
@@ -560,19 +590,25 @@ export function TableBookingPage() {
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", syncAndRefreshHold);
+    window.addEventListener("online", syncAndRefreshHold);
 
-    let timer: number;
+    let timer: number | undefined;
     if (holdState?.isActive && holdState.expiresAt && !refreshHoldMutation.isPending) {
       const expiresAtMs = Date.parse(holdState.expiresAt);
       if (Number.isFinite(expiresAtMs)) {
-        const delayMs = Math.max(1000, expiresAtMs - Date.now() - 30_000);
+        const delayMs = Math.max(1000, expiresAtMs - Date.now() - holdRefreshLeadMs);
         timer = window.setTimeout(() => syncAndRefreshHold(), delayMs);
       }
     }
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.clearTimeout(timer);
+      window.removeEventListener("focus", syncAndRefreshHold);
+      window.removeEventListener("online", syncAndRefreshHold);
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+      }
     };
   }, [holdState?.expiresAt, holdState?.holdId, holdState?.isActive, holdState?.rowVersion, customerSessionId, refreshHoldMutation, cancelHoldMutation]);
 
@@ -621,6 +657,13 @@ export function TableBookingPage() {
 
     holdCreateInFlightKeyRef.current = selectionKey;
     setSelectedTableIds(tableIds);
+    storeCustomerBookingDraft({
+      branch_id: values.branch_id ?? null,
+      start_time: values.start_time,
+      duration_minutes: values.duration_minutes,
+      guest_count: values.guest_count,
+      selected_table_ids: tableIds,
+    });
     holdSelectionMutation.mutate({
       values,
       tableIds,
@@ -640,9 +683,9 @@ export function TableBookingPage() {
       <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-28 lg:pb-8">
         <section className="mb-6 space-y-3">
           <Badge variant="outline" className="rounded-md">Đặt bàn</Badge>
-          <h1 className="text-4xl font-semibold tracking-normal">Tìm bàn phù hợp cho lượt ghé</h1>
+          <h1 className="text-4xl font-semibold tracking-normal">Tìm bàn trống cho bữa ăn của bạn</h1>
           <p className="max-w-xl text-muted-foreground">
-            Chọn số khách, ngày giờ và thời lượng. Khi bạn chọn bàn, hệ thống sẽ giữ tạm để bạn hoàn tất lịch đặt.
+            Chọn số khách, ngày giờ và thời lượng dùng bữa dự kiến. Sau khi chọn bàn, nhà hàng sẽ giữ tạm trong vài phút để bạn hoàn tất đặt chỗ.
           </p>
           <BookingProgress currentStep="time" />
           <div className="max-w-sm">
@@ -652,7 +695,7 @@ export function TableBookingPage() {
         <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)_320px]">
           <Card className="h-fit rounded-lg">
             <CardHeader>
-              <CardTitle>Thông tin lượt ghé</CardTitle>
+              <CardTitle>Thông tin bữa ăn</CardTitle>
             </CardHeader>
             <CardContent className="flex items-center justify-center py-10">
               <LoadingBlock label="Đang tải dữ liệu phiên..." />
@@ -667,9 +710,9 @@ export function TableBookingPage() {
     <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-28 lg:pb-8">
       <section className="mb-6 space-y-3">
         <Badge variant="outline" className="rounded-md">Đặt bàn</Badge>
-        <h1 className="text-4xl font-semibold tracking-normal">Tìm bàn phù hợp cho lượt ghé</h1>
+        <h1 className="text-4xl font-semibold tracking-normal">Tìm bàn trống cho bữa ăn của bạn</h1>
         <p className="max-w-xl text-muted-foreground">
-          Chọn số khách, ngày giờ và thời lượng. Khi bạn chọn bàn, hệ thống sẽ giữ tạm để bạn hoàn tất lịch đặt.
+          Chọn số khách, ngày giờ và thời lượng dùng bữa dự kiến. Sau khi chọn bàn, nhà hàng sẽ giữ tạm trong vài phút để bạn hoàn tất đặt chỗ.
         </p>
         <BookingProgress currentStep={currentStep} />
         <div className="max-w-sm">
@@ -680,7 +723,7 @@ export function TableBookingPage() {
       <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)_320px]">
         <Card className="h-fit rounded-lg">
           <CardHeader>
-            <CardTitle>Thông tin lượt ghé</CardTitle>
+            <CardTitle>Thông tin bữa ăn</CardTitle>
           </CardHeader>
           <CardContent>
             <form className="space-y-4" onSubmit={form.handleSubmit(submitAvailabilitySearch)}>
@@ -760,7 +803,7 @@ export function TableBookingPage() {
               <section className="rounded-lg border bg-background/70 p-3">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold">4. Thời lượng giữ bàn</p>
+                    <p className="text-sm font-semibold">4. Thời lượng dùng bữa dự kiến</p>
                     <p className="text-xs text-muted-foreground">Mặc định 90 phút cho một lượt ghé.</p>
                   </div>
                   <Badge variant="outline" className="rounded-md">{durationMinutesValue ?? 0} phút</Badge>
@@ -780,7 +823,7 @@ export function TableBookingPage() {
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="duration_minutes">Thời lượng</Label>
+                  <Label htmlFor="duration_minutes">Thời lượng dùng bữa dự kiến</Label>
                   <Input id="duration_minutes" type="number" min={30} className="min-h-11 rounded-lg" {...form.register("duration_minutes", { valueAsNumber: true })} />
                   {form.formState.errors.duration_minutes ? <p className="text-sm text-destructive">{form.formState.errors.duration_minutes.message}</p> : null}
                 </div>
@@ -805,8 +848,8 @@ export function TableBookingPage() {
 
           {!searchMutation.isPending && !searchMutation.error && !availability ? (
             <EmptyState
-              title="Sẵn sàng tìm bàn"
-              description="Chọn số khách, ngày giờ và thời lượng ở bên trái. Kết quả bàn phù hợp sẽ hiện tại đây để bạn giữ bàn."
+              title="Bắt đầu tìm bàn"
+              description="Chọn số khách, ngày giờ và thời lượng dùng bữa. Kết quả bàn phù hợp sẽ hiện tại đây để bạn giữ chỗ."
               action={
                 <Button type="button" className="rounded-lg" onClick={() => submitAvailabilitySearch(form.getValues())}>
                   <Search className="mr-2 h-4 w-4" />
@@ -817,7 +860,17 @@ export function TableBookingPage() {
           ) : null}
 
           {availability && tables.length === 0 ? (
-            <EmptyState title="Chưa có bàn trống" description="Thử khung giờ khác hoặc giảm số khách." />
+            <EmptyState
+              title="Chưa có bàn trống"
+              description="Thử đổi ngày, giờ hoặc số khách để tìm lựa chọn khác."
+              action={
+                featureFlags.waitingList ? (
+                  <Button asChild variant="outline" className="rounded-lg">
+                    <Link href="/waiting-list">Ghi danh chờ bàn</Link>
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : null}
           {availabilityMeta ? (
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -926,7 +979,7 @@ export function TableBookingPage() {
           {hold && heldVisitDetails && holdState && !holdState.isActive ? (
              <EmptyState
                title="Bàn đã chọn không còn hiệu lực"
-               description="Thời gian giữ bàn đã hết. Tìm lại bàn phù hợp trước khi tạo lịch đặt."
+               description="Thời gian giữ bàn đã hết. Tìm lại bàn phù hợp trước khi xác nhận đặt bàn."
                action={
                  <Button type="button" className="rounded-lg" onClick={() => searchMutation.mutate(form.getValues())}>
                    <Search className="mr-2 h-4 w-4" />
@@ -945,12 +998,12 @@ export function TableBookingPage() {
           primaryAction={
             reservationCreateHref ? (
               <Button asChild className="min-h-10 w-full rounded-lg">
-                <Link href={reservationCreateHref}>Tiếp tục đặt chỗ</Link>
+                <Link href={reservationCreateHref}>Xác nhận thông tin đặt bàn</Link>
               </Button>
             ) : undefined
           }
           primaryActionDisabled={!availability || selectedTableIds.length === 0 || isHoldTransitionPending}
-          primaryActionLabel={selectedTableIds.length > 0 ? "Tiếp tục đặt chỗ" : "Chọn bàn để tiếp tục đặt chỗ"}
+          primaryActionLabel={selectedTableIds.length > 0 ? "Xác nhận thông tin đặt bàn" : "Chọn bàn để tiếp tục đặt bàn"}
           onPrimaryAction={() => submitAvailabilitySearch(form.getValues())}
         />
       </div>

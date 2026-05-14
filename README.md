@@ -372,6 +372,14 @@ npm run dev:smoke
 
 `npm run dev:all` is a Windows PowerShell wrapper. On macOS/Linux, run the backend, scheduler, `customer-web`, and `staff-web` commands in separate terminals.
 
+Daily `dev:all` and `dev:be` preserve existing local database rows once the booking schema exists. To intentionally rebuild the SQL-first database from the release schema and seed/demo data, run:
+
+```bash
+npm run dev:all:reset
+# or backend only
+npm run dev:be:reset
+```
+
 ## Day-To-Day Workflow
 
 After pulling new code:

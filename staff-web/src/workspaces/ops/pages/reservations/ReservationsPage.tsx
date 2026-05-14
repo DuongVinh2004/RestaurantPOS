@@ -371,7 +371,7 @@ export function ReservationsPage() {
   const checkInMutation = useMutation({
     onMutate: () => {
       mutationFeedback.setSubmitting(
-        'Nhận bàn',
+        'Check-in khách',
         'Đang chuyển reservation sang trạng thái đang phục vụ với gán bàn hiện tại.',
       );
     },
@@ -388,13 +388,13 @@ export function ReservationsPage() {
       syncSelectedReservation(reservationEnvelope.data);
       setDetailOpen(true);
       mutationFeedback.setSuccess(
-        'Nhận bàn',
+        'Check-in khách',
         `Đã chuyển ${reservationEnvelope.data.reservation_code} sang trạng thái đang phục vụ.`,
       );
     },
     onError: (error) => {
       mutationFeedback.setFailure(error, {
-        actionLabel: 'Nhận bàn',
+        actionLabel: 'Check-in khách',
         fallbackMessage: formatApiError(error, 'Không thể nhận bàn cho đặt bàn.'),
       });
     },
@@ -674,7 +674,7 @@ export function ReservationsPage() {
         {activeOrderQuery.error ? (
           <ApiStateBlock
             error={activeOrderQuery.error}
-            fallback="Khong the khoa active order canonical cho dat ban dang mo."
+            fallback="Không thể khóa active order canonical cho đặt bàn đang mở."
             onRetry={() => {
               void activeOrderQuery.refetch();
             }}
@@ -682,8 +682,8 @@ export function ReservationsPage() {
         ) : null}
         {selectedReservation ? (
           <ConflictState
-            title="Gan ban tu workspace dat ban dang bi khoa"
-            description="Staff-web khong con cho gan best-fit hoac gan vao ban dang neo tu man nay vi frozen operator contract chua co mutation canon cho table assignment."
+            title="Gán bàn từ workspace đặt bàn đang bị khóa"
+            description="Staff-web không còn cho gán best-fit hoặc gán vào bàn đang neo từ màn này vì frozen operator contract chưa có mutation canon cho table assignment."
             meta="Blocked routes: POST /api/v1/staff/reservations/{id}/assign-best-fit, POST /api/v1/staff/reservations/{id}/assign-table. Missing invariant: full-contract table-assignment write in frozen OpenAPI + generated SDK."
             className="staff-inline-note"
           />
@@ -748,4 +748,3 @@ export function ReservationsPage() {
     </>
   );
 }
-

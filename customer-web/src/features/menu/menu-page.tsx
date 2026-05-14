@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -145,7 +146,7 @@ export function MenuPage() {
   const [categoryId, setCategoryId] = useState<number | null>(() => parseCategoryId(searchParams.get("category")));
   const [availableOnly, setAvailableOnly] = useState(() => searchParams.get("available") === "1");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [preorderOnly, setPreorderOnly] = useState(() => searchParams.get("preorder") === "1");
+  const [preorderOnly, setPreorderOnly] = useState(() => featureFlags.preorder && searchParams.get("preorder") === "1");
   const [sort, setSort] = useState<MenuSort>(() => parseSort(searchParams.get("sort")));
   const [selectedPage, setSelectedPage] = useState(() => parsePage(searchParams.get("page")));
   const [favoriteItemIds, setFavoriteItemIds] = useState<Set<number>>(() => readFavoriteMenuItemIds());
@@ -164,7 +165,7 @@ export function MenuPage() {
     () => ({
       q: debouncedSearch || null,
       categoryId,
-      preorderOnly: preorderOnly || null,
+      preorderOnly: featureFlags.preorder && preorderOnly ? true : null,
     }),
     [categoryId, debouncedSearch, preorderOnly],
   );
@@ -200,7 +201,7 @@ export function MenuPage() {
   const pageFrom = displayedItems.length > 0 ? pageStartIndex + 1 : 0;
   const pageTo = Math.min(pageStartIndex + paginatedItems.length, displayedItems.length);
   const pageForUrl = itemsQuery.data ? currentPage : selectedPage;
-  const hasActiveFilters = Boolean(searchText.trim() || categoryId || availableOnly || favoritesOnly || preorderOnly || sort !== "recommended");
+  const hasActiveFilters = Boolean(searchText.trim() || categoryId || availableOnly || favoritesOnly || (featureFlags.preorder && preorderOnly) || sort !== "recommended");
 
   useEffect(() => {
     if (!didInitializeFilters.current) {
@@ -226,7 +227,7 @@ export function MenuPage() {
       params.set("available", "1");
     }
 
-    if (preorderOnly) {
+    if (featureFlags.preorder && preorderOnly) {
       params.set("preorder", "1");
     }
 
@@ -310,7 +311,7 @@ export function MenuPage() {
                 Xem món đang phục vụ trước khi giữ bàn
               </h1>
               <p className="max-w-xl text-base leading-7 text-muted-foreground">
-                Tìm món, lọc theo tình trạng và lưu món đặt trước vào phiên hiện tại. Mọi giá và tình trạng sẽ được kiểm tra lại khi gửi yêu cầu.
+                Tìm món, lọc theo tình trạng phục vụ và chọn món bạn muốn thưởng thức khi đến nhà hàng.
               </p>
             </div>
             <div className="grid gap-2 text-sm sm:grid-cols-2">
@@ -319,15 +320,15 @@ export function MenuPage() {
                 <span className="block truncate font-semibold">{selectedBranch ? selectedBranch.branchName : "Đang tải chi nhánh"}</span>
               </span>
               <span className="rounded-lg border bg-secondary/45 px-3 py-2">
-                <span className="block text-muted-foreground">Món đặt trước</span>
-                <span className="block font-semibold">{featureFlags.preorder ? "Có thể lưu vào phiên" : "Chưa mở cho khách"}</span>
+                <span className="block text-muted-foreground">Gợi ý</span>
+                <span className="block font-semibold">Đặt bàn để thưởng thức tại nhà hàng</span>
               </span>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <AppButton asChild>
                 <Link href="/booking">
                   <CalendarDays className="h-4 w-4" />
-                  Giữ bàn
+                  Đặt bàn
                 </Link>
               </AppButton>
               <AppButton asChild variant="outline">
@@ -339,8 +340,14 @@ export function MenuPage() {
             </div>
           </div>
           <div className="relative min-h-72 overflow-hidden bg-secondary lg:min-h-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={menuHeroImageUrl} alt="Các món ăn đã chuẩn bị trên bàn nhà hàng" className="h-full w-full object-cover" />
+            <Image
+              src={menuHeroImageUrl}
+              alt="Các món ăn đã chuẩn bị trên bàn nhà hàng"
+              fill
+              className="object-cover"
+              priority
+              sizes="(min-width: 1024px) 360px, 100vw"
+            />
             <div className="absolute bottom-4 right-4 rounded-md bg-background/92 px-3 py-2 text-sm font-semibold text-foreground shadow-sm">
               Gợi ý hôm nay
             </div>
@@ -348,7 +355,7 @@ export function MenuPage() {
         </div>
       </section>
 
-      <div className="mt-6 grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className={`mt-6 grid min-w-0 gap-5 ${featureFlags.preorder ? "lg:grid-cols-[minmax(0,1fr)_360px]" : ""}`}>
         <section className="min-w-0 space-y-4">
           <AppCard className="min-w-0 overflow-hidden p-0 lg:sticky lg:top-[5rem] lg:z-20">
             <div className="space-y-3 p-3 sm:p-4">
@@ -422,15 +429,17 @@ export function MenuPage() {
                   <Heart className={favoritesOnly ? "h-3.5 w-3.5 fill-current" : "h-3.5 w-3.5"} />
                   Yêu thích ({favoriteItemIds.size})
                 </AppButton>
-                <AppButton
-                  type="button"
-                  variant={preorderOnly ? "default" : "outline"}
-                  size="sm"
-                  className="min-h-9 shrink-0 px-3"
-                  onClick={() => setPreorderOnly((current) => !current)}
-                >
-                  Đặt trước
-                </AppButton>
+                {featureFlags.preorder ? (
+                  <AppButton
+                    type="button"
+                    variant={preorderOnly ? "default" : "outline"}
+                    size="sm"
+                    className="min-h-9 shrink-0 px-3"
+                    onClick={() => setPreorderOnly((current) => !current)}
+                  >
+                    Có thể thêm món
+                  </AppButton>
+                ) : null}
                 {featureFlags.menuCategories && categoriesQuery.data?.length ? (
                   <>
                     <span className="h-9 w-px shrink-0 bg-border" aria-hidden="true" />
@@ -516,6 +525,7 @@ export function MenuPage() {
                       <Heart className={favoriteItemIds.has(item.item_id) ? "h-4 w-4 fill-current" : "h-4 w-4"} />
                     </AppButton>
                     <div className="absolute bottom-3 left-3 flex flex-wrap gap-2">
+                      <AppBadge className="bg-background/92">Món gợi ý</AppBadge>
                       <AppBadge className="bg-background/92">
                         {item.is_available ? "Còn phục vụ" : "Tạm hết"}
                       </AppBadge>
@@ -531,13 +541,14 @@ export function MenuPage() {
                       <p className="line-clamp-2 min-h-11 text-sm text-muted-foreground">{description}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <StatusPill
-                        label={item.preorder.enabled ? "Có thể đặt trước" : "Chỉ dùng tại bàn"}
-                        tone={item.preorder.enabled ? "success" : "neutral"}
-                      />
+                      {featureFlags.preorder && item.preorder.enabled ? (
+                        <StatusPill label="Có thể thêm trước" tone="success" />
+                      ) : (
+                        <StatusPill label="Thưởng thức tại nhà hàng" tone="neutral" />
+                      )}
                       {!item.is_available ? <StatusPill label="Tạm hết" tone="warning" /> : null}
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid gap-2 sm:grid-cols-2">
                       {featureFlags.menuItemDetail ? (
                         <AppButton asChild variant="outline" className="min-w-0 w-full">
                           <Link href={`/menu/${item.item_id}`}>Chi tiết</Link>
@@ -547,10 +558,19 @@ export function MenuPage() {
                           Chi tiết
                         </AppButton>
                       )}
-                      <AppButton type="button" className="min-w-0 w-full" disabled={!canPreorder} onClick={() => addToCart(item)}>
-                        <ShoppingBag className="h-4 w-4" />
-                        Thêm
-                      </AppButton>
+                      {featureFlags.preorder ? (
+                        <AppButton type="button" className="min-w-0 w-full" disabled={!canPreorder} onClick={() => addToCart(item)}>
+                          <ShoppingBag className="h-4 w-4" />
+                          Thêm món
+                        </AppButton>
+                      ) : (
+                        <AppButton asChild className="min-w-0 w-full">
+                          <Link href="/booking">
+                            <CalendarDays className="h-4 w-4" />
+                            Đặt bàn
+                          </Link>
+                        </AppButton>
+                      )}
                     </div>
                   </div>
                 </AppCard>
@@ -561,9 +581,11 @@ export function MenuPage() {
           <MenuPager currentPage={currentPage} totalPages={totalPages} onPageChange={changePage} />
         </section>
 
-        <aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-[5.25rem] lg:h-fit">
-          <PreorderCartPanel branchId={selectedBranch?.branchId ?? null} branchName={selectedBranch?.branchName ?? null} compact />
-        </aside>
+        {featureFlags.preorder ? (
+          <aside className="order-first space-y-4 lg:fixed lg:right-[max(1rem,calc((100vw-80rem)/2+1rem))] lg:top-[5.25rem] lg:z-30 lg:w-[360px] lg:order-none">
+            <PreorderCartPanel branchId={selectedBranch?.branchId ?? null} branchName={selectedBranch?.branchName ?? null} compact />
+          </aside>
+        ) : null}
       </div>
     </main>
   );

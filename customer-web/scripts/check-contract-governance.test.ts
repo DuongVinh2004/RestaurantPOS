@@ -230,10 +230,10 @@ client.postV1ReservationsReservationIdBillPaymentSessionsSessionIdConfirm({}, { 
 
 function menuPageFixture() {
   return `
-const preorderPreviewEnabled = featureFlags.preorder && item.preorder.enabled;
+const canPreorder = featureFlags.preorder && item.preorder.enabled && item.is_available;
 
 <Button
-  disabled={!preorderPreviewEnabled || previewMutation.isPending}
+  disabled={!canPreorder}
 />;
 `;
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CalendarCheck2, Clock3, UsersRound, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -60,6 +60,24 @@ function WorkspaceSummaryTile({
   );
 }
 
+function VisitPassTile({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="min-w-0 rounded-lg border bg-background/85 p-3">
+      <Icon className="h-4 w-4 text-teal-700" />
+      <p className="mt-3 text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate font-semibold" title={value}>{value}</p>
+    </div>
+  );
+}
+
 function buildReservationTimelineItems({
   reservation,
   holdSummary,
@@ -81,7 +99,7 @@ function buildReservationTimelineItems({
   return [
     {
       key: "created",
-      title: "Đã tạo lịch đặt",
+      title: "Đã xác nhận lịch đặt",
       description: "Nhà hàng đã nhận thông tin đặt bàn của bạn.",
       state: "done",
       meta: reservation.reservation_code,
@@ -92,6 +110,13 @@ function buildReservationTimelineItems({
       description: holdSummary.description,
       state: holdSummary.state === "active" || holdSummary.state === "released" ? "done" : holdSummary.state === "expired" ? "blocked" : "pending",
       meta: holdSummary.expiresAt ? formatDateTime(holdSummary.expiresAt) : null,
+    },
+    {
+      key: "preorder",
+      title: "Món đặt trước là tùy chọn",
+      description: "Bạn có thể chọn món trước để Mộc Sen chuẩn bị nhanh hơn, hoặc bỏ qua và chọn món tại nhà hàng.",
+      state: isCancelled ? "blocked" : "pending",
+      meta: null,
     },
     {
       key: "deposit",
@@ -254,6 +279,7 @@ export function ReservationDetailPage({ id }: { id: number }) {
       : null;
   const depositFooter = depositSummary.amount ? formatMoney(depositSummary.amount, depositSummary.currency) : null;
   const billFooter = billSummary.available ? formatMoney(billSummary.amount, billSummary.currency) : billSummary.label;
+  const tableSummary = holdFooter ?? holdSummary.title;
   const timelineItems = buildReservationTimelineItems({
     reservation,
     holdSummary,
@@ -271,16 +297,23 @@ export function ReservationDetailPage({ id }: { id: number }) {
         </Link>
       </Button>
 
-      <section className="mb-5 rounded-lg border bg-card p-5">
+      <section className="mb-5 overflow-hidden rounded-lg border bg-card">
+              <div className="bg-[linear-gradient(135deg,var(--restaurant-amber-soft),white_56%,var(--restaurant-teal-soft))] p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-sm text-muted-foreground">{reservation.reservation_code}</p>
+            <p className="text-sm font-semibold text-teal-700">Lượt ghé của bạn</p>
             <h1 className="mt-1 text-3xl font-semibold tracking-normal">{formatDateTime(reservation.start_time ?? reservation.booking_time ?? null)}</h1>
-            <p className="mt-2 text-muted-foreground">{reservation.guest_count ?? "Chưa có"} khách</p>
+            <p className="mt-2 text-sm text-muted-foreground">Hiển thị thông tin này cho nhân viên khi đến nhà hàng.</p>
           </div>
           <StatusBadge status={reservation.status} />
         </div>
-        <div className="mt-5 rounded-lg bg-secondary/60 p-4">
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <VisitPassTile icon={CalendarCheck2} label="Mã đặt bàn" value={reservation.reservation_code ?? `#${reservation.reservation_id}`} />
+          <VisitPassTile icon={UsersRound} label="Số khách" value={`${reservation.guest_count ?? "Chưa rõ"} khách`} />
+          <VisitPassTile icon={Clock3} label="Bàn" value={tableSummary} />
+        </div>
+        </div>
+        <div className="m-5 rounded-lg bg-secondary/60 p-4">
           <p className="text-sm text-muted-foreground">Trạng thái lịch đặt</p>
           <p className="mt-1 text-lg font-semibold">{workspaceStatus.title}</p>
           <p className="mt-1 text-sm text-muted-foreground">{workspaceStatus.description}</p>
@@ -291,12 +324,18 @@ export function ReservationDetailPage({ id }: { id: number }) {
             <p className="mt-1 text-sm text-muted-foreground">{accessState.description}</p>
           </div>
         ) : null}
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className="mx-5 mt-5 grid gap-3 sm:grid-cols-4">
           <WorkspaceSummaryTile eyebrow="Bàn giữ" title={holdSummary.title} description={holdSummary.description} footer={holdFooter} />
+          <WorkspaceSummaryTile
+            eyebrow="Món đặt trước"
+            title="Tùy chọn sau đặt bàn"
+            description="Bạn có thể chọn món trước để Mộc Sen chuẩn bị nhanh hơn."
+            footer={depositSummary.requiresAction ? "Đặt cọc hiển thị sau món đặt trước" : "Có thể bỏ qua"}
+          />
           <WorkspaceSummaryTile eyebrow="Đặt cọc" title={depositSummary.title} description={depositSummary.description} footer={depositFooter} />
           <WorkspaceSummaryTile eyebrow="Hóa đơn" title={billSummary.title} description={billSummary.description} footer={billFooter} />
         </div>
-        <div className="mt-5">
+        <div className="m-5">
           <BookingProgress currentStep="confirm" />
         </div>
       </section>
@@ -306,7 +345,7 @@ export function ReservationDetailPage({ id }: { id: number }) {
           <ReservationTimeline items={timelineItems} />
           <div className="space-y-1">
             <h2 className="text-xl font-semibold">Chi tiết lượt ghé</h2>
-            <p className="text-sm text-muted-foreground">Theo dõi bàn giữ, đặt cọc, hóa đơn, món đặt trước và ưu đãi từ một nơi.</p>
+            <p className="text-sm text-muted-foreground">Xem thông tin bàn, đặt cọc, hóa đơn và các cập nhật liên quan đến lượt ghé này.</p>
           </div>
           <Card className="rounded-lg">
             <CardContent className="space-y-4 p-4">
@@ -331,16 +370,18 @@ export function ReservationDetailPage({ id }: { id: number }) {
               )}
             </CardContent>
           </Card>
+          <section id="preorder" className="scroll-mt-24">
+            <PreorderPanel reservationId={reservation.reservation_id} />
+          </section>
           <DepositPanel reservation={reservation} onReservationChanged={syncReservation} />
           <BillingPanel reservation={reservation} onReservationChanged={syncReservation} />
-          <PreorderPanel reservationId={reservation.reservation_id} />
           <BenefitsPanel reservationId={reservation.reservation_id} />
         </section>
 
         <Card className="h-fit rounded-lg">
           <CardContent className="space-y-4 p-4">
             <div>
-              <h2 className="text-lg font-semibold">Thao tác trực tuyến</h2>
+              <h2 className="text-lg font-semibold">Thay đổi lịch đặt</h2>
               <p className="mt-1 text-sm text-muted-foreground">{actionPolicy.manageDescription}</p>
             </div>
             {actionPolicy.canCancel || actionPolicy.canReschedule ? (

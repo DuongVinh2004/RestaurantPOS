@@ -1,13 +1,14 @@
 import type { RestaurantProfile } from "./api";
+import { customerBrand } from "@/lib/brand/customer-brand";
 
 export const customerFooterContact = {
-  name: "RestaurantPOS",
-  tagline: "Trải nghiệm đặt bàn và dùng bữa rõ ràng, nhanh gọn.",
-  address: "Truong Dai hoc Xay dung Ha Noi",
-  phone: "0961702575",
-  phoneDisplay: "0961 702 575",
-  email: "duongvinhdxv@gmail.com",
-  facebookUrl: "https://www.facebook.com/duong.vinh.339875",
+  name: customerBrand.appName,
+  tagline: customerBrand.tagline,
+  address: "24 Tràng Tiền, Hoàn Kiếm, Hà Nội",
+  phone: "02438245588",
+  phoneDisplay: "024 3824 5588",
+  email: "hello@mocsenbistro.vn",
+  facebookUrl: "https://www.facebook.com/mocsenbistro",
 };
 
 const dayLabels = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];

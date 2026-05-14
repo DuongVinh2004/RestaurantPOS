@@ -132,19 +132,15 @@ Neu chi can backend Laravel nhu luong ban vua chay thu cong:
 npm run dev:be
 ```
 
-Lenh nay thay cho:
+Lenh nay giu lai du lieu local neu booking schema da ton tai. Neu day la lan dau tren DB trong, script se bootstrap day du. Neu muon co tinh reset DB ve release schema va seed/demo data moi, chay:
 
 ```cmd
-powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-mysql.ps1
-powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-redis.ps1
-composer bootstrap:booking
-php artisan booking:uat-pack:bootstrap --base-url=http://127.0.0.1:8000 --manifest-path=storage/app/uat/scenario-pack.json
-php artisan serve --host=127.0.0.1 --port=8000
+npm run dev:be:reset
 ```
 
 Neu may khong co MySQL Server 8 hoac Redis binary nhung Docker Desktop dang chay, `npm run dev:be` va `npm run dev:all` co the fallback sang `docker-compose.testing.yml` de bat service `mysql`/`redis` local-only theo `.env` `DB_PORT` va `REDIS_PORT`.
 
-Lenh nay cung refresh demo login pack de hai tai khoan `uat.customer.primary` va `uat.staff` dung password `UatDemo!123` khop voi DB vua bootstrap. Neu chi muon bootstrap backend ma khong seed demo login pack, chay:
+Lenh nay cung refresh demo login pack de hai tai khoan `uat.customer.primary` va `uat.staff` dung password `UatDemo!123` khop voi DB hien tai. Neu chi muon bootstrap backend ma khong seed demo login pack, chay:
 
 ```cmd
 npm run dev:be -- -SkipUatPack
@@ -160,6 +156,12 @@ Neu muon chay backend va ca 2 frontend trong cung mot terminal:
 
 ```cmd
 npm run dev:all
+```
+
+Neu muon chay ca 3 process va reset DB truoc khi serve:
+
+```cmd
+npm run dev:all:reset
 ```
 
 Mac dinh:

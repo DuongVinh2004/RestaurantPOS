@@ -1,6 +1,6 @@
 :root {
-  color: #1d1c18;
-  background: #efe9df;
+  color: #111827;
+  background: #f6f8fb;
   font-family:
     'IBM Plex Sans',
     'Segoe UI',
@@ -28,8 +28,8 @@ body,
 
 body {
   background:
-    radial-gradient(circle at top left, rgba(160, 93, 34, 0.11), transparent 28%),
-    linear-gradient(180deg, #f4efe6 0%, #efe9df 100%);
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 28%),
+    linear-gradient(180deg, #f8fbff 0%, #f6f8fb 100%);
 }
 
 button,
@@ -40,7 +40,7 @@ textarea {
 }
 
 .staff-eyebrow {
-  color: #8b6643;
+  color: #1d4ed8;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -72,7 +72,7 @@ textarea {
 .staff-inline-loading-card {
   align-items: center;
   background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #e5dbc9;
+  border: 1px solid #d8e0ea;
   border-radius: 18px;
   display: grid;
   gap: 10px;
@@ -82,7 +82,7 @@ textarea {
 }
 
 .staff-inline-loading-description {
-  color: #6d645a;
+  color: #4b5563;
   font-size: 13px;
   text-align: center;
 }
@@ -93,7 +93,7 @@ textarea {
 }
 
 .staff-empty-description {
-  color: #666057;
+  color: #4b5563;
   font-size: 13px;
   max-width: 320px;
 }
@@ -189,14 +189,14 @@ textarea {
 }
 
 .staff-shell-sider {
-  background: linear-gradient(180deg, #1d2733 0%, #111923 100%) !important;
-  border-inline-end: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 12px 0 34px rgba(17, 25, 35, 0.18);
+  background: linear-gradient(180deg, #ffffff 0%, #edf3fa 100%) !important;
+  border-inline-end: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: 8px 0 24px rgba(31, 41, 55, 0.08);
   flex: 0 0 212px;
   height: 100vh;
   overflow: auto;
   position: sticky !important;
-  scrollbar-color: rgba(246, 187, 96, 0.42) rgba(255, 255, 255, 0.05);
+  scrollbar-color: rgba(37, 99, 235, 0.42) rgba(148, 163, 184, 0.16);
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   top: 0;
@@ -208,36 +208,36 @@ textarea {
 }
 
 .staff-shell-sider::-webkit-scrollbar-track {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  background: linear-gradient(180deg, rgba(226, 232, 240, 0.88), rgba(241, 245, 249, 0.72));
   border-radius: 999px;
   margin: 12px 0;
 }
 
 .staff-shell-sider::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(246, 187, 96, 0.48), rgba(246, 187, 96, 0.24));
-  border: 2px solid rgba(17, 25, 35, 0.62);
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.42), rgba(37, 99, 235, 0.24));
+  border: 2px solid rgba(255, 255, 255, 0.86);
   border-radius: 999px;
 }
 
 .staff-shell-sider::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(246, 187, 96, 0.64), rgba(246, 187, 96, 0.34));
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.56), rgba(37, 99, 235, 0.32));
 }
 
 .staff-sider-brand {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
   display: grid;
   gap: 4px;
   padding: 16px 14px 12px;
 }
 
 .staff-sider-brand-title {
-  color: #fff !important;
+  color: #111827 !important;
   font-size: 18px !important;
   margin: 5px 0 0 !important;
 }
 
 .staff-sider-brand-copy {
-  color: rgba(235, 241, 248, 0.66) !important;
+  color: #6b7280 !important;
   display: none;
   font-size: 12px;
   line-height: 1.45;
@@ -280,7 +280,7 @@ textarea {
 }
 
 .staff-nav-group-label {
-  color: rgba(228, 236, 246, 0.44);
+  color: #6b7280;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -293,7 +293,7 @@ textarea {
   background: transparent;
   border: 1px solid transparent;
   border-radius: 10px;
-  color: rgba(239, 244, 250, 0.82) !important;
+  color: #334155 !important;
   cursor: pointer;
   display: flex;
   gap: 12px;
@@ -312,19 +312,19 @@ textarea {
 
 .staff-shell-nav-item:hover,
 .staff-shell-menu .ant-menu-item:hover {
-  background: rgba(255, 255, 255, 0.05) !important;
-  color: #fff !important;
+  background: rgba(37, 99, 235, 0.08) !important;
+  color: #111827 !important;
 }
 
 .staff-shell-nav-item-selected,
 .staff-shell-menu .ant-menu-item-selected {
-  background: linear-gradient(180deg, rgba(246, 187, 96, 0.17), rgba(246, 187, 96, 0.09)) !important;
-  border-color: rgba(246, 187, 96, 0.32) !important;
-  color: #fff !important;
+  background: rgba(37, 99, 235, 0.12) !important;
+  border-color: rgba(37, 99, 235, 0.34) !important;
+  color: #111827 !important;
 }
 
 .staff-shell-nav-item:focus-visible {
-  outline: 2px solid rgba(246, 187, 96, 0.7);
+  outline: 2px solid rgba(37, 99, 235, 0.7);
   outline-offset: 2px;
 }
 
@@ -341,7 +341,7 @@ textarea {
 
 .staff-nav-item-icon {
   align-items: center;
-  color: rgba(246, 187, 96, 0.9);
+  color: #2563eb;
   display: inline-flex;
   flex: 0 0 20px;
   justify-content: center;
@@ -366,10 +366,10 @@ textarea {
 
 .staff-nav-item-badge {
   align-items: center;
-  background: rgba(246, 187, 96, 0.16);
-  border: 1px solid rgba(246, 187, 96, 0.26);
+  background: rgba(22, 163, 74, 0.1);
+  border: 1px solid rgba(22, 163, 74, 0.22);
   border-radius: 999px;
-  color: #f7d59c;
+  color: #15803d;
   display: inline-flex;
   flex: none;
   font-size: 10px;
@@ -2616,15 +2616,15 @@ textarea {
 }
 
 .staff-admin-chart-fill-processing {
-  background: #3b82f6;
+  background: #0284c7;
 }
 
 .staff-admin-chart-fill-success {
-  background: #22c55e;
+  background: #16a34a;
 }
 
 .staff-admin-chart-fill-warning {
-  background: #f59e0b;
+  background: #d97706;
 }
 
 .staff-admin-chart-fill-default {

@@ -804,11 +804,11 @@ export function OrderWorkspacePage() {
     />
   ) : orderMutationFeedback?.kind === 'stale-order' && staleRouteRecoveryActive && !staleRouteOrderRecovered ? (
     <ConflictState
-      title={tableOnlyActiveOrderBlocked ? 'Khong the do lai active order chi tu table_id' : 'Don hang tren URL khong con hop le'}
+      title={tableOnlyActiveOrderBlocked ? 'Không thể dò lại active order chỉ từ table_id' : 'Đơn hàng trên URL không còn hợp lệ'}
       description={
         tableOnlyActiveOrderBlocked
-          ? 'Route hien tai chi con table_id sau khi order_id cu het hieu luc. Staff-web khong the do lai active order bang table vi frozen contract chua co lookup canon theo table.'
-          : 'Workspace dang do lai active order theo dat ban hien tai truoc khi cho phep thao tac tiep.'
+          ? 'Route hiện tại chỉ còn table_id sau khi order_id cũ hết hiệu lực. Staff-web không thể dò lại active order bằng table vì frozen contract chưa có lookup canon theo table.'
+          : 'Workspace đang dò lại active order theo đặt bàn hiện tại trước khi cho phép thao tác tiếp.'
       }
       meta={
         tableOnlyActiveOrderBlocked
@@ -825,10 +825,10 @@ export function OrderWorkspacePage() {
             })}`)
           }
         >
-          Quay lai so do ban
+          Quay lại sơ đồ bàn
         </Button>
       ) : (
-        <Button onClick={() => void recoverRouteOrderContext()}>Do lai don hien tai</Button>
+        <Button onClick={() => void recoverRouteOrderContext()}>Dò lại đơn hiện tại</Button>
       )}
       className="staff-inline-note"
     />
@@ -887,7 +887,7 @@ export function OrderWorkspacePage() {
           tone="info"
           eyebrow="Đã tự phục hồi ngữ cảnh"
           title={`Đã khôi phục sang đơn hàng đang phục vụ #${resolvedOrderId}`}
-          description="Ngữ cảnh order cũ trên URL không còn hợp lệ. Workspace đã dò lại active order theo dat ban hien tai."
+          description="Ngữ cảnh order cũ trên URL không còn hợp lệ. Workspace đã dò lại active order theo đặt bàn hiện tại."
           className="staff-inline-note"
         />
       ) : null}
@@ -897,8 +897,8 @@ export function OrderWorkspacePage() {
           <Space orientation="vertical" size={16} style={{ width: '100%' }}>
             <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
               {tableOnlyActiveOrderBlocked
-                ? 'Route hien tai chi con table_id sau khi active order cu khong con hop le. Staff-web khong the tiep tuc do lai active order tu ban vi contract canon khong expose lookup nay.'
-                : 'Backend chua tra ve don hang dang phuc vu cho dat ban hien tai. Neu khach da bat dau dung dich vu, hay tao don dau tien tai day de tiep tuc luong phuc vu.'}
+                ? 'Route hiện tại chỉ còn table_id sau khi active order cũ không còn hợp lệ. Staff-web không thể tiếp tục dò lại active order từ bàn vì contract canon không expose lookup này.'
+                : 'Backend chưa trả về đơn hàng đang phục vụ cho đặt bàn hiện tại. Nếu khách đã bắt đầu dùng dịch vụ, hãy tạo đơn đầu tiên tại đây để tiếp tục luồng phục vụ.'}
             </Typography.Paragraph>
             <Descriptions bordered size="small" column={1}>
               <Descriptions.Item label="Bàn">{reservationTableLabel}</Descriptions.Item>
@@ -909,8 +909,8 @@ export function OrderWorkspacePage() {
             </Descriptions>
             {tableOnlyActiveOrderBlocked ? (
               <ConflictState
-                title="Active order theo ban dang bi khoa boi contract"
-                description="Neu can tiep tuc, hay quay lai so do ban hoac mo lai luong dat ban de lay reservation_id canon truoc khi vao workspace don hang."
+                title="Active order theo bàn đang bị khóa bởi contract"
+                description="Nếu cần tiếp tục, hãy quay lại sơ đồ bàn hoặc mở lại luồng đặt bàn để lấy reservation_id canon trước khi vào workspace đơn hàng."
                 meta="Blocked route: GET /api/v1/staff/tables/{table_id}/active-order. Missing invariant: full-contract active-order lookup by table in frozen OpenAPI + generated SDK."
                 primaryAction={(
                   <Button
@@ -922,7 +922,7 @@ export function OrderWorkspacePage() {
                       })}`)
                     }
                   >
-                    Quay lai so do ban
+                    Quay lại sơ đồ bàn
                   </Button>
                 )}
                 className="staff-inline-note"
@@ -931,7 +931,7 @@ export function OrderWorkspacePage() {
             {activeOrderByReservationQuery.error ? (
               <ApiStateBlock
                 error={activeOrderByReservationQuery.error}
-                fallback="Khong the xac dinh active order canonical cho dat ban hien tai."
+                fallback="Không thể xác định active order canonical cho đặt bàn hiện tại."
                 onRetry={() => {
                   void activeOrderByReservationQuery.refetch();
                 }}

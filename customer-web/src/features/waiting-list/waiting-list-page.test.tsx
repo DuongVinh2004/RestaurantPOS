@@ -10,9 +10,8 @@ const mocks = vi.hoisted(() => ({
   customerWebRollout: {
     waitingList: {
       enabled: false,
-      disabledTitle: "Waiting list is not in this rollout",
-      disabledDescription:
-        "This build keeps customer waiting-list access off by default. Enable the dedicated waiting-list rollout flag only for a focused QA, UAT, or Wave 2 pass.",
+      disabledTitle: "Danh sách chờ chưa được bật",
+      disabledDescription: "Nhà hàng chưa bật danh sách chờ trực tuyến cho khách hàng.",
     },
   },
   toastSuccess: vi.fn(),
@@ -173,7 +172,7 @@ describe("WaitingListPage", () => {
     mocks.authState.profile = null;
   });
 
-  it("renders a rollout-disabled state without calling live waiting-list queries", () => {
+  it("renders a disabled waiting-list state without calling live waiting-list queries", () => {
     renderPage();
 
     expect(screen.getByRole("heading", { name: "Danh sách chờ chưa khả dụng" })).toBeInTheDocument();

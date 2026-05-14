@@ -4,7 +4,8 @@ param(
     [switch] $SkipBootstrap,
     [switch] $SkipRedis,
     [switch] $SkipUatPack,
-    [switch] $SkipMySql
+    [switch] $SkipMySql,
+    [switch] $ResetDatabase
 )
 
 Set-StrictMode -Version Latest
@@ -374,6 +375,19 @@ function Invoke-NativeCommand {
     }
 }
 
+function Test-BookingSchemaPresent {
+    param(
+        [string] $PhpExecutable
+    )
+
+    $doctor = Invoke-NativeCommand -FilePath $PhpExecutable -Arguments @('artisan', 'booking:doctor', '--json')
+    if ($doctor.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($doctor.Output)) {
+        return $false
+    }
+
+    return $doctor.Output.Contains('"ok": true') -or $doctor.Output.Contains('"status": "ok"')
+}
+
 function Assert-DockerAvailable {
     param(
         [string] $DockerCommand
@@ -520,8 +534,15 @@ if (-not $SkipRedis) {
 }
 
 if (-not $SkipBootstrap) {
+    $bootstrapCommand = @('bootstrap:booking')
+    if (-not $ResetDatabase -and (Test-BookingSchemaPresent -PhpExecutable $phpExecutable)) {
+        Write-Host 'Existing booking schema detected; skipping database bootstrap. Use -ResetDatabase for a clean reset.'
+        $bootstrapCommand += '--'
+        $bootstrapCommand += '--skip-db-bootstrap'
+    }
+
     Write-Host 'Bootstrapping booking runtime...'
-    & composer bootstrap:booking
+    & composer @bootstrapCommand
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }

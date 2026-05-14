@@ -25,9 +25,9 @@ describe('StaffAppShell layout styles', () => {
   it('keeps the shared staff-web theme in a readable light operational palette after bundle overrides load', () => {
     expect(tokensCss).toMatch(/color-scheme:\s*light;/s);
     expect(tokensCss).toMatch(/--staff-bg-page:\s*#f6f8fb;/s);
-    expect(tokensCss).toMatch(/--staff-text-primary:\s*#172033;/s);
-    expect(tokensCss).toMatch(/--staff-text-secondary:\s*#506176;/s);
-    expect(tokensCss).toMatch(/--staff-text-tertiary:\s*#74839a;/s);
+    expect(tokensCss).toMatch(/--staff-text-primary:\s*#111827;/s);
+    expect(tokensCss).toMatch(/--staff-text-secondary:\s*#4b5563;/s);
+    expect(tokensCss).toMatch(/--staff-text-tertiary:\s*#6b7280;/s);
     expect(mainSource).toMatch(/import '\.\/styles\/design-bundle-overrides\.css'[\s\S]*import '\.\/styles\/tokens\.css'[\s\S]*import '\.\/styles\/ui-overrides\.css'/);
     expect(dashboardPreviewSource).toMatch(/import '\.\.\/src\/index\.css'[\s\S]*import '\.\.\/src\/styles\/design-bundle-overrides\.css'[\s\S]*import '\.\.\/src\/styles\/tokens\.css'[\s\S]*import '\.\.\/src\/styles\/ui-overrides\.css'/);
     expect(providersSource).toContain('staffAntTheme');

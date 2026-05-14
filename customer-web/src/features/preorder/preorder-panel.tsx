@@ -243,19 +243,7 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
     : null;
 
   if (!preorderRollout.enabled) {
-    return (
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle>Món đặt trước</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <EmptyState
-            title={preorderRollout.disabledTitle}
-            description={preorderRollout.disabledDescription}
-          />
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   return (
@@ -286,6 +274,13 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
         ) : null}
         {preorderQuery.data && preorderPolicy ? (
           <>
+            <div className="rounded-lg border bg-secondary/30 p-4 text-sm">
+              <p className="font-medium">Bạn có thể chọn món trước để Mộc Sen chuẩn bị nhanh hơn.</p>
+              <p className="mt-1 text-muted-foreground">
+                Món đặt trước có thể cần đặt cọc tùy theo giá trị đơn hoặc chính sách nhà hàng.
+                Bạn có thể bỏ qua bước này và chọn món tại nhà hàng.
+              </p>
+            </div>
             <div className="rounded-lg bg-secondary p-4 text-sm">
               <p className="font-medium">{preorderPolicy.title}</p>
               <p className="mt-1 text-muted-foreground">{preorderPolicy.message}</p>
@@ -341,7 +336,7 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
                 <div>
                   <h3 className="font-semibold">Chọn món đặt trước</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Hệ thống sẽ yêu cầu xem trước lại mỗi khi bạn đổi giỏ món trước khi cập nhật.
+                    Xem trước giỏ món trước khi lưu để Mộc Sen kiểm tra số lượng, thời gian chuẩn bị và chính sách đặt cọc nếu có.
                   </p>
                 </div>
                 {pendingDraftMessage ? (

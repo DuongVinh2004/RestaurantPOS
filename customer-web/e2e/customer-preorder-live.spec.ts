@@ -121,7 +121,7 @@ const guestNamePattern = /^(Guest name|T\u00ean kh\u00e1ch)$/i;
 const guestPhonePattern = /^(Phone|S\u1ed1 \u0111i\u1ec7n tho\u1ea1i)$/i;
 const guestEmailPattern = /^Email$/i;
 const previewPreorderPattern = /^(Preview preorder|Xem tr\u01b0\u1edbc m\u00f3n)$/i;
-const createReservationPattern = /^(Create reservation|T\u1ea1o l\u1ecbch \u0111\u1eb7t)$/i;
+const createReservationPattern = /^(Create reservation|T\u1ea1o l\u1ecbch \u0111\u1eb7t|X\u00e1c nh\u1eadn \u0111\u1eb7t b\u00e0n)$/i;
 const updatePreorderPattern = /^(Update preorder|C\u1eadp nh\u1eadt m\u00f3n \u0111\u1eb7t tr\u01b0\u1edbc)$/i;
 const clearPreorderPattern = /^(Clear preorder|X\u00f3a m\u00f3n \u0111\u1eb7t tr\u01b0\u1edbc)$/i;
 
@@ -476,6 +476,21 @@ test("customer preorder stays closed-loop against the live Laravel runtime", asy
 
   expect(preorderItem, "Live menu fixture must expose at least one preorder-enabled menu item.").toBeTruthy();
 
+  await expectOk(
+    await request.post(liveApiUrl(config, "/api/v1/menu/preorder/preview"), {
+      headers: {
+        ...headers,
+        "Content-Type": "application/json",
+        "Idempotency-Key": newIdempotencyKey("customer-web-menu-preorder-preview"),
+      },
+      data: {
+        start_time: hold.data.start_time,
+        pre_order_items: [{ item_id: preorderItem?.item_id, quantity: 2 }],
+      },
+    }),
+    "POST /api/v1/menu/preorder/preview API proof",
+  );
+
   await page.getByLabel(guestNamePattern).fill(config.guestName);
   await page.getByLabel(guestPhonePattern).fill(config.guestPhone);
 
@@ -483,12 +498,13 @@ test("customer preorder stays closed-loop against the live Laravel runtime", asy
     await page.getByLabel(guestEmailPattern).fill(config.guestEmail);
   }
 
-  const quantityInput = page.getByLabel(new RegExp(escapeRegExp(preorderItem?.name ?? ""), "i"));
-  await quantityInput.fill("2");
-
-  const previewMenuPreorder = waitForApi(page, "/api/v1/menu/preorder/preview", "POST");
-  await page.getByRole("button", { name: previewPreorderPattern }).click();
-  await expectOk(await previewMenuPreorder, "POST /api/v1/menu/preorder/preview");
+  const increasePreorderQuantity = page.getByRole("button", {
+    name: new RegExp(`^Tăng ${escapeRegExp(preorderItem?.name ?? "")}$`, "i"),
+  });
+  await increasePreorderQuantity.click();
+  await increasePreorderQuantity.click();
+  await expect(page.getByLabel("Món đã chọn")).toBeVisible();
+  await expect(page.getByRole("button", { name: previewPreorderPattern })).toHaveCount(0);
 
   const reservationCreate = waitForApi(page, "/api/v1/reservations", "POST");
   const reservationPreorderSnapshot = page.waitForResponse((response) => {

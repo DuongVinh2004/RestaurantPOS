@@ -34,6 +34,7 @@ import {
 import { formatApiError } from '../../../../shared/api/errors';
 import { can } from '../../../../shared/auth/capabilities';
 import { formatDateTime, formatMoney } from '../../../../shared/utils/format';
+import { translateUiCode } from '../../../../shared/utils/translation';
 import { PageHeader } from '../../../../shared/ui/layout/PageHeader';
 import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
 import { toast } from '../../../../shared/ui/feedback/toast';
@@ -72,7 +73,7 @@ export function FinanceReviewPage() {
     enabled: !!session && !dateRangeError,
   });
 
-  const rows = reconciliationQuery.data?.data ?? [];
+  const rows = useMemo(() => reconciliationQuery.data?.data ?? [], [reconciliationQuery.data?.data]);
   const selectedReservationId = urlState.selectedReservationId
     ?? scopedReservationId
     ?? rows[0]?.reservation.reservation_id
@@ -94,7 +95,7 @@ export function FinanceReviewPage() {
   const issueInvoiceMutation = useMutation({
     mutationFn: () => issueFinanceInvoice(selectedReservationId as number, { branch_id: branchId ?? undefined }),
     onSuccess: async () => {
-      toast.success('Invoice issued.');
+      toast.success('Đã phát hành hóa đơn.');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['finance-invoice', branchId, selectedReservationId] }),
         queryClient.invalidateQueries({ queryKey: ['finance-reconciliation-detail', branchId, selectedReservationId] }),
@@ -102,7 +103,7 @@ export function FinanceReviewPage() {
       ]);
     },
     onError: (error) => {
-      toast.error(formatApiError(error, 'Unable to issue invoice.'));
+      toast.error(formatApiError(error, 'Không thể phát hành hóa đơn.'));
     },
   });
 
@@ -149,16 +150,16 @@ export function FinanceReviewPage() {
   };
 
   const main = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <PageHeader
-        eyebrow="Finance review"
-        title="Reconciliation and invoices"
-        description="Review reservation settlement state, drill into payment evidence, and issue finance invoices through the canonical staff SDK contract."
+        eyebrow="Đối soát tài chính"
+        title="Đối soát và hóa đơn"
+        description="Kiểm tra trạng thái chốt bill, chứng từ thanh toán và phát hành hóa đơn qua staff SDK contract."
         context={(
           <>
-            <StatusChip label={branchId ? `Branch #${branchId}` : 'Default branch'} tone="processing" variant="severity" />
-            <StatusChip label={selectedReservationId ? `Reservation #${selectedReservationId}` : 'No reservation selected'} tone={selectedReservationId ? 'processing' : 'warning'} />
-            <StatusChip label={journey.orderId ? `Order #${journey.orderId}` : 'No order context'} tone={journey.orderId ? 'processing' : 'warning'} />
+            <StatusChip label={branchId ? `Chi nhánh #${branchId}` : 'Chi nhánh mặc định'} tone="processing" variant="severity" />
+            <StatusChip label={selectedReservationId ? `Đặt bàn #${selectedReservationId}` : 'Chưa chọn đặt bàn'} tone={selectedReservationId ? 'processing' : 'warning'} />
+            <StatusChip label={journey.orderId ? `Đơn #${journey.orderId}` : 'Chưa có ngữ cảnh đơn'} tone={journey.orderId ? 'processing' : 'warning'} />
           </>
         )}
       />
@@ -166,48 +167,48 @@ export function FinanceReviewPage() {
       <Card size="small">
         <Space wrap>
           <Input.Search
-            aria-label="Reservation code"
+            aria-label="Mã đặt bàn"
             allowClear
-            placeholder="Reservation code"
+            placeholder="Mã đặt bàn"
             defaultValue={urlState.reservationCode}
             onSearch={(value) => updateFilters({ reservationCode: value })}
             style={{ width: 220 }}
           />
           <Select
-            aria-label="Discrepancy filter"
+            aria-label="Lọc chênh lệch"
             value={urlState.hasDiscrepancy}
             onChange={(value) => updateFilters({ hasDiscrepancy: value })}
             options={[
-              { value: 'all', label: 'All rows' },
-              { value: 'yes', label: 'Discrepancy only' },
-              { value: 'no', label: 'No discrepancy' },
+              { value: 'all', label: 'Tất cả dòng' },
+              { value: 'yes', label: 'Chỉ có chênh lệch' },
+              { value: 'no', label: 'Không chênh lệch' },
             ]}
             style={{ width: 180 }}
           />
-          <Button onClick={() => void reconciliationQuery.refetch()}>Refresh</Button>
+          <Button onClick={() => void reconciliationQuery.refetch()}>Làm mới</Button>
         </Space>
       </Card>
 
       {dateRangeError ? (
         <ConflictState
-          title="Invalid finance date range"
+          title="Khoảng ngày tài chính chưa hợp lệ"
           description={dateRangeError}
         />
       ) : null}
 
       <Space wrap size={12}>
-        <Statistic title="Rows" value={rows.length} />
-        <Statistic title="Discrepancies" value={summary.discrepancyCount} />
-        <Statistic title="Outstanding" value={formatMoney(summary.outstandingAmount, currencyForRow(selectedRow))} />
-        <Statistic title="Over-refund" value={formatMoney(summary.overRefundAmount, currencyForRow(selectedRow))} />
-        <Statistic title="Fully settled" value={summary.fullySettledCount} />
+        <Statistic title="Dòng đối soát" value={rows.length} />
+        <Statistic title="Có chênh lệch" value={summary.discrepancyCount} />
+        <Statistic title="Còn thiếu" value={formatMoney(summary.outstandingAmount, currencyForRow(selectedRow))} />
+        <Statistic title="Hoàn quá tiền" value={formatMoney(summary.overRefundAmount, currencyForRow(selectedRow))} />
+        <Statistic title="Đã quyết toán" value={summary.fullySettledCount} />
       </Space>
 
-      {reconciliationQuery.isLoading ? <InlineLoading tip="Loading finance reconciliation..." /> : null}
+      {reconciliationQuery.isLoading ? <InlineLoading tip="Đang tải đối soát tài chính..." /> : null}
       {reconciliationQuery.error ? (
         <ApiStateBlock
           error={reconciliationQuery.error}
-          fallback="Unable to load finance reconciliation."
+          fallback="Không thể tải đối soát tài chính."
           onRetry={() => void reconciliationQuery.refetch()}
         />
       ) : null}
@@ -227,7 +228,7 @@ export function FinanceReviewPage() {
             onClick: () => selectReservation(row.reservation.reservation_id),
           })}
           rowClassName={(row) => (row.reservation.reservation_id === selectedReservationId ? 'staff-table-row-selected' : '')}
-          locale={{ emptyText: <EmptyBlock title="No finance rows" description="No reservation matched the current finance filters." /> }}
+          locale={{ emptyText: <EmptyBlock title="Chưa có dòng đối soát" description="Không có đặt bàn nào khớp bộ lọc tài chính hiện tại." /> }}
         />
       ) : null}
 
@@ -240,7 +241,7 @@ export function FinanceReviewPage() {
             reservationRowVersion: selectedRow?.reservation.row_version ?? journey.reservationRowVersion ?? undefined,
           })}`)}
         >
-          Open reservation
+          Mở đặt bàn
         </Button>
         <Button
           disabled={!canOpenCheckout}
@@ -248,7 +249,7 @@ export function FinanceReviewPage() {
             source: 'checkout',
           })}`)}
         >
-          Open checkout
+          Mở thanh toán
         </Button>
         <Button
           disabled={!canOpenRefund}
@@ -257,7 +258,7 @@ export function FinanceReviewPage() {
             reservationId: selectedReservationId ?? undefined,
           })}`)}
         >
-          Open refund
+          Mở hoàn tiền
         </Button>
         <Button
           disabled={!canOpenCashierShift}
@@ -265,7 +266,7 @@ export function FinanceReviewPage() {
             source: journey.source ?? 'audit',
           })}`)}
         >
-          Open cashier shift
+          Mở ca thu ngân
         </Button>
       </Space>
     </Space>
@@ -315,18 +316,18 @@ export function StaffBenefitsOpsPanel({
 
   if (!canManageVoucher && !canViewLoyalty && !canRedeemLoyalty && !canAdjustLoyalty) {
     return (
-      <Card size="small" title="Voucher / loyalty" className="staff-workspace-detail-subcard">
-        <EmptyBlock title="No benefits capability" description="This staff session does not have voucher or loyalty capabilities." />
+      <Card size="small" title="Voucher / tích điểm" className="staff-workspace-detail-subcard">
+        <EmptyBlock title="Thiếu quyền voucher hoặc tích điểm" description="Phiên nhân viên hiện tại chưa có quyền xử lý voucher hoặc tích điểm." />
       </Card>
     );
   }
 
   return (
-    <Card size="small" title="Voucher / loyalty" className="staff-workspace-detail-subcard">
+    <Card size="small" title="Voucher / tích điểm" className="staff-workspace-detail-subcard">
       <ConflictState
-        title="Staff voucher and loyalty remain outside the operator contract lane"
-        description="Staff-web does not execute these staff-only voucher or loyalty routes because they are still fallback-only and are not part of the frozen operator SDK promise."
-        meta="Exact blocker: no official staff benefits read/write lane in frozen OpenAPI + generated SDK for these staff-prefixed routes."
+        title="Voucher và tích điểm nằm ngoài contract vận hành"
+        description="Staff-web không chạy các route voucher hoặc tích điểm staff-only này vì hiện vẫn là fallback-only và chưa thuộc frozen operator SDK promise."
+        meta="Điểm chặn: chưa có lane đọc/ghi staff benefits chính thức trong frozen OpenAPI + generated SDK cho các route staff-prefixed này."
         body={(
           <div className="staff-mini-list">
             {blockedBenefitsRoutes.map((route) => (
@@ -362,8 +363,8 @@ function FinanceDetailPanel({
   if (!selectedReservationId) {
     return (
       <EmptyBlock
-        title="Select a reservation"
-        description="Choose a finance row to load reconciliation detail and invoice state."
+        title="Chọn đặt bàn"
+        description="Chọn một dòng tài chính để tải chi tiết đối soát và trạng thái hóa đơn."
       />
     );
   }
@@ -374,25 +375,25 @@ function FinanceDetailPanel({
   const currency = currencyForRow(row);
 
   return (
-    <Space direction="vertical" size={12} style={{ width: '100%' }}>
-      <Card size="small" title={`Reservation #${selectedReservationId}`}>
-        {detailQuery.isLoading ? <InlineLoading tip="Loading reconciliation detail..." /> : null}
+    <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+      <Card size="small" title={`Đặt bàn #${selectedReservationId}`}>
+        {detailQuery.isLoading ? <InlineLoading tip="Đang tải chi tiết đối soát..." /> : null}
         {detailQuery.error ? (
           <ApiStateBlock
             error={detailQuery.error}
-            fallback="Unable to load reconciliation detail."
+            fallback="Không thể tải chi tiết đối soát."
             onRetry={() => void detailQuery.refetch()}
           />
         ) : null}
         {row ? (
           <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label="Reservation code">{row.reservation.reservation_code}</Descriptions.Item>
-            <Descriptions.Item label="Status">{row.reservation.status}</Descriptions.Item>
-            <Descriptions.Item label="Deposit status">{row.reservation.deposit_status}</Descriptions.Item>
-            <Descriptions.Item label="Net paid">{formatMoney(readFinanceMetric(row.payment_summary, 'net_paid_amount'), currency)}</Descriptions.Item>
-            <Descriptions.Item label="Final bill">{formatMoney(readFinanceMetric(row.reconciliation, 'final_bill_amount'), currency)}</Descriptions.Item>
-            <Descriptions.Item label="Outstanding">{formatMoney(readFinanceMetric(row.reconciliation, 'bill_outstanding_amount'), currency)}</Descriptions.Item>
-            <Descriptions.Item label="Flags">
+            <Descriptions.Item label="Mã đặt bàn">{row.reservation.reservation_code}</Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">{translateUiCode(row.reservation.status)}</Descriptions.Item>
+            <Descriptions.Item label="Trạng thái cọc">{translateUiCode(row.reservation.deposit_status)}</Descriptions.Item>
+            <Descriptions.Item label="Thực thu">{formatMoney(readFinanceMetric(row.payment_summary, 'net_paid_amount'), currency)}</Descriptions.Item>
+            <Descriptions.Item label="Bill cuối">{formatMoney(readFinanceMetric(row.reconciliation, 'final_bill_amount'), currency)}</Descriptions.Item>
+            <Descriptions.Item label="Còn thiếu">{formatMoney(readFinanceMetric(row.reconciliation, 'bill_outstanding_amount'), currency)}</Descriptions.Item>
+            <Descriptions.Item label="Cờ đối soát">
               <Space wrap>{financeFlagLabels(row).map((flag) => <Tag key={flag}>{flag}</Tag>)}</Space>
             </Descriptions.Item>
           </Descriptions>
@@ -401,7 +402,7 @@ function FinanceDetailPanel({
 
       <Card
         size="small"
-        title="Invoice"
+        title="Hóa đơn"
         extra={(
           <Button
             type="primary"
@@ -409,29 +410,29 @@ function FinanceDetailPanel({
             loading={isIssuing}
             onClick={onIssueInvoice}
           >
-            Issue invoice
+            Phát hành hóa đơn
           </Button>
         )}
       >
-        {invoiceQuery.isLoading ? <InlineLoading tip="Loading invoice..." /> : null}
+        {invoiceQuery.isLoading ? <InlineLoading tip="Đang tải hóa đơn..." /> : null}
         {invoiceQuery.error ? (
           <ApiStateBlock
             error={invoiceQuery.error}
-            fallback="Unable to load invoice."
+            fallback="Không thể tải hóa đơn."
             onRetry={() => void invoiceQuery.refetch()}
           />
         ) : null}
         {invoice ? (
           <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label="Invoice number">{readString(invoice, 'invoice_number') || 'Not issued'}</Descriptions.Item>
-            <Descriptions.Item label="Status">{readString(invoice, 'invoice_status') || 'draft'}</Descriptions.Item>
-            <Descriptions.Item label="Currency">{readString(invoice, 'currency') || currency}</Descriptions.Item>
-            <Descriptions.Item label="Total">{formatMoney(readFinanceMetric(readRecord(invoice, 'bill_amounts'), 'total_amount'), readString(invoice, 'currency') || currency)}</Descriptions.Item>
-            <Descriptions.Item label="Issued at">{formatDateTime(readNullableString(invoice, 'issued_at'))}</Descriptions.Item>
+            <Descriptions.Item label="Số hóa đơn">{readString(invoice, 'invoice_number') || 'Chưa phát hành'}</Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">{translateUiCode(readString(invoice, 'invoice_status') || 'draft')}</Descriptions.Item>
+            <Descriptions.Item label="Tiền tệ">{readString(invoice, 'currency') || currency}</Descriptions.Item>
+            <Descriptions.Item label="Tổng tiền">{formatMoney(readFinanceMetric(readRecord(invoice, 'bill_amounts'), 'total_amount'), readString(invoice, 'currency') || currency)}</Descriptions.Item>
+            <Descriptions.Item label="Phát hành lúc">{formatDateTime(readNullableString(invoice, 'issued_at'))}</Descriptions.Item>
           </Descriptions>
         ) : null}
         {!invoiceQuery.isLoading && !invoiceQuery.error && !invoice ? (
-          <EmptyBlock title="No invoice payload" description="The backend returned no invoice object for this reservation." />
+          <EmptyBlock title="Chưa có hóa đơn" description="Backend chưa trả invoice object cho đặt bàn này." />
         ) : null}
       </Card>
     </Space>
@@ -441,7 +442,7 @@ function FinanceDetailPanel({
 function financeColumns(onSelect: (reservationId: number) => void): ColumnsType<FinancialReconciliationRow> {
   return [
     {
-      title: 'Reservation',
+      title: 'Đặt bàn',
       dataIndex: ['reservation', 'reservation_code'],
       render: (_value, row) => (
         <Button type="link" onClick={(event) => {
@@ -453,28 +454,28 @@ function financeColumns(onSelect: (reservationId: number) => void): ColumnsType<
       ),
     },
     {
-      title: 'Customer',
-      render: (_value, row) => readString(row.reservation.customer, 'full_name') || readString(row.reservation.customer, 'phone') || 'Walk-in',
+      title: 'Khách',
+      render: (_value, row) => readString(row.reservation.customer, 'full_name') || readString(row.reservation.customer, 'phone') || 'Khách vãng lai',
     },
     {
-      title: 'Status',
+      title: 'Trạng thái',
       render: (_value, row) => (
         <Space wrap>
-          <Tag>{row.reservation.status}</Tag>
-          <Tag>{row.reservation.deposit_status}</Tag>
+          <Tag>{translateUiCode(row.reservation.status)}</Tag>
+          <Tag>{translateUiCode(row.reservation.deposit_status)}</Tag>
         </Space>
       ),
     },
     {
-      title: 'Net paid',
+      title: 'Thực thu',
       render: (_value, row) => formatMoney(readFinanceMetric(row.payment_summary, 'net_paid_amount'), currencyForRow(row)),
     },
     {
-      title: 'Outstanding',
+      title: 'Còn thiếu',
       render: (_value, row) => formatMoney(readFinanceMetric(row.reconciliation, 'bill_outstanding_amount'), currencyForRow(row)),
     },
     {
-      title: 'Flags',
+      title: 'Cờ đối soát',
       render: (_value, row) => (
         <Space wrap>
           {financeFlagLabels(row).map((flag) => <Tag key={flag}>{flag}</Tag>)}

@@ -132,7 +132,7 @@ describe('OrderWorkspacePage', () => {
 
     renderWithProviders('/ops/orders?source=board&table_id=12&order_id=999&order_row_version=1');
 
-    expect(await screen.findByText(/Route hien tai chi con table_id/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Route hiện tại chỉ còn table_id/i)).toBeInTheDocument();
     expect(screen.getByText(/GET \/api\/v1\/staff\/tables\/\{table_id\}\/active-order/i)).toBeInTheDocument();
     expect(apiMocks.getActiveOrderByReservation).not.toHaveBeenCalled();
   });
@@ -293,41 +293,47 @@ describe('OrderWorkspacePage', () => {
   });
 
   it('refetches the order detail and keeps conflict guidance visible when an item status update hits a stale row version', async () => {
-    apiMocks.getOrderDetail
-      .mockResolvedValueOnce(createOrderDetailEnvelope({
-        items: [
-          createOrderItem({
-            order_item_id: 201,
-            item_id: 100,
-            quantity: 1,
-            status: 'Ordered',
-            row_version: 3,
-          }),
-        ],
-      }))
-      .mockResolvedValueOnce(createOrderDetailEnvelope({
-        orderRowVersion: 11,
-        items: [
-          createOrderItem({
-            order_item_id: 201,
-            item_id: 100,
-            quantity: 1,
-            status: 'InProgress',
-            row_version: 4,
-          }),
-        ],
-      }));
+    const orderedDetail = createOrderDetailEnvelope({
+      items: [
+        createOrderItem({
+          order_item_id: 201,
+          item_id: 100,
+          quantity: 1,
+          status: 'Ordered',
+          row_version: 3,
+        }),
+      ],
+    });
+    const refreshedDetail = createOrderDetailEnvelope({
+      orderRowVersion: 11,
+      items: [
+        createOrderItem({
+          order_item_id: 201,
+          item_id: 100,
+          quantity: 1,
+          status: 'InProgress',
+          row_version: 4,
+        }),
+      ],
+    });
+
+    apiMocks.getOrderDetail.mockResolvedValue(orderedDetail);
     apiMocks.listMenuItems.mockResolvedValue(createMenuEnvelope());
-    apiMocks.updateOrderItemStatus.mockRejectedValue(new StaffApiError(422, {
-      error_code: 'validation_error',
-      request_id: 'req-order-item-stale',
-      errors: {
-        row_version: ['stale row_version mismatch'],
-      },
-    }, 'Unprocessable Entity'));
+    apiMocks.updateOrderItemStatus.mockImplementation(async () => {
+      apiMocks.getOrderDetail.mockResolvedValue(refreshedDetail);
+
+      throw new StaffApiError(422, {
+        error_code: 'validation_error',
+        request_id: 'req-order-item-stale',
+        errors: {
+          row_version: ['stale row_version mismatch'],
+        },
+      }, 'Unprocessable Entity');
+    });
 
     renderWithProviders('/ops/orders?source=board&table_id=12&reservation_id=34&reservation_row_version=5&order_id=56&order_row_version=10');
 
+    await screen.findByPlaceholderText('Ghi chú cho bếp hoặc phục vụ');
     const statusButtons = await screen.findAllByRole('button', { name: /Đánh dấu/i });
     fireEvent.click(statusButtons[0]);
 

@@ -35,6 +35,7 @@ vi.mock("@/features/auth/hooks", () => ({
 vi.mock("@/lib/config/feature-flags", () => ({
   featureFlags: {
     preorder: true,
+    waitingList: false,
   },
 }));
 
@@ -80,12 +81,12 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    expect(screen.getByRole("link", { name: "Trang chủ RestaurantPOS" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Trang chủ Mộc Sen Bistro" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Trang chủ" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: "Thực đơn" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: "Đặt bàn" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: "Lịch đặt" }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: "Chờ bàn" }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("link", { name: "Chờ bàn" })).not.toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Tài khoản" }).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Chọn chi nhánh" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Đặt trước" })).not.toBeInTheDocument();

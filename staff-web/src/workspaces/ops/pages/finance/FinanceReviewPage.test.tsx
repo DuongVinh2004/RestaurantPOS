@@ -143,10 +143,10 @@ describe('FinanceReviewPage', () => {
   it('loads finance reconciliation and invoice through canonical staff API wrappers', async () => {
     renderFinanceReviewPage(`${staffRoutePaths.ops.financeReview}?reservation_id=77&reservation_row_version=9&order_id=88&order_row_version=5`);
 
-    expect(await screen.findByRole('heading', { name: /Reconciliation and invoices/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Đối soát và hóa đơn/i })).toBeInTheDocument();
     expect((await screen.findAllByText('RSV-77')).length).toBeGreaterThan(0);
     expect(await screen.findByText('INV-77')).toBeInTheDocument();
-    expect(screen.getAllByText('Fully settled').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Đã quyết toán').length).toBeGreaterThan(0);
 
     expect(listFinancialReconciliation).toHaveBeenCalledWith(expect.objectContaining({
       branch_id: 3,
@@ -160,7 +160,7 @@ describe('FinanceReviewPage', () => {
   it('issues the selected invoice and refreshes finance queries', async () => {
     renderFinanceReviewPage(`${staffRoutePaths.ops.financeReview}?reservation_id=77&reservation_row_version=9&order_id=88&order_row_version=5`);
 
-    const issueButton = await screen.findByRole('button', { name: 'Issue invoice' });
+    const issueButton = await screen.findByRole('button', { name: 'Phát hành hóa đơn' });
     await waitFor(() => expect(issueButton).toBeEnabled());
     fireEvent.click(issueButton);
 
@@ -170,7 +170,7 @@ describe('FinanceReviewPage', () => {
   it('reopens the reservation flow with the canonical journey context', async () => {
     renderFinanceReviewPage(`${staffRoutePaths.ops.financeReview}?reservation_id=77&reservation_row_version=9&order_id=88&order_row_version=5`);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Open reservation' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Mở đặt bàn' }));
     await waitFor(() => expect(screen.getByTestId('reservations-destination')).toBeInTheDocument());
     expect(screen.getByTestId('location-search').textContent).toContain('reservation_id=77');
     expect(screen.getByTestId('location-search').textContent).toContain('reservation_row_version=9');
@@ -178,7 +178,7 @@ describe('FinanceReviewPage', () => {
 
   it('reopens the refund flow with the canonical journey context', async () => {
     renderFinanceReviewPage(`${staffRoutePaths.ops.financeReview}?reservation_id=77&reservation_row_version=9&order_id=88&order_row_version=5`);
-    fireEvent.click(await screen.findByRole('button', { name: 'Open refund' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Mở hoàn tiền' }));
     await waitFor(() => expect(screen.getByTestId('refunds-destination')).toBeInTheDocument());
     expect(screen.getByTestId('location-search').textContent).toContain('source=refund');
     expect(screen.getByTestId('location-search').textContent).toContain('reservation_id=77');
@@ -188,7 +188,7 @@ describe('FinanceReviewPage', () => {
   it('keeps staff voucher and loyalty routes explicitly blocked outside the operator contract lane', async () => {
     renderBenefitsOpsPanel();
 
-    expect(await screen.findByText('Staff voucher and loyalty remain outside the operator contract lane')).toBeInTheDocument();
+    expect(await screen.findByText('Voucher và tích điểm nằm ngoài contract vận hành')).toBeInTheDocument();
     expect(screen.getByText(/GET \/api\/v1\/staff\/reservations\/\{reservation_id\}\/vouchers/i)).toBeInTheDocument();
     expect(screen.getByText(/POST \/api\/v1\/staff\/users\/\{user_id\}\/loyalty\/adjust/i)).toBeInTheDocument();
   });

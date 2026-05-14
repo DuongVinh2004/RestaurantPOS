@@ -1,3 +1,5 @@
+import { customerBrand } from "@/lib/brand/customer-brand";
+
 const now = new Date();
 const inOneHour = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
 const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
@@ -95,8 +97,8 @@ export function createMockFetch(): typeof fetch {
       return json({
         data: {
           branch_id: 1,
-          branch_code: "MAIN",
-          branch_name: "RestaurantPOS",
+          branch_code: "MS-HK",
+          branch_name: `${customerBrand.appName} - Hoàn Kiếm`,
           timezone: "Asia/Ho_Chi_Minh",
           business_hours: Array.from({ length: 7 }, (_, day) => ({
             day_of_week: day,

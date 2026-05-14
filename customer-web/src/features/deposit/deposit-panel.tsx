@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PaymentBreakdown } from "@/features/payments/payment-breakdown";
@@ -21,6 +22,7 @@ import {
   parseDepositContract,
 } from "@/features/reservations/state";
 import {
+  customerFriendlyDepositMessage,
   isConflictLikeApiError,
   normalizeApiError,
 } from "@/lib/api/errors";
@@ -295,7 +297,7 @@ export function DepositPanel({
               <div>
                 <h3 className="text-lg font-semibold">Tóm tắt đặt cọc</h3>
                 <p className="text-sm text-muted-foreground">
-                  Xem khoản đặt cọc cần xử lý trước khi thanh toán.
+                  Đơn món đặt trước này có thể cần đặt cọc để Mộc Sen chuẩn bị nguyên liệu đúng giờ. Số tiền cọc sẽ được trừ vào hóa đơn khi thanh toán tại nhà hàng.
                 </p>
               </div>
               <div className="rounded-lg bg-secondary p-4">
@@ -313,7 +315,7 @@ export function DepositPanel({
               </div>
               <PaymentBreakdown
                 title="Chi tiết đặt cọc"
-                description="Chỉ hiển thị các trường đặt cọc mà API lịch đặt trả về."
+                description="Các khoản đặt cọc hiện có trong lịch đặt của bạn."
                 lines={depositBreakdownLines}
               />
               {depositPolicy.canAcknowledge || depositPolicy.canSubmitIntent || depositPolicy.canRevokeIntent ? (
@@ -364,19 +366,26 @@ export function DepositPanel({
               <div>
                 <h3 className="text-lg font-semibold">Thanh toán đặt cọc</h3>
                 <p className="text-sm text-muted-foreground">
-                  Mở thanh toán khi lịch đặt đã sẵn sàng để khách trả đặt cọc.
+                  Mở phiên thanh toán từ hệ thống đặt cọc hiện có khi Mộc Sen yêu cầu đặt cọc cho món đặt trước.
                 </p>
               </div>
               {session && sessionPolicy ? (
-                <PaymentSessionCard
-                  surfaceLabel="Đặt cọc"
-                  session={session}
-                  policy={sessionPolicy}
-                  refreshPending={refreshSessionMutation.isPending}
-                  confirmPending={confirmSessionMutation.isPending}
-                  onRefresh={() => refreshSessionMutation.mutate()}
-                  onConfirm={() => confirmSessionMutation.mutate()}
-                />
+                <div className="space-y-3">
+                  {sessionPolicy.lifecycle === "failed" || sessionPolicy.lifecycle === "expired" ? (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                      Thanh toán cọc chưa thành công. Đặt bàn của bạn vẫn được giữ. Món đặt trước chưa được xác nhận chuẩn bị.
+                    </div>
+                  ) : null}
+                  <PaymentSessionCard
+                    surfaceLabel="Đặt cọc"
+                    session={session}
+                    policy={sessionPolicy}
+                    refreshPending={refreshSessionMutation.isPending}
+                    confirmPending={confirmSessionMutation.isPending}
+                    onRefresh={() => refreshSessionMutation.mutate()}
+                    onConfirm={() => confirmSessionMutation.mutate()}
+                  />
+                </div>
               ) : (
                 <EmptyState
                   title={paymentSupport.title}
@@ -398,10 +407,18 @@ export function DepositPanel({
             </section>
             {actionBoundary ? (
               actionBoundary.kind === "error" ? (
-                <ErrorState
-                  error={actionBoundary.error}
-                  title={actionBoundary.title}
-                  onRetry={() => {
+                <Alert variant="destructive" className="rounded-lg">
+                  <AlertDescription className="space-y-3">
+                    <p>{customerFriendlyDepositMessage(actionBoundary.error)}</p>
+                    {sessionActionError ? (
+                      <p>Thanh toán cọc chưa thành công. Đặt bàn của bạn vẫn được giữ. Món đặt trước chưa được xác nhận chuẩn bị.</p>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-lg bg-background"
+                      onClick={() => {
                     setPaymentSessionRestoreError(null);
 
                     if (storedSessionId !== null && paymentSession === null) {
@@ -410,8 +427,12 @@ export function DepositPanel({
                     }
 
                     refreshWorkspace();
-                  }}
-                />
+                      }}
+                    >
+                      {sessionActionError ? "Thanh toán lại" : "Tải lại trạng thái"}
+                    </Button>
+                  </AlertDescription>
+                </Alert>
               ) : (
                 <EmptyState title={actionBoundary.title} description={actionBoundary.description} />
               )
@@ -428,7 +449,7 @@ function getDepositSummaryCopy(state: "pending" | "paid" | "refunded" | "not_req
     case "not_required":
       return {
         title: "Không cần đặt cọc",
-        description: "Lịch đặt này không cần đặt cọc trước lượt ghé.",
+        description: "Lịch đặt này chưa cần đặt cọc. Bạn có thể chọn món tại nhà hàng hoặc chọn món trước nếu muốn.",
       };
     case "paid":
       return {
@@ -444,7 +465,7 @@ function getDepositSummaryCopy(state: "pending" | "paid" | "refunded" | "not_req
     default:
       return {
         title: "Cần xử lý đặt cọc",
-        description: "Lịch đặt này còn bước đặt cọc cần kiểm tra.",
+        description: "Nếu món đặt trước cần đặt cọc, Mộc Sen sẽ dùng phiên thanh toán an toàn bên dưới.",
       };
   }
 }
