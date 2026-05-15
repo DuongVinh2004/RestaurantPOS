@@ -253,7 +253,7 @@ export function parseDepositContract(value: unknown, reservation: ReservationSum
   const record = asRecord(value);
   const selfService = parseDepositSelfService(recordValue(record, ["self_service", "deposit_self_service"]));
   const status = stringValue(record, ["status", "deposit_status"]) ?? reservation.deposit_status ?? "Pending";
-  const currency = stringValue(record, ["currency"]) ?? reservation.bill_currency ?? "USD";
+  const currency = stringValue(record, ["currency"]) ?? reservation.bill_currency ?? "VND";
   const amount =
     stringValue(record, ["outstanding_amount", "amount_due", "required_amount", "amount"]) ??
     reservation.deposit_required_amount ??
@@ -315,7 +315,7 @@ export function parseBillContract(value: unknown, reservation: ReservationSummar
       stringValue(record, ["currency"]) ??
       stringValue(totals, ["currency"]) ??
       reservation.bill_currency ??
-      "USD",
+    "VND",
     outstandingAmount:
       numberValue(record, ["outstanding", "outstanding_amount", "amount_due", "total_due", "total"]) ??
       numberValue(totals, ["outstanding", "amount_due", "total_due", "total"]),
@@ -502,7 +502,7 @@ export function getBillingPolicy({
   activeOrder: ActiveOrderContractState;
 }) {
   const amount = bill?.amount ?? null;
-  const currency = bill?.currency ?? reservation.bill_currency ?? "USD";
+  const currency = bill?.currency ?? reservation.bill_currency ?? "VND";
   const outstandingAmount = bill?.outstandingAmount ?? null;
   const paymentStatus = bill?.paymentStatus ?? stringValue(asRecord(reservation.payment_summary), ["payment_status"]);
   const hasBill = Boolean(bill);
@@ -725,7 +725,7 @@ export function getBillSummaryState({
   bill: BillContractState | null;
 }): ReservationBillSummaryState {
   const amount = bill?.amount ?? reservation.final_bill_amount ?? null;
-  const currency = bill?.currency ?? reservation.bill_currency ?? "USD";
+  const currency = bill?.currency ?? reservation.bill_currency ?? "VND";
   const paymentStatus = bill?.paymentStatus ?? stringValue(asRecord(reservation.payment_summary), ["payment_status"]);
   const outstandingAmount =
     bill?.outstandingAmount ?? numberValue(asRecord(reservation.payment_summary), ["outstanding_amount", "amount_due", "total_due"]);

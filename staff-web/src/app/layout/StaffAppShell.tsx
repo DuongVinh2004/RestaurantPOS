@@ -129,7 +129,7 @@ export function StaffAppShell() {
 
   useEffect(() => {
     const workspaceLabel = activeWorkspaceOption?.label ?? 'Workspace';
-    document.title = `${routeDescriptor.label} | ${workspaceLabel} | RestaurantPOS Staff`;
+    document.title = `${routeDescriptor.label} | ${workspaceLabel} | Mộc Sen Staff`;
   }, [activeWorkspaceOption?.label, routeDescriptor.label]);
 
   useEffect(() => {
@@ -230,7 +230,7 @@ export function StaffAppShell() {
 
   const navDrawerContent = (
     <AppFrameNavigation
-      brandEyebrow="RestaurantPOS"
+      brandEyebrow="Mộc Sen Bistro"
       brandTitle={activeWorkspaceOption?.label ?? 'Workspace'}
       brandCopy={activeWorkspaceOption?.description ?? 'Shared staff-web runtime with workspace-owned navigation.'}
       navigationGroups={navigationGroups}

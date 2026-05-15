@@ -1,4 +1,4 @@
-# RestaurantPOS Staff Web
+# Mộc Sen Staff Web
 
 This frontend is now intentionally narrowed around one usable operational chain:
 
@@ -132,7 +132,7 @@ Create `.env` from `.env.example` if needed:
 
 ```bash
 VITE_API_URL=http://localhost:8000/api/v1
-VITE_APP_TITLE=RestaurantPOS Staff Web
+VITE_APP_TITLE=Mộc Sen Staff Web
 ```
 
 `VITE_API_URL` should include `/api/v1`.

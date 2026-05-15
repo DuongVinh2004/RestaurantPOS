@@ -13,7 +13,7 @@ const reservationStart = addMinutes(new Date(), 24 * 60).toISOString();
 const reservationEnd = addMinutes(new Date(reservationStart), 90).toISOString();
 const holdExpiresAt = addMinutes(new Date(reservationStart), 60).toISOString();
 const sessionExpiresAt = addMinutes(new Date(), 7 * 24 * 60).toISOString();
-const preorderUnitPrice = 145_000;
+const preorderUnitPrice = 89_000;
 
 type PreorderDraftItem = {
   item_id: number;
@@ -22,16 +22,16 @@ type PreorderDraftItem = {
 
 const baseReservation = {
   reservation_id: 501,
-  reservation_code: "RSV-DEMO-501",
+  reservation_code: "RSV-MS-501",
   start_time: reservationStart,
   end_time: reservationEnd,
   guest_count: 2,
   status: "Confirmed",
   deposit_status: "Pending",
-  deposit_required_amount: "20.00",
+  deposit_required_amount: "200000.00",
   deposit_paid_amount: "0.00",
   final_bill_amount: "0.00",
-  bill_currency: "USD",
+  bill_currency: "VND",
   row_version: 1,
   table_ids: [7],
 };
@@ -72,7 +72,7 @@ function createReservationPreorderPayload(
 
   return {
     reservation_id: 501,
-    reservation_code: "RSV-DEMO-501",
+    reservation_code: "RSV-MS-501",
     reservation_status: "Confirmed",
     reservation_row_version: overrides.reservation_row_version ?? 1,
     pre_order: {
@@ -87,8 +87,8 @@ function createReservationPreorderPayload(
         item_id: item.item_id,
         quantity: item.quantity,
         status: "Open",
-        name: "Cơm gà rau thơm",
-        code: "COM-GA",
+        name: "Cơm gà lá sen",
+        code: "MS-COM-GA-LA-SEN",
         unit_price: toMoney(preorderUnitPrice),
         line_total: toMoney(item.quantity * preorderUnitPrice),
         currency: "VND",
@@ -216,12 +216,12 @@ async function mockCustomerApi(page: Page) {
             item_id: 101,
             category_id: 1,
             category_name: "Món chính",
-            name: "Cơm gà rau thơm",
-            description: "Cơm gà nướng dùng kèm rau xanh và sốt chanh.",
-            img_url: null,
+            name: "Cơm gà lá sen",
+            description: "Gà áp chảo, cơm dẻo, sốt gừng nhẹ và rau củ theo mùa.",
+            img_url: "/customer-web/menu/com-ga-la-sen.jpg",
             is_available: true,
             price: {
-              amount: "145000.00",
+              amount: "89000.00",
               currency: "VND",
             },
             preorder: {
@@ -333,9 +333,9 @@ async function mockCustomerApi(page: Page) {
           expires_at_utc: sessionExpiresAt,
           user: {
             user_id: 77,
-            full_name: "Demo Customer",
-            email: "demo@example.test",
-            phone: "5550100",
+            full_name: "Nguyễn Minh Anh",
+            email: "minh.anh@mocsen.example",
+            phone: "0909000001",
           },
         },
       });
@@ -356,9 +356,9 @@ async function mockCustomerApi(page: Page) {
           expires_at_utc: sessionExpiresAt,
           user: {
             user_id: 77,
-            full_name: "Demo Customer",
-            email: "demo@example.test",
-            phone: "5550100",
+            full_name: "Nguyễn Minh Anh",
+            email: "minh.anh@mocsen.example",
+            phone: "0909000001",
           },
         },
       });
@@ -534,7 +534,7 @@ test("menu home loads with mock-backed customer content", async ({ page }) => {
   await expect(
     page.getByRole("main").getByRole("link", { name: "Tìm bàn", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Cơm gà rau thơm")).toBeVisible();
+  await expect(page.getByText("Cơm gà lá sen")).toBeVisible();
 });
 
 test("booking can create a hold and continue to reservation", async ({ page }) => {
@@ -560,18 +560,25 @@ test("login redirects to reservations with the mocked customer session", async (
 
   await page
     .getByLabel("Email, số điện thoại hoặc mã khách hàng")
-    .fill("demo@example.test");
+    .fill("minh.anh@mocsen.example");
   await page.getByLabel("Mật khẩu").fill("password123");
   await page.getByRole("button", { name: "Đăng nhập" }).click();
 
   await expect(page).toHaveURL(/\/reservations$/);
   await expect(page.getByRole("heading", { name: "Lịch đặt" })).toBeVisible();
-  await expect(page.getByText("RSV-DEMO-501", { exact: true })).toBeVisible();
+  await expect(page.getByText("RSV-MS-501", { exact: true })).toBeVisible();
 });
 
-test("booking can create a reservation with preorder items and land on the reservation detail", async ({
+test("booking can preserve preorder draft, confirm reservation, and attach preorder on detail", async ({
   page,
 }) => {
+  await page.goto("/menu");
+  const addPreorderItem = page.getByRole("button", { name: "Thêm món", exact: true }).first();
+  await expect(addPreorderItem).toBeVisible();
+  await addPreorderItem.click();
+  await addPreorderItem.click();
+  await expect(page.getByRole("heading", { name: "2 món đã chọn" })).toBeVisible();
+
   await page.goto("/booking");
 
   await page.getByRole("button", { name: "Tìm bàn", exact: true }).click();
@@ -579,20 +586,27 @@ test("booking can create a reservation with preorder items and land on the reser
   await expect(page.getByText("Mã giữ bàn")).toBeVisible();
   await page.getByRole("link", { name: "Xác nhận thông tin đặt bàn" }).click();
 
-  await expect(page.getByRole("heading", { name: "Xác nhận thông tin đặt bàn" })).toBeVisible();
-  await page.getByLabel("Tên khách").fill("Demo Customer");
-  await page.getByLabel("Số điện thoại").fill("5550100");
+  await expect(page.getByRole("heading", { name: "Xác nhận đặt bàn" })).toBeVisible();
+  await expect(
+    page.getByText("Bạn có thể chọn món trước sau khi đặt bàn thành công.").first(),
+  ).toBeVisible();
+  await expect(page.getByText("Mộc Sen đang giữ 2 món trong giỏ")).toBeVisible();
+  await page.getByLabel("Tên khách").fill("Nguyễn Minh Anh");
+  await page.getByLabel("Số điện thoại").fill("0909000001");
 
-  const increasePreorderQuantity = page.getByRole("button", { name: "Tăng Cơm gà rau thơm" });
-  await increasePreorderQuantity.click();
-  await increasePreorderQuantity.click();
-  const selectedItems = page.getByLabel("Món đã chọn");
-  await expect(selectedItems).toBeVisible();
-  await expect(selectedItems.getByText(/2 phần/i).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Xem trước món" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Xác nhận đặt bàn" }).first().click();
-  await expect(page).toHaveURL(/\/reservations\/501$/);
+  await expect(page).toHaveURL(/\/reservations\/501\?next=preorder#preorder$/);
+  await expect(
+    page.getByText("Mộc Sen đã giữ giỏ món của bạn. Bạn có thể xem trước và lưu món đặt trước khi sẵn sàng."),
+  ).toBeVisible();
+  await expect(page.getByLabel("Số lượng Cơm gà lá sen")).toHaveValue("2");
+
+  await page.getByRole("button", { name: "Xem trước món" }).click();
+  await expect(page.getByText("Bản xem trước")).toBeVisible();
+  await page.getByRole("button", { name: "Cập nhật món đặt trước" }).click();
+
   await expect(page.getByText("2 món đã ghi nhận")).toBeVisible();
-  await expect(page.getByText("Cơm gà rau thơm").first()).toBeVisible();
+  await expect(page.getByText("Cơm gà lá sen").first()).toBeVisible();
 });

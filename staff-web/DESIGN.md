@@ -1,4 +1,4 @@
-# DESIGN.md - RestaurantPOS Staff Web
+# DESIGN.md - Mộc Sen Staff Web
 
 ## 1. Visual Theme and Atmosphere
 

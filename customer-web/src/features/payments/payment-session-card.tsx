@@ -72,7 +72,7 @@ export function PaymentSessionCard({
   onRefresh,
   onConfirm,
 }: PaymentSessionCardProps) {
-  const amountLabel = session.amount ? formatMoney(session.amount, session.currency ?? "USD") : null;
+  const amountLabel = session.amount ? formatMoney(session.amount, session.currency ?? "VND") : null;
   const expiryLabel = session.provider_expires_at ? formatDateTime(session.provider_expires_at) : null;
   const lastCheckedLabel = session.last_reconciled_at ? formatDateTime(session.last_reconciled_at) : null;
   const actionPending = refreshPending || confirmPending;

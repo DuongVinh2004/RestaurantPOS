@@ -43,7 +43,7 @@ describe('StaffAppShell workspace shells', () => {
     expect(screen.queryByText('Tables, reservations, orders, and checkout stay coordinated in one operator lane.')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tổng quan' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Phiếu bếp' })).not.toBeInTheDocument();
-    expect(document.title).toBe('Tổng quan | Vận hành | RestaurantPOS Staff');
+    expect(document.title).toBe('Tổng quan | Vận hành | Mộc Sen Staff');
   });
 
   it('renders the kitchen shell with the lower-distraction frame', () => {
@@ -57,7 +57,7 @@ describe('StaffAppShell workspace shells', () => {
     expect(screen.getByRole('button', { name: 'Phiếu bếp' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Tìm nhanh' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Báo cáo' })).not.toBeInTheDocument();
-    expect(document.title).toBe('Phiếu bếp | Bếp | RestaurantPOS Staff');
+    expect(document.title).toBe('Phiếu bếp | Bếp | Mộc Sen Staff');
   });
 
   it('renders the admin shell with the back-office frame', () => {
@@ -70,7 +70,7 @@ describe('StaffAppShell workspace shells', () => {
     expect(screen.queryByText('Settings, governance, and read models stay inside one admin lane.')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Báo cáo' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Tổng quan' })).not.toBeInTheDocument();
-    expect(document.title).toBe('Báo cáo | Quản trị | RestaurantPOS Staff');
+    expect(document.title).toBe('Báo cáo | Quản trị | Mộc Sen Staff');
   });
 });
 

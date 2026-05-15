@@ -3,16 +3,17 @@ import { customerBrand } from "@/lib/brand/customer-brand";
 const now = new Date();
 const inOneHour = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
 const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+const mocSenCustomer = { user_id: 77, full_name: "Nguyễn Minh Anh", email: "minh.anh@mocsen.example", phone: "0909000001" };
 
 const menuItems = [
   {
     item_id: 101,
     category_id: 1,
     category_name: "Món chính",
-    code: "BOWL-01",
-    name: "Cơm gà rau thơm",
-    description: "Cơm gà nướng dùng kèm rau xanh và sốt chanh.",
-    img_url: null,
+    code: "MS-COM-GA-LA-SEN",
+    name: "Cơm gà lá sen",
+    description: "Gà áp chảo, cơm dẻo, sốt gừng nhẹ và rau củ theo mùa.",
+    img_url: "/customer-web/menu/com-ga-la-sen.jpg",
     is_available: true,
     price: { price_id: 1, amount: "145000.00", currency: "VND", effective_from: null, effective_to: null },
     preorder: { enabled: true, cutoff_minutes: 45, quota_per_day: null, requires_preview_validation: true },
@@ -23,10 +24,10 @@ const menuItems = [
     item_id: 102,
     category_id: 1,
     category_name: "Món chính",
-    code: "NOODLE-02",
-    name: "Mì xào mè",
-    description: "Mì xào cùng rau thơm, rau củ và mè rang.",
-    img_url: null,
+    code: "MS-BUN-BO-MOC-SEN",
+    name: "Bún bò Mộc Sen",
+    description: "Nước dùng đậm vị, thịt bò mềm, rau thơm và sa tế nhẹ.",
+    img_url: "/customer-web/menu/bun-bo-moc-sen.jpg",
     is_available: true,
     price: { price_id: 2, amount: "120000.00", currency: "VND", effective_from: null, effective_to: null },
     preorder: { enabled: true, cutoff_minutes: 30, quota_per_day: null, requires_preview_validation: true },
@@ -37,19 +38,19 @@ const menuItems = [
 
 const reservation = {
   reservation_id: 501,
-  reservation_code: "RSV-DEMO-501",
+  reservation_code: "RSV-MS-501",
   start_time: tomorrow,
   end_time: new Date(new Date(tomorrow).getTime() + 90 * 60 * 1000).toISOString(),
   guest_count: 2,
   status: "Confirmed",
   deposit_status: "Pending",
-  deposit_required_amount: "20.00",
+  deposit_required_amount: "200000.00",
   deposit_paid_amount: "0.00",
   final_bill_amount: "0.00",
-  bill_currency: "USD",
+  bill_currency: "VND",
   row_version: 1,
   table_ids: [7],
-    guest: { full_name: "Khách Demo", phone: "5550100", email: "demo@example.test", is_snapshot_only: false },
+  guest: { full_name: mocSenCustomer.full_name, phone: mocSenCustomer.phone, email: mocSenCustomer.email, is_snapshot_only: false },
 };
 
 function json(data: unknown, status = 200): Response {
@@ -130,7 +131,7 @@ export function createMockFetch(): typeof fetch {
           access_session_id: 9001,
           session_id: "dev-session",
           expires_at_utc: inOneHour,
-            user: { user_id: 77, full_name: "Khách Demo", email: "demo@example.test", phone: "5550100" },
+          user: mocSenCustomer,
         },
       });
     }
@@ -149,7 +150,7 @@ export function createMockFetch(): typeof fetch {
           expires_at_utc: inOneHour,
           user: {
             user_id: 78,
-              full_name: typeof body.full_name === "string" && body.full_name ? body.full_name : "Khách Demo",
+            full_name: typeof body.full_name === "string" && body.full_name ? body.full_name : mocSenCustomer.full_name,
             email: typeof body.email === "string" && body.email ? body.email : null,
             phone: typeof body.phone === "string" && body.phone ? body.phone : null,
           },
@@ -167,7 +168,7 @@ export function createMockFetch(): typeof fetch {
           access_session_id: 9001,
           session_id: "dev-session",
           expires_at_utc: inOneHour,
-            user: { user_id: 77, full_name: "Khách Demo", email: "demo@example.test", phone: "5550100" },
+          user: mocSenCustomer,
         },
       });
     }
@@ -244,20 +245,20 @@ export function createMockFetch(): typeof fetch {
     const reservationMatch = path.match(/^\/api\/v1\/reservations\/(\d+)/);
     if (reservationMatch) {
       if (path.endsWith("/deposit-preview")) {
-        return json({ data: { reservation, deposit: { amount_due: "20.00", currency: "USD", status: "Pending" } } });
+        return json({ data: { reservation, deposit: { amount_due: "200000.00", currency: "VND", status: "Pending" } } });
       }
       if (path.includes("/deposit/payment-sessions")) {
         return json({
           data: {
             reservation_id: 501,
-            deposit: { amount_due: "20.00", currency: "USD" },
+            deposit: { amount_due: "200000.00", currency: "VND" },
             payment_session: {
               deposit_payment_session_id: 701,
               reservation_id: 501,
               provider_code: "MockPay",
               provider_session_code: "mock-deposit-session",
-              amount: "20.00",
-              currency: "USD",
+              amount: "200000.00",
+              currency: "VND",
               session_status: "Pending",
               settlement_status: "NotApplied",
               row_version: 1,
@@ -269,16 +270,16 @@ export function createMockFetch(): typeof fetch {
         return json({ data: { reservation_id: 501, active_order: null } });
       }
       if (path.endsWith("/bill-preview")) {
-        return json({ data: { reservation_id: 501, active_order: null, bill_preview: { total: "0.00", currency: "USD" } } });
+        return json({ data: { reservation_id: 501, active_order: null, bill_preview: { total: "0.00", currency: "VND" } } });
       }
       if (path.endsWith("/bill")) {
-        return json({ data: { reservation_id: 501, bill: { total: "0.00", currency: "USD" }, settlement: {}, orders: [], workflow: {} } });
+        return json({ data: { reservation_id: 501, bill: { total: "0.00", currency: "VND" }, settlement: {}, orders: [], workflow: {} } });
       }
       if (path.includes("/bill/payment-sessions")) {
         return json({
           data: {
             reservation_id: 501,
-            bill: { total: "0.00", currency: "USD" },
+            bill: { total: "0.00", currency: "VND" },
             payment_session: {
               deposit_payment_session_id: 801,
               bill_payment_session_id: 801,
@@ -286,7 +287,7 @@ export function createMockFetch(): typeof fetch {
               provider_code: "MockPay",
               provider_session_code: "mock-bill-session",
               amount: "0.00",
-              currency: "USD",
+              currency: "VND",
               session_status: "Pending",
               settlement_status: "NotApplied",
               row_version: 1,
@@ -295,7 +296,7 @@ export function createMockFetch(): typeof fetch {
         });
       }
       if (path.endsWith("/preorder")) {
-        return json({ data: { reservation, items: [], totals: { total: "0.00", currency: "USD" } }, meta: { action: "show", access_scope: "customer" } });
+        return json({ data: { reservation, items: [], totals: { total: "0.00", currency: "VND" } }, meta: { action: "show", access_scope: "customer" } });
       }
       return json({ data: reservation });
     }
@@ -305,7 +306,7 @@ export function createMockFetch(): typeof fetch {
     }
 
     if (path === "/api/v1/me/loyalty") {
-        return json({ data: { user: { user_id: 77, full_name: "Khách Demo", email: "demo@example.test", phone: "5550100", total_points: 120, current_tier: null, next_tier: null }, transactions: [] } });
+      return json({ data: { user: { ...mocSenCustomer, total_points: 120, current_tier: null, next_tier: null }, transactions: [] } });
     }
 
     if (path === "/api/v1/me/vouchers") {

@@ -29,7 +29,7 @@ export function KitchenShell({
 }: StaffShellProps) {
   const navigation = (
     <AppFrameNavigation
-      brandEyebrow="RestaurantPOS"
+      brandEyebrow="Mộc Sen Bistro"
       brandTitle={workspaceOption?.label ?? 'Bếp'}
       brandCopy={workspaceOption?.description ?? 'Điều phối phiếu bếp theo từng trạm.'}
       navigationGroups={navigationGroups}

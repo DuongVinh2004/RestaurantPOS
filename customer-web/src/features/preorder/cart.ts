@@ -74,7 +74,7 @@ export function preorderCartTotalQuantity(items: PreorderCartItem[]): number {
 }
 
 export function menuItemPrice(item: CustomerMenuItem): string {
-  return formatMoney(item.price.amount ?? "0.00", item.price.currency ?? "USD");
+  return formatMoney(item.price.amount ?? "0.00", item.price.currency ?? "VND");
 }
 
 export function parseMenuPreorderPreview(

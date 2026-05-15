@@ -1,8 +1,8 @@
 const rawApiUrl = import.meta.env.VITE_API_URL as string | undefined;
-const rawAppTitle = (import.meta.env.VITE_APP_TITLE as string | undefined) ?? 'RestaurantPOS Staff Web';
+const rawAppTitle = (import.meta.env.VITE_APP_TITLE as string | undefined) ?? 'Mộc Sen Staff Web';
 
 export const apiBaseUrl = resolveApiBaseUrl(rawApiUrl);
-export const appTitle = rawAppTitle.trim() === '' ? 'RestaurantPOS Staff Web' : rawAppTitle.trim();
+export const appTitle = rawAppTitle.trim() === '' ? 'Mộc Sen Staff Web' : rawAppTitle.trim();
 
 export function staffRefreshCookieEnabled(): boolean {
   return parseBooleanFlag(import.meta.env.VITE_STAFF_REFRESH_COOKIE_ENABLED as string | undefined);

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
@@ -424,8 +424,8 @@ export function ReservationCreatePage() {
   const [holdNoticeState, setHoldNoticeState] = useState<HoldUxState | null>(null);
   const [holdActionPending, setHoldActionPending] = useState<"refreshing" | "recovering" | null>(null);
   const [holdActionError, setHoldActionError] = useState<unknown>(null);
+  const [recoveryAttempted, setRecoveryAttempted] = useState(false);
   const recoveryAttemptedRef = useRef(false);
-  const submitRecoveryAttemptedRef = useRef(false);
 
   const form = useForm<ReservationFormValues>({
     resolver: zodResolver(reservationFormSchemaForCustomer(isAuthenticated)),
@@ -634,6 +634,7 @@ export function ReservationCreatePage() {
     }
 
     recoveryAttemptedRef.current = true;
+    setRecoveryAttempted(true);
     setHoldActionPending("recovering");
     setHoldNoticeState("recovering");
     setHoldActionError(null);
@@ -853,7 +854,9 @@ export function ReservationCreatePage() {
     const storedItems = localCartSubmitItems(storedCart);
 
     if (storedItems.length > 0) {
-      setPreorderItems(storedItems);
+      startTransition(() => {
+        setPreorderItems(storedItems);
+      });
     }
   }, [customerSessionId, selectedBranchId]);
 
@@ -954,12 +957,13 @@ export function ReservationCreatePage() {
           hold_id: hold.hold_id,
           table_ids: getTableIdsFromHold(hold, liveHoldTableIds),
         });
+      let submitRetryAttempted = false;
 
       try {
         return await submitWithHold(readyHold);
       } catch (error) {
-        if (!submitRecoveryAttemptedRef.current && isRecoverableHoldError(error)) {
-          submitRecoveryAttemptedRef.current = true;
+        if (!submitRetryAttempted && isRecoverableHoldError(error)) {
+          submitRetryAttempted = true;
           const recovered = await recoverHold(error);
 
           if (recovered) {
@@ -1009,13 +1013,12 @@ export function ReservationCreatePage() {
     currentHoldUxState === "conflicted" ||
     currentHoldUxState === "invalidSession" ||
     currentHoldUxState === "failed" ||
-    (currentHoldUxState === "expired" && recoveryAttemptedRef.current);
+    (currentHoldUxState === "expired" && recoveryAttempted);
   const submitReservation = (values: ReservationFormValues) => {
     if (createActionDisabled) {
       return;
     }
 
-    submitRecoveryAttemptedRef.current = false;
     createMutation.mutate(values);
   };
 

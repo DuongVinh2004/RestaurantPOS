@@ -1,6 +1,6 @@
 const CUSTOMER_LOCALE = "vi-VN";
 
-export function formatMoney(amount: string | number | null | undefined, currency = "USD"): string {
+export function formatMoney(amount: string | number | null | undefined, currency = "VND"): string {
   if (amount === null || amount === undefined || amount === "") {
     return "Chưa có";
   }

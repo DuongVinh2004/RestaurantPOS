@@ -380,12 +380,29 @@ function Test-BookingSchemaPresent {
         [string] $PhpExecutable
     )
 
-    $doctor = Invoke-NativeCommand -FilePath $PhpExecutable -Arguments @('artisan', 'booking:doctor', '--json')
-    if ($doctor.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($doctor.Output)) {
+    $schemaProbe = @'
+require 'vendor/autoload.php';
+$app = require 'bootstrap/app.php';
+$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$tables = ['roles', 'users', 'branches', 'restaurant_tables', 'reservations', 'customer_access_sessions'];
+$missing = array_values(array_filter($tables, static fn (string $table): bool => ! \Illuminate\Support\Facades\Schema::hasTable($table)));
+echo $missing === [] ? 'present' : 'missing:'.implode(',', $missing);
+'@
+    $schemaProbe = ($schemaProbe -replace "\r?\n", ' ').Trim()
+
+    $probe = Invoke-NativeCommand -FilePath $PhpExecutable -Arguments @('-r', $schemaProbe)
+    if ($probe.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($probe.Output)) {
+        Write-Host "Booking schema probe failed; database bootstrap will run. $($probe.Output)"
         return $false
     }
 
-    return $doctor.Output.Contains('"ok": true') -or $doctor.Output.Contains('"status": "ok"')
+    $output = $probe.Output.Trim()
+    if ($output -ne 'present') {
+        Write-Host "Booking schema probe reported [$output]; database bootstrap will run."
+        return $false
+    }
+
+    return $true
 }
 
 function Assert-DockerAvailable {

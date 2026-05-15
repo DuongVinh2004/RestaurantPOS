@@ -131,6 +131,10 @@ final class LocalRuntimeScriptContractTest extends TestCase
 
         self::assertStringContainsString('[switch] $ResetDatabase', $devBackend);
         self::assertStringContainsString('function Test-BookingSchemaPresent', $devBackend);
+        self::assertStringContainsString('Schema::hasTable($table)', $devBackend);
+        self::assertStringContainsString("'customer_access_sessions'", $devBackend);
+        self::assertStringContainsString('$schemaProbe = ($schemaProbe -replace "\r?\n", \' \').Trim()', $devBackend);
+        self::assertStringNotContainsString("'booking:doctor'", $devBackend);
         self::assertStringContainsString('--skip-db-bootstrap', $devBackend);
         self::assertStringContainsString('Use -ResetDatabase for a clean reset.', $devBackend);
 

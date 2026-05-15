@@ -29,7 +29,7 @@ export function AdminShell({
 }: StaffShellProps) {
   const navigation = (
     <AppFrameNavigation
-      brandEyebrow="RestaurantPOS"
+      brandEyebrow="Mộc Sen Bistro"
       brandTitle={workspaceOption?.label ?? 'Quản trị'}
       brandCopy={workspaceOption?.description ?? 'Cấu hình, danh mục, báo cáo và kiểm soát dữ liệu.'}
       navigationGroups={navigationGroups}
