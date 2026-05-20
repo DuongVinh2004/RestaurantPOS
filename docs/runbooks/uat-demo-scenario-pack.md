@@ -18,6 +18,8 @@ Pack này tạo một bộ seed + scripts + checklist thống nhất để demo/
   - `staff.conversation_inbox`
   - `staff.kitchen_dispatch`
 
+Note: `staff.conversation_ai_assist` stays registered but is not enabled by the UAT pack until inbox and assist rollout evidence promotes it.
+
 ## Quick Start
 
 ```powershell

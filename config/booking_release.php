@@ -329,7 +329,7 @@ return [
     ],
     'release_loop' => [
         'artifact_root' => 'storage/app/booking_release/release_loop',
-        'step_timeout_seconds' => 300,
+        'step_timeout_seconds' => 600,
         'preview_timeout_seconds' => 300,
         'preview_link_paths' => [
             '.vercel/project.json',

@@ -212,6 +212,7 @@ class WaitingListOperationalOrchestrationService
                 if (($releasedTable['status'] ?? null) === RestaurantTableStatus::Available->value && (int) ($releasedTable['seats'] ?? 0) > 0) {
                     $candidate = WaitlistEntry::query()
                         ->with('user')
+                        ->where('branch_id', (int) $source->branch_id)
                         ->where('status', WaitingListStatus::Waiting->value)
                         ->where('waiting_id', '!=', (int) $source->waiting_id)
                         ->where('guest_count', '<=', (int) $releasedTable['seats'])
@@ -357,6 +358,7 @@ class WaitingListOperationalOrchestrationService
         ) {
             $candidate = WaitlistEntry::query()
                 ->with('user')
+                ->where('branch_id', (int) $entry->branch_id)
                 ->where('status', WaitingListStatus::Waiting->value)
                 ->where('waiting_id', '!=', (int) $entry->waiting_id)
                 ->where('guest_count', '<=', (int) $releasedTable['seats'])

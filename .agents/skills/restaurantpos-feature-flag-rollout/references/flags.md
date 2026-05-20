@@ -7,13 +7,14 @@
 - `staff.kitchen_dispatch`
 - `inventory.uplift`
 - `staff.conversation_inbox`
+- `staff.conversation_ai_assist`
 
 ## Code hotspots
 
 - `config/feature_flags.php`
-- `app/Models/FeatureFlag.php`
-- `app/Services/FeatureFlagService.php`
-- `app/Services/FeatureFlagManagementService.php`
+- `app/Platform/FeatureFlags/Domain/Models/FeatureFlag.php`
+- `app/Platform/FeatureFlags/Services/FeatureFlagService.php`
+- `app/Platform/FeatureFlags/Services/FeatureFlagManagementService.php`
 
 ## Test surface
 

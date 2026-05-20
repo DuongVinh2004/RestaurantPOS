@@ -92,7 +92,7 @@ class ProcurementManagementService
     /**
      * @param  array<string,mixed>  $payload
      */
-    public function createSupplier(array $payload): Supplier
+    public function createSupplier(array $payload, ?int $actorUserId = null): Supplier
     {
         $supplier = new Supplier;
         // Supplier la master data, nen create flow chu yeu normalize field va audit sau khi save.
@@ -107,22 +107,37 @@ class ProcurementManagementService
         ]);
         $supplier->save();
 
+        $fresh = $this->findSupplier((int) $supplier->supplier_id);
+
         AuditEvent::info('admin.supplier.created', [
-            'supplier_id' => (int) $supplier->supplier_id,
-            'code' => $supplier->code,
+            'supplier_id' => (int) $fresh->supplier_id,
+            'code' => $fresh->code,
+            '_audit' => [
+                'action' => 'procurement.supplier.created',
+                'entity_type' => 'supplier',
+                'entity_id' => (string) $fresh->supplier_id,
+                'after' => $this->supplierAuditSnapshot($fresh),
+                'summary' => [
+                    'code' => $fresh->code,
+                    'name' => (string) $fresh->name,
+                    'is_active' => (bool) $fresh->is_active,
+                ],
+                'actor' => $this->auditActor($actorUserId),
+            ],
         ]);
 
-        return $this->findSupplier((int) $supplier->supplier_id);
+        return $fresh;
     }
 
     /**
      * @param  array<string,mixed>  $payload
      */
-    public function updateSupplier(int $supplierId, array $payload): Supplier
+    public function updateSupplier(int $supplierId, array $payload, ?int $actorUserId = null): Supplier
     {
-        return DB::transaction(function () use ($supplierId, $payload): Supplier {
+        return DB::transaction(function () use ($supplierId, $payload, $actorUserId): Supplier {
             /** @var Supplier $supplier */
             $supplier = Supplier::query()->lockForUpdate()->findOrFail($supplierId);
+            $before = $this->supplierAuditSnapshot($supplier);
 
             // Supplier edit dung row_version de tranh de stale form ghi de nhau.
             $this->assertExpectedRowVersion((int) ($supplier->row_version ?? 1), (int) $payload['row_version']);
@@ -152,11 +167,27 @@ class ProcurementManagementService
             $this->bumpSupplierRowVersion($supplier);
             $supplier->save();
 
+            $fresh = $this->findSupplier($supplierId);
+
             AuditEvent::info('admin.supplier.updated', [
                 'supplier_id' => $supplierId,
+                'code' => $fresh->code,
+                '_audit' => [
+                    'action' => 'procurement.supplier.updated',
+                    'entity_type' => 'supplier',
+                    'entity_id' => (string) $fresh->supplier_id,
+                    'before' => $before,
+                    'after' => $this->supplierAuditSnapshot($fresh),
+                    'summary' => [
+                        'code' => $fresh->code,
+                        'name' => (string) $fresh->name,
+                        'row_version' => (int) ($fresh->row_version ?? 1),
+                    ],
+                    'actor' => $this->auditActor($actorUserId),
+                ],
             ]);
 
-            return $this->findSupplier($supplierId);
+            return $fresh;
         }, 3);
     }
 
@@ -1044,6 +1075,39 @@ class ProcurementManagementService
     {
         // Moi supplier write hop le deu tang row_version.
         $supplier->row_version = max(1, (int) ($supplier->row_version ?? 1)) + 1;
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function supplierAuditSnapshot(Supplier $supplier): array
+    {
+        return [
+            'code' => $supplier->code,
+            'name' => (string) $supplier->name,
+            'contact_name_present' => $this->normalizeNullableString($supplier->contact_name) !== null,
+            'phone_present' => $this->normalizeNullableString($supplier->phone) !== null,
+            'email_present' => $this->normalizeNullableString($supplier->email) !== null,
+            'notes' => $supplier->notes,
+            'is_active' => (bool) $supplier->is_active,
+            'row_version' => (int) ($supplier->row_version ?? 1),
+        ];
+    }
+
+    /**
+     * @return array{type:string,user_id:int,key:string}|null
+     */
+    private function auditActor(?int $actorUserId): ?array
+    {
+        if ($actorUserId === null || $actorUserId <= 0) {
+            return null;
+        }
+
+        return [
+            'type' => 'staff_user',
+            'user_id' => $actorUserId,
+            'key' => 'staff_user:'.$actorUserId,
+        ];
     }
 
     private function bumpPurchaseOrderRowVersion(PurchaseOrder $order): void

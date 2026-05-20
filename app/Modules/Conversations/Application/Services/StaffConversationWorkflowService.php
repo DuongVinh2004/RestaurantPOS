@@ -710,6 +710,51 @@ class StaffConversationWorkflowService
                 ]
             );
 
+            AuditEvent::info('staff.conversation.internal_note_added', [
+                '_audit' => [
+                    'action' => 'conversation.internal_note_added',
+                    'entity_type' => 'conversation',
+                    'entity_id' => (string) $conversation->conversation_id,
+                    'subjects' => array_values(array_filter([
+                        [
+                            'type' => 'conversation_message',
+                            'id' => (string) $message->message_id,
+                            'role' => 'message',
+                        ],
+                        $message->related_reservation_id !== null ? [
+                            'type' => 'reservation',
+                            'id' => (string) $message->related_reservation_id,
+                            'role' => 'reservation',
+                        ] : null,
+                        $message->related_order_id !== null ? [
+                            'type' => 'reservation_order',
+                            'id' => (string) $message->related_order_id,
+                            'role' => 'order',
+                        ] : null,
+                    ])),
+                    'after' => [
+                        'message_id' => (int) $message->message_id,
+                        'is_internal_note' => true,
+                        'related_reservation_id' => $message->related_reservation_id !== null ? (int) $message->related_reservation_id : null,
+                        'related_order_id' => $message->related_order_id !== null ? (int) $message->related_order_id : null,
+                    ],
+                    'summary' => [
+                        'message_length' => mb_strlen((string) $message->message_text),
+                        'related_reservation_id' => $message->related_reservation_id !== null ? (int) $message->related_reservation_id : null,
+                        'related_order_id' => $message->related_order_id !== null ? (int) $message->related_order_id : null,
+                    ],
+                    'meta' => [
+                        'branch_id' => $conversation->branch_id !== null ? (int) $conversation->branch_id : null,
+                    ],
+                    'actor' => [
+                        'type' => 'staff_user',
+                        'user_id' => $actingStaffUserId,
+                    ],
+                ],
+                'conversation_id' => (string) $conversation->conversation_id,
+                'message_id' => (int) $message->message_id,
+            ]);
+
             return [
                 'action' => 'conversation.internal_note_added',
                 'assignment_id' => null,
@@ -836,6 +881,9 @@ class StaffConversationWorkflowService
                         'delivery_mode' => (string) ($support['delivery_mode'] ?? ''),
                         'message_length' => mb_strlen((string) $message->message_text),
                         'quiet_until_utc' => $support['quiet_until_utc'] ?? null,
+                    ],
+                    'meta' => [
+                        'branch_id' => $conversation->branch_id !== null ? (int) $conversation->branch_id : null,
                     ],
                     'actor' => [
                         'type' => 'staff_user',
@@ -1276,6 +1324,9 @@ class StaffConversationWorkflowService
                 'after' => $after === [] ? null : $after,
                 'summary' => $summary === [] ? null : $summary,
                 'subjects' => $subjects,
+                'meta' => [
+                    'branch_id' => $conversation->branch_id !== null ? (int) $conversation->branch_id : null,
+                ],
                 'actor' => [
                     'type' => 'staff_user',
                     'user_id' => $actingStaffUserId,

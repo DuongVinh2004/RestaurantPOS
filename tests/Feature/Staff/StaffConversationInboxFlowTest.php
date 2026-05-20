@@ -626,6 +626,16 @@ class StaffConversationInboxFlowTest extends TestCase
             ->assertJsonPath('data.event.event_type', 'internal_note.added')
             ->assertJsonPath('data.conversation.linked_reservation.reservation_id', $reservationId);
 
+        $messageId = (int) $response->json('data.message.message_id');
+        $branchId = (int) DB::table('conversations')->where('conversation_id', $conversationId)->value('branch_id');
+        $audit = $this->assertAuditLogRecorded('conversation.internal_note_added', 'conversation', $conversationId);
+        self::assertSame($staffId, $audit->actor_user_id);
+        self::assertSame('staff_user', $audit->actor_type);
+        self::assertSame($branchId, (int) data_get($audit->meta_json, 'branch_id'));
+        self::assertSame($messageId, (int) data_get($audit->after_json, 'message_id'));
+        $this->assertAuditSubjectRecorded($audit, 'conversation_message', $messageId, 'message');
+        $this->assertAuditSubjectRecorded($audit, 'reservation', $reservationId, 'reservation');
+
         self::assertSame(1, (int) DB::table('conversation_messages')->where('conversation_id', $conversationId)->where('is_internal_note', 1)->count());
     }
 
@@ -735,6 +745,9 @@ class StaffConversationInboxFlowTest extends TestCase
         self::assertSame('Your table is ready. Please check in with the host stand in the next 10 minutes.', (string) ($payload['message_text'] ?? ''));
 
         $audit = $this->assertAuditLogRecorded('conversation.outbound_reply_queued', 'conversation', $conversationId);
+        self::assertSame($staffId, $audit->actor_user_id);
+        self::assertSame('staff_user', $audit->actor_type);
+        self::assertSame($branchId, (int) data_get($audit->meta_json, 'branch_id'));
         $this->assertAuditSubjectRecorded($audit, 'conversation_message', $messageId, 'message');
         $this->assertAuditSubjectRecorded($audit, 'notification_outbox', $outboxId, 'delivery');
     }

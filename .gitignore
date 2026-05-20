@@ -61,3 +61,11 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+
+/build/booking-release/
+/tools/redis/
+*.tar.gz
+*.pdb
+*.dll
+*.exe

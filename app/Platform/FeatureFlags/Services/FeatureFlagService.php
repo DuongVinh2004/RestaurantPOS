@@ -12,11 +12,6 @@ use Throwable;
 
 class FeatureFlagService
 {
-    /**
-     * @var array<string,array<string,array<int,FeatureFlag>>>
-     */
-    private array $overrideCache = [];
-
     private ?bool $tableAvailable = null;
 
     /**
@@ -189,12 +184,8 @@ class FeatureFlagService
      */
     private function loadOverridesForFeature(string $featureKey, string $environment): array
     {
-        if (isset($this->overrideCache[$featureKey][$environment])) {
-            return $this->overrideCache[$featureKey][$environment];
-        }
-
         if (! $this->featureFlagTableAvailable()) {
-            return $this->overrideCache[$featureKey][$environment] = [];
+            return [];
         }
 
         try {
@@ -204,7 +195,7 @@ class FeatureFlagService
                 ->orderBy('feature_flag_id')
                 ->get();
         } catch (Throwable) {
-            return $this->overrideCache[$featureKey][$environment] = [];
+            return [];
         }
 
         $grouped = [];
@@ -214,7 +205,7 @@ class FeatureFlagService
             $grouped[$candidateEnvironment][$candidateBranchId] = $row;
         }
 
-        return $this->overrideCache[$featureKey][$environment] = $grouped;
+        return $grouped;
     }
 
     private function featureFlagTableAvailable(): bool

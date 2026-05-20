@@ -8,11 +8,13 @@ use App\Modules\InventoryProcurement\Application\Workflows\PurchaseOrderReconcil
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\AssertsAuditTrail;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
 class AdminPurchasingFoundationHttpFlowTest extends TestCase
 {
+    use AssertsAuditTrail;
     use BuildsBookingScenario;
     use DatabaseTransactions;
 
@@ -72,6 +74,16 @@ class AdminPurchasingFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('data.phone', '0900000009')
             ->assertJsonPath('data.notes', 'Primary purchasing contact for dry goods')
             ->assertJsonPath('data.row_version', $supplierRowVersion + 1);
+
+        $createdLog = $this->assertAuditLogRecorded('procurement.supplier.created', 'supplier', $supplierId);
+        self::assertSame($adminId, $createdLog->actor_user_id);
+        self::assertSame('staff_user', $createdLog->actor_type);
+
+        $updatedLog = $this->assertAuditLogRecorded('procurement.supplier.updated', 'supplier', $supplierId);
+        self::assertSame($adminId, $updatedLog->actor_user_id);
+        self::assertSame('staff_user', $updatedLog->actor_type);
+        self::assertSame('Primary purchasing contact for dry goods', (string) data_get($updatedLog->after_json, 'notes'));
+        self::assertSame($supplierRowVersion + 1, (int) data_get($updatedLog->after_json, 'row_version'));
 
         $createPurchaseOrder = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-po-create'))
             ->postJson('/api/v1/admin/inventory/purchase-orders', [

@@ -80,26 +80,7 @@ class ReleaseLoopServiceTest extends TestCase
 
         $this->assertTrue((bool) ($report['ok'] ?? false));
         $this->assertSame('pass', $report['decision'] ?? null);
-        $this->assertSame([
-            'contract_artifacts',
-            'package_integrity',
-            'backend_fe_contract',
-            'backend_web_auth',
-            'backend_golden_flows',
-            'backend_doctor',
-            'backend_deploy_preflight',
-            'staff_web_test',
-            'staff_web_build',
-            'customer_web_contracts',
-            'customer_web_lint',
-            'customer_web_typecheck',
-            'customer_web_test',
-            'customer_web_build',
-            'customer_web_e2e_smoke',
-            'preview_deploy',
-            'staff_web_live_smoke',
-            'backend_launch_readiness',
-        ], $service->stepKeys);
+        $this->assertSame($this->expectedReleaseLoopStepKeys(), $service->stepKeys);
         $this->assertSame('https://preview.example.test', data_get($report, 'preview.url'));
         $this->assertSame('url-recorded', data_get($report, 'preview.status'));
         $this->assertSame('vercel', data_get($report, 'preview.provider'));
@@ -159,30 +140,11 @@ class ReleaseLoopServiceTest extends TestCase
 
         $this->assertFalse((bool) ($report['ok'] ?? true));
         $this->assertSame('block', $report['decision'] ?? null);
-        $this->assertSame([
-            'contract_artifacts',
-            'package_integrity',
-            'backend_fe_contract',
-            'backend_web_auth',
-            'backend_golden_flows',
-            'backend_doctor',
-            'backend_deploy_preflight',
-            'staff_web_test',
-            'staff_web_build',
-            'customer_web_contracts',
-            'customer_web_lint',
-            'customer_web_typecheck',
-            'customer_web_test',
-            'customer_web_build',
-            'customer_web_e2e_smoke',
-            'preview_deploy',
-            'staff_web_live_smoke',
-            'backend_launch_readiness',
-        ], $service->stepKeys);
+        $this->assertSame($this->expectedReleaseLoopStepKeys(), $service->stepKeys);
         $this->assertCount(1, (array) ($report['blocking_failures'] ?? []));
         $this->assertSame('backend_doctor', data_get($report, 'blocking_failures.0.step_key'));
         $this->assertSame('staff_web_test', data_get($report, 'steps.7.key'));
-        $this->assertSame('backend_launch_readiness', data_get($report, 'steps.17.key'));
+        $this->assertSame('backend_launch_readiness', data_get($this->stepByKey($report, 'backend_launch_readiness'), 'key'));
         $this->assertSame('skipped', data_get($report, 'preview.status'));
         $this->assertStringContainsString(
             'Observability: Sentry release/runtime evidence unavailable;',
@@ -370,8 +332,9 @@ class ReleaseLoopServiceTest extends TestCase
             'ops.conversation_inbox: Conversation inbox backlog needs operator review before rollout.',
             data_get($report, 'steps.6.summary')
         );
-        $this->assertSame('warn', data_get($report, 'steps.17.status'));
-        $this->assertSame('decision=ready_with_warnings', data_get($report, 'steps.17.summary'));
+        $launchReadinessStep = $this->stepByKey($report, 'backend_launch_readiness');
+        $this->assertSame('warn', data_get($launchReadinessStep, 'status'));
+        $this->assertSame('decision=ready_with_warnings', data_get($launchReadinessStep, 'summary'));
         $this->assertSame([], (array) ($report['blocking_failures'] ?? []));
         $this->assertContains(
             'Backend deploy preflight: ops.conversation_inbox: Conversation inbox backlog needs operator review before rollout.',
@@ -445,5 +408,47 @@ class ReleaseLoopServiceTest extends TestCase
         $this->assertStringContainsString('timed out after 1 seconds', (string) data_get($report, 'steps.6.summary'));
         $this->assertSame('staff_web_test', data_get($report, 'steps.7.key'));
         $this->assertContains('backend_launch_readiness', $service->stepKeys);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function expectedReleaseLoopStepKeys(): array
+    {
+        return [
+            'contract_artifacts',
+            'package_integrity',
+            'backend_fe_contract',
+            'backend_web_auth',
+            'backend_golden_flows',
+            'backend_doctor',
+            'backend_deploy_preflight',
+            'staff_web_test',
+            'staff_web_build',
+            'customer_web_contracts',
+            'customer_web_lint',
+            'customer_web_typecheck',
+            'customer_web_test',
+            'customer_web_build',
+            'customer_web_e2e_smoke',
+            'preview_deploy',
+            'staff_web_live_smoke',
+            'heartbeat_refresh',
+            'backend_launch_readiness',
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function stepByKey(array $report, string $key): array
+    {
+        foreach ((array) ($report['steps'] ?? []) as $step) {
+            if (is_array($step) && ($step['key'] ?? null) === $key) {
+                return $step;
+            }
+        }
+
+        $this->fail(sprintf('Expected release loop report to contain step [%s].', $key));
     }
 }

@@ -104,6 +104,26 @@ class FeatureFlagConsoleCommandTest extends TestCase
         self::assertSame('Selected feature flag is not registered.', $payload['errors']['feature'][0] ?? null);
     }
 
+    public function test_console_list_exposes_conversation_ai_assist_with_safe_wildcard_default(): void
+    {
+        $exitCode = Artisan::call('booking:feature-flags:list', [
+            '--feature' => 'staff.conversation_ai_assist',
+            '--environment' => 'production',
+            '--json' => true,
+        ]);
+
+        self::assertSame(0, $exitCode);
+
+        $payload = $this->decodeArtisanOutput();
+
+        self::assertSame(1, (int) ($payload['meta']['count'] ?? 0));
+        self::assertSame('staff.conversation_ai_assist', $payload['data'][0]['feature_key'] ?? null);
+        self::assertFalse((bool) ($payload['data'][0]['enabled'] ?? true));
+        self::assertTrue((bool) ($payload['data'][0]['kill_switch'] ?? false));
+        self::assertSame('config_default', $payload['data'][0]['source'] ?? null);
+        self::assertSame('*', $payload['data'][0]['matched_environment'] ?? null);
+    }
+
     /**
      * @return array<string,mixed>
      */

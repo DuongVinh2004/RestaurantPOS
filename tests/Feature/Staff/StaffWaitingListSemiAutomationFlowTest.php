@@ -184,6 +184,217 @@ class StaffWaitingListSemiAutomationFlowTest extends TestCase
             ->assertJsonPath('data.0.orchestration.actions.0.key', 'seat')
             ->assertJsonPath('data.0.orchestration.actions.0.enabled', true)
             ->assertJsonPath('meta.summary.ready_to_seat_count', 1);
+
+        $this->withHeaders($this->withIdempotencyKey('waiting-list-semi-auto-arrival-advance-blocked', $staffHeaders))
+            ->postJson('/api/v1/staff/waiting-list/'.$waitingId.'/advance', [
+                'row_version' => (int) $confirm->json('data.row_version'),
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['status']);
+
+        $this->withHeaders($this->withIdempotencyKey('waiting-list-semi-auto-arrival-seat', $staffHeaders))
+            ->postJson('/api/v1/staff/waiting-list/'.$waitingId.'/seat', [
+                'row_version' => (int) $confirm->json('data.row_version'),
+                'user_id' => $customerId,
+                'service_minutes' => 60,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.waiting_list.status', WaitingListStatus::Seated->value);
+    }
+
+    public function test_advance_queue_skips_candidates_removed_by_manual_notify_or_cancel_before_automation_runs(): void
+    {
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $sourceCustomerId = $this->createUser([
+            'full_name' => 'Race Source',
+            'phone' => '0909666001',
+        ]);
+        $manualNotifyCustomerId = $this->createUser([
+            'full_name' => 'Manual Notify Candidate',
+            'phone' => '0909666002',
+        ]);
+        $manualCancelCustomerId = $this->createUser([
+            'full_name' => 'Manual Cancel Candidate',
+            'phone' => '0909666003',
+        ]);
+        $selectedCustomerId = $this->createUser([
+            'full_name' => 'Automation Selected Candidate',
+            'phone' => '0909666004',
+        ]);
+        $releasedTableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available']);
+        $manualNotifyTableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available']);
+        $sourceWaitingId = $this->createWaitingListEntry([
+            'user_id' => $sourceCustomerId,
+            'guest_name' => 'Race Source',
+            'phone' => '0909666001',
+            'guest_count' => 4,
+            'status' => WaitingListStatus::Waiting->value,
+            'row_version' => 1,
+        ]);
+        $manualNotifyWaitingId = $this->createWaitingListEntry([
+            'user_id' => $manualNotifyCustomerId,
+            'guest_name' => 'Manual Notify Candidate',
+            'phone' => '0909666002',
+            'guest_count' => 2,
+            'priority' => 50,
+            'status' => WaitingListStatus::Waiting->value,
+            'row_version' => 1,
+            'requested_at' => $this->nowUtc()->copy()->subMinutes(3),
+        ]);
+        $manualCancelWaitingId = $this->createWaitingListEntry([
+            'user_id' => $manualCancelCustomerId,
+            'guest_name' => 'Manual Cancel Candidate',
+            'phone' => '0909666003',
+            'guest_count' => 2,
+            'priority' => 40,
+            'status' => WaitingListStatus::Waiting->value,
+            'row_version' => 1,
+            'requested_at' => $this->nowUtc()->copy()->subMinutes(2),
+        ]);
+        $selectedWaitingId = $this->createWaitingListEntry([
+            'user_id' => $selectedCustomerId,
+            'guest_name' => 'Automation Selected Candidate',
+            'phone' => '0909666004',
+            'guest_count' => 2,
+            'priority' => 10,
+            'status' => WaitingListStatus::Waiting->value,
+            'row_version' => 1,
+            'requested_at' => $this->nowUtc()->copy()->subMinute(),
+        ]);
+
+        $staffHeaders = $this->staffAuthHeaders($staffId);
+        $notifySource = $this->withHeaders($this->withIdempotencyKey('waiting-list-race-source-notify', $staffHeaders))
+            ->postJson('/api/v1/staff/waiting-list/'.$sourceWaitingId.'/notify', [
+                'table_id' => $releasedTableId,
+                'hold_minutes' => 10,
+                'row_version' => 1,
+            ]);
+        $notifySource->assertOk();
+
+        $sourceCustomer = User::query()->findOrFail($sourceCustomerId);
+        $decline = $this->actingAs($sourceCustomer)
+            ->withHeaders(['Idempotency-Key' => 'cust-waiting-race-source-decline'])
+            ->postJson('/api/v1/waiting-list/'.$sourceWaitingId.'/decline', [
+                'row_version' => (int) $notifySource->json('data.row_version'),
+            ]);
+        $decline->assertOk();
+
+        $this->withHeaders($this->withIdempotencyKey('waiting-list-race-manual-notify', $staffHeaders))
+            ->postJson('/api/v1/staff/waiting-list/'.$manualNotifyWaitingId.'/notify', [
+                'table_id' => $manualNotifyTableId,
+                'hold_minutes' => 10,
+                'row_version' => 1,
+            ])
+            ->assertOk();
+
+        $this->withHeaders($this->withIdempotencyKey('waiting-list-race-manual-cancel', $staffHeaders))
+            ->postJson('/api/v1/staff/waiting-list/'.$manualCancelWaitingId.'/cancel', [
+                'cancel_reason' => 'Host manually removed duplicate entry',
+                'row_version' => 1,
+            ])
+            ->assertOk();
+
+        $advance = $this->withHeaders($this->withIdempotencyKey('waiting-list-race-advance', $staffHeaders))
+            ->postJson('/api/v1/staff/waiting-list/'.$sourceWaitingId.'/advance', [
+                'row_version' => (int) $decline->json('data.row_version'),
+            ]);
+
+        $advance->assertOk()
+            ->assertJsonPath('data.automation.result', 'notified_next_candidate')
+            ->assertJsonPath('data.advanced_waiting_list.waiting_id', $selectedWaitingId)
+            ->assertJsonPath('data.advanced_waiting_list.status', WaitingListStatus::Notified->value);
+
+        self::assertSame(WaitingListStatus::Notified->value, DB::table('waiting_list')->where('waiting_id', $manualNotifyWaitingId)->value('status'));
+        self::assertSame(WaitingListStatus::Cancelled->value, DB::table('waiting_list')->where('waiting_id', $manualCancelWaitingId)->value('status'));
+    }
+
+    public function test_advance_queue_uses_same_branch_candidate_even_when_other_branch_has_higher_priority(): void
+    {
+        $branchAId = $this->createBranch([
+            'branch_code' => 'WAIT-A',
+            'branch_name' => 'Waiting Branch A',
+        ]);
+        $branchBId = $this->createBranch([
+            'branch_code' => 'WAIT-B',
+            'branch_name' => 'Waiting Branch B',
+        ]);
+        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $sourceCustomerId = $this->createUser([
+            'full_name' => 'Branch Source',
+            'phone' => '0909777001',
+        ]);
+        $otherBranchCustomerId = $this->createUser([
+            'full_name' => 'Other Branch Candidate',
+            'phone' => '0909777002',
+        ]);
+        $sameBranchCustomerId = $this->createUser([
+            'full_name' => 'Same Branch Candidate',
+            'phone' => '0909777003',
+        ]);
+        $tableId = $this->createRestaurantTableWithSeats(4, [
+            'branch_id' => $branchAId,
+            'status' => 'Available',
+        ]);
+        $sourceWaitingId = $this->createWaitingListEntry([
+            'branch_id' => $branchAId,
+            'user_id' => $sourceCustomerId,
+            'guest_name' => 'Branch Source',
+            'phone' => '0909777001',
+            'guest_count' => 4,
+            'status' => WaitingListStatus::Waiting->value,
+            'row_version' => 1,
+        ]);
+        $otherBranchWaitingId = $this->createWaitingListEntry([
+            'branch_id' => $branchBId,
+            'user_id' => $otherBranchCustomerId,
+            'guest_name' => 'Other Branch Candidate',
+            'phone' => '0909777002',
+            'guest_count' => 2,
+            'priority' => 100,
+            'status' => WaitingListStatus::Waiting->value,
+            'row_version' => 1,
+            'requested_at' => $this->nowUtc()->copy()->subMinutes(5),
+        ]);
+        $sameBranchWaitingId = $this->createWaitingListEntry([
+            'branch_id' => $branchAId,
+            'user_id' => $sameBranchCustomerId,
+            'guest_name' => 'Same Branch Candidate',
+            'phone' => '0909777003',
+            'guest_count' => 2,
+            'priority' => 1,
+            'status' => WaitingListStatus::Waiting->value,
+            'row_version' => 1,
+            'requested_at' => $this->nowUtc()->copy()->addMinute(),
+        ]);
+
+        $staffHeaders = $this->staffAuthHeaders($staffId);
+        $notify = $this->withHeaders($this->withIdempotencyKey('waiting-list-branch-source-notify', $staffHeaders))
+            ->postJson('/api/v1/staff/waiting-list/'.$sourceWaitingId.'/notify', [
+                'table_id' => $tableId,
+                'hold_minutes' => 10,
+                'row_version' => 1,
+            ]);
+        $notify->assertOk();
+
+        $sourceCustomer = User::query()->findOrFail($sourceCustomerId);
+        $decline = $this->actingAs($sourceCustomer)
+            ->withHeaders(['Idempotency-Key' => 'cust-waiting-branch-source-decline'])
+            ->postJson('/api/v1/waiting-list/'.$sourceWaitingId.'/decline', [
+                'row_version' => (int) $notify->json('data.row_version'),
+            ]);
+        $decline->assertOk();
+
+        $advance = $this->withHeaders($this->withIdempotencyKey('waiting-list-branch-advance', $staffHeaders))
+            ->postJson('/api/v1/staff/waiting-list/'.$sourceWaitingId.'/advance', [
+                'row_version' => (int) $decline->json('data.row_version'),
+            ]);
+
+        $advance->assertOk()
+            ->assertJsonPath('data.advanced_waiting_list.waiting_id', $sameBranchWaitingId)
+            ->assertJsonPath('data.advanced_waiting_list.branch_id', $branchAId)
+            ->assertJsonPath('data.automation.result', 'notified_next_candidate');
+
+        self::assertSame(WaitingListStatus::Waiting->value, DB::table('waiting_list')->where('waiting_id', $otherBranchWaitingId)->value('status'));
     }
 
     public function test_expired_invite_can_be_advanced_without_leaving_stale_state(): void

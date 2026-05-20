@@ -1207,6 +1207,18 @@ class StaffKitchenDispatchFoundationFlowTest extends TestCase
             'first_dispatched_at' => $this->nowUtc(),
         ]);
 
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/kitchen/stations')
+            ->assertOk()
+            ->assertJsonPath('data.0.station_id', $stationId)
+            ->assertJsonPath('data.0.ticket_counts.queued', 1);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/staff/kitchen/stations/'.$stationId.'/tickets')
+            ->assertOk()
+            ->assertJsonPath('data.0.ticket_id', $ticketId)
+            ->assertJsonPath('data.0.ticket_status', 'Queued');
+
         $this->withHeaders($this->withIdempotencyKey($headers, 'idem-staff-kitchen-fire-flag-disabled'))
             ->postJson('/api/v1/staff/kitchen/tickets/'.$ticketId.'/fire', $this->ticketActionPayload($ticketId))
             ->assertOk()

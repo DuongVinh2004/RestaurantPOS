@@ -85,7 +85,10 @@ class ProcurementController extends Controller
     public function createSupplier(CreateSupplierRequest $request): JsonResponse
     {
         $this->assertInventoryUpliftEnabled($request);
-        $supplier = $this->purchasingService->createSupplier($request->validated());
+        $supplier = $this->purchasingService->createSupplier(
+            $request->validated(),
+            $this->resolveStaffActorUserId($request),
+        );
 
         return response()->json([
             'data' => (new SupplierResource($supplier))->toArray($request),
@@ -96,7 +99,11 @@ class ProcurementController extends Controller
     {
         $this->assertInventoryUpliftEnabled($request);
         try {
-            $supplier = $this->purchasingService->updateSupplier($id, $request->validated());
+            $supplier = $this->purchasingService->updateSupplier(
+                $id,
+                $request->validated(),
+                $this->resolveStaffActorUserId($request),
+            );
         } catch (ModelNotFoundException) {
             return $this->supplierNotFoundResponse($request);
         }

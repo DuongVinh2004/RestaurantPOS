@@ -215,6 +215,77 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
             ->assertJsonPath('error_code', 'validation_error');
     }
 
+    public function test_bill_payment_session_create_rejects_amount_above_outstanding_and_mixed_payment_currencies(): void
+    {
+        [$partialCustomerId, , $partialReservationId] = $this->seedInServiceOrderScenario(lockBill: true);
+        $partialCustomer = User::query()->findOrFail($partialCustomerId);
+        $this->createPayment([
+            'reservation_id' => $partialReservationId,
+            'amount' => '40000.00',
+            'currency' => 'VND',
+            'payment_method' => 'Cash',
+            'payment_provider' => 'Cash',
+            'payment_type' => 'Final',
+            'status' => 'Success',
+            'transaction_code' => 'BILL-PARTIAL-PAID-1',
+        ]);
+
+        $this->actingAs($partialCustomer)
+            ->withHeaders([
+                'Idempotency-Key' => 'cust-bill-create-over-outstanding-1',
+                'Accept' => 'application/json',
+            ])
+            ->postJson('/api/v1/reservations/'.$partialReservationId.'/bill/payment-sessions', [
+                'row_version' => (int) DB::table('reservations')->where('reservation_id', $partialReservationId)->value('row_version'),
+                'amount' => 70000,
+                'provider_code' => 'simulated',
+                'currency' => 'VND',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.amount.0', 'Bill payment amount exceeds the outstanding bill balance.');
+
+        self::assertSame(0, (int) DB::table('reservation_bill_payment_sessions')->where('reservation_id', $partialReservationId)->count());
+
+        [$mixedCustomerId, , $mixedReservationId] = $this->seedInServiceOrderScenario(lockBill: true);
+        $mixedCustomer = User::query()->findOrFail($mixedCustomerId);
+        $this->createPayment([
+            'reservation_id' => $mixedReservationId,
+            'amount' => '10000.00',
+            'currency' => 'VND',
+            'payment_method' => 'Cash',
+            'payment_provider' => 'Cash',
+            'payment_type' => 'Final',
+            'status' => 'Success',
+            'transaction_code' => 'BILL-MIXED-VND-1',
+        ]);
+        $this->createPayment([
+            'reservation_id' => $mixedReservationId,
+            'amount' => '10000.00',
+            'currency' => 'USD',
+            'payment_method' => 'Card',
+            'payment_provider' => 'Card',
+            'payment_type' => 'Final',
+            'status' => 'Success',
+            'transaction_code' => 'BILL-MIXED-USD-1',
+        ]);
+
+        $this->actingAs($mixedCustomer)
+            ->withHeaders([
+                'Idempotency-Key' => 'cust-bill-create-mixed-currency-1',
+                'Accept' => 'application/json',
+            ])
+            ->postJson('/api/v1/reservations/'.$mixedReservationId.'/bill/payment-sessions', [
+                'row_version' => (int) DB::table('reservations')->where('reservation_id', $mixedReservationId)->value('row_version'),
+                'amount' => 1000,
+                'provider_code' => 'simulated',
+                'currency' => 'VND',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.currency.0', 'Payments for the same reservation must use a single currency.');
+
+        self::assertSame(0, (int) DB::table('reservation_bill_payment_sessions')->where('reservation_id', $mixedReservationId)->count());
+    }
+
     public function test_bill_preview_and_create_surface_staff_settlement_only_when_customer_self_pay_is_disabled(): void
     {
         config()->set('booking.payment_providers.customer_self_pay.enabled', false);
@@ -283,6 +354,81 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
         ])->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error')
             ->assertJsonPath('errors.provider_code.0', 'Customer bill self-payment is disabled for day 1. Keep bill preview and active-order reads only, and use staff settlement.');
+    }
+
+    public function test_branch_flag_rollback_does_not_block_existing_bill_payment_session_show_refresh_or_confirm(): void
+    {
+        $branchId = $this->createBranch([
+            'branch_code' => 'PAYROLLBACK',
+            'branch_name' => 'Payment Rollback',
+        ]);
+        [$customerId, , $reservationId] = $this->seedInServiceOrderScenario(lockBill: true, branchId: $branchId);
+        $customer = User::query()->findOrFail($customerId);
+
+        $create = $this->actingAs($customer)->withHeaders([
+            'Idempotency-Key' => 'cust-bill-rollback-create-1',
+            'Accept' => 'application/json',
+        ])->postJson('/api/v1/reservations/'.$reservationId.'/bill/payment-sessions', [
+            'row_version' => (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version'),
+            'amount' => 100000,
+            'provider_code' => 'simulated',
+            'currency' => 'VND',
+        ])->assertCreated()
+            ->assertJsonPath('data.payment_session.session_status', 'Pending');
+
+        $sessionId = (int) $create->json('data.payment_session.bill_payment_session_id');
+        $sessionRowVersion = (int) $create->json('data.payment_session.row_version');
+
+        $this->upsertFeatureFlagOverride(
+            'customer.bill_self_payment',
+            false,
+            'testing',
+            $branchId,
+            ['reason' => 'rollback after canary issue'],
+        );
+
+        $this->actingAs($customer)
+            ->withHeaders(['Accept' => 'application/json'])
+            ->getJson('/api/v1/reservations/'.$reservationId.'/bill/payment-sessions/'.$sessionId)
+            ->assertOk()
+            ->assertJsonPath('data.payment_session.bill_payment_session_id', $sessionId)
+            ->assertJsonPath('data.payment_session.session_status', 'Pending');
+
+        $this->actingAs($customer)->withHeaders([
+            'Idempotency-Key' => 'cust-bill-rollback-new-create-blocked-1',
+            'Accept' => 'application/json',
+        ])->postJson('/api/v1/reservations/'.$reservationId.'/bill/payment-sessions', [
+            'row_version' => (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version'),
+            'amount' => 100000,
+            'provider_code' => 'simulated',
+            'currency' => 'VND',
+        ])->assertStatus(422)
+            ->assertJsonPath('errors.provider_code.0', 'Customer bill self-payment is disabled for day 1. Keep bill preview and active-order reads only, and use staff settlement.');
+
+        $refresh = $this->actingAs($customer)->withHeaders([
+            'Idempotency-Key' => 'cust-bill-rollback-refresh-1',
+            'Accept' => 'application/json',
+        ])->postJson('/api/v1/reservations/'.$reservationId.'/bill/payment-sessions/'.$sessionId.'/refresh', [
+            'row_version' => $sessionRowVersion,
+            'simulation_outcome' => 'pending',
+        ])->assertOk()
+            ->assertJsonPath('data.payment_session.session_status', 'Pending');
+
+        $confirm = $this->actingAs($customer)->withHeaders([
+            'Idempotency-Key' => 'cust-bill-rollback-confirm-1',
+            'Accept' => 'application/json',
+        ])->postJson('/api/v1/reservations/'.$reservationId.'/bill/payment-sessions/'.$sessionId.'/confirm', [
+            'row_version' => (int) $refresh->json('data.payment_session.row_version'),
+            'simulation_outcome' => 'succeeded',
+        ]);
+
+        $confirm->assertOk()
+            ->assertJsonPath('data.payment_session.session_status', 'Succeeded')
+            ->assertJsonPath('data.payment_session.settlement_status', 'Applied')
+            ->assertJsonPath('data.bill.outstanding_amount', '0.00');
+
+        $this->assertSame(1, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Final')->count());
+        $this->assertSame(1, (int) DB::table('reservation_bill_payment_sessions')->where('reservation_id', $reservationId)->count());
     }
 
     public function test_duplicate_create_and_confirm_do_not_double_apply_final_payment(): void

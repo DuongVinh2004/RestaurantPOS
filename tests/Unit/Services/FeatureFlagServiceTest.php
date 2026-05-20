@@ -61,6 +61,29 @@ class FeatureFlagServiceTest extends TestCase
         self::assertNull($resolved['matched_branch_id']);
     }
 
+    public function test_runtime_branch_override_changes_are_visible_without_rebuilding_service_instance(): void
+    {
+        $branchId = $this->createBranch([
+            'branch_code' => 'FLAG-LIVE',
+            'branch_name' => 'Flag Live Branch',
+        ]);
+        $service = app(FeatureFlagService::class);
+
+        $before = $service->resolve('customer.bill_self_payment', $branchId, 'testing');
+        self::assertTrue((bool) $before['enabled']);
+        self::assertSame('config_default', $before['source']);
+
+        $this->upsertFeatureFlagOverride('customer.bill_self_payment', false, 'testing', $branchId, [
+            'reason' => 'canary rollback',
+        ]);
+
+        $after = $service->resolve('customer.bill_self_payment', $branchId, 'testing');
+        self::assertFalse((bool) $after['enabled']);
+        self::assertSame('database_override', $after['source']);
+        self::assertSame($branchId, $after['matched_branch_id']);
+        self::assertSame('canary rollback', $after['override_reason']);
+    }
+
     public function test_config_defaults_and_unknown_features_resolve_safely(): void
     {
         $service = app(FeatureFlagService::class);

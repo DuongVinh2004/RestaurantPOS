@@ -192,9 +192,12 @@ if ($existingConnection) {
     }
 }
 
+$repoLocalRedisServer = Join-Path $repoRoot 'tools\redis\redis-server.exe'
 $redisServerCommand = Get-Command redis-server.exe -ErrorAction SilentlyContinue
 $redisServer = if ($redisServerCommand) {
     $redisServerCommand.Source
+} elseif (Test-Path $repoLocalRedisServer) {
+    $repoLocalRedisServer
 } elseif (Test-Path $knownRedisServer) {
     $knownRedisServer
 } else {
@@ -214,11 +217,20 @@ $process = Start-Process `
     -WindowStyle Minimized `
     -PassThru
 
+$repoLocalRedisCli = Join-Path $repoRoot 'tools\redis\redis-cli.exe'
 $redisCliCommand = Get-Command redis-cli.exe -ErrorAction SilentlyContinue
-if ($redisCliCommand) {
+$redisCliPath = if ($redisCliCommand) {
+    $redisCliCommand.Source
+} elseif (Test-Path $repoLocalRedisCli) {
+    $repoLocalRedisCli
+} else {
+    $null
+}
+
+if ($redisCliPath) {
     $ready = $false
     for ($attempt = 1; $attempt -le 20; $attempt++) {
-        $ping = & $redisCliCommand.Source -h 127.0.0.1 -p $redisPort ping 2>$null
+        $ping = & $redisCliPath -h 127.0.0.1 -p $redisPort ping 2>$null
         if ($ping -eq 'PONG') {
             $ready = $true
             break

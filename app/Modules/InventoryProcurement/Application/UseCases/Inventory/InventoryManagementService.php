@@ -10,6 +10,7 @@ use App\Modules\Catalog\Domain\Models\MenuItemRecipe;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\InventoryProcurement\Domain\Models\Ingredient;
 use App\Modules\InventoryProcurement\Domain\Models\IngredientStockMovement;
+use App\Support\AuditEvent;
 use App\Support\Listing\SafeLike;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -93,7 +94,7 @@ class InventoryManagementService
     /**
      * @param  array<string, mixed>  $payload
      */
-    public function createIngredient(array $payload): Ingredient
+    public function createIngredient(array $payload, ?int $actorUserId = null): Ingredient
     {
         $ingredient = new Ingredient;
         // Ingredient la master data nen create flow giu rat thang: normalize field truoc khi save.
@@ -106,17 +107,38 @@ class InventoryManagementService
         ]);
         $ingredient->save();
 
-        return $this->findIngredient((int) $ingredient->ingredient_id);
+        $fresh = $this->findIngredient((int) $ingredient->ingredient_id);
+
+        AuditEvent::info('admin.ingredient.created', [
+            'ingredient_id' => (int) $fresh->ingredient_id,
+            'code' => $fresh->code,
+            '_audit' => [
+                'action' => 'inventory.ingredient.created',
+                'entity_type' => 'ingredient',
+                'entity_id' => (string) $fresh->ingredient_id,
+                'after' => $this->ingredientAuditSnapshot($fresh),
+                'summary' => [
+                    'code' => $fresh->code,
+                    'name' => (string) $fresh->name,
+                    'unit_code' => (string) $fresh->unit_code,
+                    'is_active' => (bool) $fresh->is_active,
+                ],
+                'actor' => $this->auditActor($actorUserId),
+            ],
+        ]);
+
+        return $fresh;
     }
 
     /**
      * @param  array<string, mixed>  $payload
      */
-    public function updateIngredient(int $ingredientId, array $payload): Ingredient
+    public function updateIngredient(int $ingredientId, array $payload, ?int $actorUserId = null): Ingredient
     {
-        return DB::transaction(function () use ($ingredientId, $payload): Ingredient {
+        return DB::transaction(function () use ($ingredientId, $payload, $actorUserId): Ingredient {
             /** @var Ingredient $ingredient */
             $ingredient = Ingredient::query()->lockForUpdate()->findOrFail($ingredientId);
+            $before = $this->ingredientAuditSnapshot($ingredient);
 
             // Ingredient edit dung optimistic lock de tranh de thay doi unit/code mo phong nhau.
             $this->assertExpectedRowVersion((int) ($ingredient->row_version ?? 1), (int) $payload['row_version']);
@@ -144,7 +166,28 @@ class InventoryManagementService
             $this->bumpRowVersion($ingredient);
             $ingredient->save();
 
-            return $this->findIngredient($ingredientId);
+            $fresh = $this->findIngredient($ingredientId);
+
+            AuditEvent::info('admin.ingredient.updated', [
+                'ingredient_id' => $ingredientId,
+                'code' => $fresh->code,
+                '_audit' => [
+                    'action' => 'inventory.ingredient.updated',
+                    'entity_type' => 'ingredient',
+                    'entity_id' => (string) $fresh->ingredient_id,
+                    'before' => $before,
+                    'after' => $this->ingredientAuditSnapshot($fresh),
+                    'summary' => [
+                        'code' => $fresh->code,
+                        'name' => (string) $fresh->name,
+                        'unit_code' => (string) $fresh->unit_code,
+                        'row_version' => (int) ($fresh->row_version ?? 1),
+                    ],
+                    'actor' => $this->auditActor($actorUserId),
+                ],
+            ]);
+
+            return $fresh;
         }, 3);
     }
 
@@ -445,6 +488,37 @@ class InventoryManagementService
     {
         // Moi update ingredient hop le deu tang row_version.
         $ingredient->row_version = max(1, (int) ($ingredient->row_version ?? 1)) + 1;
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function ingredientAuditSnapshot(Ingredient $ingredient): array
+    {
+        return [
+            'code' => $ingredient->code,
+            'name' => (string) $ingredient->name,
+            'unit_code' => (string) $ingredient->unit_code,
+            'description' => $ingredient->description,
+            'is_active' => (bool) $ingredient->is_active,
+            'row_version' => (int) ($ingredient->row_version ?? 1),
+        ];
+    }
+
+    /**
+     * @return array{type:string,user_id:int,key:string}|null
+     */
+    private function auditActor(?int $actorUserId): ?array
+    {
+        if ($actorUserId === null || $actorUserId <= 0) {
+            return null;
+        }
+
+        return [
+            'type' => 'staff_user',
+            'user_id' => $actorUserId,
+            'key' => 'staff_user:'.$actorUserId,
+        ];
     }
 
     /**

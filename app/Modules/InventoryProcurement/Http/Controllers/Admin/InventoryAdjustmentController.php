@@ -91,7 +91,10 @@ class InventoryAdjustmentController extends Controller
     public function createIngredient(CreateIngredientRequest $request): JsonResponse
     {
         $this->assertInventoryUpliftEnabled($request);
-        $ingredient = $this->inventoryService->createIngredient($request->validated());
+        $ingredient = $this->inventoryService->createIngredient(
+            $request->validated(),
+            $this->resolveStaffActorUserId($request),
+        );
 
         return response()->json([
             'data' => (new IngredientResource($ingredient))->toArray($request),
@@ -102,7 +105,11 @@ class InventoryAdjustmentController extends Controller
     {
         $this->assertInventoryUpliftEnabled($request);
         try {
-            $ingredient = $this->inventoryService->updateIngredient($id, $request->validated());
+            $ingredient = $this->inventoryService->updateIngredient(
+                $id,
+                $request->validated(),
+                $this->resolveStaffActorUserId($request),
+            );
         } catch (ModelNotFoundException) {
             return $this->notFoundResponse($request, 'Ingredient not found.');
         }

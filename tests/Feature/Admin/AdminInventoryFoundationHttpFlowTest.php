@@ -6,11 +6,13 @@ namespace Tests\Feature\Admin;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\AssertsAuditTrail;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
 class AdminInventoryFoundationHttpFlowTest extends TestCase
 {
+    use AssertsAuditTrail;
     use BuildsBookingScenario;
     use DatabaseTransactions;
 
@@ -70,6 +72,16 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
             ->assertJsonPath('data.description', 'Premium dry jasmine rice')
             ->assertJsonPath('data.is_active', true)
             ->assertJsonPath('data.row_version', $ingredientRowVersion + 1);
+
+        $createdLog = $this->assertAuditLogRecorded('inventory.ingredient.created', 'ingredient', $ingredientId);
+        self::assertSame($adminId, $createdLog->actor_user_id);
+        self::assertSame('staff_user', $createdLog->actor_type);
+
+        $updatedLog = $this->assertAuditLogRecorded('inventory.ingredient.updated', 'ingredient', $ingredientId);
+        self::assertSame($adminId, $updatedLog->actor_user_id);
+        self::assertSame('staff_user', $updatedLog->actor_type);
+        self::assertSame('Premium dry jasmine rice', (string) data_get($updatedLog->after_json, 'description'));
+        self::assertSame($ingredientRowVersion + 1, (int) data_get($updatedLog->after_json, 'row_version'));
 
         $syncRecipe = $this->withHeaders($this->withIdempotencyKey($headers, 'idem-admin-inventory-recipe-sync'))
             ->putJson('/api/v1/admin/inventory/menu-items/'.$itemId.'/recipe', [

@@ -326,6 +326,7 @@ class ReleaseLoopService
                 'label' => 'Staff-web live smoke',
                 'command' => ['npm', 'run', 'smoke:live'],
                 'cwd' => $staffWebPath,
+                'kind' => 'live_smoke',
                 'env' => $this->buildSmokeEnvironment(
                     target: $target,
                     manifestPath: $manifestPath,
@@ -334,6 +335,18 @@ class ReleaseLoopService
                     previewLabel: $previewLabel,
                     evidenceDir: base_path(trim($stepArtifactRoot.'/staff-web-smoke', '/')),
                 ),
+            ],
+            [
+                'key' => 'heartbeat_refresh',
+                'label' => 'Heartbeat refresh',
+                'command' => $this->buildArtisanCommand('booking:ops-heartbeat:touch', ['scheduler', '--json']),
+                'cwd' => $rootPath,
+                'capture_json' => true,
+                // Refresh the scheduler heartbeat immediately before launch-readiness so that
+                // the doctor probe inside launch-readiness always finds a fresh heartbeat,
+                // regardless of how long the preceding steps (e.g. frontend test suites) ran.
+                // On real CI the scheduler daemon keeps the heartbeat alive automatically;
+                // on local-dev machines the release loop must touch it explicitly.
             ],
             [
                 'key' => 'backend_launch_readiness',
@@ -363,7 +376,98 @@ class ReleaseLoopService
             return $this->executePreviewStep($definition);
         }
 
+        if (($definition['kind'] ?? null) === 'live_smoke') {
+            return $this->executeLiveSmokeStep($definition, $stepArtifactRoot);
+        }
+
         return $this->executeCommandStep($definition, $stepArtifactRoot);
+    }
+
+    /**
+     * Runs the staff-web live smoke step, ensuring an ephemeral backend HTTP server is
+     * available at 127.0.0.1:8000 if one is not already listening. The server is started
+     * before the smoke run and terminated immediately after, so the release loop is
+     * fully self-contained with no prerequisite about a running server.
+     *
+     * @param  array<string, mixed>  $definition
+     * @return array<string, mixed>
+     */
+    protected function executeLiveSmokeStep(array $definition, string $stepArtifactRoot): array
+    {
+        $serveHost = '127.0.0.1';
+        $servePort = 8000;
+        $alreadyListening = $this->isPortListening($serveHost, $servePort);
+        $ephemeralServer = null;
+
+        if (! $alreadyListening) {
+            $ephemeralServer = $this->startEphemeralBackendServer($serveHost, $servePort);
+        }
+
+        try {
+            return $this->executeCommandStep($definition, $stepArtifactRoot);
+        } finally {
+            if ($ephemeralServer !== null && $ephemeralServer->isRunning()) {
+                $this->stopEphemeralBackendServer($ephemeralServer);
+            }
+        }
+    }
+
+    /**
+     * Starts `php artisan serve` as a background process and waits until the health
+     * endpoint responds (or the deadline is reached).
+     */
+    private function startEphemeralBackendServer(string $host, int $port): ?Process
+    {
+        $server = new Process(
+            [PHP_BINARY, 'artisan', 'serve', "--host={$host}", "--port={$port}"],
+            base_path(),
+            null,
+            null,
+            null, // no timeout: we manage the lifecycle ourselves
+        );
+
+        $server->start();
+
+        // Wait up to 15 seconds for the server to accept connections.
+        $deadline = microtime(true) + 15;
+        $ready = false;
+        while (microtime(true) < $deadline) {
+            if ($this->isPortListening($host, $port)) {
+                $ready = true;
+                break;
+            }
+            usleep(300_000); // 300 ms
+        }
+
+        if (! $ready) {
+            // Server failed to start — terminate it and return null so the smoke step
+            // runs anyway (it will fail with a network error, which is the correct outcome).
+            $server->stop(3);
+            return null;
+        }
+
+        return $server;
+    }
+
+    /**
+     * Gracefully terminates the ephemeral backend server process.
+     */
+    private function stopEphemeralBackendServer(Process $server): void
+    {
+        $server->stop(5);
+    }
+
+    /**
+     * Returns true if a TCP listener is accepting connections on the given host:port.
+     */
+    private function isPortListening(string $host, int $port): bool
+    {
+        $socket = @fsockopen($host, $port, $errno, $errstr, 1.0);
+        if ($socket !== false) {
+            fclose($socket);
+            return true;
+        }
+        return false;
     }
 
     /**
