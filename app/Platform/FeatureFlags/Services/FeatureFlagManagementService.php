@@ -113,6 +113,9 @@ class FeatureFlagManagementService
                 $action = 'unchanged';
             }
 
+            // Evict the cache entry so resolve() below reads the freshly written DB row.
+            $this->featureFlags->forgetResolved($featureKey, $branchScopeId > 0 ? $branchScopeId : null, $environment);
+
             return [
                 'action' => $action,
                 'feature' => $this->featureFlags->resolve($featureKey, $branchScopeId > 0 ? $branchScopeId : null, $environment),
@@ -171,6 +174,9 @@ class FeatureFlagManagementService
                     ],
                 );
             }
+
+            // Evict the cache entry so resolve() below reflects the cleared DB state.
+            $this->featureFlags->forgetResolved($featureKey, $branchScopeId > 0 ? $branchScopeId : null, $environment);
 
             return [
                 'action' => $hadOverride ? 'cleared' : 'noop',

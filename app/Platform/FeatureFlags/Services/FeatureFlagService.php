@@ -15,6 +15,16 @@ class FeatureFlagService
     private ?bool $tableAvailable = null;
 
     /**
+     * Per-instance resolve() memoization cache, keyed by "featureKey:environment:branchId".
+     *
+     * This prevents repeated DB queries when the same feature flag is resolved multiple
+     * times within a single request (e.g. inside hydrateCollection loops).
+     *
+     * @var array<string,array<string,mixed>>
+     */
+    private array $resolvedCache = [];
+
+    /**
      * @return array<string,array<string,mixed>>
      */
     public function registry(): array
@@ -49,6 +59,14 @@ class FeatureFlagService
         $featureKey = $this->normalizeFeatureKey($featureKey);
         $environment = $this->normalizeEnvironment($environment);
         $requestedBranchId = $this->normalizeBranchId($branchId);
+
+        // Per-instance cache: avoid repeated DB queries for the same (key, env, branch)
+        // within a single request lifecycle (e.g. inside collection-iteration loops).
+        $cacheKey = $featureKey.':'.$environment.':'.$requestedBranchId;
+        if (array_key_exists($cacheKey, $this->resolvedCache)) {
+            return $this->resolvedCache[$cacheKey];
+        }
+
         $feature = $this->registry()[$featureKey] ?? null;
 
         $base = [
@@ -62,7 +80,7 @@ class FeatureFlagService
         ];
 
         if (! is_array($feature)) {
-            return array_merge($base, [
+            return $this->resolvedCache[$cacheKey] = array_merge($base, [
                 'enabled' => false,
                 'source' => 'unknown_feature',
                 'matched_environment' => null,
@@ -76,13 +94,16 @@ class FeatureFlagService
             ]);
         }
 
+        // Load all overrides for this feature in one DB query (called once, not per candidate).
+        $overrides = $this->loadOverridesForFeature($featureKey, $environment);
+
         foreach ($this->resolutionCandidates($environment, $requestedBranchId) as [$candidateEnvironment, $candidateBranchId]) {
-            $override = $this->loadOverridesForFeature($featureKey, $environment)[$candidateEnvironment][$candidateBranchId] ?? null;
+            $override = $overrides[$candidateEnvironment][$candidateBranchId] ?? null;
             if (! $override instanceof FeatureFlag) {
                 continue;
             }
 
-            return array_merge($base, [
+            return $this->resolvedCache[$cacheKey] = array_merge($base, [
                 'enabled' => (bool) $override->enabled,
                 'source' => 'database_override',
                 'matched_environment' => $candidateEnvironment,
@@ -98,7 +119,7 @@ class FeatureFlagService
 
         $default = $this->resolveDefaultEnabled($feature, $environment);
 
-        return array_merge($base, [
+        return $this->resolvedCache[$cacheKey] = array_merge($base, [
             'enabled' => $default['enabled'],
             'source' => 'config_default',
             'matched_environment' => $default['matched_environment'],
@@ -110,6 +131,29 @@ class FeatureFlagService
             'row_version' => null,
             'message' => $default['enabled'] ? 'Feature flag is enabled by config default.' : $base['disabled_message'],
         ]);
+    }
+
+    /**
+     * Evict a cached resolve() result so the next call re-queries the DB.
+     * Call this after admin-side feature flag updates to ensure the new value
+     * is visible within the same request.
+     */
+    public function forgetResolved(string $featureKey, ?int $branchId = null, ?string $environment = null): void
+    {
+        $featureKey = $this->normalizeFeatureKey($featureKey);
+        $environment = $this->normalizeEnvironment($environment);
+        $requestedBranchId = $this->normalizeBranchId($branchId);
+        $cacheKey = $featureKey.':'.$environment.':'.$requestedBranchId;
+        unset($this->resolvedCache[$cacheKey]);
+    }
+
+    /**
+     * Evict all cached resolve() results.
+     * Use after bulk admin mutations or in tests that change flag state mid-request.
+     */
+    public function forgetAllResolved(): void
+    {
+        $this->resolvedCache = [];
     }
 
     public function enabled(string $featureKey, ?int $branchId = null, ?string $environment = null): bool

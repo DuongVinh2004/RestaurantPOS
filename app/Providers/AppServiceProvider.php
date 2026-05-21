@@ -6,6 +6,7 @@ use App\Http\Middleware\RequireStaffCapability;
 use App\Modules\Reservations\Application\Services\ReservationCodeGenerator;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Platform\ApiContract\Services\DatabaseContractInspector;
+use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
@@ -19,6 +20,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ReservationCodeGenerator::class);
         $this->app->singleton(RuntimeSettingService::class);
         $this->app->singleton(DatabaseContractInspector::class);
+        // Singleton so the per-request resolvedCache is shared across all injection
+        // points (e.g. WaitingList orchestration + BillPreview in the same request).
+        $this->app->singleton(FeatureFlagService::class);
     }
 
     public function boot(): void

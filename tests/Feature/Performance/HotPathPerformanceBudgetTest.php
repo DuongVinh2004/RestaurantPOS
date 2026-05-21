@@ -24,13 +24,15 @@ class HotPathPerformanceBudgetTest extends TestCase
         parent::setUp();
 
         $this->requireBookingSchema();
-        config()->set('booking.require_redis_for_booking_api', false);
-        config()->set('staff_auth.database_store_enabled', false);
-        config()->set('staff_auth.allow_env_fallback', true);
-        config()->set('staff_auth.allow_env_fallback_when_database_store_unavailable', true);
-        config()->set('staff_auth.allow_role_name_fallback', true);
-        config()->set('staff_auth.allowed_role_names', ['Admin', 'Staff']);
-        config()->set('staff_auth.api_keys', []);
+        /** @var \Illuminate\Contracts\Config\Repository $config */
+        $config = config();
+        $config->set('booking.require_redis_for_booking_api', false);
+        $config->set('staff_auth.database_store_enabled', false);
+        $config->set('staff_auth.allow_env_fallback', true);
+        $config->set('staff_auth.allow_env_fallback_when_database_store_unavailable', true);
+        $config->set('staff_auth.allow_role_name_fallback', true);
+        $config->set('staff_auth.allowed_role_names', ['Admin', 'Staff']);
+        $config->set('staff_auth.api_keys', []);
     }
 
     public function test_staff_table_board_candidate_preview_stays_within_query_budget(): void

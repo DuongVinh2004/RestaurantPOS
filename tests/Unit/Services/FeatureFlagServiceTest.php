@@ -77,6 +77,10 @@ class FeatureFlagServiceTest extends TestCase
             'reason' => 'canary rollback',
         ]);
 
+        // Direct DB mutations that bypass FeatureFlagManagementService must explicitly
+        // invalidate the per-instance resolved cache so the next resolve() re-queries.
+        $service->forgetResolved('customer.bill_self_payment', $branchId, 'testing');
+
         $after = $service->resolve('customer.bill_self_payment', $branchId, 'testing');
         self::assertFalse((bool) $after['enabled']);
         self::assertSame('database_override', $after['source']);

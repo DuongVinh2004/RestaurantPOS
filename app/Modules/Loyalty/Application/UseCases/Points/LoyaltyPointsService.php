@@ -108,9 +108,10 @@ class LoyaltyPointsService
      */
     public function getReservationLoyaltyPreview(Reservation $reservation, ?Collection $payments = null, ?array $billSnapshot = null): array
     {
+        // Do not pre-resolve pointLedger here: buildReservationLoyaltyPayload resolves it
+        // lazily via ??=, avoiding a redundant user_points query when the row is absent.
         return $this->buildReservationLoyaltyPayload(
             reservation: $reservation,
-            pointLedger: $this->resolveReservationPointLedger($reservation),
             payments: $payments,
             billSnapshot: $billSnapshot,
         );
