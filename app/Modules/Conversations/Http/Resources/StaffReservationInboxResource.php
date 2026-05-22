@@ -107,6 +107,7 @@ class StaffReservationInboxResource extends JsonResource
             ],
             'deposit_self_service' => $depositSelfService,
             'financials' => $financials,
+            'deposit_status' => $this->deposit_status?->value ?? (string) ($this->deposit_status ?? ''),
         ];
     }
 

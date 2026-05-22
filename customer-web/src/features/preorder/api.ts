@@ -30,6 +30,23 @@ export function replaceReservationPreorder(
   ).then(unwrapData);
 }
 
+export function submitReservationPreorder(
+  reservationId: number,
+  rowVersion: number,
+  preOrderRowVersion?: number | null,
+): Promise<ReservationPreorderResult> {
+  return apiCall((client) =>
+    client.postV1ReservationsIdPreorderSubmit(
+      { id: reservationId },
+      {
+        row_version: rowVersion,
+        pre_order_row_version: preOrderRowVersion ?? undefined,
+      },
+      idempotentSessionOptions("reservation-preorder-submit")
+    ),
+  ).then(unwrapData);
+}
+
 export function clearReservationPreorder(
   reservationId: number,
   rowVersion: number,

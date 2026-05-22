@@ -1,4 +1,5 @@
 import { App as AntdApp } from 'antd';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { ReservationDetailDrawer } from './ReservationDetailDrawer';
@@ -32,9 +33,12 @@ describe('ReservationDetailDrawer', () => {
   });
 
   it('shows a snapshot badge for snapshot-only guests', async () => {
+    const queryClient = new QueryClient();
+
     render(
-      <AntdApp>
-        <ReservationDetailDrawer
+      <QueryClientProvider client={queryClient}>
+        <AntdApp>
+          <ReservationDetailDrawer
           open
           reservation={{
             reservation_id: 91,
@@ -56,7 +60,8 @@ describe('ReservationDetailDrawer', () => {
           activeOrder={null}
           onClose={() => {}}
         />
-      </AntdApp>,
+        </AntdApp>
+      </QueryClientProvider>,
     );
 
     expect(await screen.findAllByText('Khách snapshot')).not.toHaveLength(0);

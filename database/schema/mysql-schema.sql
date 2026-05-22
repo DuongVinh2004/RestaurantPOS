@@ -1384,8 +1384,10 @@ CREATE TABLE `restaurant_tables` (
   `is_deleted` tinyint unsigned NOT NULL DEFAULT '0',
   `row_version` bigint unsigned NOT NULL DEFAULT '1',
   `price` decimal(14,2) DEFAULT NULL,
+  `qr_payment_token` char(64) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
   PRIMARY KEY (`table_id`),
   UNIQUE KEY `uq_restaurant_tables__table_code` (`table_code`),
+  UNIQUE KEY `uq_restaurant_tables__qr_payment_token` (`qr_payment_token`),
   KEY `idx_restaurant_tables__branch_id__status__zone` (`branch_id`,`status`,`zone`),
   KEY `fk_restaurant_tables__template_id__table_templates` (`template_id`),
   CONSTRAINT `chk_restaurant_tables__price_nonneg` CHECK (((`price` is null) or (`price` >= 0)))
@@ -2561,3 +2563,42 @@ ALTER TABLE `kitchen_order_item_tickets` ADD CONSTRAINT `fk_kitchen_order_item_t
 ALTER TABLE `kitchen_order_item_tickets` ADD CONSTRAINT `fk_kitchen_order_item_tickets__route_id__kitchen_statio_37e6acbc` FOREIGN KEY (`route_id`) REFERENCES `kitchen_station_category_routes` (`route_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `kitchen_order_item_tickets` ADD CONSTRAINT `fk_kitchen_order_item_tickets__station_id__kitchen_stations` FOREIGN KEY (`station_id`) REFERENCES `kitchen_stations` (`station_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `kitchen_order_item_tickets` ADD CONSTRAINT `fk_kitchen_order_item_tickets__updated_by__users` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
+-- Create preorders table
+CREATE TABLE `preorders` (
+  `preorder_id` int unsigned NOT NULL AUTO_INCREMENT,
+  `reservation_id` int unsigned NOT NULL,
+  `customer_user_id` int unsigned DEFAULT NULL,
+  `status` enum('draft','submitted','confirmed','rejected','cancelled','converted') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
+  `notes` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `submitted_at` datetime(6) DEFAULT NULL,
+  `confirmed_at` datetime(6) DEFAULT NULL,
+  `rejected_at` datetime(6) DEFAULT NULL,
+  `cancelled_at` datetime(6) DEFAULT NULL,
+  `converted_at` datetime(6) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `row_version` bigint unsigned NOT NULL DEFAULT '1',
+  PRIMARY KEY (`preorder_id`),
+  UNIQUE KEY `idx_preorders__reservation_id` (`reservation_id`),
+  KEY `fk_preorders__customer_user_id__users` (`customer_user_id`),
+  CONSTRAINT `fk_preorders__reservation_id__reservations` FOREIGN KEY (`reservation_id`) REFERENCES `reservations` (`reservation_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create preorder_items table
+CREATE TABLE `preorder_items` (
+  `preorder_item_id` int unsigned NOT NULL AUTO_INCREMENT,
+  `preorder_id` int unsigned NOT NULL,
+  `menu_item_id` int unsigned NOT NULL,
+  `item_name_snapshot` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `unit_price_snapshot` decimal(13,2) NOT NULL DEFAULT '0.00',
+  `quantity` int unsigned NOT NULL DEFAULT '1',
+  `line_total_snapshot` decimal(13,2) NOT NULL DEFAULT '0.00',
+  `currency` varchar(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'VND',
+  `notes` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`preorder_item_id`),
+  KEY `fk_preorder_items__preorder_id__preorders` (`preorder_id`),
+  KEY `fk_preorder_items__menu_item_id__menu_items` (`menu_item_id`),
+  CONSTRAINT `fk_preorder_items__preorder_id__preorders` FOREIGN KEY (`preorder_id`) REFERENCES `preorders` (`preorder_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

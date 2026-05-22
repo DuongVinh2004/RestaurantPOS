@@ -2014,6 +2014,10 @@ export type GetV1StaffReservationsQueryParams = {
   include_financials?: (boolean) | null;
 };
 
+export type GetV1StaffReservationsReservationIdDepositPreviewPathParams = {
+  reservation_id: number;
+};
+
 export type GetV1StaffReservationsReservationIdOrdersPathParams = {
   reservation_id: number;
 };
@@ -2293,6 +2297,17 @@ export type PayOrderRequest = {
   staff_user_id?: (number) | null;
 };
 
+export type PayReservationDepositRequest = {
+  payment_method: string;
+  payment_provider?: ("MoMo" | "VNPay" | "Cash" | "Card" | "BankTransfer" | "Other") | null;
+  amount: number;
+  currency?: (string) | null;
+  transaction_code?: (string) | null;
+  notes?: (string) | null;
+  row_version: number;
+  staff_user_id?: (number) | null;
+};
+
 export type PostV1AdminInventoryIngredientsIdMovementsPathParams = {
   id: number;
 };
@@ -2475,6 +2490,10 @@ export type PostV1StaffReservationsIdCheckInPathParams = {
 
 export type PostV1StaffReservationsIdMoveTablePathParams = {
   id: number;
+};
+
+export type PostV1StaffReservationsReservationIdDepositPayPathParams = {
+  reservation_id: number;
 };
 
 export type PostV1StaffReservationsReservationIdRefundCancelPathParams = {
@@ -3790,6 +3809,7 @@ export type StaffReservationLookupEntry = {
 };
   deposit_self_service: Record<string, unknown>;
   financials: (Record<string, unknown>) | null;
+  deposit_status?: (string) | null;
 };
 
 export type StaffReservationLookupTable = {
@@ -5756,6 +5776,32 @@ export class RestaurantPosClient {
     return this.request<StaffRefundEnvelope>(
       'POST',
       this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/refund-cancel', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async getV1StaffReservationsReservationIdDepositPreview(pathParams: GetV1StaffReservationsReservationIdDepositPreviewPathParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/deposit-preview', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async postV1StaffReservationsReservationIdDepositPay(pathParams: PostV1StaffReservationsReservationIdDepositPayPathParams, body: PayReservationDepositRequest, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/deposit/pay', pathParams as Record<string, string | number>),
       'staff',
       false,
       true,

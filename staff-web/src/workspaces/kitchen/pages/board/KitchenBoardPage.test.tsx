@@ -136,6 +136,7 @@ describe('KitchenBoardPage', () => {
         pinned_route_count: 0,
       },
     });
+    apiMocks.getKitchenStationTickets.mockResolvedValue(createTicketsEnvelope(33, []));
 
     renderWithProviders('/kitchen?source=order&order_id=56&order_row_version=10');
 

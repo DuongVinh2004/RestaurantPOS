@@ -50,6 +50,7 @@ const AdminBenefitsPage = lazyRoute(() => import('../../workspaces/admin/pages/b
 const AdminPrivacyPage = lazyRoute(() => import('../../workspaces/admin/pages/privacy/AdminPrivacyPage'), 'AdminPrivacyPage');
 const AuditTrailPage = lazyRoute(() => import('../../workspaces/admin/pages/audit/AuditTrailPage'), 'AuditTrailPage');
 const ReportingHubPage = lazyRoute(() => import('../../workspaces/admin/pages/reporting/ReportingHubPage'), 'ReportingHubPage');
+const CommandCenterPage = lazyRoute(() => import('../../workspaces/ops/pages/command-center/CommandCenterPage'), 'CommandCenterPage');
 
 export function AppRouter() {
   return (
@@ -145,6 +146,8 @@ function renderWorkspacePage(page: StaffWorkspacePageId): JSX.Element {
       return <ReportingHubPage />;
     case 'audit-trail':
       return <AuditTrailPage />;
+    case 'command-center':
+      return <CommandCenterPage />;
     default:
       return <DashboardRoute />;
   }

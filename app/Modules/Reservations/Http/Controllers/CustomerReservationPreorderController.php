@@ -12,6 +12,7 @@ use App\Modules\Reservations\Domain\Policies\ReservationAccessScope;
 use App\Modules\Reservations\Http\Requests\ClearCustomerReservationPreorderRequest;
 use App\Modules\Reservations\Http\Requests\PreviewCustomerReservationPreorderRequest;
 use App\Modules\Reservations\Http\Requests\ReplaceCustomerReservationPreorderRequest;
+use App\Modules\Reservations\Http\Requests\SubmitCustomerReservationPreorderRequest;
 use App\Support\ApiErrorResponse;
 use App\Support\Auth\RequestActorContext;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -99,6 +100,30 @@ class CustomerReservationPreorderController extends Controller
             'data' => $this->basePayload($result),
             'meta' => [
                 'action' => 'customer_reservation_preorder_replace',
+                'access_scope' => $context['scope'],
+            ],
+        ]));
+    }
+
+    public function submit(int $id, SubmitCustomerReservationPreorderRequest $request): JsonResponse
+    {
+        $context = $this->resolveCustomerContext($request);
+
+        try {
+            $result = $this->service->submitAccessiblePreorder(
+                reservationId: $id,
+                customerUserId: $context['customer_user_id'],
+                sessionId: $context['session_id'],
+                payload: $request->validated(),
+            );
+        } catch (ModelNotFoundException) {
+            return $this->notFoundReservationResponse($request);
+        }
+
+        return $this->applyLegacyAliasHeaders($request, response()->json([
+            'data' => $this->basePayload($result),
+            'meta' => [
+                'action' => 'customer_reservation_preorder_submit',
                 'access_scope' => $context['scope'],
             ],
         ]));

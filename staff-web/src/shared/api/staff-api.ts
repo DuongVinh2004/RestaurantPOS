@@ -62,6 +62,7 @@ import type {
   MoveTableRequest,
   OpenCashierShiftRequest,
   PayOrderRequest,
+  PayReservationDepositRequest,
   ReservationActionEnvelope,
   ReservationEnvelope,
   ReservationOrder,
@@ -118,6 +119,7 @@ import { createIdempotencyKey } from '../utils/idempotency';
 import { staffClient } from './client';
 import { StaffApiError, apiRequest } from './http';
 export { getCurrentStaffSession, loginStaff, logoutStaff, refreshStaffSession } from './staff-auth-api';
+export type { PayReservationDepositRequest } from './sdk';
 export { listBranches } from './staff-branch-api';
 
 export type WalkInPayload = {
@@ -873,6 +875,108 @@ export async function upsertAdminBenefitSetting(payload: AdminBenefitSettingPayl
   );
 }
 
+export async function updateAdminBenefitSetting(
+  payload: UpsertBenefitSettingRequest,
+): Promise<AdminBenefitSettingEnvelope> {
+  return staffClient.postV1AdminSettingsBenefits(payload, {
+    idempotencyKey: createIdempotencyKey(`admin-benefit-setting-${payload.setting_key}`),
+  });
+}
+
+export type StaffReservationPreorderStatusEnvelope = {
+  data: {
+    preorder_id: number;
+    status: string;
+    confirmed_at?: string;
+    rejected_at?: string;
+  };
+  meta: {
+    action: string;
+  };
+};
+
+export type StaffReservationPreorderConvertEnvelope = {
+  data: {
+    order_id: number;
+    order_type: string;
+    status: string;
+  };
+  meta: {
+    action: string;
+  };
+};
+
+export type StaffReservationPreorderEnvelope = {
+  data: {
+    reservation_id: number;
+    pre_order: {
+      present: boolean;
+      preorder_id?: number;
+      order_row_version?: number;
+      order_status?: string;
+      service_time?: string;
+      currency?: string;
+      totals?: {
+        quantity: number;
+        subtotal: string;
+      };
+      lines?: Array<{
+        order_item_id: number;
+        item_id: number;
+        name: string;
+        quantity: number;
+        unit_price: string;
+        line_total: string;
+        currency: string;
+        notes?: string | null;
+      }>;
+    };
+  };
+  meta: {
+    action: string;
+  };
+};
+
+export async function getStaffReservationPreorder(
+  reservationId: number,
+): Promise<StaffReservationPreorderEnvelope> {
+  return apiRequest<StaffReservationPreorderEnvelope>(`/staff/reservations/${reservationId}/preorder`);
+}
+
+export async function confirmStaffReservationPreorder(
+  reservationId: number,
+): Promise<StaffReservationPreorderStatusEnvelope> {
+  return apiRequest<StaffReservationPreorderStatusEnvelope>(`/staff/reservations/${reservationId}/preorder/confirm`, {
+    method: 'POST',
+    headers: {
+      'Idempotency-Key': createIdempotencyKey(`staff-reservation-preorder-confirm-${reservationId}`),
+    },
+  });
+}
+
+export async function rejectStaffReservationPreorder(
+  reservationId: number,
+): Promise<StaffReservationPreorderStatusEnvelope> {
+  return apiRequest<StaffReservationPreorderStatusEnvelope>(`/staff/reservations/${reservationId}/preorder/reject`, {
+    method: 'POST',
+    headers: {
+      'Idempotency-Key': createIdempotencyKey(`staff-reservation-preorder-reject-${reservationId}`),
+    },
+  });
+}
+
+export async function convertStaffReservationPreorder(
+  reservationId: number,
+): Promise<StaffReservationPreorderConvertEnvelope> {
+  return apiRequest<StaffReservationPreorderConvertEnvelope>(`/staff/reservations/${reservationId}/preorder/convert`, {
+    method: 'POST',
+    headers: {
+      'Idempotency-Key': createIdempotencyKey(`staff-reservation-preorder-convert-${reservationId}`),
+    },
+  });
+}
+
+
 export async function listAdminPrivacyRequests(query: AdminPrivacyRequestQuery = { per_page: 20 }): Promise<AdminPrivacyRequestCollectionEnvelope> {
   return staffClient.getV1AdminPrivacyRequests(query as GetV1AdminPrivacyRequestsQueryParams);
 }
@@ -1064,6 +1168,17 @@ export async function createReservation(payload: CreateReservationPayload): Prom
 
 export async function getReservationDetail(reservationId: number): Promise<ReservationEnvelope> {
   return staffClient.getV1StaffReservationsReservationId({ reservation_id: reservationId });
+}
+
+export async function payReservationDeposit(
+  reservationId: number,
+  payload: PayReservationDepositRequest,
+): Promise<GenericDataEnvelope> {
+  return staffClient.postV1StaffReservationsReservationIdDepositPay(
+    { reservation_id: reservationId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`reservation-deposit-pay-${reservationId}`) },
+  );
 }
 
 export async function cancelReservation(

@@ -4,16 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\Reservations\Application\Services;
 
-use App\Enums\ReservationOrderItemStatus;
-use App\Enums\ReservationOrderStatus;
-use App\Enums\ReservationOrderType;
+use App\Enums\PreorderStatus;
 use App\Enums\ReservationStatus;
 use App\Modules\Catalog\Application\UseCases\PolicyPreview\MenuPreorderPolicyService;
 use App\Modules\Catalog\Domain\Models\MenuItem;
 use App\Modules\Catalog\Domain\Models\MenuItemPrice;
 use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
-use App\Modules\Ordering\Domain\Models\ReservationOrder;
-use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
+use App\Modules\Ordering\Domain\Models\Preorder;
+use App\Modules\Ordering\Domain\Models\PreorderItem;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
 use App\Support\AuditEvent;
@@ -23,10 +21,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-/**
- * Service này đóng vai trò "Người phục vụ ảo" cho phép khách hàng tự xem,
- * tính tiền tạm tính (preview), cập nhật (replace) hoặc hủy (clear) danh sách các món đặt trước.
- */
 class CustomerReservationPreorderService
 {
     public function __construct(
@@ -35,33 +29,18 @@ class CustomerReservationPreorderService
         private readonly ReservationLockService $locks,
     ) {}
 
-    /**
-     * --- HÀM 1: XEM DANH SÁCH MÓN ĐẶT TRƯỚC ---
-     *
-     * @return array{reservation:Reservation,pre_order:array<string,mixed>,management_policy:array<string,mixed>}
-     */
     public function showAccessiblePreorder(int $reservationId, ?int $customerUserId, ?string $sessionId): array
     {
-        // Bước 1: Tải đơn đặt bàn và kiểm duyệt quyền truy cập (Chống IDOR)
         $reservation = $this->loadAccessibleReservation(
             reservationId: $reservationId,
             customerUserId: $customerUserId,
             sessionId: $sessionId,
-            lockForUpdate: false, // Lệnh đọc nên không cần khóa DB
+            lockForUpdate: false,
         );
 
-        // Bước 2: Đóng gói dữ liệu trả về kèm theo Chính sách quản lý (Có được phép sửa tiếp không)
-        return $this->buildResponse($reservation, $this->findCurrentPreorderOrder($reservationId));
+        return $this->buildResponse($reservation, $reservation->preorder);
     }
 
-    /**
-     * --- HÀM 2: XEM TRƯỚC HÓA ĐƠN TẠM TÍNH (PREVIEW) ---
-     * Khách hàng tick chọn món mới trên giao diện, hàm này trả về hóa đơn tạm tính (tổng tiền, thuế...)
-     * MÀ CHƯA LƯU VÀO DB. Giúp khách xác nhận trước khi thực sự ấn "Lưu thay đổi".
-     *
-     * @param  array<int, array<string,mixed>>  $requestedItems
-     * @return array{reservation:Reservation,current_pre_order:array<string,mixed>,management_policy:array<string,mixed>,preview:array<string,mixed>}
-     */
     public function previewAccessiblePreorderUpdate(int $reservationId, ?int $customerUserId, ?string $sessionId, array $requestedItems): array
     {
         $reservation = $this->loadAccessibleReservation(
@@ -71,42 +50,26 @@ class CustomerReservationPreorderService
             lockForUpdate: false,
         );
 
-        // Chặn ngay lập tức nếu đơn đã Check-in hoặc quá sát giờ (Cut-off time)
         $this->assertReservationPreorderMutable($reservation);
 
-        // Xây dựng bản Preview (Kiểm tra quota, lấy giá mới nhất của món ăn)
         $preview = $this->buildRequestedPreorderPreview(
             requestedItems: $requestedItems,
             serviceStart: Carbon::parse((string) $reservation->start_time)->utc(),
             ignoreReservationId: (int) $reservation->reservation_id,
         );
 
-        $currentOrder = $this->findCurrentPreorderOrder((int) $reservation->reservation_id);
-
         return [
             'reservation' => $reservation,
-            'current_pre_order' => $this->buildCurrentPreorderSnapshot($reservation, $currentOrder),
+            'current_pre_order' => $this->buildCurrentPreorderSnapshot($reservation, $reservation->preorder),
             'management_policy' => $this->buildManagementPolicy($reservation),
             'preview' => $preview,
         ];
     }
 
-    /**
-     * --- HÀM 3: GHI NHẬN THAY ĐỔI MÓN (REPLACE) ---
-     * Xóa toàn bộ món đặt trước cũ (nếu có) và ghi đè bằng danh sách món mới.
-     *
-     * @param  array<string,mixed>  $payload
-     * @return array{reservation:Reservation,pre_order:array<string,mixed>,management_policy:array<string,mixed>}
-     */
     public function replaceAccessiblePreorder(int $reservationId, ?int $customerUserId, ?string $sessionId, array $payload): array
     {
-        // Khóa phân tán (Distributed Lock): Đảm bảo 2 người (VD: vợ và chồng dùng chung link)
-        // không bấm "Lưu" cùng một phần nghìn giây.
         return $this->locks->withReservationLock($reservationId, function () use ($reservationId, $customerUserId, $sessionId, $payload) {
             return DB::transaction(function () use ($reservationId, $customerUserId, $sessionId, $payload) {
-
-                // Khóa CSDL (Pessimistic Lock): Tránh việc Nhân viên (Staff) đang thao tác hóa đơn
-                // thì Khách hàng (Customer) lại đổi món.
                 $reservation = $this->loadAccessibleReservation(
                     reservationId: $reservationId,
                     customerUserId: $customerUserId,
@@ -114,51 +77,43 @@ class CustomerReservationPreorderService
                     lockForUpdate: true,
                 );
 
-                // Khóa Lạc quan (Optimistic Lock): Phát hiện dữ liệu cũ (Stale Data).
                 $this->assertReservationRowVersion($reservation, (int) $payload['row_version']);
                 $this->assertReservationPreorderMutable($reservation);
 
-                // Thẩm định lại 1 lần nữa danh sách món (đề phòng khách sửa request bằng Postman)
                 $prepared = $this->menuPreorderPolicyService->prepareRequestedItems(
                     (array) $payload['pre_order_items'],
                     Carbon::parse((string) $reservation->start_time)->utc(),
                     (int) $reservation->reservation_id,
                 );
 
-                $order = $this->findActivePreorderOrderForUpdate((int) $reservation->reservation_id);
-                if ($order instanceof ReservationOrder) {
-                    // Nếu đã có Order cũ: Kiểm tra version, hủy các món cũ (Soft Cancel)
-                    $this->assertPreorderRowVersion($order, $payload['pre_order_row_version'] ?? null);
-                    $this->cancelExistingPreorderItems($order, $customerUserId);
-                    $this->incrementOrderRowVersion($order);
-                    $order->status = ReservationOrderStatus::Active;
-                    $order->updated_by = $customerUserId;
-                    $order->save();
+                $preorder = $reservation->preorder()->lockForUpdate()->first();
+                if ($preorder instanceof Preorder) {
+                    $this->assertPreorderRowVersion($preorder, $payload['pre_order_row_version'] ?? null);
+                    // Drop old items. Customer is replacing the cart.
+                    $preorder->items()->delete();
+                    $this->incrementPreorderRowVersion($preorder);
+                    $preorder->status = PreorderStatus::Draft;
+                    $preorder->customer_user_id = $customerUserId;
+                    $preorder->save();
                 } else {
-                    // Nếu chưa có Order nào: Tạo hóa đơn Pre-order mới tinh
-                    $order = new ReservationOrder;
-                    $order->reservation_id = (int) $reservation->reservation_id;
-                    $order->order_type = ReservationOrderType::PreOrder;
-                    $order->status = ReservationOrderStatus::Active;
-                    $order->notes = 'Customer managed pre-order';
-                    $order->created_by = $customerUserId;
-                    $order->updated_by = $customerUserId;
-                    $order->save();
+                    $preorder = new Preorder;
+                    $preorder->reservation_id = (int) $reservation->reservation_id;
+                    $preorder->status = PreorderStatus::Draft;
+                    $preorder->notes = 'Customer managed pre-order';
+                    $preorder->customer_user_id = $customerUserId;
+                    $preorder->save();
                 }
 
-                // Ghi danh sách món mới vào DB
-                $this->persistPreparedRows($order, $prepared, $customerUserId);
+                $this->persistPreparedRows($preorder, $prepared);
 
-                // Ghi vết Hệ thống (Audit Trail)
                 AuditEvent::info('customer.reservation.preorder.replaced', [
                     'reservation_id' => (int) $reservation->reservation_id,
-                    'preorder_order_id' => (int) $order->order_id,
+                    'preorder_id' => (int) $preorder->preorder_id,
                     'customer_user_id' => $customerUserId,
                     'customer_session_id' => $customerUserId === null ? trim((string) $sessionId) : null,
                     'line_count' => count((array) $prepared['rows']),
                 ]);
 
-                // Query lại dữ liệu mới nhất để trả về cho Client render giao diện
                 $freshReservation = $this->loadAccessibleReservation(
                     reservationId: $reservationId,
                     customerUserId: $customerUserId,
@@ -166,17 +121,59 @@ class CustomerReservationPreorderService
                     lockForUpdate: false,
                 );
 
-                return $this->buildResponse($freshReservation, $this->findCurrentPreorderOrder($reservationId));
+                return $this->buildResponse($freshReservation, $freshReservation->preorder);
             });
         });
     }
 
-    /**
-     * --- HÀM 4: HỦY TOÀN BỘ MÓN ĐẶT TRƯỚC (CLEAR) ---
-     *
-     * @param  array<string,mixed>  $payload
-     * @return array{reservation:Reservation,pre_order:array<string,mixed>,management_policy:array<string,mixed>}
-     */
+    public function submitAccessiblePreorder(int $reservationId, ?int $customerUserId, ?string $sessionId, array $payload): array
+    {
+        return $this->locks->withReservationLock($reservationId, function () use ($reservationId, $customerUserId, $sessionId, $payload) {
+            return DB::transaction(function () use ($reservationId, $customerUserId, $sessionId, $payload) {
+                $reservation = $this->loadAccessibleReservation(
+                    reservationId: $reservationId,
+                    customerUserId: $customerUserId,
+                    sessionId: $sessionId,
+                    lockForUpdate: true,
+                );
+
+                $this->assertReservationRowVersion($reservation, (int) $payload['row_version']);
+                $this->assertReservationPreorderMutable($reservation);
+
+                $preorder = $reservation->preorder()->lockForUpdate()->first();
+                if (!$preorder instanceof Preorder) {
+                    throw ValidationExceptionFactory::make([
+                        'pre_order' => ['No pre-order exists to submit.'],
+                    ]);
+                }
+
+                $this->assertPreorderRowVersion($preorder, $payload['pre_order_row_version'] ?? null);
+
+                $preorder->status = PreorderStatus::Submitted;
+                $preorder->submitted_at = Carbon::now('UTC');
+                $preorder->customer_user_id = $customerUserId;
+                $this->incrementPreorderRowVersion($preorder);
+                $preorder->save();
+
+                AuditEvent::info('customer.reservation.preorder.submitted', [
+                    'reservation_id' => (int) $reservation->reservation_id,
+                    'preorder_id' => (int) $preorder->preorder_id,
+                    'customer_user_id' => $customerUserId,
+                    'customer_session_id' => $customerUserId === null ? trim((string) $sessionId) : null,
+                ]);
+
+                $freshReservation = $this->loadAccessibleReservation(
+                    reservationId: $reservationId,
+                    customerUserId: $customerUserId,
+                    sessionId: $sessionId,
+                    lockForUpdate: false,
+                );
+
+                return $this->buildResponse($freshReservation, $freshReservation->preorder);
+            });
+        });
+    }
+
     public function clearAccessiblePreorder(int $reservationId, ?int $customerUserId, ?string $sessionId, array $payload): array
     {
         return $this->locks->withReservationLock($reservationId, function () use ($reservationId, $customerUserId, $sessionId, $payload) {
@@ -191,20 +188,19 @@ class CustomerReservationPreorderService
                 $this->assertReservationRowVersion($reservation, (int) $payload['row_version']);
                 $this->assertReservationPreorderMutable($reservation);
 
-                $order = $this->findActivePreorderOrderForUpdate((int) $reservation->reservation_id);
-                if ($order instanceof ReservationOrder) {
-                    $this->assertPreorderRowVersion($order, $payload['pre_order_row_version'] ?? null);
-                    // Hủy món bên trong
-                    $this->cancelExistingPreorderItems($order, $customerUserId);
-                    $this->incrementOrderRowVersion($order);
-                    // Đánh dấu cả Hóa đơn là Cancelled
-                    $order->status = ReservationOrderStatus::Cancelled;
-                    $order->updated_by = $customerUserId;
-                    $order->save();
+                $preorder = $reservation->preorder()->lockForUpdate()->first();
+                if ($preorder instanceof Preorder) {
+                    $this->assertPreorderRowVersion($preorder, $payload['pre_order_row_version'] ?? null);
+                    
+                    $preorder->status = PreorderStatus::Cancelled;
+                    $preorder->cancelled_at = Carbon::now('UTC');
+                    $preorder->customer_user_id = $customerUserId;
+                    $this->incrementPreorderRowVersion($preorder);
+                    $preorder->save();
 
                     AuditEvent::info('customer.reservation.preorder.cleared', [
                         'reservation_id' => (int) $reservation->reservation_id,
-                        'preorder_order_id' => (int) $order->order_id,
+                        'preorder_id' => (int) $preorder->preorder_id,
                         'customer_user_id' => $customerUserId,
                         'customer_session_id' => $customerUserId === null ? trim((string) $sessionId) : null,
                     ]);
@@ -217,34 +213,25 @@ class CustomerReservationPreorderService
                     lockForUpdate: false,
                 );
 
-                return $this->buildResponse($freshReservation, $this->findCurrentPreorderOrder($reservationId));
+                return $this->buildResponse($freshReservation, $freshReservation->preorder);
             });
         });
     }
 
-    /**
-     * Build response trả về chung cho mọi API
-     *
-     * @return array{reservation:Reservation,pre_order:array<string,mixed>,management_policy:array<string,mixed>}
-     */
-    private function buildResponse(Reservation $reservation, ?ReservationOrder $currentOrder): array
+    private function buildResponse(Reservation $reservation, ?Preorder $currentPreorder): array
     {
         return [
             'reservation' => $reservation,
-            'pre_order' => $this->buildCurrentPreorderSnapshot($reservation, $currentOrder),
+            'pre_order' => $this->buildCurrentPreorderSnapshot($reservation, $currentPreorder),
             'management_policy' => $this->buildManagementPolicy($reservation),
         ];
     }
 
-    /**
-     * Tải Reservation và kiểm tra an ninh mạng (Chống IDOR - Truy cập trái phép)
-     */
     private function loadAccessibleReservation(int $reservationId, ?int $customerUserId, ?string $sessionId, bool $lockForUpdate): Reservation
     {
-        // Dành cho khách có tài khoản
         if ($customerUserId !== null) {
             $query = Reservation::query()
-                ->with(['orders.items.item'])
+                ->with(['preorder.items.item'])
                 ->whereKey($reservationId)
                 ->where('user_id', $customerUserId);
 
@@ -260,14 +247,13 @@ class CustomerReservationPreorderService
             throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
         }
 
-        // Dành cho khách vãng lai dùng link ẩn danh (Session ID)
         $trimmedSessionId = trim((string) $sessionId);
         if ($trimmedSessionId === '') {
             throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
         }
 
         $query = Reservation::query()
-            ->with(['orders.items.item'])
+            ->with(['preorder.items.item'])
             ->whereKey($reservationId);
 
         if ($lockForUpdate) {
@@ -275,34 +261,11 @@ class CustomerReservationPreorderService
         }
 
         $reservation = $query->first();
-        // Workflow này chứa thuật toán đối chiếu Session token an toàn
         if (! $reservation instanceof Reservation || ! $this->customerSessionAccessService->canAccessReservationBySession($reservation, $trimmedSessionId)) {
             throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
         }
 
         return $reservation;
-    }
-
-    private function findCurrentPreorderOrder(int $reservationId): ?ReservationOrder
-    {
-        return ReservationOrder::query()
-            ->with(['items.item'])
-            ->where('reservation_id', $reservationId)
-            ->where('order_type', ReservationOrderType::PreOrder->value)
-            ->where('status', ReservationOrderStatus::Active->value)
-            ->orderByDesc('order_id')
-            ->first();
-    }
-
-    private function findActivePreorderOrderForUpdate(int $reservationId): ?ReservationOrder
-    {
-        return ReservationOrder::query()
-            ->where('reservation_id', $reservationId)
-            ->where('order_type', ReservationOrderType::PreOrder->value)
-            ->where('status', ReservationOrderStatus::Active->value)
-            ->orderByDesc('order_id')
-            ->lockForUpdate() // Chống ghi đè đồng thời
-            ->first();
     }
 
     private function assertReservationPreorderMutable(Reservation $reservation): void
@@ -317,33 +280,23 @@ class CustomerReservationPreorderService
         ]);
     }
 
-    /**
-     * --- TRÁI TIM NGHIỆP VỤ (DOMAIN RULES) ---
-     * Nơi định nghĩa "Luật chơi" của nhà hàng: Khi nào khách không được sửa món nữa?
-     *
-     * @return array<string,mixed>
-     */
     private function buildManagementPolicy(Reservation $reservation): array
     {
         $reservationStatus = (string) ($reservation->status?->value ?? $reservation->status ?? '');
-        // Lấy cấu hình Cut-off time từ hệ thống (Mặc định 60 phút)
         $cutoffMinutes = max(0, (int) config('booking.customer_preorder_management_cutoff_minutes', 60));
         $serviceStart = Carbon::parse((string) $reservation->start_time)->utc();
         $manageUntil = $serviceStart->copy()->subMinutes($cutoffMinutes);
         $now = Carbon::now('UTC');
 
         $reasons = [];
-        // Luật 1: Đơn đã hủy, đã NoShow thì không cho sửa món
         if ($reservationStatus !== ReservationStatus::Confirmed->value) {
             $reasons[] = 'Pre-order chỉ có thể được chỉnh sửa khi reservation còn ở trạng thái Confirmed.';
         }
 
-        // Luật 2: Khách đã bước vào quán ngồi (Check-in) thì muốn gọi món phải dùng Menu tại bàn, không dùng web tự phục vụ nữa
         if ($reservation->checked_in_at !== null || ReservationStatus::isCheckedInDbValue($reservationStatus)) {
             $reasons[] = 'Reservation đã check-in nên không còn được chỉnh sửa pre-order từ self-service.';
         }
 
-        // Luật 3: Bếp cần thời gian chuẩn bị. Phải chốt món trước X phút. Sát giờ quá bếp không làm kịp.
         if ($now->gte($manageUntil)) {
             $reasons[] = sprintf('Pre-order chỉ có thể chỉnh sửa trước giờ đến ít nhất %d phút.', $cutoffMinutes);
         }
@@ -358,18 +311,15 @@ class CustomerReservationPreorderService
         ];
     }
 
-    /**
-     * Trích xuất thông tin Đơn hàng thành mảng Data Transfer Object (DTO) cho Frontend
-     *
-     * @return array<string,mixed>
-     */
-    private function buildCurrentPreorderSnapshot(Reservation $reservation, ?ReservationOrder $order): array
+    private function buildCurrentPreorderSnapshot(Reservation $reservation, ?Preorder $preorder): array
     {
         $serviceTime = Carbon::parse((string) $reservation->start_time)->utc();
-        if (! $order instanceof ReservationOrder) {
+        // If cancelled, we still return the structure but with present=false or we can return present=true and status=cancelled.
+        // The original code filtered out Cancelled orders. Let's do the same if preorder is cancelled or null.
+        if (! $preorder instanceof Preorder || $preorder->status === PreorderStatus::Cancelled) {
             return [
                 'present' => false,
-                'order_id' => null,
+                'order_id' => null, // Maintaining contract key `order_id` for frontend mapping
                 'order_row_version' => null,
                 'order_status' => null,
                 'service_time' => $serviceTime->toIso8601String(),
@@ -384,10 +334,7 @@ class CustomerReservationPreorderService
             ];
         }
 
-        // Lọc bỏ các món đã bị Hủy
-        $activeItems = $order->relationLoaded('items')
-            ? $order->items->filter(static fn (ReservationOrderItem $item): bool => (string) ($item->status?->value ?? $item->status) !== ReservationOrderItemStatus::Cancelled->value)->values()
-            : collect();
+        $activeItems = $preorder->relationLoaded('items') ? $preorder->items : collect();
 
         $currency = (string) ($reservation->bill_currency ?? 'VND');
         $subtotalMinor = 0;
@@ -395,9 +342,9 @@ class CustomerReservationPreorderService
         $lines = [];
 
         foreach ($activeItems as $item) {
-            $unitPriceMinor = Money::minorUnits($item->unit_price ?? 0, true);
-            $lineTotalMinor = $item->line_total !== null
-                ? Money::minorUnits($item->line_total, true)
+            $unitPriceMinor = Money::minorUnits($item->unit_price_snapshot ?? 0, true);
+            $lineTotalMinor = $item->line_total_snapshot !== null
+                ? Money::minorUnits($item->line_total_snapshot, true)
                 : $unitPriceMinor * (int) $item->quantity;
             $subtotalMinor += $lineTotalMinor;
             $quantityTotal += (int) $item->quantity;
@@ -407,11 +354,10 @@ class CustomerReservationPreorderService
             $menuItem = $item->relationLoaded('item') ? $item->item : null;
 
             $lines[] = [
-                'order_item_id' => (int) $item->order_item_id,
-                'item_id' => (int) $item->item_id,
+                'order_item_id' => (int) $item->preorder_item_id, // Map preorder_item_id to order_item_id
+                'item_id' => (int) $item->menu_item_id,
                 'quantity' => (int) $item->quantity,
-                'status' => $item->status?->value ?? (string) $item->status,
-                // Lấy Tên món lúc bán (Snapshot) để đề phòng sau này nhà hàng đổi tên món trong Catalog
+                'status' => 'Ordered', // Fixed status for lines
                 'name' => (string) ($item->item_name_snapshot ?: ($menuItem?->name ?? '')),
                 'code' => $menuItem?->code,
                 'unit_price' => Money::formatMinor($unitPriceMinor),
@@ -424,9 +370,9 @@ class CustomerReservationPreorderService
 
         return [
             'present' => $activeItems->isNotEmpty(),
-            'order_id' => (int) $order->order_id,
-            'order_row_version' => (int) ($order->row_version ?? 1),
-            'order_status' => $order->status?->value ?? (string) $order->status,
+            'order_id' => (int) $preorder->preorder_id, // Map preorder_id
+            'order_row_version' => (int) ($preorder->row_version ?? 1),
+            'order_status' => $preorder->status?->value ?? (string) $preorder->status,
             'service_time' => $serviceTime->toIso8601String(),
             'currency' => $currency,
             'lines' => $lines,
@@ -442,12 +388,6 @@ class CustomerReservationPreorderService
         ];
     }
 
-    /**
-     * Dựng bản Xem trước (Preview) cho mảng JSON gửi lên từ người dùng
-     *
-     * @param  array<int, array<string,mixed>>  $requestedItems
-     * @return array<string,mixed>
-     */
     private function buildRequestedPreorderPreview(array $requestedItems, Carbon $serviceStart, ?int $ignoreReservationId = null): array
     {
         $prepared = $this->menuPreorderPolicyService->prepareRequestedItems(
@@ -512,10 +452,7 @@ class CustomerReservationPreorderService
         ];
     }
 
-    /**
-     * @param  array{rows:array<int, array{item_id:int, quantity:int}>,menu_items:Collection<int, MenuItem>,price_rows:Collection<int, MenuItemPrice>}  $prepared
-     */
-    private function persistPreparedRows(ReservationOrder $order, array $prepared, ?int $customerUserId): void
+    private function persistPreparedRows(Preorder $preorder, array $prepared): void
     {
         /** @var Collection<int, MenuItem> $menuItems */
         $menuItems = $prepared['menu_items'];
@@ -530,47 +467,20 @@ class CustomerReservationPreorderService
             /** @var MenuItemPrice $priceRow */
             $priceRow = $priceRows->get($itemId);
 
-            // Xử lý tiền tệ chuẩn Enterprise qua thư viện Money
             $unitPriceMinor = Money::minorUnits($priceRow->price, true);
-            $item = new ReservationOrderItem;
-            $item->order_id = (int) $order->order_id;
-            $item->item_id = $itemId;
+            $item = new PreorderItem;
+            $item->preorder_id = (int) $preorder->preorder_id;
+            $item->menu_item_id = $itemId;
             $item->quantity = $quantity;
-            $item->unit_price = Money::formatMinor($unitPriceMinor);
-            $item->line_total = Money::formatMinor($unitPriceMinor * $quantity);
+            $item->unit_price_snapshot = Money::formatMinor($unitPriceMinor);
+            $item->line_total_snapshot = Money::formatMinor($unitPriceMinor * $quantity);
             $item->currency = (string) ($priceRow->currency ?: 'VND');
 
-            // Lưu Snapshot tên món ăn vào Hóa đơn (Chống việc món bị đổi tên trong DB sau này)
             $item->item_name_snapshot = (string) $menuItem->name;
-            $item->status = ReservationOrderItemStatus::Ordered;
-            $item->updated_by = $customerUserId;
             $item->save();
         }
     }
 
-    /**
-     * Hủy mềm (Soft Cancel) thay vì Hard Delete để giữ lại lịch sử khách đã từng đặt những gì
-     */
-    private function cancelExistingPreorderItems(ReservationOrder $order, ?int $customerUserId): void
-    {
-        $items = ReservationOrderItem::query()
-            ->where('order_id', (int) $order->order_id)
-            ->where('status', '!=', ReservationOrderItemStatus::Cancelled->value)
-            ->lockForUpdate() // Khóa DB không cho ai đụng vào khi đang vòng lặp
-            ->get();
-
-        foreach ($items as $item) {
-            $item->status = ReservationOrderItemStatus::Cancelled;
-            $item->updated_by = $customerUserId;
-            // Tăng row_version để đánh dấu dữ liệu đã có sự thay đổi
-            $item->row_version = max(1, (int) ($item->row_version ?? 1)) + 1;
-            $item->save();
-        }
-    }
-
-    /**
-     * --- KIỂM SOÁT ĐỒNG THỜI (OPTIMISTIC LOCKING) ---
-     */
     private function assertReservationRowVersion(Reservation $reservation, int $expectedRowVersion): void
     {
         if ((int) ($reservation->row_version ?? 1) !== $expectedRowVersion) {
@@ -580,7 +490,7 @@ class CustomerReservationPreorderService
         }
     }
 
-    private function assertPreorderRowVersion(ReservationOrder $order, mixed $expectedRowVersion): void
+    private function assertPreorderRowVersion(Preorder $preorder, mixed $expectedRowVersion): void
     {
         if ($expectedRowVersion === null) {
             throw ValidationExceptionFactory::make([
@@ -588,15 +498,15 @@ class CustomerReservationPreorderService
             ]);
         }
 
-        if ((int) ($order->row_version ?? 1) !== (int) $expectedRowVersion) {
+        if ((int) ($preorder->row_version ?? 1) !== (int) $expectedRowVersion) {
             throw ValidationExceptionFactory::make([
                 'pre_order_row_version' => ['Pre-order row version does not match the latest state.'],
             ]);
         }
     }
 
-    private function incrementOrderRowVersion(ReservationOrder $order): void
+    private function incrementPreorderRowVersion(Preorder $preorder): void
     {
-        $order->row_version = max(1, (int) ($order->row_version ?? 1)) + 1;
+        $preorder->row_version = max(1, (int) ($preorder->row_version ?? 1)) + 1;
     }
 }

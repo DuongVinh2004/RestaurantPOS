@@ -64,7 +64,7 @@ function createPaymentSessionEnvelope(
       currency: "USD",
       session_status: sessionStatus,
       settlement_status: terminal ? "Succeeded" : "Pending",
-      provider_expires_at: "2026-05-20T19:00:00Z",
+      provider_expires_at: "2030-05-20T19:00:00Z",
       confirmed_at: terminal ? "2026-04-18T18:15:00Z" : null,
       row_version: rowVersion,
       created_at: "2026-04-18T18:00:00Z",

@@ -19,6 +19,7 @@ import {
   getReservationPreorder,
   previewReservationPreorder,
   replaceReservationPreorder,
+  submitReservationPreorder,
   type ReservationPreorderResult,
 } from "./api";
 import {
@@ -200,6 +201,21 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
     onSuccess: syncPreorder,
     onError: handleMutationError,
   });
+  const submitMutation = useMutation({
+    mutationFn: () => {
+      if (!preorderQuery.data) {
+        throw new Error("Chưa có phiên món đặt trước để gửi.");
+      }
+
+      return submitReservationPreorder(
+        reservationId,
+        preorderQuery.data.reservation_row_version,
+        preorderQuery.data.pre_order.order_row_version,
+      );
+    },
+    onSuccess: syncPreorder,
+    onError: handleMutationError,
+  });
   const clearMutation = useMutation({
     mutationFn: () => {
       if (!preorderQuery.data) {
@@ -232,11 +248,13 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
     : null;
   const canManage = Boolean(preorderQuery.data?.management_policy.can_manage);
   const hasExistingPreorder = Boolean(preorderQuery.data?.pre_order.present);
+  const isDraft = preorderQuery.data?.pre_order.order_status === "draft";
   const hasCartChanges = cartKey !== baseCartKey;
   const previewRequired = canManage && cartItems.length > 0 && hasCartChanges && !previewResult;
   const canRequestPreview = canManage && cartItems.length > 0 && hasCartChanges;
   const canReplace = canManage && cartItems.length > 0 && hasCartChanges && previewResult !== null;
-  const mutationPending = previewMutation.isPending || replaceMutation.isPending || clearMutation.isPending;
+  const canSubmit = canManage && hasExistingPreorder && !hasCartChanges && isDraft;
+  const mutationPending = previewMutation.isPending || replaceMutation.isPending || submitMutation.isPending || clearMutation.isPending;
   const cartInputsDisabled = mutationPending || preorderQuery.isFetching || menuQuery.isFetching;
   const pendingDraftMessage = pendingDraft
     ? getReservationPreorderRecoveryMessage(pendingDraft.failure_stage)
@@ -300,6 +318,11 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
                     cho khung giờ {formatDateTime(preorderQuery.data.pre_order.service_time)}
                   </p>
                 </div>
+                {isDraft ? (
+                  <div className="rounded-lg border border-dashed bg-warning/20 p-4 text-sm text-warning-foreground">
+                    Đây mới chỉ là bản nháp. Vui lòng nhấn "Gửi xác nhận đặt món" để nhà hàng nhận được yêu cầu.
+                  </div>
+                ) : null}
                 {preorderQuery.data.pre_order.lines.length > 0 ? (
                   <div className="space-y-2">
                     {preorderQuery.data.pre_order.lines.map((line) => (
@@ -447,6 +470,16 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
                   >
                     {replaceMutation.isPending ? "Đang cập nhật" : "Cập nhật món đặt trước"}
                   </Button>
+                  {canSubmit ? (
+                    <Button
+                      type="button"
+                      className="rounded-lg bg-green-600 hover:bg-green-700 text-white"
+                      disabled={mutationPending}
+                      onClick={() => submitMutation.mutate()}
+                    >
+                      {submitMutation.isPending ? "Đang gửi" : "Gửi xác nhận đặt món"}
+                    </Button>
+                  ) : null}
                   <Button
                     type="button"
                     variant="outline"

@@ -117,6 +117,22 @@ class ReservationStatusTransitionService
                     // Gọi Chuyên gia thẩm định (Policy) để check State Machine (Ví dụ: Đã Cancelled thì không được Confirmed lại)
                     ReservationStatusTransitionPolicy::assertTransitionAllowed($current, $targetEnum, $force);
 
+                    // --- BỔ SUNG: GUARD YÊU CẦU ĐẶT CỌC ---
+                    // Không cho phép Check-in (chuyển sang Reserved) nếu chưa đóng đủ tiền cọc (nếu có yêu cầu).
+                    if ($target === ReservationStatus::checkedInDbValue()) {
+                        $depositStatus = $reservation->deposit_status instanceof \App\Enums\DepositStatus 
+                            ? $reservation->deposit_status->value 
+                            : (string) $reservation->deposit_status;
+                            
+                        if ($depositStatus === \App\Enums\DepositStatus::Pending->value) {
+                            if (!$force) {
+                                throw ValidationException::withMessages([
+                                    'status' => ['Cannot check-in reservation. A required deposit is still pending.'],
+                                ]);
+                            }
+                        }
+                    }
+
                     // Optimistic Lock: Chống ghi đè từ giao diện cũ (VD: Lễ tân mở máy từ sáng nhưng chiều mới bấm Hủy)
                     $beforeVersion = (int) ($reservation->row_version ?? 1);
                     if ($expectedRowVersion !== null && $beforeVersion !== (int) $expectedRowVersion) {

@@ -34,6 +34,7 @@ use App\Modules\Reporting\Http\Controllers\Staff\OperationsReportController;
 use App\Modules\Reporting\Http\Controllers\Staff\SalesReportController;
 use App\Modules\Reservations\Http\Controllers\Staff\ReservationController;
 use App\Modules\Reservations\Http\Controllers\Staff\ReservationRescheduleController;
+use App\Modules\Reservations\Http\Controllers\StaffReservationPreorderController;
 use App\Modules\Waitlist\Http\Controllers\Staff\WaitlistController as StaffWaitlistController;
 use Illuminate\Support\Facades\Route;
 
@@ -63,6 +64,8 @@ Route::middleware([
             ])
             ->group(function () {
                 Route::get('branches', [BranchContextController::class, 'index'])
+                    ->middleware('staff.capability:reservation.manage');
+                Route::get('operations/command-center', [\App\Modules\FloorOperations\Http\Controllers\Staff\CommandCenterController::class, 'index'])
                     ->middleware('staff.capability:reservation.manage');
                 Route::get('menu/items', [MenuCatalogController::class, 'index'])
                     ->middleware('staff.capability:order.manage');
@@ -261,6 +264,18 @@ Route::middleware([
                 Route::post('reservations/{id}/assign-best-fit', [ReservationBoardAssignmentController::class, 'assignBestFit'])
                     ->whereNumber('id')
                     ->middleware(['staff.capability:reservation.manage', 'idempotency:staff.reservation-assign-best-fit']);
+                Route::get('reservations/{id}/preorder', [StaffReservationPreorderController::class, 'show'])
+                    ->whereNumber('id')
+                    ->middleware(['staff.capability:reservation.manage']);
+                Route::post('reservations/{id}/preorder/confirm', [StaffReservationPreorderController::class, 'confirm'])
+                    ->whereNumber('id')
+                    ->middleware(['staff.capability:reservation.manage', 'idempotency:staff.reservation-preorder-confirm']);
+                Route::post('reservations/{id}/preorder/reject', [StaffReservationPreorderController::class, 'reject'])
+                    ->whereNumber('id')
+                    ->middleware(['staff.capability:reservation.manage', 'idempotency:staff.reservation-preorder-reject']);
+                Route::post('reservations/{id}/preorder/convert', [StaffReservationPreorderController::class, 'convert'])
+                    ->whereNumber('id')
+                    ->middleware(['staff.capability:reservation.manage', 'idempotency:staff.reservation-preorder-convert']);
                 Route::get('tables/board/changes', [OperationalChangeFeedController::class, 'boardChanges'])
                     ->middleware('staff.capability:table.board.view');
 
@@ -316,6 +331,8 @@ Route::middleware([
                 Route::get('reporting/daily-operations', [OperationsReportController::class, 'index'])
                     ->middleware('staff.capability:reporting.view');
                 Route::get('reporting/daily-inventory', [InventoryReportController::class, 'index'])
+                    ->middleware('staff.capability:reporting.view');
+                Route::get('reporting/analytics-overview', [\App\Modules\Reporting\Http\Controllers\Staff\AnalyticsOverviewController::class, 'index'])
                     ->middleware('staff.capability:reporting.view');
 
                 Route::get('kitchen/stations', [KitchenDispatchController::class, 'stations'])

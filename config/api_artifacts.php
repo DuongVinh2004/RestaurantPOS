@@ -149,6 +149,13 @@ return [
                 ],
             ],
             [
+                'name' => 'Staff Deposits',
+                'signatures' => [
+                    'GET api/v1/staff/reservations/{reservation_id}/deposit-preview',
+                    'POST api/v1/staff/reservations/{reservation_id}/deposit/pay',
+                ],
+            ],
+            [
                 'name' => 'Staff Finance',
                 'signatures' => [
                     'GET api/v1/staff/finance/reconciliation',

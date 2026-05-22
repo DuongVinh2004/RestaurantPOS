@@ -443,6 +443,7 @@ class ReleaseLoopService
             // Server failed to start — terminate it and return null so the smoke step
             // runs anyway (it will fail with a network error, which is the correct outcome).
             $server->stop(3);
+
             return null;
         }
 
@@ -465,8 +466,10 @@ class ReleaseLoopService
         $socket = @fsockopen($host, $port, $errno, $errstr, 1.0);
         if ($socket !== false) {
             fclose($socket);
+
             return true;
         }
+
         return false;
     }
 

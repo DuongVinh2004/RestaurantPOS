@@ -71,4 +71,11 @@ export const opsWorkspaceRoutes: Array<StaffWorkspaceRouteDefinition> = [
     page: 'conversations',
     capability: 'conversation.manage',
   },
+  {
+    key: 'command-center',
+    path: 'command-center',
+    absolutePath: staffRoutePaths.ops.commandCenter,
+    page: 'command-center',
+    capability: 'reservation.manage',
+  },
 ];

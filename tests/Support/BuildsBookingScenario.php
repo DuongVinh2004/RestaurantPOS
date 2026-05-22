@@ -135,6 +135,8 @@ trait BuildsBookingScenario
             'reporting_daily_sales_snapshots',
             'reporting_daily_operation_snapshots',
             'reporting_daily_inventory_movement_snapshots',
+            'preorders',
+            'preorder_items',
         ];
     }
 
@@ -504,6 +506,7 @@ trait BuildsBookingScenario
                 $table->boolean('is_deleted')->default(false);
                 $table->unsignedInteger('row_version')->default(1);
                 $table->decimal('price', 12, 2)->nullable();
+                $table->string('qr_payment_token', 64)->nullable()->unique();
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
             });
@@ -1699,6 +1702,42 @@ trait BuildsBookingScenario
         }
 
         $this->ensureIndexIfMissing('notification_preferences', 'idx_notification_preferences__channel__is_enabled', ['channel', 'is_enabled']);
+
+        if (! Schema::hasTable('preorders')) {
+            Schema::create('preorders', function (Blueprint $table): void {
+                $table->increments('preorder_id');
+                $table->unsignedInteger('reservation_id')->unique();
+                $table->unsignedInteger('customer_user_id')->nullable();
+                $table->string('status', 30)->default('draft');
+                $table->string('notes', 500)->nullable();
+                $table->dateTime('submitted_at')->nullable();
+                $table->dateTime('confirmed_at')->nullable();
+                $table->dateTime('rejected_at')->nullable();
+                $table->dateTime('cancelled_at')->nullable();
+                $table->dateTime('converted_at')->nullable();
+                $table->unsignedBigInteger('row_version')->default(1);
+                $table->dateTime('created_at')->nullable();
+                $table->dateTime('updated_at')->nullable();
+            });
+        }
+
+        if (! Schema::hasTable('preorder_items')) {
+            Schema::create('preorder_items', function (Blueprint $table): void {
+                $table->increments('preorder_item_id');
+                $table->unsignedInteger('preorder_id');
+                $table->unsignedInteger('menu_item_id');
+                $table->string('item_name_snapshot', 255);
+                $table->decimal('unit_price_snapshot', 13, 2)->default(0);
+                $table->unsignedInteger('quantity')->default(1);
+                $table->decimal('line_total_snapshot', 13, 2)->default(0);
+                $table->string('currency', 3)->default('VND');
+                $table->string('notes', 500)->nullable();
+                $table->dateTime('created_at')->nullable();
+                $table->dateTime('updated_at')->nullable();
+            });
+        }
+
+        $this->ensureIndexIfMissing('notification_preferences', 'idx_notification_preferences__channel__is_enabled', ['channel', 'is_enabled']);
     }
 
     /**
@@ -1993,10 +2032,17 @@ SQL);
                     'updated_at' => $payload['updated_at'],
                 ]);
 
+            if (app()->bound(\App\Platform\FeatureFlags\Services\FeatureFlagService::class)) {
+                app(\App\Platform\FeatureFlags\Services\FeatureFlagService::class)->forgetAllResolved();
+            }
             return (int) $existingId;
         }
 
         DB::table('feature_flags')->insert($payload);
+
+        if (app()->bound(\App\Platform\FeatureFlags\Services\FeatureFlagService::class)) {
+            app(\App\Platform\FeatureFlags\Services\FeatureFlagService::class)->forgetAllResolved();
+        }
 
         return (int) DB::table('feature_flags')
             ->where('feature_key', (string) $payload['feature_key'])

@@ -30,6 +30,7 @@ class RestaurantTable extends Model
         'description',
         'is_deleted',
         'price',
+        'qr_payment_token',
     ];
 
     protected $casts = [
@@ -42,6 +43,7 @@ class RestaurantTable extends Model
         'is_deleted' => 'bool',
         'row_version' => 'int',
         'price' => 'decimal:2',
+        'qr_payment_token' => 'string',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

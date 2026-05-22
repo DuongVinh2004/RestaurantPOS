@@ -58,7 +58,7 @@ class CustomerReservationPreorderSessionAccessTest extends TestCase
             'Idempotency-Key' => 'session-preorder-wrong-session-replace',
         ])->putJson('/api/v1/reservations/'.$reservationId.'/preorder', [
             'row_version' => (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version'),
-            'pre_order_row_version' => (int) DB::table('reservation_orders')->where('order_id', $orderId)->value('row_version'),
+            'pre_order_row_version' => (int) DB::table('preorders')->where('preorder_id', $orderId)->value('row_version'),
             'pre_order_items' => [
                 ['item_id' => $replacementItemId, 'quantity' => 1],
             ],
@@ -97,20 +97,24 @@ class CustomerReservationPreorderSessionAccessTest extends TestCase
         ], [$tableId]);
 
         $itemId = $this->seedPreorderMenuItem('Session Seeded Pho', 30, '80000.00');
-        $orderId = $this->createOrder([
+        $orderId = DB::table('preorders')->insertGetId([
             'reservation_id' => $reservationId,
-            'order_type' => 'PreOrder',
-            'status' => 'Active',
+            'customer_user_id' => $customerId,
+            'status' => 'draft',
             'row_version' => 3,
+            'created_at' => $this->nowUtc(),
+            'updated_at' => $this->nowUtc(),
         ]);
-        $this->createOrderItem([
-            'order_id' => $orderId,
-            'item_id' => $itemId,
-            'quantity' => 2,
-            'unit_price' => '80000.00',
-            'currency' => 'VND',
+        DB::table('preorder_items')->insert([
+            'preorder_id' => $orderId,
+            'menu_item_id' => $itemId,
             'item_name_snapshot' => 'Session Seeded Pho',
-            'status' => 'Ordered',
+            'unit_price_snapshot' => '80000.00',
+            'quantity' => 2,
+            'line_total_snapshot' => '160000.00',
+            'currency' => 'VND',
+            'created_at' => $this->nowUtc(),
+            'updated_at' => $this->nowUtc(),
         ]);
 
         return [$reservationId, $orderId, $itemId, $sessionId];

@@ -41,6 +41,8 @@ import { useConfirmAction } from '../../../../shared/hooks/useConfirmAction';
 import { useJourneyContext } from '../../../../app/router/useJourneyContext';
 import { useStaffMutationFeedback } from '../../../../shared/hooks/useStaffMutationFeedback';
 import { ReservationCreateModal } from './ReservationCreateModal';
+import { ReservationDepositPayModal, type ReservationDepositPayFormValues } from './ReservationDepositPayModal';
+import { payReservationDeposit } from '../../../../shared/api/staff-api';
 import {
   buildDefaultReservationCreateFormValues,
   buildReservationCreatePayload,
@@ -74,7 +76,9 @@ export function ReservationsPage() {
   const [searchDraft, setSearchDraft] = useState('');
   const [detailOpen, setDetailOpen] = useState(false);
   const [reservationCreateOpen, setReservationCreateOpen] = useState(false);
+  const [depositPayOpen, setDepositPayOpen] = useState(false);
   const [reservationCreateForm] = Form.useForm<ReservationCreateFormValues>();
+  const [depositPayForm] = Form.useForm<ReservationDepositPayFormValues>();
   const reservationCreateStartTime = Form.useWatch('start_time_local', reservationCreateForm);
   const reservationCreateDuration = Form.useWatch('duration_minutes', reservationCreateForm);
 
@@ -430,6 +434,35 @@ export function ReservationsPage() {
     },
   });
 
+  const payDepositMutation = useMutation({
+    onMutate: () => {
+      mutationFeedback.setSubmitting(
+        'Thanh toán cọc',
+        'Đang ghi nhận khoản cọc...',
+      );
+    },
+    mutationFn: async (values: ReservationDepositPayFormValues) => {
+      if (!selectedReservation) throw new Error('No reservation selected');
+      return payReservationDeposit(selectedReservation.reservation_id, {
+        ...values,
+        row_version: selectedReservation.row_version,
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['reservations'] });
+      await queryClient.invalidateQueries({ queryKey: ['reservation-detail', selectedReservationId] });
+      setDepositPayOpen(false);
+      depositPayForm.resetFields();
+      mutationFeedback.setSuccess('Thanh toán cọc', 'Đã ghi nhận thanh toán cọc thành công.');
+    },
+    onError: (error) => {
+      mutationFeedback.setFailure(error, {
+        actionLabel: 'Thanh toán cọc',
+        fallbackMessage: formatStaffFacingApiError(error, 'Không thể thanh toán cọc.'),
+      });
+    },
+  });
+
   async function handleCancelReservation(reservation: ReservationEnvelope['data']) {
     const confirmed = await confirmAction({
       title: `Hủy ${reservation.reservation_code}`,
@@ -640,6 +673,21 @@ export function ReservationsPage() {
                 render: (_, reservation) => <StatusChip label={reservation.status} tone={reservationTone(reservation.status)} />,
               },
               {
+                title: 'Cọc',
+                render: (_, reservation) => {
+                  if (!reservation.deposit_status || reservation.deposit_status === 'NotRequired') {
+                    return <Typography.Text type="secondary">Không yêu cầu</Typography.Text>;
+                  }
+                  if (reservation.deposit_status === 'Pending') {
+                    return <StatusChip label="Chờ thanh toán" tone="warning" />;
+                  }
+                  if (reservation.deposit_status === 'Paid') {
+                    return <StatusChip label="Đã thanh toán" tone="success" />;
+                  }
+                  return <StatusChip label={reservation.deposit_status} tone="default" />;
+                },
+              },
+              {
                 title: 'Hành động',
                 render: (_, reservation) => (
                   <Button
@@ -723,6 +771,10 @@ export function ReservationsPage() {
           }}
           onCheckIn={detailReservation ? () => checkInMutation.mutate(detailReservation) : undefined}
           onCancelReservation={canCancelReservation && detailReservation ? () => void handleCancelReservation(detailReservation) : undefined}
+          onPayDeposit={detailReservation && detailReservation.deposit_status === 'Pending' ? () => {
+            depositPayForm.resetFields();
+            setDepositPayOpen(true);
+          } : undefined}
           onOpenOrder={openOrderWorkspace}
           onOpenCheckout={canOpenCheckout ? openCheckoutWorkspace : undefined}
         />
@@ -744,6 +796,16 @@ export function ReservationsPage() {
         submitLabel="Tạo đặt bàn hộ"
         onCancel={closeReservationCreateModal}
         onSubmit={(values) => createReservationMutation.mutate(values)}
+      />
+      <ReservationDepositPayModal
+        open={depositPayOpen}
+        title="Thanh toán cọc"
+        description="Ghi nhận khoản đặt cọc từ khách cho đặt bàn này."
+        form={depositPayForm}
+        submitting={payDepositMutation.isPending}
+        submitLabel="Xác nhận thanh toán"
+        onCancel={() => setDepositPayOpen(false)}
+        onSubmit={(values) => payDepositMutation.mutate(values)}
       />
     </>
   );

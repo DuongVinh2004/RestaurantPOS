@@ -6255,6 +6255,7 @@ class ApiContractMetadataRegistry
                 ],
                 'deposit_self_service' => ['type' => 'object', 'additionalProperties' => true],
                 'financials' => ['type' => 'object', 'nullable' => true, 'additionalProperties' => true],
+                'deposit_status' => ['type' => 'string', 'nullable' => true],
             ],
             'additionalProperties' => false,
         ];

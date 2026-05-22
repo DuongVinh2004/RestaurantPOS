@@ -10474,6 +10474,56 @@
                 }
             }
         },
+        "/api/v1/qr/bill-preview/{token}": {
+            "get": {
+                "operationId": "get_v1qrbill_previewtoken",
+                "summary": "GET Bill Preview Token",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [
+                    {
+                        "name": "token",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CustomerAccessToken": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "get_v1qrbill_previewtoken",
+                "x-action": "App\\Modules\\Billing\\Http\\Controllers\\Customer\\QrBillPreviewController@show",
+                "x-auth-mode": "customer_access_token",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "redis.throttle:qr_bill_preview,60,1,ip"
+                ]
+            }
+        },
         "/api/v1/reservations": {
             "get": {
                 "operationId": "get_v1_reservations",
@@ -52714,6 +52764,10 @@
                         "type": "object",
                         "nullable": true,
                         "additionalProperties": true
+                    },
+                    "deposit_status": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "additionalProperties": false

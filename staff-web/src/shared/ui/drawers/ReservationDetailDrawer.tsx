@@ -12,6 +12,8 @@ import { reservationTone } from '../../status/status';
 import { StaffFacingAlert } from '../feedback/StaffFacingAlert';
 import { StatusChip } from '../status/StatusChip';
 
+import { ReservationPreorderSection } from './ReservationPreorderSection';
+
 type ReservationDetail = ReservationEnvelope['data'];
 
 export function ReservationDetailDrawer({
@@ -22,6 +24,7 @@ export function ReservationDetailDrawer({
   onClose,
   onCheckIn,
   onCancelReservation,
+  onPayDeposit,
   onOpenOrder,
   onOpenCheckout,
 }: {
@@ -32,6 +35,7 @@ export function ReservationDetailDrawer({
   onClose: () => void;
   onCheckIn?: () => void;
   onCancelReservation?: () => void;
+  onPayDeposit?: () => void;
   onOpenOrder?: () => void;
   onOpenCheckout?: () => void;
 }) {
@@ -42,6 +46,11 @@ export function ReservationDetailDrawer({
     onCheckIn ? (
       <Button key="check-in" type="primary" onClick={onCheckIn} loading={busy}>
         Nhận bàn ngay
+      </Button>
+    ) : null,
+    onPayDeposit ? (
+      <Button key="pay-deposit" onClick={onPayDeposit} loading={busy}>
+        Thanh toán cọc
       </Button>
     ) : null,
     onCancelReservation ? (
@@ -104,13 +113,28 @@ export function ReservationDetailDrawer({
             <Descriptions.Item label="Số khách">
               {reservation.guest_count ?? 'Không có'}
             </Descriptions.Item>
-            <Descriptions.Item label="Ban">
+            <Descriptions.Item label="Bàn">
               {tableLabel}
+            </Descriptions.Item>
+            <Descriptions.Item label="Trạng thái cọc">
+              {(!reservation.deposit_status || reservation.deposit_status === 'NotRequired') ? 'Không yêu cầu' : (
+                reservation.deposit_status === 'Pending' ? <StatusChip label="Chờ thanh toán" tone="warning" /> : (
+                  reservation.deposit_status === 'Paid' ? <StatusChip label="Đã thanh toán" tone="success" /> : reservation.deposit_status
+                )
+              )}
             </Descriptions.Item>
             <Descriptions.Item label="Phiên bản thao tác">
               {reservation.row_version}
             </Descriptions.Item>
           </Descriptions>
+
+          <ReservationPreorderSection 
+            reservationId={reservation.reservation_id} 
+            reservationStatus={reservation.status} 
+            onConverted={() => {
+              if (onOpenOrder) onOpenOrder();
+            }}
+          />
 
           <StaffFacingAlert
             tone={activeOrder?.data.order ? 'success' : 'warning'}

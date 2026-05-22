@@ -6,6 +6,7 @@ namespace Tests\Feature\Performance;
 
 use App\Modules\Cashiering\Application\Workflows\OrderSettlementWorkflow;
 use App\Modules\IdentityAccess\Domain\Models\User;
+use Illuminate\Contracts\Config\Repository;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,7 @@ class HotPathPerformanceBudgetTest extends TestCase
         parent::setUp();
 
         $this->requireBookingSchema();
-        /** @var \Illuminate\Contracts\Config\Repository $config */
+        /** @var Repository $config */
         $config = config();
         $config->set('booking.require_redis_for_booking_api', false);
         $config->set('staff_auth.database_store_enabled', false);

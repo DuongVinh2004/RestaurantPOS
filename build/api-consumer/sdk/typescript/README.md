@@ -144,6 +144,11 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 - POST api/v1/staff/reservations/{reservation_id}/refund
 - POST api/v1/staff/reservations/{reservation_id}/refund-cancel
 
+### Staff Deposits
+
+- GET api/v1/staff/reservations/{reservation_id}/deposit-preview
+- POST api/v1/staff/reservations/{reservation_id}/deposit/pay
+
 ### Staff Finance
 
 - GET api/v1/staff/finance/reconciliation

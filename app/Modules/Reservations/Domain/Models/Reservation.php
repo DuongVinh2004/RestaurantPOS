@@ -11,6 +11,7 @@ use App\Modules\Billing\Domain\Models\BillingInvoice;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Loyalty\Domain\Models\LoyaltyPointTransaction;
+use App\Modules\Ordering\Domain\Models\Preorder;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Payments\Domain\Models\ReservationDepositPaymentSession;
@@ -128,6 +129,11 @@ class Reservation extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(ReservationOrder::class, 'reservation_id', 'reservation_id');
+    }
+
+    public function preorder(): HasOne
+    {
+        return $this->hasOne(Preorder::class, 'reservation_id', 'reservation_id');
     }
 
     public function payments(): HasMany

@@ -129,6 +129,17 @@ class ReservationCreateService
                     && ($userId === null || $actorUserId !== $userId)
                     ? 'Offline'
                     : 'Online';
+
+                // Online Deposit Lean Rule: Yêu cầu đặt cọc 500,000 VND nếu số lượng khách >= 5 (cho booking Online)
+                // Hoặc có thể mở rộng nhận từ branch/payload trong tương lai
+                if ($reservation->source === 'Online' && $guestCount >= 5) {
+                    $reservation->deposit_required_amount = 500000.00;
+                    $reservation->deposit_status = \App\Enums\DepositStatus::Pending;
+                    $reservation->status = ReservationStatus::Confirmed;
+                } else {
+                    $reservation->deposit_required_amount = 0.00;
+                    $reservation->deposit_status = \App\Enums\DepositStatus::NotRequired;
+                }
                 $reservation->notes = $payload['notes'] ?? null;
                 $reservation->created_by = $actorUserId;
                 $reservation->updated_by = $actorUserId;

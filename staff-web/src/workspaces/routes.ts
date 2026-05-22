@@ -15,6 +15,7 @@ export type StaffWorkspacePageId =
   | 'cashier-shift'
   | 'finance-review'
   | 'conversations'
+  | 'command-center'
   | 'kitchen-landing'
   | 'kitchen-board'
   | 'reporting'

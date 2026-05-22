@@ -4,6 +4,7 @@ import {
   getReservationPreorder,
   previewReservationPreorder,
   replaceReservationPreorder,
+  submitReservationPreorder,
   type ReservationPreorderResult,
 } from "./api";
 import {
@@ -29,6 +30,7 @@ type ReservationCreateFlowDependencies = {
   getReservationPreorder: typeof getReservationPreorder;
   previewReservationPreorder: typeof previewReservationPreorder;
   replaceReservationPreorder: typeof replaceReservationPreorder;
+  submitReservationPreorder: typeof submitReservationPreorder;
 };
 
 const defaultDependencies: ReservationCreateFlowDependencies = {
@@ -36,6 +38,7 @@ const defaultDependencies: ReservationCreateFlowDependencies = {
   getReservationPreorder,
   previewReservationPreorder,
   replaceReservationPreorder,
+  submitReservationPreorder,
 };
 
 export class ReservationPreorderPersistenceError extends Error {
@@ -105,9 +108,15 @@ export async function createReservationWithPreorderDraft(
       },
     );
 
+    const submittedPreorder = await dependencies.submitReservationPreorder(
+      reservation.reservation_id,
+      preorder.reservation_row_version,
+      preorder.pre_order.order_row_version,
+    );
+
     return {
       reservation,
-      preorder,
+      preorder: submittedPreorder,
     };
   } catch (error) {
     throw new ReservationPreorderPersistenceError(reservation, "replace", error);

@@ -31,6 +31,9 @@ export type PaymentSessionScope = typeof paymentSessionScopeValues[number];
 export const paymentStatusValues = ["Pending","Partial","Success","Failed","Refunded"] as const;
 export type PaymentStatus = typeof paymentStatusValues[number];
 
+export const preorderStatusValues = ["draft","submitted","confirmed","rejected","cancelled","converted"] as const;
+export type PreorderStatus = typeof preorderStatusValues[number];
+
 export const purchaseOrderStatusValues = ["Draft","Ordered","PartiallyReceived","Received","Cancelled"] as const;
 export type PurchaseOrderStatus = typeof purchaseOrderStatusValues[number];
 
@@ -126,6 +129,10 @@ export const restaurantPosEnumStateMap = {
   PaymentStatus: {
     values: paymentStatusValues,
     cases: {"Pending":"Pending","Partial":"Partial","Success":"Success","Failed":"Failed","Refunded":"Refunded"} as const
+  },
+  PreorderStatus: {
+    values: preorderStatusValues,
+    cases: {"Draft":"draft","Submitted":"submitted","Confirmed":"confirmed","Rejected":"rejected","Cancelled":"cancelled","Converted":"converted"} as const
   },
   PurchaseOrderStatus: {
     values: purchaseOrderStatusValues,

@@ -15,6 +15,7 @@ export const staffRoutePaths = {
     cashierShift: '/ops/cashier-shift',
     financeReview: '/ops/finance-review',
     conversations: '/ops/conversations',
+    commandCenter: '/ops/command-center',
   },
   kitchen: {
     root: '/kitchen',

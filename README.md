@@ -3,6 +3,9 @@
 [![Backend CI](https://github.com/DuongVinh2004/RestaurantPOS/actions/workflows/booking-ci.yml/badge.svg?branch=main)](https://github.com/DuongVinh2004/RestaurantPOS/actions/workflows/booking-ci.yml)
 [![Release Gate](https://github.com/DuongVinh2004/RestaurantPOS/actions/workflows/booking-release-gate.yml/badge.svg?branch=main)](https://github.com/DuongVinh2004/RestaurantPOS/actions/workflows/booking-release-gate.yml)
 
+> [!NOTE]
+> **New to the project?** Please read the **[Project Handoff Overview](./docs/PROJECT_HANDOFF.md)** and our **[Known Limitations](./docs/product/known-limitations.md)** before diving in.
+
 RestaurantPOS is a SQL-first Laravel 12 backend with staff and customer web clients, API consumer artifacts, and release/runtime gates for production-style restaurant operations.
 
 The repository is intentionally not migration-first. A fresh machine must be provisioned from the checked-in SQL release contract:

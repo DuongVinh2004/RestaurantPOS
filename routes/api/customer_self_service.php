@@ -33,6 +33,9 @@ Route::middleware([
     Route::get('menu/items/{id}', [MenuCatalogController::class, 'show'])->whereNumber('id');
     Route::post('menu/preorder/preview', [MenuCatalogController::class, 'previewPreorder']);
 
+    Route::get('qr/bill-preview/{token}', [\App\Modules\Billing\Http\Controllers\Customer\QrBillPreviewController::class, 'show'])
+        ->middleware('redis.throttle:qr_bill_preview,60,1,ip');
+
     Route::middleware(['require.redis'])->group(function () {
         Route::middleware([CustomerOrStaffMiddleware::class])->group(function () {
             Route::get('me/loyalty', [LoyaltySummaryController::class, 'show']);
@@ -55,6 +58,9 @@ Route::middleware([
             Route::put('reservations/{id}/preorder', [CustomerReservationPreorderController::class, 'replace'])
                 ->whereNumber('id')
                 ->middleware('idempotency:customer.reservations.preorder.replace');
+            Route::post('reservations/{id}/preorder/submit', [CustomerReservationPreorderController::class, 'submit'])
+                ->whereNumber('id')
+                ->middleware('idempotency:customer.reservations.preorder.submit');
             Route::delete('reservations/{id}/preorder', [CustomerReservationPreorderController::class, 'clear'])
                 ->whereNumber('id')
                 ->middleware('idempotency:customer.reservations.preorder.clear');
@@ -64,6 +70,9 @@ Route::middleware([
             Route::put('reservations/{id}/pre-order', [CustomerReservationPreorderController::class, 'replace'])
                 ->whereNumber('id')
                 ->middleware('idempotency:customer.reservations.preorder.replace');
+            Route::post('reservations/{id}/pre-order/submit', [CustomerReservationPreorderController::class, 'submit'])
+                ->whereNumber('id')
+                ->middleware('idempotency:customer.reservations.preorder.submit');
             Route::delete('reservations/{id}/pre-order', [CustomerReservationPreorderController::class, 'clear'])
                 ->whereNumber('id')
                 ->middleware('idempotency:customer.reservations.preorder.clear');

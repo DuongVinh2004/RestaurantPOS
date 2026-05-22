@@ -172,6 +172,26 @@
                 "Refunded": "Refunded"
             }
         },
+        "PreorderStatus": {
+            "php_class": "App\\Enums\\PreorderStatus",
+            "backing_type": "string",
+            "values": [
+                "draft",
+                "submitted",
+                "confirmed",
+                "rejected",
+                "cancelled",
+                "converted"
+            ],
+            "cases": {
+                "Draft": "draft",
+                "Submitted": "submitted",
+                "Confirmed": "confirmed",
+                "Rejected": "rejected",
+                "Cancelled": "cancelled",
+                "Converted": "converted"
+            }
+        },
         "PurchaseOrderStatus": {
             "php_class": "App\\Enums\\PurchaseOrderStatus",
             "backing_type": "string",

@@ -3544,6 +3544,72 @@
             ]
         },
         {
+            "name": "Staff Deposits",
+            "item": [
+                {
+                    "name": "GET Reservation Id Deposit Preview",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}/deposit-preview",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `GET api/v1/staff/reservations/{reservation_id}/deposit-preview`\nAuth mode: `staff_api_key`\nContract grade: `fallback`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST Deposit Pay",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}/deposit/pay",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `POST api/v1/staff/reservations/{reservation_id}/deposit/pay`\nAuth mode: `staff_api_key`\nContract grade: `fallback`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"payment_method\": \"Online\",\n    \"payment_provider\": \"MoMo\",\n    \"amount\": 100000,\n    \"currency\": \"VND\",\n    \"transaction_code\": \"example\",\n    \"notes\": \"Contract example payload\",\n    \"row_version\": 1,\n    \"staff_user_id\": 101\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
             "name": "Staff Finance",
             "item": [
                 {

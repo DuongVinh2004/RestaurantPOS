@@ -50,6 +50,7 @@ import { MiniTableBoardCard } from './components/MiniTableBoardCard';
 import { QueueSnapshotCard } from './components/QueueSnapshotCard';
 import { CashierSnapshotCard } from './components/CashierSnapshotCard';
 import { ConversationSnapshotCard } from './components/ConversationSnapshotCard';
+import { AnalyticsOverviewSection } from './components/AnalyticsOverviewSection';
 import { buildInventoryQuery, buildOperationsQuery, buildSalesQuery } from '../../../../domains/reporting/reporting-hub';
 
 export function DashboardPage() {
@@ -451,14 +452,17 @@ export function DashboardPage() {
         />
 
         {canViewReporting ? (
-          <QueueSnapshotCard
-            snapshot={reportingSnapshot}
-            onOpen={navigate}
-            loading={salesQuery.isLoading || operationsQuery.isLoading || inventoryQuery.isLoading}
-            error={salesQuery.error || operationsQuery.error || inventoryQuery.error
-              ? dashboardErrorMessage(salesQuery.error ?? operationsQuery.error ?? inventoryQuery.error, 'reporting')
-              : null}
-          />
+          <>
+            <QueueSnapshotCard
+              snapshot={reportingSnapshot}
+              onOpen={navigate}
+              loading={salesQuery.isLoading || operationsQuery.isLoading || inventoryQuery.isLoading}
+              error={salesQuery.error || operationsQuery.error || inventoryQuery.error
+                ? dashboardErrorMessage(salesQuery.error ?? operationsQuery.error ?? inventoryQuery.error, 'reporting')
+                : null}
+            />
+            <AnalyticsOverviewSection />
+          </>
         ) : null}
       </section>
     </div>
