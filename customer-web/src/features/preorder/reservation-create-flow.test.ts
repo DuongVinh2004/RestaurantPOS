@@ -54,6 +54,7 @@ function createDependencies() {
     getReservationPreorder: vi.fn(),
     previewReservationPreorder: vi.fn(),
     replaceReservationPreorder: vi.fn(),
+    submitReservationPreorder: vi.fn(),
   };
 }
 
@@ -112,6 +113,7 @@ describe("createReservationWithPreorderDraft", () => {
     dependencies.getReservationPreorder.mockResolvedValue(snapshot);
     dependencies.previewReservationPreorder.mockResolvedValue(snapshot);
     dependencies.replaceReservationPreorder.mockResolvedValue(persisted);
+    dependencies.submitReservationPreorder.mockResolvedValue(persisted);
 
     const result = await createReservationWithPreorderDraft(
       {
@@ -140,6 +142,11 @@ describe("createReservationWithPreorderDraft", () => {
       row_version: 7,
       pre_order_row_version: null,
     });
+    expect(dependencies.submitReservationPreorder).toHaveBeenCalledWith(
+      501,
+      8,
+      3
+    );
     expect(result).toEqual({
       reservation: createReservationResult(),
       preorder: persisted,
