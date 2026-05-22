@@ -6,7 +6,6 @@ namespace App\Modules\Reporting\Http\Controllers\Staff;
 
 use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
-use App\Http\Responses\ApiEnvelope;
 use App\Modules\Reporting\Application\Queries\Analytics\GetAnalyticsOverviewHandler;
 use App\Modules\Reporting\Http\Requests\Staff\AnalyticsOverviewRequest;
 use Illuminate\Http\JsonResponse;
@@ -30,6 +29,6 @@ class AnalyticsOverviewController extends Controller
             trim((string) $request->attributes->get('staff_actor_role_name', '')) ?: null,
         );
 
-        return response()->json(ApiEnvelope::success($data));
+        return response()->json(['data' => $data]);
     }
 }

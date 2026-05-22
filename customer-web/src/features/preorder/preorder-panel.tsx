@@ -320,7 +320,7 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
                 </div>
                 {isDraft ? (
                   <div className="rounded-lg border border-dashed bg-warning/20 p-4 text-sm text-warning-foreground">
-                    Đây mới chỉ là bản nháp. Vui lòng nhấn "Gửi xác nhận đặt món" để nhà hàng nhận được yêu cầu.
+                    Đây mới chỉ là bản nháp. Vui lòng nhấn &quot;Gửi xác nhận đặt món&quot; để nhà hàng nhận được yêu cầu.
                   </div>
                 ) : null}
                 {preorderQuery.data.pre_order.lines.length > 0 ? (

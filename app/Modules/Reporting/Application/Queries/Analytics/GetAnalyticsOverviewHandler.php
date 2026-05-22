@@ -43,7 +43,6 @@ class GetAnalyticsOverviewHandler
         $statusCounts = (clone $baseReservationQuery)
             ->select('status', DB::raw('count(*) as total'))
             ->groupBy('status')
-            ->get()
             ->pluck('total', 'status')
             ->toArray();
 

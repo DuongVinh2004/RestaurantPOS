@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { getApiRuntimeDiagnostics } from "@/lib/api/sdk-client";
 
 export default function QrBillPreviewPage() {
   const params = useParams();
-  const router = useRouter();
   const token = params.token as string;
 
   const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,8 +28,8 @@ export default function QrBillPreviewPage() {
         }
 
         setData(result.data);
-      } catch (err: any) {
-        setError(err.message || "Network error. Please try again later.");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Network error. Please try again later.");
       } finally {
         setLoading(false);
       }
@@ -138,6 +138,7 @@ export default function QrBillPreviewPage() {
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
             <h3 className="font-semibold text-lg mb-4">Order Items</h3>
             <ul className="space-y-4">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {activeOrder.items.map((item: any) => (
                 <li key={item.item_id} className="flex justify-between text-sm">
                   <div>
