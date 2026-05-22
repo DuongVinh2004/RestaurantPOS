@@ -7,11 +7,11 @@
             "path": "database/schema/mysql-schema.sql",
             "exists": true,
             "optional": false,
-            "sha256": "10221fe6610b9c0b09a131a2dbd52beb2900e1e754759ef7ada0107bf6e4e101",
-            "bytes": 177772,
-            "line_count": 2605,
-            "modified_epoch": 1779423178,
-            "modified_at_utc": "2026-05-22T04:12:58+00:00",
+            "sha256": "e27d06519787f96705f1ad5facf4f3638af38a8a03aa2d5c94734af06425723d",
+            "bytes": 177920,
+            "line_count": 2610,
+            "modified_epoch": 1779474066,
+            "modified_at_utc": "2026-05-22T18:21:06+00:00",
             "required_fragment_count": 64,
             "missing_fragments": []
         },
@@ -211,11 +211,11 @@
             "path": "storage/app/booking_release/release_manifest_snapshot.json",
             "exists": true,
             "optional": false,
-            "sha256": "71a8a349c5c424fd6138cc57ccd53f965b22657121664e14ee9be596e0348d47",
+            "sha256": "7cb2d2d7b3e4d4ff549d3fe4516cec36892980fa5ef1827e46d9a325de47bfb5",
             "bytes": 18185,
             "line_count": 358,
-            "modified_epoch": 1779442317,
-            "modified_at_utc": "2026-05-22T09:31:57+00:00",
+            "modified_epoch": 1779442459,
+            "modified_at_utc": "2026-05-22T09:34:19+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         }
@@ -349,7 +349,7 @@
         "required_count": 55
     },
     "meta": {
-        "generated_at_utc": "2026-05-22T09:34:19+00:00"
+        "generated_at_utc": "2026-05-22T19:00:26+00:00"
     },
     "definition_path": "config/booking_release.php",
     "definition_sha256": "7e416b24bf3fbd0712fcf9c54a1c1b792271dedc4ddd8a9ea7a3b813dfd8bb9a",
