@@ -1,5 +1,5 @@
 -- Create preorders table
-CREATE TABLE `preorders` (
+CREATE TABLE IF NOT EXISTS `preorders` (
   `preorder_id` int unsigned NOT NULL AUTO_INCREMENT,
   `reservation_id` int unsigned NOT NULL,
   `customer_user_id` int unsigned DEFAULT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE `preorders` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Create preorder_items table
-CREATE TABLE `preorder_items` (
+CREATE TABLE IF NOT EXISTS `preorder_items` (
   `preorder_item_id` int unsigned NOT NULL AUTO_INCREMENT,
   `preorder_id` int unsigned NOT NULL,
   `menu_item_id` int unsigned NOT NULL,

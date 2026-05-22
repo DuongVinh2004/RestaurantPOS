@@ -2563,6 +2563,8 @@ ALTER TABLE `kitchen_order_item_tickets` ADD CONSTRAINT `fk_kitchen_order_item_t
 ALTER TABLE `kitchen_order_item_tickets` ADD CONSTRAINT `fk_kitchen_order_item_tickets__route_id__kitchen_statio_37e6acbc` FOREIGN KEY (`route_id`) REFERENCES `kitchen_station_category_routes` (`route_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 ALTER TABLE `kitchen_order_item_tickets` ADD CONSTRAINT `fk_kitchen_order_item_tickets__station_id__kitchen_stations` FOREIGN KEY (`station_id`) REFERENCES `kitchen_stations` (`station_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `kitchen_order_item_tickets` ADD CONSTRAINT `fk_kitchen_order_item_tickets__updated_by__users` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE IF EXISTS `preorders`;
 -- Create preorders table
 CREATE TABLE `preorders` (
   `preorder_id` int unsigned NOT NULL AUTO_INCREMENT,
@@ -2584,6 +2586,7 @@ CREATE TABLE `preorders` (
   CONSTRAINT `fk_preorders__reservation_id__reservations` FOREIGN KEY (`reservation_id`) REFERENCES `reservations` (`reservation_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `preorder_items`;
 -- Create preorder_items table
 CREATE TABLE `preorder_items` (
   `preorder_item_id` int unsigned NOT NULL AUTO_INCREMENT,
@@ -2595,6 +2598,7 @@ CREATE TABLE `preorder_items` (
   `line_total_snapshot` decimal(13,2) NOT NULL DEFAULT '0.00',
   `currency` varchar(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'VND',
   `notes` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`preorder_item_id`),
@@ -2602,3 +2606,4 @@ CREATE TABLE `preorder_items` (
   KEY `fk_preorder_items__menu_item_id__menu_items` (`menu_item_id`),
   CONSTRAINT `fk_preorder_items__preorder_id__preorders` FOREIGN KEY (`preorder_id`) REFERENCES `preorders` (`preorder_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
