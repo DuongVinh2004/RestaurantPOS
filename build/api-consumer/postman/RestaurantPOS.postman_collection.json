@@ -1073,6 +1073,57 @@
                     ]
                 },
                 {
+                    "name": "POST Preorder Submit",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Customer-Token",
+                                "value": "{{customerToken}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Session-Id",
+                                "value": "{{customerSessionId}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text",
+                                "disabled": true
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/reservations/{{reservationIdPreorder}}/preorder/submit",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `POST api/v1/reservations/{id}/preorder/submit`\nAuth mode: `customer_or_staff`\nContract grade: `fallback`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": 1,\n    \"pre_order_row_version\": 1\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
                     "name": "Clear customer reservation pre-order",
                     "request": {
                         "method": "DELETE",

@@ -548,6 +548,12 @@
             "action": "App\\Modules\\Catalog\\Http\\Controllers\\Staff\\MenuCatalogController@index"
         },
         {
+            "key": "get_v1staffoperationscommand_center",
+            "method": "GET",
+            "uri": "api/v1/staff/operations/command-center",
+            "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\CommandCenterController@index"
+        },
+        {
             "key": "get_v1_staff_orders_order_id",
             "method": "GET",
             "uri": "api/v1/staff/orders/{order_id}",
@@ -558,6 +564,12 @@
             "method": "GET",
             "uri": "api/v1/staff/orders/{order_id}/settlement-preview",
             "action": "App\\Modules\\Cashiering\\Http\\Controllers\\Staff\\CheckoutController@settlementPreview"
+        },
+        {
+            "key": "get_v1staffreportinganalytics_overview",
+            "method": "GET",
+            "uri": "api/v1/staff/reporting/analytics-overview",
+            "action": "App\\Modules\\Reporting\\Http\\Controllers\\Staff\\AnalyticsOverviewController@index"
         },
         {
             "key": "get_v1_staff_reporting_daily_inventory",
@@ -588,6 +600,12 @@
             "method": "GET",
             "uri": "api/v1/staff/reservations/timeline",
             "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\ReservationTimelineController@index"
+        },
+        {
+            "key": "get_v1staffreservationsidpreorder",
+            "method": "GET",
+            "uri": "api/v1/staff/reservations/{id}/preorder",
+            "action": "App\\Modules\\Reservations\\Http\\Controllers\\StaffReservationPreorderController@show"
         },
         {
             "key": "get_v1_staff_reservations_reservation_id",
@@ -1044,10 +1062,22 @@
             "action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@preview"
         },
         {
+            "key": "post_v1reservationsidpre_ordersubmit",
+            "method": "POST",
+            "uri": "api/v1/reservations/{id}/pre-order/submit",
+            "action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@submit"
+        },
+        {
             "key": "post_v1_reservations_id_preorder_preview",
             "method": "POST",
             "uri": "api/v1/reservations/{id}/preorder/preview",
             "action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@preview"
+        },
+        {
+            "key": "post_v1reservationsidpreordersubmit",
+            "method": "POST",
+            "uri": "api/v1/reservations/{id}/preorder/submit",
+            "action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@submit"
         },
         {
             "key": "post_v1_reservations_id_reschedule",
@@ -1252,6 +1282,24 @@
             "method": "POST",
             "uri": "api/v1/staff/reservations/{id}/move-table",
             "action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\ReservationMoveTableController@store"
+        },
+        {
+            "key": "post_v1staffreservationsidpreorderconfirm",
+            "method": "POST",
+            "uri": "api/v1/staff/reservations/{id}/preorder/confirm",
+            "action": "App\\Modules\\Reservations\\Http\\Controllers\\StaffReservationPreorderController@confirm"
+        },
+        {
+            "key": "post_v1staffreservationsidpreorderconvert",
+            "method": "POST",
+            "uri": "api/v1/staff/reservations/{id}/preorder/convert",
+            "action": "App\\Modules\\Reservations\\Http\\Controllers\\StaffReservationPreorderController@convert"
+        },
+        {
+            "key": "post_v1staffreservationsidpreorderreject",
+            "method": "POST",
+            "uri": "api/v1/staff/reservations/{id}/preorder/reject",
+            "action": "App\\Modules\\Reservations\\Http\\Controllers\\StaffReservationPreorderController@reject"
         },
         {
             "key": "post_v1_staff_reservations_id_reschedule",

@@ -12248,6 +12248,99 @@
                 }
             }
         },
+        "/api/v1/reservations/{id}/pre-order/submit": {
+            "post": {
+                "operationId": "post_v1reservationsidpre_ordersubmit",
+                "summary": "POST Pre Order Submit",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Reservations"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical idempotency header. Compatibility aliases X-Idempotency-Key and body field idempotency_key are also accepted by the current implementation."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CustomerAccessToken": []
+                    },
+                    {
+                        "CustomerSessionId": []
+                    },
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "post_v1reservationsidpre_ordersubmit",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@submit",
+                "x-auth-mode": "customer_or_staff",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\CustomerOrStaffMiddleware",
+                    "idempotency:customer.reservations.preorder.submit"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SubmitCustomerReservationPreorderRequest"
+                            },
+                            "example": {
+                                "row_version": 1,
+                                "pre_order_row_version": 1
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/reservations/{id}/preorder": {
             "delete": {
                 "operationId": "delete_v1_reservations_id_preorder",
@@ -12721,6 +12814,99 @@
                                         "quantity": 2
                                     }
                                 ]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/reservations/{id}/preorder/submit": {
+            "post": {
+                "operationId": "post_v1reservationsidpreordersubmit",
+                "summary": "POST Preorder Submit",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Reservations"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical idempotency header. Compatibility aliases X-Idempotency-Key and body field idempotency_key are also accepted by the current implementation."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CustomerAccessToken": []
+                    },
+                    {
+                        "CustomerSessionId": []
+                    },
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "post_v1reservationsidpreordersubmit",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\CustomerReservationPreorderController@submit",
+                "x-auth-mode": "customer_or_staff",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\CustomerOrStaffMiddleware",
+                    "idempotency:customer.reservations.preorder.submit"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SubmitCustomerReservationPreorderRequest"
+                            },
+                            "example": {
+                                "row_version": 1,
+                                "pre_order_row_version": 1
                             }
                         }
                     }
@@ -20134,6 +20320,148 @@
                 ]
             }
         },
+        "/api/v1/staff/operations/command-center": {
+            "get": {
+                "operationId": "get_v1staffoperationscommand_center",
+                "summary": "GET Operations Command Center",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [
+                    {
+                        "name": "branch_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 1
+                        },
+                        "description": "nullable, integer, min:1",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1"
+                        ]
+                    },
+                    {
+                        "name": "priority",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                                "high",
+                                "normal",
+                                "low"
+                            ]
+                        },
+                        "description": "nullable, string, in:high,normal,low",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "string",
+                            "in:high,normal,low"
+                        ]
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                                "reservation_upcoming",
+                                "reservation_needs_check_in",
+                                "deposit_pending",
+                                "deposit_expired",
+                                "preorder_pending",
+                                "bill_payment_pending",
+                                "checkout_pending",
+                                "waiting_list_pending"
+                            ]
+                        },
+                        "description": "nullable, string, in:reservation_upcoming,reservation_needs_check_in,deposit_pending,deposit_expired,preorder_pending,bill_payment_pending,checkout_pending,waiting_list_pending",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "string",
+                            "in:reservation_upcoming,reservation_needs_check_in,deposit_pending,deposit_expired,preorder_pending,bill_payment_pending,checkout_pending,waiting_list_pending"
+                        ]
+                    },
+                    {
+                        "name": "horizon_hours",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 1,
+                            "maximum": 168
+                        },
+                        "description": "nullable, integer, min:1, max:168",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1",
+                            "max:168"
+                        ]
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 1,
+                            "maximum": 100
+                        },
+                        "description": "nullable, integer, min:1, max:100",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1",
+                            "max:100"
+                        ]
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "get_v1staffoperationscommand_center",
+                "x-action": "App\\Modules\\FloorOperations\\Http\\Controllers\\Staff\\CommandCenterController@index",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,1200,60,either",
+                    "staff.capability:reservation.manage"
+                ]
+            }
+        },
         "/api/v1/staff/orders/{order_id}": {
             "get": {
                 "operationId": "get_v1_staff_orders_order_id",
@@ -21601,6 +21929,118 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/staff/reporting/analytics-overview": {
+            "get": {
+                "operationId": "get_v1staffreportinganalytics_overview",
+                "summary": "GET Reporting Analytics Overview",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [
+                    {
+                        "name": "date_from",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                        },
+                        "description": "nullable, date, before_or_equal:date_to",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "date",
+                            "before_or_equal:date_to"
+                        ]
+                    },
+                    {
+                        "name": "date_to",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                        },
+                        "description": "nullable, date, after_or_equal:date_from",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "date",
+                            "after_or_equal:date_from"
+                        ]
+                    },
+                    {
+                        "name": "branch_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 1
+                        },
+                        "description": "nullable, integer, min:1",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1"
+                        ]
+                    },
+                    {
+                        "name": "granularity",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                                "hour",
+                                "day"
+                            ]
+                        },
+                        "description": "nullable, string, in:hour,day",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "string",
+                            "in:hour,day"
+                        ]
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "get_v1staffreportinganalytics_overview",
+                "x-action": "App\\Modules\\Reporting\\Http\\Controllers\\Staff\\AnalyticsOverviewController@index",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,1200,60,either",
+                    "staff.capability:reporting.view"
+                ]
             }
         },
         "/api/v1/staff/reporting/daily-inventory": {
@@ -23710,6 +24150,284 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/staff/reservations/{id}/preorder": {
+            "get": {
+                "operationId": "get_v1staffreservationsidpreorder",
+                "summary": "GET Id Preorder",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "get_v1staffreservationsidpreorder",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\StaffReservationPreorderController@show",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,1200,60,either",
+                    "staff.capability:reservation.manage"
+                ]
+            }
+        },
+        "/api/v1/staff/reservations/{id}/preorder/confirm": {
+            "post": {
+                "operationId": "post_v1staffreservationsidpreorderconfirm",
+                "summary": "POST Preorder Confirm",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical idempotency header. Compatibility aliases X-Idempotency-Key and body field idempotency_key are also accepted by the current implementation."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "post_v1staffreservationsidpreorderconfirm",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\StaffReservationPreorderController@confirm",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,1200,60,either",
+                    "staff.capability:reservation.manage",
+                    "idempotency:staff.reservation-preorder-confirm"
+                ]
+            }
+        },
+        "/api/v1/staff/reservations/{id}/preorder/convert": {
+            "post": {
+                "operationId": "post_v1staffreservationsidpreorderconvert",
+                "summary": "POST Preorder Convert",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical idempotency header. Compatibility aliases X-Idempotency-Key and body field idempotency_key are also accepted by the current implementation."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "post_v1staffreservationsidpreorderconvert",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\StaffReservationPreorderController@convert",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,1200,60,either",
+                    "staff.capability:reservation.manage",
+                    "idempotency:staff.reservation-preorder-convert"
+                ]
+            }
+        },
+        "/api/v1/staff/reservations/{id}/preorder/reject": {
+            "post": {
+                "operationId": "post_v1staffreservationsidpreorderreject",
+                "summary": "POST Preorder Reject",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical idempotency header. Compatibility aliases X-Idempotency-Key and body field idempotency_key are also accepted by the current implementation."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "post_v1staffreservationsidpreorderreject",
+                "x-action": "App\\Modules\\Reservations\\Http\\Controllers\\StaffReservationPreorderController@reject",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,1200,60,either",
+                    "staff.capability:reservation.manage",
+                    "idempotency:staff.reservation-preorder-reject"
+                ]
             }
         },
         "/api/v1/staff/reservations/{id}/reschedule": {
@@ -31396,6 +32114,78 @@
                     ]
                 }
             },
+            "AnalyticsOverviewRequest": {
+                "type": "object",
+                "properties": {
+                    "date_from": {
+                        "type": "string",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "date",
+                            "before_or_equal:date_to"
+                        ],
+                        "format": "date-time"
+                    },
+                    "date_to": {
+                        "type": "string",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "date",
+                            "after_or_equal:date_from"
+                        ],
+                        "format": "date-time"
+                    },
+                    "branch_id": {
+                        "type": "integer",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1"
+                        ],
+                        "minimum": 1
+                    },
+                    "granularity": {
+                        "type": "string",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "string",
+                            "in:hour,day"
+                        ],
+                        "enum": [
+                            "hour",
+                            "day"
+                        ]
+                    }
+                },
+                "required": [],
+                "additionalProperties": false,
+                "x-laravel-rules": {
+                    "date_from": [
+                        "nullable",
+                        "date",
+                        "before_or_equal:date_to"
+                    ],
+                    "date_to": [
+                        "nullable",
+                        "date",
+                        "after_or_equal:date_from"
+                    ],
+                    "branch_id": [
+                        "nullable",
+                        "integer",
+                        "min:1"
+                    ],
+                    "granularity": [
+                        "nullable",
+                        "string",
+                        "in:hour,day"
+                    ]
+                }
+            },
             "ApiError": {
                 "type": "object",
                 "required": [
@@ -33543,6 +34333,109 @@
                         "nullable",
                         "integer",
                         "min:1"
+                    ]
+                }
+            },
+            "CommandCenterRequest": {
+                "type": "object",
+                "properties": {
+                    "branch_id": {
+                        "type": "integer",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1"
+                        ],
+                        "minimum": 1
+                    },
+                    "priority": {
+                        "type": "string",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "string",
+                            "in:high,normal,low"
+                        ],
+                        "enum": [
+                            "high",
+                            "normal",
+                            "low"
+                        ]
+                    },
+                    "type": {
+                        "type": "string",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "string",
+                            "in:reservation_upcoming,reservation_needs_check_in,deposit_pending,deposit_expired,preorder_pending,bill_payment_pending,checkout_pending,waiting_list_pending"
+                        ],
+                        "enum": [
+                            "reservation_upcoming",
+                            "reservation_needs_check_in",
+                            "deposit_pending",
+                            "deposit_expired",
+                            "preorder_pending",
+                            "bill_payment_pending",
+                            "checkout_pending",
+                            "waiting_list_pending"
+                        ]
+                    },
+                    "horizon_hours": {
+                        "type": "integer",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1",
+                            "max:168"
+                        ],
+                        "minimum": 1,
+                        "maximum": 168
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1",
+                            "max:100"
+                        ],
+                        "minimum": 1,
+                        "maximum": 100
+                    }
+                },
+                "required": [],
+                "additionalProperties": false,
+                "x-laravel-rules": {
+                    "branch_id": [
+                        "nullable",
+                        "integer",
+                        "min:1"
+                    ],
+                    "priority": [
+                        "nullable",
+                        "string",
+                        "in:high,normal,low"
+                    ],
+                    "type": [
+                        "nullable",
+                        "string",
+                        "in:reservation_upcoming,reservation_needs_check_in,deposit_pending,deposit_expired,preorder_pending,bill_payment_pending,checkout_pending,waiting_list_pending"
+                    ],
+                    "horizon_hours": [
+                        "nullable",
+                        "integer",
+                        "min:1",
+                        "max:168"
+                    ],
+                    "limit": [
+                        "nullable",
+                        "integer",
+                        "min:1",
+                        "max:100"
                     ]
                 }
             },
@@ -56246,6 +57139,46 @@
                         "nullable",
                         "string",
                         "max:100"
+                    ]
+                }
+            },
+            "SubmitCustomerReservationPreorderRequest": {
+                "type": "object",
+                "properties": {
+                    "row_version": {
+                        "type": "integer",
+                        "x-laravel-rules": [
+                            "required",
+                            "integer",
+                            "min:1"
+                        ],
+                        "minimum": 1
+                    },
+                    "pre_order_row_version": {
+                        "type": "integer",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1"
+                        ],
+                        "minimum": 1
+                    }
+                },
+                "required": [
+                    "row_version"
+                ],
+                "additionalProperties": false,
+                "x-laravel-rules": {
+                    "row_version": [
+                        "required",
+                        "integer",
+                        "min:1"
+                    ],
+                    "pre_order_row_version": [
+                        "nullable",
+                        "integer",
+                        "min:1"
                     ]
                 }
             },

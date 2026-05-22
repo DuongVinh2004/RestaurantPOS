@@ -2544,6 +2544,10 @@ export type PostV1WaitingListIdDeclinePathParams = {
   id: number;
 };
 
+export type PostV1reservationsidpreordersubmitPathParams = {
+  id: number;
+};
+
 export type PostV1staffconversationsconversationIdworkflowStatePathParams = {
   conversation_id: string;
 };
@@ -4462,6 +4466,11 @@ export type SubmitCustomerReservationDepositIntentRequest = {
   session_id?: (string) | null;
 };
 
+export type SubmitCustomerReservationPreorderRequest = {
+  row_version: number;
+  pre_order_row_version?: (number) | null;
+};
+
 export type TableHold = {
   hold_id: string;
   session_hash: (string) | null;
@@ -4919,6 +4928,19 @@ export class RestaurantPosClient {
       'PUT',
       this.interpolatePath('/api/v1/reservations/{id}/preorder', pathParams as Record<string, string | number>),
       'customerOrSession',
+      true,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async postV1reservationsidpreordersubmit(pathParams: PostV1reservationsidpreordersubmitPathParams, body: SubmitCustomerReservationPreorderRequest, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/reservations/{id}/preorder/submit', pathParams as Record<string, string | number>),
+      'auto',
       true,
       true,
       undefined,

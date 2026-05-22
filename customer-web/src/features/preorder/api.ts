@@ -36,7 +36,7 @@ export function submitReservationPreorder(
   preOrderRowVersion?: number | null,
 ): Promise<ReservationPreorderResult> {
   return apiCall((client) =>
-    client.postV1ReservationsIdPreorderSubmit(
+    client.postV1reservationsidpreordersubmit(
       { id: reservationId },
       {
         row_version: rowVersion,
@@ -44,7 +44,7 @@ export function submitReservationPreorder(
       },
       idempotentSessionOptions("reservation-preorder-submit")
     ),
-  ).then(unwrapData);
+  ).then(unwrapData) as Promise<ReservationPreorderResult>;
 }
 
 export function clearReservationPreorder(

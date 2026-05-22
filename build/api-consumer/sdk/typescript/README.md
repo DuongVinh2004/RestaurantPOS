@@ -59,6 +59,7 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 - GET api/v1/reservations/{id}/preorder
 - POST api/v1/reservations/{id}/preorder/preview
 - PUT api/v1/reservations/{id}/preorder
+- POST api/v1/reservations/{id}/preorder/submit
 - DELETE api/v1/reservations/{id}/preorder
 
 ### Deposit Self-Pay

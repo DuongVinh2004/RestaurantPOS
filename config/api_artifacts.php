@@ -50,6 +50,7 @@ return [
                     'GET api/v1/reservations/{id}/preorder',
                     'POST api/v1/reservations/{id}/preorder/preview',
                     'PUT api/v1/reservations/{id}/preorder',
+                    'POST api/v1/reservations/{id}/preorder/submit',
                     'DELETE api/v1/reservations/{id}/preorder',
                 ],
             ],
@@ -338,6 +339,9 @@ return [
                 'path' => ['id' => 'reservationIdPreorder'],
             ],
             'PUT api/v1/reservations/{id}/preorder' => [
+                'path' => ['id' => 'reservationIdPreorder'],
+            ],
+            'POST api/v1/reservations/{id}/preorder/submit' => [
                 'path' => ['id' => 'reservationIdPreorder'],
             ],
             'DELETE api/v1/reservations/{id}/preorder' => [

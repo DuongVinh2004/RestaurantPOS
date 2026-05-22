@@ -2014,6 +2014,10 @@ export type GetV1StaffReservationsQueryParams = {
   include_financials?: (boolean) | null;
 };
 
+export type GetV1StaffReservationsReservationIdDepositPreviewPathParams = {
+  reservation_id: number;
+};
+
 export type GetV1StaffReservationsReservationIdOrdersPathParams = {
   reservation_id: number;
 };
@@ -2293,6 +2297,17 @@ export type PayOrderRequest = {
   staff_user_id?: (number) | null;
 };
 
+export type PayReservationDepositRequest = {
+  payment_method: string;
+  payment_provider?: ("MoMo" | "VNPay" | "Cash" | "Card" | "BankTransfer" | "Other") | null;
+  amount: number;
+  currency?: (string) | null;
+  transaction_code?: (string) | null;
+  notes?: (string) | null;
+  row_version: number;
+  staff_user_id?: (number) | null;
+};
+
 export type PostV1AdminInventoryIngredientsIdMovementsPathParams = {
   id: number;
 };
@@ -2477,6 +2492,10 @@ export type PostV1StaffReservationsIdMoveTablePathParams = {
   id: number;
 };
 
+export type PostV1StaffReservationsReservationIdDepositPayPathParams = {
+  reservation_id: number;
+};
+
 export type PostV1StaffReservationsReservationIdRefundCancelPathParams = {
   reservation_id: number;
 };
@@ -2522,6 +2541,10 @@ export type PostV1WaitingListIdConfirmArrivalPathParams = {
 };
 
 export type PostV1WaitingListIdDeclinePathParams = {
+  id: number;
+};
+
+export type PostV1reservationsidpreordersubmitPathParams = {
   id: number;
 };
 
@@ -3790,6 +3813,7 @@ export type StaffReservationLookupEntry = {
 };
   deposit_self_service: Record<string, unknown>;
   financials: (Record<string, unknown>) | null;
+  deposit_status?: (string) | null;
 };
 
 export type StaffReservationLookupTable = {
@@ -4442,6 +4466,11 @@ export type SubmitCustomerReservationDepositIntentRequest = {
   session_id?: (string) | null;
 };
 
+export type SubmitCustomerReservationPreorderRequest = {
+  row_version: number;
+  pre_order_row_version?: (number) | null;
+};
+
 export type TableHold = {
   hold_id: string;
   session_hash: (string) | null;
@@ -4899,6 +4928,19 @@ export class RestaurantPosClient {
       'PUT',
       this.interpolatePath('/api/v1/reservations/{id}/preorder', pathParams as Record<string, string | number>),
       'customerOrSession',
+      true,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async postV1reservationsidpreordersubmit(pathParams: PostV1reservationsidpreordersubmitPathParams, body: SubmitCustomerReservationPreorderRequest, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/reservations/{id}/preorder/submit', pathParams as Record<string, string | number>),
+      'auto',
       true,
       true,
       undefined,
@@ -5756,6 +5798,32 @@ export class RestaurantPosClient {
     return this.request<StaffRefundEnvelope>(
       'POST',
       this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/refund-cancel', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async getV1StaffReservationsReservationIdDepositPreview(pathParams: GetV1StaffReservationsReservationIdDepositPreviewPathParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/deposit-preview', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async postV1StaffReservationsReservationIdDepositPay(pathParams: PostV1StaffReservationsReservationIdDepositPayPathParams, body: PayReservationDepositRequest, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/deposit/pay', pathParams as Record<string, string | number>),
       'staff',
       false,
       true,
