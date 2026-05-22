@@ -29,6 +29,7 @@ class ApiArtifactsConfigContractTest extends TestCase
             'Staff Lookup',
             'Operations Read Models',
             'Refunds',
+            'Staff Deposits',
             'Staff Finance',
             'Waiting List',
             'Benefits',
