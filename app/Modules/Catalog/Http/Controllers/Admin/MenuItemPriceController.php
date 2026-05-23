@@ -13,12 +13,15 @@ use App\Modules\Catalog\Http\Resources\Admin\MenuItemPriceResource;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Http\JsonResponse;
 
+use Knuckles\Scribe\Attributes\ResponseFromApiResource;
+
 class MenuItemPriceController extends Controller
 {
     public function __construct(
         private readonly MenuCatalogManagementService $menuService,
     ) {}
 
+    #[ResponseFromApiResource(MenuItemPriceResource::class, collection: true)]
     public function index(int $item_id, ListMenuItemPricesRequest $request): JsonResponse
     {
         $validated = $request->validated();
@@ -96,6 +99,7 @@ class MenuItemPriceController extends Controller
         ]);
     }
 
+    #[ResponseFromApiResource(MenuItemPriceResource::class)]
     public function show(int $price_id): JsonResponse
     {
         return response()->json([

@@ -20,6 +20,10 @@
             "description": "Admin Inventory"
         },
         {
+            "name": "Admin Menu",
+            "description": "Admin Menu"
+        },
+        {
             "name": "Admin Privacy",
             "description": "Admin Privacy"
         },
@@ -4814,10 +4818,10 @@
         "/api/v1/admin/menu/categories": {
             "get": {
                 "operationId": "get_v1_admin_menu_categories",
-                "summary": "GET Menu Categories",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "List admin menu categories",
+                "description": "Return staff menu categories for admin management.",
                 "tags": [
-                    "Legacy"
+                    "Admin Menu"
                 ],
                 "parameters": [
                     {
@@ -4996,7 +5000,7 @@
                 "x-route-key": "get_v1_admin_menu_categories",
                 "x-action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuCategoryController@index",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -5094,10 +5098,10 @@
         "/api/v1/admin/menu/categories/export": {
             "get": {
                 "operationId": "get_v1_admin_menu_categories_export",
-                "summary": "GET Categories Export",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Export admin menu categories",
+                "description": "Export menu categories.",
                 "tags": [
-                    "Legacy"
+                    "Admin Menu"
                 ],
                 "parameters": [
                     {
@@ -5140,7 +5144,7 @@
                 "x-route-key": "get_v1_admin_menu_categories_export",
                 "x-action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -5332,10 +5336,10 @@
         "/api/v1/admin/menu/items": {
             "get": {
                 "operationId": "get_v1_admin_menu_items",
-                "summary": "GET Menu Items",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "List admin menu items",
+                "description": "Return menu items for admin management.",
                 "tags": [
-                    "Legacy"
+                    "Admin Menu"
                 ],
                 "parameters": [
                     {
@@ -5552,7 +5556,7 @@
                 "x-route-key": "get_v1_admin_menu_items",
                 "x-action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemController@index",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -5655,10 +5659,10 @@
         "/api/v1/admin/menu/items/export": {
             "get": {
                 "operationId": "get_v1_admin_menu_items_export",
-                "summary": "GET Items Export",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Export admin menu items",
+                "description": "Export menu items.",
                 "tags": [
-                    "Legacy"
+                    "Admin Menu"
                 ],
                 "parameters": [
                     {
@@ -5701,7 +5705,7 @@
                 "x-route-key": "get_v1_admin_menu_items_export",
                 "x-action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -5802,10 +5806,10 @@
         "/api/v1/admin/menu/items/{item_id}": {
             "get": {
                 "operationId": "get_v1_admin_menu_items_item_id",
-                "summary": "GET Items Item Id",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Show admin menu item",
+                "description": "Return single menu item for admin.",
                 "tags": [
-                    "Legacy"
+                    "Admin Menu"
                 ],
                 "parameters": [
                     {
@@ -5827,6 +5831,16 @@
                                 }
                             }
                         }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -5838,7 +5852,7 @@
                 "x-route-key": "get_v1_admin_menu_items_item_id",
                 "x-action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemController@show",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -5949,10 +5963,10 @@
         "/api/v1/admin/menu/items/{item_id}/prices": {
             "get": {
                 "operationId": "get_v1_admin_menu_items_item_id_prices",
-                "summary": "GET Item Id Prices",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "List admin menu item prices",
+                "description": "Return prices for a menu item.",
                 "tags": [
-                    "Legacy"
+                    "Admin Menu"
                 ],
                 "parameters": [
                     {
@@ -6141,7 +6155,7 @@
                 "x-route-key": "get_v1_admin_menu_items_item_id_prices",
                 "x-action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemPriceController@index",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -6247,10 +6261,10 @@
         "/api/v1/admin/menu/prices/export": {
             "get": {
                 "operationId": "get_v1_admin_menu_prices_export",
-                "summary": "GET Prices Export",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Export admin menu prices",
+                "description": "Export menu prices.",
                 "tags": [
-                    "Legacy"
+                    "Admin Menu"
                 ],
                 "parameters": [
                     {
@@ -6293,7 +6307,7 @@
                 "x-route-key": "get_v1_admin_menu_prices_export",
                 "x-action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -6394,10 +6408,10 @@
         "/api/v1/admin/menu/prices/{price_id}": {
             "get": {
                 "operationId": "get_v1_admin_menu_prices_price_id",
-                "summary": "GET Prices Price Id",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Show admin menu price",
+                "description": "Return single menu price.",
                 "tags": [
-                    "Legacy"
+                    "Admin Menu"
                 ],
                 "parameters": [
                     {
@@ -6419,6 +6433,16 @@
                                 }
                             }
                         }
+                    },
+                    "404": {
+                        "description": "Requested resource was not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -6430,7 +6454,7 @@
                 "x-route-key": "get_v1_admin_menu_prices_price_id",
                 "x-action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemPriceController@show",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -6933,10 +6957,10 @@
         "/api/v1/admin/restaurant/tables": {
             "get": {
                 "operationId": "get_v1_admin_restaurant_tables",
-                "summary": "GET Restaurant Tables",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "List admin restaurant tables",
+                "description": "Return restaurant tables for admin management.",
                 "tags": [
-                    "Legacy"
+                    "Admin Settings"
                 ],
                 "parameters": [
                     {
@@ -7063,7 +7087,7 @@
                 "x-route-key": "get_v1_admin_restaurant_tables",
                 "x-action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\RestaurantTableController@index",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",
@@ -7167,10 +7191,10 @@
         "/api/v1/admin/restaurant/tables/export": {
             "get": {
                 "operationId": "get_v1_admin_restaurant_tables_export",
-                "summary": "GET Tables Export",
-                "description": "Runtime route mirrored from Laravel route inventory.",
+                "summary": "Export admin restaurant tables",
+                "description": "Export restaurant tables.",
                 "tags": [
-                    "Legacy"
+                    "Admin Settings"
                 ],
                 "parameters": [
                     {
@@ -7213,7 +7237,7 @@
                 "x-route-key": "get_v1_admin_restaurant_tables_export",
                 "x-action": "App\\Modules\\MasterDataExchange\\Http\\Controllers\\Admin\\MasterDataExportController@export",
                 "x-auth-mode": "staff_api_key",
-                "x-contract-grade": "fallback",
+                "x-contract-grade": "full",
                 "x-runtime-middleware": [
                     "api",
                     "reqid",

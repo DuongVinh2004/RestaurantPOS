@@ -544,7 +544,7 @@ export type AdminMasterDataImportPayload = AdminMasterDataDryRunPayload | AdminM
 
 export type AdminRestaurantTableQuery = BranchScopedQuery & {
   zone?: string;
-  status?: string;
+  status?: "Available" | "Reserved" | "Occupied" | "Blocked" | "Maintenance";
   template_id?: number;
   include_deleted?: boolean;
   q?: string;
@@ -555,7 +555,7 @@ export type AdminMenuCategoryQuery = {
   q?: string;
   per_page?: number;
   page?: number;
-  sort?: string;
+  sort?: "sort_order" | "-sort_order" | "name" | "-name" | "category_id" | "-category_id" | "updated_at" | "-updated_at";
 };
 
 export type AdminMenuItemQuery = {
@@ -565,7 +565,7 @@ export type AdminMenuItemQuery = {
   as_of?: string;
   per_page?: number;
   page?: number;
-  sort?: string;
+  sort?: "name" | "-name" | "code" | "-code" | "item_id" | "-item_id" | "category_id" | "-category_id" | "updated_at" | "-updated_at";
 };
 
 export type AdminMenuItemPriceQuery = {
@@ -573,7 +573,7 @@ export type AdminMenuItemPriceQuery = {
   currency?: string;
   per_page?: number;
   page?: number;
-  sort?: string;
+  sort?: "effective_from" | "-effective_from" | "effective_to" | "-effective_to" | "price" | "-price" | "price_id" | "-price_id";
 };
 
 export type AdminIngredientMovementQuery = BranchScopedQuery & {
@@ -755,7 +755,7 @@ export async function listAdminBranches(
 export async function listAdminRestaurantTables(
   query: AdminRestaurantTableQuery = {},
 ): Promise<AdminRestaurantTableCollectionEnvelope> {
-  return apiRequest<AdminRestaurantTableCollectionEnvelope>('/admin/restaurant/tables', { query });
+  return staffClient.getV1AdminRestaurantTables(query) as unknown as Promise<AdminRestaurantTableCollectionEnvelope>;
 }
 
 export async function listAdminRestaurantTableTemplates(): Promise<AdminTableTemplateCollectionEnvelope> {
@@ -773,20 +773,20 @@ export async function createAdminRestaurantTable(
 export async function listAdminMenuCategories(
   query: AdminMenuCategoryQuery = { per_page: 12, sort: 'sort_order' },
 ): Promise<AdminMenuCategoryCollectionEnvelope> {
-  return apiRequest<AdminMenuCategoryCollectionEnvelope>('/admin/menu/categories', { query });
+  return staffClient.getV1AdminMenuCategories(query) as unknown as Promise<AdminMenuCategoryCollectionEnvelope>;
 }
 
 export async function listAdminMenuItems(
   query: AdminMenuItemQuery = { per_page: 12, sort: 'name' },
 ): Promise<AdminMenuItemCollectionEnvelope> {
-  return apiRequest<AdminMenuItemCollectionEnvelope>('/admin/menu/items', { query });
+  return staffClient.getV1AdminMenuItems(query) as unknown as Promise<AdminMenuItemCollectionEnvelope>;
 }
 
 export async function listAdminMenuItemPrices(
   itemId: number,
   query: AdminMenuItemPriceQuery = { per_page: 8, sort: '-effective_from' },
 ): Promise<AdminMenuItemPriceCollectionEnvelope> {
-  return apiRequest<AdminMenuItemPriceCollectionEnvelope>(`/admin/menu/items/${itemId}/prices`, { query });
+  return staffClient.getV1AdminMenuItemsItemIdPrices({ item_id: itemId }, query) as unknown as Promise<AdminMenuItemPriceCollectionEnvelope>;
 }
 
 export async function createAdminMenuCategory(

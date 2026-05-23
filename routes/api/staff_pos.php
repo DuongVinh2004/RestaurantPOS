@@ -70,7 +70,8 @@ Route::middleware([
                 Route::get('menu/items', [MenuCatalogController::class, 'index'])
                     ->middleware('staff.capability:order.manage');
                 Route::get('tables/board', [TableBoardController::class, 'index'])->middleware('staff.capability:table.board.view');
-                Route::get('table-board', [TableBoardController::class, 'legacyIndex'])->middleware('staff.capability:table.board.view');
+                /** @deprecated Retained for compatibility. Use tables/board instead. */
+                Route::get('table-board', [TableBoardController::class, 'legacyIndex'])->middleware('staff.capability:table.board.view')->name('staff.table_board.legacy');
                 Route::get('tables/{table_id}/active-service-session', [ServiceSessionController::class, 'showActiveByTable'])
                     ->whereNumber('table_id')
                     ->middleware('staff.capability:reservation.manage');

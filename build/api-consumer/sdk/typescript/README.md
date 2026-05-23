@@ -192,11 +192,21 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 
 ### Admin Master Data
 
+- GET api/v1/admin/restaurant/tables
+- GET api/v1/admin/restaurant/tables/export
 - GET api/v1/admin/restaurant/table-templates
 - POST api/v1/admin/restaurant/tables
+- GET api/v1/admin/menu/categories
+- GET api/v1/admin/menu/categories/export
 - POST api/v1/admin/menu/categories
+- GET api/v1/admin/menu/items
+- GET api/v1/admin/menu/items/export
+- GET api/v1/admin/menu/items/{item_id}
+- GET api/v1/admin/menu/items/{item_id}/prices
 - POST api/v1/admin/menu/items
 - POST api/v1/admin/menu/items/{item_id}/prices
+- GET api/v1/admin/menu/prices/export
+- GET api/v1/admin/menu/prices/{price_id}
 
 ### Admin Benefits
 
