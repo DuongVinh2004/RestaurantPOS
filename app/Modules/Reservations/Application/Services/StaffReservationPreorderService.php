@@ -31,7 +31,7 @@ class StaffReservationPreorderService
     public function getPreorderForStaff(int $reservationId): array
     {
         $reservation = $this->getReservation($reservationId);
-        $preorder = $reservation->preorder()->with('items.menuItem')->first();
+        $preorder = $reservation->preorder()->with('items.item')->first();
 
         if (!$preorder) {
             return [

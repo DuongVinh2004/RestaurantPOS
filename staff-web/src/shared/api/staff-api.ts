@@ -114,6 +114,11 @@ import type {
   UpdateOrderItemStatusRequest,
   UpdateVoucherRequest,
   UpsertBenefitSettingRequest,
+  AdjustUserLoyaltyPointsRequest,
+  StaffApplyReservationVoucherRequest,
+  StaffRedeemReservationPointsRequest,
+  StaffReleaseReservationPointsRequest,
+  StaffRemoveReservationVoucherRequest,
 } from './sdk';
 import { createIdempotencyKey } from '../utils/idempotency';
 import { staffClient } from './client';
@@ -230,27 +235,11 @@ export type BranchScopedQuery = {
   branch_id?: number;
 };
 
-export type StaffReservationVoucherPayload = {
-  row_version: number;
-  user_voucher_id?: number | null;
-  voucher_code?: string | null;
-};
-export type StaffReservationVoucherRemovePayload = {
-  row_version: number;
-};
-export type StaffReservationLoyaltyRedeemPayload = {
-  row_version: number;
-  points: number;
-  reason?: string | null;
-};
-export type StaffReservationLoyaltyReleasePayload = {
-  row_version: number;
-  reason?: string | null;
-};
-export type StaffUserLoyaltyAdjustPayload = {
-  points: number;
-  reason: string;
-};
+export type StaffReservationVoucherPayload = StaffApplyReservationVoucherRequest;
+export type StaffReservationVoucherRemovePayload = StaffRemoveReservationVoucherRequest;
+export type StaffReservationLoyaltyRedeemPayload = StaffRedeemReservationPointsRequest;
+export type StaffReservationLoyaltyReleasePayload = StaffReleaseReservationPointsRequest;
+export type StaffUserLoyaltyAdjustPayload = AdjustUserLoyaltyPointsRequest;
 
 export type AdminBenefitsQuery = {
   q?: string;
@@ -755,11 +744,13 @@ export async function listAdminBranches(
 export async function listAdminRestaurantTables(
   query: AdminRestaurantTableQuery = {},
 ): Promise<AdminRestaurantTableCollectionEnvelope> {
-  return staffClient.getV1AdminRestaurantTables(query) as unknown as Promise<AdminRestaurantTableCollectionEnvelope>;
+  const res = await staffClient.getV1AdminRestaurantTables(query);
+  return res as unknown as AdminRestaurantTableCollectionEnvelope;
 }
 
 export async function listAdminRestaurantTableTemplates(): Promise<AdminTableTemplateCollectionEnvelope> {
-  return staffClient.getV1AdminRestaurantTableTemplates() as unknown as Promise<AdminTableTemplateCollectionEnvelope>;
+  const res = await staffClient.getV1AdminRestaurantTableTemplates();
+  return res as unknown as AdminTableTemplateCollectionEnvelope;
 }
 
 export async function createAdminRestaurantTable(
@@ -773,20 +764,23 @@ export async function createAdminRestaurantTable(
 export async function listAdminMenuCategories(
   query: AdminMenuCategoryQuery = { per_page: 12, sort: 'sort_order' },
 ): Promise<AdminMenuCategoryCollectionEnvelope> {
-  return staffClient.getV1AdminMenuCategories(query) as unknown as Promise<AdminMenuCategoryCollectionEnvelope>;
+  const res = await staffClient.getV1AdminMenuCategories(query);
+  return res as unknown as AdminMenuCategoryCollectionEnvelope;
 }
 
 export async function listAdminMenuItems(
   query: AdminMenuItemQuery = { per_page: 12, sort: 'name' },
 ): Promise<AdminMenuItemCollectionEnvelope> {
-  return staffClient.getV1AdminMenuItems(query) as unknown as Promise<AdminMenuItemCollectionEnvelope>;
+  const res = await staffClient.getV1AdminMenuItems(query);
+  return res as unknown as AdminMenuItemCollectionEnvelope;
 }
 
 export async function listAdminMenuItemPrices(
   itemId: number,
   query: AdminMenuItemPriceQuery = { per_page: 8, sort: '-effective_from' },
 ): Promise<AdminMenuItemPriceCollectionEnvelope> {
-  return staffClient.getV1AdminMenuItemsItemIdPrices({ item_id: itemId }, query) as unknown as Promise<AdminMenuItemPriceCollectionEnvelope>;
+  const res = await staffClient.getV1AdminMenuItemsItemIdPrices({ item_id: itemId }, query);
+  return res as unknown as AdminMenuItemPriceCollectionEnvelope;
 }
 
 export async function createAdminMenuCategory(
@@ -940,40 +934,38 @@ export type StaffReservationPreorderEnvelope = {
 export async function getStaffReservationPreorder(
   reservationId: number,
 ): Promise<StaffReservationPreorderEnvelope> {
-  return apiRequest<StaffReservationPreorderEnvelope>(`/staff/reservations/${reservationId}/preorder`);
+  const res = await staffClient.getV1staffreservationsidpreorder({ id: reservationId });
+  return res as unknown as StaffReservationPreorderEnvelope;
 }
 
 export async function confirmStaffReservationPreorder(
   reservationId: number,
 ): Promise<StaffReservationPreorderStatusEnvelope> {
-  return apiRequest<StaffReservationPreorderStatusEnvelope>(`/staff/reservations/${reservationId}/preorder/confirm`, {
-    method: 'POST',
-    headers: {
-      'Idempotency-Key': createIdempotencyKey(`staff-reservation-preorder-confirm-${reservationId}`),
-    },
-  });
+  const res = await staffClient.postV1staffreservationsidpreorderconfirm(
+    { id: reservationId },
+    { idempotencyKey: createIdempotencyKey(`staff-reservation-preorder-confirm-${reservationId}`) }
+  );
+  return res as unknown as StaffReservationPreorderStatusEnvelope;
 }
 
 export async function rejectStaffReservationPreorder(
   reservationId: number,
 ): Promise<StaffReservationPreorderStatusEnvelope> {
-  return apiRequest<StaffReservationPreorderStatusEnvelope>(`/staff/reservations/${reservationId}/preorder/reject`, {
-    method: 'POST',
-    headers: {
-      'Idempotency-Key': createIdempotencyKey(`staff-reservation-preorder-reject-${reservationId}`),
-    },
-  });
+  const res = await staffClient.postV1staffreservationsidpreorderreject(
+    { id: reservationId },
+    { idempotencyKey: createIdempotencyKey(`staff-reservation-preorder-reject-${reservationId}`) }
+  );
+  return res as unknown as StaffReservationPreorderStatusEnvelope;
 }
 
 export async function convertStaffReservationPreorder(
   reservationId: number,
 ): Promise<StaffReservationPreorderConvertEnvelope> {
-  return apiRequest<StaffReservationPreorderConvertEnvelope>(`/staff/reservations/${reservationId}/preorder/convert`, {
-    method: 'POST',
-    headers: {
-      'Idempotency-Key': createIdempotencyKey(`staff-reservation-preorder-convert-${reservationId}`),
-    },
-  });
+  const res = await staffClient.postV1staffreservationsidpreorderconvert(
+    { id: reservationId },
+    { idempotencyKey: createIdempotencyKey(`staff-reservation-preorder-convert-${reservationId}`) }
+  );
+  return res as unknown as StaffReservationPreorderConvertEnvelope;
 }
 
 
@@ -1193,81 +1185,81 @@ export async function cancelReservation(
 }
 
 export async function listStaffReservationVouchers(reservationId: number): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>(`/staff/reservations/${reservationId}/vouchers`);
+  return staffClient.getV1StaffReservationsReservationIdVouchers({ reservation_id: reservationId });
 }
 
 export async function applyStaffReservationVoucher(
   reservationId: number,
   payload: StaffReservationVoucherPayload,
 ): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>(`/staff/reservations/${reservationId}/voucher/apply`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`staff-reservation-voucher-apply-${reservationId}`),
-  });
+  return staffClient.postV1StaffReservationsReservationIdVoucherApply(
+    { reservation_id: reservationId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`staff-reservation-voucher-apply-${reservationId}`) }
+  );
 }
 
 export async function removeStaffReservationVoucher(
   reservationId: number,
   payload: StaffReservationVoucherRemovePayload,
 ): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>(`/staff/reservations/${reservationId}/voucher/remove`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`staff-reservation-voucher-remove-${reservationId}`),
-  });
+  return staffClient.postV1StaffReservationsReservationIdVoucherRemove(
+    { reservation_id: reservationId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`staff-reservation-voucher-remove-${reservationId}`) }
+  );
 }
 
 export async function releaseStaffReservationVoucher(
   reservationId: number,
   payload: StaffReservationVoucherRemovePayload,
 ): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>(`/staff/reservations/${reservationId}/voucher/remove`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`staff-reservation-voucher-release-${reservationId}`),
-  });
+  return staffClient.postV1StaffReservationsReservationIdVoucherRelease(
+    { reservation_id: reservationId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`staff-reservation-voucher-release-${reservationId}`) }
+  );
 }
 
 export async function getStaffUserLoyalty(userId: number): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>(`/staff/users/${userId}/loyalty`);
+  return staffClient.getV1StaffUsersUserIdLoyalty({ user_id: userId });
 }
 
 export async function adjustStaffUserLoyalty(
   userId: number,
   payload: StaffUserLoyaltyAdjustPayload,
 ): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>(`/staff/users/${userId}/loyalty/adjust`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`staff-user-loyalty-adjust-${userId}`),
-  });
+  return staffClient.postV1StaffUsersUserIdLoyaltyAdjust(
+    { user_id: userId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`staff-user-loyalty-adjust-${userId}`) }
+  );
 }
 
 export async function getStaffReservationLoyalty(reservationId: number): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>(`/staff/reservations/${reservationId}/loyalty`);
+  return staffClient.getV1StaffReservationsReservationIdLoyalty({ reservation_id: reservationId });
 }
 
 export async function redeemStaffReservationLoyalty(
   reservationId: number,
   payload: StaffReservationLoyaltyRedeemPayload,
 ): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>(`/staff/reservations/${reservationId}/loyalty/redeem`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`staff-reservation-loyalty-redeem-${reservationId}`),
-  });
+  return staffClient.postV1StaffReservationsReservationIdLoyaltyRedeem(
+    { reservation_id: reservationId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`staff-reservation-loyalty-redeem-${reservationId}`) }
+  );
 }
 
 export async function releaseStaffReservationLoyalty(
   reservationId: number,
   payload: StaffReservationLoyaltyReleasePayload,
 ): Promise<GenericDataEnvelope> {
-  return apiRequest<GenericDataEnvelope>(`/staff/reservations/${reservationId}/loyalty/redeem/release`, {
-    method: 'POST',
-    body: payload,
-    idempotencyKey: createIdempotencyKey(`staff-reservation-loyalty-release-${reservationId}`),
-  });
+  return staffClient.postV1StaffReservationsReservationIdLoyaltyRedeemRelease(
+    { reservation_id: reservationId },
+    payload,
+    { idempotencyKey: createIdempotencyKey(`staff-reservation-loyalty-release-${reservationId}`) }
+  );
 }
 
 export async function updateReservationStatus(

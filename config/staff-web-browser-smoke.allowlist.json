@@ -1,0 +1,44 @@
+[
+  {
+    "pattern": "React Router Future Flag Warning",
+    "reason": "React Router v7 future flag transition logs are advisory and do not indicate application regression.",
+    "owner": "QA Team",
+    "expiry_follow_up_batch": "Batch 14",
+    "severity": "warn"
+  },
+  {
+    "pattern": "Vite Dev Server connection",
+    "reason": "Temporary Vite hot-reload check warnings during initial handshake are expected in development test environments.",
+    "owner": "Vite Config",
+    "expiry_follow_up_batch": "Batch 14",
+    "severity": "warn"
+  },
+  {
+    "pattern": "React 18 concurrent rendering",
+    "reason": "Advisory warnings regarding React 18 strict mode rendering patterns in development build.",
+    "owner": "QA Team",
+    "expiry_follow_up_batch": "Batch 14",
+    "severity": "warn"
+  },
+  {
+    "pattern": "message` is deprecated. Please use `title` instead",
+    "reason": "Advisory deprecation warning from Ant Design Alert library components.",
+    "owner": "AntD Upgrade",
+    "expiry_follow_up_batch": "Batch 14",
+    "severity": "warn"
+  },
+  {
+    "pattern": "direction` is deprecated. Please use `orientation` instead",
+    "reason": "Advisory deprecation warning from Ant Design Space library components.",
+    "owner": "AntD Upgrade",
+    "expiry_follow_up_batch": "Batch 14",
+    "severity": "warn"
+  },
+  {
+    "pattern": "Failed to load resource",
+    "reason": "Dev-environment browser lookups for non-critical assets (e.g. favicons or optional sourcemaps) returning 404.",
+    "owner": "QA Team",
+    "expiry_follow_up_batch": "Batch 14",
+    "severity": "warn"
+  }
+]

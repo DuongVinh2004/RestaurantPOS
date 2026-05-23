@@ -1,0 +1,34 @@
+# Runtime E2E Smoke Results
+
+- **Overall Status**: PASS
+- **Critical Failed**: 0
+- **Skipped**: 0
+- **Deferred**: 8
+
+- **Health/Readiness**: PASS - API is healthy
+- **Customer Auth**: PASS - Got customer token
+- **GET available tables**: PASS - Got available tables
+- **POST table hold**: PASS - Created hold for tables: 192,193
+- **POST reservation**: PASS - Reservation created: 80 (Code: RSV-260523-PVT5PL)
+- **GET reservation detail**: PASS - Fetched reservation detail
+- **GET deposit preview**: PASS - Deposit required: true, Amount: 500000.00
+- **POST deposit acknowledge**: PASS - Deposit requirement acknowledged
+- **POST deposit intent**: PASS - Deposit intent submitted
+- **POST deposit payment session**: PASS - Payment session created: 11
+- **POST deposit payment confirm**: PASS - Deposit payment confirmed successfully via Simulated provider
+- **POST preorder preview**: PASS - Previewed item: Chả giò hải sản
+- **PUT preorder replace**: PASS - Preorder draft created/replaced successfully
+- **POST preorder submit**: PASS - Preorder submitted successfully
+- **Staff Auth**: PASS - Got staff token
+- **GET reservation inbox**: PASS - Fetched inbox
+- **Staff GET reservation detail**: PASS - Fetched detail
+- **Staff GET preorder**: PASS - Staff retrieved preorder detail
+- **Staff POST preorder confirm**: PASS - Staff confirmed preorder successfully
+- **POST staff reservation action/check-in**: DEFERRED - Cannot check in a future reservation right away without bypassing business rules
+- **Open/create service session**: DEFERRED - Deferred
+- **Create/update order**: DEFERRED - Deferred
+- **Dispatch order to kitchen**: DEFERRED - Deferred
+- **Kitchen station tickets**: DEFERRED - Deferred
+- **Fire/bump/recall**: DEFERRED - Deferred
+- **Checkout preview**: DEFERRED - Deferred
+- **Payment/refund**: DEFERRED - Deferred

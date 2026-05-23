@@ -1,10 +1,10 @@
 # Frontend API Contract Parity Report
 
-Generated at: 2026-05-23T06:44:18.716Z
+Generated at: 2026-05-23T13:46:30.195Z
 
 ## Overview
 - **Backend Operations:** 247
-- **Unused Backend Operations (API-only/Deferred):** 145
+- **Unused Backend Operations (API-only/Deferred):** 132
 
 ## Invalid Usages (Action Required!)
 ✅ No invalid API usages found.
@@ -89,7 +89,6 @@ Raw paths are valid in the OpenAPI contract but should ideally use the generated
 - `/api/v1/staff/tables/board/changes` (used in 1 files)
 - `/api/v1/auth/staff/logout` (used in 1 files)
 - `/staff/checkout` (used in 1 files)
-- `/staff/reservations/` (used in 1 files)
 - `/admin/settings/branches/import` (used in 1 files)
 - `/admin/restaurant/tables/import` (used in 1 files)
 - `/admin/menu/categories/import` (used in 1 files)
@@ -104,7 +103,6 @@ Raw paths are valid in the OpenAPI contract but should ideally use the generated
 - `/admin/menu/prices/export` (used in 1 files)
 - `/admin/benefits/vouchers/export` (used in 1 files)
 - `/admin/benefits/loyalty-tiers/export` (used in 1 files)
-- `/staff/users/` (used in 1 files)
 - `/api/v1/staff/branches` (used in 1 files)
 - `/api/v1/staff/reservations/301/refund` (used in 1 files)
 - `/api/v1/staff/kitchen/changes` (used in 2 files)
@@ -114,7 +112,7 @@ Raw paths are valid in the OpenAPI contract but should ideally use the generated
 - `/api/v1/staff/waiting-list/51/seat` (used in 1 files)
 
 ## Unused Backend Operations
-<details><summary>Click to view 145 deferred/API-only operations</summary>
+<details><summary>Click to view 132 deferred/API-only operations</summary>
 
 - `getUser`
 - `getV1AdminBenefitsLoyaltyTiersExport`
@@ -227,28 +225,15 @@ Raw paths are valid in the OpenAPI contract but should ideally use the generated
 - `postV1StaffOrdersOrderIdClose`
 - `getV1staffreportinganalyticsOverview`
 - `getV1StaffReservationsTimeline`
-- `getV1staffreservationsidpreorder`
-- `postV1staffreservationsidpreorderconfirm`
-- `postV1staffreservationsidpreorderconvert`
-- `postV1staffreservationsidpreorderreject`
 - `postV1StaffReservationsIdReschedule`
 - `postV1StaffReservationsIdTimelineActionsAssignBestFit`
 - `postV1StaffReservationsIdTimelineActionsAssignSuggested`
 - `postV1StaffReservationsIdTimelineActionsCheckIn`
 - `getV1StaffReservationsReservationIdActiveOrder`
 - `getV1StaffReservationsReservationIdDepositPreview`
-- `getV1StaffReservationsReservationIdLoyalty`
-- `postV1StaffReservationsReservationIdLoyaltyRedeem`
-- `postV1StaffReservationsReservationIdLoyaltyRedeemRelease`
 - `postV1StaffReservationsReservationIdLoyaltyRelease`
-- `postV1StaffReservationsReservationIdVoucherApply`
-- `postV1StaffReservationsReservationIdVoucherRelease`
-- `postV1StaffReservationsReservationIdVoucherRemove`
-- `getV1StaffReservationsReservationIdVouchers`
 - `getV1StaffTableBoard`
 - `getV1StaffTablesTableIdActiveServiceSession`
-- `getV1StaffUsersUserIdLoyalty`
-- `postV1StaffUsersUserIdLoyaltyAdjust`
 - `postV1TableHolds`
 - `deleteV1TableHoldsHoldId`
 - `getV1TableHoldsHoldId`
