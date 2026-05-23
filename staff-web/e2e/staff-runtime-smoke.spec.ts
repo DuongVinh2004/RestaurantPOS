@@ -112,6 +112,23 @@ test.describe("Staff-Web Browser UAT Smoke Test", () => {
       // Wait for redirect to access gate page
       await page.waitForURL("**/access", { timeout: 15000 });
       await expect(page.locator(".staff-page-header h3")).toContainText("Bắt đầu ca làm việc", { timeout: 10000 });
+
+      // Self-healing: if cashier shift is blocked/closed, click "Mở ca thu ngân" to open it
+      const openShiftBtn = page.locator("button:has-text('Mở ca thu ngân')");
+      if (await openShiftBtn.count() > 0) {
+        console.log("No active cashier shift. Opening a shift first to enable walkthrough...");
+        await openShiftBtn.first().click();
+        await page.waitForURL("**/cashier-shift", { timeout: 10000 });
+        
+        // Wait for and click the open shift submit button on cashier shift page
+        const submitOpenBtn = page.locator("button:has-text('Mở ca thu ngân')");
+        await submitOpenBtn.waitFor({ state: "visible", timeout: 10000 });
+        await submitOpenBtn.click();
+        
+        // Wait for shift to open and navigate back to access gate
+        await page.waitForTimeout(2000);
+        await softNavigate(page, "/access");
+      }
     });
 
     // 2. Dashboard Rendering
