@@ -4,8 +4,11 @@
 
 Following extensive automated test coverage and runtime E2E verification across local and sandbox scopes, the final recommendation for Batch 14 is:
 
-- **Batch 14 Scoped Changes Recommendation**: **READY TO MERGE — Batch 14 scoped PR only.**
-- **Overall Project/Runtime Readiness**: **MERGE WITH RISKS — Overall project/runtime readiness remains MERGE WITH RISKS until real provider sandbox credentials, real webhook signature callbacks, and staging scheduler/cron behavior are verified continuously.**
+- **Batch 14 Scoped Changes Recommendation**: **READY TO MERGE WITH DOCUMENTED ENVIRONMENT RISK**
+- **Overall Project/Runtime Readiness**: **MERGE WITH RISKS**
+
+> [!WARNING]
+> This PR is not a production go-live approval. Staging deploy-check must pass with active scheduler/cron and real target services.
 
 This classification is established because:
 1. **Webhook Signatures**: Verified securely through rigorous HTTP feature tests covering valid, invalid, and drifted payloads under HMAC sandbox mock configurations.
@@ -106,6 +109,8 @@ This classification is established because:
 | `npm --prefix staff-web run build` | 0 | PASS | Vite compilation success |
 | `npm --prefix customer-web run build` | 0 | PASS | Next.js compilation success |
 | `php artisan booking:doctor --json` | 0 | PASS | Dynamic JSON Report |
+| `php artisan booking:deploy-check --mode=preflight --strict --json` | 1 | ENVIRONMENT-BLOCKED / EXPECTED SANDBOX LIMITATION | Dynamic preflight JSON check |
+| `php artisan booking:release-manifest --json` | 0 | PASS | Release manifest JSON |
 
 ---
 
