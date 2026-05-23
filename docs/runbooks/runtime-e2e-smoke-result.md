@@ -8,13 +8,13 @@
 - **Health/Readiness**: PASS - API is healthy
 - **Customer Auth**: PASS - Got customer token
 - **GET available tables**: PASS - Got available tables
-- **POST table hold**: PASS - Created hold for tables: 188,189
-- **POST reservation**: PASS - Reservation created: 78 (Code: RSV-260523-S9M5DH)
+- **POST table hold**: PASS - Created hold for tables: 192,193
+- **POST reservation**: PASS - Reservation created: 80 (Code: RSV-260523-PVT5PL)
 - **GET reservation detail**: PASS - Fetched reservation detail
 - **GET deposit preview**: PASS - Deposit required: true, Amount: 500000.00
 - **POST deposit acknowledge**: PASS - Deposit requirement acknowledged
 - **POST deposit intent**: PASS - Deposit intent submitted
-- **POST deposit payment session**: PASS - Payment session created: 9
+- **POST deposit payment session**: PASS - Payment session created: 11
 - **POST deposit payment confirm**: PASS - Deposit payment confirmed successfully via Simulated provider
 - **POST preorder preview**: PASS - Previewed item: Chả giò hải sản
 - **PUT preorder replace**: PASS - Preorder draft created/replaced successfully

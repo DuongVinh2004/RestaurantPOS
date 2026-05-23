@@ -21,6 +21,8 @@
     "dev:all": "powershell -ExecutionPolicy Bypass -File scripts/ops/dev-all.ps1",
     "dev:all:reset": "powershell -ExecutionPolicy Bypass -File scripts/ops/dev-all.ps1 -ResetDatabase",
     "dev:smoke": "node scripts/ops/dev-smoke.mjs",
+    "e2e:staff-ops-smoke": "node scripts/e2e/staff-ops-runtime-smoke.mjs",
+    "e2e:staff-web-smoke": "npx playwright test --config=staff-web/playwright.config.ts --project=chromium",
     "contract:frontend-parity": "node scripts/ci/frontend-contract-parity.mjs",
     "build": "node scripts/ui-text-encoding-guard.mjs && vite build",
     "dev": "vite",
