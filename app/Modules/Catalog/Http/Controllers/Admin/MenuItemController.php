@@ -13,12 +13,15 @@ use App\Modules\Catalog\Http\Resources\Admin\MenuItemResource;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Http\JsonResponse;
 
+use Knuckles\Scribe\Attributes\ResponseFromApiResource;
+
 class MenuItemController extends Controller
 {
     public function __construct(
         private readonly MenuCatalogManagementService $menuService,
     ) {}
 
+    #[ResponseFromApiResource(MenuItemResource::class, collection: true)]
     public function index(ListMenuItemsRequest $request): JsonResponse
     {
         $validated = $request->validated();
@@ -94,6 +97,7 @@ class MenuItemController extends Controller
         ]);
     }
 
+    #[ResponseFromApiResource(MenuItemResource::class)]
     public function show(int $item_id): JsonResponse
     {
         return response()->json([

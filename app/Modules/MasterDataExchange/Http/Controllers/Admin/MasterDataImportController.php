@@ -11,6 +11,8 @@ use App\Modules\MasterDataExchange\Http\Requests\Admin\ImportMasterDataRequest;
 use App\Modules\MasterDataExchange\Http\Resources\Admin\MasterDataImportResultResource;
 use Illuminate\Http\JsonResponse;
 
+use Knuckles\Scribe\Attributes\ResponseFromApiResource;
+
 class MasterDataImportController extends Controller
 {
     use ResolvesStaffActor;
@@ -19,6 +21,7 @@ class MasterDataImportController extends Controller
         private readonly MasterDataImportWorkflow $masterDataImportWorkflow,
     ) {}
 
+    #[ResponseFromApiResource(MasterDataImportResultResource::class)]
     public function import(ImportMasterDataRequest $request, string $domain): JsonResponse
     {
         $payload = $request->validated();

@@ -1,0 +1,265 @@
+# Frontend API Contract Parity Report
+
+Generated at: 2026-05-23T06:44:18.716Z
+
+## Overview
+- **Backend Operations:** 247
+- **Unused Backend Operations (API-only/Deferred):** 145
+
+## Invalid Usages (Action Required!)
+✅ No invalid API usages found.
+
+
+## Raw Path Usages (Should Migrate to SDK)
+Raw paths are valid in the OpenAPI contract but should ideally use the generated SDK.
+
+### Customer Web
+- `/api/v1/health` (used in 2 files)
+- `/api/v1/restaurant/profile` (used in 2 files)
+- `/api/v1/auth/customer/login` (used in 2 files)
+- `/api/v1/auth/customer/register` (used in 2 files)
+- `/api/v1/auth/customer/me` (used in 2 files)
+- `/api/v1/auth/customer/refresh` (used in 2 files)
+- `/api/v1/auth/customer/logout` (used in 2 files)
+- `/api/v1/menu/categories` (used in 2 files)
+- `/api/v1/menu/items` (used in 2 files)
+- `/api/v1/tables/available` (used in 2 files)
+- `/api/v1/table-holds` (used in 2 files)
+- `/api/v1/reservations` (used in 2 files)
+- `/api/v1/waiting-list` (used in 2 files)
+- `/api/v1/me/loyalty` (used in 2 files)
+- `/api/v1/me/vouchers` (used in 2 files)
+- `/api/v1/me/data-export` (used in 2 files)
+- `/api/v1/me/privacy-requests` (used in 2 files)
+- `/api/v1/auth/staff/login` (used in 1 files)
+- `/api/v1/auth/staff/me` (used in 1 files)
+- `/api/v1/auth/staff/refresh` (used in 1 files)
+- `/api/v1/auth/staff/logout` (used in 1 files)
+- `/api/v1/menu/preorder/preview` (used in 1 files)
+- `/api/v1/staff/menu/items` (used in 1 files)
+- `/api/v1/staff/tables/board` (used in 1 files)
+- `/api/v1/staff/tables/board/changes` (used in 1 files)
+- `/api/v1/staff/service-sessions/walk-in` (used in 1 files)
+- `/api/v1/staff/cashier/shifts/current` (used in 1 files)
+- `/api/v1/staff/cashier/shifts/open` (used in 1 files)
+- `/api/v1/staff/kitchen/changes` (used in 1 files)
+- `/api/v1/staff/kitchen/stations` (used in 1 files)
+- `/api/v1/staff/branches` (used in 1 files)
+- `/api/v1/staff/reservations` (used in 1 files)
+- `/api/v1/staff/cashier/shifts` (used in 1 files)
+- `/api/v1/staff/audit-trail` (used in 1 files)
+- `/api/v1/staff/reporting/daily-sales` (used in 1 files)
+- `/api/v1/staff/reporting/daily-operations` (used in 1 files)
+- `/api/v1/staff/reporting/daily-inventory` (used in 1 files)
+- `/api/v1/admin/inventory/ingredients` (used in 1 files)
+- `/api/v1/admin/inventory/suppliers` (used in 1 files)
+- `/api/v1/admin/inventory/purchase-orders` (used in 1 files)
+- `/api/v1/admin/settings/branches` (used in 1 files)
+- `/api/v1/staff/finance/reconciliation` (used in 1 files)
+- `/api/v1/staff/waiting-list` (used in 1 files)
+- `/api/v1/staff/waiting-list/changes` (used in 1 files)
+- `/api/v1/admin/restaurant/tables` (used in 1 files)
+- `/api/v1/admin/restaurant/tables/export` (used in 1 files)
+- `/api/v1/admin/restaurant/table-templates` (used in 1 files)
+- `/api/v1/admin/menu/categories` (used in 1 files)
+- `/api/v1/admin/menu/categories/export` (used in 1 files)
+- `/api/v1/admin/menu/items` (used in 1 files)
+- `/api/v1/admin/menu/items/export` (used in 1 files)
+- `/api/v1/admin/menu/prices/export` (used in 1 files)
+- `/api/v1/admin/benefits/vouchers` (used in 1 files)
+- `/api/v1/admin/benefits/loyalty-tiers` (used in 1 files)
+- `/api/v1/admin/settings/benefits` (used in 1 files)
+- `/api/v1/admin/privacy/requests` (used in 1 files)
+- `/api/v1/staff/conversations` (used in 1 files)
+- `/api/v1/health/detailed` (used in 1 files)
+- `/api/v1/health/redis` (used in 1 files)
+### Staff Web
+- `/admin/reporting` (used in 2 files)
+- `/admin/settings` (used in 3 files)
+- `/admin/catalog` (used in 1 files)
+- `/admin/inventory` (used in 2 files)
+- `/admin/benefits` (used in 1 files)
+- `/admin/privacy` (used in 1 files)
+- `/admin/audit-trail` (used in 2 files)
+- `/staff/tables/board` (used in 2 files)
+- `/staff/audit-trail` (used in 1 files)
+- `/api/v1/staff/reservations/101/check-in` (used in 1 files)
+- `/api/v1/staff/operations/command-center` (used in 1 files)
+- `/api/v1/staff/reporting/analytics-overview` (used in 1 files)
+- `/api/v1/staff/tables/board/changes` (used in 1 files)
+- `/api/v1/auth/staff/logout` (used in 1 files)
+- `/staff/checkout` (used in 1 files)
+- `/staff/reservations/` (used in 1 files)
+- `/admin/settings/branches/import` (used in 1 files)
+- `/admin/restaurant/tables/import` (used in 1 files)
+- `/admin/menu/categories/import` (used in 1 files)
+- `/admin/menu/items/import` (used in 1 files)
+- `/admin/menu/prices/import` (used in 1 files)
+- `/admin/benefits/vouchers/import` (used in 1 files)
+- `/admin/benefits/loyalty-tiers/import` (used in 1 files)
+- `/admin/settings/branches/export` (used in 1 files)
+- `/admin/restaurant/tables/export` (used in 1 files)
+- `/admin/menu/categories/export` (used in 1 files)
+- `/admin/menu/items/export` (used in 1 files)
+- `/admin/menu/prices/export` (used in 1 files)
+- `/admin/benefits/vouchers/export` (used in 1 files)
+- `/admin/benefits/loyalty-tiers/export` (used in 1 files)
+- `/staff/users/` (used in 1 files)
+- `/api/v1/staff/branches` (used in 1 files)
+- `/api/v1/staff/reservations/301/refund` (used in 1 files)
+- `/api/v1/staff/kitchen/changes` (used in 2 files)
+- `/api/v1/staff/reservations/51/check-in` (used in 1 files)
+- `/api/v1/staff/reservations/44/check-in` (used in 1 files)
+- `/api/v1/staff/reservations/44/move-table` (used in 1 files)
+- `/api/v1/staff/waiting-list/51/seat` (used in 1 files)
+
+## Unused Backend Operations
+<details><summary>Click to view 145 deferred/API-only operations</summary>
+
+- `getUser`
+- `getV1AdminBenefitsLoyaltyTiersExport`
+- `postV1AdminBenefitsLoyaltyTiersImport`
+- `getV1AdminBenefitsVouchersExport`
+- `postV1AdminBenefitsVouchersImport`
+- `postV1AdminInventoryIngredients`
+- `getV1AdminInventoryIngredientsId`
+- `patchV1AdminInventoryIngredientsId`
+- `getV1AdminInventoryMenuItemsIdRecipe`
+- `putV1AdminInventoryMenuItemsIdRecipe`
+- `postV1AdminInventoryPurchaseOrders`
+- `getV1AdminInventoryPurchaseOrdersId`
+- `patchV1AdminInventoryPurchaseOrdersId`
+- `postV1AdminInventorySuppliers`
+- `getV1AdminInventorySuppliersId`
+- `patchV1AdminInventorySuppliersId`
+- `getV1AdminKitchenStations`
+- `postV1AdminKitchenStations`
+- `getV1AdminKitchenStationsStationId`
+- `patchV1AdminKitchenStationsStationId`
+- `getV1AdminKitchenStationsStationIdCategoryRoutes`
+- `putV1AdminKitchenStationsStationIdCategoryRoutes`
+- `getV1AdminMenuCategoriesExport`
+- `postV1AdminMenuCategoriesImport`
+- `patchV1AdminMenuCategoriesCategoryId`
+- `getV1AdminMenuItemsExport`
+- `postV1AdminMenuItemsImport`
+- `getV1AdminMenuItemsItemId`
+- `patchV1AdminMenuItemsItemId`
+- `getV1AdminMenuPricesExport`
+- `postV1AdminMenuPricesImport`
+- `getV1AdminMenuPricesPriceId`
+- `putV1AdminMenuPricesPriceId`
+- `getV1AdminRestaurantTablesExport`
+- `postV1AdminRestaurantTablesImport`
+- `deleteV1AdminRestaurantTablesId`
+- `getV1AdminRestaurantTablesId`
+- `patchV1AdminRestaurantTablesId`
+- `getV1AdminRestaurantZones`
+- `postV1AdminRestaurantZonesRename`
+- `postV1AdminSettingsBranches`
+- `getV1AdminSettingsBranchesExport`
+- `postV1AdminSettingsBranchesImport`
+- `getV1AdminSettingsBranchesId`
+- `patchV1AdminSettingsBranchesId`
+- `getV1AdminSettingsFinanceTaxProfile`
+- `postV1AdminSettingsFinanceTaxProfile`
+- `postV1AdminSettingsReportingSnapshotsRebuild`
+- `postV1AuthCustomerLogin`
+- `postV1AuthCustomerLogout`
+- `getV1AuthCustomerMe`
+- `postV1AuthCustomerRefresh`
+- `postV1AuthCustomerRegister`
+- `health`
+- `getV1healthdetailed`
+- `healthRedis`
+- `getV1MeDataExport`
+- `getV1MeLoyalty`
+- `getV1MePrivacyRequests`
+- `postV1MePrivacyRequests`
+- `getV1MeVouchers`
+- `getV1MenuCategories`
+- `getV1MenuItemsId`
+- `postV1MenuPreorderPreview`
+- `metrics`
+- `postV1PaymentsProvidersProviderCodeWebhooks`
+- `getV1qrbillPreviewtoken`
+- `getV1Reservations`
+- `getV1ReservationsId`
+- `getV1ReservationsIdBenefitsPreview`
+- `getV1ReservationsIdDepositPreview`
+- `postV1ReservationsIdDepositAcknowledge`
+- `postV1ReservationsIdDepositIntent`
+- `postV1ReservationsIdDepositIntentRevoke`
+- `postV1ReservationsIdLoyaltyRedeem`
+- `postV1ReservationsIdLoyaltyRedeemRelease`
+- `deleteV1ReservationsIdPreOrder`
+- `getV1ReservationsIdPreOrder`
+- `putV1ReservationsIdPreOrder`
+- `postV1ReservationsIdPreOrderPreview`
+- `postV1reservationsidpreOrdersubmit`
+- `deleteV1ReservationsIdPreorder`
+- `getV1ReservationsIdPreorder`
+- `putV1ReservationsIdPreorder`
+- `postV1ReservationsIdPreorderPreview`
+- `postV1reservationsidpreordersubmit`
+- `postV1ReservationsIdReschedule`
+- `patchV1ReservationsIdStatus`
+- `postV1ReservationsIdVoucherApply`
+- `postV1ReservationsIdVoucherRemove`
+- `getV1ReservationsReservationIdActiveOrder`
+- `getV1ReservationsReservationIdBill`
+- `getV1ReservationsReservationIdBillPreview`
+- `postV1ReservationsReservationIdBillPaymentSessions`
+- `getV1ReservationsReservationIdBillPaymentSessionsSessionId`
+- `postV1ReservationsReservationIdBillPaymentSessionsSessionIdConfirm`
+- `postV1ReservationsReservationIdBillPaymentSessionsSessionIdRefresh`
+- `postV1ReservationsReservationIdDepositPaymentSessions`
+- `getV1ReservationsReservationIdDepositPaymentSessionsSessionId`
+- `postV1ReservationsReservationIdDepositPaymentSessionsSessionIdConfirm`
+- `postV1ReservationsReservationIdDepositPaymentSessionsSessionIdRefresh`
+- `getV1RestaurantProfile`
+- `getV1staffconversationsconversationIdfilesfileIdaccess`
+- `getV1staffconversationsconversationIdmessagesmessageIdattachment`
+- `getV1StaffFinanceAccountingExport`
+- `getV1StaffFinanceReconciliationExport`
+- `getV1staffoperationscommandCenter`
+- `postV1StaffOrdersOrderIdCheckout`
+- `postV1StaffOrdersOrderIdClose`
+- `getV1staffreportinganalyticsOverview`
+- `getV1StaffReservationsTimeline`
+- `getV1staffreservationsidpreorder`
+- `postV1staffreservationsidpreorderconfirm`
+- `postV1staffreservationsidpreorderconvert`
+- `postV1staffreservationsidpreorderreject`
+- `postV1StaffReservationsIdReschedule`
+- `postV1StaffReservationsIdTimelineActionsAssignBestFit`
+- `postV1StaffReservationsIdTimelineActionsAssignSuggested`
+- `postV1StaffReservationsIdTimelineActionsCheckIn`
+- `getV1StaffReservationsReservationIdActiveOrder`
+- `getV1StaffReservationsReservationIdDepositPreview`
+- `getV1StaffReservationsReservationIdLoyalty`
+- `postV1StaffReservationsReservationIdLoyaltyRedeem`
+- `postV1StaffReservationsReservationIdLoyaltyRedeemRelease`
+- `postV1StaffReservationsReservationIdLoyaltyRelease`
+- `postV1StaffReservationsReservationIdVoucherApply`
+- `postV1StaffReservationsReservationIdVoucherRelease`
+- `postV1StaffReservationsReservationIdVoucherRemove`
+- `getV1StaffReservationsReservationIdVouchers`
+- `getV1StaffTableBoard`
+- `getV1StaffTablesTableIdActiveServiceSession`
+- `getV1StaffUsersUserIdLoyalty`
+- `postV1StaffUsersUserIdLoyaltyAdjust`
+- `postV1TableHolds`
+- `deleteV1TableHoldsHoldId`
+- `getV1TableHoldsHoldId`
+- `patchV1TableHoldsHoldIdRefresh`
+- `getV1TablesAvailable`
+- `getV1WaitingList`
+- `postV1WaitingList`
+- `getV1WaitingListId`
+- `postV1WaitingListIdAccept`
+- `postV1WaitingListIdCancel`
+- `postV1WaitingListIdConfirmArrival`
+- `postV1WaitingListIdDecline`
+
+</details>

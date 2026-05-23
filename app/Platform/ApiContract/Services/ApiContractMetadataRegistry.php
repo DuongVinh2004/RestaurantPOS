@@ -2551,6 +2551,98 @@ class ApiContractMetadataRegistry
                 ],
                 'contract_grade' => 'full',
             ],
+            'GET api/v1/admin/menu/categories' => [
+                'summary' => 'List admin menu categories',
+                'description' => 'Return staff menu categories for admin management.',
+                'tags' => ['Admin Menu'],
+                'responses' => [
+                    200 => ['schema' => 'GenericDataEnvelope'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/menu/categories/export' => [
+                'summary' => 'Export admin menu categories',
+                'description' => 'Export menu categories.',
+                'tags' => ['Admin Menu'],
+                'responses' => [
+                    200 => ['schema' => 'GenericDataEnvelope'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/menu/items' => [
+                'summary' => 'List admin menu items',
+                'description' => 'Return menu items for admin management.',
+                'tags' => ['Admin Menu'],
+                'responses' => [
+                    200 => ['schema' => 'GenericDataEnvelope'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/menu/items/export' => [
+                'summary' => 'Export admin menu items',
+                'description' => 'Export menu items.',
+                'tags' => ['Admin Menu'],
+                'responses' => [
+                    200 => ['schema' => 'GenericDataEnvelope'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/menu/items/{item_id}' => [
+                'summary' => 'Show admin menu item',
+                'description' => 'Return single menu item for admin.',
+                'tags' => ['Admin Menu'],
+                'responses' => [
+                    200 => ['schema' => 'GenericDataEnvelope'],
+                    404 => ['schema' => 'NotFoundError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/menu/items/{item_id}/prices' => [
+                'summary' => 'List admin menu item prices',
+                'description' => 'Return prices for a menu item.',
+                'tags' => ['Admin Menu'],
+                'responses' => [
+                    200 => ['schema' => 'GenericDataEnvelope'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/menu/prices/export' => [
+                'summary' => 'Export admin menu prices',
+                'description' => 'Export menu prices.',
+                'tags' => ['Admin Menu'],
+                'responses' => [
+                    200 => ['schema' => 'GenericDataEnvelope'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/menu/prices/{price_id}' => [
+                'summary' => 'Show admin menu price',
+                'description' => 'Return single menu price.',
+                'tags' => ['Admin Menu'],
+                'responses' => [
+                    200 => ['schema' => 'GenericDataEnvelope'],
+                    404 => ['schema' => 'NotFoundError'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/restaurant/tables' => [
+                'summary' => 'List admin restaurant tables',
+                'description' => 'Return restaurant tables for admin management.',
+                'tags' => ['Admin Settings'],
+                'responses' => [
+                    200 => ['schema' => 'GenericDataEnvelope'],
+                ],
+                'contract_grade' => 'full',
+            ],
+            'GET api/v1/admin/restaurant/tables/export' => [
+                'summary' => 'Export admin restaurant tables',
+                'description' => 'Export restaurant tables.',
+                'tags' => ['Admin Settings'],
+                'responses' => [
+                    200 => ['schema' => 'GenericDataEnvelope'],
+                ],
+                'contract_grade' => 'full',
+            ],
         ];
     }
 

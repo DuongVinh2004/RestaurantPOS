@@ -65,17 +65,22 @@ Route::middleware([
                 ->whereNumber('id')
                 ->middleware('idempotency:customer.reservations.preorder.clear');
 
-            Route::get('reservations/{id}/pre-order', [CustomerReservationPreorderController::class, 'show'])->whereNumber('id');
-            Route::post('reservations/{id}/pre-order/preview', [CustomerReservationPreorderController::class, 'preview'])->whereNumber('id');
+            /** @deprecated Retained for compatibility. Use preorder instead. */
+            Route::get('reservations/{id}/pre-order', [CustomerReservationPreorderController::class, 'show'])->whereNumber('id')->name('customer.reservations.pre_order.show.legacy');
+            /** @deprecated Retained for compatibility. Use preorder instead. */
+            Route::post('reservations/{id}/pre-order/preview', [CustomerReservationPreorderController::class, 'preview'])->whereNumber('id')->name('customer.reservations.pre_order.preview.legacy');
+            /** @deprecated Retained for compatibility. Use preorder instead. */
             Route::put('reservations/{id}/pre-order', [CustomerReservationPreorderController::class, 'replace'])
                 ->whereNumber('id')
-                ->middleware('idempotency:customer.reservations.preorder.replace');
+                ->middleware('idempotency:customer.reservations.preorder.replace')->name('customer.reservations.pre_order.replace.legacy');
+            /** @deprecated Retained for compatibility. Use preorder instead. */
             Route::post('reservations/{id}/pre-order/submit', [CustomerReservationPreorderController::class, 'submit'])
                 ->whereNumber('id')
-                ->middleware('idempotency:customer.reservations.preorder.submit');
+                ->middleware('idempotency:customer.reservations.preorder.submit')->name('customer.reservations.pre_order.submit.legacy');
+            /** @deprecated Retained for compatibility. Use preorder instead. */
             Route::delete('reservations/{id}/pre-order', [CustomerReservationPreorderController::class, 'clear'])
                 ->whereNumber('id')
-                ->middleware('idempotency:customer.reservations.preorder.clear');
+                ->middleware('idempotency:customer.reservations.preorder.clear')->name('customer.reservations.pre_order.clear.legacy');
 
             Route::get('reservations/{id}/deposit-preview', [CustomerReservationDepositController::class, 'show'])->whereNumber('id');
             Route::post('reservations/{id}/deposit/acknowledge', [CustomerReservationDepositController::class, 'acknowledge'])

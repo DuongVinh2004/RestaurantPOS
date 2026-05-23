@@ -1695,6 +1695,68 @@ export type GetV1AdminInventorySuppliersQueryParams = {
   sort_dir?: ("asc" | "desc") | null;
 };
 
+export type GetV1AdminMenuCategoriesExportQueryParams = {
+  format: "csv" | "json";
+};
+
+export type GetV1AdminMenuCategoriesQueryParams = {
+  filter?: Array<Record<string, never>>;
+  filters?: Array<Record<string, never>>;
+  include_deleted?: boolean;
+  q?: (string) | null;
+  page?: (number) | null;
+  per_page?: (number) | null;
+  sort?: ("sort_order" | "-sort_order" | "name" | "-name" | "category_id" | "-category_id" | "updated_at" | "-updated_at") | null;
+  sort_by?: ("sort_order" | "name" | "category_id" | "updated_at") | null;
+  sort_dir?: ("asc" | "desc") | null;
+};
+
+export type GetV1AdminMenuItemsExportQueryParams = {
+  format: "csv" | "json";
+};
+
+export type GetV1AdminMenuItemsItemIdPathParams = {
+  item_id: number;
+};
+
+export type GetV1AdminMenuItemsItemIdPricesPathParams = {
+  item_id: number;
+};
+
+export type GetV1AdminMenuItemsItemIdPricesQueryParams = {
+  filter?: Array<Record<string, never>>;
+  filters?: Array<Record<string, never>>;
+  as_of?: (string) | null;
+  currency?: (string) | null;
+  page?: (number) | null;
+  per_page?: (number) | null;
+  sort?: ("effective_from" | "-effective_from" | "effective_to" | "-effective_to" | "price" | "-price" | "price_id" | "-price_id") | null;
+  sort_by?: ("effective_from" | "effective_to" | "price" | "price_id") | null;
+  sort_dir?: ("asc" | "desc") | null;
+};
+
+export type GetV1AdminMenuItemsQueryParams = {
+  filter?: Array<Record<string, never>>;
+  filters?: Array<Record<string, never>>;
+  category_id?: (number) | null;
+  is_available?: (boolean) | null;
+  q?: (string) | null;
+  as_of?: (string) | null;
+  page?: number;
+  per_page?: number;
+  sort?: ("name" | "-name" | "code" | "-code" | "item_id" | "-item_id" | "category_id" | "-category_id" | "updated_at" | "-updated_at") | null;
+  sort_by?: ("name" | "code" | "item_id" | "category_id" | "updated_at") | null;
+  sort_dir?: ("asc" | "desc") | null;
+};
+
+export type GetV1AdminMenuPricesExportQueryParams = {
+  format: "csv" | "json";
+};
+
+export type GetV1AdminMenuPricesPriceIdPathParams = {
+  price_id: number;
+};
+
 export type GetV1AdminPrivacyCustomersUserIdDataExportPathParams = {
   user_id: number;
 };
@@ -1703,6 +1765,19 @@ export type GetV1AdminPrivacyRequestsQueryParams = {
   status?: ("requested" | "rejected" | "completed" | "failed") | null;
   user_id?: (number) | null;
   per_page?: (number) | null;
+};
+
+export type GetV1AdminRestaurantTablesExportQueryParams = {
+  format: "csv" | "json";
+};
+
+export type GetV1AdminRestaurantTablesQueryParams = {
+  zone?: (string) | null;
+  branch_id?: (number) | null;
+  status?: ("Available" | "Reserved" | "Occupied" | "Blocked" | "Maintenance") | null;
+  template_id?: (number) | null;
+  include_deleted?: (boolean) | null;
+  q?: (string) | null;
 };
 
 export type GetV1AdminSettingsBranchesQueryParams = {
@@ -6197,6 +6272,32 @@ export class RestaurantPosClient {
     );
   }
 
+  async getV1AdminRestaurantTables(query: GetV1AdminRestaurantTablesQueryParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'GET',
+      '/api/v1/admin/restaurant/tables',
+      'staff',
+      false,
+      false,
+      query,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1AdminRestaurantTablesExport(query: GetV1AdminRestaurantTablesExportQueryParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'GET',
+      '/api/v1/admin/restaurant/tables/export',
+      'staff',
+      false,
+      false,
+      query,
+      undefined,
+      options,
+    );
+  }
+
   async getV1AdminRestaurantTableTemplates(options: RequestOptions = {}): Promise<GenericDataEnvelope> {
     return this.request<GenericDataEnvelope>(
       'GET',
@@ -6223,6 +6324,32 @@ export class RestaurantPosClient {
     );
   }
 
+  async getV1AdminMenuCategories(query: GetV1AdminMenuCategoriesQueryParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'GET',
+      '/api/v1/admin/menu/categories',
+      'staff',
+      false,
+      false,
+      query,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1AdminMenuCategoriesExport(query: GetV1AdminMenuCategoriesExportQueryParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'GET',
+      '/api/v1/admin/menu/categories/export',
+      'staff',
+      false,
+      false,
+      query,
+      undefined,
+      options,
+    );
+  }
+
   async postV1AdminMenuCategories(body: StoreMenuCategoryRequest, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
     return this.request<GenericDataEnvelope>(
       'POST',
@@ -6232,6 +6359,58 @@ export class RestaurantPosClient {
       true,
       undefined,
       body,
+      options,
+    );
+  }
+
+  async getV1AdminMenuItems(query: GetV1AdminMenuItemsQueryParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'GET',
+      '/api/v1/admin/menu/items',
+      'staff',
+      false,
+      false,
+      query,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1AdminMenuItemsExport(query: GetV1AdminMenuItemsExportQueryParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'GET',
+      '/api/v1/admin/menu/items/export',
+      'staff',
+      false,
+      false,
+      query,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1AdminMenuItemsItemId(pathParams: GetV1AdminMenuItemsItemIdPathParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/admin/menu/items/{item_id}', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1AdminMenuItemsItemIdPrices(pathParams: GetV1AdminMenuItemsItemIdPricesPathParams, query: GetV1AdminMenuItemsItemIdPricesQueryParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/admin/menu/items/{item_id}/prices', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      query,
+      undefined,
       options,
     );
   }
@@ -6258,6 +6437,32 @@ export class RestaurantPosClient {
       true,
       undefined,
       body,
+      options,
+    );
+  }
+
+  async getV1AdminMenuPricesExport(query: GetV1AdminMenuPricesExportQueryParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'GET',
+      '/api/v1/admin/menu/prices/export',
+      'staff',
+      false,
+      false,
+      query,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1AdminMenuPricesPriceId(pathParams: GetV1AdminMenuPricesPriceIdPathParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/admin/menu/prices/{price_id}', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      undefined,
+      undefined,
       options,
     );
   }

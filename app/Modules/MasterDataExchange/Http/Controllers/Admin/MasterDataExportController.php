@@ -10,6 +10,7 @@ use App\Modules\MasterDataExchange\Http\Requests\Admin\ExportMasterDataRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Knuckles\Scribe\Attributes\Response as ScribeResponse;
 
 class MasterDataExportController extends Controller
 {
@@ -17,6 +18,7 @@ class MasterDataExportController extends Controller
         private readonly ExportMasterDataHandler $exportMasterDataHandler,
     ) {}
 
+    #[ScribeResponse(['data' => [], 'meta' => ['format' => 'json']], status: 200, description: 'Successful export')]
     public function export(ExportMasterDataRequest $request, string $domain): Response|JsonResponse|StreamedResponse
     {
         $result = $this->exportMasterDataHandler->handle(

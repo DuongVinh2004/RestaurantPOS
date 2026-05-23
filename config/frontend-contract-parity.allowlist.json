@@ -1,0 +1,101 @@
+[
+  {
+    "path": "/admin/(reporting|settings|catalog|inventory|benefits|privacy|audit-trail)(/.*)?",
+    "method": "ANY",
+    "frontend_app": "staff-web",
+    "reason": "UI sub-routes used by React Router, not actual backend API paths. Being phased out or migrated.",
+    "owner": "platform-team",
+    "follow_up_batch": "Batch 9: Frontend Router Parity",
+    "launch_impact": "low"
+  },
+  {
+    "path": "/staff/(tables/board|audit-trail|checkout)(/.*)?",
+    "method": "ANY",
+    "frontend_app": "staff-web",
+    "reason": "UI sub-routes used by React Router, not actual backend API paths.",
+    "owner": "platform-team",
+    "follow_up_batch": "Batch 9: Frontend Router Parity",
+    "launch_impact": "low"
+  },
+  {
+    "path": "/staff/reservations/[\\w\\-]+/preorder(/.*)?",
+    "method": "ANY",
+    "frontend_app": "staff-web",
+    "reason": "Preorder endpoints lack OpenAPI definition (Scribe annotations). Deferring until API stabilization.",
+    "owner": "reservations-team",
+    "follow_up_batch": "Batch 10: Preorder API Stabilization",
+    "launch_impact": "high"
+  },
+  {
+    "path": "/staff/reservations/[\\w\\-]+/voucher(/.*)?",
+    "method": "ANY",
+    "frontend_app": "staff-web",
+    "reason": "Voucher endpoints lack OpenAPI definition (Scribe annotations).",
+    "owner": "benefits-team",
+    "follow_up_batch": "Batch 11: Voucher & Loyalty Stabilization",
+    "launch_impact": "high"
+  },
+  {
+    "path": "/staff/reservations/[\\w\\-]+/vouchers",
+    "method": "ANY",
+    "frontend_app": "staff-web",
+    "reason": "Voucher list endpoints lack OpenAPI definition (Scribe annotations).",
+    "owner": "benefits-team",
+    "follow_up_batch": "Batch 11: Voucher & Loyalty Stabilization",
+    "launch_impact": "high"
+  },
+  {
+    "path": "/staff/users/[\\w\\-]+/loyalty(/.*)?",
+    "method": "ANY",
+    "frontend_app": "staff-web",
+    "reason": "Loyalty endpoints lack OpenAPI definition (Scribe annotations).",
+    "owner": "benefits-team",
+    "follow_up_batch": "Batch 11: Voucher & Loyalty Stabilization",
+    "launch_impact": "high"
+  },
+  {
+    "path": "/staff/reservations/[\\w\\-]+/loyalty(/.*)?",
+    "method": "ANY",
+    "frontend_app": "staff-web",
+    "reason": "Loyalty endpoints lack OpenAPI definition (Scribe annotations).",
+    "owner": "benefits-team",
+    "follow_up_batch": "Batch 11: Voucher & Loyalty Stabilization",
+    "launch_impact": "high"
+  },
+  {
+    "path": "/admin/settings/branches/export",
+    "method": "ANY",
+    "frontend_app": "staff-web",
+    "reason": "Branches export lacks OpenAPI definition.",
+    "owner": "core-team",
+    "follow_up_batch": "Batch 12: Admin Export API Stabilization",
+    "launch_impact": "medium"
+  },
+  {
+    "path": "/admin/benefits/(vouchers|loyalty-tiers)/export",
+    "method": "ANY",
+    "frontend_app": "staff-web",
+    "reason": "Benefits export lacks OpenAPI definition.",
+    "owner": "benefits-team",
+    "follow_up_batch": "Batch 12: Admin Export API Stabilization",
+    "launch_impact": "high"
+  },
+  {
+    "path": "/staff/reservations/",
+    "method": "ANY",
+    "frontend_app": "staff-web",
+    "reason": "Template literal prefix for preorder/loyalty/vouchers endpoints that lack OpenAPI definitions.",
+    "owner": "reservations-team",
+    "follow_up_batch": "Batch 10/11",
+    "launch_impact": "high"
+  },
+  {
+    "path": "/staff/users/",
+    "method": "ANY",
+    "frontend_app": "staff-web",
+    "reason": "Template literal prefix for loyalty endpoints that lack OpenAPI definitions.",
+    "owner": "benefits-team",
+    "follow_up_batch": "Batch 11",
+    "launch_impact": "high"
+  }
+]

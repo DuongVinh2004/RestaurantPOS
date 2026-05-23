@@ -13,12 +13,15 @@ use App\Modules\BranchScheduling\Http\Requests\Admin\UpdateRestaurantTableReques
 use App\Modules\BranchScheduling\Http\Resources\Admin\RestaurantTableResource;
 use Illuminate\Http\JsonResponse;
 
+use Knuckles\Scribe\Attributes\ResponseFromApiResource;
+
 class RestaurantTableController extends Controller
 {
     public function __construct(
         private readonly RestaurantTableManagementService $tableService,
     ) {}
 
+    #[ResponseFromApiResource(RestaurantTableResource::class, collection: true)]
     public function index(ListRestaurantTablesRequest $request): JsonResponse
     {
         $result = $this->tableService->listTables([
@@ -36,6 +39,7 @@ class RestaurantTableController extends Controller
         ]);
     }
 
+    #[ResponseFromApiResource(RestaurantTableResource::class)]
     public function show(int $id): JsonResponse
     {
         $table = $this->tableService->showTable($id);

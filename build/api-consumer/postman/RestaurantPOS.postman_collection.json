@@ -4603,6 +4603,48 @@
             "name": "Admin Master Data",
             "item": [
                 {
+                    "name": "List admin restaurant tables",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/restaurant/tables?zone={{zone}}&branch_id={{branchId}}&status={{status}}&template_id={{templateId}}&include_deleted={{includeDeleted}}&q={{q}}",
+                        "description": "Return restaurant tables for admin management.\n\nSignature: `GET api/v1/admin/restaurant/tables`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Export admin restaurant tables",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/restaurant/tables/export?format={{format}}",
+                        "description": "Export restaurant tables.\n\nSignature: `GET api/v1/admin/restaurant/tables/export`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
                     "name": "GET Restaurant Table Templates",
                     "request": {
                         "method": "GET",
@@ -4691,6 +4733,48 @@
                     ]
                 },
                 {
+                    "name": "List admin menu categories",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/menu/categories?filter={{filter}}&filters={{filters}}&include_deleted={{includeDeleted}}&q={{q}}&page={{page}}&per_page={{perPage}}&sort={{sort}}&sort_by={{sortBy}}&sort_dir={{sortDir}}",
+                        "description": "Return staff menu categories for admin management.\n\nSignature: `GET api/v1/admin/menu/categories`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Export admin menu categories",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/menu/categories/export?format={{format}}",
+                        "description": "Export menu categories.\n\nSignature: `GET api/v1/admin/menu/categories/export`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
                     "name": "POST Menu Categories",
                     "request": {
                         "method": "POST",
@@ -4756,6 +4840,90 @@
                             }
                         }
                     ]
+                },
+                {
+                    "name": "List admin menu items",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/menu/items?filter={{filter}}&filters={{filters}}&category_id={{categoryId}}&is_available={{isAvailable}}&q={{q}}&as_of={{asOf}}&page={{page}}&per_page={{perPage}}&sort={{sort}}&sort_by={{sortBy}}&sort_dir={{sortDir}}",
+                        "description": "Return menu items for admin management.\n\nSignature: `GET api/v1/admin/menu/items`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Export admin menu items",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/menu/items/export?format={{format}}",
+                        "description": "Export menu items.\n\nSignature: `GET api/v1/admin/menu/items/export`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show admin menu item",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/menu/items/{{itemId}}",
+                        "description": "Return single menu item for admin.\n\nSignature: `GET api/v1/admin/menu/items/{item_id}`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List admin menu item prices",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/menu/items/{{itemId}}/prices?filter={{filter}}&filters={{filters}}&as_of={{asOf}}&currency={{currency}}&page={{page}}&per_page={{perPage}}&sort={{sort}}&sort_by={{sortBy}}&sort_dir={{sortDir}}",
+                        "description": "Return prices for a menu item.\n\nSignature: `GET api/v1/admin/menu/items/{item_id}/prices`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
                 },
                 {
                     "name": "POST Menu Items",
@@ -4890,6 +5058,48 @@
                             }
                         }
                     ]
+                },
+                {
+                    "name": "Export admin menu prices",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/menu/prices/export?format={{format}}",
+                        "description": "Export menu prices.\n\nSignature: `GET api/v1/admin/menu/prices/export`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show admin menu price",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{adminApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/admin/menu/prices/{{priceId}}",
+                        "description": "Return single menu price.\n\nSignature: `GET api/v1/admin/menu/prices/{price_id}`\nAuth mode: `staff_api_key`\nContract grade: `full`"
+                    },
+                    "response": []
                 }
             ]
         },

@@ -87,7 +87,7 @@ export function buildAdminRestaurantTableQuery(
 ): AdminRestaurantTableQuery {
   return {
     q: normalizedString(filters.query),
-    status: normalizedString(filters.status),
+    status: normalizedString(filters.status) as AdminRestaurantTableQuery['status'],
     zone: normalizedString(filters.zone),
     include_deleted: filters.includeDeleted ? true : undefined,
     branch_id: parsePositiveInteger(filters.branchIdInput) ?? fallbackBranchId ?? undefined,
