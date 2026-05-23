@@ -2852,6 +2852,105 @@
                         }
                     },
                     "response": []
+                },
+                {
+                    "name": "GET Id Preorder",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}/preorder",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `GET api/v1/staff/reservations/{id}/preorder`\nAuth mode: `staff_api_key`\nContract grade: `fallback`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST Preorder Confirm",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}/preorder/confirm",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `POST api/v1/staff/reservations/{id}/preorder/confirm`\nAuth mode: `staff_api_key`\nContract grade: `fallback`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST Preorder Reject",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}/preorder/reject",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `POST api/v1/staff/reservations/{id}/preorder/reject`\nAuth mode: `staff_api_key`\nContract grade: `fallback`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST Preorder Convert",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}/preorder/convert",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `POST api/v1/staff/reservations/{id}/preorder/convert`\nAuth mode: `staff_api_key`\nContract grade: `fallback`"
+                    },
+                    "response": []
                 }
             ]
         },
@@ -4501,6 +4600,349 @@
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"reason\": \"Postman loyalty release\",\n    \"row_version\": \"{{reservationRowVersionBenefits}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "GET Reservation Id Vouchers",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}/vouchers",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `GET api/v1/staff/reservations/{reservation_id}/vouchers`\nAuth mode: `staff_api_key`\nContract grade: `fallback`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST Voucher Apply",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}/voucher/apply",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `POST api/v1/staff/reservations/{reservation_id}/voucher/apply`\nAuth mode: `staff_api_key`\nContract grade: `fallback`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"user_voucher_id\": 101,\n    \"voucher_code\": \"example\",\n    \"row_version\": 1\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST Voucher Remove",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}/voucher/remove",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `POST api/v1/staff/reservations/{reservation_id}/voucher/remove`\nAuth mode: `staff_api_key`\nContract grade: `fallback`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": 1\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST Voucher Release",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}/voucher/release",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\n> **Deprecated Alias**\n>\n> This is a legacy route endpoint preserved for backwards compatibility. Please use the exact canonical route: `/api/v1/staff/reservations/{reservation_id}/voucher/remove`\n\nSignature: `POST api/v1/staff/reservations/{reservation_id}/voucher/release`\nAuth mode: `staff_api_key`\nContract grade: `fallback`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"row_version\": 1\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "GET User Id Loyalty",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/users/{{userId}}/loyalty",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `GET api/v1/staff/users/{user_id}/loyalty`\nAuth mode: `staff_api_key`\nContract grade: `fallback`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST Loyalty Adjust",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/users/{{userId}}/loyalty/adjust",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `POST api/v1/staff/users/{user_id}/loyalty/adjust`\nAuth mode: `staff_api_key`\nContract grade: `fallback`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"points\": 101,\n    \"reason\": \"Contract example payload\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "GET Reservation Id Loyalty",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}/loyalty",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `GET api/v1/staff/reservations/{reservation_id}/loyalty`\nAuth mode: `staff_api_key`\nContract grade: `fallback`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST Loyalty Redeem",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}/loyalty/redeem",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `POST api/v1/staff/reservations/{reservation_id}/loyalty/redeem`\nAuth mode: `staff_api_key`\nContract grade: `fallback`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"points\": 101,\n    \"reason\": \"Contract example payload\",\n    \"row_version\": 1\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST Redeem Release",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}/loyalty/redeem/release",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `POST api/v1/staff/reservations/{reservation_id}/loyalty/redeem/release`\nAuth mode: `staff_api_key`\nContract grade: `fallback`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"reason\": \"Contract example payload\",\n    \"row_version\": 1\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST Loyalty Release",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Staff-Key",
+                                "value": "{{staffApiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "restaurantpos-{{$guid}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/staff/reservations/{{reservationId}}/loyalty/release",
+                        "description": "Runtime route mirrored from Laravel route inventory.\n\n> **Deprecated Alias**\n>\n> This is a legacy route endpoint preserved for backwards compatibility. Please use the exact canonical route: `/api/v1/staff/reservations/{reservation_id}/loyalty/redeem/release`\n\nSignature: `POST api/v1/staff/reservations/{reservation_id}/loyalty/release`\nAuth mode: `staff_api_key`\nContract grade: `fallback`",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"reason\": \"Contract example payload\",\n    \"row_version\": 1\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"

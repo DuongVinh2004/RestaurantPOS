@@ -105,6 +105,10 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 - GET api/v1/staff/orders/{order_id}/settlement-preview
 - POST api/v1/staff/orders/{order_id}/pay
 - POST api/v1/staff/orders/{order_id}/settlement/finalize
+- GET api/v1/staff/reservations/{id}/preorder
+- POST api/v1/staff/reservations/{id}/preorder/confirm
+- POST api/v1/staff/reservations/{id}/preorder/reject
+- POST api/v1/staff/reservations/{id}/preorder/convert
 
 ### Kitchen / KDS
 
@@ -183,6 +187,16 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 - POST api/v1/reservations/{id}/voucher/remove
 - POST api/v1/reservations/{id}/loyalty/redeem
 - POST api/v1/reservations/{id}/loyalty/redeem/release
+- GET api/v1/staff/reservations/{reservation_id}/vouchers
+- POST api/v1/staff/reservations/{reservation_id}/voucher/apply
+- POST api/v1/staff/reservations/{reservation_id}/voucher/remove
+- POST api/v1/staff/reservations/{reservation_id}/voucher/release
+- GET api/v1/staff/users/{user_id}/loyalty
+- POST api/v1/staff/users/{user_id}/loyalty/adjust
+- GET api/v1/staff/reservations/{reservation_id}/loyalty
+- POST api/v1/staff/reservations/{reservation_id}/loyalty/redeem
+- POST api/v1/staff/reservations/{reservation_id}/loyalty/redeem/release
+- POST api/v1/staff/reservations/{reservation_id}/loyalty/release
 
 ### Customer Privacy
 

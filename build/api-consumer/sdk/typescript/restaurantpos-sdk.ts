@@ -54,6 +54,11 @@ export type AddOrderItemsRequest = {
   row_version: number;
 };
 
+export type AdjustUserLoyaltyPointsRequest = {
+  points: number;
+  reason: string;
+};
+
 export type AdminBenefitSetting = {
   setting_key: string;
   value: string;
@@ -2093,6 +2098,10 @@ export type GetV1StaffReservationsReservationIdDepositPreviewPathParams = {
   reservation_id: number;
 };
 
+export type GetV1StaffReservationsReservationIdLoyaltyPathParams = {
+  reservation_id: number;
+};
+
 export type GetV1StaffReservationsReservationIdOrdersPathParams = {
   reservation_id: number;
 };
@@ -2112,6 +2121,10 @@ export type GetV1StaffReservationsReservationIdRefundPreviewQueryParams = {
   cancel_after_payment?: (boolean) | null;
 };
 
+export type GetV1StaffReservationsReservationIdVouchersPathParams = {
+  reservation_id: number;
+};
+
 export type GetV1StaffTablesBoardChangesQueryParams = {
   after_version?: (number) | null;
   limit?: (number) | null;
@@ -2120,6 +2133,10 @@ export type GetV1StaffTablesBoardChangesQueryParams = {
 
 export type GetV1StaffTablesTableIdActiveOrderPathParams = {
   table_id: number;
+};
+
+export type GetV1StaffUsersUserIdLoyaltyPathParams = {
+  user_id: number;
 };
 
 export type GetV1StaffWaitingListChangesQueryParams = {
@@ -2167,6 +2184,10 @@ export type GetV1WaitingListIdPathParams = {
 export type GetV1WaitingListQueryParams = {
   status?: ("Waiting" | "Notified" | "Seated" | "Cancelled") | null;
   active_only?: (boolean) | null;
+};
+
+export type GetV1staffreservationsidpreorderPathParams = {
+  id: number;
 };
 
 export type HealthDetailedEnvelope = {
@@ -2571,11 +2592,35 @@ export type PostV1StaffReservationsReservationIdDepositPayPathParams = {
   reservation_id: number;
 };
 
+export type PostV1StaffReservationsReservationIdLoyaltyRedeemPathParams = {
+  reservation_id: number;
+};
+
+export type PostV1StaffReservationsReservationIdLoyaltyRedeemReleasePathParams = {
+  reservation_id: number;
+};
+
+export type PostV1StaffReservationsReservationIdLoyaltyReleasePathParams = {
+  reservation_id: number;
+};
+
 export type PostV1StaffReservationsReservationIdRefundCancelPathParams = {
   reservation_id: number;
 };
 
 export type PostV1StaffReservationsReservationIdRefundPathParams = {
+  reservation_id: number;
+};
+
+export type PostV1StaffReservationsReservationIdVoucherApplyPathParams = {
+  reservation_id: number;
+};
+
+export type PostV1StaffReservationsReservationIdVoucherReleasePathParams = {
+  reservation_id: number;
+};
+
+export type PostV1StaffReservationsReservationIdVoucherRemovePathParams = {
   reservation_id: number;
 };
 
@@ -2585,6 +2630,10 @@ export type PostV1StaffTablesTableIdOrdersPathParams = {
 
 export type PostV1StaffTablesTableIdReleasePathParams = {
   table_id: number;
+};
+
+export type PostV1StaffUsersUserIdLoyaltyAdjustPathParams = {
+  user_id: number;
 };
 
 export type PostV1StaffWaitingListIdAdvancePathParams = {
@@ -2625,6 +2674,18 @@ export type PostV1reservationsidpreordersubmitPathParams = {
 
 export type PostV1staffconversationsconversationIdworkflowStatePathParams = {
   conversation_id: string;
+};
+
+export type PostV1staffreservationsidpreorderconfirmPathParams = {
+  id: number;
+};
+
+export type PostV1staffreservationsidpreorderconvertPathParams = {
+  id: number;
+};
+
+export type PostV1staffreservationsidpreorderrejectPathParams = {
+  id: number;
 };
 
 export type PreviewCustomerReservationPreorderRequest = {
@@ -3098,6 +3159,12 @@ export type SendConversationOutboundReplyRequest = {
   message_text: string;
   related_reservation_id?: (number) | null;
   related_order_id?: (number) | null;
+};
+
+export type StaffApplyReservationVoucherRequest = {
+  user_voucher_id?: (number) | null;
+  voucher_code?: (string) | null;
+  row_version: number;
 };
 
 export type StaffAssignBestFitTableRequest = {
@@ -3709,6 +3776,12 @@ export type StaffOrderReadPayload = {
 };
 };
 
+export type StaffRedeemReservationPointsRequest = {
+  points: number;
+  reason?: (string) | null;
+  row_version: number;
+};
+
 export type StaffRefundEnvelope = {
   data: {
   reservation: ReservationSummary;
@@ -3740,6 +3813,15 @@ export type StaffRefundPreviewEnvelope = {
   meta?: {
   action: string;
 };
+};
+
+export type StaffReleaseReservationPointsRequest = {
+  reason?: (string) | null;
+  row_version: number;
+};
+
+export type StaffRemoveReservationVoucherRequest = {
+  row_version: number;
 };
 
 export type StaffReportingCollectionMeta = {
@@ -5531,6 +5613,58 @@ export class RestaurantPosClient {
     );
   }
 
+  async getV1staffreservationsidpreorder(pathParams: GetV1staffreservationsidpreorderPathParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/staff/reservations/{id}/preorder', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async postV1staffreservationsidpreorderconfirm(pathParams: PostV1staffreservationsidpreorderconfirmPathParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/reservations/{id}/preorder/confirm', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async postV1staffreservationsidpreorderreject(pathParams: PostV1staffreservationsidpreorderrejectPathParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/reservations/{id}/preorder/reject', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async postV1staffreservationsidpreorderconvert(pathParams: PostV1staffreservationsidpreorderconvertPathParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/reservations/{id}/preorder/convert', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
   async getV1StaffKitchenChanges(query: GetV1StaffKitchenChangesQueryParams, options: RequestOptions = {}): Promise<StaffOperationalRealtimeEnvelope> {
     return this.request<StaffOperationalRealtimeEnvelope>(
       'GET',
@@ -6225,6 +6359,136 @@ export class RestaurantPosClient {
       'POST',
       this.interpolatePath('/api/v1/reservations/{id}/loyalty/redeem/release', pathParams as Record<string, string | number>),
       'customer',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async getV1StaffReservationsReservationIdVouchers(pathParams: GetV1StaffReservationsReservationIdVouchersPathParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/vouchers', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async postV1StaffReservationsReservationIdVoucherApply(pathParams: PostV1StaffReservationsReservationIdVoucherApplyPathParams, body: StaffApplyReservationVoucherRequest, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/voucher/apply', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async postV1StaffReservationsReservationIdVoucherRemove(pathParams: PostV1StaffReservationsReservationIdVoucherRemovePathParams, body: StaffRemoveReservationVoucherRequest, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/voucher/remove', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async postV1StaffReservationsReservationIdVoucherRelease(pathParams: PostV1StaffReservationsReservationIdVoucherReleasePathParams, body: StaffRemoveReservationVoucherRequest, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/voucher/release', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async getV1StaffUsersUserIdLoyalty(pathParams: GetV1StaffUsersUserIdLoyaltyPathParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/staff/users/{user_id}/loyalty', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async postV1StaffUsersUserIdLoyaltyAdjust(pathParams: PostV1StaffUsersUserIdLoyaltyAdjustPathParams, body: AdjustUserLoyaltyPointsRequest, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/users/{user_id}/loyalty/adjust', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async getV1StaffReservationsReservationIdLoyalty(pathParams: GetV1StaffReservationsReservationIdLoyaltyPathParams, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'GET',
+      this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/loyalty', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async postV1StaffReservationsReservationIdLoyaltyRedeem(pathParams: PostV1StaffReservationsReservationIdLoyaltyRedeemPathParams, body: StaffRedeemReservationPointsRequest, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/loyalty/redeem', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async postV1StaffReservationsReservationIdLoyaltyRedeemRelease(pathParams: PostV1StaffReservationsReservationIdLoyaltyRedeemReleasePathParams, body: StaffReleaseReservationPointsRequest, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/loyalty/redeem/release', pathParams as Record<string, string | number>),
+      'staff',
+      false,
+      true,
+      undefined,
+      body,
+      options,
+    );
+  }
+
+  async postV1StaffReservationsReservationIdLoyaltyRelease(pathParams: PostV1StaffReservationsReservationIdLoyaltyReleasePathParams, body: StaffReleaseReservationPointsRequest, options: RequestOptions = {}): Promise<GenericDataEnvelope> {
+    return this.request<GenericDataEnvelope>(
+      'POST',
+      this.interpolatePath('/api/v1/staff/reservations/{reservation_id}/loyalty/release', pathParams as Record<string, string | number>),
+      'staff',
       false,
       true,
       undefined,
