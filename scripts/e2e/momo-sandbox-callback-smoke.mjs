@@ -289,4 +289,28 @@ async function run() {
   console.log(`Done. MoMo Callback Status: ${overall_status}`);
 }
 
-run();
+run().then(() => {
+  const hasFail = results.some(r => r.status === "FAIL");
+  const hasBlocked = results.some(r => r.status === "STAGING_BLOCKED") || isBlocked;
+  
+  if (hasFail) {
+    console.error("Verification failed.");
+    process.exitCode = 1;
+    return;
+  }
+  if (hasBlocked) {
+    if (process.argv.includes("--allow-staging-blocked")) {
+      console.log("Staging blocked (allowed via --allow-staging-blocked). Exiting 0.");
+      process.exitCode = 0;
+      return;
+    } else {
+      console.error("Staging blocked. Exiting 1.");
+      process.exitCode = 1;
+      return;
+    }
+  }
+  process.exitCode = 0;
+}).catch(err => {
+  console.error("Unhandled error:", err);
+  process.exitCode = 1;
+});

@@ -2,9 +2,9 @@
 
 ## 1. Executive Summary
 
-Following extensive preflight checks, E2E sandbox callback tests, continuous scheduler ticks, and high-volume performance load validation, the final recommendation for Batch 15 is:
+Following extensive preflight checks, E2E sandbox callback tests, continuous scheduler tests, and high-volume performance load validation, the final recommendation for Batch 15 is:
 
-- **Batch 15 Scoped Changes Recommendation**: **READY TO MERGE**
+- **Batch 15 Scoped Changes Recommendation**: **MERGE WITH RISKS — staging harnesses, simulated signature checks, scheduler/export documentation were added, but real provider callbacks remain STAGING_BLOCKED.**
 - **Overall Project/Runtime Readiness**: **MERGE WITH RISKS**
 
 > [!WARNING]
@@ -33,17 +33,21 @@ Overall project/runtime readiness remains `MERGE WITH RISKS` because real sandbo
 ---
 
 ## 4. MoMo & VNPay Webhook Callback Results
+- **MoMo Result**: **SIMULATED SIGNATURE CHECK PASS / REAL SANDBOX CALLBACK STAGING_BLOCKED**
+- **VNPay Result**: **SIMULATED HASH CHECK PASS / REAL SANDBOX CALLBACK STAGING_BLOCKED**
 - **E2E Scripts**:
-  - `npm run e2e:momo-sandbox-callback-smoke` -> **STAGING_BLOCKED**
-  - `npm run e2e:vnpay-sandbox-callback-smoke` -> **STAGING_BLOCKED**
+  - `npm run e2e:momo-sandbox-callback-smoke` -> **STAGING_BLOCKED** (Simulated Check Passed)
+  - `npm run e2e:vnpay-sandbox-callback-smoke` -> **STAGING_BLOCKED** (Simulated Check Passed)
 - **Findings**:
-  The environment lacks inbound webhook callback tunnels due to hosting network blocks. The scripts correctly recorded `STAGING_BLOCKED` while verifying the dynamic signature checking pipeline and redirect parameter controller confirmations cleanly under simulated mock callbacks.
+  The environment lacks inbound webhook callback tunnels due to hosting network blocks. The scripts correctly recorded `STAGING_BLOCKED` while verifying the dynamic signature checking pipeline and redirect parameter controller confirmations cleanly under simulated mock callbacks. Real provider callbacks were not delivered due to staging platform network limitations.
+- **Provider Reconciliation Verdict**: **SIMULATED RECONCILIATION PASS / REAL PROVIDER DASHBOARD RECONCILIATION PENDING**
+  *(Reason: app-side duplicate callback/idempotency logic was tested, but provider dashboard reconciliation requires real sandbox callback delivery)*.
 - **Idempotency Verdict**: **PASS** (Double IPN delivery attempts correctly rejected without charging ledger sessions twice).
 
 ---
 
 ## 5. Staging Refund / Reversal Check
-- **Refund Status**: **PASS** (Direct provider-side refund APIs require IP whitelisting on merchant dashboard, which is blocked in sandbox. Safe staff `/refund-cancel` checks and double-refund protection guards validated cleanly).
+- **Refund Status**: **SIMULATED REFUND CHECK PASS / REAL PROVIDER REFUND BLOCKED** (Direct provider-side refund APIs require IP whitelisting on merchant dashboard, which is blocked in sandbox. Safe staff `/refund-cancel` checks and double-refund protection guards validated cleanly).
 
 ---
 
@@ -81,5 +85,5 @@ Overall project/runtime readiness remains `MERGE WITH RISKS` because real sandbo
 
 ## 9. Remaining Risks & Reviewer Guidance
 1. **IP Whitelisting**: Real VNPay/MoMo sandbox webhooks and refunds require whitelisting the staging server's IP address on the provider's portal before E2E callback routing succeeds end-to-end.
-2. **Scheduled Ticker**: Strict preflight deploy checks flag reporting snapshot warnings in temporary local AI contexts. Staging environments must run an active scheduler (`php artisan schedule:run`) and pass strict deploy-check without manual bypass.
+2. **Scheduled Ticker**: Strict deploy-check: ENVIRONMENT-BLOCKED in current staging/sandbox context. It must pass on the real staging target with active cron/scheduler before production readiness can be claimed.
 3. **No Secret Policy**: Zero merchant secret keys, API secrets, or database passwords have been committed or exposed inside verification logs.
