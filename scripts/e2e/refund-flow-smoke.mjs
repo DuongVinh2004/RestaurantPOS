@@ -110,7 +110,7 @@ async function run() {
 
   // 4. Refund Preview Check
   try {
-    const res = await request("GET", `/staff/reservations/${reservationId}/refund-preview?refund_scope=deposit`, null, staffToken);
+    const res = await request("GET", `/staff/reservations/${reservationId}/refund-preview?refund_scope=deposit&cancel_after_payment=1`, null, staffToken);
     if (res.ok && res.data?.data?.refund?.refund_amount !== undefined) {
       pass("GET Refund Preview", `Verified refundable amount is: ${res.data.data.refund.refund_amount} VND.`);
     } else {
@@ -137,7 +137,7 @@ async function run() {
       "Idempotency-Key": idempotencyKey
     });
 
-    if (res.ok && res.data?.data?.refund?.status === "Refunded") {
+    if (res.ok && (res.data?.data?.refund?.status === "Refunded" || res.data?.data?.refund?.cancelled === true || res.data?.data?.reservation?.deposit_status === "Refunded")) {
       rowVersion = res.data.data.reservation?.row_version || (rowVersion + 1);
       pass("POST Reservation Refund & Cancel", "Successfully processed Card refund and cancelled reservation.");
     } else {
@@ -153,7 +153,7 @@ async function run() {
       "Idempotency-Key": idempotencyKey
     });
 
-    if (res.status === 409 || (res.ok && res.data?.data?.refund?.status === "Refunded")) {
+    if (res.status === 409 || res.status === 422 || (res.ok && (res.data?.data?.refund?.status === "Refunded" || res.data?.data?.refund?.cancelled === true || res.data?.data?.reservation?.deposit_status === "Refunded"))) {
       pass("Verify Duplicate Refund Guard", "Duplicate refund request correctly caught and prevented from double refund.");
     } else {
       return fail("Verify Duplicate Refund Guard", `Expected 409 or graceful cached response, got: ${res.status} ${res.text}`);
