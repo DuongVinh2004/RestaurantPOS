@@ -30,6 +30,8 @@
     "e2e:vnpay-sandbox-callback-smoke": "node scripts/e2e/vnpay-sandbox-callback-smoke.mjs",
     "e2e:staging-export-load-smoke": "node scripts/e2e/staging-export-load-smoke.mjs",
     "e2e:staff-web-smoke": "npx playwright test --config=staff-web/playwright.config.ts --project=chromium",
+    "e2e:staging-env-audit": "node scripts/e2e/staging-env-audit.mjs",
+    "e2e:staging-readiness-driver": "node scripts/e2e/staging-readiness-driver.mjs",
     "contract:frontend-parity": "node scripts/ci/frontend-contract-parity.mjs",
     "build": "node scripts/ui-text-encoding-guard.mjs && vite build",
     "dev": "vite",
