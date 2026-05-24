@@ -128,8 +128,11 @@ async function run() {
 
   // 3. Table and reservation hold creation for dynamic check
   const UATnow = new Date();
+  UATnow.setMilliseconds(0);
   const fromTime = new Date(UATnow.getTime() + 7200000).toISOString();
   const toTime = new Date(UATnow.getTime() + 10800000).toISOString();
+  console.log("fromTime:", fromTime);
+  console.log("toTime:", toTime);
   const sessionId = "smoke-vnpay-sess-" + Math.floor(Math.random() * 1000000);
 
   let tables = [];
@@ -165,8 +168,14 @@ async function run() {
       table_ids: tableIds,
       branch_id: branchId
     }, customerToken);
-    if (res.ok) holdId = res.data?.data?.hold_id;
-  } catch (e) {}
+    if (res.ok) {
+      holdId = res.data?.data?.hold_id;
+    } else {
+      console.error("Table holds creation failed:", res.text);
+    }
+  } catch (e) {
+    console.error("Table holds exception:", e);
+  }
 
   let reservationId = null;
   let rowVersion = 1;
@@ -181,12 +190,17 @@ async function run() {
     if (res.ok) {
       reservationId = res.data?.data?.reservation_id;
       rowVersion = res.data?.data?.row_version || 1;
+    } else {
+      console.error("Reservations creation failed:", res.text);
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error("Reservations exception:", e);
+  }
 
   // Create payment session under generic_http_hmac
   let providerSessionCode = null;
   let sessionRecordId = null;
+  let sessionRowVersion = 1;
   try {
     // Acknowledge deposit
     const ackRes = await request("POST", `/reservations/${reservationId}/deposit/acknowledge`, { row_version: rowVersion }, customerToken);
@@ -207,7 +221,8 @@ async function run() {
 
     if (paySessRes.ok && paySessRes.data?.data?.payment_session) {
       providerSessionCode = paySessRes.data.data.payment_session.provider_session_code;
-      sessionRecordId = paySessRes.data.data.payment_session.payment_session_id;
+      sessionRecordId = paySessRes.data.data.payment_session.deposit_payment_session_id || paySessRes.data.data.payment_session.payment_session_id;
+      sessionRowVersion = paySessRes.data.data.payment_session.row_version || 1;
       pass("Create Generic Session", `Session created: ${providerSessionCode}`);
     } else {
       return block("Create Generic Session", `generic_http_hmac session creation skipped or unsupported: ${paySessRes.text}`);
@@ -221,7 +236,8 @@ async function run() {
     const confirmRes = await request("POST", `/reservations/${reservationId}/deposit/payment-sessions/${sessionRecordId}/confirm`, {
       session_status: "Succeeded",
       provider_payment_code: "vnpay-smoke-pay-" + Math.floor(Math.random() * 1000000),
-      payment_method: "Online"
+      payment_method: "Online",
+      row_version: sessionRowVersion
     }, customerToken);
 
     if (confirmRes.ok) {

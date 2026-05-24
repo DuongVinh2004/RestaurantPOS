@@ -1,9 +1,11 @@
 # MoMo Sandbox Callback E2E Results
 
-- **Overall Status**: STAGING_BLOCKED
-- **Reason**: PAYMENT_PROVIDER_GENERIC_HTTP_HMAC_WEBHOOK_SECRET is empty in .env.
+- **Overall Status**: PASS
+- **Reservation ID**: 105
+- **Session Code**: sim-dep-e9281c90-8dd4-4224-82e2-78624f03cd6b
 
 | Step | Status | Detail |
 |---|---|---|
 | Customer Auth | PASS | Logged in customer successfully. |
-| MoMo Sandbox Ingestion Gate | STAGING_BLOCKED | PAYMENT_PROVIDER_GENERIC_HTTP_HMAC_WEBHOOK_SECRET is empty in .env. Webhook calls remain staging-blocked. |
+| Create Generic Session | PASS | Session created: sim-dep-e9281c90-8dd4-4224-82e2-78624f03cd6b |
+| Simulate Webhook Ingestion | PASS | Generic HTTP HMAC signature webhook applied successfully. |

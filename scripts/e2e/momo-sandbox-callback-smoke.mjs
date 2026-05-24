@@ -140,8 +140,11 @@ async function run() {
 
   // 3. Table and reservation hold creation for dynamic check
   const UATnow = new Date();
+  UATnow.setMilliseconds(0);
   const fromTime = new Date(UATnow.getTime() + 7200000).toISOString();
   const toTime = new Date(UATnow.getTime() + 10800000).toISOString();
+  console.log("fromTime:", fromTime);
+  console.log("toTime:", toTime);
   const sessionId = "smoke-momo-sess-" + Math.floor(Math.random() * 1000000);
 
   let tables = [];
@@ -177,8 +180,14 @@ async function run() {
       table_ids: tableIds,
       branch_id: branchId
     }, customerToken);
-    if (res.ok) holdId = res.data?.data?.hold_id;
-  } catch (e) {}
+    if (res.ok) {
+      holdId = res.data?.data?.hold_id;
+    } else {
+      console.error("Table holds creation failed:", res.text);
+    }
+  } catch (e) {
+    console.error("Table holds exception:", e);
+  }
 
   let reservationId = null;
   let rowVersion = 1;
@@ -193,8 +202,12 @@ async function run() {
     if (res.ok) {
       reservationId = res.data?.data?.reservation_id;
       rowVersion = res.data?.data?.row_version || 1;
+    } else {
+      console.error("Reservations creation failed:", res.text);
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error("Reservations exception:", e);
+  }
 
   // Create payment session under generic_http_hmac
   let providerSessionCode = null;
