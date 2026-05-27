@@ -57,15 +57,43 @@ class BookingDoctorService
         }
 
         try {
-            $runtime['redis'] = [
-                'ok' => true,
-                'message' => 'Redis set/get and lock ok. (Bypassed for local AI execution)',
-                'status' => 'pass',
-                'dependency' => null,
-                'meta' => [
-                    'probe' => 'cache_store_redis',
-                ],
-            ];
+            $allowLocalBypass = app()->environment(['local', 'development'])
+                && (bool) config('booking.doctor.allow_local_bypass', false);
+
+            if ($allowLocalBypass) {
+                $runtime['redis'] = [
+                    'ok' => true,
+                    'message' => 'Redis set/get and lock ok. (Bypassed for local dev/AI execution)',
+                    'status' => 'pass',
+                    'dependency' => null,
+                    'meta' => [
+                        'probe' => 'cache_store_redis',
+                    ],
+                ];
+            } else {
+                /** @var Repository $redis */
+                $redis = Cache::store('redis');
+                $key = 'doctor:redis:'.now('UTC')->format('YmdHis').':'.random_int(1000, 9999);
+                $redis->put($key, 'pong', 10);
+                $valueOk = ($redis->get($key) === 'pong');
+                $lock = $redis->lock('doctor:redis-lock:'.$key, 3);
+                $lockOk = $lock->get();
+                if ($lockOk) {
+                    $lock->release();
+                }
+
+                $runtime['redis'] = [
+                    'ok' => ($valueOk && (bool) $lockOk),
+                    'message' => ($valueOk && (bool) $lockOk)
+                        ? 'Redis set/get and lock ok.'
+                        : 'Redis responded but set/get or lock acquisition failed.',
+                    'status' => ($valueOk && (bool) $lockOk) ? 'pass' : 'fail',
+                    'dependency' => null,
+                    'meta' => [
+                        'probe' => 'cache_store_redis',
+                    ],
+                ];
+            }
         } catch (\Throwable $exception) {
             $runtime['redis'] = $this->runtimeFail($exception->getMessage(), [
                 'probe' => 'cache_store_redis',
@@ -82,13 +110,52 @@ class BookingDoctorService
             );
         } else {
             try {
-                $runtime['scheduler'] = $this->runtimePass(
-                    'Scheduler heartbeat is running. (Bypassed for local AI execution)',
-                    [
-                        'age_seconds' => 0,
-                        'stale_threshold_seconds' => 180,
-                    ]
-                );
+                $allowLocalBypass = app()->environment(['local', 'development'])
+                    && (bool) config('booking.doctor.allow_local_bypass', false);
+
+                if ($allowLocalBypass) {
+                    $runtime['scheduler'] = $this->runtimePass(
+                        'Scheduler heartbeat is running. (Bypassed for local dev/AI execution)',
+                        [
+                            'age_seconds' => 0,
+                            'stale_threshold_seconds' => 180,
+                        ]
+                    );
+                } else {
+                    $lastRun = $this->opsHeartbeatService->getLastRun('scheduler');
+                    if (! $lastRun) {
+                        $runtime['scheduler'] = $this->runtimeFail(
+                            'Scheduler heartbeat is missing. Start the scheduler worker, confirm routes/console/schedule.php touches ops:heartbeat:scheduler, then rerun booking:doctor.',
+                            [
+                                'probe' => 'ops_heartbeat_scheduler',
+                                'state_reason' => 'scheduler_heartbeat_missing',
+                            ],
+                        );
+                    } else {
+                        $ageSeconds = max(0, Carbon::now('UTC')->getTimestamp() - $lastRun->getTimestamp());
+                        $staleThresholdSeconds = (int) config('booking.scheduler_heartbeat_stale_seconds', 180);
+                        $runtime['scheduler'] = $ageSeconds <= $staleThresholdSeconds
+                            ? $this->runtimePass(
+                                sprintf('Last heartbeat %d second(s) ago.', $ageSeconds),
+                                [
+                                    'age_seconds' => $ageSeconds,
+                                    'stale_threshold_seconds' => $staleThresholdSeconds,
+                                ],
+                            )
+                            : $this->runtimeFail(
+                                sprintf(
+                                    'Scheduler heartbeat is stale: last heartbeat %d second(s) ago; stale threshold is %d second(s). Restart the scheduler worker and check schedule/queue logs.',
+                                    $ageSeconds,
+                                    $staleThresholdSeconds
+                                ),
+                                [
+                                    'age_seconds' => $ageSeconds,
+                                    'stale_threshold_seconds' => $staleThresholdSeconds,
+                                    'state_reason' => 'scheduler_heartbeat_stale',
+                                ],
+                            );
+                    }
+                }
             } catch (\Throwable $exception) {
                 $runtime['scheduler'] = $this->runtimeFail($exception->getMessage(), [
                     'probe' => 'ops_heartbeat_scheduler',

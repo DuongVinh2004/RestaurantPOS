@@ -333,6 +333,17 @@ class ReservationCreateService
         $order->notes = null;
         $order->save();
 
+        // 5b. Đồng bộ sang bảng preorders cho luồng Customer self-service
+        $preorderId = DB::table('preorders')->insertGetId([
+            'reservation_id' => $reservation->reservation_id,
+            'customer_user_id' => $reservation->user_id,
+            'status' => 'draft',
+            'notes' => 'Customer managed pre-order',
+            'row_version' => 1,
+            'created_at' => Carbon::now('UTC'),
+            'updated_at' => Carbon::now('UTC'),
+        ]);
+
         // 6. Ghi Chi tiết Món ăn (Order Items)
         foreach ($normalizedPreOrderItems as $row) {
             $menuItem = $menuItems->get((int) $row['item_id']);
@@ -353,6 +364,19 @@ class ReservationCreateService
             $item->notes = null;
             $item->updated_by = $actorUserId;
             $item->save();
+
+            // 6b. Đồng bộ sang bảng preorder_items
+            DB::table('preorder_items')->insert([
+                'preorder_id' => $preorderId,
+                'menu_item_id' => (int) $row['item_id'],
+                'quantity' => $quantity,
+                'unit_price_snapshot' => number_format($unitPrice, 2, '.', ''),
+                'line_total_snapshot' => number_format($unitPrice * $quantity, 2, '.', ''),
+                'currency' => $currency,
+                'item_name_snapshot' => $menuItem ? (string) $menuItem->name : '',
+                'created_at' => Carbon::now('UTC'),
+                'updated_at' => Carbon::now('UTC'),
+            ]);
         }
     }
 

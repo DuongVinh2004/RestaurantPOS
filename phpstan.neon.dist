@@ -6,6 +6,8 @@ parameters:
         - app
         - tests
     level: 0
+    scanFiles:
+        - stubs/phpstan/ScribeAttributes.php
     tmpDir: storage/phpstan
     bootstrapFiles:
         - tools/phpstan/bootstrap.php

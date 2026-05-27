@@ -42,6 +42,8 @@ class ReservationServicePreorderPricingGuardTest extends TestCase
         DB::reconnect('sqlite');
 
         foreach ([
+            'preorder_items',
+            'preorders',
             'branches',
             'payments',
             'reservation_order_items',
@@ -123,6 +125,9 @@ class ReservationServicePreorderPricingGuardTest extends TestCase
             $table->unsignedInteger('guest_count');
             $table->string('status');
             $table->string('source')->default('Online');
+            $table->decimal('deposit_required_amount', 14, 2)->default(0);
+            $table->string('deposit_status')->default('NotRequired');
+            $table->decimal('deposit_paid_amount', 14, 2)->default(0);
             $table->string('notes')->nullable();
             $table->unsignedInteger('created_by')->nullable();
             $table->unsignedInteger('updated_by')->nullable();
@@ -161,6 +166,29 @@ class ReservationServicePreorderPricingGuardTest extends TestCase
             $table->string('notes')->nullable();
             $table->unsignedInteger('updated_by')->nullable();
             $table->unsignedBigInteger('row_version')->default(1);
+            $table->timestamps();
+        });
+
+        Schema::create('preorders', function (Blueprint $table): void {
+            $table->increments('preorder_id');
+            $table->unsignedInteger('reservation_id');
+            $table->unsignedInteger('customer_user_id')->nullable();
+            $table->string('status')->default('draft');
+            $table->string('notes')->nullable();
+            $table->unsignedBigInteger('row_version')->default(1);
+            $table->timestamps();
+        });
+
+        Schema::create('preorder_items', function (Blueprint $table): void {
+            $table->increments('preorder_item_id');
+            $table->unsignedInteger('preorder_id');
+            $table->unsignedInteger('menu_item_id');
+            $table->string('item_name_snapshot');
+            $table->decimal('unit_price_snapshot', 13, 2)->default(0);
+            $table->unsignedInteger('quantity')->default(1);
+            $table->decimal('line_total_snapshot', 13, 2)->default(0);
+            $table->string('currency', 3)->default('VND');
+            $table->string('notes')->nullable();
             $table->timestamps();
         });
 
