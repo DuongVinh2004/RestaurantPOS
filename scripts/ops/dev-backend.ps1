@@ -165,6 +165,20 @@ function Test-RepoBackendProcess {
     return $normalizedCommandLine.Contains('server.php')
 }
 
+function Test-AppEndpoint {
+    param(
+        [string] $Url,
+        [int] $TimeoutSec = 5
+    )
+
+    try {
+        $response = Invoke-WebRequest -Uri $Url -Method Get -UseBasicParsing -TimeoutSec $TimeoutSec
+        return $response.StatusCode -ge 200 -and $response.StatusCode -lt 400
+    } catch {
+        return $false
+    }
+}
+
 function Read-DotEnvFile {
     param(
         [string] $Path
@@ -585,9 +599,42 @@ if ($existingConnection) {
         throw "Port $Port is already in use by $ownerLabel. Stop that process or pick another backend port before running npm run dev:all."
     }
 
-    Write-Host "Reusing Laravel backend on http://$HostName`:$Port (PID $($ownerProcess.ProcessId))."
-    Wait-Process -Id $ownerProcess.ProcessId
-    exit 0
+    if (-not (Test-AppEndpoint -Url "http://$HostName`:$Port/api/v1/health" -TimeoutSec 5)) {
+        Write-Host "Laravel backend on port $Port is stale. Restarting the repo-local process..."
+        Stop-Process -Id $ownerProcess.ProcessId -Force -ErrorAction SilentlyContinue
+
+        if (-not (Wait-ForTcpService -TargetHost $HostName -TargetPort $Port -Attempts 30 -DelayMs 500)) {
+            # wait for the port to close, wait-fortcpservice tests if it's listening. We want to wait until it's NOT listening.
+            $released = $false
+            for ($attempt = 1; $attempt -le 30; $attempt++) {
+                if (-not (Test-TcpPort -TargetHost $HostName -TargetPort $Port -TimeoutMs 500)) {
+                    $released = $true
+                    break
+                }
+                Start-Sleep -Milliseconds 500
+            }
+            if (-not $released) {
+                throw "Laravel backend did not release port $Port after the restart signal."
+            }
+        } else {
+            # Same logic here just in case Wait-ForTcpService is not appropriate for testing closed state
+            $released = $false
+            for ($attempt = 1; $attempt -le 30; $attempt++) {
+                if (-not (Test-TcpPort -TargetHost $HostName -TargetPort $Port -TimeoutMs 500)) {
+                    $released = $true
+                    break
+                }
+                Start-Sleep -Milliseconds 500
+            }
+            if (-not $released) {
+                throw "Laravel backend did not release port $Port after the restart signal."
+            }
+        }
+    } else {
+        Write-Host "Reusing Laravel backend on http://$HostName`:$Port (PID $($ownerProcess.ProcessId))."
+        Wait-Process -Id $ownerProcess.ProcessId
+        exit 0
+    }
 }
 
 Write-Host "Starting Laravel backend on http://$HostName`:$Port"

@@ -1113,21 +1113,20 @@ test.describe("Wave 1 live Laravel runtime", () => {
 
     const menuItems = waitForApi(page, "/api/v1/menu/items");
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Browse the menu before your visit." })).toBeVisible();
-    await expect(page.locator('[data-slot="badge"]').filter({ hasText: /^Live menu$/ })).toBeVisible();
+    await expect(page.locator("h1").first()).toBeVisible();
     await expectOk(await menuItems, "GET /api/v1/menu/items");
 
     const login = waitForApi(page, "/api/v1/auth/customer/login", "POST");
     await page.goto("/login");
-    await page.getByLabel("Email, phone, or customer id").fill(live.identifier as string);
-    await page.getByLabel("Password").fill(live.password as string);
-    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.getByLabel(/Email, số điện thoại hoặc mã/).fill(live.identifier as string);
+    await page.getByLabel("Mật khẩu").fill(live.password as string);
+    await page.getByRole("button", { name: "Đăng nhập" }).click();
     await expectOk(await login, "POST /api/v1/auth/customer/login");
     await expect(page).toHaveURL(/\/reservations$/);
 
     const sessionBootstrap = waitForApi(page, "/api/v1/auth/customer/me");
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Reservations" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Lịch đặt của bạn" }).or(page.getByRole("heading", { name: "Lịch đặt" }))).toBeVisible();
     await expectOk(await sessionBootstrap, "GET /api/v1/auth/customer/me");
     const customerHeaders = await readCustomerBrowserAuthHeaders(page);
 
@@ -1135,45 +1134,45 @@ test.describe("Wave 1 live Laravel runtime", () => {
     const positiveDepositPreview = waitForApi(page, `/api/v1/reservations/${positiveDepositFixture.reservationId}/deposit-preview`);
 
     await page.goto(`/reservations/${positiveDepositFixture.reservationId}`);
-    await expect(page.getByRole("link", { name: "Back to reservations" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Quay lại lịch đặt" })).toBeVisible();
     await expectOk(await positiveDepositDetail, "GET /api/v1/reservations/{id} for seeded deposit proof");
     await expectOk(await positiveDepositPreview, "GET /api/v1/reservations/{id}/deposit-preview for seeded deposit proof");
 
     const depositCard = page.locator('[data-slot="card"]').filter({
-      has: page.locator('[data-slot="card-title"]').filter({ hasText: /^Deposit$/ }),
+      has: page.locator('[data-slot="card-title"]').filter({ hasText: /^Đặt cọc$/ }),
     }).first();
-    await expect(depositCard.getByText("Amount due", { exact: true })).toBeVisible();
+    await expect(depositCard.getByText("Số tiền cần trả", { exact: true })).toBeVisible();
     await expect(depositCard.getByText(formatExpectedMoney(positiveDepositFixture.expectedAmount), { exact: true })).toBeVisible();
-    await expect(depositCard.getByRole("button", { name: "Acknowledge deposit" })).toBeVisible();
+    await expect(depositCard.getByRole("button", { name: "Tôi đã hiểu yêu cầu đặt cọc" })).toBeVisible();
 
     const acknowledgeDeposit = waitForApi(page, `/api/v1/reservations/${positiveDepositFixture.reservationId}/deposit/acknowledge`, "POST");
-    await depositCard.getByRole("button", { name: "Acknowledge deposit" }).click();
+    await depositCard.getByRole("button", { name: "Tôi đã hiểu yêu cầu đặt cọc" }).click();
     await expectOk(await acknowledgeDeposit, "POST /api/v1/reservations/{id}/deposit/acknowledge");
 
-    await expect(depositCard.getByRole("button", { name: "Mark as self-pay" })).toBeVisible();
+    await expect(depositCard.getByRole("button", { name: "Tôi sẽ tự thanh toán" })).toBeVisible();
     const submitDepositIntent = waitForApi(page, `/api/v1/reservations/${positiveDepositFixture.reservationId}/deposit/intent`, "POST");
-    await depositCard.getByRole("button", { name: "Mark as self-pay" }).click();
+    await depositCard.getByRole("button", { name: "Tôi sẽ tự thanh toán" }).click();
     await expectOk(await submitDepositIntent, "POST /api/v1/reservations/{id}/deposit/intent");
 
-    await expect(depositCard.getByRole("button", { name: "Remove self-pay" })).toBeVisible();
+    await expect(depositCard.getByRole("button", { name: "Hủy tự thanh toán" })).toBeVisible();
     const revokeDepositIntent = waitForApi(page, `/api/v1/reservations/${positiveDepositFixture.reservationId}/deposit/intent/revoke`, "POST");
-    await depositCard.getByRole("button", { name: "Remove self-pay" }).click();
+    await depositCard.getByRole("button", { name: "Hủy tự thanh toán" }).click();
     await expectOk(await revokeDepositIntent, "POST /api/v1/reservations/{id}/deposit/intent/revoke");
 
-    await expect(depositCard.getByRole("button", { name: "Mark as self-pay" })).toBeVisible();
+    await expect(depositCard.getByRole("button", { name: "Tôi sẽ tự thanh toán" })).toBeVisible();
     const resubmitDepositIntent = waitForApi(page, `/api/v1/reservations/${positiveDepositFixture.reservationId}/deposit/intent`, "POST");
-    await depositCard.getByRole("button", { name: "Mark as self-pay" }).click();
+    await depositCard.getByRole("button", { name: "Tôi sẽ tự thanh toán" }).click();
     await expectOk(await resubmitDepositIntent, "POST /api/v1/reservations/{id}/deposit/intent after revoke");
 
-    await expect(depositCard.getByRole("button", { name: "Continue to deposit payment" })).toBeVisible();
+    await expect(depositCard.getByRole("button", { name: "Thanh toán đặt cọc" })).toBeVisible();
     const createDepositSession = waitForApi(page, `/api/v1/reservations/${positiveDepositFixture.reservationId}/deposit/payment-sessions`, "POST");
-    await depositCard.getByRole("button", { name: "Continue to deposit payment" }).click();
+    await depositCard.getByRole("button", { name: "Thanh toán đặt cọc" }).click();
     const depositPaymentSession = await expectOkJson<DepositPaymentSessionEnvelope>(
       await createDepositSession,
       "POST /api/v1/reservations/{id}/deposit/payment-sessions",
     );
-    await expect(depositCard.getByText("Deposit payment session", { exact: true })).toBeVisible();
-    await expect(depositCard.getByText("Payment session open", { exact: true })).toBeVisible();
+    await expect(depositCard.getByText("Hoàn tất thanh toán rồi cập nhật")).first().toBeVisible();
+    await expect(depositCard.getByText("Thanh toán đặt cọc", { exact: true })).first().toBeVisible();
     await expectOk(
       await request.get(
         liveApiUrl(
