@@ -365,8 +365,8 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error');
 
-        $this->assertSame(0, DB::table('reservation_orders')->count());
-        $this->assertSame(0, DB::table('reservation_order_items')->count());
+        $this->assertSame(0, DB::table('preorders')->count());
+        $this->assertSame(0, DB::table('preorder_items')->count());
     }
 
     private function actingAsUserId(int $userId): self

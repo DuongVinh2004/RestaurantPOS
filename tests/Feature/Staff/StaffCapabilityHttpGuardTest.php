@@ -197,7 +197,7 @@ class StaffCapabilityHttpGuardTest extends TestCase
         $this->withHeaders($this->staffHeaders('admin-capability-key'))
             ->getJson('/api/v1/admin/kitchen/stations')
             ->assertOk()
-            ->assertJsonPath('meta.count', 0);
+            ->assertJsonPath('meta.count', (int) DB::table('kitchen_stations')->count());
 
         $this->withHeaders($this->staffHeaders('admin-capability-key'))
             ->getJson('/api/v1/staff/reservations/'.$reservationId.'/vouchers')

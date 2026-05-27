@@ -301,7 +301,14 @@ trait BuildsBookingScenario
                     'timezone' => 'UTC',
                     'business_hours' => json_encode($this->defaultBranchFixtureBusinessHours(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                     'booking_policy' => json_encode($this->defaultBranchFixtureBookingPolicy(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    'is_default' => true,
                     'updated_at' => now('UTC'),
+                ]);
+
+            DB::table('branches')
+                ->where('branch_id', '<>', 1)
+                ->update([
+                    'is_default' => false,
                 ]);
         }
 

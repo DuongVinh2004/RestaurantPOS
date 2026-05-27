@@ -25,9 +25,9 @@ class StaffApiKeyActorResolverTest extends TestCase
         config()->set('staff_auth.production_like_environments', ['production', 'staging']);
         config()->set('staff_auth.deny_env_fallback_in_production_like', true);
         config()->set('staff_auth.deny_role_name_fallback_in_production_like', true);
-        config()->set('staff_auth.api_keys', ['staff-key' => 2]);
+        config()->set('staff_auth.api_keys', ['staff-key' => 99999]);
         config()->set('staff_auth.legacy_key', 'legacy-secret');
-        config()->set('staff_auth.legacy_user_id', 2);
+        config()->set('staff_auth.legacy_user_id', 99999);
         config()->set('staff_auth.allowed_role_ids', [2]);
         config()->set('staff_auth.allow_role_name_fallback', false);
 
@@ -40,7 +40,7 @@ class StaffApiKeyActorResolverTest extends TestCase
     {
         DB::table('staff_api_keys')->insert([
             'staff_api_key_id' => 1,
-            'user_id' => 2,
+            'user_id' => 99999,
             'label' => 'Primary Key',
             'key_hash' => hash('sha256', 'db-staff-key'),
             'last_used_at' => null,
@@ -54,7 +54,7 @@ class StaffApiKeyActorResolverTest extends TestCase
 
         $this->assertTrue($result['ok']);
         $this->assertSame('database_key', $result['mode']);
-        $this->assertSame(2, (int) $result['user']->user_id);
+        $this->assertSame(99999, (int) $result['user']->user_id);
         $this->assertSame(1, (int) ($result['staff_api_key_id'] ?? 0));
         $this->assertNotNull(DB::table('staff_api_keys')->where('staff_api_key_id', 1)->value('last_used_at'));
     }
@@ -63,7 +63,7 @@ class StaffApiKeyActorResolverTest extends TestCase
     {
         DB::table('staff_api_keys')->insert([
             'staff_api_key_id' => 2,
-            'user_id' => 2,
+            'user_id' => 99999,
             'label' => 'Revoked Key',
             'key_hash' => hash('sha256', 'revoked-key'),
             'last_used_at' => null,
@@ -83,7 +83,7 @@ class StaffApiKeyActorResolverTest extends TestCase
     {
         DB::table('staff_api_keys')->insert([
             'staff_api_key_id' => 3,
-            'user_id' => 2,
+            'user_id' => 99999,
             'label' => 'Expired Key',
             'key_hash' => hash('sha256', 'expired-key'),
             'last_used_at' => null,
@@ -115,7 +115,7 @@ class StaffApiKeyActorResolverTest extends TestCase
 
         $this->assertTrue($result['ok']);
         $this->assertSame('mapped_key_fallback', $result['mode']);
-        $this->assertSame(2, (int) $result['user']->user_id);
+        $this->assertSame(99999, (int) $result['user']->user_id);
     }
 
     public function test_it_blocks_runtime_env_fallback_outside_allow_list_even_when_flag_is_enabled(): void
@@ -150,7 +150,7 @@ class StaffApiKeyActorResolverTest extends TestCase
 
         $this->assertTrue($result['ok']);
         $this->assertSame('legacy_key_fallback', $result['mode']);
-        $this->assertSame(2, (int) $result['user']->user_id);
+        $this->assertSame(99999, (int) $result['user']->user_id);
     }
 
     public function test_it_blocks_database_store_unavailable_fallback_outside_allow_list(): void
@@ -169,7 +169,7 @@ class StaffApiKeyActorResolverTest extends TestCase
     {
         DB::table('staff_api_keys')->insert([
             'staff_api_key_id' => 4,
-            'user_id' => 2,
+            'user_id' => 99999,
             'label' => 'Role Name Fallback Blocked',
             'key_hash' => hash('sha256', 'db-role-fallback-key'),
             'last_used_at' => null,
@@ -232,20 +232,21 @@ class StaffApiKeyActorResolverTest extends TestCase
 
     private function truncateStaffAuthTables(): void
     {
-        DB::table('staff_api_keys')->delete();
-        DB::table('users')->delete();
-        DB::table('roles')->delete();
+        DB::table('staff_api_keys')->where('user_id', 99999)->delete();
+        DB::table('users')->where('user_id', 99999)->delete();
     }
 
     private function seedStaffUser(): void
     {
-        DB::table('roles')->insert([
+        DB::table('roles')->updateOrInsert([
             'role_id' => 2,
+        ], [
             'role_name' => 'Staff',
         ]);
 
-        DB::table('users')->insert([
-            'user_id' => 2,
+        DB::table('users')->updateOrInsert([
+            'user_id' => 99999,
+        ], [
             'username' => 'staff',
             'full_name' => 'Staff User',
             'email' => 'staff@example.test',
