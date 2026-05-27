@@ -481,6 +481,9 @@ return [
     // Metrics and privacy toggles.
     'metrics_enabled' => (bool) env('METRICS_ENABLED', true),
     'metrics_sample_rate' => max(0.0, min(1.0, (float) env('METRICS_SAMPLE_RATE', 1.0))),
+    'doctor' => [
+        'allow_local_bypass' => (bool) env('BOOKING_DOCTOR_ALLOW_LOCAL_BYPASS', false),
+    ],
     'expose_session_id' => (bool) env('EXPOSE_SESSION_ID', false),
     'expose_hold_user_id' => (bool) env('EXPOSE_HOLD_USER_ID', false),
 

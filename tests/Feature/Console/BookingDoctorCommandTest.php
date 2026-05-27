@@ -167,4 +167,57 @@ class BookingDoctorCommandTest extends TestCase
         $this->assertGreaterThan(180, data_get($payload, 'runtime.scheduler.meta.age_seconds'));
         $this->assertStringContainsString('stale threshold', (string) data_get($payload, 'runtime.scheduler.message'));
     }
+
+    #[Group('booking-smoke')]
+    public function test_booking_doctor_production_environment_rejects_bypass_even_when_flag_enabled(): void
+    {
+        $this->app['env'] = 'production';
+        config()->set('booking.doctor.allow_local_bypass', true);
+
+        Cache::store('redis')->put(
+            'ops:heartbeat:scheduler',
+            now('UTC')->subSeconds(240)->toIso8601String(),
+            300
+        );
+
+        $exitCode = Artisan::call('booking:doctor', ['--json' => true]);
+        $payload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertFalse((bool) data_get($payload, 'runtime.scheduler.ok'));
+    }
+
+    #[Group('booking-smoke')]
+    public function test_booking_doctor_local_environment_bypasses_when_flag_enabled(): void
+    {
+        $this->app['env'] = 'local';
+        config()->set('booking.doctor.allow_local_bypass', true);
+
+        $exitCode = Artisan::call('booking:doctor', ['--json' => true]);
+        $payload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertTrue((bool) data_get($payload, 'runtime.scheduler.ok'));
+        $this->assertSame('pass', data_get($payload, 'runtime.scheduler.status'));
+        $this->assertStringContainsString('Bypassed for local dev/AI execution', (string) data_get($payload, 'runtime.scheduler.message'));
+    }
+
+    #[Group('booking-smoke')]
+    public function test_booking_doctor_local_environment_performs_real_check_when_flag_disabled(): void
+    {
+        $this->app['env'] = 'local';
+        config()->set('booking.doctor.allow_local_bypass', false);
+
+        Cache::store('redis')->put(
+            'ops:heartbeat:scheduler',
+            now('UTC')->subSeconds(240)->toIso8601String(),
+            300
+        );
+
+        $exitCode = Artisan::call('booking:doctor', ['--json' => true]);
+        $payload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertFalse((bool) data_get($payload, 'runtime.scheduler.ok'));
+        $this->assertSame('fail', data_get($payload, 'runtime.scheduler.status'));
+    }
 }

@@ -37,18 +37,24 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
             'end_time' => $this->nowUtc()->copy()->addHours(6),
         ]);
         $itemId = $this->createPreorderMenuItem(price: '85000.00');
-        $orderId = $this->createOrder([
+        $orderId = DB::table('preorders')->insertGetId([
             'reservation_id' => $reservationId,
-            'order_type' => 'PreOrder',
-            'status' => 'Active',
+            'customer_user_id' => $customerId,
+            'status' => 'draft',
+            'row_version' => 1,
+            'created_at' => $this->nowUtc(),
+            'updated_at' => $this->nowUtc(),
         ]);
-        $this->createOrderItem([
-            'order_id' => $orderId,
-            'item_id' => $itemId,
-            'quantity' => 2,
-            'unit_price' => 85000,
-            'line_total' => 170000,
+        DB::table('preorder_items')->insert([
+            'preorder_id' => $orderId,
+            'menu_item_id' => $itemId,
             'item_name_snapshot' => 'Preorder Item',
+            'unit_price_snapshot' => '85000.00',
+            'quantity' => 2,
+            'line_total_snapshot' => '170000.00',
+            'currency' => 'VND',
+            'created_at' => $this->nowUtc(),
+            'updated_at' => $this->nowUtc(),
         ]);
 
         $response = $this->actingAsUserId($customerId)
@@ -77,23 +83,30 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
         ]);
         $oldItemId = $this->createPreorderMenuItem(price: '50000.00');
         $replacementItemId = $this->createPreorderMenuItem(price: '85000.00');
-        $orderId = $this->createOrder([
+        $orderId = DB::table('preorders')->insertGetId([
             'reservation_id' => $reservationId,
-            'order_type' => 'PreOrder',
-            'status' => 'Active',
+            'customer_user_id' => $customerId,
+            'status' => 'draft',
+            'row_version' => 1,
+            'created_at' => $this->nowUtc(),
+            'updated_at' => $this->nowUtc(),
         ]);
-        $this->createOrderItem([
-            'order_id' => $orderId,
-            'item_id' => $oldItemId,
+        DB::table('preorder_items')->insert([
+            'preorder_id' => $orderId,
+            'menu_item_id' => $oldItemId,
+            'item_name_snapshot' => 'Preorder Item Old',
+            'unit_price_snapshot' => '50000.00',
             'quantity' => 1,
-            'unit_price' => 50000,
-            'line_total' => 50000,
+            'line_total_snapshot' => '50000.00',
+            'currency' => 'VND',
+            'created_at' => $this->nowUtc(),
+            'updated_at' => $this->nowUtc(),
         ]);
 
         $payload = [
             'row_version' => 1,
-            'pre_order_row_version' => (int) DB::table('reservation_orders')
-                ->where('order_id', $orderId)
+            'pre_order_row_version' => (int) DB::table('preorders')
+                ->where('preorder_id', $orderId)
                 ->value('row_version'),
             'pre_order_items' => [
                 ['item_id' => $replacementItemId, 'quantity' => 3],
@@ -126,16 +139,8 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
 
         $this->assertSame(
             1,
-            (int) DB::table('reservation_order_items')
-                ->where('order_id', $orderId)
-                ->where('status', '!=', 'Cancelled')
-                ->count()
-        );
-        $this->assertSame(
-            1,
-            (int) DB::table('reservation_order_items')
-                ->where('order_id', $orderId)
-                ->where('status', 'Cancelled')
+            (int) DB::table('preorder_items')
+                ->where('preorder_id', $orderId)
                 ->count()
         );
     }
@@ -205,17 +210,24 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
             'end_time' => $this->nowUtc()->copy()->addHours(6),
         ]);
         $itemId = $this->createPreorderMenuItem(price: '85000.00');
-        $orderId = $this->createOrder([
+        $orderId = DB::table('preorders')->insertGetId([
             'reservation_id' => $reservationId,
-            'order_type' => 'PreOrder',
-            'status' => 'Active',
+            'customer_user_id' => $ownerId,
+            'status' => 'draft',
+            'row_version' => 1,
+            'created_at' => $this->nowUtc(),
+            'updated_at' => $this->nowUtc(),
         ]);
-        $this->createOrderItem([
-            'order_id' => $orderId,
-            'item_id' => $itemId,
+        DB::table('preorder_items')->insert([
+            'preorder_id' => $orderId,
+            'menu_item_id' => $itemId,
+            'item_name_snapshot' => 'Preorder Item',
+            'unit_price_snapshot' => '85000.00',
             'quantity' => 1,
-            'unit_price' => 85000,
-            'line_total' => 85000,
+            'line_total_snapshot' => '85000.00',
+            'currency' => 'VND',
+            'created_at' => $this->nowUtc(),
+            'updated_at' => $this->nowUtc(),
         ]);
 
         $this->actingAsUserId($otherCustomerId)
@@ -250,18 +262,25 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
             'start_time' => $this->nowUtc()->copy()->addHours(4),
             'end_time' => $this->nowUtc()->copy()->addHours(6),
         ]);
-        $orderId = $this->createOrder([
+        $orderId = DB::table('preorders')->insertGetId([
             'reservation_id' => $reservationId,
-            'order_type' => 'PreOrder',
-            'status' => 'Active',
+            'customer_user_id' => $customerId,
+            'status' => 'draft',
+            'row_version' => 1,
+            'created_at' => $this->nowUtc(),
+            'updated_at' => $this->nowUtc(),
         ]);
         $existingItemId = $this->createPreorderMenuItem(price: '60000.00');
-        $this->createOrderItem([
-            'order_id' => $orderId,
-            'item_id' => $existingItemId,
+        DB::table('preorder_items')->insert([
+            'preorder_id' => $orderId,
+            'menu_item_id' => $existingItemId,
+            'item_name_snapshot' => 'Existing Preorder Item',
+            'unit_price_snapshot' => '60000.00',
             'quantity' => 1,
-            'unit_price' => 60000,
-            'line_total' => 60000,
+            'line_total_snapshot' => '60000.00',
+            'currency' => 'VND',
+            'created_at' => $this->nowUtc(),
+            'updated_at' => $this->nowUtc(),
         ]);
         $unavailableItemId = $this->createPreorderMenuItem(price: '70000.00', overrides: ['is_available' => 0]);
 
@@ -307,7 +326,6 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
 
         $create->assertCreated();
         $reservationId = (int) $create->json('data.reservation_id');
-
         $showPreorder = $this->actingAsUserId($customerId)
             ->withHeaders(['Accept' => 'application/json'])
             ->getJson('/api/v1/reservations/'.$reservationId.'/pre-order');
