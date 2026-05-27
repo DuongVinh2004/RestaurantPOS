@@ -36,10 +36,16 @@ class StaffApiKeyActorResolverTest extends TestCase
         $this->seedStaffUser();
     }
 
+    protected function tearDown(): void
+    {
+        $this->truncateStaffAuthTables();
+        parent::tearDown();
+    }
+
     public function test_it_resolves_database_backed_staff_key_and_touches_last_used_at(): void
     {
         DB::table('staff_api_keys')->insert([
-            'staff_api_key_id' => 1,
+            'staff_api_key_id' => 99991,
             'user_id' => 99999,
             'label' => 'Primary Key',
             'key_hash' => hash('sha256', 'db-staff-key'),
@@ -55,14 +61,14 @@ class StaffApiKeyActorResolverTest extends TestCase
         $this->assertTrue($result['ok']);
         $this->assertSame('database_key', $result['mode']);
         $this->assertSame(99999, (int) $result['user']->user_id);
-        $this->assertSame(1, (int) ($result['staff_api_key_id'] ?? 0));
-        $this->assertNotNull(DB::table('staff_api_keys')->where('staff_api_key_id', 1)->value('last_used_at'));
+        $this->assertSame(99991, (int) ($result['staff_api_key_id'] ?? 0));
+        $this->assertNotNull(DB::table('staff_api_keys')->where('staff_api_key_id', 99991)->value('last_used_at'));
     }
 
     public function test_it_rejects_revoked_database_backed_staff_key(): void
     {
         DB::table('staff_api_keys')->insert([
-            'staff_api_key_id' => 2,
+            'staff_api_key_id' => 99992,
             'user_id' => 99999,
             'label' => 'Revoked Key',
             'key_hash' => hash('sha256', 'revoked-key'),
@@ -82,7 +88,7 @@ class StaffApiKeyActorResolverTest extends TestCase
     public function test_it_rejects_expired_database_backed_staff_key(): void
     {
         DB::table('staff_api_keys')->insert([
-            'staff_api_key_id' => 3,
+            'staff_api_key_id' => 99993,
             'user_id' => 99999,
             'label' => 'Expired Key',
             'key_hash' => hash('sha256', 'expired-key'),
@@ -145,6 +151,7 @@ class StaffApiKeyActorResolverTest extends TestCase
     public function test_it_uses_database_store_unavailable_fallback_only_when_explicitly_enabled_and_allow_listed(): void
     {
         config()->set('staff_auth.allow_env_fallback_when_database_store_unavailable', true);
+        config()->set('staff_auth.database_store_enabled', false);
 
         $result = app(StaffApiKeyActorResolver::class)->resolveFromProvidedKey('legacy-secret');
 
@@ -157,6 +164,7 @@ class StaffApiKeyActorResolverTest extends TestCase
     {
         config()->set('app.env', 'production');
         config()->set('staff_auth.allow_env_fallback_when_database_store_unavailable', true);
+        config()->set('staff_auth.database_store_enabled', false);
         config()->set('staff_auth.env_fallback_allowed_environments', ['local', 'testing']);
 
         $result = app(StaffApiKeyActorResolver::class)->resolveFromProvidedKey('legacy-secret');
@@ -168,7 +176,7 @@ class StaffApiKeyActorResolverTest extends TestCase
     public function test_it_blocks_role_name_fallback_in_production_like_environment(): void
     {
         DB::table('staff_api_keys')->insert([
-            'staff_api_key_id' => 4,
+            'staff_api_key_id' => 99994,
             'user_id' => 99999,
             'label' => 'Role Name Fallback Blocked',
             'key_hash' => hash('sha256', 'db-role-fallback-key'),

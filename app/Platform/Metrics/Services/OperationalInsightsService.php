@@ -1816,7 +1816,7 @@ class OperationalInsightsService
     /**
      * @return array{sales:int,operations:int,inventory:int}
      */
-    private function reportingSnapshotSourceActivityCounts(): array
+    protected function reportingSnapshotSourceActivityCounts(): array
     {
         return [
             'sales' => $this->countRowsIfTablePresent('reservations', static fn ($query) => $query->whereNotNull('billed_at'))

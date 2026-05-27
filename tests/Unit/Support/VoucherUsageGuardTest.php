@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Support;
 
 use App\Modules\Promotions\Domain\Guards\VoucherUsageGuard;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Tests\Support\BuildsBookingScenario;
@@ -12,16 +13,13 @@ use Tests\TestCase;
 
 class VoucherUsageGuardTest extends TestCase
 {
+    use DatabaseTransactions;
     use BuildsBookingScenario;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->requireBookingSchema();
-        DB::table('user_vouchers')->delete();
-        DB::table('vouchers')->delete();
-        DB::table('reservations')->delete();
-        DB::table('users')->delete();
     }
 
     public function test_assert_can_consume_rejects_when_global_usage_limit_is_exhausted(): void

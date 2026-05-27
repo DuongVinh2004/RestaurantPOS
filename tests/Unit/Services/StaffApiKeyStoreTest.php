@@ -7,6 +7,7 @@ namespace Tests\Unit\Services;
 use App\Modules\IdentityAccess\Infrastructure\Persistence\StaffApiKeyStore;
 use App\Modules\IdentityAccess\Infrastructure\Tokenization\StaffApiKeyActorResolver;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -14,6 +15,8 @@ use Tests\TestCase;
 
 class StaffApiKeyStoreTest extends TestCase
 {
+    use DatabaseTransactions;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -31,10 +34,16 @@ class StaffApiKeyStoreTest extends TestCase
         $this->seedStaffUser();
     }
 
+    protected function tearDown(): void
+    {
+        $this->truncateStaffAuthTables();
+        parent::tearDown();
+    }
+
     public function test_issue_key_persists_hashed_secret_and_plaintext_can_be_resolved(): void
     {
         $issued = app(StaffApiKeyStore::class)->issueKey(
-            userId: 2,
+            userId: 99999,
             label: 'Primary POS terminal',
             expiresAt: now('UTC')->addDays(30),
         );
@@ -52,12 +61,12 @@ class StaffApiKeyStoreTest extends TestCase
 
         $this->assertTrue($resolved['ok']);
         $this->assertSame('database_key', $resolved['mode']);
-        $this->assertSame(2, (int) $resolved['user']->user_id);
+        $this->assertSame(99999, (int) $resolved['user']->user_id);
     }
 
     public function test_revoke_key_is_idempotent_and_blocks_future_resolution(): void
     {
-        $issued = app(StaffApiKeyStore::class)->issueKey(userId: 2, label: 'Back office');
+        $issued = app(StaffApiKeyStore::class)->issueKey(userId: 99999, label: 'Back office');
         $record = $issued['record'];
         $plaintextKey = $issued['plaintext_key'];
 
@@ -75,7 +84,7 @@ class StaffApiKeyStoreTest extends TestCase
 
     public function test_rotate_key_revokes_old_secret_and_issues_new_resolvable_secret(): void
     {
-        $issued = app(StaffApiKeyStore::class)->issueKey(userId: 2, label: 'Cashier iPad');
+        $issued = app(StaffApiKeyStore::class)->issueKey(userId: 99999, label: 'Cashier iPad');
         $oldRecord = $issued['record'];
         $oldPlaintext = $issued['plaintext_key'];
 
@@ -99,30 +108,32 @@ class StaffApiKeyStoreTest extends TestCase
         $this->assertFalse($oldResolved['ok']);
         $this->assertSame(401, $oldResolved['status']);
         $this->assertTrue($newResolved['ok']);
-        $this->assertSame(2, (int) $newResolved['user']->user_id);
+        $this->assertSame(99999, (int) $newResolved['user']->user_id);
     }
 
     public function test_issue_key_rejects_empty_label(): void
     {
         $this->expectException(ValidationException::class);
 
-        app(StaffApiKeyStore::class)->issueKey(userId: 2, label: '   ');
+        app(StaffApiKeyStore::class)->issueKey(userId: 99999, label: '   ');
     }
 
     public function test_issue_key_rejects_non_staff_role_target(): void
     {
-        DB::table('roles')->insert([
-            'role_id' => 3,
+        DB::table('roles')->updateOrInsert([
+            'role_id' => 99998,
+        ], [
             'role_name' => 'Customer',
         ]);
 
-        DB::table('users')->insert([
-            'user_id' => 3,
+        DB::table('users')->updateOrInsert([
+            'user_id' => 99998,
+        ], [
             'username' => 'customer',
             'full_name' => 'Customer User',
             'email' => 'customer@example.test',
             'phone' => '0900000001',
-            'role_id' => 3,
+            'role_id' => 99998,
             'current_tier_id' => null,
             'language_pref' => 'vi',
             'is_deleted' => 0,
@@ -134,13 +145,13 @@ class StaffApiKeyStoreTest extends TestCase
 
         $this->expectException(ValidationException::class);
 
-        app(StaffApiKeyStore::class)->issueKey(userId: 3, label: 'Should not issue');
+        app(StaffApiKeyStore::class)->issueKey(userId: 99998, label: 'Should not issue');
     }
 
     public function test_rotate_key_preserves_existing_expiry_when_replacement_expiry_is_not_supplied(): void
     {
         $issued = app(StaffApiKeyStore::class)->issueKey(
-            userId: 2,
+            userId: 99999,
             label: 'POS A',
             expiresAt: now('UTC')->addDays(14),
         );
@@ -200,20 +211,22 @@ class StaffApiKeyStoreTest extends TestCase
 
     private function truncateStaffAuthTables(): void
     {
-        DB::table('staff_api_keys')->delete();
-        DB::table('users')->delete();
-        DB::table('roles')->delete();
+        DB::table('staff_api_keys')->whereIn('user_id', [99999, 99998])->delete();
+        DB::table('users')->whereIn('user_id', [99999, 99998])->delete();
+        DB::table('roles')->whereIn('role_id', [99998])->delete();
     }
 
     private function seedStaffUser(): void
     {
-        DB::table('roles')->insert([
+        DB::table('roles')->updateOrInsert([
             'role_id' => 2,
+        ], [
             'role_name' => 'Staff',
         ]);
 
-        DB::table('users')->insert([
-            'user_id' => 2,
+        DB::table('users')->updateOrInsert([
+            'user_id' => 99999,
+        ], [
             'username' => 'staff',
             'full_name' => 'Staff User',
             'email' => 'staff@example.test',

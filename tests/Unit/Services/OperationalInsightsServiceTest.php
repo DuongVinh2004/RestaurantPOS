@@ -213,7 +213,17 @@ class OperationalInsightsServiceTest extends TestCase
     {
         $now = Carbon::parse('2026-04-02T09:00:00Z')->utc();
 
-        $snapshot = app(OperationalInsightsService::class)->reportingSnapshotsSnapshot($now);
+        $serviceMock = $this->partialMock(OperationalInsightsService::class, function ($mock): void {
+            $mock->shouldAllowMockingProtectedMethods();
+            $mock->shouldReceive('reportingSnapshotSourceActivityCounts')
+                ->andReturn([
+                    'sales' => 0,
+                    'operations' => 0,
+                    'inventory' => 0,
+                ]);
+        });
+
+        $snapshot = $serviceMock->reportingSnapshotsSnapshot($now);
 
         $this->assertSame('ok', $snapshot['status']);
         $this->assertSame([], $snapshot['reasons']);

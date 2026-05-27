@@ -6,6 +6,7 @@ namespace Tests\Feature\Customer;
 
 use App\Modules\IdentityAccess\Domain\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Mockery;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
@@ -29,6 +30,9 @@ class CustomerBenefitsSelfServiceHttpFlowTest extends TestCase
 
     public function test_authenticated_customer_can_view_loyalty_summary(): void
     {
+        // Deactivate all pre-existing tiers inside this transaction to avoid next tier collision on pre-seeded databases
+        DB::table('loyalty_tiers')->update(['is_active' => 0]);
+
         $bronzeId = $this->createLoyaltyTier(0, 'BRONZE', 'Bronze');
         $this->createLoyaltyTier(1000, 'SILVER', 'Silver');
         $userId = $this->createUser([
