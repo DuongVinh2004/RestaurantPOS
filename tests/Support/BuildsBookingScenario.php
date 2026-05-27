@@ -15,6 +15,7 @@ use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Ordering\Application\UseCases\Orders\StaffTableOrderService;
 use App\Modules\Promotions\Application\Workflows\ReservationVoucherWorkflow;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
+use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Schema\Blueprint;
@@ -301,7 +302,14 @@ trait BuildsBookingScenario
                     'timezone' => 'UTC',
                     'business_hours' => json_encode($this->defaultBranchFixtureBusinessHours(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                     'booking_policy' => json_encode($this->defaultBranchFixtureBookingPolicy(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    'is_default' => true,
                     'updated_at' => now('UTC'),
+                ]);
+
+            DB::table('branches')
+                ->where('branch_id', '<>', 1)
+                ->update([
+                    'is_default' => false,
                 ]);
         }
 
@@ -2032,16 +2040,17 @@ SQL);
                     'updated_at' => $payload['updated_at'],
                 ]);
 
-            if (app()->bound(\App\Platform\FeatureFlags\Services\FeatureFlagService::class)) {
-                app(\App\Platform\FeatureFlags\Services\FeatureFlagService::class)->forgetAllResolved();
+            if (app()->bound(FeatureFlagService::class)) {
+                app(FeatureFlagService::class)->forgetAllResolved();
             }
+
             return (int) $existingId;
         }
 
         DB::table('feature_flags')->insert($payload);
 
-        if (app()->bound(\App\Platform\FeatureFlags\Services\FeatureFlagService::class)) {
-            app(\App\Platform\FeatureFlags\Services\FeatureFlagService::class)->forgetAllResolved();
+        if (app()->bound(FeatureFlagService::class)) {
+            app(FeatureFlagService::class)->forgetAllResolved();
         }
 
         return (int) DB::table('feature_flags')

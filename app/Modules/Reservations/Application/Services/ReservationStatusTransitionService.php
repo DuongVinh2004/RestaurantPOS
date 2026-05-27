@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Reservations\Application\Services;
 
+use App\Enums\DepositStatus;
 use App\Enums\ReservationOrderItemStatus;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationStatus;
@@ -120,12 +121,12 @@ class ReservationStatusTransitionService
                     // --- BỔ SUNG: GUARD YÊU CẦU ĐẶT CỌC ---
                     // Không cho phép Check-in (chuyển sang Reserved) nếu chưa đóng đủ tiền cọc (nếu có yêu cầu).
                     if ($target === ReservationStatus::checkedInDbValue()) {
-                        $depositStatus = $reservation->deposit_status instanceof \App\Enums\DepositStatus 
-                            ? $reservation->deposit_status->value 
+                        $depositStatus = $reservation->deposit_status instanceof DepositStatus
+                            ? $reservation->deposit_status->value
                             : (string) $reservation->deposit_status;
-                            
-                        if ($depositStatus === \App\Enums\DepositStatus::Pending->value) {
-                            if (!$force) {
+
+                        if ($depositStatus === DepositStatus::Pending->value) {
+                            if (! $force) {
                                 throw ValidationException::withMessages([
                                     'status' => ['Cannot check-in reservation. A required deposit is still pending.'],
                                 ]);

@@ -11,7 +11,7 @@ use InvalidArgumentException;
 class GetAnalyticsOverviewHandler
 {
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
     public function handle(array $filters, int $userId, ?int $roleId, ?string $roleName): array
@@ -19,12 +19,12 @@ class GetAnalyticsOverviewHandler
         // Require date limits
         $dateFrom = Carbon::parse($filters['date_from'] ?? Carbon::today()->toDateString());
         $dateTo = Carbon::parse($filters['date_to'] ?? Carbon::today()->toDateString());
-        
+
         // Enforce max 31 days to prevent heavy queries
         if ($dateFrom->diffInDays($dateTo) > 31) {
-            throw new InvalidArgumentException("Date range cannot exceed 31 days.");
+            throw new InvalidArgumentException('Date range cannot exceed 31 days.');
         }
-        
+
         // Align to start/end of day
         $dateFromStr = $dateFrom->startOfDay()->toDateTimeString();
         $dateToStr = $dateTo->endOfDay()->toDateTimeString();
@@ -34,7 +34,7 @@ class GetAnalyticsOverviewHandler
 
         $baseReservationQuery = DB::table('reservations')
             ->whereBetween('start_time', [$dateFromStr, $dateToStr]);
-            
+
         if ($branchId) {
             $baseReservationQuery->where('branch_id', $branchId);
         }
@@ -55,7 +55,7 @@ class GetAnalyticsOverviewHandler
         $basePaymentQuery = DB::table('payments')
             ->where('status', 'Success')
             ->whereBetween('paid_at', [$dateFromStr, $dateToStr]);
-            
+
         if ($branchId) {
             $basePaymentQuery->where('branch_id', $branchId);
         }
@@ -76,7 +76,7 @@ class GetAnalyticsOverviewHandler
             $timeFormat = $granularity === 'hour' ? '%Y-%m-%d %H:00' : '%Y-%m-%d';
             $dateExpr = "DATE_FORMAT(paid_at, '{$timeFormat}')";
         }
-        
+
         $heatmapData = (clone $basePaymentQuery)
             ->select(DB::raw("{$dateExpr} as period"), DB::raw('SUM(amount) as revenue'))
             ->groupBy('period')
@@ -108,17 +108,17 @@ class GetAnalyticsOverviewHandler
                 'no_show_count' => $noShowCount,
                 'total_revenue' => (float) $totalRevenue,
             ],
-            'payment_summary' => $paymentSummary->map(fn($row) => [
+            'payment_summary' => $paymentSummary->map(fn ($row) => [
                 'method' => $row->payment_method,
-                'amount' => (float) $row->total_amount
+                'amount' => (float) $row->total_amount,
             ])->toArray(),
-            'revenue_heatmap' => $heatmapData->map(fn($row) => [
+            'revenue_heatmap' => $heatmapData->map(fn ($row) => [
                 'period' => $row->period,
-                'revenue' => (float) $row->revenue
+                'revenue' => (float) $row->revenue,
             ])->toArray(),
-            'top_items' => $topItems->map(fn($row) => [
+            'top_items' => $topItems->map(fn ($row) => [
                 'name' => $row->item_name,
-                'quantity' => (int) $row->total_quantity
+                'quantity' => (int) $row->total_quantity,
             ])->toArray(),
         ];
     }

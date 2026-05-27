@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Preorder extends Model
 {
     protected $table = 'preorders';
+
     protected $primaryKey = 'preorder_id';
 
     protected $fillable = [

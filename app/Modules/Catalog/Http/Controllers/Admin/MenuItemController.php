@@ -12,7 +12,6 @@ use App\Modules\Catalog\Http\Requests\Admin\UpdateMenuItemRequest;
 use App\Modules\Catalog\Http\Resources\Admin\MenuItemResource;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Http\JsonResponse;
-
 use Knuckles\Scribe\Attributes\ResponseFromApiResource;
 
 class MenuItemController extends Controller

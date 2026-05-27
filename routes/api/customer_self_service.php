@@ -3,6 +3,7 @@
 use App\Http\Middleware\CustomerOrStaffMiddleware;
 use App\Http\Middleware\MetricsRequestMiddleware;
 use App\Http\Middleware\ResolveCustomerAuthMiddleware;
+use App\Modules\Billing\Http\Controllers\Customer\QrBillPreviewController;
 use App\Modules\Billing\Http\Controllers\Customer\ReservationBillController;
 use App\Modules\BranchScheduling\Http\Controllers\Guest\RestaurantProfileController;
 use App\Modules\BranchScheduling\Http\Controllers\Guest\TableAvailabilityController;
@@ -33,7 +34,7 @@ Route::middleware([
     Route::get('menu/items/{id}', [MenuCatalogController::class, 'show'])->whereNumber('id');
     Route::post('menu/preorder/preview', [MenuCatalogController::class, 'previewPreorder']);
 
-    Route::get('qr/bill-preview/{token}', [\App\Modules\Billing\Http\Controllers\Customer\QrBillPreviewController::class, 'show'])
+    Route::get('qr/bill-preview/{token}', [QrBillPreviewController::class, 'show'])
         ->middleware('redis.throttle:qr_bill_preview,60,1,ip');
 
     Route::middleware(['require.redis'])->group(function () {

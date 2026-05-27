@@ -21,7 +21,7 @@ class AnalyticsOverviewController extends Controller
     public function index(AnalyticsOverviewRequest $request): JsonResponse
     {
         $filters = $request->validated();
-        
+
         $data = $this->getAnalyticsOverviewHandler->handle(
             $filters,
             $this->resolveStaffActorUserId($request),

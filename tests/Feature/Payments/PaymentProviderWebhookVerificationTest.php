@@ -64,7 +64,7 @@ final class PaymentProviderWebhookVerificationTest extends TestCase
         $rawBody = json_encode($payload, JSON_THROW_ON_ERROR);
         $currentTimestamp = Carbon::now('UTC')->toIso8601String();
         // Alter payload signature
-        $badSignature = hash_hmac('sha256', $rawBody . 'tampered', 'test-signing-key');
+        $badSignature = hash_hmac('sha256', $rawBody.'tampered', 'test-signing-key');
 
         $response = $this->withHeaders([
             'Accept' => 'application/json',

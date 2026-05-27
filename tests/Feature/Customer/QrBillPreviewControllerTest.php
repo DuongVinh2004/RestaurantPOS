@@ -42,7 +42,7 @@ class QrBillPreviewControllerTest extends TestCase
         ]);
         $table->save();
 
-        $response = $this->getJson('/api/v1/qr/bill-preview/' . $token);
+        $response = $this->getJson('/api/v1/qr/bill-preview/'.$token);
 
         $response->assertStatus(200)
             ->assertJsonPath('data.table.table_id', $table->table_id)
@@ -74,12 +74,12 @@ class QrBillPreviewControllerTest extends TestCase
         ]);
         $reservation->save();
 
-        $rt = new ReservationTable();
+        $rt = new ReservationTable;
         $rt->reservation_id = $reservation->reservation_id;
         $rt->table_id = $table->table_id;
         $rt->save();
 
-        $response = $this->getJson('/api/v1/qr/bill-preview/' . $token);
+        $response = $this->getJson('/api/v1/qr/bill-preview/'.$token);
 
         $response->assertStatus(200)
             ->assertJsonPath('data.table.table_id', $table->table_id)

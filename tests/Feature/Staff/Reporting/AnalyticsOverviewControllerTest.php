@@ -2,16 +2,14 @@
 
 namespace Tests\Feature\Staff\Reporting;
 
-use App\Modules\IdentityAccess\Domain\Models\StaffApiKey;
-use App\Modules\IdentityAccess\Domain\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
 class AnalyticsOverviewControllerTest extends TestCase
 {
-    use DatabaseTransactions;
     use BuildsBookingScenario;
+    use DatabaseTransactions;
 
     protected function setUp(): void
     {
@@ -38,7 +36,7 @@ class AnalyticsOverviewControllerTest extends TestCase
                 'payment_summary',
                 'revenue_heatmap',
                 'top_items',
-            ]
+            ],
         ]);
     }
 

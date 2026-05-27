@@ -13,7 +13,6 @@ use App\Modules\Reservations\Domain\Models\ReservationTable;
 use App\Support\ApiErrorResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
 
 class QrBillPreviewController extends Controller
 {
@@ -32,7 +31,7 @@ class QrBillPreviewController extends Controller
 
         // Find an active reservation for this table
         // Active means status is Arrived/Seated/Reserved (in POS terms usually Confirmed/Reserved but past start time)
-        // Wait, looking at reservations schema: status IN ('Confirmed', 'Reserved') 
+        // Wait, looking at reservations schema: status IN ('Confirmed', 'Reserved')
         // and current time overlaps with reservation window or it's currently occupied.
         // Let's find any reservation that is currently linked to this table via reservation_tables
         // and is currently in 'Confirmed' or 'Reserved' status.

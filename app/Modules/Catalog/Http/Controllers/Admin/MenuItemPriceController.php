@@ -12,7 +12,6 @@ use App\Modules\Catalog\Http\Requests\Admin\UpdateMenuItemPriceRequest;
 use App\Modules\Catalog\Http\Resources\Admin\MenuItemPriceResource;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Http\JsonResponse;
-
 use Knuckles\Scribe\Attributes\ResponseFromApiResource;
 
 class MenuItemPriceController extends Controller

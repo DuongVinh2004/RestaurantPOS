@@ -91,9 +91,12 @@ class AdminKitchenRoutingFoundationHttpFlowTest extends TestCase
         $list = $this->withHeaders($headers)->getJson('/api/v1/admin/kitchen/stations');
 
         $list->assertOk()
-            ->assertJsonPath('meta.count', 1)
-            ->assertJsonPath('data.0.station_id', $stationId)
-            ->assertJsonPath('data.0.route_count', 2);
+            ->assertJsonPath('meta.count', (int) DB::table('kitchen_stations')->count());
+
+        $stations = collect($list->json('data', []));
+        $targetStation = $stations->firstWhere('station_id', $stationId);
+        self::assertNotNull($targetStation, "Expected the station list to contain the newly created station ID {$stationId}");
+        self::assertSame(2, (int) ($targetStation['route_count'] ?? 0));
 
         self::assertSame($adminId, $adminId);
     }

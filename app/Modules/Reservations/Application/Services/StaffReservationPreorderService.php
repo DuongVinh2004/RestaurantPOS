@@ -33,7 +33,7 @@ class StaffReservationPreorderService
         $reservation = $this->getReservation($reservationId);
         $preorder = $reservation->preorder()->with('items.item')->first();
 
-        if (!$preorder) {
+        if (! $preorder) {
             return [
                 'reservation_id' => $reservationId,
                 'pre_order' => [
@@ -104,7 +104,7 @@ class StaffReservationPreorderService
                 $reservation = $this->getReservation($reservationId);
                 $preorder = $this->getPreorderForUpdate($reservation);
 
-                if (!in_array($preorder->status, [PreorderStatus::Submitted, PreorderStatus::Confirmed], true)) {
+                if (! in_array($preorder->status, [PreorderStatus::Submitted, PreorderStatus::Confirmed], true)) {
                     throw ValidationExceptionFactory::make([
                         'status' => ['Only submitted or confirmed pre-orders can be rejected.'],
                     ]);
@@ -151,7 +151,7 @@ class StaffReservationPreorderService
                 $order->reservation_id = $reservationId;
                 $order->order_type = ReservationOrderType::OnSpot;
                 $order->status = ReservationOrderStatus::Active;
-                $order->notes = 'Converted from Preorder #' . $preorder->preorder_id;
+                $order->notes = 'Converted from Preorder #'.$preorder->preorder_id;
                 $order->created_by = $staffId;
                 $order->updated_by = $staffId;
                 $order->created_at = $now;
@@ -196,20 +196,22 @@ class StaffReservationPreorderService
     private function getReservation(int $reservationId): Reservation
     {
         $reservation = Reservation::query()->whereKey($reservationId)->first();
-        if (!$reservation) {
+        if (! $reservation) {
             throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
         }
+
         return $reservation;
     }
 
     private function getPreorderForUpdate(Reservation $reservation): Preorder
     {
         $preorder = $reservation->preorder()->lockForUpdate()->first();
-        if (!$preorder) {
+        if (! $preorder) {
             throw ValidationExceptionFactory::make([
                 'pre_order' => ['No pre-order found for this reservation.'],
             ]);
         }
+
         return $preorder;
     }
 }
