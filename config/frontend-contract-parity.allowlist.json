@@ -34,5 +34,32 @@
     "owner": "benefits-team",
     "follow_up_batch": "Batch 12: Admin Export API Stabilization",
     "launch_impact": "high"
+  },
+  {
+    "path": "/api/v1/qr/bill-preview/.*",
+    "method": "GET",
+    "frontend_app": "customer-web",
+    "reason": "Public guest QR bill preview page uses a fallback-grade route without curated SDK generation.",
+    "owner": "billing-team",
+    "follow_up_batch": "Batch 19: Full-Grade QR Bill Preview Invariant",
+    "launch_impact": "medium"
+  },
+  {
+    "path": "/api/v1/staff/operations/command-center",
+    "method": "GET",
+    "frontend_app": "staff-web",
+    "reason": "Staff dashboard operations command center query uses a fallback-grade route without curated SDK generation.",
+    "owner": "ops-team",
+    "follow_up_batch": "Batch 20: Full-Grade Operations Command Center",
+    "launch_impact": "medium"
+  },
+  {
+    "path": "/api/v1/staff/reporting/analytics-overview",
+    "method": "GET",
+    "frontend_app": "staff-web",
+    "reason": "Staff analytics dashboard overview query uses a fallback-grade route without curated SDK generation.",
+    "owner": "reporting-team",
+    "follow_up_batch": "Batch 21: Full-Grade Analytics Overview",
+    "launch_impact": "medium"
   }
 ]
