@@ -12,7 +12,6 @@ use App\Modules\BranchScheduling\Http\Requests\Admin\ListRestaurantTablesRequest
 use App\Modules\BranchScheduling\Http\Requests\Admin\UpdateRestaurantTableRequest;
 use App\Modules\BranchScheduling\Http\Resources\Admin\RestaurantTableResource;
 use Illuminate\Http\JsonResponse;
-
 use Knuckles\Scribe\Attributes\ResponseFromApiResource;
 
 class RestaurantTableController extends Controller

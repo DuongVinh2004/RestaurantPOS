@@ -141,7 +141,7 @@ class CustomerReservationPreorderService
                 $this->assertReservationPreorderMutable($reservation);
 
                 $preorder = $reservation->preorder()->lockForUpdate()->first();
-                if (!$preorder instanceof Preorder) {
+                if (! $preorder instanceof Preorder) {
                     throw ValidationExceptionFactory::make([
                         'pre_order' => ['No pre-order exists to submit.'],
                     ]);
@@ -191,7 +191,7 @@ class CustomerReservationPreorderService
                 $preorder = $reservation->preorder()->lockForUpdate()->first();
                 if ($preorder instanceof Preorder) {
                     $this->assertPreorderRowVersion($preorder, $payload['pre_order_row_version'] ?? null);
-                    
+
                     $preorder->status = PreorderStatus::Cancelled;
                     $preorder->cancelled_at = Carbon::now('UTC');
                     $preorder->customer_user_id = $customerUserId;

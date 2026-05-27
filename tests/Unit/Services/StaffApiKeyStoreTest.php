@@ -18,10 +18,15 @@ class StaffApiKeyStoreTest extends TestCase
     use DatabaseTransactions;
 
     private const TEST_STAFF_ROLE_ID = 99997;
+
     private const TEST_NON_STAFF_ROLE_ID = 99998;
+
     private const TEST_NON_STAFF_USER_ID = 99998;
+
     private const TEST_STAFF_USER_ID = 99999;
+
     private const TEST_STAFF_ROLE_NAME = 'TestStaffApiKeyStoreStaff';
+
     private const TEST_NON_STAFF_ROLE_NAME = 'TestStaffApiKeyStoreCustomer';
 
     protected function setUp(): void

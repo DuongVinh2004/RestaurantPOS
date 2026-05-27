@@ -15,6 +15,7 @@ use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Ordering\Application\UseCases\Orders\StaffTableOrderService;
 use App\Modules\Promotions\Application\Workflows\ReservationVoucherWorkflow;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
+use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Schema\Blueprint;
@@ -2039,16 +2040,17 @@ SQL);
                     'updated_at' => $payload['updated_at'],
                 ]);
 
-            if (app()->bound(\App\Platform\FeatureFlags\Services\FeatureFlagService::class)) {
-                app(\App\Platform\FeatureFlags\Services\FeatureFlagService::class)->forgetAllResolved();
+            if (app()->bound(FeatureFlagService::class)) {
+                app(FeatureFlagService::class)->forgetAllResolved();
             }
+
             return (int) $existingId;
         }
 
         DB::table('feature_flags')->insert($payload);
 
-        if (app()->bound(\App\Platform\FeatureFlags\Services\FeatureFlagService::class)) {
-            app(\App\Platform\FeatureFlags\Services\FeatureFlagService::class)->forgetAllResolved();
+        if (app()->bound(FeatureFlagService::class)) {
+            app(FeatureFlagService::class)->forgetAllResolved();
         }
 
         return (int) DB::table('feature_flags')

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PreorderItem extends Model
 {
     protected $table = 'preorder_items';
+
     protected $primaryKey = 'preorder_item_id';
 
     protected $fillable = [

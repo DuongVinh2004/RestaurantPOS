@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Staff\FloorOperations;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
@@ -178,6 +179,6 @@ class StaffCommandCenterHttpFlowTest extends TestCase
             'updated_at' => now()->toDateTimeString(),
         ];
 
-        return (int) \Illuminate\Support\Facades\DB::table('waiting_list')->insertGetId(array_merge($defaults, $overrides));
+        return (int) DB::table('waiting_list')->insertGetId(array_merge($defaults, $overrides));
     }
 }

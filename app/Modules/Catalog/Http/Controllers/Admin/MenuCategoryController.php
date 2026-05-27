@@ -12,7 +12,6 @@ use App\Modules\Catalog\Http\Requests\Admin\UpdateMenuCategoryRequest;
 use App\Modules\Catalog\Http\Resources\Admin\MenuCategoryResource;
 use App\Support\Listing\ListingMetaFactory;
 use Illuminate\Http\JsonResponse;
-
 use Knuckles\Scribe\Attributes\ResponseFromApiResource;
 
 class MenuCategoryController extends Controller

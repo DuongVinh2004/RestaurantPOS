@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Reservations\Application\Services;
 
+use App\Enums\DepositStatus;
 use App\Enums\ReservationOrderItemStatus;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationOrderType;
@@ -134,11 +135,11 @@ class ReservationCreateService
                 // Hoặc có thể mở rộng nhận từ branch/payload trong tương lai
                 if ($reservation->source === 'Online' && $guestCount >= 5) {
                     $reservation->deposit_required_amount = 500000.00;
-                    $reservation->deposit_status = \App\Enums\DepositStatus::Pending;
+                    $reservation->deposit_status = DepositStatus::Pending;
                     $reservation->status = ReservationStatus::Confirmed;
                 } else {
                     $reservation->deposit_required_amount = 0.00;
-                    $reservation->deposit_status = \App\Enums\DepositStatus::NotRequired;
+                    $reservation->deposit_status = DepositStatus::NotRequired;
                 }
                 $reservation->notes = $payload['notes'] ?? null;
                 $reservation->created_by = $actorUserId;

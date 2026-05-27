@@ -6,15 +6,14 @@ namespace Tests\Unit\Support;
 
 use App\Modules\Promotions\Domain\Guards\VoucherUsageGuard;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
 class VoucherUsageGuardTest extends TestCase
 {
-    use DatabaseTransactions;
     use BuildsBookingScenario;
+    use DatabaseTransactions;
 
     protected function setUp(): void
     {

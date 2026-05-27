@@ -11,6 +11,7 @@ use App\Modules\Catalog\Http\Controllers\Staff\MenuCatalogController;
 use App\Modules\Conversations\Http\Controllers\Staff\ConversationInboxController;
 use App\Modules\Conversations\Http\Controllers\Staff\ReservationInboxController;
 use App\Modules\FloorOperations\Http\Controllers\Staff\BranchContextController;
+use App\Modules\FloorOperations\Http\Controllers\Staff\CommandCenterController;
 use App\Modules\FloorOperations\Http\Controllers\Staff\OperationalChangeFeedController;
 use App\Modules\FloorOperations\Http\Controllers\Staff\ReservationBoardAssignmentController;
 use App\Modules\FloorOperations\Http\Controllers\Staff\ReservationCheckInController;
@@ -29,6 +30,7 @@ use App\Modules\Payments\Http\Controllers\Staff\ReservationDepositPaymentControl
 use App\Modules\Payments\Http\Controllers\Staff\ReservationRefundController;
 use App\Modules\PrivacyCompliance\Http\Controllers\Staff\AuditTrailController;
 use App\Modules\Promotions\Http\Controllers\Staff\ReservationVoucherController;
+use App\Modules\Reporting\Http\Controllers\Staff\AnalyticsOverviewController;
 use App\Modules\Reporting\Http\Controllers\Staff\InventoryReportController;
 use App\Modules\Reporting\Http\Controllers\Staff\OperationsReportController;
 use App\Modules\Reporting\Http\Controllers\Staff\SalesReportController;
@@ -65,7 +67,7 @@ Route::middleware([
             ->group(function () {
                 Route::get('branches', [BranchContextController::class, 'index'])
                     ->middleware('staff.capability:reservation.manage');
-                Route::get('operations/command-center', [\App\Modules\FloorOperations\Http\Controllers\Staff\CommandCenterController::class, 'index'])
+                Route::get('operations/command-center', [CommandCenterController::class, 'index'])
                     ->middleware('staff.capability:reservation.manage');
                 Route::get('menu/items', [MenuCatalogController::class, 'index'])
                     ->middleware('staff.capability:order.manage');
@@ -333,7 +335,7 @@ Route::middleware([
                     ->middleware('staff.capability:reporting.view');
                 Route::get('reporting/daily-inventory', [InventoryReportController::class, 'index'])
                     ->middleware('staff.capability:reporting.view');
-                Route::get('reporting/analytics-overview', [\App\Modules\Reporting\Http\Controllers\Staff\AnalyticsOverviewController::class, 'index'])
+                Route::get('reporting/analytics-overview', [AnalyticsOverviewController::class, 'index'])
                     ->middleware('staff.capability:reporting.view');
 
                 Route::get('kitchen/stations', [KitchenDispatchController::class, 'stations'])
