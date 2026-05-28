@@ -60,14 +60,14 @@ class ReservationController extends Controller
                 $payload['user_id'] = (int) $actorUserId;
                 $accessScope = ReservationAccessScope::OWNER;
             } else {
-                $ownedUserId = $holdId !== '' && $sessionId !== ''
-                    ? $this->customerSessionAccessService->resolveUserIdFromOwnedHold($holdId, $sessionId)
-                    : null;
+                $isHoldOwned = $holdId !== '' && $sessionId !== ''
+                    && $this->customerSessionAccessService->isHoldOwnedBySession($holdId, $sessionId);
 
-                if ($ownedUserId === null) {
+                if (! $isHoldOwned) {
                     return $this->reservationCreateUnauthorizedResponse($request);
                 }
 
+                $ownedUserId = $this->customerSessionAccessService->resolveUserIdFromOwnedHold($holdId, $sessionId);
                 $payload['user_id'] = $ownedUserId;
             }
         }

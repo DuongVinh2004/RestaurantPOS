@@ -28,7 +28,7 @@ export function SelectedBranchEntry({ className }: { className?: string }) {
       title="Chọn chi nhánh"
       description="Lựa chọn này sẽ được dùng lại cho thực đơn, đặt bàn, chờ bàn và món đặt trước."
       trigger={
-        <AppButton type="button" variant="outline" className={cn("justify-start gap-2", className)}>
+        <AppButton type="button" variant="outline" className={cn("justify-start gap-2", className)} data-testid="customer-branch-select-trigger">
           <Store className="h-4 w-4" />
           <span className="min-w-0 truncate">
             {isLoading ? "Đang tải chi nhánh" : selectedBranch?.branchName ?? "Chọn chi nhánh"}
@@ -152,6 +152,7 @@ export function BranchList({
             )}
             onClick={() => onSelect(branch.branchId)}
             aria-pressed={selected}
+            data-testid={`customer-branch-option-${branch.branchId}`}
           >
             <span className="min-w-0">
               <span className="block truncate text-sm font-medium">{branch.branchName}</span>

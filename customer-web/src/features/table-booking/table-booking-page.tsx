@@ -751,7 +751,7 @@ export function TableBookingPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="guest_count">Số khách</Label>
-                  <Input id="guest_count" type="number" min={1} className="min-h-11 rounded-lg" {...form.register("guest_count", { valueAsNumber: true })} />
+                  <Input id="guest_count" type="number" min={1} className="min-h-11 rounded-lg" data-testid="customer-party-size-input" {...form.register("guest_count", { valueAsNumber: true })} />
                   {form.formState.errors.guest_count ? <p className="text-sm text-destructive">{form.formState.errors.guest_count.message}</p> : null}
                 </div>
               </section>
@@ -788,7 +788,7 @@ export function TableBookingPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="start_time">Ngày và giờ</Label>
-                  <Input id="start_time" type="datetime-local" className="min-h-11 rounded-lg" {...form.register("start_time")} />
+                  <Input id="start_time" type="datetime-local" className="min-h-11 rounded-lg" data-testid="customer-date-input" {...form.register("start_time")} />
                   {form.formState.errors.start_time ? <p className="text-sm text-destructive">{form.formState.errors.start_time.message}</p> : null}
                 </div>
                 <div className="mt-3">
@@ -824,11 +824,11 @@ export function TableBookingPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="duration_minutes">Thời lượng dùng bữa dự kiến</Label>
-                  <Input id="duration_minutes" type="number" min={30} className="min-h-11 rounded-lg" {...form.register("duration_minutes", { valueAsNumber: true })} />
+                  <Input id="duration_minutes" type="number" min={30} className="min-h-11 rounded-lg" data-testid="customer-duration-input" {...form.register("duration_minutes", { valueAsNumber: true })} />
                   {form.formState.errors.duration_minutes ? <p className="text-sm text-destructive">{form.formState.errors.duration_minutes.message}</p> : null}
                 </div>
               </section>
-              <Button type="submit" className="min-h-11 w-full rounded-lg" disabled={searchPending}>
+              <Button type="submit" className="min-h-11 w-full rounded-lg" disabled={searchPending} data-testid="customer-search-tables-btn">
                 <Search className="mr-2 h-4 w-4" />
                 {searchMutation.isPending ? "Đang tìm bàn" : "Tìm bàn"}
               </Button>
@@ -903,6 +903,7 @@ export function TableBookingPage() {
                             selected ? "border-primary ring-2 ring-primary/20" : "hover:border-primary/50"
                           }`}
                           onClick={() => chooseTables(choice.tableIds)}
+                          data-testid={`customer-table-choice-${choice.key}`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div>
@@ -997,7 +998,7 @@ export function TableBookingPage() {
           holdStatusLabel={holdState?.statusLabel}
           primaryAction={
             reservationCreateHref ? (
-              <Button asChild className="min-h-10 w-full rounded-lg">
+              <Button asChild className="min-h-10 w-full rounded-lg" data-testid="customer-confirm-hold-btn">
                 <Link href={reservationCreateHref}>Xác nhận thông tin đặt bàn</Link>
               </Button>
             ) : undefined

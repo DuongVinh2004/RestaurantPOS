@@ -1089,19 +1089,19 @@ export function ReservationCreatePage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="guest_name">Tên khách</Label>
-                  <Input id="guest_name" className="min-h-11 rounded-lg" {...form.register("guest_name")} />
+                  <Input id="guest_name" className="min-h-11 rounded-lg" data-testid="customer-name-input" {...form.register("guest_name")} />
                   {form.formState.errors.guest_name ? <p className="text-sm text-destructive">{form.formState.errors.guest_name.message}</p> : null}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="guest_phone">Số điện thoại</Label>
-                  <Input id="guest_phone" className="min-h-11 rounded-lg" {...form.register("guest_phone")} />
+                  <Input id="guest_phone" className="min-h-11 rounded-lg" data-testid="customer-phone-input" {...form.register("guest_phone")} />
                   {form.formState.errors.guest_phone ? <p className="text-sm text-destructive">{form.formState.errors.guest_phone.message}</p> : null}
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="guest_email">Email</Label>
-                <Input id="guest_email" type="email" className="min-h-11 rounded-lg" {...form.register("guest_email")} />
+                <Input id="guest_email" type="email" className="min-h-11 rounded-lg" data-testid="customer-email-input" {...form.register("guest_email")} />
                 {form.formState.errors.guest_email ? <p className="text-sm text-destructive">{form.formState.errors.guest_email.message}</p> : null}
               </div>
 
@@ -1168,6 +1168,7 @@ export function ReservationCreatePage() {
                 type="submit"
                 className="min-h-11 w-full rounded-lg"
                 disabled={createActionDisabled}
+                data-testid="customer-submit-reservation-button"
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" />
                 {createMutation.isPending ? "Đang xác nhận đặt bàn" : "Xác nhận đặt bàn"}

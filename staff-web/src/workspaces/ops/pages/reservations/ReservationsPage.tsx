@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Card, Form, Input, Select, Space, Table, Typography } from 'antd';
+import { Button, Card, Form, Input, Select, Space, Table, Typography, message } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReservationEnvelope, StaffReservationLookupEntry } from '../../../../shared/api/sdk';
 import {
@@ -397,9 +397,11 @@ export function ReservationsPage() {
       );
     },
     onError: (error) => {
+      const msg = formatApiError(error, 'Không thể nhận bàn cho đặt bàn.');
+      message.error(msg);
       mutationFeedback.setFailure(error, {
         actionLabel: 'Check-in khách',
-        fallbackMessage: formatApiError(error, 'Không thể nhận bàn cho đặt bàn.'),
+        fallbackMessage: msg,
       });
     },
   });

@@ -9,6 +9,7 @@ use Illuminate\Console\Command as ConsoleCommand;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 $consoleValidationPayload = static function (ValidationException $exception): array {
@@ -571,3 +572,59 @@ Artisan::command('staff-auth:api-keys:rotate
 
     return 0;
 })->purpose('Rotate a staff API key by revoking the current record and issuing a replacement.');
+
+Artisan::command('booking:qa-staff-password
+    {--username=bootstrap-admin : The username to update}
+    {--password=password : The new password to set}
+    {--json : Output machine-readable JSON}', function () {
+    /** @var ConsoleCommand $command */
+    // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
+    $command = $this;
+
+    $isLocalTesting = app()->environment(['local', 'testing']);
+    $isUat = app()->environment('uat') && env('QA_AUTOMATION_COMMANDS_ENABLED') === true;
+
+    if (! ($isLocalTesting || $isUat)) {
+        $payload = ['error' => 'forbidden', 'message' => 'This command is only available in local/testing/uat environments.'];
+        if ($command->option('json')) {
+            $command->line(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+            return 1;
+        }
+        $command->error($payload['message']);
+
+        return 1;
+    }
+
+    $username = (string) $command->option('username');
+    $password = (string) $command->option('password');
+
+    /** @var User|null $user */
+    $user = User::query()->where('username', $username)->first();
+
+    if (! $user instanceof User) {
+        $payload = ['error' => 'not_found', 'message' => "User {$username} not found."];
+        if ($command->option('json')) {
+            $command->line(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+            return 1;
+        }
+        $command->error($payload['message']);
+
+        return 1;
+    }
+
+    $user->password_hash = Hash::make($password);
+    $user->updated_at = now('UTC');
+    $user->save();
+
+    if ($command->option('json')) {
+        $command->line(json_encode(['ok' => true, 'message' => "Password updated for {$username}"], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return 0;
+    }
+
+    $command->info("Password updated successfully for {$username}.");
+
+    return 0;
+})->purpose('Set staff password for QA/automation purposes (local/testing/UAT only).');
