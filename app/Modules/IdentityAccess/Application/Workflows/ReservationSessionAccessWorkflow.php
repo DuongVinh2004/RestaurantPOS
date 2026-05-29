@@ -58,6 +58,11 @@ class ReservationSessionAccessWorkflow
         return '';
     }
 
+    public function isHoldOwnedBySession(string $holdId, string $sessionId): bool
+    {
+        return $this->findOwnedHoldForReservationCreationAuthorization($holdId, $sessionId) !== null;
+    }
+
     public function resolveUserIdFromOwnedHold(string $holdId, string $sessionId): ?int
     {
         // Dung cho flow nang cap anonymous hold thanh hold cua customer sau khi dang nhap.

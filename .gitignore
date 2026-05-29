@@ -69,3 +69,7 @@ yarn-error.log*
 *.pdb
 *.dll
 *.exe
+
+# Playwright Test Artifacts
+/staff-web/test-results/
+/staff-web/playwright-report/

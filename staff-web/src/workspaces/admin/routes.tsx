@@ -27,7 +27,6 @@ export const adminWorkspaceRoutes: Array<StaffWorkspaceRouteDefinition> = [
     path: 'inventory',
     absolutePath: staffRoutePaths.admin.inventory,
     page: 'admin-inventory',
-    capability: 'inventory.manage',
   },
   {
     key: 'benefits',

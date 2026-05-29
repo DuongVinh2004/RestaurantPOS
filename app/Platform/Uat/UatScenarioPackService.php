@@ -399,6 +399,7 @@ class UatScenarioPackService
                     })
                     ->delete(),
                 'kitchen_stations' => $kitchenStationIds === [] ? 0 : DB::table('kitchen_stations')->whereIn('station_id', $kitchenStationIds)->delete(),
+                'cashier_shifts' => $branchIds === [] ? 0 : DB::table('cashier_shifts')->whereIn('branch_id', $branchIds)->delete(),
                 'restaurant_tables' => $branchIds === [] ? 0 : DB::table('restaurant_tables')->whereIn('branch_id', $branchIds)->delete(),
                 'branches' => $branchIds === [] ? 0 : DB::table('branches')->whereIn('branch_id', $branchIds)->delete(),
                 'users' => $userIds === [] ? 0 : DB::table('users')->whereIn('user_id', $userIds)->delete(),

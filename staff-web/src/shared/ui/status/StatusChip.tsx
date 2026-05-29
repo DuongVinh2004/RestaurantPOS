@@ -9,6 +9,7 @@ export function StatusChip({
   appearance,
   icon,
   className,
+  'data-testid': dataTestId,
 }: {
   label: string;
   tone?: StatusTone;
@@ -16,11 +17,13 @@ export function StatusChip({
   appearance?: StatusChipAppearance;
   icon?: ReactNode;
   className?: string;
+  'data-testid'?: string;
 }) {
   const resolvedAppearance = appearance ?? resolveAppearance(variant);
 
   return (
     <span
+      data-testid={dataTestId}
       className={[
         'staff-status-chip',
         `staff-status-chip-${variant}`,

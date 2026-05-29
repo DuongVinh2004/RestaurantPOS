@@ -102,8 +102,8 @@ test.describe("Staff-Web Browser UAT Smoke Test", () => {
       await expect(page.locator(".staff-auth-card")).toBeVisible({ timeout: 15000 });
       
       // Fill credentials
-      await page.fill("input#identifier", "bootstrap-admin");
-      await page.fill("input#password", "password");
+      await page.fill("input#identifier", "uat.admin");
+      await page.fill("input#password", "UatDemo!123");
       await page.fill("input#deviceName", "Máy phục vụ UAT Chromium");
       
       // Submit
@@ -121,12 +121,18 @@ test.describe("Staff-Web Browser UAT Smoke Test", () => {
         await page.waitForURL("**/cashier-shift", { timeout: 10000 });
         
         // Wait for and click the open shift submit button on cashier shift page
-        const submitOpenBtn = page.locator("button:has-text('Mở ca thu ngân')");
+        const submitOpenBtn = page.getByRole('button', { name: 'Mở ca thu ngân' }).filter({ hasText: /^Mở ca thu ngân$/ }).last();
         await submitOpenBtn.waitFor({ state: "visible", timeout: 10000 });
-        await submitOpenBtn.click();
         
-        // Wait for shift to open and navigate back to access gate
-        await page.waitForTimeout(2000);
+        // Wait for the open shift API and the subsequent session refresh
+        const openShiftPromise = page.waitForResponse(r => r.url().includes('/api/v1/staff/cashier-shifts/open') && r.request().method() === 'POST', { timeout: 15000 });
+        const sessionRefreshPromise = page.waitForResponse(r => r.url().includes('/api/v1/auth/staff/me') && r.request().method() === 'GET', { timeout: 15000 });
+        
+        await submitOpenBtn.click();
+        await openShiftPromise;
+        await sessionRefreshPromise;
+        
+        // Navigate back to access gate
         await softNavigate(page, "/access");
       }
     });
