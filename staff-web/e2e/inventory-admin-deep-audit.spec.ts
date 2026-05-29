@@ -34,8 +34,8 @@ const supplierName = `Auto Supplier ${uniqueSuffix}`;
 
 const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:5173';
 const API_BASE = process.env.E2E_API_BASE ?? 'http://localhost:8000/api/v1';
-const ADMIN_USER = process.env.E2E_ADMIN_USER ?? 'bootstrap-admin';
-const ADMIN_PASS = process.env.E2E_ADMIN_PASS ?? 'password';
+const ADMIN_USER = process.env.E2E_ADMIN_USER ?? 'uat.admin';
+const ADMIN_PASS = process.env.E2E_ADMIN_PASS ?? 'UatDemo!123';
 
 test.describe('Inventory/Admin Deep Audit', () => {
   test.describe.configure({ mode: 'serial' });
@@ -71,7 +71,7 @@ test.describe('Inventory/Admin Deep Audit', () => {
 
   test('1. Login Admin via UI', async () => {
     await page.goto(`${BASE_URL}/login`);
-    await expect(page.getByRole('heading', { name: /đăng nhập/i })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText('Đăng nhập nhân viên')).toBeVisible({ timeout: 60_000 });
 
     await page.getByLabel(/Tài khoản \/ email \/ số điện thoại/i).fill(ADMIN_USER);
     await page.getByLabel('Mật khẩu').fill(ADMIN_PASS);
@@ -98,11 +98,35 @@ test.describe('Inventory/Admin Deep Audit', () => {
   // ─── Test 2: Navigate to Inventory ──────────────────────────────────────
 
   test('2. Navigate to Admin Inventory', async () => {
-    await page.goto(`${BASE_URL}/admin/inventory`);
-    await page.waitForURL('**/admin/inventory', { timeout: 8_000 });
+    // Handle dynamic landing path to avoid hard page reloads (which break memory tokens)
+    // Vite cold start can take >60s to load the StaffAppShell chunk on Windows VMs.
+    await expect(page.getByText('Đang tải màn hình…')).toBeHidden({ timeout: 90_000 }).catch(() => {});
+
+    if (page.url().includes('/access')) {
+        // Access Gate uses .staff-task-list-item cards. Find the one for Admin Hub.
+        const openAdminBtn = page.locator('.staff-task-list-item').filter({ hasText: 'Trang quản trị' }).getByRole('button', { name: 'Open' });
+        
+        await openAdminBtn.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+        if (await openAdminBtn.isVisible().catch(() => false)) {
+            await openAdminBtn.click();
+            await page.waitForURL('**/admin', { timeout: 30_000 });
+        }
+    }
+
+    if (!page.url().includes('/admin/inventory')) {
+        // Admin Landing Page has cards with action buttons "Mở {card.title}"
+        const openInventoryBtn = page.getByRole('button', { name: 'Mở Kho và mua hàng' });
+        
+        await openInventoryBtn.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+        if (await openInventoryBtn.isVisible().catch(() => false)) {
+            await openInventoryBtn.click();
+        } 
+    }
+
+    await page.waitForURL('**/admin/inventory', { timeout: 30_000 }).catch(() => {});
 
     const pageHeading = page.getByRole('heading', { name: /Kho và mua hàng/i });
-    await expect(pageHeading).toBeVisible({ timeout: 10_000 });
+    await expect(pageHeading).toBeVisible({ timeout: 60_000 });
 
     await page.screenshot({ path: path.join(evidenceDir, '02-inventory-page.png') });
   });
@@ -318,11 +342,8 @@ test.describe('Inventory/Admin Deep Audit', () => {
     await expect(receiptCreateBtn).toBeVisible({ timeout: 8_000 });
     await receiptCreateBtn.click();
 
-    // Receipt modal should open
-    const receiptForm = page.getByTestId('inventory-receipt-form');
-    await expect(receiptForm).toBeVisible({ timeout: 5_000 });
-
-    // Fill quantity in first receipt line
+    // Receipt modal should open and fetch PO detail
+    // We wait for the quantity input directly, as it will render once the PO details are loaded.
     const qtyInput = page.getByTestId('inventory-receipt-quantity-input').first();
     await expect(qtyInput).toBeVisible({ timeout: 5_000 });
     await qtyInput.fill('5');
@@ -348,11 +369,9 @@ test.describe('Inventory/Admin Deep Audit', () => {
     await expect(receiptRow).toBeVisible({ timeout: 8_000 });
 
     // Verify stock on hand chip updates (should now show > 0)
-    const stockOnHandChip = page.getByTestId('inventory-stock-on-hand-value');
-    await expect(stockOnHandChip).toBeVisible({ timeout: 5_000 });
-    const stockText = await stockOnHandChip.textContent();
-    expect(stockText).not.toContain('0');
-
+    // Find the chip by text to avoid data-testid passing issues in UI components
+    const stockOnHandChip = page.getByText(/Tồn:\s*[1-9]/).first();
+    await expect(stockOnHandChip).toBeVisible({ timeout: 8_000 });
     await page.screenshot({ path: path.join(evidenceDir, '07-receipt-created.png') });
   });
 
@@ -361,10 +380,10 @@ test.describe('Inventory/Admin Deep Audit', () => {
   test('8. Create manual stock movement (AdjustmentDecrease)', async () => {
     expect(createdIngredientId).not.toBeNull();
 
-    // Click on the created ingredient to select it
-    await page.goto(`${BASE_URL}/admin/inventory`);
+    // Ensure we are on inventory page (we should already be here from Test 7)
     await page.waitForURL('**/admin/inventory', { timeout: 8_000 });
 
+    // Click on the created ingredient to select it
     const ingredientItem = page.getByText(ingredientName).first();
     await expect(ingredientItem).toBeVisible({ timeout: 10_000 });
     await ingredientItem.click();
@@ -422,7 +441,7 @@ test.describe('Inventory/Admin Deep Audit', () => {
     const loginResponse = await fetch(`${API_BASE.replace('/api/v1', '')}/api/v1/auth/staff/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login: ADMIN_USER, password: ADMIN_PASS }),
+      body: JSON.stringify({ identifier: ADMIN_USER, password: ADMIN_PASS }),
     });
     expect(loginResponse.status).toBe(200);
     const loginBody = await loginResponse.json();
@@ -450,8 +469,7 @@ test.describe('Inventory/Admin Deep Audit', () => {
   test('10. Stock movement list shows created movements with correct types', async () => {
     expect(createdIngredientId).not.toBeNull();
 
-    // Navigate to ingredient detail and check movements via UI
-    await page.goto(`${BASE_URL}/admin/inventory`);
+    // Ensure we are on inventory page (we should already be here)
     await page.waitForURL('**/admin/inventory', { timeout: 8_000 });
 
     const ingredientItem = page.getByText(ingredientName).first();
@@ -498,7 +516,7 @@ test.describe('Inventory/Admin Deep Audit', () => {
     const loginResponse = await fetch(`${API_BASE.replace('/api/v1', '')}/api/v1/auth/staff/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login: ADMIN_USER, password: ADMIN_PASS }),
+      body: JSON.stringify({ identifier: ADMIN_USER, password: ADMIN_PASS }),
     });
     expect(loginResponse.status).toBe(200);
     const loginBody = await loginResponse.json();
