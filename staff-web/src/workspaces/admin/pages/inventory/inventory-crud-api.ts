@@ -42,6 +42,34 @@ export type AdminCreatePurchaseOrderPayload = {
   lines: Array<AdminPurchaseOrderLinePayload>;
 };
 
+export type AdminCreatePurchaseOrderReceiptLinePayload = {
+  purchase_order_line_id: number;
+  received_quantity: number;
+  unit_code?: string | null;
+  unit_cost?: number | null;
+  notes?: string | null;
+};
+
+export type AdminCreatePurchaseOrderReceiptPayload = {
+  receipt_code?: string | null;
+  received_at?: string | null;
+  supplier_document_no?: string | null;
+  notes?: string | null;
+  lines: Array<AdminCreatePurchaseOrderReceiptLinePayload>;
+};
+
+export type AdminRecipeLinePayload = {
+  ingredient_id: number;
+  quantity: number;
+  unit_code?: string | null;
+  notes?: string | null;
+};
+
+export type AdminUpsertMenuItemRecipePayload = {
+  row_version?: number;
+  lines: Array<AdminRecipeLinePayload>;
+};
+
 export async function createAdminIngredient(payload: AdminCreateIngredientPayload) {
   return apiRequest('/admin/inventory/ingredients', {
     method: 'POST',
@@ -79,5 +107,33 @@ export async function createAdminPurchaseOrder(payload: AdminCreatePurchaseOrder
     method: 'POST',
     body: payload,
     idempotencyKey: createIdempotencyKey('admin-po-create'),
+  });
+}
+
+export async function createAdminPurchaseOrderReceipt(
+  purchaseOrderId: number,
+  payload: AdminCreatePurchaseOrderReceiptPayload,
+) {
+  return apiRequest(`/admin/inventory/purchase-orders/${purchaseOrderId}/receipts`, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`admin-po-receipt-${purchaseOrderId}`),
+  });
+}
+
+export async function getAdminMenuItemRecipe(menuItemId: number) {
+  return apiRequest(`/admin/inventory/menu-items/${menuItemId}/recipe`, {
+    method: 'GET',
+  });
+}
+
+export async function upsertAdminMenuItemRecipe(
+  menuItemId: number,
+  payload: AdminUpsertMenuItemRecipePayload,
+) {
+  return apiRequest(`/admin/inventory/menu-items/${menuItemId}/recipe`, {
+    method: 'PUT',
+    body: payload,
+    idempotencyKey: createIdempotencyKey(`admin-menu-item-recipe-${menuItemId}`),
   });
 }

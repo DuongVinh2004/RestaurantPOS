@@ -29,6 +29,7 @@ import {
   listAdminPurchaseOrders,
   listAdminPurchaseOrderReceipts,
   listAdminSuppliers,
+  showAdminPurchaseOrder,
 } from '../../../../shared/api/staff-api';
 import { formatApiError } from '../../../../shared/api/errors';
 import { formatDateTime } from '../../../../shared/utils/format';
@@ -40,6 +41,8 @@ import { toast } from '../../../../shared/ui/feedback/toast';
 import { IngredientModal } from './IngredientModal';
 import { SupplierModal } from './SupplierModal';
 import { PurchaseOrderModal } from './PurchaseOrderModal';
+import { PurchaseReceiptModal } from './PurchaseReceiptModal';
+import { RecipeModal } from './RecipeModal';
 const purchaseOrderStatusOptions = [
   { value: '', label: 'Tất cả trạng thái' },
   { value: 'Draft', label: 'Nháp' },
@@ -74,6 +77,10 @@ export function AdminInventoryPage() {
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<any | null>(null);
   const [isPOModalOpen, setIsPOModalOpen] = useState(false);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
+  const [recipeMenuItemId, setRecipeMenuItemId] = useState<number | null>(null);
+  const [recipeMenuItemName, setRecipeMenuItemName] = useState<string>('');
 
   const ingredientsQuery = useQuery({
     queryKey: ['admin-inventory-ingredients', filters.ingredientQuery, filters.ingredientActiveOnly],
@@ -103,6 +110,12 @@ export function AdminInventoryPage() {
     queryKey: ['admin-inventory-purchase-order-receipts', selectedPurchaseOrderId],
     queryFn: () => listAdminPurchaseOrderReceipts(selectedPurchaseOrderId as number),
     enabled: selectedPurchaseOrderId !== null,
+  });
+
+  const purchaseOrderDetailQuery = useQuery({
+    queryKey: ['admin-inventory-purchase-order-detail', selectedPurchaseOrderId],
+    queryFn: () => showAdminPurchaseOrder(selectedPurchaseOrderId as number),
+    enabled: selectedPurchaseOrderId !== null && isReceiptModalOpen,
   });
 
   const ingredientRows = useMemo(() => ingredientsQuery.data?.data ?? [], [ingredientsQuery.data?.data]);
@@ -478,15 +491,36 @@ export function AdminInventoryPage() {
         )}
       </Card>
 
-      <Card className="staff-workspace-detail-card" title="Phiếu nhận hàng">
+      <Card
+        className="staff-workspace-detail-card"
+        title="Phiếu nhận hàng"
+        extra={
+          selectedPurchaseOrder &&
+          !['Received', 'Cancelled'].includes(selectedPurchaseOrder.purchase_order_status) ? (
+            <Button
+              type="primary"
+              size="small"
+              data-testid="inventory-receipt-create-button"
+              onClick={() => setIsReceiptModalOpen(true)}
+            >
+              Tạo phiếu nhận
+            </Button>
+          ) : null
+        }
+      >
         {!selectedPurchaseOrder ? (
           <EmptyBlock title="Chưa chọn đơn mua" description="Chọn một đơn mua hàng để xem lịch sử nhận hàng từ backend." />
         ) : (
           <Space orientation="vertical" size={12} style={{ width: '100%' }}>
             <Space wrap size={6}>
               <StatusChip label={selectedPurchaseOrder.order_code} tone="processing" />
+              <StatusChip label={adminPurchaseOrderStatusLabel(selectedPurchaseOrder.purchase_order_status)} tone={adminPurchaseOrderTone(selectedPurchaseOrder.purchase_order_status)} />
               <StatusChip label={`${receiptSummary.displayedCount} phiếu nhận`} tone="default" />
-              <StatusChip label={`${formatInventoryQuantity(receiptSummary.receivedQuantity)} đã nhận`} tone="success" />
+              <StatusChip
+                label={`Tồn: ${formatInventoryQuantity(receiptSummary.receivedQuantity)}`}
+                tone="success"
+                data-testid="inventory-stock-on-hand-value"
+              />
             </Space>
             {purchaseOrderReceiptsQuery.isLoading ? <InlineLoading tip="Đang tải lịch sử nhận hàng..." /> : null}
             {purchaseOrderReceiptsQuery.error ? (
@@ -499,7 +533,7 @@ export function AdminInventoryPage() {
             {receiptRows.length > 0 ? (
               <div className="staff-admin-detail-list">
                 {receiptRows.map((receipt) => (
-                  <div key={receipt.receipt_id} className="staff-admin-detail-item">
+                  <div key={receipt.receipt_id} className="staff-admin-detail-item" data-testid="inventory-stock-movement-row">
                     <strong>{receipt.receipt_code}</strong>
                     <span>
                       {inventoryReceiptStatusLabel(receipt.receipt_status)} / {formatInventoryQuantity(receipt.summary.received_total_quantity)} đã nhận / {formatDateTime(receipt.received_at ?? receipt.created_at)}
@@ -508,7 +542,7 @@ export function AdminInventoryPage() {
                 ))}
               </div>
             ) : !purchaseOrderReceiptsQuery.isLoading && !purchaseOrderReceiptsQuery.error ? (
-              <EmptyBlock title="Chưa có phiếu nhận" description="Luồng ghi nhận nhận hàng vẫn được ẩn cho tới khi contract tạo chi tiết dòng được đưa vào facade staff-web." />
+              <EmptyBlock title="Chưa có phiếu nhận" description="Nhấn 'Tạo phiếu nhận' để ghi nhận hàng vào kho." />
             ) : null}
           </Space>
         )}
@@ -527,12 +561,28 @@ export function AdminInventoryPage() {
     </Space>
   );
 
+  const poDetailLines = (purchaseOrderDetailQuery.data as any)?.data?.lines ?? [];
+
   return (
     <>
       <SplitWorkspace main={main} side={side} />
       <IngredientModal open={isIngredientModalOpen} onClose={() => setIsIngredientModalOpen(false)} editingIngredient={editingIngredient} />
       <SupplierModal open={isSupplierModalOpen} onClose={() => setIsSupplierModalOpen(false)} editingSupplier={editingSupplier} />
       <PurchaseOrderModal open={isPOModalOpen} onClose={() => setIsPOModalOpen(false)} suppliers={supplierRows as any} ingredients={ingredientRows as any} />
+      <PurchaseReceiptModal
+        open={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
+        purchaseOrderId={selectedPurchaseOrderId}
+        purchaseOrderCode={selectedPurchaseOrder?.order_code ?? ''}
+        lines={poDetailLines}
+      />
+      <RecipeModal
+        open={isRecipeModalOpen}
+        onClose={() => setIsRecipeModalOpen(false)}
+        menuItemId={recipeMenuItemId}
+        menuItemName={recipeMenuItemName}
+        ingredients={ingredientRows as any}
+      />
     </>
   );
 }

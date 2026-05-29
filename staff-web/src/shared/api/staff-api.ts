@@ -735,6 +735,10 @@ export async function createAdminPurchaseOrderReceipt(
   );
 }
 
+export async function showAdminPurchaseOrder(purchaseOrderId: number): Promise<Record<string, unknown>> {
+  return apiRequest(`/admin/inventory/purchase-orders/${purchaseOrderId}`, { method: 'GET' }) as Promise<Record<string, unknown>>;
+}
+
 export async function listAdminBranches(
   query: GetV1AdminSettingsBranchesQueryParams = {},
 ): Promise<BranchCollectionEnvelope> {
