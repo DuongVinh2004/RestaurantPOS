@@ -36,7 +36,7 @@ final class CustomerSessionRouteContract
             return false;
         }
 
-        return $this->reservationSessionAccessWorkflow->isHoldOwnedBySession($holdId, $sessionId);
+        return $this->reservationSessionAccessWorkflow->resolveUserIdFromOwnedHold($holdId, $sessionId) !== null;
     }
 
     /**
