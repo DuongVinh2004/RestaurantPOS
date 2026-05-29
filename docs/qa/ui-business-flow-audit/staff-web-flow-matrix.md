@@ -8,7 +8,7 @@
 | Table board/floor operations | Xem table board, trạng thái bàn, release table | Bảng bàn phản ánh đúng availability từ backend | Pass, table state reflects accurately | Pass | Golden Path Evidence | None |
 | Reservation management | List, timeline, detail, assign, move table, check-in | Chuyển trạng thái mượt, list load đúng | Pass, end-to-end check-in workflow succeeded | Pass | Golden Path Evidence | None |
 | Preorder staff | View reservation preorder, confirm/reject/convert | Convert thành công sang order item | Blocked | Blocked | N/A | N/A |
-| Dine-in ordering | Tạo order, add item, update qty, close/bill snapshot | Hoạt động từ đầu đến cuối không lỗi logic | Pass, order logic works smoothly | Pass | Golden Path Evidence | None |
+| Dine-in ordering | Tạo order, add item, update qty, close/bill snapshot | Hoạt động từ đầu đến cuối không lỗi logic | Partially Passed (Create Order PASS_WITH_API_FALLBACK due to UI branch context mismatch, end-to-end item mutation, void, dispatch, and concurrency PASS) | Partial | Test log | Medium |
 | Kitchen/KDS | Dispatch order, view stations, fire/bump/recall | Ticket states sync chuẩn | Pass, KDS syncing and transitions verified | Pass | Golden Path Evidence | None |
 | Checkout/payment | Open shift, checkout, refund preview, refund | Tính tiền chính xác, refund luồng chuẩn | Pass, safe path for cash checkout succeeded | Pass | Golden Path Evidence | None |
 | Cashier shift | Current, open, close, read history | Ghi nhận ca chính xác | Pass, active shift maintained throughout operations | Pass | Golden Path Evidence | None |
